@@ -936,6 +936,25 @@ in one command:
 the conformance suite's case for the shape (§19), and `fakeapp` grows a command that does all
 five, so the shape is tested before graft exists rather than discovered by it.
 
+**Row three is a design target, not an observed shape** - flagged because the whole table is
+derived from a program with no code. `interactive-stream` reads as "the stream carries the
+question and the answer", and graft's actual permission path is not that: it is
+`--permission-prompt-tool` pointing at an out-of-band MCP server, so the question leaves
+through a side channel and the outbound stream is *quieter* under the bridge, not richer.
+Measured against Claude Code 2.1.267 by the session planning graft: with that flag set the CLI
+emits no permission-denied event at all, and an unanswered request does not error - it runs to
+a 1800s idle timeout (1,805,940 ms measured) and ends `subtype: success`, `is_error: false`,
+`permission_denials` empty. **Anything treating a completed stream as a satisfied interaction
+reads that as a pass**, which is a trap for the invoker as much as for the fixture. agentbox
+hit the same wall and runs `bypassPermissions` because it does not speak the stream-json
+permission protocol. Two in-house data points and neither has an answered prompt, so §21
+declares this fixture correctable.
+
+**And one thing nobody owns:** the run-transcript scrubber. graft's plan assigns it to rig's
+pane surface; §10 and §11 here assume the program brings its own view. Each assigned it to the
+other, so it is unbuilt by both. It is not v1 work - graft is deferred past M13 - but it is
+recorded so the next reader of either plan finds it rather than the gap.
+
 **A program declares a preamble, not just commands.** One document an agent must read before
 touching that program, served as its own MCP resource and returned by `describe` on the program
 rather than on a command. archi's own ordered list of what matters in AI integration begins
@@ -978,6 +997,16 @@ does not get "permission denied" for these; it gets an answer that says the fiel
 was never recorded. That distinction matters: a filtered field invites an agent to go looking
 for another route to it, and a field that does not exist ends the search. Reading a secret is
 `secrets.get` with a grant, which is a different door and an audited one.
+
+**Where that distinction actually comes from, because the obvious answer is wrong.** §15's hot
+path *blanks known byte offsets* at 82.5 ns - and a blanked span decodes as an empty value,
+indistinguishable from a field that was legitimately empty. A blank cannot say "this exists
+and was never recorded". Putting a tombstone in the encoding would say it, at the cost of a
+wire change and a re-measurement, and it is not worth either. **The answer carries the
+declaration's `sensitive` pointer list instead** - the registry already holds it, per command,
+per `semantics_gen` - so a reader intersects the pointers with the record and gets the
+distinction from metadata that was never on the hot path. The blanking stays exactly as
+measured, and no per-record byte is spent on saying what the declaration already said.
 
 **Three limits of this, stated rather than claimed away:**
 
@@ -1129,6 +1158,10 @@ present on this laptop, so an ARGB visual and a real backdrop blur are available
 - **Nothing is ever only a toast.** Everything lands in a notification centre, searchable, with
   the action still live. That is what makes auto-dismiss safe.
 - Do Not Disturb and a fullscreen-focus rule. Suppressed toasts go to the centre, never dropped.
+- **Do Not Disturb never suppresses an `ask` that gates a command** (§13a, §14). It suppresses
+  notices; a question the caller is blocked on is not one. Stated here as well as in §14
+  because whoever builds this surface reads this section, and a conformance item asserts it
+  rather than leaving it as prose.
 - Falls back to `org.freedesktop.Notifications` where the frameless window is unavailable, and
   `rig doctor` says which is live.
 - **The notification centre is a service, not part of this surface** (§5h). It is the record of
@@ -1199,8 +1232,13 @@ rules written in 2026 - which only holds if the vocabulary can name it.
 - **It costs a registered program nothing.** Both fields it matches on are already declared.
 - `confirm` routes through the same `ask` primitive the peers service uses (§16), so the
   question reaches whoever is actually present - window, toast, terminal or phone.
-- Every decision is written to the audit log with the rule that fired, so "why was I asked" and
-  "why was that allowed" are answerable from the record.
+- Every decision is written to the audit log with **`origin`**, which is `rule` or
+  `elevation`, and the rule id when there is one. An elevation is not triggered by a house
+  rule - it is triggered by the call needing estate-wide authorisation (§14) - so an `origin`
+  that can only name a rule has no value for the commonest `confirm` the system will produce,
+  and the log cannot then answer the first question anyone asks of it. One more enum value
+  now; a schema migration later.
+- With that, "why was I asked" and "why was that allowed" are answerable from the record.
 
 ---
 
@@ -1211,7 +1249,8 @@ rules written in 2026 - which only holds if the vocabulary can name it.
 | Boundary | Between | How |
 |---|---|---|
 | **Instance** | Unix users | One daemon per uid. One socket at `$XDG_RUNTIME_DIR/rig/rigd.sock`, mode 0600, separate config, state and storage trees. Nothing is shared, including the tray, the window and the notification centre |
-| **Session** | Clients of one daemon: agents, terminals, the window, scripts | Every connection carries a principal - uid, client kind, client id, session id - and belongs to one or more **scopes**. Every kernel view is filtered by scope set, **unless the principal presents `introspect`** (below). Enforced against accident and against a merely buggy client; see the floor stated below for what it is not enforced against |
+| **Session** | Clients of one daemon: agents, terminals, the window, scripts | Every connection carries a principal - uid, client kind, client id, session id - and belongs to one or more **scopes**. Every kernel view is filtered by scope set, **unless the principal holds `introspect`** (below - and it is not presented, it is decided
+when the connection is made). Enforced against accident and against a merely buggy client; see the floor stated below for what it is not enforced against |
 | **Program** | Programs | Capabilities (§13): secrets namespaced, storage pathed, events by grant, no cross-program read of anything |
 
 **A client sees itself and the programs it may reach. Nothing else.** It cannot enumerate other
@@ -1243,74 +1282,136 @@ agent to read first. **Which grant is the whole question**, and the earlier vers
 section answered it with the only credential it had, making every one of those seven closed to
 an agent. Reading them takes `introspect`; changing anything through them takes `operate`.
 
-### The operator is a credential, not a uid
+### The operator is not a uid - and not a credential either
 
-§15 used to grant the clients view to "the uid that runs the daemon", and §14 puts one daemon
-per uid. A unix socket carries no credential but `SO_PEERCRED`, so **every client that could
+§15 used to grant the clients view to "the uid that runs the daemon", and the Instance
+boundary above puts one daemon per uid. A unix socket carries no credential but `SO_PEERCRED`, so **every client that could
 connect already satisfied that predicate** - and `rig history --client=X` would then hand any
 agent another program's secrets (§15). It is the highest-ranked finding of the 2026-09-10
 attack and it was invisible to every seat individually.
 
-- At startup `rigd` mints **two** tokens. Neither is a file on the socket's path.
-- **`introspect`** grants **every read**: the estate-wide views, the full capability map,
-  `config export`, `doctor`, the schedule, the notification centre, any client's history, any
-  trace. It grants **no action at all**.
-- **`operate`** grants estate-wide *action*: stopping a program another client owns, revoking a
-  grant, breaking a lease, editing config outside the caller's scope.
-- Two booleans on the principal struct. There is no other way to become either.
+The fix went through two wrong drafts before the right one, and both were wrong the same way,
+so the reasoning is worth keeping:
 
-**`operate` is asked for, not carried, and that is the whole distribution mechanism.** The
-first draft handed it to "the process that launched `rigd`" - which under M15's autostart is
-systemd, so `rig stop shelf` from a terminal, the tray's Start entry and the crash panel's
-manual restart were all unreachable. Every human surface is launched by something other than
-the daemon's launcher, so a carried token can never reach the surfaces that need it.
+| Draft | Mechanism | How it broke |
+|---|---|---|
+| 1 | A token minted at startup into a 0600 file | Every client runs as this uid, so every client could read it. Any program could grant itself the estate |
+| 2 | A token in `RIG_INTROSPECT`, exported by Boris's shell | An environment is inherited by a shell's **whole descendant tree** - `make`, an npm postinstall, every in-house program he starts by hand. And it is minted per daemon start, so after the first `rigd` restart every long-lived shell holds a stale one and is silently downgraded, with no way to rewrite it from outside |
 
-Instead, an estate-wide action elevates through **the same `ask` primitive §13a already uses
-for `confirm`** (§16):
+**Both drafts tried to push a secret to the right set of processes.** The set was never the
+problem. rig already knows which connections are programs, because it registered them.
 
-| Caller | How it gets `operate` |
+### `introspect` is decided at connect time, not distributed
+
+**What it grants**, stated before how it is decided: **every read**. The estate-wide views, the
+full capability map, `config export`, `doctor`, the schedule, the notification centre, any
+client's history, any trace. It grants **no action at all** - that is `operate`, below.
+
+- `introspect` is **not a token, a file or an environment variable**. There is nothing to
+  deliver, nothing to store and nothing to steal. It is decided when a connection is made:
+    * a connection that completes the **program registration** handshake (§5) is a program,
+      and is scoped for the life of that connection;
+    * every other connection on the local socket from this uid is a client of Boris's, and
+      reads everything.
+- **HTTP is excluded.** A connection with no unix peer mints its principal from a bearer
+  token per client kind - `MintPrincipal(evidence)`, below - and gets no scopes at all,
+  `introspect` included.
+
+Nothing is inherited, so a build script descended from Boris's shell gets no more and no less
+than the shell did - and a program gets nothing, however it was started. Nothing is minted per
+daemon start, so a restart cannot silently downgrade a window that has been open for a week.
+Nothing is persisted, so there is no file to find.
+
+**The one limit, stated because a boundary nobody writes down is a boundary nobody tests:** a
+program that opens a *second* connection and declines to register on it is a client of Boris's
+and reads everything. That is the same floor the file and the environment had, but reaching it
+now takes deliberate action rather than inheritance - which is the standard §13 sets for
+capability enforcement, labelled the same way. **No program acquires the estate by accident, or
+by being merely buggy.** Genuinely enforced against a hostile local process: only the uid
+boundary and redaction.
+
+This is also the only version of the mechanism a **hosted** program (§5j) can be held to. A
+hosted plugin is compiled into `rigd` and shares its environment, so no environment scrub could
+ever have covered it; its *connection* is registered like any other program's, so the predicate
+covers it with no special case. Conformance item 23 asserts it, and item 24 holds the hosted
+class to it (§19).
+
+### Every new principal gets walked against this table
+
+The 2026-09-10 sweep found the same defect four times - the grant reaching a caller kind nobody
+was thinking about - and diagnosed the cause correctly: **reasoning about a grant from the
+caller it was written for, and not from the others.** The artefact that prevents it is a list of
+the callers. Anything that adds a principal, a grant or a scope is walked against all of it, and
+the walk is part of the change, not a review comment:
+
+| Caller | Has a connection | What it gets |
+|---|---|---|
+| An agent Boris runs | yes, unregistered | everything. This is the motivating caller, and the one that misleads |
+| A terminal, the window, the tray | yes, unregistered | everything |
+| A script, a `make` target, anything descended from his shell | yes, unregistered | everything, and it inherited nothing to get there |
+| A registered program, spawned or hosted | yes, registered | its own scope only |
+| An HTTP client | no unix peer | its bearer principal's scopes, never `introspect` |
+| A scheduled fire, a house rule, an internal timer | **none** | rig's own principal. It has no connection to decide from, so it is named explicitly or it is refused (§13a) |
+
+### `operate` is an authorisation decision per call, not a grant at all
+
+The first draft handed `operate` to "the process that launched `rigd`" - which under M15's
+autostart is systemd, so `rig stop shelf` from a terminal, the tray's Start entry and the crash
+panel's manual restart were all unreachable. The second draft kept a file for "non-interactive
+callers - systemd units, `make deploy`", and recreated the same defect one row lower: `make
+deploy` typed in a terminal descends from Boris's shell, not from the daemon's launcher, so the
+row promised a file to a caller that provably cannot read it.
+
+**So `operate` stops being a credential.** Estate-wide action - stopping a program another
+client owns, revoking a grant, breaking a lease, editing config outside the caller's scope - is
+an authorisation decision taken per call, which is exactly what §13a already is:
+
+| Caller | How the call is authorised |
 |---|---|
-| Any interactive surface - terminal, tray, window, an agent | Asks. The question reaches whoever is present, and the answer elevates **that one call**, not the connection |
-| A non-interactive caller that must act unattended - systemd units, `make deploy` | The token, still passed only to the process that launched `rigd`, still a file it alone can read |
+| Any interactive surface - terminal, tray, window, an agent | `confirm`, which routes to window, toast or terminal (§12, §13a). The answer authorises **that one call**, not the connection |
+| Anything unattended - a systemd unit rig installs, `make deploy`, a scheduled fire | A **house rules** entry naming the caller and the command. Declared, auditable, reviewable in one file, and no secret exists to leak |
 
-This buys three things and adds no concept. There is no new elevation vocabulary - `confirm`
-already routes to window, toast or terminal. Elevation is per call, so nothing holds standing
-estate-wide power for hours. And every elevation is a `confirm` decision, so §13a's rule that
-each one is written to the audit log with the rule that fired covers it for free.
+That deletes the second file, the second boolean and the distribution problem in one move.
+**One boolean remains on the principal struct** - `scoped`, set by registration - and there is
+no other way to become either kind of caller.
 
-**A timed-out elevation is denied, and the denial is recorded.** Estate-wide action fails
-closed: an agent at 3am that asks to stop a program another client owns, with nobody present,
-is refused rather than queued. Do Not Disturb never suppresses an `ask` that gates a command
-(§12) - it suppresses notices, and this is not one.
+There is no new elevation vocabulary: `confirm` already routes to window, toast or terminal.
+Authorisation is per call, so nothing holds standing estate-wide power for hours. And the audit
+log already records every `confirm` decision, so an estate-wide action is audited for free -
+with `origin: elevation` distinguishing it from `origin: rule` (§13a).
 
-**How a token reaches a reader, and why it is not a file.** A 0600 file readable by this uid
-is readable by *every* client, since they all run as this uid - so a file would make the
-session boundary in the table above a comment rather than a boundary, and any program could
-grant itself the estate. Instead:
+**The question must name what it is authorising, and reach the caller that asked.** A toast
+that says only "stop shelf?" is answered by whoever is looking at the screen, in the belief it
+came from the terminal in front of them - and §12's toast deliberately does not steal focus.
+So the prompt carries, always: the **principal** and client kind, the **pid**, the
+**command**, and the **arguments** as they will be invoked. And it routes to the requesting
+caller's own surface first - an interactive caller is asked where it is, and only an
+unattended caller's question goes to whoever is present. The audit log records the decision
+afterwards (§13a); this is what makes the decision itself attributable at the moment it is
+taken.
 
-| Grant | Delivered by | So it reaches | And not |
-|---|---|---|---|
-| `introspect` | `RIG_INTROSPECT` in the environment, exported by Boris's shell profile from `rigd`'s startup handshake | every terminal, agent and window he starts | anything `rigd` spawns - **rig scrubs both variables from the environment of every program it starts** (§18) |
-| `operate` | **asked for per call** through `confirm`/`ask` (§13a, §16); a file for non-interactive callers only | any surface where Boris can answer, one call at a time | anything unattended that did not launch `rigd`, and anything at all when nobody answers |
+**An unanswered elevation is denied, and the denial is recorded.** Estate-wide action fails
+closed: an agent at 3am that asks to stop a program another client owns, with nobody present
+and no house rule naming it, is refused rather than queued. Do Not Disturb never suppresses an
+`ask` that gates a command (§12) - it suppresses notices, and this is not one.
 
-**Why complete reading is safe once it is reaching the right readers.** The 2026-09-10
-attack's highest-ranked finding was that `SO_PEERCRED` made every client an operator, and that
-`rig history --client=X` would then hand any agent **another program's secrets**. That was a
-finding about *what the history contains*, and §15 fixed it at the source: anything `secrets`
-returns is never recorded, and every field declared `sensitive` is blanked before the write.
-**Redaction is the precondition for complete introspection.** With it, the worst an
-introspecting agent can read is everything Boris could read himself - the requirement, not the
-leak. Without it, no delivery mechanism would have been safe enough.
+**A lease-holder can still be asked.** §16 says a lock is never held across a question to a
+human, and rig refuses the combination - which would refuse the motivating case, `rig peers run
+--lease=deploy -- make deploy` needing to stop a program. The exception, and it reuses existing
+machinery: **an elevation or `confirm` that gates the lease-holder's own call freezes expiry on
+every lease that caller holds for the duration of the question**, the same freeze §16 already
+applies after a suspend. The rule §16 states is about a lock blocking *someone else* on an
+answer, and here nobody else is blocked.
 
-**The floor, stated because a boundary nobody wrote down is a boundary nobody tests.** Same-uid
-processes on Linux can read each other's `/proc/<pid>/environ`. A program determined to
-introspect can therefore take the grant from an agent's environment, and nothing in this design
-prevents it. What the environment delivery does buy is real and is the thing that matters here:
-**no program acquires the estate by accident, or by being merely buggy** - it has to go and
-take it. That is the same standard §13 sets for capability enforcement, labelled the same way.
-Genuinely enforced against a hostile local process: only the uid boundary, `operate`, and
-redaction.
-
+**Why complete reading is safe.** The 2026-09-10 attack's highest-ranked finding was that
+`SO_PEERCRED` made every client an operator, and that `rig history --client=X` would then hand
+any agent **another program's secrets**. That was a finding about *what the history contains*,
+and §15 fixed it at the source: anything `secrets` returns is never recorded, and every field
+declared `sensitive` is blanked before the write. **Redaction is the precondition for complete
+introspection.** With it, the worst an introspecting agent can read is everything Boris could
+read himself - the requirement, not the leak. Without it, no mechanism would have been safe
+enough - so M1 ships the connect-time predicate, and complete history reading is gated on M5's
+redaction spans (§23).
 ### Scopes, so peers is not a hole in the filter
 
 `announce` must return the crew, so under the old design the kernel needed a peers special case
@@ -1369,7 +1470,7 @@ ways, and the third is the one that catches the bug this design could actually h
 | Run | A holds | Required outcome |
 |---|---|---|
 | 1 | nothing | A's transcript is identical in W1 and W2. Isolation holds |
-| 2 | `introspect` | A sees B completely, in every view, with no gaps and no silent filtering. **A missing row is a failure here**, the same way an extra row is a failure in run 1 |
+| 2 | `introspect` | A sees B completely, in every view, **with no gap that §15's coverage log does not declare**, and no silent filtering. A missing row whose absence the coverage log explains is a pass; a missing row it does not explain is a failure here, the same way an extra row is a failure in run 1. The assertion is on the coverage entry, not on the row - §15 loses records through four declared paths, so a completeness test with no such clause is false on the first busy day |
 | 3 | `introspect` | Every value B declared `sensitive`, and everything B's `secrets` calls returned, is absent from A's transcript - at any sampling rate, in any encoding |
 
 Run 2 is the requirement in §2 made testable, and it fails loudly rather than
@@ -1384,7 +1485,7 @@ that includes every agent Boris runs** (§2). The asymmetry is deliberate: isola
 clients, not between rig and the people and agents working for its owner.
 
 Both halves of that sentence are corrections, and they were made a day apart. `introspect` is
-a **credential** (§14), not a uid - a token minted at startup into a 0600 file - because
+decided at connect time (§14), not a uid and not a token - because
 without that correction every client on a one-user machine reads everything by accident, and
 `rig history --client=X` hands over another program's secrets. And it is deliberately **not**
 the same grant as acting estate-wide, because the version of the fix that made this section
@@ -1624,7 +1725,11 @@ is kept whole.
 
 - Every lease has a TTL, and an absolute one on `CLOCK_BOOTTIME`. There is no infinite hold.
 - Every `await` has a deadline. There is no infinite block.
-- A lock is never held across a question to a human. rig refuses the combination.
+- A lock is never held across a question to a human. rig refuses the combination. **One
+  exception:** a `confirm` or an elevation that gates the lease-holder's *own* call is not a
+  question across a lock - nobody else is blocked on the answer. Expiry is frozen on every
+  lease that caller holds for the duration of the question, the same freeze applied after a
+  suspend below (§13a, §14).
 - Every primitive's crash semantics are written down and tested, not inferred.
 - **What a contended acquisition reveals about other clients is written down in §14** and
   accepted there, rather than discovered later: BUSY proves a peer exists, and a refused
@@ -1751,10 +1856,26 @@ benchmark as evidence of anything.
 - **Register:** handshake, wire version check, declaration validated against its schema,
   capabilities granted, then the program appears on every surface. A failure at any step is a
   quarantine with the reason, not a retry loop.
-- **Start:** rig builds the child's environment rather than inheriting its own, and
-  **`RIG_INTROSPECT` and the `operate` variable are removed from it** (§14). A program is
-  never handed the estate by inheriting the environment of the thing that started it, which is
-  the accident this is guarding against. Asserted by a conformance item, not by review.
+- **Start:** rig builds the child's environment rather than inheriting its own. **No grant
+  travels in it, because no grant exists as a variable** - `introspect` is decided from the
+  connection (§14), so there is nothing to scrub and nothing a future reader can reintroduce
+  by forgetting to. What the constructed environment *does* carry is an allowlist, written
+  down because a constructed environment silently governs the estate and an empty one breaks
+  four subsystems:
+
+  | Variable | Without it |
+  |---|---|
+  | `DBUS_SESSION_BUS_ADDRESS` | `go-keyring` cannot reach the secret store (§22), and §12's D-Bus toast fallback is dead |
+  | `DISPLAY`, `WAYLAND_DISPLAY`, `XAUTHORITY` | every `needs_display` command fails, including §5e's own worked example `snapper.capture-region` |
+  | `SSH_AUTH_SOCK` | a program that shells out to git over ssh hangs on a passphrase nobody can answer |
+  | `TZ`, `LANG`, `LC_ALL` | timestamps and collation drift from every surface that renders them, and `TZ` feeds the DST hole in §33 |
+  | `HOME`, `PATH`, `XDG_RUNTIME_DIR`, `XDG_*_HOME` | nothing resolves - a program cannot find its own socket, config or cache |
+  | `RIG_*` | the program's own registration handles: socket path, program id, wire version. Never a grant |
+
+  Everything else is dropped, and the allowlist is config, resolved through §11 like anything
+  else, so a program needing one more variable declares it rather than getting the parent's
+  whole environment back. Conformance item 22 already reads the child's environment; it
+  asserts the positive half in the same test.
 - **Health:** on the interval, with a timeout. Three failures is degraded, five is a restart.
 - **Restart:** exponential backoff inside a budget. Exceeding it is quarantine - a visible state
   with the full history and a manual restart, never a silent disappearance.
@@ -1827,16 +1948,22 @@ program's own CI runs it. This is what makes the contract real.
     it, or an explicit terminal fallback. Asserting that *a* renderer exists is not the test
 21. **House rules are enforced in the invoker**, proven by running one denied command through
     every surface from one test
-22. **A hosted program passes items 1-21 unchanged**, from the same package, with no branch in
-    the suite
-23. **A started program's environment carries neither grant.** `RIG_INTROSPECT` and the
-    `operate` variable are absent from the child's environment, asserted by reading
-    `/proc/self/environ` from inside a program rig started (§14, §18). The inheritance version
-    of this bug is silent, survives review, and hands the estate to the first program launched
-24. **Introspection is complete, and asserted positively.** A principal holding `introspect`
-    gets the *full* answer from every estate-wide view - capability map, clients, history,
-    traces, config, schedule, audit. **A scoped answer where a complete one was owed fails
-    this item**, and it is ranked with the leak tests rather than below them (§3, §14)
+22. **A started program's environment is the constructed allowlist and nothing more**, read
+    from `/proc/self/environ` inside a program rig started (§18). Both halves are asserted:
+    every variable §18 lists is present and correct, and **no variable outside the list
+    survives**, including any `RIG_*` name that is not a registration handle. No grant can
+    appear here because no grant exists as a variable (§14) - the item stands so that a future
+    reader who reintroduces one fails a test rather than a review
+23. **A registered program is scoped on its own connection, and stays scoped.** From inside a
+    started program: every estate-wide view returns its own scope only, for the life of the
+    connection, and no handshake, reconnect or capability grant changes that (§14). This is
+    the item a hosted program must pass, and the reason the predicate is on the connection
+    rather than on the environment
+24. **A hosted program passes items 1-23 unchanged**, from the same package, with no branch in
+    the suite. Item 22 is the one that would have been impossible under the old design - a
+    hosted plugin is compiled into `rigd` and shares its environment, so it is exempted from
+    the allowlist half and held to item 23 instead, which is the assertion that actually
+    binds it (§5j)
 
 `fakeapp` is the misbehaving reference program and ships in the repo. It hangs, crashes, leaks,
 floods, lies about its schema, ignores cancellation and returns garbage, each on a flag.
@@ -1860,6 +1987,8 @@ expensive.
 | Chaos | 10000 randomised kill / hang / flood / restart sequences against `fakeapp`, seed printed on failure |
 | Suspend | A real-clock test with an injected `CLOCK_BOOTTIME` jump. `synctest` cannot model suspend, and this laptop suspends nightly, so the mandate above would otherwise make the whole class untestable |
 | Isolation | Observational equivalence over two worlds (§14), including the runtime directory, the config tree, the state tree and the process table |
+| Authorisation | Two assertions §14 and §12 both rely on and neither could test as prose. **Do Not Disturb does not suppress a gating `ask`:** with DND on, a command needing `confirm` still reaches a surface and still blocks, while a lifecycle notice in the same run goes to the centre (§12, §13a). **An elevation prompt names its caller:** the rendered question carries principal, client kind, pid, command and arguments, and an interactive caller's question arrives on that caller's own surface rather than on whichever is present (§14) |
+| Introspection | §14's **three-run battery**, and it lives here rather than in §19's program-side suite: it is a property of *rig* over several clients, and the program under test is refused `introspect` and has no peers to be complete about. Run 1 ungranted A sees nothing of B; **run 2 A sees B completely - a scoped answer where a complete one was owed fails as hard as a leak**, modulo the coverage log; run 3 no `sensitive` value surfaces at any sampling rate |
 | Fuzz | Registration parser, JSON Schema inputs, frame decoding, the postMessage bridge |
 | CLI | testscript golden transcripts for every command including failures |
 | Generated UI | Golden snapshot per schema shape |
@@ -1878,6 +2007,15 @@ expensive.
   with its full vendored source tree so it can be rebuilt in 2035, and **retained forever**. The
   previous plan archived only the last release, and "N works against N+1" repeated is not
   "1 works against N".
+- **One fixture's shape is declared unproven, and this is where that has to be said.** The
+  `interactive-stream` case (§9, §19) is modelled on `graft run`, a program that does not
+  exist yet, and its hardest row - an inbound question on an outbound stream - has no working
+  implementation anywhere in the estate: the graft session measured Claude Code 2.1.267
+  emitting *no* permission event under `--permission-prompt-tool`, and agentbox runs
+  `bypassPermissions` for the same reason. **Retained forever applies to a fixture, not to a
+  guess**, so this one may be corrected once a real answered prompt exists, and the correction
+  reads as planned rather than as a broken promise. Everything else in §9's five rows is
+  ordinary and stands.
 - **Each fixture asserts a behaviour transcript**, recorded at ship time: which default applied,
   whether a confirm fired, what each enum decoded to. A round-trip test passes while a new
   `effects` value silently decodes to zero on an old binary and a destructive command reports
@@ -1979,7 +2117,12 @@ program that needs it. Each ends green, committed, and demonstrated.
 | M | Name | Ships | The demo that closes it |
 |---|---|---|---|
 | M0 | Skeleton | Repo, module, Makefile, CI, lint with all three analyzers, **`cmd/rigd` and `cmd/rig` as separate binaries**, the socket, **the single-instance `flock` (§5f)**, the hand-framed protobuf codec, `GOMEMLIMIT`/`GOGC`, `make bench-size`, `make modules-matrix`, `fakeapp` | `make ci` green; `rig ping fakeapp` round-trips; **a second `rigd` refuses to start and names the incumbent's pid**; `make bench-ipc` reproduces §4; `make bench-size` records the ratchet's starting number |
-| **M1** | **Register and the CLI** | Registration with declared **properties** and the computed projection, the registry, argument schemas, coverage, `semantics_gen`, **the two grants - `introspect` and `operate` (§14)**, **house rules in the invoker**, `rig <app> <cmd>`, generated `--help`, completion, `--json` everywhere | **The week-one product.** `rig shelf reindex` from any terminal. One front door, no GUI. A destructive command with no grant is refused, and the same test covers every surface added later |
+| **M1** | **Register and the CLI** | Registration with declared **properties** and the computed projection, the registry, argument schemas, coverage, `semantics_gen`, **the connect-time `introspect` predicate and per-call `operate` (§14)** - and note the
+dependency, because §14's safety argument turns on it: the predicate ships here, and
+**complete history reading is gated on M5's compiled redaction spans**, so between M1 and M5
+an introspecting client reads the registry and the live views but not a recorded transcript.
+The call log itself lands at M5, so the exposure is thin in practice; it is written down so
+the ordering cannot be changed later by someone who never reads §14 - **house rules in the invoker**, `rig <app> <cmd>`, generated `--help`, completion, `--json` everywhere | **The week-one product.** `rig shelf reindex` from any terminal. One front door, no GUI. A destructive command with no grant is refused, and the same test covers every surface added later |
 | M2 | MCP and HTTP | The four meta tools, promotion, the capability-map resource **with coverage per program**, the per-program preamble, HTTP routes with **minted principals**, structured errors | An agent runs a real command in a real program through one MCP server, having written nothing - and is told, in the same answer, that its picture of that program is partial |
 | M3 | Terminal client | `rig shell` with completion and inline describe, the `rig tui` frame, `huh` forms from declared schemas, `--batch --json` | Every registered command discoverable and runnable from the TUI, by a person who read no docs |
 | M4 | Config | Layers, schema, provenance, live push, validate, export, diff, and its TUI view | `rig config origin` explains a surprising value; a change applies live with no restart |
@@ -2199,7 +2342,7 @@ their product.
 | The stub | A 300-line un-upgradable copy of config, storage, secrets and logging | Tolerant client + resolved snapshot + lifecycle notices (§5g) |
 | Hot upgrade | A locked requirement | **Not built.** Measured at 1.9 ms marginal benefit against four defect classes (§18) |
 | Authorization | Absent. Zero such language in the document | `house rules`, in the kernel's invoker (§13a) |
-| The operator | The uid running the daemon | A credential, minted to a 0600 file (§14). **Since split in two by §2's introspection decision: `introspect` reads everything, `operate` acts** |
+| The operator | The uid running the daemon | **Nothing is minted at all.** `introspect` is decided at connect time from whether the connection registered as a program, and `operate` is an authorisation decision per call (§14). Two rejected drafts - a 0600 file, then an environment variable - are recorded there so neither is reached for again |
 | Redaction | Absent | Declared at registration, compiled to byte spans, 82.5 ns (§15) |
 | Leases | A TTL and a fencing token | A liveness witness, two-step expiry, `rig peers run`, and an honest statement of what a token can fence (§16) |
 | Time | Unnamed | `CLOCK_BOOTTIME`, absolute deadlines, a resume grace epoch (§16) |
@@ -2235,7 +2378,7 @@ mode of ten seats each attacking one surface.
 
 | Was | Is |
 |---|---|
-| One operator credential, minted to a path only the launching process gets | **Two grants.** `introspect` reads everything and arrives in the environment of what Boris starts. `operate` acts estate-wide and is **asked for per call**, because a carried token reaches systemd and not one surface a human touches. rig scrubs both from every program it spawns |
+| One operator credential, minted to a path only the launching process gets | **Two grants and no credential.** `introspect` is **decided at connect time** from whether the connection registered as a program; `operate` is an authorisation decision per call, through `confirm` for anyone present and a named `house rules` entry for anything unattended. Nothing is minted, distributed, inherited or persisted. Two drafts that did distribute something - a 0600 file, then `RIG_INTROSPECT` in the environment - are recorded in §14 with how each broke, and §33 has the sweep that killed the second |
 | Estate-wide views closed to every agent | Open to any agent Boris runs, completely - the full map, any client's history, every trace, every config resolution |
 | §3's isolation test: "two clients cannot see each other" | Three runs. Ungranted A sees nothing of B; A holding `introspect` sees **all** of B and a missing row is a failure; and no run at any sampling rate surfaces a `sensitive` value |
 | "Looking is an event", one audit entry per read | Coalesced per principal, per view, per minute, with a count. Presenting a grant stays uncoalesced |
@@ -2247,22 +2390,28 @@ introspection**, and the two features are complements rather than a trade.
 
 **What this deliberately does not do.** It does not widen what an agent may *run* - `house
 rules` (§13a) is untouched and a destructive command still needs its grant. It does not make
-programs introspectors: the grant never enters a spawned program's environment (§18) and is
-refused to a connection that registered as a program.
+programs introspectors: a connection that registered as a program is scoped for its life, and
+there is no variable, file or token for a program to acquire instead.
 
-**Found by the blind-spot sweep, an hour after the first draft.** Two defects in this change
-were caught by seat s9 reading it while it was still uncommitted, and both are fixed above: the
-grant delivered as a uid-readable file (which would have let any program read every other
-program's history, against §14's own Program row), and `operate` distributed to a process no
-human surface descends from. The record is
-`logbook/projects/rig/agent-work/attack-2026-09-10-s9-blindspot-sweep/FINDINGS.md`, findings
-B1 and B3. **Both are the same mistake**: reasoning about the grant from the reader it was
+**Found by the blind-spot sweep, an hour after the first draft, and then again an hour after
+the second.** Round 1 caught two defects while the change was still uncommitted: the grant
+delivered as a uid-readable file, and `operate` distributed to a process no human surface
+descends from. **Both are the same mistake** - reasoning about the grant from the reader it was
 written for, and not from the other four kinds of caller.
+
+The second draft made that same mistake four more times, and round 2 is what caught it: the
+environment reaches a shell's whole descendant tree and goes stale on restart (D1, D2, D3), a
+hosted program is the one class no environment scrub can cover (D4), `make deploy` cannot read
+the launcher's file (D9), and §12 never carried the Do Not Disturb exception §14 relied on
+(D13). **The durable lesson is narrower than "run a sweep":** anything that adds a principal,
+a grant or a scope gets walked against the full caller table, which is why §14 now has one.
+The record is
+`logbook/projects/rig/agent-work/attack-2026-09-10-s9-blindspot-sweep/FINDINGS.md`.
 
 **And one thing it costs, written down rather than argued away.** The session boundary in
 §14's table was previously enforced for every client; it is now enforced against accident and
-against a merely buggy client, and a determined same-uid process can still read the grant out
-of an agent's `/proc/<pid>/environ`. That is the floor of same-uid isolation on Linux and no
+against a merely buggy client, and a program that opens a second connection and declines to
+register on it reads everything. That is the floor of same-uid isolation on Linux and no
 arrangement of tokens beats it. Three things remain genuinely enforced against a hostile local
 process: the uid boundary, `operate`, and redaction. **The first draft of this change put the
 grant in a 0600 file, which would have made the session boundary a comment** - it is recorded
@@ -2287,14 +2436,39 @@ surface: backup, disk, format versioning, uninstall, accessibility, unattended o
 
 | # | Was | Now |
 |---|---|---|
-| B1 | `introspect` in a uid-readable file, so any program could read every other program's history | Delivered by environment, scrubbed from every spawned program (§14, §18) |
-| B3 | `operate` reached only whatever launched `rigd` - systemd - so no human surface could act | Asked for per call through `confirm`/`ask`; the token survives for unattended callers (§14) |
+| B1 | `introspect` in a uid-readable file, so any program could read every other program's history | Nothing is delivered. It is **decided at connect time** from whether the connection registered as a program (§14). Went through an environment-variable draft first, which round 2 killed |
+| B3 | `operate` reached only whatever launched `rigd` - systemd - so no human surface could act | Not a credential at all: `confirm` per call for anyone present, a named `house rules` entry for anything unattended (§14). The unattended *token* survived the first fix and round 2's D9 killed that too |
 | B4 | The `house rules` caller vocabulary named only connections | `schedule`, `bus` and `url` added, each minting a principal; `url` defaults to read-only plus confirm (§13a) |
 | B5 | §5a put `secrets` in the daemon; §22 linked go-keyring only into the CLI | `rigd` owns the keyring. §17's 8.89 MiB rung is now a design target until `bench-size` splits it (§17, §22) |
 | B6 | "Exactly one rig per user" - §16's load-bearing premise - with zero enforcement | `flock` on a pidfile before bind, at M0, with a chaos test (§5f) |
 | B10 | §7's rule binds rig's own storage; nothing backed rig up | `rig backup` / `rig restore`, four rows of state named, at M11 (§7) |
 | B18 | The client stub "does exactly four things" over a list of five, against a §3 gate | Corrected (§5d) |
 | B2 | §17 measured `rigd` and called it rig, while three sections imply an unnamed resident GUI process | The gap and the three-way decision are stated, and M8 owns it (§17, §23) |
+
+### Round 2, over the introspection change itself
+
+The sweep ran twice. The second pass was pointed at the full-introspection rewrite (§32) an
+hour after it landed, and returned 15 findings against text written the same day. All are
+applied:
+
+| # | Was | Now |
+|---|---|---|
+| D1, D2, D3 | `introspect` delivered in `RIG_INTROSPECT` from Boris's shell - underspecified, inherited by every descendant of a shell, and stale after the first daemon restart with no way to rewrite it | **Nothing is delivered.** Decided at connect time from whether the connection registered as a program (§14) |
+| D4 | Conformance item 22 said "items 1-21", so the environment test excluded hosted programs - the one class running inside `rigd` | Items reordered: 22 is the environment allowlist, 23 the connection predicate, and **24 is the hosted program passing 1-23** (§19) |
+| D5 | Item 24 asserted a property of *rig* from inside the *program-side* suite, over peers a single-program run does not have | Moved to §20's Introspection row, beside §14's three-run battery |
+| D6 | Run 2's "a missing row is a failure" collided head-on with §15's four declared lossy paths | The assertion is on the **coverage entry**, not the row: a gap the coverage log declares is a pass (§14) |
+| D7 | §9 promised a field that says it "exists and was never recorded"; §15 blanks bytes, and a blank cannot say that | The answer carries the declaration's `sensitive` **pointer list** from the registry. No wire change, and 82.5 ns still holds (§9) |
+| D8 | §16 forbids holding a lock across a question to a human, which forbade the motivating elevation case | Stated exception: gating the lease-holder's **own** call freezes its lease expiry for the duration (§16) |
+| D9 | The unattended `operate` path promised a file to `make deploy`, which descends from Boris's shell and cannot read it - B3 recreated one row lower | `operate` stops being a credential. A named `house rules` entry authorises unattended callers (§14) |
+| D10 | "rig builds the child's environment" named no contents, silently breaking the keyring, the D-Bus fallback and every `needs_display` command | The allowlist is enumerated, is config, and conformance item 22 asserts both halves (§18) |
+| D11 | §15 and §31 still described the credential as "a token minted into a 0600 file" - the design §14 exists to reject | Both corrected (§15, §31) |
+| D12 | Every elevation is audited "with the rule that fired", and no rule fires on an elevation | `origin` is `rule` or `elevation` (§13a) |
+| D13 | The Do Not Disturb exception lived in §14, which needs it, not §12, which implements it | Stated in §12 too, as a conformance assertion (§12) |
+| D14 | Nothing bound an elevation prompt to the call that caused it, so a background agent's request could be answered as if it came from the terminal in view | The prompt carries principal, client kind, pid, command and arguments, and routes to the requesting caller's surface first (§14) |
+| D15 | M1 shipped the grants; M5 ships the redaction that §14 calls their precondition | M1's row states the dependency: complete history reading is gated on M5 (§23) |
+
+**Round 1's B1 and B3 are withdrawn as fixed** in the same file, and the ten other round-1
+findings stand unchanged in the bank below.
 
 ### Banked for the M3 gate, deliberately
 
