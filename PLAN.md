@@ -557,7 +557,7 @@ are planned - and drawing an unowned box as though it were scheduled is how a pl
 own reader. Also named and not drawn: an HTTP client with shared retry and rate limits, a
 template renderer, a lock manager, a diff service. **Nothing here ships without a program that
 adopts it** - the rule is stated here, and §5k covers per-service adoption and declared
-coverage rather than this gate - and the §24 gate on 2026-10-22 is where each is either given a
+coverage rather than this gate - and §24's M3 gate is where each is either given a
 milestone or struck.
 
 ### Declared state machines, if the supervisor can be its first client
@@ -2369,10 +2369,9 @@ the ordering cannot be changed later by someone who never reads §14 - **house r
 2026-09-10 because a fake application that uses the shell is the only demonstration of it that
 exists before a real program is asked to change, and because the element kit had been specified
 for two years' time against an inventory nobody had built. Renumbering M2-M16 to make room
-would have moved **85 milestone references**, invalidated §24's M3 gate - which is **dated
-2026-10-22** and whose date is the point of it - and rewritten the numbering under a session
-that was mid-M1 at the time. A letter costs one line of explanation; a renumber costs the dated
-gate.
+would have moved **85 milestone references**, moved §24's M3 gate off the milestone it is
+anchored to, and rewritten the numbering under a session that was mid-M1 at the time. A letter
+costs one line of explanation; a renumber costs every one of those references.
 
 ---
 
@@ -2402,17 +2401,17 @@ at M8, the honest question becomes whether generated panes are worth M10 at all.
 program has adopted by M8, that is the answer**, and the kit is struck with the shell kept:
 the shell is M1a's and does not depend on it.
 
-### Both gates are dated, because an undated gate is passed rather than taken
+### Both gates are anchored to a milestone, and nothing else fires them
 
 | Gate | Asked on | Answered where |
 |---|---|---|
-| **M3** | **2026-10-22**, or the day M3 lands, whichever is first | `DECISIONS.md`, in writing |
+| **M3** | the day M3 lands. **M4 does not start until the answer is written** | `DECISIONS.md`, in writing |
 | **M8** | the day M8 lands. **M9 does not start until the answer is written** | `DECISIONS.md`, in writing |
 
 The M3 answer is one of three, and it names what it cuts: *continue*, *stop at M3*, or
-*continue with a cut list*. **If nothing is built by 2026-10-22 the question is still asked on
-that date** - six weeks of no progress is itself an answer to "is the GUI worth twelve more
-milestones", and the version of this gate that waits for M3 is the version that never fires.
+*continue with a cut list*. **This project carries no dates.** A gate fires when the milestone
+before it lands and not otherwise, so the thing that stops it being passed rather than taken is
+the block on the next milestone, not a calendar.
 
 ---
 
@@ -2746,7 +2745,7 @@ times and specified nowhere; no scheduler library and no DST rule; no default he
 which silently sets three budgets in three sections; and the id namespace an earlier seat
 accepted and nobody wrote.
 
-**They are banked rather than dropped**, and the §24 gate on 2026-10-22 is where they are
+**They are banked rather than dropped**, and §24's M3 gate is where they are
 answered - because the honest reading of a twelve-item list on an unbuilt plan is that it is
 evidence about the plan's size, not a queue of chores.
 
