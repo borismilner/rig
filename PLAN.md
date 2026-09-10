@@ -57,8 +57,10 @@ UI - and every program already has it, without being touched.
   product is rig, one name is enough, and a second name for a component only Boris ever opens
   buys nothing. §27 assumption 5 is resolved by this line. The command is `rig window`.
 - **Two binaries, not one.** `rigd` is the daemon; `rig` is the CLI and TUI. Measured: keeping
-  bubbletea, huh, glamour and keyring out of the daemon recovers **8.89 MiB resident and 27 ms
-  of cold start**, and it is a build-graph change only (§17).
+  the terminal stack out of the daemon recovers **8.89 MiB resident and 27 ms of cold start**,
+  and it is a build-graph change only (§17). **Minus an unmeasured keyring term**: that rung
+  bundled go-keyring with four TUI libraries, and §22 puts go-keyring in the daemon because
+  §13's per-program scoping is unenforceable anywhere else.
 - **No imports.** An in-house program does not link any rig code beyond a dumb pipe (§5d). All
   behaviour lives in the daemon, so all behaviour upgrades without a rebuild.
 - **One socket, binary frames, and no gRPC.** Measured at 6.2µs round trip and 1.8M one-way
@@ -420,6 +422,17 @@ channel is a multiplexed stream on the connection it already holds. There is no 
 path: a socket named after a program turns the runtime directory into a second copy of the
 registry that `ls` enumerates and `stat` polls for presence, and a mode bit is a uid instrument
 being asked to enforce a client boundary (§14).
+
+**Exactly one `rigd` per user, and it is enforced rather than assumed.** `rigd` takes an
+exclusive `flock` on `$XDG_RUNTIME_DIR/rig/rigd.pid` before it binds, and a second instance
+exits with the incumbent's pid rather than unlinking the socket and taking over. **This is the
+mechanism §16's entire argument rests on** - "every coordination operation passes through a
+single serialization point, which makes them linearizable by construction" - and it was a
+premise with no implementation anywhere in the document. Two daemons over one state tree give
+two serialization points, two WALs and two lock namespaces, silently, and every property §16
+proves is false for as long as it lasts. The window for that is not hypothetical: it is the
+whole of M0 to M7, when the daemon is started by hand many times a day. **M0**, with a chaos
+test that starts two and asserts the second refuses.
 
 Length-prefixed protobuf frames, hand-framed, bidirectional, multiplexed streams. **No gRPC**:
 its server on a unix socket measured +9.80 MiB resident for HTTP/2 machinery a local socket does
@@ -795,6 +808,28 @@ is an index and is rebuildable. **That rule binds rig's own storage too**, and �
 unless the history's interning dictionary travels inside the segments rather than in the index -
 see §15, where the plan's previous advice to delete the index and rescan destroyed data.
 
+### rig backs itself up, or the rule above is a rule for other programs
+
+The row two tables up sells backup, restore, retention and integrity to fifteen programs, and
+until this section nothing said what happens to rig's own state. Two of the things it holds
+are records **of record** with no source to rebuild from - the audit log and the notification
+centre - so for those the rule above is not merely unmet, it is unmeetable by rescanning.
+
+| rig's own state | Rebuildable from | Backed up |
+|---|---|---|
+| Config tree | nothing - it is hand-edited source | **yes**, and it is the one thing whose loss cannot be worked around |
+| History segments | nothing, but they age out in 30 days anyway | no. Retention already says they are disposable |
+| **Audit log** | nothing. It is the record | **yes** |
+| **Notification centre** | nothing. §12 makes it the record of record | **yes** |
+| Registry, peers WAL, resolved snapshots | live registration and re-resolution | no. Rebuilt at start |
+| A program's database | the program's own files, per the rule above | already covered, per program |
+
+**One command, and it is the same one programs get.** `rig backup` writes the four rows marked
+yes to one archive; `rig restore` puts them back on a machine where `rigd` has never run. That
+is the missing half of M15's "fresh machine to a working rig in one command" - which as
+written installs the software and carries none of the history. **M11**, beside the per-program
+backup it already ships, because building it twice is the alternative.
+
 ---
 
 ## 8. Observability
@@ -1137,10 +1172,26 @@ must ask first.
 
 ```
 [[rules]]
-caller  = "agent"           # agent | terminal | window | script | program | any
+caller  = "agent"           # agent | terminal | window | script | program
+                            # | schedule | bus | url | any
 effects = "destructive"     # matched against the declared property
 action  = "confirm"         # allow | confirm | deny
 ```
+
+**The last three are not connections, and that is why they are in the enum.** §14 says every
+*connection* carries a principal, and a scheduled fire, a bus-triggered invocation and a
+`rig://` URL are none of them - so without these three values the rule the owner most needs,
+"the scheduler may not run destructive commands unattended", cannot be written at all. Each
+mints a principal at the point of invocation: `schedule` from the schedule entry's owner,
+`bus` from the rule's owner, and `url` from nothing, because a URL arrives from the browser.
+
+**`url` therefore defaults to `read-only` plus `confirm`, and that default ships with the
+enum.** A `rig://` scheme registered on the desktop is reachable from any web page, email or
+chat message; §29's "the threat model is a mistake in our own code, not an adversary" was
+written about hosted programs and does not cover an inbound handler that anything can address.
+The URL surface itself is M13. **The enum ships at M1**, because it lives in the kernel's
+invoker and the whole point of that placement is that a surface added in 2028 is covered by
+rules written in 2026 - which only holds if the vocabulary can name it.
 
 - **It lives in the kernel's invoker**, so no surface can forget it and a surface added in 2028
   is covered by rules written in 2026. One test covers every surface, present and future.
@@ -1618,6 +1669,17 @@ until then, and stays available afterwards until a month has passed with no regr
 rig is resident all day. A platform that costs the machine something noticeable has taken back
 what it gave. The budget is numbers, and `make bench-idle` fails the build when one is missed.
 
+**One number in this section is currently a claim about `rigd`, not about rig.** The tray must
+run with no window open (§11), the toast layer is a frameless webview (§12), and the daemon
+links no webview and stays cgo-free (§22) - so a third always-resident process is implied by
+those three lines and named in none of them. It has no lifecycle, no autostart entry, no crash
+policy and **no row in the table below**, which means the number that actually matters - what
+the estate costs all day - is unmeasured while the number that is measured looks like an
+answer. **Decided at M8, before the tray ships**, and the decision is between a named third
+process with its own budget row, cgo in the daemon for a Linux systray, or dropping the
+frameless toast for the freedesktop fallback §12 already carries. Recorded here rather than at
+M9, because M9 is after the tray.
+
 **The previous budget was set without measurement and three of its seven lines were
 unreachable.** §22's own dependency list, assembled into a daemon that does nothing, measured
 **43.43 MiB resident, 43 wakeups/second, 0.150% CPU** - with no rig code in it at all. What
@@ -1633,7 +1695,7 @@ follows is built from that ladder rather than from a wish.
 | + that database opened, WAL, 10k rows | 17.96 | +4.74 | **transient only** - migrations open, run, close |
 | + OTel trace + metric + OTLP exporters | 23.58 | +5.62 | yes |
 | + koanf, cobra, jsonschema, ring, timers, 10 programs | 34.54 | +10.96 | yes, with the ring cut from 8 MB to 2 |
-| + bubbletea, huh, glamour, lipgloss, keyring | 43.43 | **+8.89** | **no. That is `rig`, not `rigd`** (§2) |
+| + bubbletea, huh, glamour, lipgloss, keyring | 43.43 | **+8.89** | **mostly no - that is `rig`, not `rigd`** (§2). But **keyring is in this rung and belongs to `rigd`** (§22), so this line is not yet a clean split and `make bench-size` must separate it |
 
 **Two structural facts the old budget did not know.** Go RSS tracks binary size, because text
 and rodata pages are resident - so an RSS budget without a **binary-size budget** is an RSS
@@ -1889,9 +1951,23 @@ Versions verified 2026-09-10.
 | Lint | golangci-lint plus three house analyzers: no program id in rig code, no registry handle outside the kernel, no meaningful enum zero | |
 | Runtime tuning | `GOMEMLIMIT` and `GOGC` set explicitly in the unit file and the Makefile | neither appeared anywhere before |
 
-**Two binaries** (§17): `cmd/rigd` links none of the terminal or keyring stack; `cmd/rig` links
-bubbletea, huh, glamour, lipgloss and go-keyring and never the daemon's internals. `make
-bench-size` attributes every dependency's contribution to each.
+**Two binaries** (§17): `cmd/rigd` links none of the terminal stack; `cmd/rig` links
+bubbletea, huh, glamour and lipgloss and never the daemon's internals. `make bench-size`
+attributes every dependency's contribution to each.
+
+**`rigd` owns the keyring, and the split above used to say the opposite.** §5a puts `secrets`
+inside the daemon and §13 enforces "keyring reads scoped to the named keys, namespaced per
+program" - which is only enforceable if the process holding the scope is the one making the
+read. A client that reaches the Secret Service directly is a client that can read any key in
+it, and the compound leak §31 records comes back by a second route. So go-keyring is a daemon
+dependency, and the CLI reaches secrets the same way every other client does: over the socket.
+
+**That costs part of a number §17 quotes.** Its ladder measures `bubbletea + huh + glamour +
+lipgloss + keyring` as one **+8.89 MiB** rung and attributes the whole of it to `rig`.
+go-keyring's own share was never separated, so the recovery §2 claims is **8.89 MiB minus an
+unmeasured keyring term**. `make bench-size` must split that rung before the M11 budget line
+is treated as met, and until it does the figure is a design target rather than a measurement -
+which is the exact defect §31 says the last round of budgets had.
 
 ---
 
@@ -1902,7 +1978,7 @@ program that needs it. Each ends green, committed, and demonstrated.
 
 | M | Name | Ships | The demo that closes it |
 |---|---|---|---|
-| M0 | Skeleton | Repo, module, Makefile, CI, lint with all three analyzers, **`cmd/rigd` and `cmd/rig` as separate binaries**, the socket, the hand-framed protobuf codec, `GOMEMLIMIT`/`GOGC`, `make bench-size`, `make modules-matrix`, `fakeapp` | `make ci` green; `rig ping fakeapp` round-trips; `make bench-ipc` reproduces §4; `make bench-size` records the ratchet's starting number |
+| M0 | Skeleton | Repo, module, Makefile, CI, lint with all three analyzers, **`cmd/rigd` and `cmd/rig` as separate binaries**, the socket, **the single-instance `flock` (§5f)**, the hand-framed protobuf codec, `GOMEMLIMIT`/`GOGC`, `make bench-size`, `make modules-matrix`, `fakeapp` | `make ci` green; `rig ping fakeapp` round-trips; **a second `rigd` refuses to start and names the incumbent's pid**; `make bench-ipc` reproduces §4; `make bench-size` records the ratchet's starting number |
 | **M1** | **Register and the CLI** | Registration with declared **properties** and the computed projection, the registry, argument schemas, coverage, `semantics_gen`, **the two grants - `introspect` and `operate` (§14)**, **house rules in the invoker**, `rig <app> <cmd>`, generated `--help`, completion, `--json` everywhere | **The week-one product.** `rig shelf reindex` from any terminal. One front door, no GUI. A destructive command with no grant is refused, and the same test covers every surface added later |
 | M2 | MCP and HTTP | The four meta tools, promotion, the capability-map resource **with coverage per program**, the per-program preamble, HTTP routes with **minted principals**, structured errors | An agent runs a real command in a real program through one MCP server, having written nothing - and is told, in the same answer, that its picture of that program is partial |
 | M3 | Terminal client | `rig shell` with completion and inline describe, the `rig tui` frame, `huh` forms from declared schemas, `--batch --json` | Every registered command discoverable and runnable from the TUI, by a person who read no docs |
@@ -1910,14 +1986,14 @@ program that needs it. Each ends green, committed, and demonstrated.
 | M5 | Observability | Log, trace and metric ingest, merge, query, the call log, **compiled redaction spans**, the **coverage log**, segment-embedded dictionaries, column summaries, `rig logs`, `rig loose-ends`, `rig doctor`, TUI views | One MCP call traced end to end across two processes and read back in the TUI; and a known secret passed through a declared-sensitive field appears in no segment |
 | M6 | Control and supervision | Start, stop, restart, health, budgets, quarantine, **lifecycle notices**, the **tolerant client and the resolved snapshot**, reconnect with a session token, request-id dedup | `kill -9` in a loop both ways, plus a deliberate restart under load with **zero refused dials and zero silent replays** |
 | M7 | Peers | Presence, leases with **witnesses and two-step expiry**, `rig peers run`, fencing tokens per lease, read/write, semaphores, barriers, election, versioned blackboard with multi-key transactions, watches with a cursor, claimable queues, rendezvous, signals, `ask`, **the AgentBox dual-write shadow path**, the crew, wait-for graph, contention and timeline views | The simulation suite green over 10000 seeded interleavings with injected crashes, **lost replies and a suspend clock jump**; every adversarial test passing; a stalled holder's `make deploy` actually stops |
-| M8 | The window and the tray | The rail, panes, embedded mode over the localhost SPAs six programs already serve, one tray icon with the **detached** state, and the visual system from `design/` as live `ui.theme` config | One window, one tray, three programs in a rail. Six tray icons become one, and the theme is changed from the settings UI with the contrast gate refusing an unreadable set |
+| M8 | The window and the tray | The rail, panes, embedded mode over the localhost SPAs six programs already serve, one tray icon with the **detached** state, the visual system from `design/` as live `ui.theme` config, and **the decision on who hosts the tray and the toast layer, with its §17 budget row** (§17) | One window, one tray, three programs in a rail. Six tray icons become one, and the theme is changed from the settings UI with the contrast gate refusing an unreadable set. **`make bench-idle` covers every resident rig process, not only `rigd`** |
 | M9 | Toasts | The frameless toast, severities, springs, stacking, live bodies, inline actions, the centre, Do Not Disturb, D-Bus fallback | A command answered from inside a toast with no window open |
 | M10 | Generated UI | Forms, tables, actions, progress, detail, status from declared schema, in both window and TUI | `nudge` gets a complete pane and a complete TUI view with zero frontend code |
-| M11 | Storage and secrets | Managed location, migration runner, backup, integrity, retention, browser; keyring with per-program namespaces | A program's migration runs before it starts, and its backup restores |
+| M11 | Storage and secrets | Managed location, migration runner, backup, integrity, retention, browser; keyring with per-program namespaces, **in `rigd`** (§22); **`rig backup` and `rig restore` for rig's own state** (§7) | A program's migration runs before it starts, and its backup restores. **A fresh machine restores the audit log, the notification centre and the config tree from one archive** |
 | M12 | Pilot: shelf | shelf entirely on rig: config, storage, logs, tray, pane, TUI, commands on every surface. A week of daily use | shelf loses its own tray icon and loses no capability |
 | M13 | Palette, search, schedule, bus, URL | Cross-program palette, federated search, one scheduler **with the missed-fire policy (§18)**, events with grants, `rig://` | graft finishing a run triggers a shelf reindex, with the grant visible and revocable; and an overnight suspend coalesces four missed idempotent reindexes into one |
 | M14 | Hardening | Chaos at full size, fuzz corpora, cgroups and landlock, security review, coverage to target | The chaos suite green over 10000 iterations |
-| M15 | Packaging and updates | `.deb`, desktop entry, autostart, signed update channel for rig and programs, self-update | Fresh machine to a working rig with three programs in one command |
+| M15 | Packaging and updates | `.deb`, desktop entry, autostart, signed update channel for rig and programs, self-update | Fresh machine to a working rig with three programs in one command, **and `rig restore` carries the state M11 backed up** |
 | M16 | Estate migration and the AgentBox cutover | The rest of the estate, in the order in §25, then the agent tooling repointed from AgentBox to the peers service | Every in-house program reachable from one CLI, one TUI, one tray, one window, one MCP server |
 
 **v1 is M0 through M13.**
@@ -2191,3 +2267,55 @@ arrangement of tokens beats it. Three things remain genuinely enforced against a
 process: the uid boundary, `operate`, and redaction. **The first draft of this change put the
 grant in a 0600 file, which would have made the session boundary a comment** - it is recorded
 here because the next person to simplify the delivery will reach for exactly that file.
+
+---
+
+## 33. What the blind-spot sweep changed, 2026-09-10
+
+An eleventh seat ran after the fixes and after the advocate, pointed at what the other ten did
+not look at rather than at more of what they did. It returned **19 findings**; the record is
+`logbook/projects/rig/agent-work/attack-2026-09-10-s9-blindspot-sweep/FINDINGS.md`.
+
+**Its verdict on the method is the part that generalises.** Ten seats drove ten surfaces to
+local optima, so the residue is entirely in the joints - and the joints got *worse*, because
+each fix moved cost or risk across a boundary its seat did not own. The footprint fix exported
+the GUI to processes nobody budgeted; the isolation fix put its key somewhere every program
+could read it. The class no single-surface seat can produce at all is the class with no
+surface: backup, disk, format versioning, uninstall, accessibility, unattended operation.
+
+### Applied
+
+| # | Was | Now |
+|---|---|---|
+| B1 | `introspect` in a uid-readable file, so any program could read every other program's history | Delivered by environment, scrubbed from every spawned program (§14, §18) |
+| B3 | `operate` reached only whatever launched `rigd` - systemd - so no human surface could act | Asked for per call through `confirm`/`ask`; the token survives for unattended callers (§14) |
+| B4 | The `house rules` caller vocabulary named only connections | `schedule`, `bus` and `url` added, each minting a principal; `url` defaults to read-only plus confirm (§13a) |
+| B5 | §5a put `secrets` in the daemon; §22 linked go-keyring only into the CLI | `rigd` owns the keyring. §17's 8.89 MiB rung is now a design target until `bench-size` splits it (§17, §22) |
+| B6 | "Exactly one rig per user" - §16's load-bearing premise - with zero enforcement | `flock` on a pidfile before bind, at M0, with a chaos test (§5f) |
+| B10 | §7's rule binds rig's own storage; nothing backed rig up | `rig backup` / `rig restore`, four rows of state named, at M11 (§7) |
+| B18 | The client stub "does exactly four things" over a list of five, against a §3 gate | Corrected (§5d) |
+| B2 | §17 measured `rigd` and called it rig, while three sections imply an unnamed resident GUI process | The gap and the three-way decision are stated, and M8 owns it (§17, §23) |
+
+### Banked for the M3 gate, deliberately
+
+Twelve findings are real and none of them changes M0 or M1: no version on any on-disk format
+while the wire is versioned forever; two filesystem registry mirrors §5f's fix left open; no
+disk budget and ENOSPC missing from the coverage log's causes; no policy for `ask` at 3am
+beyond the one §14 now sets for `operate`; accessibility absent except contrast and reduced
+motion; two budgets whose own cited measurements fail them; no uninstall and no update
+rollback; the keyring's availability off a desktop session; a "phone" surface promised four
+times and specified nowhere; no scheduler library and no DST rule; no default health interval,
+which silently sets three budgets in three sections; and the id namespace an earlier seat
+accepted and nobody wrote.
+
+**They are banked rather than dropped**, and the §24 gate on 2026-10-22 is where they are
+answered - because the honest reading of a twelve-item list on an unbuilt plan is that it is
+evidence about the plan's size, not a queue of chores.
+
+### What the sweep did not attack
+
+The measurements themselves - quoted numbers were reconciled against each other, not re-run.
+Localisation. `design/theme.js`, so §6's claim that its schema is exactly what the engine
+implements is unverified by anything but the engine. Multi-seat in the strong sense. And the
+four things §31 already lists.
+
