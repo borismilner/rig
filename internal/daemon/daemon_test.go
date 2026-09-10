@@ -590,3 +590,74 @@ func TestAForgedScopeIsRefusedOverTheWire(t *testing.T) {
 	_, err := dial(t, sock).Hello(ctx5(t), d)
 	wantInvalid(t, err, "does not choose")
 }
+
+func TestAConnectedProgramDoesNotBlockShutdown(t *testing.T) {
+	// The bug this exists to keep fixed: Serve waits for its handlers, a
+	// handler sits in ReadFrame until its connection closes, and nothing
+	// closed the connections - so SIGTERM did nothing at all while any
+	// program was connected, and section 5l's unit has no ExecStop to fall
+	// back on.
+	dir, err := os.MkdirTemp("", "rigt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	sock := filepath.Join(dir, "s")
+
+	l, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lock, err := instance.Acquire(filepath.Join(dir, "p"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = lock.Close() })
+
+	d, err := New(Config{Version: "test", Wire: "v1", Lock: lock})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	served := make(chan error, 1)
+	go func() { served <- d.Serve(ctx, l) }()
+
+	// Two connections that will happily sit there forever: a registered
+	// program and a plain client.
+	program(t, sock, "shelf")
+	dial(t, sock)
+
+	cancel() // what SIGTERM does, via signal.NotifyContext in cmd/rigd
+
+	select {
+	case err := <-served:
+		if err != nil {
+			t.Fatalf("Serve returned %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Serve did not return with programs connected: this is the " +
+			"shape that made `systemctl --user stop rigd` hang")
+	}
+}
+
+func TestAConnectionArrivingDuringShutdownIsNotServed(t *testing.T) {
+	sock, d := upDaemon(t, nil)
+	// Reach in and mark it closing, which is the state between the listener
+	// closing and the last handler returning.
+	d.closeLive()
+
+	// The listener is still open in this test, so a dial succeeds and the
+	// daemon must drop it rather than hand it to a handler being torn down.
+	c, err := client.Dial(sock)
+	if err != nil {
+		return // refused at the socket, which is also correct
+	}
+	t.Cleanup(func() { _ = c.Close() })
+
+	resp := &rigv1.PingResponse{}
+	if err := c.Call(ctx5(t), "rig.ping", &rigv1.PingRequest{Nonce: []byte("x")},
+		resp); err == nil {
+		t.Fatal("a connection accepted during shutdown was served")
+	}
+}

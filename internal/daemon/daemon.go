@@ -85,6 +85,18 @@ type Daemon struct {
 	// what a program said, and what this map knows is where to send a call.
 	mu       sync.RWMutex
 	programs map[string]*conn
+
+	// live is every accepted connection, so shutdown can close them.
+	//
+	// It exists because a HEALTHY program used to block shutdown: Serve waits
+	// for its handlers, a handler sits in ReadFrame until its connection
+	// closes, and nothing closed the connections. SIGTERM therefore did
+	// nothing while any program was connected, and section 5l's unit has no
+	// ExecStop - so `systemctl --user stop rigd` would have hung until
+	// systemd's SIGKILL timeout, with nothing saying why.
+	cmu     sync.Mutex
+	live    map[net.Conn]struct{}
+	closing bool
 }
 
 // New builds a daemon, and refuses without a held single-instance lock.
@@ -107,8 +119,52 @@ func New(cfg Config) (*Daemon, error) {
 		lock:     cfg.Lock,
 		kernel:   kernel.New(),
 		ask:      cfg.Ask,
+		live:     make(map[net.Conn]struct{}),
 		programs: make(map[string]*conn),
 	}, nil
+}
+
+// track records a live connection, or refuses it because rig is stopping.
+func (d *Daemon) track(nc net.Conn) bool {
+	d.cmu.Lock()
+	defer d.cmu.Unlock()
+	if d.closing {
+		return false
+	}
+	d.live[nc] = struct{}{}
+	return true
+}
+
+func (d *Daemon) untrack(nc net.Conn) {
+	d.cmu.Lock()
+	defer d.cmu.Unlock()
+	delete(d.live, nc)
+}
+
+// closeLive drops every connection so shutdown can complete.
+//
+// It does NOT drain in-flight calls. Section 18 gives every call a deadline
+// and the client stub is built to survive rig going away (section 5g), so a
+// call in flight fails as a dropped connection - which is a case that already
+// has to work. A graceful drain, with the lifecycle notice that tells a
+// program rig is stopping, is section 5g's `rig.stopping` event at M6, and
+// pretending to do it here would mean waiting up to CallTimeout on every
+// shutdown for a case that is already handled.
+func (d *Daemon) closeLive() {
+	d.cmu.Lock()
+	conns := make([]net.Conn, 0, len(d.live))
+	for nc := range d.live {
+		conns = append(conns, nc)
+	}
+	d.closing = true
+	d.cmu.Unlock()
+
+	for _, nc := range conns {
+		_ = nc.Close()
+	}
+	if len(conns) > 0 {
+		d.log.Info("closed live connections on shutdown", "count", len(conns))
+	}
 }
 
 // conn is one connection and everything decided about it.
@@ -152,7 +208,11 @@ func (c *conn) principal() kernel.Principal {
 func (d *Daemon) Serve(ctx context.Context, l net.Listener) error {
 	go func() {
 		<-ctx.Done()
+		// The listener first, so nothing new arrives, then every live
+		// connection, so the handlers waiting on ReadFrame return and the
+		// wait below can finish.
 		_ = l.Close()
+		d.closeLive()
 	}()
 
 	var wg sync.WaitGroup
@@ -166,9 +226,16 @@ func (d *Daemon) Serve(ctx context.Context, l net.Listener) error {
 			}
 			return fmt.Errorf("daemon: accept: %w", err)
 		}
+		if !d.track(nc) {
+			// Accepted in the same instant as the shutdown. Closing it here
+			// beats handing it to a handler that is about to be torn down.
+			_ = nc.Close()
+			continue
+		}
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			defer d.untrack(nc)
 			d.handle(ctx, nc)
 		}()
 	}
