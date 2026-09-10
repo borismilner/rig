@@ -609,6 +609,48 @@ and the conformance test asserts **fidelity** rather than the existence of a ren
 human genuinely wants a different widget, the override is rig-side config against the schema
 shape, never a field in the program's declaration.
 
+### The element kit, so a program that draws itself still looks like rig
+
+A renderer draws something the program **declared**. A **kit element** is the other direction: a
+program serving its own HTML asks rig for a table, a toolbar, an empty state, a spinner - and
+gets rig's, in rig's theme, behaving the way that element behaves on every other surface.
+`ui.elements`, beside `ui.theme` in §6, and layered and live-pushed the same way.
+
+**A program picks a subset and fits it to its own layout. It does not get to invent one.** That
+split is the whole design: *which* elements to use is the program's choice, and how each one
+looks and behaves is rig's. It does not weaken the rule above - a program still never names a
+widget for **declared** data. It names elements only for the HTML it serves itself, which today
+gets no help at all.
+
+| # | Requirement | Why it is a requirement and not a preference |
+|---|---|---|
+| R1 | **The inventory is closed and rig owns it.** A program picks from the kit and cannot extend it; adding an element changes rig and the catalogue | An open inventory is the fragmentation this tier exists to prevent, arriving through the door marked "just one more" |
+| R2 | **Three renderers or it is not in the kit** - the window, the TUI (§10 mirrors every view the window has) and a terminal fallback | Conformance item 20 already says that asserting *a* renderer exists is not the test. An element that lives only in the window quietly makes the terminal the poor relation §10 forbids |
+| R3 | **A program declares which elements it uses**, and the list is checked at registration | Adoption becomes per element, so §5k's `coverage: partial` keeps working; and the catalogue can show what nothing uses, so a dead element is deleted rather than maintained forever |
+| R4 | **The kit carries a generation, and rig serves every generation it has shipped** | An element whose *look* changed is fine; one whose *behaviour* changed breaks a program that never asked for it. That is §21's `semantics_gen` problem exactly, so it gets §21's answer rather than a second mechanism |
+| R5 | **Every element passes the contrast gate on every surface it can land on, in both themes, for every shipped preset** | §20 asserts this for the generated token set. An element is where a token actually meets text, so a gate that stops at tokens stops one layer short of the thing a person reads |
+| R6 | **No element knows which program is holding it.** It takes data and emits events | §5h's own rule: a service or surface that needs a program's identity to work is business logic in the wrong place |
+| R7 | **The typed bridge's vocabulary *is* the element list**, so using an element rig has removed fails at registration | The alternative fails at render, in front of the user, on the one surface whose entire product is presentation |
+| R8 | **The kit is section ten of `design/visual-system.html`**, each element beside the declaration that requests it | The shape §09 already uses for the six generated renderers, and the reason this visual system is measured rather than asserted |
+
+**The kit is not implemented until it has been attacked, and that is a
+precondition on M8 rather than a review step inside it.** Every program in the
+estate touches the kit, and it is the one surface where a wrong decision cannot
+be contained to a single adopter: a bad service is adopted by nobody and struck
+at a gate (§5k), but a bad element inventory is a shape every program has
+already built against by the time the defect shows. **It is the only one-way
+door in this plan.** R1-R8 were written in one pass by one session and have had
+no adversarial reading; the `/attack` findings land here before any element is
+written. If the attack says the kit does not survive, it is struck and the
+embedded tier keeps getting tokens only - which is today's behaviour and is not
+a regression.
+
+**What the kit is not.** It is not a second theme surface - there is one token set and
+`ui.elements` selects from it rather than adding to it. It is not a widget hint on declared data,
+which §5h forbids above and which would fragment the generated tier to fix the embedded one. And
+it is not a framework: an element is markup, tokens and behaviour, with no opinion about how the
+program builds the page around it.
+
 **Modules contribute capability names; the kernel does not enumerate them.** §13's capability
 set was literally `tray`, `notify`, `schedule` - three module names hard-coded inside the
 kernel's enforcement point, so adding a surface meant editing the kernel before the surface
@@ -1169,9 +1211,18 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
 - **One tray icon** for the whole estate, replacing the six that exist today. Per-program status,
   badge, and commands runnable with no window open. A stopped program is still listed, with the
   reason and a Start entry.
-- **Two pane tiers.** Generated: the program declared schema and rig renders forms, tables,
-  actions, progress, detail and status. Embedded: the program serves its own HTML and rig
-  proxies it into a themed iframe with a typed bridge.
+- **Three pane tiers**, and the middle one exists because the outer two leave a gap.
+  *Generated*: the program declared a schema and rig renders forms, tables, actions, progress,
+  detail and status - and the program never names a widget (§5h). *Kit*: the program serves its
+  own HTML and composes it from rig's own elements, so a table in `archi` is rig's table rather
+  than `archi`'s fourth attempt at one. *Embedded*: the program serves its own HTML and brings
+  its own components, getting the token set and nothing more.
+- **The gap the kit closes, stated because it is the whole reason for a third tier.** `archi`,
+  `dispatch` and `snapper` draw their own UI, and under two tiers rig hands them tokens and
+  stops there. Each then reimplements a table, a toolbar, an empty state and a spinner, and all
+  four are subtly wrong - which is exactly the per-program visual system this section exists to
+  abolish, surviving inside the embedded tier. **The kit is how one visual system reaches a
+  program rig does not draw.**
 - **The shell is achromatic.** Each program owns one hue from a uniform six-hue family, and that
   is the only saturated colour on screen while you are in it. A host that wears the colour of
   whatever it is holding.
@@ -2224,7 +2275,7 @@ the ordering cannot be changed later by someone who never reads §14 - **house r
 | M5 | Observability | Log, trace and metric ingest, merge, query, the call log, **compiled redaction spans**, the **coverage log**, segment-embedded dictionaries, column summaries, `rig logs`, `rig loose-ends`, `rig doctor`, TUI views | One MCP call traced end to end across two processes and read back in the TUI; and a known secret passed through a declared-sensitive field appears in no segment |
 | M6 | Control and supervision | Start, stop, restart, health, budgets, quarantine, **lifecycle notices**, the **tolerant client and the resolved snapshot**, reconnect with a session token, request-id dedup | `kill -9` in a loop both ways, plus a deliberate restart under load with **zero refused dials and zero silent replays** |
 | M7 | Peers | Presence, leases with **witnesses and two-step expiry**, `rig peers run`, fencing tokens per lease, read/write, semaphores, barriers, election, **continuation slots** (§16), versioned blackboard with multi-key transactions, watches with a cursor, claimable queues, rendezvous, signals, `ask`, **the AgentBox dual-write shadow path**, the crew, wait-for graph, contention and timeline views | The simulation suite green over 10000 seeded interleavings with injected crashes, **lost replies and a suspend clock jump**; every adversarial test passing; a stalled holder's `make deploy` actually stops |
-| M8 | The window and the tray | The rail, panes, embedded mode over the localhost SPAs six programs already serve, one tray icon with the **detached** state, the visual system from `design/` as live `ui.theme` config, and **the decision on who hosts the tray and the toast layer, with its §17 budget row** (§17) | One window, one tray, three programs in a rail. Six tray icons become one, and the theme is changed from the settings UI with the contrast gate refusing an unreadable set. **`make bench-idle` covers every resident rig process, not only `rigd`** |
+| M8 | The window and the tray | The rail, panes, embedded mode over the localhost SPAs six programs already serve, one tray icon with the **detached** state, the visual system from `design/` as live `ui.theme` config, **the element kit and its eight requirements (§5h) with `archi` as the named adopter - not started until the kit has been through `/attack` (§5h)**, and **the decision on who hosts the tray and the toast layer, with its §17 budget row** (§17) | One window, one tray, three programs in a rail. Six tray icons become one, and the theme is changed from the settings UI with the contrast gate refusing an unreadable set. **`make bench-idle` covers every resident rig process, not only `rigd`** |
 | M9 | Toasts | The frameless toast, severities, springs, stacking, live bodies, inline actions, the centre, Do Not Disturb, D-Bus fallback | A command answered from inside a toast with no window open |
 | M10 | Generated UI | Forms, tables, actions, progress, detail, status from declared schema, in both window and TUI | `nudge` gets a complete pane and a complete TUI view with zero frontend code |
 | M11 | Storage and secrets | Managed location, migration runner, backup, integrity, retention, browser; keyring with per-program namespaces, **in `rigd`** (§22); **`rig backup` and `rig restore` for rig's own state** (§7) | A program's migration runs before it starts, and its backup restores. **A fresh machine restores the audit log, the notification centre and the config tree from one archive** |
@@ -2249,6 +2300,14 @@ or are the front door and the terminal enough? A platform nobody stopped to ques
 
 **After M8.** One window and one tray exist over programs that were not modified. If that is
 enough, M10 and beyond wait for a program that genuinely needs them.
+
+**The element kit makes that question harder to answer lazily, which is why it ships at M8
+rather than after the gate.** M10's main product is panes that look like one system; the kit
+delivers that for the three programs that draw themselves (§11). So by the time this gate is
+taken, "stop at M8" is a *real* option with visible evidence rather than a rhetorical one - and
+if `archi` has adopted the kit and looks right, the honest question becomes whether generated
+panes are worth M10 at all. **The gate is answered on what the kit actually did for `archi`**,
+not on the plan's confidence about it.
 
 ### Both gates are dated, because an undated gate is passed rather than taken
 
@@ -2323,7 +2382,14 @@ what re-checking looks like.
    code. If yes, the service is real and gets a milestone at the §24 gate; if no, it is struck
    and the three machines rig hard-codes stay hard-coded. Nothing else adopts it today, so
    there is no second candidate to fall back on.
-9. **Do the four `← open` services survive the §24 gate?** A job queue, a cache, a
+9. **Will `archi`, `dispatch` and `snapper` actually adopt the element kit?** (§5h, §11) The
+   kit's whole justification is that three programs draw their own UI and get nothing but
+   tokens. But each of them already *has* a table and a toolbar that work, and replacing
+   working UI with rig's is effort with no feature at the end of it - the same reason §25's
+   stalled programs are stalled. `archi` is the named adopter at M8 and the M8 gate is
+   answered on what actually happened, not on the intent. **If none of the three adopts, the
+   kit is eight requirements serving nobody** and should be struck rather than maintained.
+10. **Do the four `← open` services survive the §24 gate?** A job queue, a cache, a
    file-watcher and state machines are drawn in §5h and owned by no milestone. §5k says nothing
    ships without a program that adopts it, so the question is really "which program", and for
    three of the four there is no answer yet.
