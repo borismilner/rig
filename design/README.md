@@ -1,4 +1,4 @@
-# rig / turret - the visual system
+# rig - the visual system
 
 `visual-system.html` is the deliverable: open it in a browser, it is one
 self-contained file. Everything on it is live - pick a program in the rail,
