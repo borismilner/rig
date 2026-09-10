@@ -15,18 +15,42 @@ func TestPartitionAcceptsFlagsAnywhere(t *testing.T) {
 		wantFlags  []string
 		wantPosArg []string
 	}{
-		{"flag after positional", []string{"fakeapp", "--json"},
-			[]string{"--json"}, []string{"fakeapp"}},
-		{"flag before positional", []string{"--json", "fakeapp"},
-			[]string{"--json"}, []string{"fakeapp"}},
-		{"valued flag after", []string{"fakeapp", "--timeout", "9s"},
-			[]string{"--timeout", "9s"}, []string{"fakeapp"}},
-		{"valued flag with equals", []string{"fakeapp", "--timeout=9s"},
-			[]string{"--timeout=9s"}, []string{"fakeapp"}},
-		{"bool flag does not eat the positional", []string{"--json", "fakeapp"},
-			[]string{"--json"}, []string{"fakeapp"}},
-		{"double dash ends flags", []string{"--json", "--", "-weird-name"},
-			[]string{"--json"}, []string{"-weird-name"}},
+		{
+			"flag after positional",
+			[]string{"fakeapp", "--json"},
+			[]string{"--json"},
+			[]string{"fakeapp"},
+		},
+		{
+			"flag before positional",
+			[]string{"--json", "fakeapp"},
+			[]string{"--json"},
+			[]string{"fakeapp"},
+		},
+		{
+			"valued flag after",
+			[]string{"fakeapp", "--timeout", "9s"},
+			[]string{"--timeout", "9s"},
+			[]string{"fakeapp"},
+		},
+		{
+			"valued flag with equals",
+			[]string{"fakeapp", "--timeout=9s"},
+			[]string{"--timeout=9s"},
+			[]string{"fakeapp"},
+		},
+		{
+			"bool flag does not eat the positional",
+			[]string{"--json", "fakeapp"},
+			[]string{"--json"},
+			[]string{"fakeapp"},
+		},
+		{
+			"double dash ends flags",
+			[]string{"--json", "--", "-weird-name"},
+			[]string{"--json"},
+			[]string{"-weird-name"},
+		},
 		{"nothing", nil, nil, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

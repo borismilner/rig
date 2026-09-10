@@ -7,6 +7,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/json"
@@ -67,13 +68,15 @@ func partition(args []string) (flags, positional []string) {
 // takesValue reports whether a flag consumes the following argument. The set is
 // tiny and explicit: guessing from the next token's shape is what makes
 // `rig ping --timeout 5s fakeapp` and `rig ping --json fakeapp` disagree.
-func takesValue(flag string) bool {
-	name := strings.TrimLeft(flag, "-")
-	switch name {
-	case "timeout":
-		return true
-	}
-	return false
+func takesValue(arg string) bool {
+	return valuedFlags[strings.TrimLeft(arg, "-")]
+}
+
+// valuedFlags is that set. A map rather than a switch so adding one is a line
+// rather than a clause, and so the parameter does not have to be called flag
+// and shadow the package of the same name.
+var valuedFlags = map[string]bool{
+	"timeout": true,
 }
 
 func usage() {
@@ -165,7 +168,7 @@ func cmdPing(args []string) error {
 	}
 	elapsed := time.Since(start)
 
-	if string(resp.GetNonce()) != string(nonce) {
+	if !bytes.Equal(resp.GetNonce(), nonce) {
 		return fmt.Errorf("%s answered with the wrong nonce: the round trip is not ours", program)
 	}
 

@@ -6,9 +6,9 @@
 // the socket and taking over.
 //
 // This is the mechanism section 16's entire argument rests on - "every
-// coordination operation passes through a single serialization point, which
+// coordination operation passes through a single serialisation point, which
 // makes them linearizable by construction". Two daemons over one state tree
-// give two serialization points, two WALs and two lock namespaces, silently,
+// give two serialisation points, two WALs and two lock namespaces, silently,
 // and every property section 16 proves is false for as long as it lasts.
 package instance
 
@@ -22,13 +22,13 @@ import (
 	"syscall"
 )
 
-// ErrHeld means another process holds the lock. Inspect Incumbent for its pid.
-type ErrHeld struct {
+// HeldError means another process holds the lock. Inspect Incumbent for its pid.
+type HeldError struct {
 	Path      string
 	Incumbent int // 0 when the pidfile could not be read or held no number
 }
 
-func (e *ErrHeld) Error() string {
+func (e *HeldError) Error() string {
 	if e.Incumbent > 0 {
 		return fmt.Sprintf("another rigd is running (pid %d, lock %s)", e.Incumbent, e.Path)
 	}
@@ -49,7 +49,7 @@ func (l *Lock) Path() string { return l.path }
 
 // Acquire takes the exclusive lock on path, creating it 0600.
 //
-// It returns *ErrHeld when another process already holds it. The lock lives on
+// It returns *HeldError when another process already holds it. The lock lives on
 // the open descriptor, so it is released by Close and by the process dying -
 // including a SIGKILL, which is why this survives the `kill -9` loop in M6's
 // demo without leaving a stale claim behind.
@@ -69,7 +69,7 @@ func Acquire(path string) (*Lock, error) {
 		pid := readPID(f)
 		_ = f.Close()
 		if errors.Is(err, syscall.EWOULDBLOCK) || errors.Is(err, syscall.EAGAIN) {
-			return nil, &ErrHeld{Path: path, Incumbent: pid}
+			return nil, &HeldError{Path: path, Incumbent: pid}
 		}
 		return nil, fmt.Errorf("instance: flock %s: %w", path, err)
 	}

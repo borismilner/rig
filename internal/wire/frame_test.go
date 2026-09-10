@@ -181,7 +181,7 @@ func TestConcurrentWritesAreNotTorn(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		for i := 0; i < writers*each; i++ {
+		for i := range writers * each {
 			f, err := b.ReadFrame()
 			if err != nil {
 				t.Errorf("read %d: %v", i, err)
@@ -200,7 +200,7 @@ func TestConcurrentWritesAreNotTorn(t *testing.T) {
 		wg.Add(1)
 		go func(w int) {
 			defer wg.Done()
-			for i := 0; i < each; i++ {
+			for i := range each {
 				// stream_id encodes the payload length, so a torn or
 				// interleaved write is detectable by the reader.
 				id := uint32(w*100 + i)

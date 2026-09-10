@@ -74,7 +74,7 @@ func TestSecondProcessRefusesAndNamesTheIncumbent(t *testing.T) {
 	if os.Getenv("RIG_LOCK_CHILD") == "1" {
 		// The child: try to take the lock the parent holds and report.
 		_, err := Acquire(os.Getenv("RIG_LOCK_PATH"))
-		var held *ErrHeld
+		var held *HeldError
 		if errors.As(err, &held) {
 			os.Stdout.WriteString("HELD:" + strconv.Itoa(held.Incumbent) + "\n")
 			os.Exit(0)
@@ -108,7 +108,7 @@ func TestSecondProcessRefusesAndNamesTheIncumbent(t *testing.T) {
 func TestOnlyOneOfManyWins(t *testing.T) {
 	if os.Getenv("RIG_LOCK_CHILD") == "1" {
 		_, err := Acquire(os.Getenv("RIG_LOCK_PATH"))
-		var held *ErrHeld
+		var held *HeldError
 		if errors.As(err, &held) {
 			os.Exit(3) // refused, correctly
 		}

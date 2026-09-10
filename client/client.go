@@ -67,6 +67,10 @@ func Connect() (*Client, error) {
 
 // Dial connects to the socket and starts the read loop.
 func Dial(socket string) (*Client, error) {
+	//nolint:noctx // A unix socket connect touches the filesystem and the
+	// listen backlog, never a network. There is nothing for a dial deadline
+	// to bound; the deadline that matters is on the call, and nocontextfree
+	// is the analyzer that enforces it (section 3).
 	nc, err := net.Dial("unix", socket)
 	if err != nil {
 		return nil, fmt.Errorf("client: dial %s: %w", socket, err)

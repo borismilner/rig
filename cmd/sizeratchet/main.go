@@ -17,6 +17,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -138,7 +139,7 @@ func run(path string, update bool, bins []string) error {
 	}
 
 	if failed {
-		return fmt.Errorf("a binary is over its ratchet. If the growth is " +
+		return errors.New("a binary is over its ratchet. If the growth is " +
 			"intended, run: make bench-size-update, in its own commit, saying why")
 	}
 	return nil

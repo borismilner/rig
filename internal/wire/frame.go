@@ -83,7 +83,12 @@ func (c *Conn) WriteFrame(f *rigv1.Frame) error {
 
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
+	//nolint:gocritic // appendAssign: c.wbuf is a reusable buffer and buf is
+	// deliberately a different name for the grown slice, so the next frame
+	// reuses the capacity rather than allocating.
 	buf := append(c.wbuf[:0], 0, 0, 0, 0)
+	//nolint:gosec // G115: len(body) was bounded by MaxFrameSize eleven lines
+	// above, and MaxFrameSize is far below MaxUint32.
 	binary.BigEndian.PutUint32(buf, uint32(len(body)))
 	buf = append(buf, body...)
 	if _, err := c.w.Write(buf); err != nil {

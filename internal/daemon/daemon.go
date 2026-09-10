@@ -48,7 +48,7 @@ type Config struct {
 	// so the type carries it instead: a Daemon cannot be constructed without
 	// the proof that this process is the only rigd, and the only way to hold
 	// that proof is to have taken the lock already. Two daemons over one state
-	// tree give two serialization points, two WALs and two lock namespaces,
+	// tree give two serialisation points, two WALs and two lock namespaces,
 	// and every property section 16 proves is false for as long as it lasts.
 	Lock *instance.Lock
 }

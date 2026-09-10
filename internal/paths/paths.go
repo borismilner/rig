@@ -9,6 +9,7 @@
 package paths
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -31,7 +32,7 @@ const MaxSocketPath = 107
 func RuntimeDir() (string, error) {
 	d := os.Getenv("XDG_RUNTIME_DIR")
 	if d == "" {
-		return "", fmt.Errorf("paths: XDG_RUNTIME_DIR is not set; rig will not " +
+		return "", errors.New("paths: XDG_RUNTIME_DIR is not set; rig will not " +
 			"guess a runtime directory, because the socket's security depends on its mode and owner")
 	}
 	return filepath.Join(d, "rig"), nil

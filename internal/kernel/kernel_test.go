@@ -90,10 +90,10 @@ func TestEveryMandatoryPropertyIsRefusedWhenUnsaid(t *testing.T) {
 		"description":   func(c *kernel.Command) { c.Description = "" },
 		"returns":       func(c *kernel.Command) { c.Returns = "" },
 	}
-	for name, break_ := range cases {
+	for name, breakIt := range cases {
 		t.Run(name, func(t *testing.T) {
 			d := good("pilot")
-			break_(&d.Commands[0])
+			breakIt(&d.Commands[0])
 			err := d.Validate()
 			if err == nil {
 				t.Fatalf("%s was left unsaid and the declaration was accepted", name)

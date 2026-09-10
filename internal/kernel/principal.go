@@ -8,6 +8,7 @@
 package kernel
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 )
@@ -124,13 +125,13 @@ type Principal struct {
 // Valid reports whether a principal is complete enough to act.
 func (p Principal) Valid() error {
 	if !p.Kind.Valid() {
-		return fmt.Errorf("kernel: principal has no client kind")
+		return errors.New("kernel: principal has no client kind")
 	}
 	if p.ClientID == "" {
-		return fmt.Errorf("kernel: principal has no client id")
+		return errors.New("kernel: principal has no client id")
 	}
 	if p.SessionID == "" {
-		return fmt.Errorf("kernel: principal has no session id")
+		return errors.New("kernel: principal has no session id")
 	}
 	if p.Scoped && len(p.Scopes) == 0 {
 		return fmt.Errorf("kernel: principal %q is scoped and holds no scope, "+

@@ -63,12 +63,12 @@ func run() error {
 	}
 
 	// The lock comes BEFORE the bind, and that order is the whole point
-	// (section 5f). Two daemons over one state tree give two serialization
+	// (section 5f). Two daemons over one state tree give two serialisation
 	// points, two WALs and two lock namespaces, silently - and every property
 	// section 16 proves is false for as long as it lasts.
 	lock, err := instance.Acquire(pidPath)
 	if err != nil {
-		var held *instance.ErrHeld
+		var held *instance.HeldError
 		if errors.As(err, &held) {
 			// Exit with the incumbent named, rather than unlinking the socket
 			// and taking over.
@@ -83,6 +83,9 @@ func run() error {
 	if err := os.Remove(sockPath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("removing stale socket: %w", err)
 	}
+	//nolint:noctx // Binding a unix socket is a filesystem operation. A
+	// ListenConfig's context cancels a pending network bind, of which there
+	// is none here.
 	l, err := net.Listen("unix", sockPath)
 	if err != nil {
 		return fmt.Errorf("listen %s: %w", sockPath, err)

@@ -257,9 +257,9 @@ ci: fmt-check vet lint-house test-race bench-size ## Everything CI runs
 	@echo
 	@echo "  M0's gate. Targets not yet in ci, each waiting on the milestone"
 	@echo "  that gives it something to check:"
-	@echo "    lint       golangci-lint on top       needs .golangci.yml first:"
-	@echo "               81 findings on a default config, and misspell wants"
-	@echo "               locale UK before it stops calling behaviour a typo"
+	@echo "    lint       golangci-lint on top       green, and CI runs it as"
+	@echo "               its own step - it needs the binary installed, which"
+	@echo "               ci must not assume a machine has"
 	@echo "    cover      90% on internal/           M1, once there is a registry"
 	@echo "    modules    the layering analyzer      M1"
 	@echo "    test-wire  golden wire vs last tag    M1, needs a tagged release"

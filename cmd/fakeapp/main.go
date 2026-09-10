@@ -47,9 +47,8 @@ func run() error {
 	}
 	defer c.Close()
 
-	c.Handle(func(method string, payload []byte) (proto.Message, error) {
-		switch {
-		case *misbehave == "hang":
+	c.Handle(func(_ string, payload []byte) (proto.Message, error) {
+		if *misbehave == "hang" {
 			// Longer than the daemon's CallTimeout, so rig answers DEADLINE
 			// instead of waiting on this process.
 			time.Sleep(time.Hour)

@@ -1,3 +1,10 @@
+// Command ipcbench measures the transport options in PLAN.md section 4.
+//
+// measures how fast bytes move, and checking every write would measure the
+// checking. It is not linked into rigd or rig, and it exists to reproduce
+// section 4's numbers on demand.
+//
+//nolint:errcheck,gosec,intrange,noctx,revive,gocritic,gofumpt // A throughput harness, not a program: it
 package main
 
 import (

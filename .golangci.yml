@@ -1,0 +1,233 @@
+# rig's lint configuration.
+#
+# It starts as a copy of the machine-wide ~/.golangci.yml, and it is a copy on
+# purpose: a CI runner has no home directory of Boris's, so without this file
+# `make lint` would run one linter set here and golangci-lint's bare defaults
+# there. Section 28 says CI runs the same targets a human does, and a target
+# that means two different things is the drift that rule exists to prevent.
+#
+# Everything below the copied baseline is a rig-specific decision, and each
+# one says why.
+version: "2"
+run:
+  tests: true
+linters:
+  enable:
+    - asasalint
+    - bidichk
+    - bodyclose
+    - copyloopvar
+    - dupword
+    - durationcheck
+    - errname
+    - errorlint
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - gocyclo
+    - gomoddirectives
+    - gosec
+    - intrange
+    - makezero
+    - mirror
+    - misspell
+    - nakedret
+    - nilerr
+    - noctx
+    - nolintlint
+    - perfsprint
+    - predeclared
+    - protogetter
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - unconvert
+    - unparam
+    - wastedassign
+    - whitespace
+  disable:
+    - cyclop
+    - err113
+    - exhaustive
+    - exhaustruct
+    - funlen
+    - gochecknoglobals
+    - gocognit
+    - godox
+    - ireturn
+    - lll
+    - nestif
+    - nlreturn
+    - nonamedreturns
+    - paralleltest
+    - testpackage
+    - tparallel
+    - varnamelen
+    - wrapcheck
+    - wsl
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: false
+      exclude-functions:
+        - io/ioutil.ReadFile
+        - io.Copy(*bytes.Buffer)
+        - io.Copy(os.Stdout)
+    goconst:
+      min-len: 3
+      # 3 fires on an enum's own name table - "unspecified" appears once per
+      # enum by design, and hoisting it to a constant makes the table harder
+      # to read, not easier.
+      min-occurrences: 6
+    gocritic:
+      disabled-checks:
+        - unnecessaryDefer
+        - whyNoLint
+        # Principal, Declaration and Command are value types on purpose. A
+        # principal is decided at connect and fixed for the life of the
+        # connection (section 14), and a declaration is what a program said
+        # once - passing either by pointer invites a caller to edit the thing
+        # the whole isolation argument assumes is immutable. They are copied
+        # on a per-connect path, not a hot one.
+        - hugeParam
+        - rangeValCopy
+        - unnamedResult
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+    gocyclo:
+      # A comment scanner and a flag-parsing main are branchy by nature and
+      # splitting them would spread one state machine over three functions.
+      # 25 still catches a function that has genuinely got away.
+      min-complexity: 25
+    gosec:
+      excludes:
+        - G104
+        - G307
+        # G703/G122/G306/G204 are taint and path rules aimed at a server
+        # handling untrusted input. rig's tools take paths and run
+        # subprocesses because that is their job, from a caller who is
+        # already this uid. Section 29: the threat model is a mistake in our
+        # own code, not an adversary. G115, the integer-overflow rule, stays
+        # on - that one is a real class and the wire depends on it.
+        - G703
+        - G122
+        - G306
+        - G204
+      severity: medium
+      confidence: medium
+    govet:
+      disable:
+        - fieldalignment
+        - shadow
+      enable-all: true
+      settings:
+        printf:
+          funcs:
+            - (github.com/sirupsen/logrus.FieldLogger).Infof
+            - (github.com/sirupsen/logrus.FieldLogger).Warnf
+            - (github.com/sirupsen/logrus.FieldLogger).Errorf
+            - (github.com/sirupsen/logrus.FieldLogger).Fatalf
+    misspell:
+      # UK, because the prose in this house is British: behaviour, analyse,
+      # colour, serialised. US flagged every one of them as a typo.
+      locale: UK
+    nakedret:
+      max-func-lines: 30
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+      allow-unused: false
+    revive:
+      confidence: 0.8
+      severity: warning
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: exported
+        - name: if-return
+        - name: increment-decrement
+        - name: var-naming
+        - name: var-declaration
+        - name: package-comments
+          disabled: true
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: errorf
+        - name: empty-block
+        - name: superfluous-else
+        - name: unused-parameter
+        - name: unreachable-code
+        - name: redefines-builtin-id
+    staticcheck:
+      checks:
+        - all
+        - -ST1000
+        - -ST1003
+  exclusions:
+    generated: lax
+    presets:
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      # Doc-comment rules are enforced only under ~/me/dojo, where the drills
+      # are about idiom. Everywhere else keeps the previous behaviour.
+      - linters:
+          - revive
+          - staticcheck
+        text: '^(exported:|ST1000|ST1020|ST1021|ST1022)'
+        path-except: (^|/)dojo/
+      - linters:
+          - dupl
+          - errcheck
+          - funlen
+          - gocritic
+          - gocyclo
+          - gosec
+          - noctx
+        path: _test\.go
+      - linters:
+          - staticcheck
+        text: 'SA9003:'
+      - linters:
+          - lll
+        source: '^//go:generate '
+      - linters:
+          - goconst
+        path: (.+)_test\.go
+    paths:
+      - .*\.pb\.go$
+      - .*\.gen\.go$
+      - vendor
+      - third_party
+      - testdata
+      - examples
+      - Godeps
+      - builtin
+      - .git
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
