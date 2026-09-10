@@ -390,6 +390,12 @@ func (d *Daemon) route(ctx context.Context, from *conn, f *rigv1.Frame, program,
 		return
 	}
 
+	// And only then, what was sent. A refused caller learns nothing about the
+	// schema it would have had to satisfy.
+	if !d.validateArgs(from, f, program, command) {
+		return
+	}
+
 	// A new even stream on the program's connection, with a slot waiting for
 	// the reply before the request goes out - otherwise a fast program can
 	// answer into a map that has no receiver yet.

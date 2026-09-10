@@ -25,22 +25,32 @@ func destructiveDeclaration(id string) *rigv1.Declaration {
 	destroy.Summary = "Delete the index"
 	destroy.Description = "Deletes the index and everything derived from it."
 	destroy.Returns = "Nothing."
-	d.Commands = append(d.Commands, destroy)
+	// One destructive command that also takes declared arguments, so a test
+	// can prove the question carries them (section 14).
+	reindex := proto.Clone(destroy).(*rigv1.Command)
+	reindex.Id = "reindex"
+	reindex.Title = "Reindex"
+	reindex.Args = []byte(`{"type":"object","additionalProperties":false,` +
+		`"required":["since"],"properties":{"since":{"type":"string"}}}`)
+	reindex.Summary = "Rebuild the index"
+	reindex.Description = "Deletes the index and rebuilds it from the tree."
+	reindex.Returns = "The number of items indexed."
+
+	d.Commands = append(d.Commands, destroy, reindex)
 	return d
 }
 
 // dangerous connects the shelf program, which answers anything it is asked
 // and declares one read-only command and one destructive one.
+//
+// It answers a CallResponse, which is what every declared command carries -
+// the typed Ping pair is only rig's own probe.
 func dangerous(t *testing.T, sock string) {
 	t.Helper()
 	const name = "shelf"
 	c := dial(t, sock)
-	c.Handle(func(_ string, payload []byte) (proto.Message, error) {
-		var req rigv1.PingRequest
-		if err := proto.Unmarshal(payload, &req); err != nil {
-			return nil, err
-		}
-		return &rigv1.PingResponse{Nonce: req.GetNonce(), Program: name, Version: "1.0"}, nil
+	c.Handle(func(method string, _ []byte) (proto.Message, error) {
+		return &rigv1.CallResponse{Result: []byte(`{"ran":"` + method + `"}`)}, nil
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -51,11 +61,12 @@ func dangerous(t *testing.T, sock string) {
 	}
 }
 
-// call invokes one method and returns the error the caller sees.
+// call invokes one declared command with no arguments and returns the error
+// the caller sees.
 func call(t *testing.T, c *client.Client, method string) error {
 	t.Helper()
-	var resp rigv1.PingResponse
-	return c.Call(ctx5(t), method, &rigv1.PingRequest{Nonce: []byte("n")}, &resp)
+	var resp rigv1.CallResponse
+	return c.Call(ctx5(t), method, &rigv1.CallRequest{}, &resp)
 }
 
 // TestSliceFourDemo is M1 slice 4's demo, over the real wire: one house rule
@@ -181,8 +192,10 @@ func TestAnAnsweredConfirmAuthorisesThatOneCall(t *testing.T) {
 	}
 
 	caller := dial(t, sock)
+	var resp rigv1.CallResponse
 	for i := range 2 {
-		if err := call(t, caller, "shelf.destroy"); err != nil {
+		if err := caller.Call(ctx5(t), "shelf.reindex",
+			&rigv1.CallRequest{Args: []byte(`{"since":"7d"}`)}, &resp); err != nil {
 			t.Fatalf("call %d was refused after a yes: %v", i, err)
 		}
 	}
@@ -195,11 +208,14 @@ func TestAnAnsweredConfirmAuthorisesThatOneCall(t *testing.T) {
 	// Section 14: the question names the principal, the pid, the command and
 	// the arguments as they will be invoked.
 	q := yes.asked[0]
-	if q.Method != "shelf.destroy" {
+	if q.Method != "shelf.reindex" {
 		t.Fatalf("the question named method %q", q.Method)
 	}
-	if len(q.Args) == 0 {
-		t.Fatal("the question carried no arguments, so nobody can see what they are authorising")
+	// Section 14: the arguments AS THEY WILL BE INVOKED. A prompt that shows
+	// the command without them is answered by someone who cannot see what
+	// they are authorising.
+	if !strings.Contains(string(q.Args), "7d") {
+		t.Fatalf("the question carried arguments %q", q.Args)
 	}
 	if q.Principal.Kind != kernel.KindTerminal || q.Principal.PID == 0 {
 		t.Fatalf("the question does not name its caller: %s", q.Principal)
@@ -291,15 +307,14 @@ func TestOneProgramCallingAnothersReadOnlyCommandIsNotDestructive(t *testing.T) 
 		t.Fatalf("set rules: %v", err)
 	}
 
-	var resp rigv1.PingResponse
+	var resp rigv1.CallResponse
 	if err := other.Call(ctx5(t), "shelf.ping",
-		&rigv1.PingRequest{Nonce: []byte("n")}, &resp); err != nil {
+		&rigv1.CallRequest{}, &resp); err != nil {
 		t.Fatalf("a read-only cross-program call was refused: %v", err)
 	}
 
 	// The destructive one is still refused, and still names the pair.
-	err := other.Call(ctx5(t), "shelf.destroy",
-		&rigv1.PingRequest{Nonce: []byte("n")}, &resp)
+	err := other.Call(ctx5(t), "shelf.destroy", &rigv1.CallRequest{}, &resp)
 	if err == nil {
 		t.Fatal("the destructive command was allowed")
 	}
