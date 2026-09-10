@@ -15,7 +15,9 @@
 
 <main>
   <h1>rig</h1>
-  <p class="sub">The window is up. It is a separate process, and it draws nothing yet.</p>
+  <p class="sub">
+    The window is up. It is a separate process, and it draws nothing yet.
+  </p>
 
   <ol>
     {#each steps as step (step.n)}
