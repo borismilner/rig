@@ -1,82 +1,134 @@
-<!-- Step 1 of M1a and nothing more: the window exists, it is its own process,
-     and it is painted in the design system's own --bg rather than the
-     scaffolder's navy. The rail, context bar, pane and status strip are step 2
-     and are deliberately not faked here - a screenshot of this must not be
-     mistakable for the shell (section 24). -->
+<!-- M1a step 2: the shell over the live wire.
+     Rail, context bar, pane and status strip (section 23's M1a row), with the
+     rail drawn from rig's own registry over the socket. Nothing here is
+     mocked: an empty rail means an empty registry, and a rail that cannot be
+     read says so in the strip. -->
 <script lang="ts">
-  const steps = [
-    { n: 1, what: "The window, scaffolded and building", state: "here" },
-    { n: 2, what: "The shell over the live wire", state: "next" },
-    { n: 3, what: "One fake application", state: "next" },
-    { n: 4, what: "The second, on a different shape", state: "next" },
-    { n: 5, what: "The theme changed from the settings UI", state: "next" },
-  ];
+  import { onMount } from "svelte";
+  import * as RigService from "../bindings/github.com/boris-milner/rig/cmd/rigwindow/rigservice.js";
+  import type {
+    Health,
+    Program,
+  } from "../bindings/github.com/boris-milner/rig/cmd/rigwindow/models.js";
+  import { applyTheme } from "./lib/theme";
+  import Rail from "./lib/Rail.svelte";
+  import ContextBar from "./lib/ContextBar.svelte";
+  import Pane from "./lib/Pane.svelte";
+  import StatusStrip from "./lib/StatusStrip.svelte";
+
+  let programs: Program[] = $state([]);
+  let health: Health = $state({
+    connected: false,
+    socket: "",
+    detail: "",
+    programs: 0,
+  });
+  let build: Record<string, string> | null = $state(null);
+  let selected: string | null = $state(null);
+  let lastRead = $state("");
+
+  let current = $derived(programs.find((p) => p.id === selected) ?? null);
+
+  async function refresh() {
+    const h = await RigService.Health();
+    health = h;
+
+    if (!h.connected) {
+      // Not clearing the rail would leave the last good read on screen looking
+      // live, which is the failure mode a status strip cannot rescue.
+      programs = [];
+      selected = null;
+      lastRead = stamp();
+      return;
+    }
+
+    try {
+      programs = (await RigService.Programs()) ?? [];
+    } catch (e) {
+      programs = [];
+      health = { ...h, connected: false, detail: String(e) };
+    }
+
+    // The rail never re-orders under your hand (section 11), and a selection
+    // survives a refresh unless the program it names has gone.
+    if (selected && !programs.some((p) => p.id === selected)) selected = null;
+    if (!selected && programs.length > 0) selected = programs[0].id;
+    lastRead = stamp();
+  }
+
+  function stamp(): string {
+    return new Date().toLocaleTimeString([], { hour12: false });
+  }
+
+  // A poll, and it is a stopgap with a date on it rather than a design. Section
+  // 5h's event stream lands at M4 with config.changed as its first kind, and
+  // the registry changing is exactly the second kind; until then the rail would
+  // otherwise not notice a program registering. It stops while the window is
+  // hidden, because section 17 budgets the daemon's wakeups and a background
+  // window has no business costing any.
+  const POLL_MS = 3000;
+  let timer: ReturnType<typeof setInterval> | undefined;
+
+  function startPolling() {
+    if (timer !== undefined) return;
+    timer = setInterval(refresh, POLL_MS);
+  }
+
+  function stopPolling() {
+    if (timer === undefined) return;
+    clearInterval(timer);
+    timer = undefined;
+  }
+
+  function onvisibility() {
+    if (document.hidden) {
+      stopPolling();
+    } else {
+      void refresh();
+      startPolling();
+    }
+  }
+
+  function onkeydown(e: KeyboardEvent) {
+    if (e.key === "r" && !e.ctrlKey && !e.metaKey && !e.altKey) void refresh();
+  }
+
+  onMount(() => {
+    applyTheme("dark");
+    void refresh();
+    RigService.Build().then((b) => (build = b));
+    startPolling();
+    document.addEventListener("visibilitychange", onvisibility);
+    return () => {
+      stopPolling();
+      document.removeEventListener("visibilitychange", onvisibility);
+    };
+  });
 </script>
 
-<main>
-  <h1>rig</h1>
-  <p class="sub">
-    The window is up. It is a separate process, and it draws nothing yet.
-  </p>
+<svelte:window on:keydown={onkeydown} />
 
-  <ol>
-    {#each steps as step (step.n)}
-      <li class:here={step.state === "here"}>
-        <span class="n">{step.n}</span>
-        <span class="what">{step.what}</span>
-      </li>
-    {/each}
-  </ol>
-</main>
+<div class="shell">
+  <Rail {programs} {selected} onselect={(id) => (selected = id)} />
 
-<style>
-  main {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    padding: 3rem;
-    max-width: 40rem;
-  }
-
-  h1 {
-    font-size: 2rem;
-    font-weight: 500;
-    letter-spacing: -0.011em;
-    margin: 0;
-  }
-
-  .sub {
-    margin: 0;
-    opacity: 0.72;
-  }
-
-  ol {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  /* 0.58, not 0.5, and the numerals do not dim again on top of it. Measured
-     with design/theme.js's own contrast(): 0.5 puts the dimmed rows at 4.37:1
-     against --bg and a second 0.6 on the numeral compounded to 0.3, which is
-     2.39:1 - a fail twice over. Nested opacity is the bug class; one dim level
-     that clears 4.5:1 is the fix. Section 6's solved --fg-dim replaces this
-     the moment the theme is live. */
-  li {
-    display: flex;
-    gap: 0.75rem;
-    align-items: baseline;
-    opacity: 0.58;
-  }
-
-  li.here {
-    opacity: 1;
-  }
-
-  .n {
-    font-variant-numeric: tabular-nums;
-  }
-</style>
+  <div class="main">
+    <ContextBar
+      program={current}
+      programCount={programs.length}
+      connected={health.connected}
+    />
+    <Pane
+      program={current}
+      {programs}
+      detail={health.detail}
+      connected={health.connected}
+    />
+    <StatusStrip
+      connected={health.connected}
+      socket={health.socket}
+      programCount={programs.length}
+      {build}
+      {lastRead}
+    />
+  </div>
+</div>

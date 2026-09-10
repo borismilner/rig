@@ -61,6 +61,12 @@ func run() error {
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
 		},
+
+		// One service, and it is the only route to the daemon. The frontend
+		// gets typed bindings for it; it never opens a socket of its own.
+		Services: []application.Service{
+			application.NewService(&RigService{}),
+		},
 		// Wails' own chatter, not the product's. Section 8 owns rig's logging,
 		// and an INFO line per asset request from a webview is not it.
 		LogLevel: slog.LevelWarn,

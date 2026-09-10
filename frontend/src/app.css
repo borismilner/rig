@@ -1,11 +1,17 @@
 @import "tailwindcss";
 
-/* The token set comes from design/theme.js at runtime (section 6: the visual
-   system is live config, not a build constant). Nothing here hard-codes a
-   colour; these two are the first-paint values that have to match
-   cmd/rigwindow/main.go and index.html, and they are replaced the moment the
-   theme is applied. */
+/* Every colour, face, size, radius and duration below is a token from
+   design/theme.js, applied at runtime by src/lib/theme.ts. Nothing here names a
+   colour: section 6 makes the visual system config, and a hard-coded hex in the
+   shell is the one thing that cannot be re-themed.
+
+   The two exceptions are marked, and both exist because the window paints
+   before the webview does. */
+
 :root {
+  /* First paint only, replaced by applyTheme on mount. Has to agree with
+     cmd/rigwindow/main.go's BackgroundColour and index.html, or the window
+     flashes on every start. This is the dark default's --bg. */
   --bg: #121a23;
   --fg: #dae5f3;
 }
@@ -16,5 +22,269 @@ body {
   height: 100%;
   background: var(--bg);
   color: var(--fg);
-  font-family: "Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--sans, Cantarell, ui-sans-serif, system-ui, sans-serif);
+  font-size: var(--fs-0, 16px);
+  line-height: var(--lh, 1.55);
+  overflow: hidden; /* the shell owns its own scrolling, per pane */
+}
+
+#app {
+  height: 100vh;
+}
+
+/* ── the shell: 56px rail, 36px context bar, 22px status strip ─────────────
+   Section 11's chrome budget, and it is a number that gets defended: 6.1% of
+   1400x900. Ported from design/visual-system.src.html:181-226 rather than
+   reinvented, because that page is what the contrast gate measures. */
+
+.shell {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  height: 100%;
+  min-height: 0;
+}
+
+.rail {
+  background: var(--bg);
+  border-inline-end: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.55rem 0;
+  position: relative;
+}
+
+.rail .brand {
+  width: 28px;
+  height: 28px;
+  margin-bottom: 0.5rem;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-2);
+  color: var(--fg);
+  font-size: var(--fs--1);
+  font-weight: 700;
+  font-family: var(--mono);
+}
+
+.mark {
+  width: 56px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  position: relative;
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.mark::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  top: 50%;
+  translate: 0 -50%;
+  width: 3px;
+  height: 12px;
+  background: var(--border-2);
+  border-radius: 0 2px 2px 0;
+}
+
+.mark .ico {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-family: var(--mono);
+  font-size: var(--fs--1);
+  font-weight: 600;
+  color: var(--fg-dim);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  transition:
+    color 0.2s,
+    border-color 0.2s,
+    background 0.2s,
+    scale 0.3s var(--spring);
+}
+
+.mark:hover .ico {
+  border-color: var(--border-2);
+  color: var(--fg);
+  scale: 1.09;
+}
+
+.mark:focus-visible {
+  outline: none;
+}
+
+.mark:focus-visible .ico {
+  box-shadow: 0 0 0 var(--ring-w) var(--hue);
+}
+
+.mark[aria-current="true"] .ico {
+  color: var(--hue);
+  border-color: var(--hue);
+  background: color-mix(in srgb, var(--hue) 13%, var(--panel));
+  box-shadow: 0 0 20px -4px color-mix(in srgb, var(--hue) 75%, transparent);
+}
+
+/* box-shadow is one property, so the rule above would silently replace the
+   focus ring on whichever marker is current. Both shadows are named together
+   here for the same reason the design page names them together: the selected
+   program was once the only element on screen with no focus indicator at all. */
+.mark[aria-current="true"]:focus-visible .ico {
+  box-shadow:
+    0 0 20px -4px color-mix(in srgb, var(--hue) 75%, transparent),
+    0 0 0 var(--ring-w) var(--hue);
+}
+
+.mark .pip {
+  position: absolute;
+  right: 6px;
+  top: 7px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* Nothing drives these two yet and that is deliberate: supervision is M6 and
+   the wire carries no program state, so the shell would be inventing it. The
+   rules are here because the design system defines them and step 3's fake
+   applications are what will first need them. */
+.mark[data-state="degraded"] .pip {
+  background: var(--h-amber);
+}
+
+.mark[data-state="failing"] .pip {
+  background: var(--h-rust);
+  animation: breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.42;
+  }
+}
+
+.mark[data-state="stopped"] .ico {
+  color: var(--fg-faint);
+  border-style: dashed;
+}
+
+.notch {
+  position: absolute;
+  inset-inline-start: 0;
+  width: 3px;
+  height: 44px;
+  background: var(--hue);
+  border-radius: 0 3px 3px 0;
+  transition:
+    translate 0.44s var(--spring),
+    background 0.2s;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--hue) 85%, transparent);
+}
+
+.main {
+  display: grid;
+  grid-template-rows: 36px 1fr 22px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.ctxbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 0.9rem;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs--1);
+  min-width: 0;
+}
+
+.ctxbar .name {
+  font-weight: 700;
+  color: var(--hue);
+  font-size: var(--fs-0);
+  white-space: nowrap;
+}
+
+.ctxbar .ver,
+.ctxbar .right {
+  color: var(--fg-faint);
+  font-size: var(--fs--1);
+  font-family: var(--mono);
+}
+
+.ctxbar .note {
+  color: var(--fg-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ctxbar .right {
+  margin-inline-start: auto;
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  color: var(--fg-dim);
+  white-space: nowrap;
+}
+
+kbd {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0.05rem 0.4rem;
+  font-size: var(--fs--2);
+  color: var(--fg-dim);
+  background: var(--panel);
+  font-family: var(--mono);
+}
+
+.pane {
+  background: var(--panel);
+  padding: calc(1rem * var(--den)) 1.15rem;
+  overflow: auto;
+  min-height: 0;
+}
+
+.strip {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0 0.9rem;
+  background: var(--bg-2);
+  border-top: 1px solid var(--border);
+  font-size: var(--fs--1);
+  color: var(--fg-dim);
+  white-space: nowrap;
+}
+
+.strip .r {
+  margin-inline-start: auto;
+  font-family: var(--mono);
+}
+
+/* Healthy is the absence of colour (section 11), so ok is a hollow tick and a
+   hue appears only when something wants you. */
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--fg-dim);
+  display: inline-block;
+}
+
+.dot.bad {
+  border-color: var(--sem-bad);
+  background: var(--sem-bad);
 }
