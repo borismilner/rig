@@ -392,3 +392,583 @@ function paintPalette(){
 buildLab();
 render();
 select('shelf');
+
+/* ══ the notification centre ════════════════════════════════════════════ */
+/* "Nothing is ever only a toast" is only true if the record is a different
+   thing from the surface, so this list is the record and DND touches only
+   the surface. A suppressed notification is tagged here, never dropped. */
+let NOTES=[
+ {pg:'graft',when:'14:31',unread:true,
+  title:'nightly-audit is waiting on you',
+  body:'Three files under <code>logbook/</code> changed on both sides. The run is parked, '
+      +'not failed - it holds its lease until you answer.',
+  acts:['Take mine','Take theirs','Open diff']},
+ {pg:'dispatch',when:'14:22',unread:true,
+  title:'dispatch went degraded',
+  body:'Three health checks missed in a row. Restart 2 of 5 fires in 8s.',
+  acts:['Restart now','Quarantine']},
+ {pg:'archi',when:'13:58',unread:true,
+  title:'the deployment view is 21 days stale',
+  body:'16 elements, coverage 28%. Nothing has touched it since the last release.',
+  acts:['Open view','Mute 30 days']},
+ {pg:'shelf',when:'14:22',
+  title:'index finished',
+  body:'1,204 files in 812 ms. Nothing changed under <code>archive</code>.'},
+ {pg:'snapper',when:'12:45',
+  title:'snapper stopped',
+  body:'Exit 0, stopped by you. It keeps its place in the rail rather than vanishing from it.',
+  acts:['Start']},
+ {pg:'nudge',when:'12:31',
+  title:'~/me/inbox fired',
+  body:'One assignment queued to graft.'},
+ {pg:'shelf',when:'11:04',
+  title:'secrets.get SHELF_TOKEN',
+  body:'Granted, scoped to shelf. The value is <span class="nc-redact">never recorded</span> - '
+      +'declared <code>sensitive</code>, so it never reached the log and cannot be searched here.'},
+];
+const NCPOOL=[
+ {pg:'graft',title:'spec-sweep finished',
+  body:'9,110 frames, 2 m 41 s. 124.6k tokens in, 8.1k out.'},
+ {pg:'shelf',title:'reindex wants a confirmation',
+  body:'<code>archive</code> is 17,900 items and 33 MB. This rewrites the whole segment.',
+  acts:['Reindex','Not now']},
+ {pg:'dispatch',title:'two assignments went overdue',
+  body:'<code>grabbit revival</code> and <code>romsort</code>. Neither has moved in a week.',
+  acts:['Open board']},
+ {pg:'nudge',title:'~/dl saw a new file',
+  body:'<code>chapter-04.pdf</code>, 2.1 MB. No rule matched, so nothing ran.'},
+];
+let ncPool=0, ncFilter='all', ncDnd=false;
+const ncList=document.getElementById('nc-list'),
+      ncQ=document.getElementById('nc-q'),
+      ncCount=document.getElementById('nc-count'),
+      ncHint=document.getElementById('nc-hint'),
+      ncMore=document.getElementById('nc-more');
+
+const ncClock=()=>{const d=new Date();
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
+
+function ncNode(n){
+  const el=document.createElement('div');
+  el.className='nc-row'+(n.unread?'':' read');
+  const hue=APPS[n.pg] && APPS[n.pg].hue;
+  if(hue) el.style.setProperty('--pg',`var(--h-${hue})`);
+  el.dataset.pg=n.pg;
+  el.dataset.text=(n.pg+' '+n.title+' '+n.body).replace(/<[^>]+>/g,'').toLowerCase();
+  el.innerHTML=
+    `<div class="nc-top"><span class="nc-pg">${n.pg}</span>`
+    +(n.held?'<span class="chip">suppressed</span>':'')
+    +`<span class="nc-when">${n.when}</span></div>`
+    +`<p class="nc-title">${n.title}</p><p class="nc-body">${n.body}</p>`;
+  ncPaintActs(el,n);
+  return el;
+}
+function ncPaintActs(el,n){
+  el.querySelector('.nc-acts,.nc-done')?.remove();
+  if(n.done){
+    const d=document.createElement('div'); d.className='nc-done';
+    d.innerHTML=`<span aria-hidden="true">&#10003;</span> answered &ldquo;${n.done.what}&rdquo;`
+                +` &middot; ${n.done.at}`;
+    el.append(d);
+  }else if(n.acts && n.acts.length){
+    const w=document.createElement('div'); w.className='nc-acts';
+    w.innerHTML=n.acts.map((t,i)=>
+      `<button class="btn${i===0?' primary':''}" data-act="${t}">${t}</button>`).join('');
+    el.append(w);
+  }
+}
+function ncSync(){
+  const q=ncQ.value.trim().toLowerCase();
+  ncList.querySelector('.nc-empty')?.remove();   // it carries no note; count it and ncSync throws
+  let shown=0, unread=0, total=0;
+  [...ncList.children].forEach(el=>{
+    const n=el._n; total++;
+    if(n.unread) unread++;
+    const passF = ncFilter==='all' ? true
+                : ncFilter==='unread' ? !!n.unread
+                : ncFilter==='action' ? !!(n.acts && n.acts.length && !n.done)
+                : !!n.held;
+    const passQ = !q || el.dataset.text.includes(q);
+    el.hidden = !(passF && passQ);
+    if(!el.hidden) shown++;
+  });
+  if(!shown){
+    const e=document.createElement('div'); e.className='nc-empty';
+    e.textContent = q ? `Nothing matches "${ncQ.value.trim()}".`
+                      : 'Nothing in this filter. The record is still complete.';
+    ncList.append(e);
+  }
+  ncCount.textContent = (q||ncFilter!=='all')
+    ? `${shown} of ${total}` : `${unread} unread · ${total} kept`;
+  // the clipped last row is the scroll affordance every centre uses; saying so
+  // is the difference between "there is more" and "this is broken"
+  const over = ncList.scrollHeight - ncList.clientHeight > 4;
+  ncMore.textContent = over ? 'scroll for the rest' : 'everything fits';
+}
+function ncAdd(n,front){
+  const el=ncNode(n); el._n=n;
+  front ? ncList.prepend(el) : ncList.append(el);
+  ncSync();
+}
+NOTES.forEach(n=>ncAdd(n,false));
+
+ncQ.addEventListener('input',ncSync);
+document.getElementById('nc-filters').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-f]'); if(!b) return;
+  ncFilter=b.dataset.f;
+  e.currentTarget.querySelectorAll('button').forEach(x=>
+    x.setAttribute('aria-pressed',String(x===b)));
+  ncSync();
+});
+ncList.addEventListener('click',e=>{
+  const b=e.target.closest('button[data-act]'); if(!b) return;
+  const el=b.closest('.nc-row'), n=el._n;
+  n.done={what:b.dataset.act,at:ncClock()};
+  n.unread=false; el.classList.add('read');
+  ncPaintActs(el,n); ncSync();
+});
+const dndBtn=document.getElementById('dnd');
+dndBtn.addEventListener('click',()=>{
+  ncDnd=!ncDnd;
+  dndBtn.setAttribute('aria-pressed',String(ncDnd));
+  ncHint.textContent = ncDnd
+    ? 'Do Not Disturb is on. Nothing reaches the screen; the record still arrives, tagged.'
+    : 'Search it, or answer a row and watch the action resolve in place.';
+});
+document.getElementById('nc-fire').addEventListener('click',()=>{
+  const src=NCPOOL[ncPool++ % NCPOOL.length];
+  const n={...src,when:ncClock(),unread:true,held:ncDnd,acts:src.acts?[...src.acts]:null};
+  ncAdd(n,true);
+  ncHint.textContent = ncDnd
+    ? 'Suppressed: nothing reached the screen, and the row still arrived - tagged.'
+    : 'That one also went up as a toast. The row is the copy that outlives it.';
+});
+
+/* ══ the crash panel ════════════════════════════════════════════════════ */
+/* §18: exponential backoff inside a budget, and exhausting the budget is
+   quarantine - a visible state with the full history and a manual restart,
+   never a silent disappearance. The pane is the only thing that changes. */
+const CRLOG=[
+ ['14:21:58','migrate','020_assignment_owner: begin'],
+ ['14:21:58','migrate','ALTER TABLE assignment ADD COLUMN owner TEXT'],
+ ['14:21:59','migrate','backfill 11 rows from assignment_history'],
+ ['14:22:00','sqlite ','constraint failed: assignment.owner NOT NULL',1],
+ ['14:22:00','migrate','rollback 020 - the database is untouched',1],
+ ['14:22:00','panic  ','migration 020 failed after rollback',1],
+ ['14:22:00','exit   ','status 1, no signal'],
+ ['14:22:00','rigd   ','dispatch exited after 4h 12m; 200 lines kept'],
+];
+const CRBASE=4, CRCAP=16, CRBUDGET=5;
+const crPane=document.getElementById('crashpane'),
+      crHint=document.getElementById('cr-hint'),
+      crCtx=document.getElementById('cr-ctx'),
+      crStrip=document.getElementById('cr-strip'),
+      crStripR=document.getElementById('cr-strip-r');
+let cr={attempt:2, left:CRBASE, span:CRBASE, state:'waiting'}, crTimer=null;
+
+const crBackoff = a => Math.min(CRCAP, CRBASE * 2**(a-2));
+function crFacts(){
+  const q = cr.state==='quarantined';
+  return [
+    ['exit status','1','tone'],
+    ['signal','none'],
+    ['crashed at','14:22:00'],
+    ['uptime','4h 12m'],
+    ['restart', q ? `${CRBUDGET} of ${CRBUDGET} spent` : `${cr.attempt} of ${CRBUDGET}`, q?'tone':''],
+    ['backoff', q ? 'budget exhausted' : `${CRBASE}s doubling, cap ${CRCAP}s`],
+  ];
+}
+function crRender(){
+  const q = cr.state==='quarantined';
+  crPane.classList.toggle('done', q);
+  const pct = cr.state==='waiting' ? Math.max(0, cr.left/cr.span*100) : 0;
+  crPane.innerHTML =
+    `<div class="crash-h"><h4>dispatch exited</h4>
+      <span class="chip tone">${q?'quarantined':'exit 1'}</span>
+      <span class="chip">migration 020</span>
+      <span class="acts">
+        <button class="btn" data-cr="trace">Copy trace id</button>
+        <button class="btn" data-cr="history">Full history</button>
+        <button class="btn primary" data-cr="${q?'start':'now'}">${q?'Start dispatch':'Restart now'}</button>
+      </span></div>
+     <div class="crash-facts">${crFacts().map(([k,v,t])=>
+       `<div class="fact"><span>${k}</span><b class="${t||''}">${v}</b></div>`).join('')}</div>
+     <div class="crash-log">${CRLOG.map(l=>
+       `<div class="${l[3]?'hit':''}"><span class="ts">${l[0]}</span>`
+       +`<span>${l[1]}</span><span>${l[2]}</span></div>`).join('')}</div>
+     <div class="crash-foot"><div class="cd"><div class="lbl">
+        <span>${q ? 'no further attempts - manual only'
+                  : cr.state==='restarting' ? `restarting, attempt ${cr.attempt}`
+                  : `attempt ${cr.attempt} of ${CRBUDGET} in ${cr.left}s`}</span>
+        <span>${q ? 'quarantined 14:22:44' : `${cr.span}s backoff`}</span></div>
+        <div class="track"><i style="width:${pct}%"></i></div></div>
+        ${q ? '<span class="hint">It keeps its place in the rail, and every attempt is in '
+             +'the history.</span>' : ''}</div>`;
+  crCtx.textContent = q ? 'quarantined' : 'not running';
+  crStrip.textContent = q ? '6 mounted · 1 quarantined' : '6 mounted · 1 failing';
+  crStripR.textContent = q ? 'dispatch quarantined' : `dispatch restart ${cr.attempt}/${CRBUDGET}`;
+}
+function crStop(){ if(crTimer){ clearInterval(crTimer); crTimer=null; } }
+function crQuarantine(){
+  crStop(); cr.state='quarantined'; crRender();
+  crHint.textContent='Budget spent after five attempts. Nothing disappeared: the program is '
+    +'still listed, still selectable, and the reason is on the panel.';
+}
+function crTick(){
+  if(cr.state!=='waiting') return;
+  cr.left--;
+  if(cr.left>0){ crRender(); return; }
+  cr.state='restarting'; crRender();
+  setTimeout(()=>{
+    cr.attempt++;
+    if(cr.attempt>CRBUDGET){ crQuarantine(); return; }
+    cr.span=crBackoff(cr.attempt); cr.left=cr.span; cr.state='waiting'; crRender();
+  }, 1100);
+}
+function crReset(){
+  crStop(); cr={attempt:2,left:CRBASE,span:CRBASE,state:'waiting'}; crRender();
+  crHint.textContent='The countdown is real. Watch the backoff double on every attempt until '
+    +'the budget runs out.';
+}
+document.getElementById('cr-run').onclick=()=>{
+  if(cr.state==='quarantined') crReset();
+  crStop(); crTimer=setInterval(crTick,1000);
+  crHint.textContent='Running. Each failed attempt doubles the wait, capped at '+CRCAP+'s.';
+};
+document.getElementById('cr-skip').onclick=crQuarantine;
+document.getElementById('cr-reset').onclick=crReset;
+crPane.addEventListener('click',e=>{
+  const b=e.target.closest('button[data-cr]'); if(!b) return;
+  const k=b.dataset.cr;
+  if(k==='now'){ cr.left=1; crTick(); crStop(); crTimer=setInterval(crTick,1000); }
+  else if(k==='start'){ crReset(); crHint.textContent=
+    'Started by hand. The budget resets with it, and the quarantine is in the history.'; }
+  else if(k==='trace'){ b.textContent='copied 8f3c1a9e'; setTimeout(()=>b.textContent='Copy trace id',1400); }
+  else { crHint.textContent='Every attempt, its exit status and its log are in the history '
+    +'(§15) - the panel is a view over it, not the only copy.'; }
+});
+crReset();
+
+/* ══ the operator view ══════════════════════════════════════════════════ */
+/* §15. The columns are the plan's columns. The interesting row is the one
+   that is WAITING: on a machine running several agents, contention is the
+   thing you open this view to find. */
+const CLIENTS=[
+ {id:'claude', kind:'agent', who:'claude', sub:'pid 41182 · claude --resume · uid 1000',
+  since:'14:02', active:'3s ago', wire:'1.4 · stub 0.9.1',
+  hold:'2 leases · crew rig-spec · 4 subs', wait:null,
+  doing:'shelf.search 41 ms', rate:'3.1/s · 812 KB · 0 err',
+  calls:[
+   ['14:33:02','shelf.search','{q:"oklch"}','41 ms','12 hits'],
+   ['14:32:58','peers.lease.acquire','{name:"deploy",ttl:"5m"}','3 ms','fenced 118'],
+   ['14:31:40','secrets.get','{key:"SHELF_TOKEN"}','2 ms','REDACT'],
+   ['14:31:12','dispatch.list','{state:"open"}','9 ms','11 rows'],
+   ['14:30:04','graft.run','{assignment:"nightly-audit"}','6 ms','queued'],
+  ]},
+ {id:'tui', kind:'terminal', who:'rig tui', sub:'pid 39004 · rig tui · uid 1000',
+  since:'09:14', active:'2m ago', wire:'1.4 · stub 0.9.1',
+  hold:'1 sub', wait:null, doing:null, rate:'0.2/s · 9 KB · 0 err',
+  calls:[
+   ['14:31:08','programs.list','{}','1 ms','6 rows'],
+   ['14:28:44','history.query','{since:"1h",limit:200}','14 ms','1,204 rows'],
+  ]},
+ {id:'window', kind:'window', who:'rig window', sub:'pid 38210 · rigd-window · uid 1000',
+  since:'09:14', active:'now', wire:'1.4 · stub 0.9.1',
+  hold:'9 subs', wait:null, doing:'dispatch.list 8 ms', rate:'1.4/s · 210 KB · 0 err',
+  calls:[
+   ['14:33:04','dispatch.list','{state:"open"}','8 ms','11 rows'],
+   ['14:33:01','programs.health','{}','2 ms','1 degraded'],
+  ]},
+ {id:'deploy', kind:'script', who:'make deploy', sub:'pid 41990 · /bin/sh -c make deploy',
+  since:'14:31', active:'now', wire:'1.4 · stub 0.9.1',
+  hold:null, wait:'lease deploy, held by claude · 4m 12s',
+  doing:null, rate:'0.1/s · 2 KB · 0 err',
+  calls:[
+   ['14:31:52','peers.lease.acquire','{name:"deploy",wait:"10m"}','blocked','waiting'],
+   ['14:31:52','peers.holder','{name:"deploy"}','2 ms','claude, 4m 12s'],
+  ]},
+ {id:'shelf', kind:'program', who:'shelf', sub:'pid 38455 · shelf serve --rig',
+  since:'09:14', active:'12s ago', wire:'1.4 · stub 0.9.1',
+  hold:'grants: storage, filesystem', wait:null, doing:null,
+  rate:'0.9/s · 44 KB · 3 denied',
+  calls:[
+   ['14:32:11','notify.post','{title:"index finished"}','1 ms','delivered'],
+   ['14:29:03','network.dial','{host:"api.crates.io"}','0 ms','DENIED capability'],
+  ]},
+];
+const opBody=document.getElementById('opbody'), opDetail=document.getElementById('opdetail');
+let opSel='claude', opLooked=new Set();
+
+const opCell = v => v ? v : '<span class="op-none">-</span>';
+function opRows(){
+  opBody.innerHTML=CLIENTS.map(c=>
+   `<tr data-id="${c.id}" aria-selected="${c.id===opSel}" tabindex="0">
+     <td><div class="op-who"><span class="op-kind">${c.kind}</span><b>${c.who}</b>
+       <span>${c.sub}</span></div></td>
+     <td class="m">${c.since}<br>${c.active}</td>
+     <td class="m">${opCell(c.hold)}</td>
+     <td class="m">${c.wait?`<span class="op-wait">${c.wait}</span>`:opCell(null)}</td>
+     <td class="m">${opCell(c.doing)}</td>
+     <td class="m">${c.rate}</td></tr>`).join('');
+}
+function opRenderDetail(){
+  const c=CLIENTS.find(x=>x.id===opSel);
+  const looked=opLooked.has(c.id);
+  opDetail.innerHTML=
+   `<h5>${c.who} &mdash; every call it made</h5>
+    <p class="sub">Connected ${c.since}, wire ${c.wire}. Thirty days of history, then it ages
+    out. A field a command declared <code>sensitive</code> is not hidden here - it was never
+    written.</p>
+    <div class="op-calls">${c.calls.map(k=>
+      `<div><span class="ts">${k[0]}</span><span class="mth">${k[1]}</span>`
+      +`<span class="arg">${k[2].replace(/</g,'&lt;')}</span><span class="ms">${k[3]}</span>`
+      +`<span class="${k[4]==='REDACT'?'':'res'}">`
+      +`${k[4]==='REDACT'?'<span class="nc-redact">never recorded</span>':k[4]}</span></div>`
+     ).join('')}</div>
+    ${looked?`<p class="op-audit"><b>Written to the audit log:</b> you opened
+      ${c.who}'s history. Looking is an event, so the record of who read what is the same
+      record as who did what.</p>`:''}`;
+}
+function opSelect(id){
+  if(id!==opSel) opLooked.add(id);
+  opSel=id; opRows(); opRenderDetail();
+}
+opBody.addEventListener('click',e=>{
+  const tr=e.target.closest('tr[data-id]'); if(tr) opSelect(tr.dataset.id);
+});
+opBody.addEventListener('keydown',e=>{
+  const tr=e.target.closest('tr[data-id]'); if(!tr) return;
+  if(e.key==='Enter'||e.key===' '){ e.preventDefault(); opSelect(tr.dataset.id); }
+});
+opRows(); opRenderDetail();
+
+/* ══ generated panes ════════════════════════════════════════════════════ */
+/* §11's second pane tier, minus the two §01 already shows. The point is the
+   pairing: the JSON on the left is the ONLY thing the program wrote, and the
+   CLI line under it is built from that same object, not from a second spec. */
+const gpCode=document.getElementById('gp-code'), gpLive=document.getElementById('gp-live'),
+      gpCli=document.getElementById('gp-cli'), gpOwner=document.getElementById('gp-owner'),
+      gpLines=document.getElementById('gp-lines');
+let gpKind='form', gpTimer=null;
+
+// a small JSON pretty-printer, coloured the way §12's toasts colour code
+function gpJson(v, ind){
+  const pad='  '.repeat(ind), pad1='  '.repeat(ind+1);
+  const P=t=>`<span class="p">${t}</span>`;
+  if(v===null) return '<span class="n">null</span>';
+  if(typeof v==='boolean'||typeof v==='number') return `<span class="n">${v}</span>`;
+  if(typeof v==='string') return `<span class="s">"${v.replace(/</g,'&lt;')}"</span>`;
+  if(Array.isArray(v)){
+    if(!v.length) return P('[]');
+    const flat=v.every(x=>typeof x!=='object'||x===null);
+    if(flat) return P('[')+v.map(x=>gpJson(x,0)).join(P(', '))+P(']');
+    return P('[')+'\n'+v.map(x=>pad1+gpJson(x,ind+1)).join(P(',')+'\n')+'\n'+pad+P(']');
+  }
+  const ks=Object.keys(v);
+  if(!ks.length) return P('{}');
+  return P('{')+'\n'+ks.map(k=>
+    `${pad1}<span class="k">"${k}"</span>${P(': ')}${gpJson(v[k],ind+1)}`
+  ).join(P(',')+'\n')+'\n'+pad+P('}');
+}
+
+const GP={
+ form:{owner:'shelf', decl:{
+   command:'shelf.reindex', summary:'Rebuild the index for one collection',
+   idempotent:true, destructive:false, sensitive:[],
+   args:{
+     collection:{type:'enum', of:['library','study','archive','inbox'], required:true,
+                 help:'Which collection to rebuild'},
+     full:{type:'bool', default:false, help:'Rewrite the whole segment, not just the delta'},
+     since:{type:'date', default:null, help:'Only files touched after this'},
+     workers:{type:'int', min:1, max:8, default:4, help:'Parallel readers'}}}},
+ progress:{owner:'shelf', decl:{
+   command:'shelf.reindex', progress:{
+     kind:'determinate', unit:'files', total:'{{total}}', done:'{{done}}',
+     rate:true, eta:true, cancellable:true,
+     steps:['scan','read','embed','write','verify']}}},
+ detail:{owner:'dispatch', decl:{
+   view:'assignment', key:'id', title:'{{title}}',
+   fields:[{name:'state', type:'enum', of:['open','blocked','done']},
+           {name:'owner', type:'string'},
+           {name:'due', type:'date'},
+           {name:'age', type:'duration'},
+           {name:'lease', type:'string', mono:true},
+           {name:'notes', type:'markdown'}]}},
+ status:{owner:'graft', decl:{
+   status:{state:'{{state}}', since:'{{since}}',
+           health:{interval:'10s', timeout:'2s', failures:'{{fails}}'},
+           counters:['runs','queued','frames','tokens'],
+           last_error:'{{last_error}}'}}},
+ table:{owner:'shelf', decl:{
+   view:'collections', rowKey:'name',
+   columns:[{name:'Collection', field:'name'},
+            {name:'Items', field:'items', align:'end'},
+            {name:'Last run', field:'ran', type:'relative'},
+            {name:'Size', field:'bytes', type:'bytes'},
+            {name:'Health', field:'health', type:'percent', render:'bar'}]}},
+ actions:{owner:'shelf', decl:{
+   actions:[{command:'shelf.stats', label:'Stats', idempotent:true},
+            {command:'shelf.reindex', label:'Reindex', idempotent:true, primary:true},
+            {command:'shelf.forget', label:'Forget collection', destructive:true,
+             confirm:'Type the collection name'}]}}};
+
+/* ── the six renderers ─────────────────────────────────────────────────── */
+let gpForm={collection:'archive', full:true, since:'', workers:4};
+function gpRenderForm(){
+  const a=GP.form.decl.args;
+  return `<div class="gform">
+    <div class="gfield"><label for="gf-c">collection</label>
+      <select id="gf-c">${a.collection.of.map(o=>
+        `<option${o===gpForm.collection?' selected':''}>${o}</option>`).join('')}</select>
+      <span class="help">${a.collection.help}</span></div>
+    <div class="gfield"><label for="gf-s">since</label>
+      <input id="gf-s" type="text" inputmode="numeric" placeholder="2026-08-01"
+             value="${gpForm.since}"><span class="help">${a.since.help}</span></div>
+    <div class="gfield"><label for="gf-w">workers</label>
+      <div class="grange"><input id="gf-w" type="range" min="${a.workers.min}"
+        max="${a.workers.max}" value="${gpForm.workers}"
+        aria-label="workers"><output>${gpForm.workers}</output></div>
+      <span class="help">${a.workers.help}</span></div>
+    <div class="gfield"><label for="gf-f">full</label>
+      <div class="gcheck"><input id="gf-f" type="checkbox"${gpForm.full?' checked':''}>
+        <label for="gf-f" class="help">${a.full.help}</label></div></div>
+  </div>
+  <div class="gform-foot"><button class="btn primary" id="gf-run">Reindex</button>
+    <span class="hint">Declared <code>idempotent</code>, so a retry is safe and the terminal
+    says so in <code>--help</code>.</span></div>`;
+}
+let gpDone=1204, gpTotal=4182;
+function gpRenderProgress(){
+  const pct=Math.round(gpDone/gpTotal*100), step=Math.min(4, Math.floor(pct/22));
+  const names=GP.progress.decl.progress.steps;
+  return `<div class="gprog">
+    <div class="top"><b>Reindexing archive</b><span>${pct}%</span></div>
+    <span class="bar" style="width:100%"><i style="width:${pct}%"></i></span>
+    <div class="sub"><span>${gpDone.toLocaleString()} of ${gpTotal.toLocaleString()} files</span>
+      <span>1,480/s &middot; about ${Math.max(1,Math.round((gpTotal-gpDone)/1480))}s left</span></div>
+  </div>
+  <div class="gsteps">${names.map((n,i)=>
+    `<span class="${i<step?'go':i===step?'on':''}">${i<step?'&#10003;':i===step?'&rarr;':'&middot;'} ${n}</span>`
+   ).join('')}</div>
+  <div class="gform-foot"><button class="btn" id="gp-cancel">Cancel</button>
+    <span class="hint">Cancellable because the declaration says so. A command that cannot be
+    cancelled does not get a button that lies about it.</span></div>`;
+}
+function gpRenderDetail(){
+  const rows=[['state','<span class="chip hue">open</span>'],['owner','me'],
+   ['due','today &middot; 4h left'],['age','4h 12m'],
+   ['lease','deploy &middot; fenced 118 &middot; 5m ttl'],
+   ['notes','Waiting on the §24 gate date. Nothing else blocks it.']];
+  return `<div class="gp-h"><h4>rig spec pass</h4><span class="chip">assignment</span>
+    <span class="acts"><button class="btn">Open</button>
+    <button class="btn primary">Mark done</button></span></div>
+   <dl class="gdl">${rows.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
+}
+function gpRenderStatus(){
+  const cells=[['state','running','sage'],['since','09:14 &middot; 5h 19m',''],
+   ['health','10s / 2s &middot; 0 fails',''],['runs','3',''],['queued','1',''],
+   ['frames','41,208',''],['tokens','124.6k in &middot; 8.1k out',''],
+   ['last error','none',''],];
+  return `<div class="gp-h"><h4>graft</h4><span class="chip hue">coverage: partial</span>
+    <span class="acts"><button class="btn">Logs</button>
+    <button class="btn">Restart</button></span></div>
+   <div class="gstat">${cells.map(([k,v,t])=>
+     `<div class="fact"><span>${k}</span><b${t?` style="color:var(--h-${t})"`:''}>${v}</b></div>`
+    ).join('')}</div>
+   <span class="cap" style="margin:0">Healthy is the absence of colour, so only the one word
+   that is good is coloured, and nothing here moves at rest.</span>`;
+}
+function gpRenderTable(){
+  const a=APPS.shelf;
+  return `<div class="gp-h"><h4>${a.title}</h4><span class="chip hue">${a.cov}</span></div>
+   <table class="tbl"><thead><tr>${a.cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>
+   ${a.rows.map(r=>`<tr><td>${r[0]}</td><td class="m">${r[1]}</td><td class="m">${r[2]}</td>
+     <td class="m">${r[3]}</td><td><span class="bar"><i style="width:${r[4]}%"></i></span></td></tr>`
+    ).join('')}</tbody></table>`;
+}
+function gpRenderActions(){
+  return `<div class="gp-h"><h4>Actions</h4><span class="chip">3 declared</span></div>
+   <div class="gform-foot" style="margin-top:0">
+     <button class="btn">Stats</button>
+     <button class="btn primary">Reindex</button>
+     <button class="btn" id="gp-destroy">Forget collection</button></div>
+   <p class="cap" style="margin-top:.9rem"><b>Destructive is a property, not a convention.</b>
+   The third command declared <code>destructive</code> with a confirmation, so every surface
+   asks - the window with a typed name, <code>rig run</code> with a prompt it will not skip
+   without <code>--yes</code>, and MCP by refusing outright unless the agent was granted it.</p>
+   <p class="cap" id="gp-destroy-out" style="margin-top:.5rem"></p>`;
+}
+const GPR={form:gpRenderForm, progress:gpRenderProgress, detail:gpRenderDetail,
+           status:gpRenderStatus, table:gpRenderTable, actions:gpRenderActions};
+
+function gpCliLine(){
+  if(gpKind==='form'){
+    const f=[`--collection=${gpForm.collection}`];
+    if(gpForm.full) f.push('--full');
+    if(gpForm.since.trim()) f.push(`--since=${gpForm.since.trim()}`);
+    if(gpForm.workers!==4) f.push(`--workers=${gpForm.workers}`);
+    return `rig run shelf.reindex ${f.join(' ')}`;
+  }
+  return {progress:'rig run shelf.reindex --collection=archive --watch',
+          detail:'rig show dispatch assignment rig-spec-pass',
+          status:'rig status graft',
+          table:'rig list shelf collections',
+          actions:'rig commands shelf'}[gpKind];
+}
+function gpStopTimer(){ if(gpTimer){ clearInterval(gpTimer); gpTimer=null; } }
+function gpPaint(){
+  gpOwner.textContent=GP[gpKind].owner;
+  // one element per logical line, so a wrapped line can hang under its own indent
+  gpCode.innerHTML=gpJson(GP[gpKind].decl,0).split('\n')
+    .map(l=>`<span class="ln">${l||'&nbsp;'}</span>`).join('');
+  gpLines.textContent=gpCode.querySelectorAll('.ln').length+' lines';
+  gpLive.innerHTML=GPR[gpKind]();
+  gpCli.textContent=gpCliLine();
+  if(gpKind==='form') gpWireForm();
+  if(gpKind==='progress') gpWireProgress();
+  if(gpKind==='actions') gpWireActions();
+}
+function gpWireForm(){
+  const c=document.getElementById('gf-c'), s=document.getElementById('gf-s'),
+        w=document.getElementById('gf-w'), f=document.getElementById('gf-f');
+  const upd=()=>{ gpForm={collection:c.value, since:s.value, workers:+w.value, full:f.checked};
+                  w.nextElementSibling.textContent=w.value; gpCli.textContent=gpCliLine(); };
+  [c,s,w,f].forEach(el=>el.addEventListener('input',upd));
+  document.getElementById('gf-run').onclick=()=>{
+    gpKind='progress'; gpDone=0;
+    document.querySelectorAll('#gp-tabs [data-gp]').forEach(b=>
+      b.setAttribute('aria-pressed',String(b.dataset.gp==='progress')));
+    gpPaint();
+  };
+}
+function gpWireProgress(){
+  gpStopTimer();
+  gpTimer=setInterval(()=>{
+    if(gpKind!=='progress'){ gpStopTimer(); return; }
+    gpDone=Math.min(gpTotal, gpDone+Math.round(gpTotal*0.06));
+    gpLive.innerHTML=gpRenderProgress(); gpWireCancelOnly();
+    if(gpDone>=gpTotal) gpStopTimer();
+  },700);
+  gpWireCancelOnly();
+}
+function gpWireCancelOnly(){
+  const b=document.getElementById('gp-cancel');
+  if(b) b.onclick=()=>{ gpStopTimer();
+    gpLive.querySelector('.gprog .top b').textContent='Reindex cancelled';
+    b.disabled=true; b.textContent='Cancelled'; };
+}
+function gpWireActions(){
+  document.getElementById('gp-destroy').onclick=()=>{
+    document.getElementById('gp-destroy-out').innerHTML=
+      '<b>Confirmation required.</b> Type <code>archive</code> to forget it. The same command '
+     +'over MCP is refused outright unless the agent holds the grant.';
+  };
+}
+document.getElementById('gp-tabs').addEventListener('click',e=>{
+  const b=e.target.closest('[data-gp]'); if(!b) return;
+  gpStopTimer(); gpKind=b.dataset.gp;
+  e.currentTarget.querySelectorAll('[data-gp]').forEach(x=>
+    x.setAttribute('aria-pressed',String(x===b)));
+  gpPaint();
+});
+gpPaint();

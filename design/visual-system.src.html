@@ -153,7 +153,11 @@ p.say strong{color:var(--fg);font-weight:600}
    linear-gradient(165deg,color-mix(in srgb,var(--bg) 70%,#000),var(--bg) 55%,
      color-mix(in srgb,var(--bg) 80%,#000))}
 .stage .grain{opacity:.3}
-.stage .floor{position:absolute;inset-block-end:0;inset-inline:0;height:2.6rem;z-index:3;
+/* z-index 1, NOT above the turret. As an overlay it veiled the window's own
+   status strip: --fg-dim on --bg-2 measures 7.34:1, and under 0.92 of this
+   gradient it lands at 1.15:1. An overlay is invisible to a contrast audit,
+   which is exactly why this has to be structural. */
+.stage .floor{position:absolute;inset-block-end:0;inset-inline:0;height:2.6rem;z-index:1;
   background:linear-gradient(to top,color-mix(in srgb,var(--bg) 94%,transparent),transparent)}
 .turret{position:relative;z-index:2;display:grid;grid-template-columns:56px 1fr;height:27rem;
   container-type:inline-size;border:1px solid var(--border-2);
@@ -376,6 +380,198 @@ table.ratios td{padding:.42rem .7rem .42rem 0;border-bottom:1px solid var(--bg-2
 table.ratios td.m,table.ratios th.m{font-family:var(--mono)}
 .pass{color:var(--h-sage);font-weight:600}
 .bad{color:var(--h-rust);font-weight:700}
+
+/* ── the notification centre ────────────────────────────────────────────── */
+.nc{border:1px solid var(--border);border-radius:var(--radius);background:var(--panel);
+  overflow:hidden;box-shadow:var(--shadow);max-width:50rem;container-type:inline-size}
+.nc-head{display:flex;align-items:center;gap:.7rem;padding:calc(.65rem * var(--den)) .9rem;
+  background:var(--bg-2);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.nc-head h4{margin:0;font-family:var(--disp);font-size:var(--fs-1);font-weight:600;
+  letter-spacing:var(--tight-disp)}
+.nc-search{font:inherit;font-size:var(--fs--1);background:var(--bg);color:var(--fg);
+  border:1px solid var(--border);border-radius:calc(var(--radius) * .7);
+  padding:calc(.3rem * var(--den)) .65rem;min-width:10rem;flex:1 1 10rem}
+.nc-search::placeholder{color:var(--fg-faint)}
+.nc-search:focus-visible{outline:none;border-color:var(--hue);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--hue) 32%,transparent)}
+.nc-filters{display:flex;gap:.35rem;flex-wrap:wrap}
+.tg.sm{padding:calc(.22rem * var(--den)) .6rem;font-size:var(--fs--2);
+  border-radius:calc(var(--radius) * .6)}
+.nc-count{font-family:var(--mono);font-size:var(--fs--2);color:var(--fg-dim);
+  margin-inline-start:auto;white-space:nowrap}
+.nc-list{max-height:27rem;overflow-y:auto}
+/* the unread mark is the toast's own left rule, not a dot - a dot beside a
+   row of text reads as a radio button (readable-output, defect 1) */
+.nc-row{padding:calc(.7rem * var(--den)) .9rem;border-bottom:1px solid var(--bg-2);
+  border-inline-start:3px solid var(--pg,var(--border-2));
+  animation:nc-in .34s var(--spring) both}
+.nc-row:last-child{border-bottom:0}
+.nc-row.read{border-inline-start-color:transparent}
+.nc-row[hidden]{display:none}
+@keyframes nc-in{from{opacity:0;translate:0 -8px}}
+.nc-top{display:flex;gap:.6rem;align-items:baseline;flex-wrap:wrap}
+.nc-pg{font-family:var(--mono);font-size:var(--fs--2);font-weight:600;
+  color:var(--pg,var(--fg));letter-spacing:.04em}
+.nc-when{font-family:var(--mono);font-size:var(--fs--2);color:var(--fg-faint);
+  margin-inline-start:auto}
+.nc-title{font-weight:600;margin:.15rem 0 0}
+.nc-body{font-size:var(--fs--1);color:var(--fg-dim);margin:.1rem 0 0}
+.nc-body code{font-size:var(--fs--2)}
+.nc-acts{display:flex;gap:.4rem;margin-top:.6rem;flex-wrap:wrap}
+.nc-done{font-family:var(--mono);font-size:var(--fs--2);color:var(--h-sage);
+  margin-top:.6rem;display:flex;gap:.45rem;align-items:center}
+.nc-empty{padding:2.2rem .9rem;text-align:center;color:var(--fg-dim);font-size:var(--fs--1)}
+/* a list that stops mid-sentence reads as broken; this says it is a scroll */
+.nc-foot{display:flex;gap:.6rem;align-items:center;padding:calc(.45rem * var(--den)) .9rem;
+  background:var(--bg-2);border-top:1px solid var(--border);
+  font-family:var(--mono);font-size:var(--fs--2);color:var(--fg-dim)}
+.nc-foot .r{margin-inline-start:auto}
+.nc-foot b{color:var(--fg);font-weight:600}
+.nc-redact{font-family:var(--mono);color:var(--fg-faint);
+  background:var(--tint);border-radius:4px;padding:0 .35rem}
+@container (max-width:560px){.nc-when{margin-inline-start:0}}
+
+/* ── the crash panel ────────────────────────────────────────────────────── */
+/* the alarm colour is rust from the severity family, never the program's own
+   hue - the shell stays indigo here, because a shell that turns red when you
+   open a program is telling you something untrue (§11) */
+.crash{--tone:var(--h-rust);--otone:var(--o-rust)}
+.crash-h{display:flex;align-items:center;gap:.6rem;margin-bottom:.85rem;flex-wrap:wrap}
+.crash-h h4{margin:0;font-family:var(--disp);font-size:var(--fs-1);font-weight:600;
+  letter-spacing:var(--tight-disp)}
+.chip.tone{border-color:var(--tone);color:var(--tone);
+  background:color-mix(in srgb,var(--tone) 10%,transparent)}
+.crash-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(8.5rem,1fr));
+  gap:.1rem 1.1rem;border-block:1px solid var(--bg-2);padding:.6rem 0;margin-bottom:.7rem}
+.fact{display:flex;flex-direction:column;gap:.05rem}
+.fact span{font-size:var(--fs--2);letter-spacing:.09em;text-transform:uppercase;
+  color:var(--fg-dim)}
+.fact b{font-family:var(--mono);font-size:var(--fs--1);font-weight:600;color:var(--fg)}
+.fact b.tone{color:var(--tone)}
+.crash-log{font-family:var(--mono);font-size:var(--fs--2);line-height:1.65;
+  background:var(--bg);border:1px solid var(--border);border-radius:calc(var(--radius) * .7);
+  padding:.55rem .7rem;max-height:9.5rem;overflow-y:auto;color:var(--fg-dim)}
+.crash-log div{display:flex;gap:.75rem;white-space:pre}
+.crash-log .ts{color:var(--fg-faint);flex:none}
+.crash-log .hit{color:var(--tone);font-weight:600}
+.crash-log .hit .ts{color:var(--tone)}
+.crash-foot{display:flex;align-items:center;gap:.7rem;margin-top:.8rem;flex-wrap:wrap}
+.cd{flex:1 1 9rem;min-width:8rem}
+.cd .lbl{display:flex;justify-content:space-between;font-family:var(--mono);
+  font-size:var(--fs--2);color:var(--fg-dim);margin-bottom:.28rem}
+.cd .track{height:5px;border-radius:3px;background:var(--tint);
+  border:1px solid var(--border);overflow:hidden}
+.cd .track i{display:block;height:100%;background:var(--tone);width:100%;
+  transition:width 1s linear}
+.crash.done .cd .track i{background:var(--fg-faint)}
+
+/* ── the operator view ──────────────────────────────────────────────────── */
+.opwrap{border:1px solid var(--border);border-radius:var(--radius);background:var(--panel);
+  overflow:hidden;box-shadow:var(--shadow);container-type:inline-size}
+.optable{overflow-x:auto}
+/* .tbl zeroes padding-inline-start, which is right for four short columns and
+   wrong for six mono ones: "4 subs" and "-" ran together into one string. */
+/* fixed layout with a colgroup, because auto layout hands the whole gutter to
+   whichever mono column has the longest string and butts the next one into it */
+.optable table.tbl{min-width:64rem;table-layout:fixed}
+.optable td{overflow-wrap:anywhere}
+.optable th,.optable td{padding-inline:0 1.5rem;vertical-align:top}
+.optable th:first-child,.optable td:first-child{padding-inline-start:.9rem}
+.optable th:last-child,.optable td:last-child{padding-inline-end:.9rem;text-align:end}
+.optable tbody tr{cursor:pointer}
+/* selection is a solved ground plus a hue rule, never a translucent wash -
+   a wash moves the background under the text and the measured ratio with it */
+.optable tbody tr[aria-selected="true"]{background:var(--glow);
+  box-shadow:inset 3px 0 0 var(--hue)}
+.op-who{display:flex;flex-direction:column;gap:.1rem}
+.op-who b{font-weight:600}
+.op-who span{font-family:var(--mono);font-size:var(--fs--2);color:var(--fg-dim)}
+.op-kind{font-family:var(--mono);font-size:var(--fs--2);letter-spacing:.08em;
+  text-transform:uppercase;color:var(--fg-dim)}
+.op-wait{color:var(--h-amber);font-weight:600}
+.op-none{color:var(--fg-faint)}
+.op-detail{border-top:1px solid var(--border);background:var(--bg-2);
+  padding:calc(.85rem * var(--den)) .9rem}
+.op-detail h5{margin:0 0 .1rem;font-family:var(--disp);font-size:var(--fs-0);font-weight:600}
+.op-detail .sub{font-size:var(--fs--1);color:var(--fg-dim);margin:0 0 .7rem}
+.op-calls{font-family:var(--mono);font-size:var(--fs--2);line-height:1.7}
+.op-calls div{display:grid;grid-template-columns:5.2rem 12rem 1fr 4.2rem auto;gap:.7rem;
+  padding:.12rem 0;border-bottom:1px solid var(--panel)}
+.op-calls div:last-child{border-bottom:0}
+.op-calls .ts{color:var(--fg-faint)}
+.op-calls .mth{color:var(--fg)}
+.op-calls .arg,.op-calls .ms{color:var(--fg-dim)}
+.op-calls .res{color:var(--h-sage)}
+.op-audit{display:flex;gap:.5rem;align-items:flex-start;margin-top:.8rem;
+  padding-top:.65rem;border-top:1px solid var(--panel);
+  font-size:var(--fs--1);color:var(--fg-dim)}
+.op-audit b{color:var(--fg);font-weight:600}
+@container (max-width:640px){.op-calls div{grid-template-columns:1fr;gap:0}}
+
+/* ── generated panes: declaration on the left, what rig draws on the right ─ */
+.gpx{display:grid;grid-template-columns:minmax(0,20rem) minmax(0,1fr);gap:0;
+  border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;
+  background:var(--panel);box-shadow:var(--shadow);container-type:inline-size}
+.gpx-side{background:var(--bg);border-inline-end:1px solid var(--border);min-width:0}
+.gpx-cap{display:flex;gap:.5rem;align-items:baseline;padding:.55rem .8rem;
+  border-bottom:1px solid var(--border);background:var(--bg-2);
+  font-family:var(--mono);font-size:var(--fs--2);letter-spacing:.09em;
+  text-transform:uppercase;color:var(--fg-dim)}
+.gpx-cap b{color:var(--fg);font-weight:600;letter-spacing:.04em;text-transform:none}
+/* wrap rather than scroll sideways: a clipped line hides the value, and a
+   horizontal scrollbar inside a two-column panel is never found */
+.gpx-code{margin:0;padding:.75rem .8rem;font-family:var(--mono);font-size:var(--fs--2);
+  line-height:1.7;color:var(--fg-dim);max-height:21rem;overflow-y:auto;
+  white-space:pre-wrap;overflow-wrap:anywhere}
+.gpx-code .ln{display:block;padding-inline-start:2.5ch;text-indent:-2.5ch}
+.gpx-code .k{color:var(--fg)}
+.gpx-code .s{color:var(--h-sage)}
+.gpx-code .n{color:var(--h-amber);margin:0}
+.gpx-code .p{color:var(--fg-faint)}
+.gpx-live{padding:calc(.9rem * var(--den)) 1rem;min-width:0}
+.gpx-cli{display:flex;gap:.6rem;align-items:baseline;flex-wrap:wrap;
+  padding:.55rem .8rem;border-top:1px solid var(--border);background:var(--bg-2);
+  grid-column:1 / -1;font-size:var(--fs--1)}
+.gpx-cli .lbl{font-size:var(--fs--2);letter-spacing:.09em;text-transform:uppercase;
+  color:var(--fg-dim);white-space:nowrap}
+.gpx-cli code{color:var(--fg);overflow-wrap:anywhere}
+/* the form rig draws from the schema */
+.gform{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem 1.4rem}
+@container (max-width:520px){.gform{grid-template-columns:1fr}}
+.gfield{display:flex;flex-direction:column;gap:.28rem;min-width:0}
+.gfield > label{font-size:var(--fs--2);letter-spacing:.08em;text-transform:uppercase;
+  color:var(--fg-dim)}
+.gfield .help{font-size:var(--fs--2);color:var(--fg-faint)}
+.gfield select,.gfield input[type=text]{font:inherit;font-size:var(--fs--1);
+  background:var(--bg);color:var(--fg);border:1px solid var(--border);
+  border-radius:calc(var(--radius) * .6);padding:calc(.3rem * var(--den)) .55rem;min-width:0}
+.gfield select:focus-visible,.gfield input:focus-visible{outline:none;border-color:var(--hue);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--hue) 30%,transparent)}
+.gcheck{display:flex;gap:.5rem;align-items:flex-start}
+.gcheck input{margin:.28rem 0 0;accent-color:var(--hue);width:15px;height:15px;flex:none}
+.grange{display:flex;gap:.6rem;align-items:center}
+.grange input[type=range]{flex:1;accent-color:var(--hue);min-width:0}
+.grange output{font-family:var(--mono);font-size:var(--fs--1);color:var(--fg);min-width:1.2rem}
+.gform-foot{display:flex;gap:.5rem;align-items:center;margin-top:1rem;flex-wrap:wrap}
+/* detail, status, progress */
+.gdl{display:grid;grid-template-columns:auto 1fr;gap:.34rem 1.2rem;font-size:var(--fs--1)}
+.gdl dt{font-size:var(--fs--2);letter-spacing:.08em;text-transform:uppercase;
+  color:var(--fg-dim);margin:0}
+.gdl dd{margin:0;font-family:var(--mono);font-size:var(--fs--1);overflow-wrap:anywhere}
+.gstat{display:grid;grid-template-columns:repeat(auto-fit,minmax(7.5rem,1fr));gap:.7rem 1.1rem;
+  margin-bottom:.9rem}
+.gprog{display:flex;flex-direction:column;gap:.4rem}
+.gprog .top{display:flex;justify-content:space-between;gap:1rem;font-size:var(--fs--1)}
+.gprog .top b{font-weight:600}
+.gprog .sub{display:flex;justify-content:space-between;gap:1rem;
+  font-family:var(--mono);font-size:var(--fs--2);color:var(--fg-dim)}
+.gprog .bar{width:100%;height:9px}
+.gsteps{margin-top:.9rem;font-family:var(--mono);font-size:var(--fs--2);color:var(--fg-dim);
+  display:flex;flex-direction:column;gap:.18rem}
+.gsteps .on{color:var(--fg)}
+.gsteps .go{color:var(--h-sage)}
+@container (max-width:640px){.gpx{grid-template-columns:1fr}
+  .gpx-side{border-inline-end:0;border-bottom:1px solid var(--border)}}
 
 /* ── the lab ────────────────────────────────────────────────────────────── */
 .dock{position:fixed;inset-block-start:1rem;inset-inline-end:1rem;z-index:60;display:flex;gap:.4rem;
@@ -628,6 +824,160 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
   <div class="note"><b>Move anything in the lab and this table re-measures.</b> A theme that
   breaks legibility cannot be saved quietly: the failing cell turns clay, the verdict at the top
   of the lab goes red, and the number in the hero changes while you drag.</div>
+</div></section>
+
+<section><div class="wrap">
+  <h2><span class="n">06</span> The notification centre</h2>
+  <h3>Nothing is ever only a toast</h3>
+  <p class="say">Auto-dismiss is only safe if the toast was never the only copy. Everything
+  lands here with <strong>its action still live</strong> - answering from the centre runs the
+  program's own command, days later, without opening a window. Do Not Disturb suppresses the
+  <em>surface</em>, never the record: turn it on, make something happen, and the row still
+  arrives, tagged. And the centre is a service rather than a part of the toast surface
+  (§5h), so <code>make build-minimal</code> cannot drop it and the window, the TUI and the CLI
+  read this one list.</p>
+  <div class="controls" style="margin-bottom:1.1rem">
+    <button class="tg" id="dnd" aria-pressed="false">Do Not Disturb</button>
+    <button class="tg" id="nc-fire">Something happens</button>
+    <span class="hint" id="nc-hint">Search it, or answer a row and watch the action resolve in
+    place.</span></div>
+  <div class="nc">
+    <div class="nc-head">
+      <h4>Notifications</h4>
+      <input class="nc-search" id="nc-q" type="search" placeholder="Search every notification"
+             aria-label="Search notifications">
+      <span class="nc-filters" id="nc-filters">
+        <button class="tg sm" data-f="all" aria-pressed="true">all</button>
+        <button class="tg sm" data-f="unread" aria-pressed="false">unread</button>
+        <button class="tg sm" data-f="action" aria-pressed="false">needs an answer</button>
+        <button class="tg sm" data-f="held" aria-pressed="false">suppressed</button>
+      </span>
+      <span class="nc-count" id="nc-count">-</span>
+    </div>
+    <div class="nc-list" id="nc-list"></div>
+    <div class="nc-foot"><span id="nc-more">everything fits</span>
+      <span class="r">kept <b>30 days</b>, then it ages out</span></div>
+  </div>
+  <span class="cap" style="max-width:84ch"><b>Thirty days, then it ages out</b> - the same
+  retention as the history (§15), and the same redaction. A field a command declared
+  <code>sensitive</code> was never recorded at all, so it cannot be searched here either; the
+  row shows the shape of what it did, never the value.</span>
+</div></section>
+
+<section><div class="wrap">
+  <h2><span class="n">07</span> When a program crashes</h2>
+  <h3>The pane becomes a panel, and nothing else changes</h3>
+  <p class="say">A crash is not an empty window and not a modal thrown over the whole shell. The
+  rail keeps its order and dispatch keeps its place in it - <strong>the rail never re-orders
+  under your hand</strong> - and only the pane is replaced, by the exit status, the last 200 log
+  lines, the restart decision and its countdown. Restarts back off exponentially inside a
+  budget; exhausting the budget is <em>quarantine</em>, a visible state with the full history
+  and a manual restart, never a silent disappearance. <strong>The alarm colour is rust from the
+  severity family, not the program's own hue</strong> - the shell stays indigo the whole way
+  through, because a shell that turns red when you open a program is telling you something
+  untrue.</p>
+  <div class="controls" style="margin-bottom:1.1rem">
+    <button class="tg" id="cr-run">Let it run</button>
+    <button class="tg" id="cr-skip">Skip to quarantine</button>
+    <button class="tg" id="cr-reset">Reset</button>
+    <span class="hint" id="cr-hint">The countdown is real. Watch the backoff double on every
+    attempt until the budget runs out.</span></div>
+  <div class="stage" style="--hue:var(--h-indigo);--ohue:var(--o-indigo)">
+    <div class="grain"></div>
+    <div class="turret">
+      <div class="rail">
+        <span class="brand">R</span><i class="notch" style="translate:0 124px"></i>
+        <button class="mark" data-app="shelf" data-state="ok"><span class="ico">sh</span></button>
+        <button class="mark" data-app="graft" data-state="ok"><span class="ico">gr</span></button>
+        <button class="mark" data-app="dispatch" data-state="failing" aria-current="true"
+          ><span class="ico">di</span><i class="pip"></i></button>
+        <button class="mark" data-app="archi" data-state="ok"><span class="ico">ar</span></button>
+        <button class="mark" data-app="snapper" data-state="stopped"><span class="ico">sn</span></button>
+        <button class="mark" data-app="nudge" data-state="ok"><span class="ico">nu</span></button>
+      </div>
+      <div class="main">
+        <div class="ctxbar"><span class="name">dispatch</span>
+          <span class="ver">2.0.0</span>
+          <span class="right"><span id="cr-ctx">not running</span><span>was pid 4118</span>
+          <kbd>Ctrl Space</kbd></span></div>
+        <div class="pane crash" id="crashpane"></div>
+        <div class="strip"><span id="cr-strip">6 mounted &middot; 1 failing</span>
+          <span class="r" id="cr-strip-r">dispatch -</span></div>
+      </div>
+    </div>
+    <div class="floor"></div>
+  </div>
+  <span class="cap" style="max-width:84ch"><b>The log is kept, not streamed away.</b> Two
+  hundred lines outlive the process that wrote them, so the panel has something to show the
+  moment it opens rather than after you have gone looking. <b>An in-flight command is marked
+  interrupted with its partial output kept, and is never silently replayed</b> - a retry is the
+  client's decision, made against the command's <code>idempotent</code> property and
+  deduplicated by the request id on the wire (§5f).</span>
+</div></section>
+
+<section><div class="wrap">
+  <h2><span class="n">08</span> Who is using rig</h2>
+  <h3>One registry, and every surface is a view over it</h3>
+  <p class="say">Six programs is the small number. The number that grows is <em>clients</em> -
+  agents, terminals, the window, a <code>make</code> target - and on a machine where several
+  agents run at once the question "who is holding the deploy lease" has to have an answer you
+  can read. Pick a row: its history opens underneath, every call it made with what it took and
+  what came back. <strong>Minus everything declared <code>sensitive</code>, which was never
+  recorded at all</strong> - not hidden here, never written. And
+  <strong>looking is itself an event</strong>: opening another client's history goes to the
+  audit log, which on a one-person machine is close to pointless and costs nothing, and means
+  the rule is the same rule the day it stops being one.</p>
+  <div class="opwrap">
+    <div class="optable">
+      <table class="tbl">
+        <colgroup><col style="width:24%"><col style="width:8%"><col style="width:18%">
+          <col style="width:18%"><col style="width:15%"><col style="width:17%"></colgroup>
+        <thead><tr>
+        <th>Who</th><th>Since</th><th>Holding</th><th>Waiting</th><th>Doing</th><th>Rate</th>
+      </tr></thead><tbody id="opbody"></tbody></table>
+    </div>
+    <div class="op-detail" id="opdetail"></div>
+  </div>
+  <span class="cap" style="max-width:84ch"><b>The same view exists in the window, the TUI, the
+  CLI (<code>rig clients</code>, <code>rig history --client=X</code>) and over MCP</b>, because
+  they are surfaces over one registry rather than four implementations of one screen. All of
+  them require the operator credential, which is a credential and not a uid (§14).</span>
+</div></section>
+
+<section><div class="wrap">
+  <h2><span class="n">09</span> Generated panes</h2>
+  <h3>Six renderers, and the program wrote none of them</h3>
+  <p class="say">A program that wants a screen does not write one. It declares what it has -
+  a command with typed arguments, a table, a record, a long-running job, its own health - and
+  rig renders it. Left is what the program registered; right is what the window drew from it,
+  live. <strong>The terminal reads the same declaration</strong>, which is why the line
+  underneath is not a second implementation: <code>rig run</code> builds its flags, its
+  completion and its <code>--help</code> from the identical schema, and so does the TUI form
+  and the MCP tool definition. Move anything on the right and watch the command change.</p>
+  <div class="controls" style="margin-bottom:1.1rem" id="gp-tabs">
+    <button class="tg" data-gp="form" aria-pressed="true">form</button>
+    <button class="tg" data-gp="progress" aria-pressed="false">progress</button>
+    <button class="tg" data-gp="detail" aria-pressed="false">detail</button>
+    <button class="tg" data-gp="status" aria-pressed="false">status</button>
+    <button class="tg" data-gp="table" aria-pressed="false">table</button>
+    <button class="tg" data-gp="actions" aria-pressed="false">actions</button>
+  </div>
+  <div class="gpx">
+    <div class="gpx-side">
+      <div class="gpx-cap">declared by <b id="gp-owner">shelf</b>
+        <span style="margin-inline-start:auto" id="gp-lines"></span></div>
+      <pre class="gpx-code" id="gp-code"></pre>
+    </div>
+    <div class="gpx-live" id="gp-live"></div>
+    <div class="gpx-cli"><span class="lbl">same schema, terminal</span>
+      <code id="gp-cli">-</code></div>
+  </div>
+  <span class="cap" style="max-width:84ch"><b>This is the whole argument for one declaration.</b>
+  Six programs times nine surfaces is fifty-four screens if every program writes its own, and
+  six declarations if it does not. The cost of the second is that the renderers have to be
+  good, which is what this page is for. <b>Embedded panes are the escape hatch</b> - a program
+  that needs something rig cannot draw serves its own HTML into a themed iframe with a typed
+  bridge, and pays for it by owning that surface everywhere.</span>
 </div></section>
 
 <footer><div class="wrap">

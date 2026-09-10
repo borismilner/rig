@@ -208,15 +208,20 @@ export function tokens(theme, mode){
   const panel = N(sm.panel);
   const glow  = N(sm.glow);
   const tint  = N(sm.tint);
-  const grounds = [bg, bg2, panel, glow];
+  // Two ground sets, because --tint is a surface text lands on and a boundary
+  // never does. It is the extreme of the ladder in both themes, so a token
+  // solved against the other four and then used on it is a token solved
+  // against the wrong question - which is exactly how a 3.95:1 shipped.
+  const grounds     = [bg, bg2, panel, glow];
+  const textGrounds = [bg, bg2, panel, glow, tint];
 
   // solved, not chosen. fg-dim is held one step stronger than fg-faint so the
   // hierarchy survives a tweak instead of collapsing into one colour.
   const fg      = N(sm.fg);
-  const fgDim   = solveNeutral(5.6, grounds, {hue:s.hue, chroma:s.chroma*1.5, dark});
-  const fgFaint = solveNeutral(4.5, grounds, {hue:s.hue, chroma:s.chroma*1.5, dark});
-  const border  = solveNeutral(3.0, grounds, {hue:s.hue, chroma:s.chroma*1.8, dark});
-  const border2 = solveNeutral(4.5, grounds, {hue:s.hue, chroma:s.chroma*1.8, dark});
+  const fgDim   = solveNeutral(5.6, textGrounds, {hue:s.hue, chroma:s.chroma*1.5, dark});
+  const fgFaint = solveNeutral(4.5, textGrounds, {hue:s.hue, chroma:s.chroma*1.5, dark});
+  const border  = solveNeutral(3.0, grounds,     {hue:s.hue, chroma:s.chroma*1.8, dark});
+  const border2 = solveNeutral(4.5, grounds,     {hue:s.hue, chroma:s.chroma*1.8, dark});
 
   const hue = {};
   theme.hues.members.forEach(m => {
