@@ -971,7 +971,7 @@ program that needs it. Each ends green, committed, and demonstrated.
 | M13 | Palette, search, schedule, bus, URL | Cross-program palette, federated search, one scheduler, events with grants, `rig://` | graft finishing a run triggers a shelf reindex, with the grant visible and revocable |
 | M14 | Hardening | Chaos at full size, fuzz corpora, cgroups and landlock, security review, coverage to target | The chaos suite green over 10000 iterations |
 | M15 | Packaging and updates | `.deb`, desktop entry, autostart, signed update channel for rig and programs, self-update | Fresh machine to a working rig with three programs in one command |
-| M16 | Estate migration | The rest, in the order in §26 | Every in-house program reachable from one CLI, one TUI, one tray, one window, one MCP server |
+| M16 | Estate migration and the AgentBox cutover | The rest of the estate, in the order in §25, then the agent tooling repointed from AgentBox to the peers service | Every in-house program reachable from one CLI, one TUI, one tray, one window, one MCP server |
 
 **v1 is M0 through M13.**
 
