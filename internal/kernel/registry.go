@@ -139,6 +139,7 @@ type Program struct {
 	SemanticsGen int32
 	Services     []string
 	Hosted       bool
+	PaneURL      string
 	Commands     []Command
 }
 
@@ -237,6 +238,7 @@ func program(e entry) Program {
 		SemanticsGen: e.decl.SemanticsGen,
 		Services:     slices.Clone(e.decl.Services),
 		Hosted:       e.decl.Hosted,
+		PaneURL:      e.decl.PaneURL,
 		Commands:     cloneCommands(e.decl.Commands),
 	}
 }

@@ -245,6 +245,22 @@ message Declaration {
   string scope = 8;
 
   bool hosted = 9;                // compiled into rigd (section 5j)
+
+  // Where this program serves its own HTML for the window's pane (section
+  // 11). Empty means it declares no pane and gets the generated tier.
+  //
+  // LOOPBACK ONLY, and refused at REGISTRATION rather than at render. A pane
+  // url is not a rendering detail: whatever is here is what a webview inside
+  // rig will load, so a program that could name any origin could point the
+  // window at anything. Section 5h's R7 puts the same class of check at
+  // registration - "using an element rig has removed fails at registration" -
+  // because a refusal at render happens in front of the user, which is the
+  // thing R7 exists to prevent.
+  //
+  // http or https, and the host must be 127.0.0.1, ::1 or localhost. A unix
+  // socket would need the window to proxy it, and section 23's M8 row is
+  // explicit that the estate already serves localhost SPAs.
+  string pane_url = 10;
 }
 
 // Program is one program as one principal may see it (section 14).
@@ -260,6 +276,10 @@ message Program {
   repeated string services = 5;
   bool hosted = 6;
   repeated Command commands = 7;
+
+  // Where this program serves its own pane, validated at registration. A
+  // reader gets it because the window is a reader like any other.
+  string pane_url = 8;
 }
 
 // ---- rig.programs, the read side of the registry ---------------------------

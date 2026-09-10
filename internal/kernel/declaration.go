@@ -23,6 +23,17 @@ type Declaration struct {
 	Commands     []Command
 	Scope        string
 	Hosted       bool
+
+	// PaneURL is where this program serves its own HTML for the window's
+	// pane (section 11). Empty means it declares no pane.
+	//
+	// Loopback only, and checked here - at registration - rather than when
+	// the window comes to draw it. Whatever is in this field is what a
+	// webview inside rig will load, so a program that could name any origin
+	// could point the window at anything. Section 5h's R7 puts the same class
+	// of check at registration, because a refusal at render happens in front
+	// of the user.
+	PaneURL string
 }
 
 // Identity is who the program is.
@@ -251,6 +262,10 @@ func (d Declaration) Validate() error {
 		add("semantics_gen is %d: it pins what every declared name means for "+
 			"this program's lifetime, so it cannot be absent (section 21)",
 			d.SemanticsGen)
+	}
+
+	if err := validatePaneURL(d.PaneURL); err != nil {
+		add("%s", err)
 	}
 
 	seen := map[string]bool{}

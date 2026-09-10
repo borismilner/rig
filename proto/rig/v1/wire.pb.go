@@ -1168,8 +1168,23 @@ type Declaration struct {
 	Commands     []*Command `protobuf:"bytes,7,rep,name=commands,proto3" json:"commands,omitempty"`
 	// The scope this program's entries belong to. Empty means the program's own
 	// id, which is the only scope a program needs until peers (section 16).
-	Scope         string `protobuf:"bytes,8,opt,name=scope,proto3" json:"scope,omitempty"`
-	Hosted        bool   `protobuf:"varint,9,opt,name=hosted,proto3" json:"hosted,omitempty"` // compiled into rigd (section 5j)
+	Scope  string `protobuf:"bytes,8,opt,name=scope,proto3" json:"scope,omitempty"`
+	Hosted bool   `protobuf:"varint,9,opt,name=hosted,proto3" json:"hosted,omitempty"` // compiled into rigd (section 5j)
+	// Where this program serves its own HTML for the window's pane (section
+	// 11). Empty means it declares no pane and gets the generated tier.
+	//
+	// LOOPBACK ONLY, and refused at REGISTRATION rather than at render. A pane
+	// url is not a rendering detail: whatever is here is what a webview inside
+	// rig will load, so a program that could name any origin could point the
+	// window at anything. Section 5h's R7 puts the same class of check at
+	// registration - "using an element rig has removed fails at registration" -
+	// because a refusal at render happens in front of the user, which is the
+	// thing R7 exists to prevent.
+	//
+	// http or https, and the host must be 127.0.0.1, ::1 or localhost. A unix
+	// socket would need the window to proxy it, and section 23's M8 row is
+	// explicit that the estate already serves localhost SPAs.
+	PaneUrl       string `protobuf:"bytes,10,opt,name=pane_url,json=paneUrl,proto3" json:"pane_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1267,20 +1282,30 @@ func (x *Declaration) GetHosted() bool {
 	return false
 }
 
+func (x *Declaration) GetPaneUrl() string {
+	if x != nil {
+		return x.PaneUrl
+	}
+	return ""
+}
+
 // Program is one program as one principal may see it (section 14).
 //
 // It is Declaration minus preamble and scope: what a reader is shown, not
 // what was stored. Section 5k's rule that no surface may imply completeness
 // is why coverage travels with it.
 type Program struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Identity      *Identity              `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
-	Coverage      Coverage               `protobuf:"varint,2,opt,name=coverage,proto3,enum=rig.v1.Coverage" json:"coverage,omitempty"`
-	CoverageNote  string                 `protobuf:"bytes,3,opt,name=coverage_note,json=coverageNote,proto3" json:"coverage_note,omitempty"`
-	SemanticsGen  int32                  `protobuf:"varint,4,opt,name=semantics_gen,json=semanticsGen,proto3" json:"semantics_gen,omitempty"`
-	Services      []string               `protobuf:"bytes,5,rep,name=services,proto3" json:"services,omitempty"`
-	Hosted        bool                   `protobuf:"varint,6,opt,name=hosted,proto3" json:"hosted,omitempty"`
-	Commands      []*Command             `protobuf:"bytes,7,rep,name=commands,proto3" json:"commands,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Identity     *Identity              `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
+	Coverage     Coverage               `protobuf:"varint,2,opt,name=coverage,proto3,enum=rig.v1.Coverage" json:"coverage,omitempty"`
+	CoverageNote string                 `protobuf:"bytes,3,opt,name=coverage_note,json=coverageNote,proto3" json:"coverage_note,omitempty"`
+	SemanticsGen int32                  `protobuf:"varint,4,opt,name=semantics_gen,json=semanticsGen,proto3" json:"semantics_gen,omitempty"`
+	Services     []string               `protobuf:"bytes,5,rep,name=services,proto3" json:"services,omitempty"`
+	Hosted       bool                   `protobuf:"varint,6,opt,name=hosted,proto3" json:"hosted,omitempty"`
+	Commands     []*Command             `protobuf:"bytes,7,rep,name=commands,proto3" json:"commands,omitempty"`
+	// Where this program serves its own pane, validated at registration. A
+	// reader gets it because the window is a reader like any other.
+	PaneUrl       string `protobuf:"bytes,8,opt,name=pane_url,json=paneUrl,proto3" json:"pane_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1362,6 +1387,13 @@ func (x *Program) GetCommands() []*Command {
 		return x.Commands
 	}
 	return nil
+}
+
+func (x *Program) GetPaneUrl() string {
+	if x != nil {
+		return x.PaneUrl
+	}
+	return ""
 }
 
 type ProgramsRequest struct {
@@ -1601,7 +1633,7 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\adry_run\x18\x11 \x01(\bR\x06dryRun\x12\x12\n" +
 	"\x04cost\x18\x12 \x01(\tR\x04cost\x12$\n" +
 	"\rpreconditions\x18\x13 \x03(\tR\rpreconditions\x12\x18\n" +
-	"\apromote\x18\x14 \x01(\bR\apromote\"\xc6\x02\n" +
+	"\apromote\x18\x14 \x01(\bR\apromote\"\xe1\x02\n" +
 	"\vDeclaration\x12,\n" +
 	"\bidentity\x18\x01 \x01(\v2\x10.rig.v1.IdentityR\bidentity\x12,\n" +
 	"\bcoverage\x18\x02 \x01(\x0e2\x10.rig.v1.CoverageR\bcoverage\x12#\n" +
@@ -1611,7 +1643,9 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\bpreamble\x18\x06 \x01(\tR\bpreamble\x12+\n" +
 	"\bcommands\x18\a \x03(\v2\x0f.rig.v1.CommandR\bcommands\x12\x14\n" +
 	"\x05scope\x18\b \x01(\tR\x05scope\x12\x16\n" +
-	"\x06hosted\x18\t \x01(\bR\x06hosted\"\x90\x02\n" +
+	"\x06hosted\x18\t \x01(\bR\x06hosted\x12\x19\n" +
+	"\bpane_url\x18\n" +
+	" \x01(\tR\apaneUrl\"\xab\x02\n" +
 	"\aProgram\x12,\n" +
 	"\bidentity\x18\x01 \x01(\v2\x10.rig.v1.IdentityR\bidentity\x12,\n" +
 	"\bcoverage\x18\x02 \x01(\x0e2\x10.rig.v1.CoverageR\bcoverage\x12#\n" +
@@ -1619,7 +1653,8 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\rsemantics_gen\x18\x04 \x01(\x05R\fsemanticsGen\x12\x1a\n" +
 	"\bservices\x18\x05 \x03(\tR\bservices\x12\x16\n" +
 	"\x06hosted\x18\x06 \x01(\bR\x06hosted\x12+\n" +
-	"\bcommands\x18\a \x03(\v2\x0f.rig.v1.CommandR\bcommands\"\x11\n" +
+	"\bcommands\x18\a \x03(\v2\x0f.rig.v1.CommandR\bcommands\x12\x19\n" +
+	"\bpane_url\x18\b \x01(\tR\apaneUrl\"\x11\n" +
 	"\x0fProgramsRequest\"?\n" +
 	"\x10ProgramsResponse\x12+\n" +
 	"\bprograms\x18\x01 \x03(\v2\x0f.rig.v1.ProgramR\bprograms\"!\n" +

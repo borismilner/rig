@@ -114,6 +114,7 @@ func declarationFromWire(req *rigv1.HelloRequest) (kernel.Declaration, error) {
 		Preamble:     w.GetPreamble(),
 		Scope:        w.GetScope(),
 		Hosted:       w.GetHosted(),
+		PaneURL:      w.GetPaneUrl(),
 	}
 	for _, c := range w.GetCommands() {
 		d.Commands = append(d.Commands, commandFromWire(c))
@@ -173,6 +174,7 @@ func programToWire(p kernel.Program) *rigv1.Program {
 		SemanticsGen: p.SemanticsGen,
 		Services:     p.Services,
 		Hosted:       p.Hosted,
+		PaneUrl:      p.PaneURL,
 	}
 	for _, c := range p.Commands {
 		out.Commands = append(out.Commands, commandToWire(c))
