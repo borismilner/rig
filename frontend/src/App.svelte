@@ -11,6 +11,7 @@
     Program,
   } from "../bindings/github.com/boris-milner/rig/cmd/rigwindow/models.js";
   import { applyTheme, preferredMode, watchMode } from "./lib/theme";
+  import type { Mode } from "./lib/theme";
   import Rail from "./lib/Rail.svelte";
   import ContextBar from "./lib/ContextBar.svelte";
   import Pane from "./lib/Pane.svelte";
@@ -83,6 +84,11 @@
   let build: Record<string, string> | null = $state(null);
   let selected: string | null = $state(fixture ? "graft" : null);
   let lastRead = $state("");
+
+  // Held rather than only applied, because the pane has to push the token set
+  // into a program's own page and a mode change has to reach it too. One
+  // source: this is the same mode applyTheme is called with.
+  let mode: Mode = $state(preferredMode());
 
   let current = $derived(programs.find((p) => p.id === selected) ?? null);
 
@@ -168,8 +174,11 @@
   }
 
   onMount(() => {
-    applyTheme(preferredMode());
-    const unwatch = watchMode(applyTheme);
+    applyTheme(mode);
+    const unwatch = watchMode((m) => {
+      mode = m;
+      applyTheme(m);
+    });
     if (fixture) {
       // Nothing to poll and nothing to read: the point is a page that holds
       // still, and a failing read would empty the rail mid-measurement.
@@ -205,6 +214,7 @@
       {programs}
       detail={health.detail}
       connected={health.connected}
+      {mode}
     />
     <StatusStrip
       connected={health.connected}

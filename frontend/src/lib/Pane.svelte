@@ -5,24 +5,137 @@
      program gets turns on one field: an empty pane_url means rig draws the pane
      from what was declared, and a value means the program draws it.
 
-     What is here is the generated tier in full, plus the frame that carries an
-     own pane. What is NOT here yet is the token set: that frame is cross-origin
-     (the program serves on loopback, this page comes from the Wails asset
-     origin), so the window cannot reach into it and the program currently gets
-     no tokens at all. postMessage is the only channel and it is the next
-     slice. Until then an own pane renders in the program's own colours, which
-     is honest about what has been built rather than about what is intended. -->
+     The frame is cross-origin - the program serves on loopback, this page comes
+     from the Wails asset origin - so the window cannot reach into it and the
+     token set has to be handed over. postMessage is the only channel, and the
+     protocol is four messages:
+
+       page -> window  {rig:1, type:"hello"}   I am up, send the tokens
+       window -> page  {rig:1, type:"theme", mode, tokens}
+       page -> window  {rig:1, type:"focus"}   the keyboard is mine
+       page -> window  {rig:1, type:"blur"}    and now it is not
+
+     The page speaks first, because the window cannot know when the page's
+     script is ready and a push timed from this side would race the frame's own
+     load. The theme is pushed again on every mode change, which is the shape
+     section 6's live push needs anyway. -->
 <script lang="ts">
   import type { Program } from "../../bindings/github.com/boris-milner/rig/cmd/rigwindow/models.js";
+  import { tokenSet, type Mode } from "./theme";
 
   interface Props {
     program: Program | null;
     programs: Program[];
     detail: string;
     connected: boolean;
+    mode: Mode;
   }
 
-  let { program, programs, detail, connected }: Props = $props();
+  let { program, programs, detail, connected, mode }: Props = $props();
+
+  let frame: HTMLIFrameElement | null = $state(null);
+  let loaded = $state(false);
+  let helloed = $state(false);
+  let framedFocus = $state(false);
+
+  // The origin to address, from the URL the program declared. The kernel has
+  // already refused anything but a loopback origin at registration, so this is
+  // parsing a value that has been checked rather than trusting one.
+  let origin = $derived(paneOrigin(program?.paneUrl ?? ""));
+
+  function paneOrigin(u: string): string | null {
+    if (!u) return null;
+    try {
+      return new URL(u).origin;
+    } catch {
+      return null;
+    }
+  }
+
+  // Never "*": the target origin is named, so a page that is not the one the
+  // program declared cannot be handed this window's token set.
+  function post(msg: unknown): void {
+    if (!origin) return;
+    frame?.contentWindow?.postMessage(msg, origin);
+  }
+
+  function onmessage(e: MessageEvent): void {
+    // Both checks matter. The origin says who sent it; the source says it came
+    // from this pane's own frame rather than from any other page that happens
+    // to be served from the same loopback origin.
+    if (!origin || e.origin !== origin) return;
+    if (!frame || e.source !== frame.contentWindow) return;
+    const d = e.data as { rig?: number; type?: string } | null;
+    if (!d || d.rig !== 1) return;
+
+    switch (d.type) {
+      case "hello":
+        helloed = true;
+        post({ rig: 1, type: "theme", mode, tokens: tokenSet(mode) });
+        break;
+      case "focus":
+        framedFocus = true;
+        break;
+      case "blur":
+        framedFocus = false;
+        break;
+    }
+  }
+
+  // A new program means a new frame, so nothing carries over from the last one.
+  //
+  // Keyed on the id STRING and not on the program object, and that distinction
+  // is a bug this pane already had: the 3s poll replaces `programs` wholesale,
+  // so `program` is a new object every tick even when nothing about it changed.
+  // An effect that read the object re-ran every three seconds and cleared these
+  // flags under a frame that was still perfectly alive - which also stranded
+  // the program's page in the previous theme, because the push below only fires
+  // for a page that has said hello, and hello is said once per load.
+  let programId = $derived(program?.id ?? null);
+
+  $effect(() => {
+    programId;
+    loaded = false;
+    helloed = false;
+    framedFocus = false;
+    settled = false;
+  });
+
+  // The grace period exists so a program that is merely slow to answer does not
+  // get accused of being absent. Measured: webkit resolves a refused connection
+  // well inside this, so the message is not what a working pane flashes on the
+  // way in.
+  const SETTLE_MS = 1200;
+
+  let settled = $state(false);
+
+  $effect(() => {
+    if (!programId || loaded) return;
+    const t = setTimeout(() => (settled = true), SETTLE_MS);
+    return () => clearTimeout(t);
+  });
+
+  // Nothing is being served, and this is the one state the shell can assert
+  // rather than guess. Measured in the real webview, all three cases:
+  //
+  //   a page that speaks the protocol   onload FIRED, hello YES
+  //   a page that serves and is silent  onload FIRED, hello no
+  //   nothing listening at all          onload no,    hello no
+  //
+  // So onload is the honest signal and hello is not: a program serving its own
+  // static HTML and adopting nothing (which section 11's embedded tier allows)
+  // never says hello, and drawing this state over its working page would be a
+  // false accusation. What onload cannot separate is a program's own error page
+  // from its real one - a 404 is a document, it fires, and it is the program's
+  // error to show rather than rig's to report.
+  let unpainted = $derived(!!program?.paneUrl && settled && !loaded);
+
+  // The theme is pushed on every change, not only on hello: section 6's live
+  // push is the same shape, and a program's page must not be the one surface
+  // left in the previous mode.
+  $effect(() => {
+    if (helloed) post({ rig: 1, type: "theme", mode, tokens: tokenSet(mode) });
+  });
 
   // The frame keeps its real loopback origin (allow-same-origin) because the
   // token push in the next slice has to name a target origin, and a sandboxed
@@ -34,7 +147,9 @@
   const SANDBOX = "allow-scripts allow-same-origin";
 </script>
 
-<main class="pane" class:own={!!program?.paneUrl}>
+<svelte:window {onmessage} />
+
+<main class="pane" class:own={!!program?.paneUrl} class:held={framedFocus}>
   {#if !connected}
     <h2>rig is not answering</h2>
     <p class="lead">
@@ -62,11 +177,23 @@
          program's page in this frame's session history. -->
     {#key program.id}
       <iframe
+        bind:this={frame}
         src={program.paneUrl}
         title={`${program.id}'s own pane`}
         sandbox={SANDBOX}
         referrerpolicy="no-referrer"
+        onload={() => (loaded = true)}
       ></iframe>
+      {#if unpainted}
+        <div class="unserved">
+          <h2>{program.id} is not serving its pane</h2>
+          <p class="lead">
+            It declared one at <code>{program.paneUrl}</code> and nothing answered
+            there. The program is registered, so it is talking to rig over the socket;
+            it is the page that is missing.
+          </p>
+        </div>
+      {/if}
     {/key}
   {:else}
     <dl>
@@ -113,9 +240,47 @@
      program draws to the edges or it does not draw to them, and that is its
      decision rather than the shell's. */
   .pane.own {
+    position: relative;
     display: grid;
     padding: 0;
     overflow: hidden;
+  }
+
+  /* On top of the frame, which is safe precisely because this state is only
+     drawn when onload never fired: there is no document under it to cover. */
+  .unserved {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    padding: 0 1.15rem;
+    background: var(--panel);
+    text-align: center;
+  }
+
+  .unserved .lead {
+    margin: 0;
+  }
+
+  /* The ring the shell could not draw in CSS in slice 1: :focus-within does not
+     cross a cross-origin frame boundary in webkit2gtk, so the page reports its
+     own focus and this is drawn from that. A page that adopts nothing gets no
+     ring, which is honest - the shell genuinely does not know where the
+     keyboard is inside it.
+
+     Inset, because the frame is flush to the pane's edges and an outset shadow
+     would land outside the visible area. Same width and colour tokens as the
+     rail's, so this window has one focus ring and not two. */
+  .pane.own.held::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    outline: var(--ring-w) solid var(--hue);
+    outline-offset: calc(-1 * var(--ring-w));
   }
 
   iframe {

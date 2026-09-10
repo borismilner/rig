@@ -64,27 +64,42 @@ export function watchMode(onchange: (mode: Mode) => void): () => void {
   };
 }
 
-export function applyTheme(
+// The whole token set for a mode, as one object.
+//
+// It exists because the set now has a second consumer: a program serving its
+// own pane is cross-origin, so it cannot read this document's custom
+// properties and has to be handed them (section 11's embedded tier gets "the
+// token set and nothing more"). Building that payload from a copy would be the
+// second palette this file exists to prevent, so applyTheme and the push both
+// come from here.
+//
+// The hue pair is included and is deliberately a reference rather than a
+// colour: R6 says an element reads a token and never learns a program id, so
+// what crosses is --hue, whatever it currently points at. It resolves in the
+// program's page because --fg and --h-* travel in the same payload.
+export function tokenSet(
   mode: Mode,
-  root: HTMLElement = document.documentElement,
-): void {
-  const t = tokens(DEFAULTS, mode) as Record<string, string>;
-  for (const [k, v] of Object.entries(t)) root.style.setProperty(k, v);
-  for (const [k, v] of Object.entries(SHELL_CONSTANTS))
-    root.style.setProperty(k, v);
-  root.style.colorScheme = mode;
-  // The shell is achromatic until a program is selected, and a program without
-  // a declared hue leaves it achromatic (section 11). Nothing declares one yet.
-  setHue(null, root);
+  hue: string | null = null,
+): Record<string, string> {
+  return {
+    ...(tokens(DEFAULTS, mode) as Record<string, string>),
+    ...SHELL_CONSTANTS,
+    "--hue": hue ? `var(--h-${hue})` : "var(--fg)",
+    "--ohue": hue ? `var(--o-${hue})` : "var(--fg)",
+  };
 }
 
-// setHue is the whole of the shell's colour policy: the current program's hue
-// is the only saturated colour on screen while you are in it, and no program
-// ever owns an alarm hue.
-export function setHue(
-  hue: string | null,
+// The hue argument is the whole of the shell's colour policy: the current
+// program's hue is the only saturated colour on screen while you are in it, and
+// no program ever owns an alarm hue. Nothing declares one yet, so it is null
+// everywhere and the shell is achromatic, which section 11 makes the documented
+// default rather than a gap.
+export function applyTheme(
+  mode: Mode,
+  hue: string | null = null,
   root: HTMLElement = document.documentElement,
 ): void {
-  root.style.setProperty("--hue", hue ? `var(--h-${hue})` : "var(--fg)");
-  root.style.setProperty("--ohue", hue ? `var(--o-${hue})` : "var(--fg)");
+  for (const [k, v] of Object.entries(tokenSet(mode, hue)))
+    root.style.setProperty(k, v);
+  root.style.colorScheme = mode;
 }
