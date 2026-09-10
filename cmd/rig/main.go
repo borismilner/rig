@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/boris-milner/rig/internal/client"
+	"github.com/boris-milner/rig/client"
 	"github.com/boris-milner/rig/internal/paths"
 	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )

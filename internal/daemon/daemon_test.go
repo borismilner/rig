@@ -11,7 +11,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/boris-milner/rig/internal/client"
+	"github.com/boris-milner/rig/client"
 	"github.com/boris-milner/rig/internal/instance"
 	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )

@@ -1,4 +1,12 @@
-// Package client dials rigd and speaks the wire.
+// Package client is the stub a program links to talk to rig.
+//
+// It is deliberately outside internal/. Go forbids any other module from
+// importing an internal package, so while this lived at internal/client no
+// program outside this repository could reach rig at all - fakeapp worked
+// only because it ships inside rig's own module. PLAN.md section 3 gives this
+// package a symbol budget, section 5d says what it may and may not do, and
+// section 25 defers graft until it exists; surface.go is the enumeration
+// section 3 asks for.
 //
 // One implementation, used by cmd/rig and by a program's own side, because
 // PLAN.md section 5d's whole complaint about the previous design was a second
@@ -16,6 +24,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/boris-milner/rig/internal/paths"
 	"github.com/boris-milner/rig/internal/wire"
 	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )
@@ -39,6 +48,21 @@ type Client struct {
 	closeOnce sync.Once
 	readErr   atomic.Value // error
 	done      chan struct{}
+}
+
+// Connect dials rig at its well-known socket.
+//
+// This is the entry point a program uses. Dial exists for a caller that knows
+// the path already - a test, or rig's own CLI with a socket override - but a
+// program must not have to resolve the path itself: the resolution rules live
+// in section 5f, and a program reimplementing them is a second implementation
+// of the thing this package exists to have exactly one of.
+func Connect() (*Client, error) {
+	socket, err := paths.Socket()
+	if err != nil {
+		return nil, err
+	}
+	return Dial(socket)
 }
 
 // Dial connects to the socket and starts the read loop.
