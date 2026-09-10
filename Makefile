@@ -18,6 +18,9 @@ LDFLAGS    := -s -w \
 GOFLAGS    := -trimpath
 COVER_MIN  := 90
 RATCHET    := size-ratchet.json
+# Only used to serve the window's built page to the contrast gate. Nothing
+# listens on it outside that target.
+CONTRAST_PORT ?= 8731
 # Set explicitly rather than left to the runtime's defaults (section 22),
 # and the same values the unit file will carry.
 GOMEMLIMIT ?= 64MiB
@@ -51,10 +54,14 @@ build-fakeapp: ## Build the reference program the conformance suite drives
 # machine without those can still build and test everything else. That is also
 # why ci does not call it. It carries its own ratchet row for the same reason
 # the split exists - it is twice the size of the CLI.
-build-rigwindow: ## Build the window (needs cgo, gtk3 and webkit2gtk)
-	@mkdir -p build
+# Split from build-rigwindow so the frontend can be built, and measured, on a
+# machine with no webview: contrast-window needs the page and not the binary.
+build-frontend: ## Build the window's frontend into cmd/rigwindow/dist
 	@find cmd/rigwindow/dist -mindepth 1 ! -name .gitkeep -delete
 	cd frontend && npm run build
+
+build-rigwindow: build-frontend ## Build the window (needs cgo, gtk3 and webkit2gtk)
+	@mkdir -p build
 	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o build/rigwindow ./cmd/rigwindow
 
 build-all: ## Cross-compile for every supported target
@@ -169,6 +176,22 @@ contrast: contrast-selftest ## Measure WCAG contrast in a real browser, both the
 	# workflow called it. While it was down, the focus ring shipped at 2.17:1
 	# dark and 1.48:1 light against a 3:1 requirement.
 	node tools/contrast-audit.mjs design/visual-system.html
+
+contrast-window: contrast-selftest build-frontend ## Measure the shell's own page, both themes
+	# The shell is a second page the gate has to see, and it cannot be audited
+	# from disk: Chrome refuses a module script over file://, so the page loads,
+	# renders nothing, and every pass measures zero. That combination used to
+	# print "clean"; the auditor now calls a zero measurement a failure, and
+	# this target serves the page so there is something to measure.
+	#
+	# ?fixture=1 puts programs in the rail. Without it the rail is empty, and
+	# the rail's focus ring is the single thing section 20's gate was rebuilt
+	# for - it shipped at 2.17:1 dark while the gate was down.
+	@python3 -m http.server $(CONTRAST_PORT) --directory cmd/rigwindow/dist >/dev/null 2>&1 & \
+	  srv=$$!; \
+	  trap 'kill $$srv 2>/dev/null || true' EXIT; \
+	  sleep 1; \
+	  node tools/contrast-audit.mjs 'http://127.0.0.1:$(CONTRAST_PORT)/index.html?fixture=1'
 
 contrast-selftest: ## Prove the contrast instruments against known answers first
 	# A script that lies is worse than no script: the SVG audit shipped for
@@ -332,10 +355,10 @@ help: ## Show this help
 	  /^[a-zA-Z_-]+:.*##/ {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo
 
-.PHONY: build build-rigd build-rig build-fakeapp build-rigwindow build-all install uninstall \
+.PHONY: build build-rigd build-rig build-fakeapp build-frontend build-rigwindow build-all install uninstall \
         run dev clean test test-unit test-race \
         test-chaos test-e2e test-wire fuzz cover cover-html lint lint-house fmt vet audit \
-        verify contrast contrast-selftest generate proto schema types docs bench bench-ipc profile \
+        verify contrast contrast-selftest contrast-window generate proto schema types docs bench bench-ipc profile \
         up down doctor apps logs tui tidy deps-check release package ci fmt-check \
         bench-idle bench-scale bench-size bench-size-update build-minimal \
         bench-size-window bench-size-window-update \

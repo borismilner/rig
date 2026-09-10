@@ -14,6 +14,12 @@ import wails from "@wailsio/runtime/plugins/vite";
 const outDir = "../cmd/rigwindow/dist";
 
 export default defineConfig({
+  // Relative asset paths, so the built page also opens from disk. Vite's
+  // default writes /assets/..., which the window's asset server resolves fine
+  // and a file:// URL does not - and the contrast gate audits a path, not a
+  // URL. With absolute paths it loaded index.html, rendered nothing, measured
+  // 0 nodes and reported clean.
+  base: "./",
   build: {
     outDir,
     emptyOutDir: false,

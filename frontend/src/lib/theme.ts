@@ -30,6 +30,40 @@ const SHELL_CONSTANTS: Record<string, string> = {
   "--ease": "cubic-bezier(.2,.8,.3,1)",
 };
 
+// The mode the page should be in: an explicit data-theme wins, and otherwise
+// the desktop's own preference. data-theme is not an arbitrary choice of
+// attribute - tools/contrast-audit.mjs flips exactly that one to measure a page
+// in both themes, so honouring it is what makes the shell auditable by the gate
+// that already exists rather than by a second one written for it.
+export function preferredMode(
+  root: HTMLElement = document.documentElement,
+): Mode {
+  const declared = root.getAttribute("data-theme");
+  if (declared === "dark" || declared === "light") return declared;
+  return window.matchMedia("(prefers-color-scheme: light)").matches
+    ? "light"
+    : "dark";
+}
+
+// Re-apply whenever data-theme changes, so the gate's flip lands and, later, so
+// a live push from section 6 needs no new plumbing. Returns its own disconnect.
+export function watchMode(onchange: (mode: Mode) => void): () => void {
+  const root = document.documentElement;
+  const obs = new MutationObserver(() => onchange(preferredMode(root)));
+  obs.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+
+  const mq = window.matchMedia("(prefers-color-scheme: light)");
+  const onmq = () => {
+    if (!root.hasAttribute("data-theme")) onchange(preferredMode(root));
+  };
+  mq.addEventListener("change", onmq);
+
+  return () => {
+    obs.disconnect();
+    mq.removeEventListener("change", onmq);
+  };
+}
+
 export function applyTheme(
   mode: Mode,
   root: HTMLElement = document.documentElement,

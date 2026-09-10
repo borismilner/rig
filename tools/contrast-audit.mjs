@@ -79,7 +79,12 @@ const hiddenRows = [], notMeasured = [];
 await withChrome(async browser => {
   for (const f of files) {
     for (const theme of themes) {
-      const page = await auditPage(browser, 'file://' + resolve(f), {theme});
+      // A served URL as well as a path. An SPA cannot be audited from disk at
+      // all: Chrome refuses a module script over file://, so the page loads,
+      // renders nothing and every pass measures zero - which this gate used to
+      // call clean. See the zero-measurement guard below.
+      const target = /^https?:\/\//.test(f) ? f : 'file://' + resolve(f);
+      const page = await auditPage(browser, target, {theme});
       for (const sel of opens) {
         const hit = await page.eval(`(() => {
           const el = document.querySelector(${JSON.stringify(sel)});
@@ -98,6 +103,17 @@ await withChrome(async browser => {
       const head = `${label(f)} [${theme}]${opens.length ? ' after ' + opens.join(' + ') : ''}`;
 
       const dom = only.includes('text') ? await page.run(DOM) : null;
+      // Measuring nothing is a failure. This gate reported "clean: every pass
+      // green in every theme" over a page whose script had not run, on a tree
+      // whose history already records the ancestor script finding 0 of 1 real
+      // failures while inventing 2. A number of zero is the one result that
+      // cannot be trusted, so it is now named and fatal rather than green.
+      if (dom && dom.checked === 0) {
+        console.log(`${head} MEASURED NOTHING - 0 text nodes on "${dom.page}".` +
+                    ' An empty page cannot be clean: check that the page rendered' +
+                    ' (an SPA needs a served URL, not a file:// path).');
+        failed++; await page.close(); continue;
+      }
       // A theme read in the same task as the flip that set it returns the
       // PREVIOUS theme, so assert what was actually measured before printing it.
       if (dom && dom.theme !== theme) {
