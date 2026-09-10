@@ -86,10 +86,14 @@ func usage() {
   apps list        what every program declared, as this client may see it
   ping <program>   round-trip a program through rigd ("rig" pings the daemon)
   version          print every version this build carries
+  completion <sh>  a completion script for bash, zsh or fish
 
 Every command takes --json. A declared command also takes --timeout and
 --args '<json>', the second being the exact argument object when a flag will
 not do.
+
+rig <app> --help and rig <app> <cmd> --help are generated from what the
+program declared, so they list what it actually has.
 `)
 }
 
@@ -106,6 +110,12 @@ func run(args []string) error {
 		return cmdPing(args[1:])
 	case "apps":
 		return cmdApps(args[1:])
+	case "completion":
+		return cmdCompletion(args[1:])
+	case "__complete":
+		// Hidden: what the shell scripts call. Not secret, just not
+		// something a person types.
+		return cmdComplete(args[1:])
 	case "-h", "--help", "help":
 		usage()
 		return nil
@@ -118,10 +128,18 @@ func run(args []string) error {
 			usage()
 			return fmt.Errorf("no such command %q", args[0])
 		}
+		// Help is generated from the declaration, so it is answered here
+		// rather than from a string in this file (slice 6).
 		if len(args) < 2 || strings.HasPrefix(args[1], "-") {
+			if len(args) == 1 || asksForHelp(args[1:]) {
+				return helpForProgram(args[0])
+			}
 			return fmt.Errorf("usage: rig %s <command> [flags]\n"+
-				"       rig apps list --commands  lists what %s declares",
+				"       rig %s --help  lists what it declares",
 				args[0], args[0])
+		}
+		if asksForHelp(args[2:]) {
+			return helpForCommand(args[0], args[1])
 		}
 		return cmdCall(args[0], args[1], args[2:])
 	}

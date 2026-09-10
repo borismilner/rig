@@ -95,6 +95,28 @@ func (p propSchema) kind() string {
 	return ""
 }
 
+// flagForm says whether this property can be given as a flag at all, and
+// what its value looks like when it can.
+//
+// ONE predicate, used by both the parser and the generated help, because the
+// two disagreeing is the defect this exists to prevent: help that offers
+// `--nested <object>` for something the parser then refuses is help that
+// wastes the reader's time and blames them for it.
+func (p propSchema) flagForm() (placeholder string, supported bool) {
+	switch k := p.kind(); k {
+	case "boolean":
+		// Takes no value: showing one would be a lie.
+		return "", true
+	case "string", "integer", "number":
+		return "<" + k + ">", true
+	default:
+		// An object, an array, or several declared types. A flag syntax for
+		// those would have to be invented per program, so --args is the
+		// answer instead.
+		return "", false
+	}
+}
+
 // parse turns one flag's text into the JSON value its declared type calls for.
 func (p propSchema) parse(value string) (any, error) {
 	switch p.kind() {

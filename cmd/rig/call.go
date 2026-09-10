@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/boris-milner/rig/client"
-	"github.com/boris-milner/rig/internal/paths"
 	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )
 
@@ -47,11 +46,7 @@ func cmdCall(program, command string, argv []string) error {
 		return err
 	}
 
-	sock, err := paths.Socket()
-	if err != nil {
-		return err
-	}
-	c, err := client.Dial(sock)
+	c, err := client.Connect()
 	if err != nil {
 		return fmt.Errorf("%w\n       is rigd running? start it with: rigd", err)
 	}
