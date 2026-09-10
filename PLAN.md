@@ -534,19 +534,62 @@ answer: both are driven off the one registry.
       ├─ observe            │   │           window ────────┤
       ├─ schedule           │   │             tray ────────┤
       ├─ bus                │   │            toast ────────┤
-      ├─ queue      ← new   │   │          palette ────────┤
-      ├─ cache      ← new   │   │             cron ────────┤
-      └─ watch      ← new   │   │              URL ────────┤
-                            │   │            Slack ────────┤ ← new
-                            │   │            voice ────────┤ ← new
-                            │   │              TUI ────────┘ ← new
+      ├─ centre             │   │          palette ────────┤
+      ├─ peers              │   │             cron ────────┤
+      ├─ queue      ← open  │   │              URL ────────┤
+      ├─ cache      ← open  │   │            Slack ────────┤ ← new
+      ├─ watch      ← open  │   │            voice ────────┤ ← new
+      └─ machines   ← open  │   │              TUI ────────┘ ← new
 ```
 
 **A service extends what rig gives programs.** It implements one interface: a name, a config
 schema, a lifecycle, and a set of methods exposed on the wire. Adding one gives every program a
-new capability the moment they ask for it, with no program rebuilt. Candidates already visible:
-a job queue, a cache, a file-watcher, an HTTP client with shared retry and rate limits, a
-template renderer, a lock manager, a diff service.
+new capability the moment they ask for it, with no program rebuilt.
+
+**Eight ship inside v1** and each has a milestone: `config` (M4), `store` and `secrets` (M11),
+`observe` (M5), `schedule` and `bus` (M13), the notification `centre` (M9) and `peers` (M7).
+The centre and peers are services rather than parts of a surface, for the reason stated below,
+and the diagram says so because a picture that omits them undersells what the wire carries.
+
+**Four are marked `← open`, which means no milestone owns them.** A job queue, a cache, a
+file-watcher and declared state machines are drawn because they are plausible, not because they
+are planned - and drawing an unowned box as though it were scheduled is how a plan lies to its
+own reader. Also named and not drawn: an HTTP client with shared retry and rate limits, a
+template renderer, a lock manager, a diff service. **Nothing here ships without a program that
+adopts it**, per §5k, and the §24 gate on 2026-10-22 is where each is either given a milestone
+or struck.
+
+### Declared state machines, if the supervisor can be its first client
+
+The one `← open` candidate with a design rather than a name, written down because the argument
+for it and the condition on it are both specific.
+
+**The argument for is the compounding one, and it is strong.** A state machine hand-rolled
+inside a program gets nothing from rig. A *declared* one gets the generated pane showing the
+current state and the legal transitions from it (§10), every transition in `observe` with a
+trace (§15), a `confirm` on any transition declared destructive (§13a), and a TUI view - all of
+it for free, because that is what a declaration buys here.
+
+**The argument against is that the transition table is the easy part.** The hard parts are
+side effects on transition, a retried transition applying twice, and a process dying
+mid-transition; and rig already owns all three - §4's request-id dedup returns *the original
+response* rather than reapplying, §16 has the WAL, absolute deadlines on `CLOCK_BOOTTIME` and
+fencing tokens. So the service is a thin layer over machinery that exists, and a thin layer is
+worth building only if something real adopts it.
+
+**The condition, and it is decidable now rather than at M13: §18's supervisor is the pilot.**
+rig hard-codes three state machines already - the supervisor (starting, healthy, degraded,
+restarting, quarantined), the lease lifecycle with its two-step expiry (§16), and the crash
+panel's countdown. §5h's own rule is that shared vocabulary lives in the service that owns it.
+**If the supervisor cannot be expressed in this service, the service is not general enough to
+exist** and the candidate is struck. That test costs a design session, not a milestone.
+
+**The ceiling, stated because this is one step from a workflow engine.** States, guards and
+transitions are declarable; **nothing that schedules is.** A timed transition is a `schedule`
+entry firing an ordinary transition, so the two services compose rather than one absorbing the
+other. Retries, compensation and sub-machines are out of scope by decision, not by omission -
+that is Temporal inside `rigd`, and it fails §17's footprint budget and §20's chaos matrix at
+the same time.
 
 **A surface extends how the estate is reached.** It implements one interface: it reads the
 registry and projects it. It never talks to a program directly, only through the registry and
@@ -1232,6 +1275,14 @@ rules written in 2026 - which only holds if the vocabulary can name it.
 - **It costs a registered program nothing.** Both fields it matches on are already declared.
 - `confirm` routes through the same `ask` primitive the peers service uses (§16), so the
   question reaches whoever is actually present - window, toast, terminal or phone.
+- **Two kinds of ask, and until now the plan had one failure mode.** A **gating** ask fails
+  *closed*: an elevation nobody answers is denied and recorded (§14), because the alternative
+  is estate-wide action taken by default. A **disambiguating** ask fails to *none*: it parks,
+  the way §9's `interactive-stream` run parks rather than fails, and the caller proceeds
+  without the thing it asked about. "Which of these three continuations?" (§16) must not be
+  *denied* when nobody answers - denying it strands a replacement that could have started
+  cold. Every `ask` declares which kind it is, and **the default is gating**, because that is
+  the half where guessing wrong is unsafe.
 - Every decision is written to the audit log with **`origin`**, which is `rule` or
   `elevation`, and the rule id when there is one. An elevation is not triggered by a house
   rule - it is triggered by the call needing estate-wide authorisation (§14) - so an `origin`
@@ -1721,6 +1772,50 @@ structurally blind to it.
 window, a toast, the terminal or a phone. That is AgentBox's most valuable single idea and it
 is kept whole.
 
+### Continuation slots, so an agent can hand off to itself
+
+An agent that is about to reset its context - because the context is nearly full, not because
+the work is done - needs to leave a note for the process that replaces it. Today that note goes
+to the logbook: a path decision, a schema decision, a commit. That is right for work worth
+keeping and wrong for a note whose whole lifetime is the minute between one context and the
+next.
+
+**A continuation slot is the versioned blackboard with a scope of one. It is not a new
+service.** Same compare-and-swap, same revision per change, same watches with a cursor. What it
+adds is three rules, and each exists because the obvious design fails without it:
+
+| Rule | Why it is a rule and not a convention |
+|---|---|
+| **A slot carries a label, and the label is mandatory** | The replacement finds its slot by listing candidates and asking (below). `7f3a2b · 14:22 · 41 KB` cannot be chosen from, and an optional label is always missing exactly when there are three rows to pick between |
+| **Existence is readable estate-wide; the payload is not** | A slot's label, age and owner are ordinary introspectable state (§14). Its contents are declared `sensitive`, so they are absent from every other reader's answer by the mechanism §15 already uses - not filtered by a second access-control door, which §14 does not have |
+| **A slot expires, and the expiry is visible before it fires** | Two-step expiry, the same as a lease above. An abandoned reset otherwise leaves a row forever, and by the third week the question has eleven candidates and stops being read |
+
+**How the replacement finds its slot, which is the only genuinely hard part.** A respawned agent
+is a **new connection with a new client id**: §5's session token survives a *reconnect*, and a
+context reset is not one - the token died with the context that held it. So nothing the old
+agent knew can name the slot, and the replacement does not try to reconstruct it. **It lists
+what is waiting and asks.** That is deliberately the mechanism the owner's own resume flow
+already uses over the logbook - scan every candidate, newest first, with its title, and ask one
+question when they conflict. Nothing is derived from the cwd, so two agents in one checkout do
+not collide by convention, which is the failure that killed the two earlier designs.
+
+**This inverts the isolation requirement, and the inversion is the point.** "Each agent's
+clipboard is private" and "a respawned agent can list what is waiting" are only jointly
+satisfiable one way: **isolate the values, not the existence.** Per-connection isolation would
+hand the replacement an empty list, because it is a different client than the one that wrote -
+so the listing is scoped to the uid, and privacy comes from the payload being `sensitive`
+rather than from the row being hidden.
+
+**What this does not claim.** It does not avoid a disk write - `rigd` writes slots to the WAL,
+so they survive a daemon restart, which is the property that makes them worth trusting at all.
+What it avoids is the *agent* having to choose a path, invent a schema and make a commit for a
+note it expects to consume in ninety seconds. That is the whole benefit and it is smaller than
+"no persistence", which is why it is written here rather than sold as a headline.
+
+**On the CLI it is `rig continue`**, listing slots with label, age and owner, and `--take` to
+claim one. Not `rig loose-ends`, which is taken and means declarations that stopped pointing at
+anything (§8).
+
 ### Safety defaults, because agents get killed mid-operation
 
 - Every lease has a TTL, and an absolute one on `CLOCK_BOOTTIME`. There is no infinite hold.
@@ -2128,7 +2223,7 @@ the ordering cannot be changed later by someone who never reads §14 - **house r
 | M4 | Config | Layers, schema, provenance, live push, validate, export, diff, and its TUI view | `rig config origin` explains a surprising value; a change applies live with no restart |
 | M5 | Observability | Log, trace and metric ingest, merge, query, the call log, **compiled redaction spans**, the **coverage log**, segment-embedded dictionaries, column summaries, `rig logs`, `rig loose-ends`, `rig doctor`, TUI views | One MCP call traced end to end across two processes and read back in the TUI; and a known secret passed through a declared-sensitive field appears in no segment |
 | M6 | Control and supervision | Start, stop, restart, health, budgets, quarantine, **lifecycle notices**, the **tolerant client and the resolved snapshot**, reconnect with a session token, request-id dedup | `kill -9` in a loop both ways, plus a deliberate restart under load with **zero refused dials and zero silent replays** |
-| M7 | Peers | Presence, leases with **witnesses and two-step expiry**, `rig peers run`, fencing tokens per lease, read/write, semaphores, barriers, election, versioned blackboard with multi-key transactions, watches with a cursor, claimable queues, rendezvous, signals, `ask`, **the AgentBox dual-write shadow path**, the crew, wait-for graph, contention and timeline views | The simulation suite green over 10000 seeded interleavings with injected crashes, **lost replies and a suspend clock jump**; every adversarial test passing; a stalled holder's `make deploy` actually stops |
+| M7 | Peers | Presence, leases with **witnesses and two-step expiry**, `rig peers run`, fencing tokens per lease, read/write, semaphores, barriers, election, **continuation slots** (§16), versioned blackboard with multi-key transactions, watches with a cursor, claimable queues, rendezvous, signals, `ask`, **the AgentBox dual-write shadow path**, the crew, wait-for graph, contention and timeline views | The simulation suite green over 10000 seeded interleavings with injected crashes, **lost replies and a suspend clock jump**; every adversarial test passing; a stalled holder's `make deploy` actually stops |
 | M8 | The window and the tray | The rail, panes, embedded mode over the localhost SPAs six programs already serve, one tray icon with the **detached** state, the visual system from `design/` as live `ui.theme` config, and **the decision on who hosts the tray and the toast layer, with its §17 budget row** (§17) | One window, one tray, three programs in a rail. Six tray icons become one, and the theme is changed from the settings UI with the contrast gate refusing an unreadable set. **`make bench-idle` covers every resident rig process, not only `rigd`** |
 | M9 | Toasts | The frameless toast, severities, springs, stacking, live bodies, inline actions, the centre, Do Not Disturb, D-Bus fallback | A command answered from inside a toast with no window open |
 | M10 | Generated UI | Forms, tables, actions, progress, detail, status from declared schema, in both window and TUI | `nudge` gets a complete pane and a complete TUI view with zero frontend code |
@@ -2223,6 +2318,15 @@ what re-checking looks like.
    costs are stated so the decision is not made by accident.
 7. **What is the first wire major's support window?** §21 requires a date on the day v1 ships.
    It does not exist yet because v1 has not shipped.
+8. **Can §18's supervisor be expressed as a declared state machine?** (§5h) The whole case for
+   a state machine service rests on this, and it is answerable from the design rather than from
+   code. If yes, the service is real and gets a milestone at the §24 gate; if no, it is struck
+   and the three machines rig hard-codes stay hard-coded. Nothing else adopts it today, so
+   there is no second candidate to fall back on.
+9. **Do the four `← open` services survive the §24 gate?** A job queue, a cache, a
+   file-watcher and state machines are drawn in §5h and owned by no milestone. §5k says nothing
+   ships without a program that adopts it, so the question is really "which program", and for
+   three of the four there is no answer yet.
 
 ---
 
