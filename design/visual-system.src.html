@@ -597,6 +597,35 @@ table.ratios td.m,table.ratios th.m{font-family:var(--mono)}
   .gpx-side{border-inline-end:0;border-bottom:1px solid var(--border)}}
 
 /* ── the lab ────────────────────────────────────────────────────────────── */
+/* ── section nav ──────────────────────────────────────────────────────────
+   R8 requires the kit to become a section of this page and says the page has
+   nine sections and NO navigation of any kind, "which is fixed before a tenth
+   is added". This is that fix, and design/build.py generates it: the list, the
+   ids and the 01..NN numbers all come from the sections themselves, so a tenth
+   section costs nothing and cannot disagree with the nav that points at it.
+
+   Under the dock rather than beside it: the dock is fixed at the top right at
+   z-index 60, so this reserves room on its side and slides beneath it. */
+.secnav{position:sticky;inset-block-start:0;z-index:50;display:flex;gap:.15rem;
+  overflow-x:auto;scrollbar-width:none;
+  padding:.45rem 1rem;padding-inline-end:15rem;
+  background:color-mix(in srgb,var(--bg) 86%,transparent);
+  backdrop-filter:blur(14px) saturate(140%);
+  border-block-end:1px solid var(--border)}
+.secnav::-webkit-scrollbar{height:0}
+.secnav a{display:flex;gap:.5rem;align-items:baseline;white-space:nowrap;
+  padding:.3rem .6rem;border-radius:calc(var(--radius) * .75);
+  font-family:var(--mono);font-size:var(--fs--1);letter-spacing:.04em;
+  color:var(--fg-dim);text-decoration:none}
+.secnav a b{color:var(--hue);font-weight:600}
+.secnav a:hover{color:var(--fg);background:var(--glow)}
+.secnav a:focus-visible{outline:none;box-shadow:0 0 0 var(--ring-w) var(--hue)}
+/* The bar is sticky, so an anchor jump would land every heading underneath it
+   and read as having arrived at the section above the one that was clicked. */
+section{scroll-margin-block-start:4rem}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media (max-width:900px){.secnav{padding-inline-end:1rem}}
 .dock{position:fixed;inset-block-start:1rem;inset-inline-end:1rem;z-index:60;display:flex;gap:.4rem;
   background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(14px) saturate(150%);
   border:1px solid var(--border);border-radius:999px;padding:.3rem;box-shadow:var(--shadow)}
@@ -712,6 +741,8 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
   </div>
   <span class="scrollcue">scroll</span>
 </div>
+
+<!-- NAV -->
 
 <section><div class="wrap">
   <h2><span class="n">01</span> The window</h2>

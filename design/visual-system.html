@@ -597,6 +597,35 @@ table.ratios td.m,table.ratios th.m{font-family:var(--mono)}
   .gpx-side{border-inline-end:0;border-bottom:1px solid var(--border)}}
 
 /* ── the lab ────────────────────────────────────────────────────────────── */
+/* ── section nav ──────────────────────────────────────────────────────────
+   R8 requires the kit to become a section of this page and says the page has
+   nine sections and NO navigation of any kind, "which is fixed before a tenth
+   is added". This is that fix, and design/build.py generates it: the list, the
+   ids and the 01..NN numbers all come from the sections themselves, so a tenth
+   section costs nothing and cannot disagree with the nav that points at it.
+
+   Under the dock rather than beside it: the dock is fixed at the top right at
+   z-index 60, so this reserves room on its side and slides beneath it. */
+.secnav{position:sticky;inset-block-start:0;z-index:50;display:flex;gap:.15rem;
+  overflow-x:auto;scrollbar-width:none;
+  padding:.45rem 1rem;padding-inline-end:15rem;
+  background:color-mix(in srgb,var(--bg) 86%,transparent);
+  backdrop-filter:blur(14px) saturate(140%);
+  border-block-end:1px solid var(--border)}
+.secnav::-webkit-scrollbar{height:0}
+.secnav a{display:flex;gap:.5rem;align-items:baseline;white-space:nowrap;
+  padding:.3rem .6rem;border-radius:calc(var(--radius) * .75);
+  font-family:var(--mono);font-size:var(--fs--1);letter-spacing:.04em;
+  color:var(--fg-dim);text-decoration:none}
+.secnav a b{color:var(--hue);font-weight:600}
+.secnav a:hover{color:var(--fg);background:var(--glow)}
+.secnav a:focus-visible{outline:none;box-shadow:0 0 0 var(--ring-w) var(--hue)}
+/* The bar is sticky, so an anchor jump would land every heading underneath it
+   and read as having arrived at the section above the one that was clicked. */
+section{scroll-margin-block-start:4rem}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media (max-width:900px){.secnav{padding-inline-end:1rem}}
 .dock{position:fixed;inset-block-start:1rem;inset-inline-end:1rem;z-index:60;display:flex;gap:.4rem;
   background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(14px) saturate(150%);
   border:1px solid var(--border);border-radius:999px;padding:.3rem;box-shadow:var(--shadow)}
@@ -713,7 +742,19 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
   <span class="scrollcue">scroll</span>
 </div>
 
-<section><div class="wrap">
+<nav class="secnav" aria-label="Sections">
+  <a href="#s-the-window"><b>01</b> The window</a>
+  <a href="#s-status-at-rest"><b>02</b> Status at rest</a>
+  <a href="#s-the-tray"><b>03</b> The tray</a>
+  <a href="#s-toasts"><b>04</b> Toasts</a>
+  <a href="#s-the-palette"><b>05</b> The palette</a>
+  <a href="#s-the-notification-centre"><b>06</b> The notification centre</a>
+  <a href="#s-when-a-program-crashes"><b>07</b> When a program crashes</a>
+  <a href="#s-who-is-using-rig"><b>08</b> Who is using rig</a>
+  <a href="#s-generated-panes"><b>09</b> Generated panes</a>
+</nav>
+
+<section id="s-the-window"><div class="wrap">
   <h2><span class="n">01</span> The window</h2>
   <h3>Achromatic shell, one hue per program</h3>
   <p class="say">The shell has no colour of its own. Each program owns one hue from a uniform
@@ -752,7 +793,7 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
   feeling. Everything else belongs to the program.</span>
 </div></section>
 
-<section><div class="wrap">
+<section id="s-status-at-rest"><div class="wrap">
   <h2><span class="n">02</span> Status at rest</h2>
   <h3>Healthy is the absence of colour</h3>
   <p class="say">Six programs, most idle, most of the time. Anything that animates or glows at
@@ -764,7 +805,7 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
   <div class="railrow" id="railrow"></div>
 </div></section>
 
-<section><div class="wrap">
+<section id="s-the-tray"><div class="wrap">
   <h2><span class="n">03</span> The tray</h2>
   <h3>Seven icons become one</h3>
   <p class="say">Your panel as it is right now, and as it would be. Click the rig icon: the menu
@@ -789,7 +830,7 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
   <div class="scene" style="margin-top:1.4rem" id="trayscene"></div>
 </div></section>
 
-<section><div class="wrap">
+<section id="s-toasts"><div class="wrap">
   <h2><span class="n">04</span> Toasts</h2>
   <h3>A designed surface, not a line handed to the desktop</h3>
   <p class="say">Frameless, always-on-top, transparent webview windows rig owns and styles.
@@ -810,7 +851,7 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
   <div id="toastfield"><div id="deck" class="stacked"></div></div>
 </div></section>
 
-<section><div class="wrap">
+<section id="s-the-palette"><div class="wrap">
   <h2><span class="n">05</span> The palette</h2>
   <h3>Generated, measured twice, and anchored to meaning</h3>
   <p class="say">The family is produced in <code>oklch</code> at one lightness and one chroma,
@@ -850,7 +891,7 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
   of the lab goes red, and the number in the hero changes while you drag.</div>
 </div></section>
 
-<section><div class="wrap">
+<section id="s-the-notification-centre"><div class="wrap">
   <h2><span class="n">06</span> The notification centre</h2>
   <h3>Nothing is ever only a toast</h3>
   <p class="say">Auto-dismiss is only safe if the toast was never the only copy. Everything
@@ -888,7 +929,7 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
   row shows the shape of what it did, never the value.</span>
 </div></section>
 
-<section><div class="wrap">
+<section id="s-when-a-program-crashes"><div class="wrap">
   <h2><span class="n">07</span> When a program crashes</h2>
   <h3>The pane becomes a panel, and nothing else changes</h3>
   <p class="say">A crash is not an empty window and not a modal thrown over the whole shell. The
@@ -939,7 +980,7 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
   deduplicated by the request id on the wire (§5f).</span>
 </div></section>
 
-<section><div class="wrap">
+<section id="s-who-is-using-rig"><div class="wrap">
   <h2><span class="n">08</span> Who is using rig</h2>
   <h3>One registry, and every surface is a view over it</h3>
   <p class="say">Six programs is the small number. The number that grows is <em>clients</em> -
@@ -968,7 +1009,7 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
   them require the operator credential, which is a credential and not a uid (§14).</span>
 </div></section>
 
-<section><div class="wrap">
+<section id="s-generated-panes"><div class="wrap">
   <h2><span class="n">09</span> Generated panes</h2>
   <h3>Six renderers, and the program wrote none of them</h3>
   <p class="say">A program that wants a screen does not write one. It declares what it has -
