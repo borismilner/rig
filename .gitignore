@@ -5,3 +5,4 @@ node_modules/
 *.test
 .air.toml
 frontend/.svelte-kit/
+ipcbench/bench
