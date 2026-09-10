@@ -26,6 +26,29 @@ CONTRAST_PORT ?= 8731
 GOMEMLIMIT ?= 64MiB
 GOGC       ?= 100
 COVER_OUT  := build/cover.out
+# Every package EXCEPT the window, and this is not a convenience.
+#
+# `cmd/rigwindow` is the only cgo binary: through Wails it needs gtk4 and
+# webkitgtk-6.0 headers via pkg-config. `go vet ./...`, `go test ./...` and
+# `golangci-lint run ./...` all LOAD every package they are given, so a
+# module-wide scope needs those headers present even though nothing in the
+# daemon or the CLI links them. `ubuntu-latest` has neither, so the whole gate
+# went red on a machine this project deliberately supports - and it went red on
+# the first push after the window landed rather than when the window was
+# written, which is the worst time to find out.
+#
+# Section 17 already says the daemon side must build and test with no webview.
+# This is that rule applied to the tool scopes, where it had never been
+# applied. `make vet-window` and `make test-window` cover the window on a
+# machine that has the deps.
+GO_PKGS    := $(shell go list ./... | grep -v '/cmd/rigwindow')
+# The same set as directories, because golangci-lint takes paths and not import
+# paths: handed an import path it looks for a directory of that name under the
+# working tree, fails to stat it, and reports "0 issues" beside a typechecking
+# error and exit 7. A gate that exits non-zero while printing zero problems is
+# worse than one that fails loudly, so the two forms are separate variables
+# rather than one that is right for half its callers.
+LINT_DIRS  := $(shell go list -f '{{.Dir}}' ./... | grep -v '/cmd/rigwindow')
 CHAOS_ITER ?= 10000
 FUZZ_TIME  ?= 60s
 
@@ -110,10 +133,10 @@ clean: ## Remove build output, coverage and generated artefacts
 test: test-unit test-race ## Run the standard test suite (unit + race)
 
 test-unit: ## Run unit tests
-	go test ./...
+	go test $(GO_PKGS)
 
 test-race: ## Run tests under the race detector
-	go test -race ./...
+	go test -race $(GO_PKGS)
 
 test-chaos: ## Kill, hang, flood and restart fakeapp $(CHAOS_ITER) times
 	go test -run TestChaos -count=1 -timeout 30m ./internal/supervise/... -args -iterations=$(CHAOS_ITER)
@@ -143,7 +166,7 @@ cover-html: cover ## Open the coverage report in a browser
 ##@ Quality
 
 lint: lint-house ## Run golangci-lint plus the house analyzers
-	golangci-lint run ./...
+	golangci-lint run $(LINT_DIRS)
 
 # The house rules that no off-the-shelf linter knows. Separate from lint
 # because these need nothing installed - they are go run over this module -
@@ -164,7 +187,13 @@ fmt: ## Format Go and frontend sources
 	cd frontend && npm run format
 
 vet: ## go vet
-	go vet ./...
+	go vet $(GO_PKGS)
+
+vet-window: ## go vet the window (needs gtk4 and webkitgtk-6.0)
+	go vet ./cmd/rigwindow/...
+
+test-window: ## Test the window (needs gtk4 and webkitgtk-6.0)
+	go test ./cmd/rigwindow/...
 
 audit: ## Check dependencies for known vulnerabilities
 	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
@@ -369,7 +398,7 @@ help: ## Show this help
 .PHONY: build build-rigd build-rig build-fakeapp deps-frontend build-frontend build-rigwindow build-all install uninstall \
         run dev clean test test-unit test-race \
         test-chaos test-e2e test-wire fuzz cover cover-html lint lint-house fmt vet audit \
-        verify contrast contrast-selftest contrast-window generate proto schema types docs bench bench-ipc profile \
+        vet-window test-window verify contrast contrast-selftest contrast-window generate proto schema types docs bench bench-ipc profile \
         up down doctor apps logs tui tidy deps-check release package ci fmt-check \
         bench-idle bench-scale bench-size bench-size-update build-minimal \
         bench-size-window bench-size-window-update \
