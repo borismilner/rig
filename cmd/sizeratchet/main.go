@@ -124,9 +124,21 @@ func run(path string, update bool, bins []string) error {
 			// A number only ever moves on --update. Recording a new binary is
 			// not the same as raising an existing one, so an unknown binary is
 			// written on a plain run and a known one is not.
-			if !rw.known || update {
+			if !rw.known {
 				r.Bins[rw.name] = entry{Bytes: rw.now, Recorded: stamp}
+				continue
 			}
+			if !update {
+				continue
+			}
+			// A row whose bytes did not move keeps its timestamp. Re-stamping
+			// it destroys the only record of when that number was actually
+			// set, and turns a one-line raise into a diff nobody can read -
+			// which matters most when several sessions share the file.
+			if rw.now == rw.was {
+				continue
+			}
+			r.Bins[rw.name] = entry{Bytes: rw.now, Recorded: stamp}
 		}
 		out, err := json.MarshalIndent(r, "", "  ")
 		if err != nil {
