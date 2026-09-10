@@ -1320,6 +1320,29 @@ The URL surface itself is M13. **The enum ships at M1**, because it lives in the
 invoker and the whole point of that placement is that a surface added in 2028 is covered by
 rules written in 2026 - which only holds if the vocabulary can name it.
 
+**A rule is a pair, and a wrapping verb splits it.** `effects` comes from the registry, per
+command, declared by the program; `caller` comes from the invocation. A verb whose subject is
+another command separates the two onto different objects - and one ships at M7:
+`rig peers run --lease=NAME -- make deploy` (§16). Match on the outer verb and there is no
+declared `effects`, because `rig peers run` has no registry entry. Match on the wrapped command
+and the caller is no longer the principal that arrived. **Whichever half the invoker looks at it
+loses the other, so the pair never completes and, against an empty default set, the call is
+allowed.** The rule the owner most needs - "the scheduler may not run destructive commands
+unattended" - is silently unwritable for exactly the callers it was written for.
+
+**So the invoker matches on the effective pair, resolved once at the boundary.** `caller` is the
+principal that arrived; `effects` is the union over every registered command the call will
+actually run. A wrapping verb contributes no effects of its own and **cannot mask the effects it
+wraps**. This is a property of the invoker, so it holds for a wrapping verb added in 2028 the
+same way the caller enum does.
+
+**A wrapped command rig cannot resolve counts as `destructive` for matching.** `make deploy` is
+not a registered command and rig cannot know what it does. This does not change what happens
+when no rule exists - an empty set still matches nothing - but it means a rule that names
+`destructive` fires on the one case where the invoker cannot see what it is authorising, rather
+than silently missing it. Unresolvable and harmless is a combination only the program can
+declare, and it has not.
+
 - **It lives in the kernel's invoker**, so no surface can forget it and a surface added in 2028
   is covered by rules written in 2026. One test covers every surface, present and future.
 - **The default rule set is empty**, so nothing already working breaks the day it lands.
@@ -1511,7 +1534,10 @@ any agent **another program's secrets**. That was a finding about *what the hist
 and §15 fixed it at the source: anything `secrets` returns is never recorded, and every field
 declared `sensitive` is blanked before the write. **Redaction is the precondition for complete
 introspection.** With it, the worst an introspecting agent can read is everything Boris could
-read himself - the requirement, not the leak. Without it, no mechanism would have been safe
+read himself - the requirement, not the leak. **That holds for the paths that cross the
+history's write, which is where redaction happens**, so §15 states the invariant every other
+estate-wide read path has to satisfy; a path that satisfies neither half of it leaks while
+passing run 3. Without it, no mechanism would have been safe
 enough - so M1 ships the connect-time predicate, and complete history reading is gated on M5's
 redaction spans (§23).
 ### Scopes, so peers is not a hole in the filter
@@ -1640,7 +1666,32 @@ Redaction is therefore part of the **registration declaration**, not of the logg
   allocations**, inside budget. Decoding the payload to redact it at record time costs
   **3100 ns**, which is 15x the whole budget - so the declaration is the only affordable place
   for this.
-- **Anything the `secrets` service returns is never recorded at all**, only the key name. A
+- **Redaction is a write-side mechanism, and this plan has been stating it as though it were a
+property of reading.** The compiled span list blanks known offsets on the way *into* the
+history, so every estate-wide read that goes through the history is safe by construction. A read
+path that does not go through the history is not, and §14's sentence - "the worst an
+introspecting agent can read is everything Boris could read himself" - is true only of the paths
+that cross that write. Every conformance run in §14 would pass while such a path leaked, because
+run 3 reads the transcript and the leak is not in the transcript.
+
+**The invariant, stated once so that a new read path has to satisfy it rather than notice it.**
+Every estate-wide read path either:
+
+1. renders its payload through **the same compiled span list** as the history write; or
+2. declares its payload **wholly sensitive** - existence, size, age and owner readable
+   estate-wide, contents never.
+
+§16's continuation slots already take (2) and say so in their own text. Anything new picks one
+explicitly, in writing, and **a third option does not exist**: a second access-control door is
+precisely what §14 says it does not have.
+
+**Why (2) has to be available at all.** `sensitive` is JSON pointers into arguments and results
+(§5e), so a payload that is neither - a live outbound stream, an opaque blob a program owns -
+has no pointer space in which the declaration could be made. For those, (2) is the only
+mechanism there is, and a design that reaches for (1) and finds no pointer must take (2) rather
+than conclude the question does not apply.
+
+**Anything the `secrets` service returns is never recorded at all**, only the key name. A
   field that is not declared sensitive *is* recorded, so the default for a secret cannot be left
   to a declaration.
 - The declaration is now security-relevant, so widening it needs the same explicit confirmation
