@@ -58,7 +58,7 @@ SHELL := bash
 
 ##@ Build
 
-build: build-rigd build-rig build-fakeapp ## Build every binary into build/
+build: build-rigd build-rig build-fakeapp build-ledger ## Build every binary into build/
 
 build-rigd: ## Build the daemon (links none of the terminal stack)
 	@mkdir -p build
@@ -287,12 +287,20 @@ bench-ipc: ## Reproduce the transport numbers in PLAN.md section 4
 
 bench-size: build ## Record or check the binary-size ratchet (PLAN.md 17, 22)
 	go run ./cmd/sizeratchet --ratchet $(RATCHET) \
-	  --bin build/$(BIND) --bin build/$(BIN) --bin build/fakeapp
+	  --bin build/$(BIND) --bin build/$(BIN) --bin build/fakeapp \
+	  --bin build/ledger
 
 bench-size-update: build ## Accept the current sizes as the new ratchet
 	go run ./cmd/sizeratchet --ratchet $(RATCHET) --update \
-	  --bin build/$(BIND) --bin build/$(BIN) --bin build/fakeapp
+	  --bin build/$(BIND) --bin build/$(BIN) --bin build/fakeapp \
+	  --bin build/ledger
 
+# ledger is NOT split out the way the window is. The window's split exists for
+# one reason - it needs cgo, gtk and a webview - and none of that applies to a
+# pure-Go fixture, so ledger builds in `build` and is measured by `bench-size`,
+# which means CI guards it on every push. An unguarded binary is how the window
+# sat 1.74 MB over an unread row for four commits.
+#
 # The window's row is checked separately because building it needs a webview.
 # sizeratchet merges rather than replaces, so these two invocations share one
 # file without either one dropping the other's rows.
