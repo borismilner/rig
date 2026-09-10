@@ -2340,7 +2340,7 @@ budget with no cause. And a single 1 Hz ticker in Go floors at **5.60 wakeups/se
 
 | What | Budget | Measured by |
 |---|---|---|
-| **`rigd` binary size** | **< 20 MB, and ratcheted** | `make bench-size`. A PR adding more than 1 MB fails unless this line is edited in the same commit. This is the budget that causes the next one |
+| **`rigd` binary size** | **< 20 MB, and ratcheted** | `make bench-size`. A PR adding more than 1 MB fails unless this line is edited in the same commit. This is the budget that causes the next one. **Edited at M1 slice 5: 6.29 -> 7.75 MB**, and the whole 1.45 MB is `santhosh-tekuri/jsonschema` v6, which §22 pins. It has to be in the daemon rather than the client, because a program cannot trust a caller to have validated its own arguments (§5e). 39% of the budget spent at M1 of 16, and the next surface that wants a library this size is the one to argue with |
 | Daemon idle, resident memory | **< 20 MB** | `make bench-idle`, after 60s quiet. Reachable only with gRPC and the TUI out: 1.88 + framing + 1.54 + 5.62 + ~3 + 2 |
 | Daemon idle, CPU | **< 0.1%** | same |
 | **Wakeups above the unavoidable timer floor** | **< 2 per second** | same. The floor is measured and printed beside the number, because budgeting against zero is budgeting against Go |
