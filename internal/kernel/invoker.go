@@ -344,25 +344,36 @@ type Decision struct {
 // Allowed reports whether the call may proceed with no question asked.
 func (d Decision) Allowed() bool { return d.Action == ActionAllow }
 
-// pair resolves the effective pair through this principal's own view.
+// pair resolves the effective pair, and reads effects unfiltered.
 //
-// The view rather than the registry, deliberately. Visibility is a separate
-// boundary (section 14) and it is enforced before authorisation: a caller
-// that cannot see a program cannot reach it, so by the time the invoker runs
-// the target is visible. Resolving through the view means a target that has
-// gone - a program that disconnected between routing and authorising - falls
-// to opaque and therefore to destructive, which fails safe, instead of
-// leaking the declared effects of something the caller may not read.
-func (v View) pair(refs []Ref) (Pair, error) {
+// Unfiltered is deliberate, and it is a correction. Resolving through the
+// caller's own view looks safer and is not: section 14 scopes a program to
+// itself, so a program calling another program's READ-ONLY command could not
+// resolve the target at all, fell to opaque, and was matched as destructive.
+// A rule denying destructive calls then refused a read-only one, which is the
+// compatibility promise broken by the mechanism meant to keep it.
+//
+// What the invoker matches on is what the TARGET declared, not what the
+// caller may read. The cost is one enum value: a refusal names the effects of
+// a command the caller might not have been able to list. That is a smaller
+// hole than the alternative, and smaller than the one already there - routing
+// does not check visibility at all, so such a caller can invoke the command
+// and observe it working. That gap is section 14's to close, not this
+// function's to hide.
+//
+// A target that is not in the registry at all - never registered, or a
+// program that disconnected between routing and authorising - is opaque and
+// therefore destructive, which is the fail-safe half.
+func (k *Kernel) pair(who Principal, refs []Ref) (Pair, error) {
 	if len(refs) == 0 {
 		return Pair{}, errors.New("kernel: nothing to authorise: the boundary " +
 			"has to say what the call will actually run")
 	}
-	p := Pair{Caller: v.p.Kind}
+	p := Pair{Caller: who.Kind}
 	for _, r := range refs {
 		switch r.Kind {
 		case RefCommand:
-			c, ok := v.Command(r.Program, r.Command)
+			c, ok := k.registry.command(r.Program, r.Command)
 			if !ok {
 				// Not resolvable through this view, so it is opaque, so it is
 				// destructive. See RefOpaque.
@@ -381,6 +392,14 @@ func (v View) pair(refs []Ref) (Pair, error) {
 				r.What())
 		}
 	}
+	if p.Effects == EffectsUnspecified {
+		// Every ref was a wrapping verb. A wrapping verb contributes no
+		// effects of its own, so nothing here says what the call will run,
+		// and matching would be done against "nothing said" - which is the
+		// floor that matches everything. Only a boundary bug reaches this.
+		return Pair{}, errors.New("kernel: every ref is a wrapping verb, so " +
+			"nothing says what the call will actually run")
+	}
 	return p, nil
 }
 
@@ -394,7 +413,7 @@ func (k *Kernel) Authorize(p Principal, refs []Ref) (Decision, error) {
 	if err := p.Valid(); err != nil {
 		return Decision{}, err
 	}
-	pair, err := k.See(p).pair(refs)
+	pair, err := k.pair(p, refs)
 	if err != nil {
 		return Decision{}, err
 	}

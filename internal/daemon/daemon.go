@@ -45,6 +45,14 @@ type Config struct {
 	Wire    string
 	Log     *slog.Logger
 
+	// Ask routes a gating question to whoever is present (section 13a).
+	//
+	// Nil at M1, because no surface exists to answer on yet, and nil is not a
+	// hole: a gating question nobody can answer is denied. It is on Config
+	// rather than reached for globally so a test can put a real answerer
+	// behind it without a surface existing.
+	Ask Asker
+
 	// Lock is the single-instance claim, and it is REQUIRED.
 	//
 	// Section 5f says rigd takes the flock "before it binds". Stating an
@@ -69,6 +77,9 @@ type Daemon struct {
 	// which is section 14's rule that an unscoped read is unrepresentable
 	// rather than discouraged.
 	kernel *kernel.Kernel
+
+	// ask is how a confirm reaches a person. Nil means nobody is present.
+	ask Asker
 
 	// programs is connections, not declarations - what the kernel knows is
 	// what a program said, and what this map knows is where to send a call.
@@ -95,6 +106,7 @@ func New(cfg Config) (*Daemon, error) {
 		log:      log,
 		lock:     cfg.Lock,
 		kernel:   kernel.New(),
+		ask:      cfg.Ask,
 		programs: make(map[string]*conn),
 	}, nil
 }
@@ -239,7 +251,7 @@ func (d *Daemon) dispatch(ctx context.Context, c *conn, f *rigv1.Frame) {
 		d.serveSelf(c, f, command)
 		return
 	}
-	d.route(ctx, c, f, program)
+	d.route(ctx, c, f, program, command)
 }
 
 // serveSelf answers the methods rig implements itself.
@@ -347,13 +359,34 @@ func (d *Daemon) serveSelf(c *conn, f *rigv1.Frame, command string) {
 }
 
 // route forwards a call to a program and relays its answer back.
-func (d *Daemon) route(ctx context.Context, from *conn, f *rigv1.Frame, program string) {
+func (d *Daemon) route(ctx context.Context, from *conn, f *rigv1.Frame, program, command string) {
 	d.mu.RLock()
 	to := d.programs[program]
 	d.mu.RUnlock()
 	if to == nil {
 		from.fail(f.GetStreamId(), rigv1.Code_CODE_NOT_FOUND,
 			fmt.Sprintf("no program %q is connected", program))
+		return
+	}
+
+	// The authorization floor, and it is here rather than on any surface so
+	// that no surface can forget it (section 13a).
+	//
+	// Note what the line above does NOT do: it looks the program up in the
+	// routing map, which is every connected program, not in the caller's
+	// scoped view. So a caller reaches a program it could not list, and
+	// section 14's "a principal sees the programs it may reach" is not true
+	// of routing yet. That gap is older than the invoker and closing it
+	// changes what one program may ask another for, so the invoker does not
+	// paper over it: it matches on what the target declared and leaves the
+	// visibility question where it belongs.
+	dec, allowed, err := d.authorize(ctx, from, f, program, command)
+	if err != nil {
+		from.fail(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err.Error())
+		return
+	}
+	if !allowed {
+		from.fail(f.GetStreamId(), rigv1.Code_CODE_DENIED, dec.Reason)
 		return
 	}
 

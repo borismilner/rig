@@ -1,0 +1,150 @@
+package daemon
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/boris-milner/rig/internal/kernel"
+	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+)
+
+// Question is a gating ask, carrying everything section 14 says a prompt must
+// carry: the principal and its client kind, the pid, the command, and the
+// arguments as they will be invoked.
+//
+// A toast that says only "stop shelf?" is answered by whoever is looking at
+// the screen, in the belief it came from the terminal in front of them.
+type Question struct {
+	Principal kernel.Principal
+	Decision  kernel.Decision
+
+	// Method is <program>.<command>, and Args is the payload exactly as it
+	// will be delivered. Rendering it for a person is the surface's job, not
+	// the boundary's; the boundary's job is to not lose it.
+	Method string
+	Args   []byte
+}
+
+// Asker routes a gating question to whoever is actually present - window,
+// toast, terminal or phone (PLAN.md sections 12, 13a).
+//
+// It is an interface here and nil at M1, because no surface exists to answer
+// on yet. Nil is not a hole: an unanswered gating question is denied, which
+// is the behaviour section 13a specifies for the half where guessing wrong is
+// unsafe. Every surface that can ask arrives later and implements this.
+type Asker interface {
+	Ask(ctx context.Context, q Question) (bool, error)
+}
+
+// authorize is the authorization boundary, and every routed call passes
+// through it exactly once (PLAN.md section 13a).
+//
+// It answers with the decision it took and whether the call may proceed. The
+// decision is the record: an error return means the invoker could not reason
+// about the call at all, which is not the same as refusing it.
+//
+// What is NOT authorised here, and it is a gap rather than a decision: rig's
+// own methods - rig.hello, rig.ping, rig.apps - have no registry entry, so
+// there are no declared effects to match on. Treating them as unresolvable
+// would make them destructive, and a rule denying destructive calls would
+// then stop rig answering a ping. Closing it properly means rig declaring its
+// own commands the way every other program does.
+func (d *Daemon) authorize(
+	ctx context.Context, from *conn, f *rigv1.Frame, program, command string,
+) (kernel.Decision, bool, error) {
+	who := from.principal()
+	refs := []kernel.Ref{{Kind: kernel.RefCommand, Program: program, Command: command}}
+
+	dec, err := d.kernel.Authorize(who, refs)
+	if err != nil {
+		return dec, false, err
+	}
+
+	switch dec.Action {
+	case kernel.ActionAllow:
+		// Section 13a wants every decision recorded, and section 15 is where
+		// that becomes an audit log at M5. Until then an allow is debug and a
+		// refusal is a warning, because a line per read-only call at info
+		// buries the ones that matter.
+		d.logDecision(from, f, dec, true)
+		return dec, true, nil
+
+	case kernel.ActionDeny:
+		d.logDecision(from, f, dec, false)
+		return dec, false, nil
+
+	case kernel.ActionConfirm:
+		return d.confirm(ctx, from, f, dec)
+
+	default:
+		return dec, false, fmt.Errorf(
+			"daemon: house rules produced %s for %s, which is not an action",
+			dec.Action, dec.Pair)
+	}
+}
+
+// confirm routes a gating question, and denies when nobody can answer it.
+//
+// Section 13a: a gating ask fails CLOSED. An elevation nobody answers is
+// denied and recorded, because the alternative is estate-wide action taken by
+// default. The disambiguating kind, which parks instead, is not this - it
+// arrives with the peers service.
+func (d *Daemon) confirm(
+	ctx context.Context, from *conn, f *rigv1.Frame, dec kernel.Decision,
+) (kernel.Decision, bool, error) {
+	who := from.principal()
+
+	if d.ask == nil {
+		dec.Reason = fmt.Sprintf("%s, and no surface could ask: a gating "+
+			"question nobody answers is denied", dec.Reason)
+		d.logDecision(from, f, dec, false)
+		return dec, false, nil
+	}
+
+	answered, err := d.ask.Ask(ctx, Question{
+		Principal: who,
+		Decision:  dec,
+		Method:    f.GetMethod(),
+		Args:      f.GetPayload(),
+	})
+	if err != nil {
+		dec.Reason = fmt.Sprintf("%s, and the question could not be put: %v",
+			dec.Reason, err)
+		d.logDecision(from, f, dec, false)
+		return dec, false, nil
+	}
+	if !answered {
+		dec.Reason += ", and the answer was no"
+		d.logDecision(from, f, dec, false)
+		return dec, false, nil
+	}
+
+	// The answer authorises THIS call and nothing else. Nothing is stored on
+	// the connection, so the next call asks again.
+	d.logDecision(from, f, dec, true)
+	return dec, true, nil
+}
+
+// logDecision writes what was decided and why.
+//
+// The fields are the ones "why was I asked" and "why was that allowed" need:
+// the pair, the action, the origin, the rule if one fired, and the principal
+// that arrived. Section 15's recorded call log at M5 replaces this with
+// something queryable; the vocabulary is the same either way.
+func (d *Daemon) logDecision(from *conn, f *rigv1.Frame, dec kernel.Decision, allowed bool) {
+	args := []any{
+		"method", f.GetMethod(),
+		"pair", dec.Pair.String(),
+		"action", dec.Action.String(),
+		"origin", dec.Origin.String(),
+		"principal", from.principal().String(),
+	}
+	if dec.Rule != "" {
+		args = append(args, "rule", dec.Rule)
+	}
+	if allowed {
+		d.log.Debug("house rules allowed the call", args...)
+		return
+	}
+	d.log.Warn("house rules refused the call", append(args, "reason", dec.Reason)...)
+}

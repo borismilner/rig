@@ -309,7 +309,7 @@ func TestTheUnionTakesTheMostDangerousOfSeveralCommands(t *testing.T) {
 	}
 }
 
-func TestACommandThisCallerCannotSeeFailsSafe(t *testing.T) {
+func TestACommandThatIsNotRegisteredAtAllFailsSafe(t *testing.T) {
 	k := pilotKernel(t)
 	if err := k.SetRules([]kernel.Rule{{
 		ID:      "deny-destructive",
@@ -320,20 +320,52 @@ func TestACommandThisCallerCannotSeeFailsSafe(t *testing.T) {
 		t.Fatalf("set rules: %v", err)
 	}
 
-	// An unscoped, unprivileged caller reads no program at all (section 14),
-	// so even the read-only command is unresolvable through its view - and
-	// unresolvable is destructive.
-	blind := kernel.Principal{
-		UID: 1000, Kind: kernel.KindAgent,
-		ClientID: "blind", SessionID: "s-blind", PID: 45,
-	}
-	d, err := k.Authorize(blind, []kernel.Ref{cmdRef("look")})
+	// Nothing in the registry declares this, so rig cannot know what it does.
+	d, err := k.Authorize(caller(kernel.KindAgent),
+		[]kernel.Ref{{Kind: kernel.RefCommand, Program: "pilot", Command: "nosuch"}})
 	if err != nil {
 		t.Fatalf("authorize: %v", err)
 	}
 	if d.Action != kernel.ActionDeny {
-		t.Fatalf("a target this caller cannot resolve got %s rather than "+
-			"failing safe", d.Action)
+		t.Fatalf("an unregistered target got %s rather than failing safe", d.Action)
+	}
+	if d.Pair.Effects != kernel.EffectsDestructive {
+		t.Fatalf("an unregistered target resolved as %s", d.Pair.Effects)
+	}
+}
+
+func TestTheScopeFilterDoesNotDecideWhatACommandDoes(t *testing.T) {
+	// The correction: effects are what the TARGET declared, not what the
+	// caller may read. An unscoped caller that reads no program at all still
+	// gets a read-only command resolved as read-only - because resolving it
+	// through the caller's view made a program calling another program's
+	// read-only command match as destructive.
+	k := pilotKernel(t)
+	if err := k.SetRules([]kernel.Rule{{
+		ID: "deny-destructive", Caller: kernel.AnyCaller(),
+		Effects: kernel.EffectsDestructive, Action: kernel.ActionDeny,
+	}}); err != nil {
+		t.Fatalf("set rules: %v", err)
+	}
+
+	blind := kernel.Principal{
+		UID: 1000, Kind: kernel.KindAgent,
+		ClientID: "blind", SessionID: "s-blind", PID: 45,
+	}
+	if _, ok := k.See(blind).Program("pilot"); ok {
+		t.Fatal("this caller was supposed to see nothing")
+	}
+
+	d, err := k.Authorize(blind, []kernel.Ref{cmdRef("look")})
+	if err != nil {
+		t.Fatalf("authorize: %v", err)
+	}
+	if d.Pair.Effects != kernel.EffectsReadOnly {
+		t.Fatalf("a read-only command resolved as %s for a caller that "+
+			"cannot list it", d.Pair.Effects)
+	}
+	if !d.Allowed() {
+		t.Fatalf("a read-only call was %s under a destructive-only rule", d.Action)
 	}
 }
 
@@ -449,4 +481,98 @@ func TestRulesDoesNotHandOutTheLiveTable(t *testing.T) {
 	if d.Action != kernel.ActionDeny {
 		t.Fatal("editing the slice Rules returned changed what the invoker decides")
 	}
+}
+
+func TestAWrappingVerbWrappingNothingIsNotAuthorisable(t *testing.T) {
+	// Only a boundary bug reaches this: a wrapping verb contributes no
+	// effects, so a call made of nothing but wrappers never says what it
+	// will run, and matching it against "nothing said" would match the
+	// lowest floor there is.
+	k := pilotKernel(t)
+	_, err := k.Authorize(caller(kernel.KindSchedule), []kernel.Ref{
+		{Kind: kernel.RefWrapper, Program: "rig", Command: "peers run"},
+	})
+	if err == nil {
+		t.Fatal("a call with no subject was authorised")
+	}
+}
+
+func TestEquallyRestrictiveRulesAreCitedDeterministically(t *testing.T) {
+	k := pilotKernel(t)
+	if err := k.SetRules([]kernel.Rule{
+		{
+			ID: "first", Caller: kernel.AnyCaller(), Effects: kernel.EffectsReadOnly,
+			Action: kernel.ActionDeny,
+		},
+		{
+			ID: "second", Caller: kernel.CallerKind(kernel.KindAgent),
+			Effects: kernel.EffectsDestructive, Action: kernel.ActionDeny,
+		},
+	}); err != nil {
+		t.Fatalf("set rules: %v", err)
+	}
+	// Both deny, so the action is not in question - but the log has to name
+	// the same one every time or the record is not evidence.
+	for range 5 {
+		d, err := k.Authorize(caller(kernel.KindAgent), []kernel.Ref{cmdRef("destroy")})
+		if err != nil {
+			t.Fatalf("authorize: %v", err)
+		}
+		if d.Rule != `"first"` {
+			t.Fatalf("cited %s rather than the earliest of two equal rules", d.Rule)
+		}
+	}
+}
+
+func TestRulesCanBeReplacedWhileCallsAreBeingAuthorised(t *testing.T) {
+	// Section 6 pushes config live, so the table is replaced under callers
+	// rather than at startup. Run with -race: this is what the second lock on
+	// the kernel exists for.
+	k := pilotKernel(t)
+	deny := []kernel.Rule{{
+		ID: "deny", Caller: kernel.AnyCaller(),
+		Effects: kernel.EffectsDestructive, Action: kernel.ActionDeny,
+	}}
+	allow := []kernel.Rule{{
+		ID: "allow", Caller: kernel.AnyCaller(),
+		Effects: kernel.EffectsDestructive, Action: kernel.ActionAllow,
+	}}
+
+	// Start from one of the two tables, so a call that lands before the
+	// pusher's first write is matched too - the shipped defaults name url
+	// and would leave a terminal caller unmatched.
+	if err := k.SetRules(deny); err != nil {
+		t.Fatalf("set rules: %v", err)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := range 200 {
+			table := deny
+			if i%2 == 0 {
+				table = allow
+			}
+			if err := k.SetRules(table); err != nil {
+				t.Errorf("set rules: %v", err)
+				return
+			}
+		}
+	}()
+
+	who := caller(kernel.KindTerminal)
+	for range 200 {
+		d, err := k.Authorize(who, []kernel.Ref{cmdRef("destroy")})
+		if err != nil {
+			t.Fatalf("authorize: %v", err)
+		}
+		// Whichever table it caught, it must have caught a whole one.
+		if d.Action != kernel.ActionDeny && d.Action != kernel.ActionAllow {
+			t.Fatalf("a half-applied table produced %s", d.Action)
+		}
+		if d.Origin != kernel.OriginRule {
+			t.Fatalf("origin %s: a live push lost the rule", d.Origin)
+		}
+	}
+	<-done
 }

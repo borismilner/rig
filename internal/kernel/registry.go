@@ -176,6 +176,30 @@ func (v View) Command(programID, commandID string) (Command, bool) {
 	return Command{}, false
 }
 
+// command reads one command's declaration with no filter at all.
+//
+// This is the invoker's read and nothing else's, and the reason it bypasses
+// the scope filter is stated in Kernel.pair: the effects the invoker matches
+// on are what the PROGRAM declared, and reading them through the caller's own
+// view made a legitimate read-only call resolve as destructive whenever the
+// caller happened not to be in the target's scope. It returns a Command, not
+// a Program and never a Registry, so noregistryhandle's rule still holds.
+func (r *Registry) command(programID, commandID string) (Command, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	e, ok := r.programs[programID]
+	if !ok {
+		return Command{}, false
+	}
+	for _, c := range e.decl.Commands {
+		if c.ID == commandID {
+			return c, true
+		}
+	}
+	return Command{}, false
+}
+
 // canSee is the whole filter, in one place.
 func (v View) canSee(e entry) bool {
 	if v.p.Introspect {

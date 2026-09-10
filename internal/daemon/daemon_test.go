@@ -44,6 +44,14 @@ func TestNewRefusesWithoutAWireVersion(t *testing.T) {
 
 // up starts a daemon on a socket in a temp dir and returns its path.
 func up(t *testing.T) string {
+	sock, _ := upDaemon(t, nil)
+	return sock
+}
+
+// upDaemon is up, plus the daemon itself, for a test that has to reach past
+// the wire - to push a house rules table, or to put an answerer behind a
+// confirm that has no surface to reach at M1.
+func upDaemon(t *testing.T, ask Asker) (string, *Daemon) {
 	t.Helper()
 	// Kept short deliberately: sun_path is 108 bytes and t.TempDir under a
 	// long TMPDIR silently exceeds it, failing as EINVAL.
@@ -67,7 +75,7 @@ func up(t *testing.T) string {
 	}
 	t.Cleanup(func() { _ = lock.Close() })
 
-	d, err := New(Config{Version: "test", Wire: "v1", Lock: lock})
+	d, err := New(Config{Version: "test", Wire: "v1", Lock: lock, Ask: ask})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +84,7 @@ func up(t *testing.T) string {
 	done := make(chan struct{})
 	go func() { defer close(done); _ = d.Serve(ctx, l) }()
 	t.Cleanup(func() { cancel(); <-done })
-	return sock
+	return sock, d
 }
 
 func dial(t *testing.T, sock string) *client.Client {
