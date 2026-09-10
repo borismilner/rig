@@ -287,6 +287,25 @@ message Declaration {
   // socket would need the window to proxy it, and section 23's M8 row is
   // explicit that the estate already serves localhost SPAs.
   string pane_url = 10;
+
+  // The kit elements this program's own page uses (section 5h R3).
+  //
+  // A REGISTRATION DECLARATION, not a rendering hint, and there is one
+  // authority for it so the check has somewhere to run. R7: a name rig does
+  // not serve refuses the REGISTRATION, because the alternative fails at
+  // render, in front of the user, on the surface whose entire product is
+  // presentation.
+  //
+  // Strings rather than an enum, and R1 is the reason. The inventory is open
+  // while the only adopters are fake, and adding an element has to stay "a
+  // normal change" - an enum would make every new element a wire change, and
+  // section 21's rule is that an unknown enum value is a hard refusal at the
+  // daemon boundary. A name rig does not know is refused either way; the
+  // difference is whether adding one costs a wire major.
+  //
+  // Config may SUBTRACT from this list and never add to it (R3). Subtraction
+  // arrives with config at M4; today the declared list is the whole list.
+  repeated string elements = 11;
 }
 
 // Program is one program as one principal may see it (section 14).
@@ -306,6 +325,11 @@ message Program {
   // Where this program serves its own pane, validated at registration. A
   // reader gets it because the window is a reader like any other.
   string pane_url = 8;
+
+  // The kit elements this program declares (section 5h R3). A reader gets it
+  // for the same reason it gets services: it is part of what the program said
+  // about itself, not part of how anything draws it.
+  repeated string elements = 9;
 }
 
 // ---- rig.programs, the read side of the registry ---------------------------

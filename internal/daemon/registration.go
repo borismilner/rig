@@ -113,6 +113,7 @@ func declarationFromWire(req *rigv1.HelloRequest) (kernel.Declaration, error) {
 		CoverageNote: w.GetCoverageNote(),
 		SemanticsGen: w.GetSemanticsGen(),
 		Services:     w.GetServices(),
+		Elements:     w.GetElements(),
 		Preamble:     w.GetPreamble(),
 		Scope:        w.GetScope(),
 		Hosted:       w.GetHosted(),
@@ -175,6 +176,7 @@ func programToWire(p kernel.Program) *rigv1.Program {
 		CoverageNote: p.CoverageNote,
 		SemanticsGen: p.SemanticsGen,
 		Services:     p.Services,
+		Elements:     p.Elements,
 		Hosted:       p.Hosted,
 		PaneUrl:      p.PaneURL,
 	}

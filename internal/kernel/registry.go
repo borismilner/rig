@@ -174,6 +174,7 @@ type Program struct {
 	CoverageNote string
 	SemanticsGen int32
 	Services     []string
+	Elements     []string
 	Hosted       bool
 	PaneURL      string
 	Commands     []Command
@@ -285,6 +286,7 @@ func program(e entry) Program {
 		CoverageNote: e.decl.CoverageNote,
 		SemanticsGen: e.decl.SemanticsGen,
 		Services:     slices.Clone(e.decl.Services),
+		Elements:     slices.Clone(e.decl.Elements),
 		Hosted:       e.decl.Hosted,
 		PaneURL:      e.decl.PaneURL,
 		Commands:     cloneCommands(e.decl.Commands),

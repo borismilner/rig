@@ -1218,7 +1218,25 @@ type Declaration struct {
 	// http or https, and the host must be 127.0.0.1, ::1 or localhost. A unix
 	// socket would need the window to proxy it, and section 23's M8 row is
 	// explicit that the estate already serves localhost SPAs.
-	PaneUrl       string `protobuf:"bytes,10,opt,name=pane_url,json=paneUrl,proto3" json:"pane_url,omitempty"`
+	PaneUrl string `protobuf:"bytes,10,opt,name=pane_url,json=paneUrl,proto3" json:"pane_url,omitempty"`
+	// The kit elements this program's own page uses (section 5h R3).
+	//
+	// A REGISTRATION DECLARATION, not a rendering hint, and there is one
+	// authority for it so the check has somewhere to run. R7: a name rig does
+	// not serve refuses the REGISTRATION, because the alternative fails at
+	// render, in front of the user, on the surface whose entire product is
+	// presentation.
+	//
+	// Strings rather than an enum, and R1 is the reason. The inventory is open
+	// while the only adopters are fake, and adding an element has to stay "a
+	// normal change" - an enum would make every new element a wire change, and
+	// section 21's rule is that an unknown enum value is a hard refusal at the
+	// daemon boundary. A name rig does not know is refused either way; the
+	// difference is whether adding one costs a wire major.
+	//
+	// Config may SUBTRACT from this list and never add to it (R3). Subtraction
+	// arrives with config at M4; today the declared list is the whole list.
+	Elements      []string `protobuf:"bytes,11,rep,name=elements,proto3" json:"elements,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1323,6 +1341,13 @@ func (x *Declaration) GetPaneUrl() string {
 	return ""
 }
 
+func (x *Declaration) GetElements() []string {
+	if x != nil {
+		return x.Elements
+	}
+	return nil
+}
+
 // Program is one program as one principal may see it (section 14).
 //
 // It is Declaration minus preamble and scope: what a reader is shown, not
@@ -1339,7 +1364,11 @@ type Program struct {
 	Commands     []*Command             `protobuf:"bytes,7,rep,name=commands,proto3" json:"commands,omitempty"`
 	// Where this program serves its own pane, validated at registration. A
 	// reader gets it because the window is a reader like any other.
-	PaneUrl       string `protobuf:"bytes,8,opt,name=pane_url,json=paneUrl,proto3" json:"pane_url,omitempty"`
+	PaneUrl string `protobuf:"bytes,8,opt,name=pane_url,json=paneUrl,proto3" json:"pane_url,omitempty"`
+	// The kit elements this program declares (section 5h R3). A reader gets it
+	// for the same reason it gets services: it is part of what the program said
+	// about itself, not part of how anything draws it.
+	Elements      []string `protobuf:"bytes,9,rep,name=elements,proto3" json:"elements,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1428,6 +1457,13 @@ func (x *Program) GetPaneUrl() string {
 		return x.PaneUrl
 	}
 	return ""
+}
+
+func (x *Program) GetElements() []string {
+	if x != nil {
+		return x.Elements
+	}
+	return nil
 }
 
 type ProgramsRequest struct {
@@ -1668,7 +1704,7 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\adry_run\x18\x11 \x01(\bR\x06dryRun\x12\x12\n" +
 	"\x04cost\x18\x12 \x01(\tR\x04cost\x12$\n" +
 	"\rpreconditions\x18\x13 \x03(\tR\rpreconditions\x12\x18\n" +
-	"\apromote\x18\x14 \x01(\bR\apromote\"\xe1\x02\n" +
+	"\apromote\x18\x14 \x01(\bR\apromote\"\xfd\x02\n" +
 	"\vDeclaration\x12,\n" +
 	"\bidentity\x18\x01 \x01(\v2\x10.rig.v1.IdentityR\bidentity\x12,\n" +
 	"\bcoverage\x18\x02 \x01(\x0e2\x10.rig.v1.CoverageR\bcoverage\x12#\n" +
@@ -1680,7 +1716,8 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x05scope\x18\b \x01(\tR\x05scope\x12\x16\n" +
 	"\x06hosted\x18\t \x01(\bR\x06hosted\x12\x19\n" +
 	"\bpane_url\x18\n" +
-	" \x01(\tR\apaneUrl\"\xab\x02\n" +
+	" \x01(\tR\apaneUrl\x12\x1a\n" +
+	"\belements\x18\v \x03(\tR\belements\"\xc7\x02\n" +
 	"\aProgram\x12,\n" +
 	"\bidentity\x18\x01 \x01(\v2\x10.rig.v1.IdentityR\bidentity\x12,\n" +
 	"\bcoverage\x18\x02 \x01(\x0e2\x10.rig.v1.CoverageR\bcoverage\x12#\n" +
@@ -1689,7 +1726,8 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\bservices\x18\x05 \x03(\tR\bservices\x12\x16\n" +
 	"\x06hosted\x18\x06 \x01(\bR\x06hosted\x12+\n" +
 	"\bcommands\x18\a \x03(\v2\x0f.rig.v1.CommandR\bcommands\x12\x19\n" +
-	"\bpane_url\x18\b \x01(\tR\apaneUrl\"\x11\n" +
+	"\bpane_url\x18\b \x01(\tR\apaneUrl\x12\x1a\n" +
+	"\belements\x18\t \x03(\tR\belements\"\x11\n" +
 	"\x0fProgramsRequest\"?\n" +
 	"\x10ProgramsResponse\x12+\n" +
 	"\bprograms\x18\x01 \x03(\v2\x0f.rig.v1.ProgramR\bprograms\"!\n" +

@@ -3,6 +3,7 @@ package kernel
 import (
 	"fmt"
 	"slices"
+	"sort"
 	"strings"
 )
 
@@ -19,6 +20,7 @@ type Declaration struct {
 	CoverageNote string
 	SemanticsGen int32
 	Services     []string
+	Elements     []string // kit elements this program's own page uses (5h R3)
 	Preamble     string
 	Commands     []Command
 	Scope        string
@@ -267,6 +269,20 @@ func (d Declaration) validate(self bool) error {
 		}
 	}
 
+	// R7: a name rig does not serve refuses the REGISTRATION.
+	//
+	// The alternative fails at render, in front of the user, on the one
+	// surface whose entire product is presentation - which is what R7 exists
+	// to prevent. The message names the whole served set, because a program
+	// author fixing a generated declaration one error per run is a program
+	// author who stops generating it.
+	for _, name := range d.Elements {
+		if !kitElements[name] {
+			add("element %q is not one rig serves: the kit has %s (section 5h R3, R7)",
+				name, strings.Join(KitElements(), ", "))
+		}
+	}
+
 	// A program does not choose which scope it is in.
 	//
 	// Register would otherwise put the declared value straight into the
@@ -325,6 +341,40 @@ func (d Declaration) validate(self bool) error {
 // reservation below refuses to every program, which is the point: rig is not
 // a program, and the one place that difference is written down is here.
 const SelfID = "rig"
+
+// kitElements is every element rig serves (section 5h R3), and it is the one
+// authority a declared list is checked against.
+//
+// It lives here rather than being read out of design/kit at build time for the
+// same reason InHouse lives in the analyzer rather than being parsed out of
+// PLAN.md: a check that reads its own rule out of another artefact fails the
+// moment that artefact is reworded, and a name leaving this set is a decision
+// worth seeing in a diff.
+//
+// THE INVENTORY IS OPEN (R1) while the only adopters are fake, and closes on
+// the first real one. Adding a name here is a normal change today and is a
+// decision at M8. The list came from subtraction rather than addition: eight
+// candidates, and building the first fake application removed five - heading,
+// lead and mono are classes over tokens with no behaviour to emit, count
+// belongs to rigToolbar and empty-state to rigTable, so neither is something a
+// program places itself. All five still exist as CSS classes in design/kit;
+// being a class in the kit and being an element in R3's list are different
+// things, and that difference is the whole content of the subtraction.
+var kitElements = map[string]bool{
+	"rigTable":   true,
+	"rigToolbar": true,
+	"rigPanel":   true,
+}
+
+// KitElements is the served set, sorted, for a message that has to list them.
+func KitElements() []string {
+	out := make([]string, 0, len(kitElements))
+	for name := range kitElements {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
+}
 
 // reserved is rig's own namespace, which no program may take.
 var reserved = map[string]bool{SelfID: true, "rigd": true}
