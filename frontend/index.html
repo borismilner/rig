@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>rig</title>
+    <!-- The window paints before the webview does. This has to agree with
+         cmd/rigwindow/main.go's BackgroundColour, or every start flashes. -->
+    <style>
+      html {
+        background: #121a23;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

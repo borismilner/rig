@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+/* The token set comes from design/theme.js at runtime (section 6: the visual
+   system is live config, not a build constant). Nothing here hard-codes a
+   colour; these two are the first-paint values that have to match
+   cmd/rigwindow/main.go and index.html, and they are replaced the moment the
+   theme is applied. */
+:root {
+  --bg: #121a23;
+  --fg: #dae5f3;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif;
+}

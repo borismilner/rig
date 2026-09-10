@@ -1,5 +1,11 @@
 build/
-dist/
+# Anchored, because it used to be `dist/` and that matched every dist anywhere -
+# including the window's, which go:embed needs to EXIST on a tree nobody has
+# built. Git cannot re-include a file inside an excluded directory, so the
+# directory has to stay visible and its contents get excluded instead.
+/dist/
+cmd/rigwindow/dist/*
+!cmd/rigwindow/dist/.gitkeep
 node_modules/
 *.out
 *.test

@@ -46,6 +46,17 @@ build-fakeapp: ## Build the reference program the conformance suite drives
 	@mkdir -p build
 	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o build/fakeapp ./cmd/fakeapp
 
+# The window is the third binary (section 17, section 22) and deliberately not
+# part of `build`: it is the only one that needs cgo, gtk and a webview, so a
+# machine without those can still build and test everything else. That is also
+# why ci does not call it. It carries its own ratchet row for the same reason
+# the split exists - it is twice the size of the CLI.
+build-rigwindow: ## Build the window (needs cgo, gtk3 and webkit2gtk)
+	@mkdir -p build
+	@find cmd/rigwindow/dist -mindepth 1 ! -name .gitkeep -delete
+	cd frontend && npm run build
+	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o build/rigwindow ./cmd/rigwindow
+
 build-all: ## Cross-compile for every supported target
 	@mkdir -p build
 	@for t in linux/amd64 linux/arm64; do \
@@ -201,6 +212,15 @@ bench-size-update: build ## Accept the current sizes as the new ratchet
 	go run ./cmd/sizeratchet --ratchet $(RATCHET) --update \
 	  --bin build/$(BIND) --bin build/$(BIN) --bin build/fakeapp
 
+# The window's row is checked separately because building it needs a webview.
+# sizeratchet merges rather than replaces, so these two invocations share one
+# file without either one dropping the other's rows.
+bench-size-window: build-rigwindow ## Check the window against its ratchet row
+	go run ./cmd/sizeratchet --ratchet $(RATCHET) --bin build/rigwindow
+
+bench-size-window-update: build-rigwindow ## Accept the window's current size
+	go run ./cmd/sizeratchet --ratchet $(RATCHET) --update --bin build/rigwindow
+
 bench-idle: build ## Measure idle footprint against the budget in PLAN.md section 13
 	go run ./cmd/footprint --binary build/$(BIN) --quiet-for 60s \
 	  --max-rss 20MiB --max-cpu 0.1 --max-wakeups 1
@@ -308,10 +328,11 @@ help: ## Show this help
 	  /^[a-zA-Z_-]+:.*##/ {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo
 
-.PHONY: build build-rigd build-rig build-fakeapp build-all install uninstall \
+.PHONY: build build-rigd build-rig build-fakeapp build-rigwindow build-all install uninstall \
         run dev clean test test-unit test-race \
         test-chaos test-e2e test-wire fuzz cover cover-html lint lint-house fmt vet audit \
         verify contrast contrast-selftest generate proto schema types docs bench bench-ipc profile \
         up down doctor apps logs tui tidy deps-check release package ci fmt-check \
         bench-idle bench-scale bench-size bench-size-update build-minimal \
+        bench-size-window bench-size-window-update \
         modules modules-matrix version help

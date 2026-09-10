@@ -1,0 +1,35 @@
+{
+  "name": "rig-window",
+  "private": true,
+  "type": "module",
+  "description": "The window's frontend. Lives at the repo root because the Makefile's four `cd frontend` targets expect it here; the built output goes to cmd/rigwindow/dist, which is what the binary embeds.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build --mode production",
+    "build:dev": "vite build --minify false --mode development",
+    "preview": "vite preview",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "gen:types": "json2ts --input '../schema/*.json' --output src/lib/schema --bannerComment ''",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@wailsio/runtime": "3.0.0-beta.19"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@sveltejs/vite-plugin-svelte": "7.3.0",
+    "@tailwindcss/vite": "4.3.3",
+    "@tsconfig/svelte": "5.0.8",
+    "json-schema-to-typescript": "16.0.0",
+    "prettier": "3.9.6",
+    "prettier-plugin-svelte": "4.1.1",
+    "svelte": "5.57.0",
+    "tailwindcss": "4.3.3",
+    "tslib": "2.8.1",
+    "typescript": "7.0.2",
+    "vite": "8.2.2",
+    "vitest": "5.0.0"
+  }
+}
