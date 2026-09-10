@@ -324,8 +324,31 @@
     inset: 0;
     z-index: 3;
     pointer-events: none;
-    outline: var(--ring-w) solid var(--hue);
-    outline-offset: calc(-1 * var(--ring-w));
+
+    /* TWO-TONE, and it is not decoration. A single-colour ring here was
+       measured at 1.07:1.
+
+       Every other focus ring in this window lands on a ground rig owns, so one
+       colour clears 1.4.11's 3:1 and the gate proves it. This one lands on the
+       program's OWN document, which rig never owns and cannot gate: in dark
+       theme --hue is near-white, so a program serving a light page got a ring
+       that was not there. Measured, over the error document chrome supplies:
+       #dae5f3 on #dddddd, 1.07:1.
+
+       No single colour fixes that, because the ground is unknown by
+       construction. Two bands do: the indicator becomes the EDGE BETWEEN THEM,
+       and that edge is --hue against --bg, which is a pair from rig's own token
+       set and already gated. Whatever the document behind it does, the ring
+       still reads.
+
+       --bg is the inner band on purpose: it is the theme's opposite of --hue,
+       so in dark theme a near-black band separates a near-white ring from a
+       light page, and in light theme a near-white band separates a dark ring
+       from a dark page. Inset shadows paint first-on-top, so the --hue band is
+       the outer one at 0..w and --bg is the inner at w..2w. */
+    box-shadow:
+      inset 0 0 0 var(--ring-w) var(--hue),
+      inset 0 0 0 calc(var(--ring-w) * 2) var(--bg);
   }
 
   iframe {
