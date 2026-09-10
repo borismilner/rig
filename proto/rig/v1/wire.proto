@@ -272,3 +272,29 @@ message ProgramsResponse {
   // it, because introspect was decided when the connection was made.
   repeated Program programs = 1;
 }
+
+// ---- Invoking a declared command (PLAN.md section 5e, M1 slice 5) ----------
+//
+// One message pair for EVERY declared command, of every program, forever.
+// The alternative - a request type per command - would make adding a command
+// a wire change, and section 5e's whole argument is that a program declares
+// data rather than shipping code: rig has never seen this command's arguments
+// and does not need a type for them.
+//
+// So arguments and results are JSON, and the contract is the JSON Schema the
+// program declared in Command.args. rig validates against that schema at the
+// boundary, which is why an unknown field is an error the caller can act on
+// rather than something silently dropped between two proto versions.
+
+message CallRequest {
+  // A JSON object. Empty means no arguments, and is distinct from `{}` only
+  // in that both validate the same way against the declared schema.
+  bytes args = 1;
+}
+
+message CallResponse {
+  // A JSON value, shaped however the command's `returns` describes. rig does
+  // not interpret it: section 5d says the client is a dumb pipe, and a daemon
+  // that reshaped a program's own result would be the opposite.
+  bytes result = 1;
+}

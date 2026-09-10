@@ -1447,6 +1447,99 @@ func (x *ProgramsResponse) GetPrograms() []*Program {
 	return nil
 }
 
+type CallRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// A JSON object. Empty means no arguments, and is distinct from `{}` only
+	// in that both validate the same way against the declared schema.
+	Args          []byte `protobuf:"bytes,1,opt,name=args,proto3" json:"args,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CallRequest) Reset() {
+	*x = CallRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CallRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CallRequest) ProtoMessage() {}
+
+func (x *CallRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CallRequest.ProtoReflect.Descriptor instead.
+func (*CallRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *CallRequest) GetArgs() []byte {
+	if x != nil {
+		return x.Args
+	}
+	return nil
+}
+
+type CallResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// A JSON value, shaped however the command's `returns` describes. rig does
+	// not interpret it: section 5d says the client is a dumb pipe, and a daemon
+	// that reshaped a program's own result would be the opposite.
+	Result        []byte `protobuf:"bytes,1,opt,name=result,proto3" json:"result,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CallResponse) Reset() {
+	*x = CallResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CallResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CallResponse) ProtoMessage() {}
+
+func (x *CallResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CallResponse.ProtoReflect.Descriptor instead.
+func (*CallResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *CallResponse) GetResult() []byte {
+	if x != nil {
+		return x.Result
+	}
+	return nil
+}
+
 var File_proto_rig_v1_wire_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_wire_proto_rawDesc = "" +
@@ -1529,7 +1622,11 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\bcommands\x18\a \x03(\v2\x0f.rig.v1.CommandR\bcommands\"\x11\n" +
 	"\x0fProgramsRequest\"?\n" +
 	"\x10ProgramsResponse\x12+\n" +
-	"\bprograms\x18\x01 \x03(\v2\x0f.rig.v1.ProgramR\bprograms*\xbc\x01\n" +
+	"\bprograms\x18\x01 \x03(\v2\x0f.rig.v1.ProgramR\bprograms\"!\n" +
+	"\vCallRequest\x12\x12\n" +
+	"\x04args\x18\x01 \x01(\fR\x04args\"&\n" +
+	"\fCallResponse\x12\x16\n" +
+	"\x06result\x18\x01 \x01(\fR\x06result*\xbc\x01\n" +
 	"\tFrameKind\x12\x1a\n" +
 	"\x16FRAME_KIND_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12FRAME_KIND_REQUEST\x10\x01\x12\x17\n" +
@@ -1586,7 +1683,7 @@ func file_proto_rig_v1_wire_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
-var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(FrameKind)(0),           // 0: rig.v1.FrameKind
 	(Code)(0),                // 1: rig.v1.Code
@@ -1608,6 +1705,8 @@ var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(*Program)(nil),          // 17: rig.v1.Program
 	(*ProgramsRequest)(nil),  // 18: rig.v1.ProgramsRequest
 	(*ProgramsResponse)(nil), // 19: rig.v1.ProgramsResponse
+	(*CallRequest)(nil),      // 20: rig.v1.CallRequest
+	(*CallResponse)(nil),     // 21: rig.v1.CallResponse
 }
 var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	1,  // 0: rig.v1.Status.code:type_name -> rig.v1.Code
@@ -1648,7 +1747,7 @@ func file_proto_rig_v1_wire_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_wire_proto_rawDesc), len(file_proto_rig_v1_wire_proto_rawDesc)),
 			NumEnums:      7,
-			NumMessages:   13,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
