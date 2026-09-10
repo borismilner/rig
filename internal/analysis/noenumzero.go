@@ -85,7 +85,7 @@ func enumPrefix(enum, zero string) string {
 
 var (
 	enumOpen  = regexp.MustCompile(`^\s*enum\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{`)
-	enumValue = regexp.MustCompile(`^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(-?\d+)\s*(\[[^\]]*\])?\s*;`)
+	enumValue = regexp.MustCompile(`([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(-?\d+)\s*(\[[^\]]*\])?\s*;`)
 )
 
 // protoEnums finds every enum in a .proto file.
@@ -99,25 +99,40 @@ func protoEnums(text string) []protoEnum {
 	var out []protoEnum
 	var cur *protoEnum
 	for i, line := range lines {
+		rest := line
 		if cur == nil {
-			if m := enumOpen.FindStringSubmatch(line); m != nil {
-				cur = &protoEnum{name: m[1], line: i + 1}
+			m := enumOpen.FindStringSubmatchIndex(rest)
+			if m == nil {
+				continue
 			}
-			continue
+			cur = &protoEnum{name: rest[m[2]:m[3]], line: i + 1}
+			// Whatever follows the brace is still this line's: an enum
+			// written on one line has its values and its close there too.
+			rest = rest[m[1]:]
 		}
-		if strings.Contains(line, "}") {
+		// Values before the closing brace, because a value and the brace
+		// share a line often enough to matter.
+		for _, v := range enumValues(rest) {
+			cur.values = append(cur.values, protoValue{
+				name: v[0], number: v[1], line: i + 1,
+			})
+		}
+		if strings.Contains(rest, "}") {
 			out = append(out, *cur)
 			cur = nil
-			continue
-		}
-		if m := enumValue.FindStringSubmatch(line); m != nil {
-			cur.values = append(cur.values, protoValue{
-				name: m[1], number: m[2], line: i + 1,
-			})
 		}
 	}
 	if cur != nil {
 		out = append(out, *cur)
+	}
+	return out
+}
+
+// enumValues pulls every NAME = N; out of one line's worth of text.
+func enumValues(s string) [][2]string {
+	var out [][2]string
+	for _, m := range enumValue.FindAllStringSubmatch(s, -1) {
+		out = append(out, [2]string{m[1], m[2]})
 	}
 	return out
 }

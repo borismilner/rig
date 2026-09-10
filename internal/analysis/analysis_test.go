@@ -305,3 +305,43 @@ func TestADirectiveInASkippedFileIsNotCalledStale(t *testing.T) {
 	})
 	wantPass(t, code, out)
 }
+
+func TestNoEnumZeroReadsAOneLineEnum(t *testing.T) {
+	// The first parser opened the enum and then skipped the rest of that
+	// line, so a one-line enum looked like an enum with no values at all.
+	code, out := run(t, analysis.NoEnumZero, map[string]string{
+		"proto/a.proto": "syntax = \"proto3\";\n\nenum Shade { SHADE_UNSPECIFIED = 0; SHADE_RED = 1; }\n",
+	})
+	wantPass(t, code, out)
+
+	code, out = run(t, analysis.NoEnumZero, map[string]string{
+		"proto/a.proto": "syntax = \"proto3\";\n\nenum Shade { SHADE_RED = 0; }\n",
+	})
+	wantFail(t, code, out, "has the meaningful zero SHADE_RED")
+}
+
+func TestNoEnumZeroReadsAValueSharingTheClosingBrace(t *testing.T) {
+	code, out := run(t, analysis.NoEnumZero, map[string]string{
+		"proto/a.proto": "syntax = \"proto3\";\n\nenum Shade {\n" +
+			"  SHADE_UNSPECIFIED = 0;\n  SHADE_RED = 1; }\n",
+	})
+	wantPass(t, code, out)
+}
+
+func TestNoEnumZeroReadsAnEnumNestedInAMessage(t *testing.T) {
+	code, out := run(t, analysis.NoEnumZero, map[string]string{
+		"proto/a.proto": "syntax = \"proto3\";\n\nmessage M {\n  enum Shade {\n" +
+			"    SHADE_RED = 0;\n  }\n  Shade s = 1;\n}\n",
+	})
+	wantFail(t, code, out, "has the meaningful zero SHADE_RED")
+}
+
+func TestNoEnumZeroStillReadsTheRealWireContract(t *testing.T) {
+	// The shape the repository actually uses, values and comments together.
+	code, out := run(t, analysis.NoEnumZero, map[string]string{
+		"proto/a.proto": "syntax = \"proto3\";\n\nenum Code {\n" +
+			"  CODE_UNSPECIFIED = 0;\n  CODE_OK = 1;\n" +
+			"  CODE_UNAVAILABLE = 2;        // rig is not there\n}\n",
+	})
+	wantPass(t, code, out)
+}
