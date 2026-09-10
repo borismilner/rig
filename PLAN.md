@@ -536,9 +536,9 @@ answer: both are driven off the one registry.
       ├─ bus                │   │            toast ────────┤
       ├─ centre             │   │          palette ────────┤
       ├─ peers              │   │             cron ────────┤
-      ├─ queue      ← open  │   │              URL ────────┤
-      ├─ cache      ← open  │   │            Slack ────────┤ ← new
-      ├─ watch      ← open  │   │            voice ────────┤ ← new
+      ├─ events     ← new   │   │              URL ────────┤
+      ├─ queue      ← open  │   │            Slack ────────┤ ← new
+      ├─ cache      ← open  │   │            voice ────────┤ ← new
       └─ machines   ← open  │   │              TUI ────────┘ ← new
 ```
 
@@ -546,19 +546,157 @@ answer: both are driven off the one registry.
 schema, a lifecycle, and a set of methods exposed on the wire. Adding one gives every program a
 new capability the moment they ask for it, with no program rebuilt.
 
-**Eight ship inside v1** and each has a milestone: `config` (M4), `store` and `secrets` (M11),
-`observe` (M5), `schedule` and `bus` (M13), the notification `centre` (M9) and `peers` (M7).
+**Nine ship inside v1** and each has a milestone: `config` (M4), `store` and `secrets` (M11),
+`observe` (M5), `schedule` and `bus` (M13), the notification `centre` (M9), `peers` (M7) and
+`events` (M4).
 The centre and peers are services rather than parts of a surface, for the reason stated below,
 and the diagram says so because a picture that omits them undersells what the wire carries.
 
-**Four are marked `← open`, which means no milestone owns them.** A job queue, a cache, a
-file-watcher and declared state machines are drawn because they are plausible, not because they
+**Three are marked `← open`, which means no milestone owns them.** A job queue, a cache and
+declared state machines are drawn because they are plausible, not because they
 are planned - and drawing an unowned box as though it were scheduled is how a plan lies to its
 own reader. Also named and not drawn: an HTTP client with shared retry and rate limits, a
 template renderer, a lock manager, a diff service. **Nothing here ships without a program that
 adopts it** - the rule is stated here, and §5k covers per-service adoption and declared
 coverage rather than this gate - and §24's M3 gate is where each is either given a
 milestone or struck.
+
+**`voice` in the surfaces column is voice *input*, and it stays unowned.** Speech output - rig
+saying a line out loud - is not that box. It is a renderer on the notification centre and it
+does have a milestone (§12, M9). The two share a word and nothing else, and drawing them as one
+box is how a surface acquires a milestone it has not earned.
+
+### rig is an event source, and a program arms what it wants to hear
+
+§2 locks two directions: apps call rig for supply, rig calls apps for control - start, stop,
+invoke, query, reload. **Nothing in that list is rig saying that something happened**, and rig
+sits on more of the estate than any program can see. The `events` service closes that
+direction: a program arms the kinds it cares about, by pattern, and receives them on the
+connection it already holds.
+
+**It adds no mechanism. It collapses three that already exist and are each hand-rolled.**
+
+| Already required | Today | Becomes |
+|---|---|---|
+| §6's config live push | a bespoke push path | `config.changed` |
+| §5g's lifecycle notice and its reason string | a second bespoke path | `rig.stopping` |
+| §18's health transitions | computed, never emitted | `program.health` |
+
+**That is also what clears this section's own adoption gate.** Two of those three are milestone
+requirements before any of this ships, so the service has adopters on the day it lands rather
+than a hope of one. It arrives at **M4** with `config.changed` as its first kind, because
+config is the first push that is required and building it as the general mechanism costs what
+building it once for config costs. M6 then adds kinds, not machinery.
+
+**Four kinds are worth naming, and each is one only rig can emit:**
+
+| Kind | Why no program can know it | Ships |
+|---|---|---|
+| `config.changed` | rig owns the layers and the provenance (§6) | M4 |
+| `system.resumed` | rig owns `boot_id` and `CLOCK_BOOTTIME` (§16) | M6 |
+| `program.health` | rig is the supervisor (§18) | M6 |
+| `grant.revoked` | rig owns the rules, and the alternative is a failure (§13a) | M13 |
+
+**`system.resumed` fixes a defect that is live in every program today.** §2 locks every
+deadline to boottime because this laptop suspends nightly. rig is the only component that
+knows the clock jumped eight hours, so every cache, timer and *last run at* in the estate is
+wrong every morning and no program can detect it. One kind, and nothing is rebuilt.
+
+**`program.health` retires the dependency graph this plan nearly needed.** A program that must
+not start before graft arms `program.health` on graft and waits. Same outcome as a declared
+inter-program dependency list with a derived start order, without either of them existing.
+
+**A subscription is a filter, never a trigger.** An event says what happened and carries no
+command. The `bus` already fires a command from an event and §13a already mints the principal
+for it, so an event that could invoke would be a second and weaker invoker. The two compose
+the way `schedule` and the candidate below do.
+
+**It costs the stub nothing** (§5d). The pipe's public symbols are budgeted and asserted in
+`make ci`; an arming is data negotiated at connect, which is what the pipe already does with
+every other declaration.
+
+### The file-watcher is a source on `events`, not a service of its own
+
+§26's question 10 asks which program adopts each `← open` service. For the file-watcher the
+answer is that **none has to**: rig watches paths declared in its own config and publishes
+`fs.changed`, so its first consumers are `events` and `bus` rather than a program that would
+have to be talked into it. It is struck as a service and lands as a kind at M13 with the bus.
+
+**Two properties are load-bearing, because a watch that misses silently is worse than no
+watch.** inotify hands out no revision, so §16's answer for the blackboard - *subscribe from a
+revision, and a client that reconnects gets what it missed rather than a gap it cannot detect*
+- is not available here. Measured on this laptop, 2026-09-10: `max_user_watches` is 524288, so
+watch exhaustion is not the constraint it is assumed to be, but **`max_queued_events` is
+16384**, which a single `git checkout` overruns. The kernel then sets `IN_Q_OVERFLOW`, and the
+lost events are neither recoverable nor enumerable.
+
+So: a rescan-and-diff on start and after every overflow, with the gap declared in §15's
+coverage log rather than absent. Debouncing is the `idempotent` rule §18 already applies to a
+missed schedule fire and it composes unchanged, which matters because one editor save is three
+to five inotify events.
+
+### Pressure is a source too, and this kernel will not wake us for it
+
+§33 banked a finding this answers: no disk budget, and ENOSPC missing from the coverage log's
+causes. rig already sets a 500 MB call-log budget and already drops the oldest with a coverage
+entry (§15), so it is already the component that learns first that the machine is running out
+of something. `disk.pressure` and `memory.pressure` publish that instead of keeping it.
+
+**This is the weaker claim, and it is written as the weaker claim.** The four kinds above are
+things only rig *can* know. Any program could read `/proc/pressure` itself; the argument here
+is that fifteen of them doing it is the defect, not that they are unable to.
+
+**Measured on this laptop, 2026-09-10, kernel 7.0.0-31-generic:**
+
+| Probe | Result |
+|---|---|
+| `CONFIG_PSI=y`, `CONFIG_PSI_DEFAULT_DISABLED` unset | present |
+| reading `/proc/pressure/{cpu,memory,io}` | works: `some` and `full`, at avg10/60/300 |
+| **writing a PSI trigger** - four valid formats, `O_RDWR` and `O_WRONLY` | **every one rejected, `EINVAL`** |
+
+**So there is no wake-on-threshold here, and the plan must not assume one.** rig polls the read
+side on the health interval it already runs and computes the transition itself, exactly as §18
+computes a health transition rather than being told about one. That is one more reason the
+event belongs to rig: one poller, not fifteen.
+
+**Free space and stall pressure are different numbers and both are needed.** PSI reports how
+long tasks stalled on IO. It says nothing about a filesystem at 98% that is not stalling at
+all. `disk.pressure` carries both, per watched path, and the paths default to the ones rig
+already owns: the call log, the store, the socket directory.
+
+It lands at **M5** with the observability budgets it exists to defend, and its first consumer is
+rig's own retention rather than a program that had to be talked into it.
+
+### The process monitor knows that something died, and only sometimes why
+
+The ask was for a program to be told when a process it cares about terminates or crashes, "and
+maybe if possible even know their exit code". The answer has two halves and the second is a
+constraint rather than a feature:
+
+| The process | Death | Exit code |
+|---|---|---|
+| rig started it (§18) | yes, immediately | **yes** - `wait4`, because rig is the parent |
+| rig did not start it | yes, immediately | **no** |
+
+**Measured on this laptop, 2026-09-10.** `pidfd_open` (syscall 434) against a pid rig is *not*
+the parent of succeeds, and `poll` on that descriptor woke on the process's death after 1.00s
+of a 1.0s sleep - so death notification for an arbitrary pid is exact and costs no polling.
+`waitid(P_PIDFD, …, WEXITED|WNOWAIT)` on that same descriptor returns **ECHILD**, and
+`/usr/include/linux/pidfd.h` on this machine defines `PIDFD_NONBLOCK` and nothing else: no
+`PIDFD_GET_INFO`, no `PIDFD_INFO_EXIT`. There is no unprivileged route to the exit status of a
+process you did not fork.
+
+**That asymmetry is the argument, not the embarrassment.** A program that wants the exit code
+registers the process with rig and lets rig start it, which is what §18 already does. A program
+that only needs to know a pid is gone gets that for anything on the machine.
+
+`process.exited` carries the code where rig has it and the literal `unknown` where it does not.
+**A field that is sometimes silently zero is worse than a field that is sometimes absent** - a
+watcher cannot tell a clean exit from an unobservable one, and zero is the answer that reads as
+success.
+
+It lands at **M6** with supervision, where the parent half is free, and its first consumers are
+§18's crash policy and the tray's crash panel.
 
 ### Declared state machines, if the supervisor can be its first client
 
@@ -776,6 +914,41 @@ everywhere" quietly assumed a program declares everything. It will not. So every
 - §25's migration order becomes **per service**. "shelf takes config and notifications" is a
   valid milestone, and full migration is not the unit of progress.
 
+### 5l. rig starts with the session, and its unit must not carry an `ExecStop`
+
+An agent cannot call a daemon that was never started. §5g's tolerant client is designed around
+rig being *temporarily* absent; it is not an answer to rig being absent because nothing ever
+launched it. AgentBox is already started this way, and the estate is about to depend on rig at
+least as heavily.
+
+**A `systemd --user` unit, `PartOf=graphical-session.target` and `WantedBy=` the same.** rig
+needs the session bus and the display for §12's toasts and §11's tray, so the graphical session
+is the right parent rather than `default.target`. `Restart=on-failure`, `RestartSec=2`, so a
+crash comes back rather than leaving the estate without its platform.
+
+**Do not give it an `ExecStop`, and this is not a style note.** AgentBox's unit carries the
+scar in a comment. Its `ExecStop` was `agentbox quit`; agentbox is single-instance by flock and
+auto-spawns on first use, so `agentbox daemon` prints *already running* and **exits 0** when one
+is up. systemd sees a `Type=simple` main process exit successfully, considers the service
+finished, and runs `ExecStop` - which killed the healthy daemon that was already serving.
+Enabling the unit left the desktop with no agentbox at all.
+
+**rig has the identical shape.** §5f is a single-instance `flock`, §5g auto-spawns on the first
+client call, and §18's SIGTERM path is the same graceful drain a stop command would use. So the
+unit needs no stop verb, and adding one recreates a defect that has already been paid for once
+on this machine.
+
+**One wrinkle, inherited and accepted:** start the unit while a daemon is already up and the
+unit reports inactive while that daemon keeps serving. At login - the case the unit exists for -
+nothing is running yet, so it starts one and stays active.
+
+**It lands at M6, not M15.** M15 keeps the `.deb`, the desktop entry and the signed update
+channel. What moves earlier is the twelve-line unit, because every milestone after M6 assumes
+rig is up, because §12's toasts and §11's tray are not features of a daemon somebody has to
+remember to start, and because §14's `operate` argument is already written against "under M15's
+autostart is systemd" - a sentence that is load-bearing several milestones before the milestone
+it names.
+
 ---
 
 ## 6. Configuration
@@ -950,6 +1123,53 @@ everything rather than fifteen times badly.
 
 Every view above states its coverage, and none of them answers a question about history without
 saying what it could not see (§15).
+
+### `rig doctor` names every dependency, including the ones that are missing
+
+The Doctor row above is what rig can see about *itself*. It says nothing about what rig needs
+**from the machine**, and rig degrades against roughly a dozen external things that are
+individually optional and collectively the difference between a working estate and a puzzling
+one.
+
+**A degradation nobody can see is the failure mode.** §5g already promises a capability can be
+`unavailable` with a reason that `rig doctor` can see; §12 already promises `rig doctor` says
+whether the frameless toast or the freedesktop fallback is live. Those are two instances of a
+rule that was never stated once, and stating it once is what makes the rest of the plan's
+"degrades gracefully" claims checkable.
+
+**Three classes, and the distinction is what makes the output usable:**
+
+| Class | If it is missing | Examples |
+|---|---|---|
+| **Required** | rig refuses to start and names which one | `$XDG_RUNTIME_DIR`, a writable socket directory, the store path |
+| **Optional** | a **named** feature degrades to a **named** fallback | speech engine, audio player, keyring, a compositor with an ARGB visual |
+| **Build-time** | nothing at runtime; reported only under `--dev` | `protoc`, `wails3`, node, Chrome for the contrast gate |
+
+**Every optional row prints four things:** what is missing, what stops working, what happens
+instead, and the one command that installs it. `keyring: not found` has told a person less than
+they knew before they ran it.
+
+**Kernel facilities are dependencies too, and they were being assumed.** Each was probed on this
+laptop on 2026-09-10 and each gets a row, because each is a silent absence rather than a loud
+one:
+
+| Facility | Used by | Here |
+|---|---|---|
+| PSI read side | `disk.pressure`, `memory.pressure` (§5h) | present |
+| PSI **triggers** | nothing, deliberately | **rejected, `EINVAL`** - which is why rig polls (§5h) |
+| `pidfd_open` | `process.exited` (§5h) | present |
+| `PIDFD_INFO_EXIT` | would give a non-child's exit code | **absent** - which is why the code is `unknown` (§5h) |
+| inotify `max_user_watches` | `fs.changed` (§5h) | 524288 |
+| inotify `max_queued_events` | `fs.changed` (§5h) | **16384**, which one `git checkout` overruns |
+
+**`rig doctor --json` carries the same content**, because an agent asking why a capability is
+missing needs the answer in a form it can act on, and §14 already grants `introspect` for
+exactly that.
+
+**The check ships with `doctor` at M5, and every later milestone adds its own rows rather than
+a second checker**: M8 the compositor and the tray, M9 the speech engine and the audio player,
+M11 the keyring. A milestone that introduces an optional dependency and no doctor row has not
+finished.
 
 ### Loose ends
 
@@ -1277,6 +1497,67 @@ present on this laptop, so an ARGB visual and a real backdrop blur are available
 - **The notification centre is a service, not part of this surface** (§5h). It is the record of
   record, so `make build-minimal` must not be able to drop it, and the window, the TUI and the
   CLI all read the same one.
+
+### Speech: the same notification, said out loud
+
+> "AgentBox has the `say` functionality that uses kokoro-say. I want to take it to the optimum
+> and make it a feature in rig." - Boris, 2026-09-10
+
+**Speech is a renderer on the notification centre, not a new surface.** The `voice` box in
+§5h's diagram is an *input* surface - reaching the estate by talking to it - and this is the
+opposite direction. Putting speech on the centre is what makes it free: every program that
+already sends a notification can be heard without being rebuilt, which is §1's compounding
+claim again, and a program that wants to be heard rather than seen sets one field.
+
+**An item speaks only if it carries a `speak` line.** Never the title, never the body, never a
+heuristic that shortens one into the other. That rule is AgentBox's and it is why its speech is
+usable rather than exhausting: what gets said is something a program wrote *in order to be
+said*, and keeping "worth saying" the program's judgement is the whole reason it works.
+
+**The engine contract is a long-lived process, and that is the design rather than an
+optimisation.** One line of UTF-8 per utterance on stdin, raw little-endian 16-bit mono PCM on
+stdout, and the process stays open between lines. Measured with kokoro-82M on this machine:
+**loading the model costs ~3s and an utterance ~375ms**, so a process per sentence puts every
+notification seconds behind the thing it is about. rig holds the engine open and pipes it into
+a player.
+
+| Piece | Rule |
+|---|---|
+| Engine | Resolved from config, `kokoro-say` by default. Anything satisfying the stdin/PCM contract works, which is how piper stays a valid answer |
+| Player | `pw-play`, `paplay`, `aplay`, `play`, in that order, resolved at startup |
+| cgo | **None**, and the daemon holds no audio device open (§22) |
+| Residency | A voice model is ~100 MB resident. The pipeline is released after a quiet spell and rebuilt on demand, and **M9 adds its row to §17's table** rather than leaving it off the estate's all-day cost |
+| Queue | Bounded, oldest dropped past the bound. Twenty notifications at once must not become a two-minute monologue still reading out the first |
+| Do Not Disturb | Suppresses speech exactly as it suppresses a toast - **and never suppresses an `ask` that gates a command** (§14). Same conformance assertion, one line lower |
+| Rate | 24 kHz for kokoro against piper's 22.05 kHz. The engine reports its own rate; no caller hard-codes one |
+| Missing engine or player | A named degradation in `rig doctor` (§8), never an error. rig without a voice still toasts |
+
+**Where "the optimum" is more than a port.** Each of these is something the centre gives it
+that a standalone `say` binary cannot:
+
+- **One queue for the estate.** Fifteen programs speaking through one arbiter cannot talk over
+  each other. Today each caller races every other caller for the same sound device.
+- **Severity and Do Not Disturb are already decided** for the toast. Speech inherits that
+  decision instead of growing a second, differently-wrong copy of it.
+- **Everything spoken is in the centre**, searchable, with its action still live. §12's
+  "nothing is ever only a toast" applies unchanged, and it is what makes a missed utterance
+  recoverable - which speech needs more than toasts do, because there is no scrollback for
+  sound.
+- **It is auditable**: what was said, on whose behalf, through which surface, in the one log.
+- **Voice, speed and language are declared config keys** (§6), so they are generated into the
+  settings UI and pushed live like everything else, rather than being three environment
+  variables a person has to know about.
+
+**It lands at M9, with the centre it renders, and it cannot land earlier** - there is nothing
+to be a renderer *of* until M9. That also satisfies the sequencing that was asked for: M6 has
+rig starting with the session (§5l), M9 has it speaking, and neither is a special case built to
+make the ordering work.
+
+**The AgentBox cutover is M16 and is not part of M9.** Repointing every agent's instructions
+from AgentBox's `speak` to rig's is a change to a dozen instruction files and an estate-wide
+behaviour change, so it belongs with the rest of the AgentBox supersession - after rig's speech
+has survived M12's pilot week of daily use. Shipping the renderer and repointing the estate are
+two decisions, and collapsing them is how the second one gets made by accident.
 
 ---
 
@@ -2349,19 +2630,19 @@ the ordering cannot be changed later by someone who never reads §14 - **house r
 | **M1a** | **The shell, and two fake applications that use it** | The window shell - rail, context bar, pane, status strip - over the visual system in `design/` as live `ui.theme` config; **`make contrast` repaired and wired into CI** before any of it is drawn; and **two fake applications, each modelled on a real program's measured markup**, serving their own HTML and composing it from the first kit elements they turn out to need (§5h) | **Two fake programs in one rail, drawn by rig, and the element list is whatever those two actually needed rather than whatever this document guessed.** The theme is changed from the settings UI and an unreadable set is refused by a gate that runs |
 | M2 | MCP and HTTP | The four meta tools, promotion, the capability-map resource **with coverage per program**, the per-program preamble, HTTP routes with **minted principals**, structured errors | An agent runs a real command in a real program through one MCP server, having written nothing - and is told, in the same answer, that its picture of that program is partial |
 | M3 | Terminal client | `rig shell` with completion and inline describe, the `rig tui` frame, `huh` forms from declared schemas, `--batch --json` | Every registered command discoverable and runnable from the TUI, by a person who read no docs |
-| M4 | Config | Layers, schema, provenance, live push, validate, export, diff, and its TUI view | `rig config origin` explains a surprising value; a change applies live with no restart |
-| M5 | Observability | Log, trace and metric ingest, merge, query, the call log, **compiled redaction spans**, the **coverage log**, segment-embedded dictionaries, column summaries, `rig logs`, `rig loose-ends`, `rig doctor`, TUI views | One MCP call traced end to end across two processes and read back in the TUI; and a known secret passed through a declared-sensitive field appears in no segment |
-| M6 | Control and supervision | Start, stop, restart, health, budgets, quarantine, **lifecycle notices**, the **tolerant client and the resolved snapshot**, reconnect with a session token, request-id dedup | `kill -9` in a loop both ways, plus a deliberate restart under load with **zero refused dials and zero silent replays** |
+| M4 | Config, and the event stream | Layers, schema, provenance, live push, validate, export, diff, and its TUI view; **the `events` service with `config.changed` as its first kind, because the live push is the general mechanism built once (§5h)** | `rig config origin` explains a surprising value; a change applies live with no restart - **and a second program that armed `config.changed` and shares no code with the first is told in the same instant** |
+| M5 | Observability | Log, trace and metric ingest, merge, query, the call log, **compiled redaction spans**, the **coverage log**, segment-embedded dictionaries, column summaries, `rig logs`, `rig loose-ends`, `rig doctor` **with its dependency check - required, optional and build-time, every optional degradation naming what stops working and what happens instead (§8)**, `disk.pressure` and `memory.pressure` polled from the PSI read side (§5h), TUI views | One MCP call traced end to end across two processes and read back in the TUI; a known secret passed through a declared-sensitive field appears in no segment; **and `rig doctor` on a machine with the audio player removed names the player, what stops working, the fallback and the command that installs it** |
+| M6 | Control, supervision, and rig starting by itself | Start, stop, restart, health, budgets, quarantine, **lifecycle notices**, the **tolerant client and the resolved snapshot**, reconnect with a session token, request-id dedup; **the `systemd --user` unit with no `ExecStop` (§5l)**; and three event kinds that fall out of being the supervisor - `system.resumed`, `program.health` and `process.exited` (§5h) | `kill -9` in a loop both ways, plus a deliberate restart under load with **zero refused dials and zero silent replays**. **Log out and back in and rig is already serving.** A suspend and resume publishes `system.resumed` to an armed program; a killed process publishes `process.exited` **with its code where rig is the parent and the literal `unknown` where it is not** |
 | M7 | Peers | Presence, leases with **witnesses and two-step expiry**, `rig peers run`, fencing tokens per lease, read/write, semaphores, barriers, election, **continuation slots** (§16), versioned blackboard with multi-key transactions, watches with a cursor, claimable queues, rendezvous, signals, `ask`, **the AgentBox dual-write shadow path**, the crew, wait-for graph, contention and timeline views | The simulation suite green over 10000 seeded interleavings with injected crashes, **lost replies and a suspend clock jump**; every adversarial test passing; a stalled holder's `make deploy` actually stops |
 | M8 | The tray, and the window over real programs | Embedded mode over the localhost SPAs the estate already serves, one tray icon with the **detached** state, **the decision on who hosts the tray and the toast layer, with its §17 budget row** (§17), and **the first real adopter of the element kit, which is where R1 closes and R4's generations begin (§5h)** | One tray icon where six were, real programs in the rail M1a built, and one of them serving its own HTML through kit elements that a fake application shook out first. **`make bench-idle` covers every resident rig process, not only `rigd`** |
-| M9 | Toasts | The frameless toast, severities, springs, stacking, live bodies, inline actions, the centre, Do Not Disturb, D-Bus fallback | A command answered from inside a toast with no window open |
+| M9 | Toasts, and speech | The frameless toast, severities, springs, stacking, live bodies, inline actions, the centre, Do Not Disturb, D-Bus fallback; **speech as a renderer on the centre (§12) - one estate-wide queue, a long-lived engine, engine and player resolved at startup, its §17 budget row, and its `rig doctor` rows** | A command answered from inside a toast with no window open. **Two programs notify at once and are heard one after the other rather than over each other; Do Not Disturb silences both while an `ask` that gates a command still speaks; and with the engine uninstalled rig still toasts and `rig doctor` says why it is quiet** |
 | M10 | Generated UI | Forms, tables, actions, progress, detail, status from declared schema, in both window and TUI | `nudge` gets a complete pane and a complete TUI view with zero frontend code |
 | M11 | Storage and secrets | Managed location, migration runner, backup, integrity, retention, browser; keyring with per-program namespaces, **in `rigd`** (§22); **`rig backup` and `rig restore` for rig's own state** (§7) | A program's migration runs before it starts, and its backup restores. **A fresh machine restores the audit log, the notification centre and the config tree from one archive** |
 | M12 | Pilot: shelf | shelf entirely on rig: config, storage, logs, tray, pane, TUI, commands on every surface. A week of daily use | shelf loses its own tray icon and loses no capability |
-| M13 | Palette, search, schedule, bus, URL | Cross-program palette, federated search, one scheduler **with the missed-fire policy (§18)**, events with grants, `rig://` | graft finishing a run triggers a shelf reindex, with the grant visible and revocable; and an overnight suspend coalesces four missed idempotent reindexes into one |
+| M13 | Palette, search, schedule, bus, URL | Cross-program palette, federated search, one scheduler **with the missed-fire policy (§18)**, events with grants, `fs.changed` from the file-watcher source and `grant.revoked` (§5h), `rig://` | graft finishing a run triggers a shelf reindex, with the grant visible and revocable; and an overnight suspend coalesces four missed idempotent reindexes into one |
 | M14 | Hardening | Chaos at full size, fuzz corpora, cgroups and landlock, security review, coverage to target | The chaos suite green over 10000 iterations |
-| M15 | Packaging and updates | `.deb`, desktop entry, autostart, signed update channel for rig and programs, self-update | Fresh machine to a working rig with three programs in one command, **and `rig restore` carries the state M11 backed up** |
-| M16 | Estate migration and the AgentBox cutover | The rest of the estate, in the order in §25, then the agent tooling repointed from AgentBox to the peers service | Every in-house program reachable from one CLI, one TUI, one tray, one window, one MCP server |
+| M15 | Packaging and updates | `.deb`, desktop entry, the signed update channel for rig and programs, self-update. **The autostart unit itself moved to M6** (§5l); what is left here is packaging it | Fresh machine to a working rig with three programs in one command, **and `rig restore` carries the state M11 backed up** |
+| M16 | Estate migration and the AgentBox cutover | The rest of the estate, in the order in §25, then the agent tooling repointed from AgentBox to the peers service - **and every agent's instructions repointed from AgentBox's `speak` to rig's speech (§12), which is a decision M9 deliberately does not make** | Every in-house program reachable from one CLI, one TUI, one tray, one window, one MCP server |
 
 **v1 is M0 through M13.**
 
@@ -2482,10 +2763,12 @@ what re-checking looks like.
    stalled. The kit's adopters are now M1a's fake applications, which cannot answer this
    question because they were written to use it. **The question stays open until a real
    program adopts or M8 arrives, and if M8 arrives first the kit is struck** (§24).
-10. **Do the four `← open` services survive the §24 gate?** A job queue, a cache, a
-   file-watcher and state machines are drawn in §5h and owned by no milestone. §5h says nothing
-   ships without a program that adopts it, so the question is really "which program", and for
-   three of the four there is no answer yet.
+10. **Do the three `← open` services survive the §24 gate?** A job queue, a cache and state
+   machines are drawn in §5h and owned by no milestone. §5h says nothing ships without a
+   program that adopts it, so the question is really "which program", and for all three there
+   is no answer yet. **The file-watcher was the fourth and is now answered**: it needed no
+   program adopter, because it is a source on the `events` service rather than a service a
+   program calls, and it lands at M13 with the bus (§5h).
 
 ---
 
@@ -2737,7 +3020,7 @@ findings stand unchanged in the bank below.
 
 Twelve findings are real and none of them changes M0 or M1: no version on any on-disk format
 while the wire is versioned forever; two filesystem registry mirrors §5f's fix left open; no
-disk budget and ENOSPC missing from the coverage log's causes; no policy for `ask` at 3am
+disk budget and ENOSPC missing from the coverage log's causes - **partly answered since, because `disk.pressure` at M5 gives rig free space and stall pressure per watched path (§5h); the budget policy itself is still owed**; no policy for `ask` at 3am
 beyond the one §14 now sets for `operate`; accessibility absent except contrast and reduced
 motion; two budgets whose own cited measurements fail them; no uninstall and no update
 rollback; the keyring's availability off a desktop session; a "phone" surface promised four
