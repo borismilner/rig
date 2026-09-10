@@ -3,15 +3,15 @@
   "bins": {
     "fakeapp": {
       "bytes": 5427463,
-      "recorded": "2026-09-10T15:53:46Z"
+      "recorded": "2026-09-10T15:57:11Z"
     },
     "rig": {
       "bytes": 6000903,
-      "recorded": "2026-09-10T15:53:46Z"
+      "recorded": "2026-09-10T15:57:11Z"
     },
     "rigd": {
-      "bytes": 6258951,
-      "recorded": "2026-09-10T15:53:46Z"
+      "bytes": 6267143,
+      "recorded": "2026-09-10T15:57:11Z"
     }
   }
 }
