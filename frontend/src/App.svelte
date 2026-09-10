@@ -66,9 +66,34 @@
       commands: 1,
       paneUrl: "",
     },
+    // The pane fixture's program, and the port is DEAD on purpose.
+    //
+    // Nothing is listening on 7399 and nothing should be: onload never fires,
+    // so the unserved state renders, and the gate measures its real colours
+    // with no background server for the gate to depend on. A live port would
+    // make this measurement flaky by construction.
+    {
+      id: "quarry",
+      name: "quarry",
+      version: "v0.2.0",
+      icon: "qu",
+      description: "declares a pane and serves nothing",
+      coverage: "partial",
+      coverageNote: "",
+      services: [],
+      hosted: false,
+      commands: 2,
+      paneUrl: "http://127.0.0.1:7399/",
+    },
   ];
 
-  const fixture = new URLSearchParams(location.search).get("fixture") === "1";
+  // Two fixtures, because one page cannot show both a detail pane and a
+  // program's own pane - the pane draws whatever is selected. ?fixture=1 is the
+  // rail and the detail list; ?pane=1 is the two pane states the gate could not
+  // otherwise reach. Both are audited, so neither costs the other its coverage.
+  const params = new URLSearchParams(location.search);
+  const paneFixture = params.get("pane") === "1";
+  const fixture = params.get("fixture") === "1" || paneFixture;
 
   let programs: Program[] = $state(fixture ? FIXTURE : []);
   let health: Health = $state(
@@ -77,12 +102,14 @@
           connected: true,
           socket: "/run/user/1000/rig/rigd.sock",
           detail: "",
-          programs: 3,
+          programs: FIXTURE.length,
         }
       : { connected: false, socket: "", detail: "", programs: 0 },
   );
   let build: Record<string, string> | null = $state(null);
-  let selected: string | null = $state(fixture ? "graft" : null);
+  let selected: string | null = $state(
+    paneFixture ? "quarry" : fixture ? "graft" : null,
+  );
   let lastRead = $state("");
 
   // Held rather than only applied, because the pane has to push the token set
@@ -215,6 +242,7 @@
       detail={health.detail}
       connected={health.connected}
       {mode}
+      {paneFixture}
     />
     <StatusStrip
       connected={health.connected}

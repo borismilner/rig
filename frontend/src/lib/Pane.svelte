@@ -29,9 +29,39 @@
     detail: string;
     connected: boolean;
     mode: Mode;
+    // The measurement fixture, and it reaches the two pane states the contrast
+    // gate could not otherwise see. Both are real renders of the real CSS: what
+    // it replaces is how each state is REACHED, never the state or the colours.
+    //
+    //   the frame's ring   is drawn from framedFocus, which in the product
+    //                      comes from a live page posting {rig:1,type:"focus"}.
+    //                      A live port would make the gate depend on a
+    //                      background server; a dead port serves no page and so
+    //                      reports nothing. Under the fixture the frame's OWN
+    //                      focus event sets it - the same state, the same CSS,
+    //                      and the ring still appears on focus and goes on blur.
+    //
+    //                      It is wired this way and not pinned on, and the
+    //                      difference is the whole measurement. The focus pass
+    //                      works by focusing an element and diffing pixels, and
+    //                      a ring that is already lit changes no pixel when the
+    //                      frame takes focus. Pinned on, the gate reported the
+    //                      iframe as having NO focus indicator while the ring
+    //                      was on screen the whole time - and no other pass can
+    //                      see it either, because the ring is a ::after and
+    //                      the boundary and paint passes read getComputedStyle
+    //                      on elements. Pinned on, this fixture rendered a ring
+    //                      that nothing measured.
+    //
+    //   the unserved state needs `settled`, and the grace period below is
+    //                      1200ms while the auditor settles at 450 - so a dead
+    //                      port ALONE measures a blank frame and calls it
+    //                      clean, which is a zero measurement wearing a pass.
+    paneFixture: boolean;
   }
 
-  let { program, programs, detail, connected, mode }: Props = $props();
+  let { program, programs, detail, connected, mode, paneFixture }: Props =
+    $props();
 
   let frame: HTMLIFrameElement | null = $state(null);
   let loaded = $state(false);
@@ -93,12 +123,15 @@
   // for a page that has said hello, and hello is said once per load.
   let programId = $derived(program?.id ?? null);
 
+  // The fixture's `settled` lands here rather than at the declaration above:
+  // initialising a $state from a prop reads it non-reactively and Svelte warns
+  // about exactly that. One assignment site, no warning, same result.
   $effect(() => {
     programId;
     loaded = false;
     helloed = false;
     framedFocus = false;
-    settled = false;
+    settled = paneFixture;
   });
 
   // The grace period exists so a program that is merely slow to answer does not
@@ -110,7 +143,7 @@
   let settled = $state(false);
 
   $effect(() => {
-    if (!programId || loaded) return;
+    if (paneFixture || !programId || loaded) return;
     const t = setTimeout(() => (settled = true), SETTLE_MS);
     return () => clearTimeout(t);
   });
@@ -128,7 +161,17 @@
   // false accusation. What onload cannot separate is a program's own error page
   // from its real one - a 404 is a document, it fires, and it is the program's
   // error to show rather than rig's to report.
-  let unpainted = $derived(!!program?.paneUrl && settled && !loaded);
+  // The fixture forces this rather than waiting for the signal, and the reason
+  // is a browser difference that took a measurement to find: the truth table
+  // above was measured in webkit2gtk, where a refused connection never fires
+  // onload. HEADLESS CHROME, which is what the contrast gate runs, DOES fire
+  // onload - it has an error document to load. So `loaded` goes true, the state
+  // never draws, and a dead port alone measures a blank frame and calls it
+  // clean. The product is unaffected: it runs webkit2gtk. Only the gate needed
+  // telling.
+  let unpainted = $derived(
+    !!program?.paneUrl && (paneFixture || (settled && !loaded)),
+  );
 
   // The theme is pushed on every change, not only on hello: section 6's live
   // push is the same shape, and a program's page must not be the one surface
@@ -183,6 +226,8 @@
         sandbox={SANDBOX}
         referrerpolicy="no-referrer"
         onload={() => (loaded = true)}
+        onfocus={paneFixture ? () => (framedFocus = true) : undefined}
+        onblur={paneFixture ? () => (framedFocus = false) : undefined}
       ></iframe>
       {#if unpainted}
         <div class="unserved">

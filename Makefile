@@ -241,11 +241,23 @@ contrast-window: contrast-selftest build-frontend ## Measure the shell's own pag
 	# ?fixture=1 puts programs in the rail. Without it the rail is empty, and
 	# the rail's focus ring is the single thing section 20's gate was rebuilt
 	# for - it shipped at 2.17:1 dark while the gate was down.
+	#
+	# ?pane=1 is a SECOND page and not a variant of the first, because one page
+	# cannot show both: the pane draws whatever is selected, so a page showing a
+	# program's own pane is a page not showing the detail list. It exists to gate
+	# the unserved state, whose colours nothing measured until now.
+	#
+	# What it does NOT gate is the frame's focus ring, and that is a finding
+	# rather than a gap - see the note in frontend/src/lib/Pane.svelte. The ring
+	# lands on the program's own document, which rig does not own, so there is no
+	# ground to measure it against that means anything.
 	@python3 -m http.server $(CONTRAST_PORT) --directory cmd/rigwindow/dist >/dev/null 2>&1 & \
 	  srv=$$!; \
 	  trap 'kill $$srv 2>/dev/null || true' EXIT; \
 	  sleep 1; \
-	  node tools/contrast-audit.mjs 'http://127.0.0.1:$(CONTRAST_PORT)/index.html?fixture=1'
+	  node tools/contrast-audit.mjs \
+	    'http://127.0.0.1:$(CONTRAST_PORT)/index.html?fixture=1' \
+	    'http://127.0.0.1:$(CONTRAST_PORT)/index.html?pane=1'
 
 contrast-selftest: ## Prove the contrast instruments against known answers first
 	# A script that lies is worse than no script: the SVG audit shipped for
