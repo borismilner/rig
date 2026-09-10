@@ -33,11 +33,24 @@ type entry struct {
 // Kernel is what a caller outside this package holds.
 type Kernel struct {
 	registry *Registry
+
+	// rules is the house rules table the invoker matches on (section 13a).
+	// It has its own lock because config pushes it live (section 6) while
+	// calls are being authorised against it, and it is nothing to do with
+	// the registry's.
+	rmu   sync.RWMutex
+	rules []Rule
 }
 
-// New builds a kernel with an empty registry.
+// New builds a kernel with an empty registry and the shipped house rules.
+//
+// The rules are not empty, and section 13a is explicit about which two ship:
+// the url defaults. Every other caller starts unmatched.
 func New() *Kernel {
-	return &Kernel{registry: &Registry{programs: map[string]entry{}}}
+	return &Kernel{
+		registry: &Registry{programs: map[string]entry{}},
+		rules:    DefaultRules(),
+	}
 }
 
 // Register records a program's declaration, on the connection that made it.

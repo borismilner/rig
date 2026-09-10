@@ -46,7 +46,7 @@ const (
 )
 
 var coverageNames = map[Coverage]string{
-	CoverageUnspecified: "unspecified",
+	CoverageUnspecified: unspecifiedName,
 	CoveragePartial:     "partial",
 	CoverageFull:        "full",
 }
@@ -131,7 +131,7 @@ const (
 )
 
 var effectsNames = map[Effects]string{
-	EffectsUnspecified: "unspecified",
+	EffectsUnspecified: unspecifiedName,
 	EffectsReadOnly:    "read-only",
 	EffectsWritesFiles: "writes-files",
 	EffectsNetwork:     "network",
@@ -172,7 +172,7 @@ const (
 )
 
 var durationNames = map[Duration]string{
-	DurationUnspecified: "unspecified",
+	DurationUnspecified: unspecifiedName,
 	DurationInstant:     "instant",
 	DurationSeconds:     "seconds",
 	DurationMinutes:     "minutes",
@@ -197,7 +197,7 @@ const (
 )
 
 var shapeNames = map[Shape]string{
-	ShapeUnspecified:       "unspecified",
+	ShapeUnspecified:       unspecifiedName,
 	ShapeUnary:             "unary",
 	ShapeStream:            "stream",
 	ShapeInteractiveStream: "interactive-stream",

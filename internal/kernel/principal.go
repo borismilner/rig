@@ -41,8 +41,13 @@ const (
 	KindURL
 )
 
+// unspecifiedName is what every zero in this package renders as. It is one
+// constant rather than seven literals because section 21 gives every enum the
+// same zero and the same meaning: nothing was said.
+const unspecifiedName = "unspecified"
+
 var kindNames = map[ClientKind]string{
-	KindUnspecified: "unspecified",
+	KindUnspecified: unspecifiedName,
 	KindAgent:       "agent",
 	KindTerminal:    "terminal",
 	KindWindow:      "window",
