@@ -139,12 +139,23 @@ enum Coverage {
 
 // Effects is what running a command does to the world. Ordered by danger, so
 // a house rule written against one level covers everything above it.
+//
+// EFFECTS_DRIVES_INPUT sits above destructive because it is unbounded in a way
+// the levels below are not: a command that deletes files damages what its own
+// program can reach, and a command that synthesises a keystroke reaches
+// whatever happens to have focus. Without it a house rule cannot say "this
+// program may delete its own files but may not type into my windows" - both
+// would sit at the same floor and one rule would decide both. Added while the
+// wire is still unfrozen; PLAN.md section 21 makes a new value a hard refusal
+// at an older daemon's boundary, so the cheap moment to add it is before the
+// first wire major and not after.
 enum Effects {
   EFFECTS_UNSPECIFIED = 0;
   EFFECTS_READ_ONLY = 1;
   EFFECTS_WRITES_FILES = 2;
   EFFECTS_NETWORK = 3;
   EFFECTS_DESTRUCTIVE = 4;
+  EFFECTS_DRIVES_INPUT = 5;
 }
 
 // Duration is an order of magnitude, not an estimate. It is what tells a

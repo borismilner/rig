@@ -47,6 +47,7 @@ func pilotKernel(t *testing.T) *kernel.Kernel {
 		"write":   kernel.EffectsWritesFiles,
 		"fetch":   kernel.EffectsNetwork,
 		"destroy": kernel.EffectsDestructive,
+		"type":    kernel.EffectsDrivesInput,
 	}))
 	if err != nil {
 		t.Fatalf("register: %v", err)
@@ -329,8 +330,34 @@ func TestACommandThatIsNotRegisteredAtAllFailsSafe(t *testing.T) {
 	if d.Action != kernel.ActionDeny {
 		t.Fatalf("an unregistered target got %s rather than failing safe", d.Action)
 	}
-	if d.Pair.Effects != kernel.EffectsDestructive {
-		t.Fatalf("an unregistered target resolved as %s", d.Pair.Effects)
+	// The CEILING, not destructive by name. "Fails safe" means the worst thing
+	// it could be, and this assertion read `EffectsDestructive` until a level
+	// above it existed - at which point it was asserting the second worst and
+	// still passing under its own name.
+	if d.Pair.Effects != kernel.EffectsCeiling {
+		t.Fatalf("an unregistered target resolved as %s, want the ceiling %s",
+			d.Pair.Effects, kernel.EffectsCeiling)
+	}
+}
+
+func TestTheCeilingIsTheTopOfTheDangerOrder(t *testing.T) {
+	// The guard on the guard. EffectsCeiling exists so "assume the worst" does
+	// not quietly become "assume the second worst" the next time a level is
+	// added, and this is the assertion that fails when it does. It walks the
+	// names map rather than a list written here, so a new member is covered
+	// the day it is added.
+	// Stated as "nothing named sits above it", which is checkable through the
+	// exported surface alone: an unnamed value renders as Effects(N) and
+	// ParseEffects refuses it, so a named member appearing above the ceiling
+	// is exactly the case where this parse starts succeeding.
+	above := kernel.Effects(uint8(kernel.EffectsCeiling) + 1)
+	if _, err := kernel.ParseEffects(above.String()); err == nil {
+		t.Fatalf("%s is a named effects value above the ceiling %s, so an "+
+			"opaque ref would resolve below it and escape a rule denying it",
+			above, kernel.EffectsCeiling)
+	}
+	if !kernel.EffectsCeiling.AtLeastAsDangerousAs(kernel.EffectsDestructive) {
+		t.Fatalf("the ceiling %s is below destructive", kernel.EffectsCeiling)
 	}
 }
 
@@ -575,4 +602,67 @@ func TestRulesCanBeReplacedWhileCallsAreBeingAuthorised(t *testing.T) {
 		}
 	}
 	<-done
+}
+
+// TestARuleAboutInputDoesNotDecideARuleAboutFiles is the whole justification
+// for EFFECTS_DRIVES_INPUT existing, stated as the sentence a house rule could
+// not express before it did: "this program may delete its own files but may
+// not type into my windows".
+//
+// Both halves matter. If the deny leaks down onto `destroy` the value has
+// bought a rename and nothing else; if it fails to catch `type` it has bought
+// nothing at all.
+func TestARuleAboutInputDoesNotDecideARuleAboutFiles(t *testing.T) {
+	k := pilotKernel(t)
+	if err := k.SetRules([]kernel.Rule{{
+		ID:      "no-typing-for-programs",
+		Caller:  kernel.AnyCaller(),
+		Effects: kernel.EffectsDrivesInput,
+		Action:  kernel.ActionDeny,
+	}}); err != nil {
+		t.Fatalf("set rules: %v", err)
+	}
+
+	d, err := k.Authorize(caller(kernel.KindAgent), []kernel.Ref{cmdRef("type")})
+	if err != nil {
+		t.Fatalf("authorize type: %v", err)
+	}
+	if d.Action != kernel.ActionDeny {
+		t.Fatalf("a rule denying drives-input got %s on a drives-input "+
+			"command, so the value catches nothing", d.Action)
+	}
+
+	// The half that a floor semantic makes easy to get wrong: destructive is
+	// BELOW drives-input, so a rule written at the higher level must not reach
+	// down to it. Deleting files is still allowed here, and that is the point.
+	d, err = k.Authorize(caller(kernel.KindAgent), []kernel.Ref{cmdRef("destroy")})
+	if err != nil {
+		t.Fatalf("authorize destroy: %v", err)
+	}
+	if d.Action == kernel.ActionDeny {
+		t.Fatalf("a rule denying drives-input also refused a destructive " +
+			"command, so the two levels are not separable and the new value " +
+			"bought a rename")
+	}
+}
+
+func TestAnOpaqueRefResolvesToTheCeilingAndNotMerelyToDestructive(t *testing.T) {
+	// RefOpaque is a SECOND code path from the unresolvable-command one, and it
+	// was floored at the destructive literal too. A rule naming destructive
+	// still passes when either path is capped one level short, so neither test
+	// that asserted a deny could see the difference. This asserts the level.
+	k := pilotKernel(t)
+	d, err := k.Authorize(caller(kernel.KindSchedule), []kernel.Ref{
+		{Kind: kernel.RefWrapper, Program: "rig", Command: "peers run"},
+		{Kind: kernel.RefOpaque, Command: "make deploy"},
+	})
+	if err != nil {
+		t.Fatalf("authorize: %v", err)
+	}
+	if d.Pair.Effects != kernel.EffectsCeiling {
+		t.Fatalf("an opaque subject resolved as %s, want the ceiling %s: rig "+
+			"cannot see what it runs, so anything less than the worst case "+
+			"lets it under a rule denying the level above",
+			d.Pair.Effects, kernel.EffectsCeiling)
+	}
 }

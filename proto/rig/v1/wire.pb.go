@@ -218,6 +218,16 @@ func (Coverage) EnumDescriptor() ([]byte, []int) {
 
 // Effects is what running a command does to the world. Ordered by danger, so
 // a house rule written against one level covers everything above it.
+//
+// EFFECTS_DRIVES_INPUT sits above destructive because it is unbounded in a way
+// the levels below are not: a command that deletes files damages what its own
+// program can reach, and a command that synthesises a keystroke reaches
+// whatever happens to have focus. Without it a house rule cannot say "this
+// program may delete its own files but may not type into my windows" - both
+// would sit at the same floor and one rule would decide both. Added while the
+// wire is still unfrozen; PLAN.md section 21 makes a new value a hard refusal
+// at an older daemon's boundary, so the cheap moment to add it is before the
+// first wire major and not after.
 type Effects int32
 
 const (
@@ -226,6 +236,7 @@ const (
 	Effects_EFFECTS_WRITES_FILES Effects = 2
 	Effects_EFFECTS_NETWORK      Effects = 3
 	Effects_EFFECTS_DESTRUCTIVE  Effects = 4
+	Effects_EFFECTS_DRIVES_INPUT Effects = 5
 )
 
 // Enum value maps for Effects.
@@ -236,6 +247,7 @@ var (
 		2: "EFFECTS_WRITES_FILES",
 		3: "EFFECTS_NETWORK",
 		4: "EFFECTS_DESTRUCTIVE",
+		5: "EFFECTS_DRIVES_INPUT",
 	}
 	Effects_value = map[string]int32{
 		"EFFECTS_UNSPECIFIED":  0,
@@ -243,6 +255,7 @@ var (
 		"EFFECTS_WRITES_FILES": 2,
 		"EFFECTS_NETWORK":      3,
 		"EFFECTS_DESTRUCTIVE":  4,
+		"EFFECTS_DRIVES_INPUT": 5,
 	}
 )
 
@@ -1682,13 +1695,14 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\bCoverage\x12\x18\n" +
 	"\x14COVERAGE_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10COVERAGE_PARTIAL\x10\x01\x12\x11\n" +
-	"\rCOVERAGE_FULL\x10\x02*\x81\x01\n" +
+	"\rCOVERAGE_FULL\x10\x02*\x9b\x01\n" +
 	"\aEffects\x12\x17\n" +
 	"\x13EFFECTS_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11EFFECTS_READ_ONLY\x10\x01\x12\x18\n" +
 	"\x14EFFECTS_WRITES_FILES\x10\x02\x12\x13\n" +
 	"\x0fEFFECTS_NETWORK\x10\x03\x12\x17\n" +
-	"\x13EFFECTS_DESTRUCTIVE\x10\x04*z\n" +
+	"\x13EFFECTS_DESTRUCTIVE\x10\x04\x12\x18\n" +
+	"\x14EFFECTS_DRIVES_INPUT\x10\x05*z\n" +
 	"\bDuration\x12\x18\n" +
 	"\x14DURATION_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10DURATION_INSTANT\x10\x01\x12\x14\n" +

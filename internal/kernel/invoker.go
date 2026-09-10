@@ -376,8 +376,11 @@ func (k *Kernel) pair(who Principal, refs []Ref) (Pair, error) {
 			c, ok := k.registry.command(r.Program, r.Command)
 			if !ok {
 				// Not resolvable through this view, so it is opaque, so it is
-				// destructive. See RefOpaque.
-				p.Effects = max(p.Effects, EffectsDestructive)
+				// treated as the worst thing it could be. See RefOpaque and
+				// EffectsCeiling - this said EffectsDestructive until a level
+				// above it existed, which would have let an opaque call slip
+				// under a rule denying that level.
+				p.Effects = max(p.Effects, EffectsCeiling)
 				continue
 			}
 			p.Effects = max(p.Effects, c.Effects)
@@ -385,7 +388,7 @@ func (k *Kernel) pair(who Principal, refs []Ref) (Pair, error) {
 			// Contributes no effects of its own, and cannot mask the ones it
 			// wraps - those arrive as their own refs.
 		case RefOpaque:
-			p.Effects = max(p.Effects, EffectsDestructive)
+			p.Effects = max(p.Effects, EffectsCeiling)
 		default:
 			return Pair{}, fmt.Errorf("kernel: ref %s has no kind: a boundary "+
 				"that did not say what it is invoking cannot be authorised",

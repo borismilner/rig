@@ -31,12 +31,14 @@ var (
 		rigv1.Effects_EFFECTS_WRITES_FILES: kernel.EffectsWritesFiles,
 		rigv1.Effects_EFFECTS_NETWORK:      kernel.EffectsNetwork,
 		rigv1.Effects_EFFECTS_DESTRUCTIVE:  kernel.EffectsDestructive,
+		rigv1.Effects_EFFECTS_DRIVES_INPUT: kernel.EffectsDrivesInput,
 	}
 	effectsOut = map[kernel.Effects]rigv1.Effects{
 		kernel.EffectsReadOnly:    rigv1.Effects_EFFECTS_READ_ONLY,
 		kernel.EffectsWritesFiles: rigv1.Effects_EFFECTS_WRITES_FILES,
 		kernel.EffectsNetwork:     rigv1.Effects_EFFECTS_NETWORK,
 		kernel.EffectsDestructive: rigv1.Effects_EFFECTS_DESTRUCTIVE,
+		kernel.EffectsDrivesInput: rigv1.Effects_EFFECTS_DRIVES_INPUT,
 	}
 	durationIn = map[rigv1.Duration]kernel.Duration{
 		rigv1.Duration_DURATION_INSTANT: kernel.DurationInstant,

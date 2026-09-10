@@ -139,7 +139,20 @@ const (
 	EffectsWritesFiles
 	EffectsNetwork
 	EffectsDestructive
+	EffectsDrivesInput
 )
+
+// EffectsCeiling is the most dangerous level that exists, and it is a name
+// rather than a literal on purpose.
+//
+// Anything rig cannot resolve has to be treated as the worst thing it could be
+// (see RefOpaque). That was written as EffectsDestructive while destructive was
+// the top of the order, and adding a level above it silently turned "assume the
+// worst" into "assume the second worst" - an opaque call would have escaped a
+// rule that denied the new level. The ceiling is declared here so the next
+// value added cannot reintroduce that, and the test that asserts it names this
+// constant rather than a member.
+const EffectsCeiling = EffectsDrivesInput
 
 var effectsNames = map[Effects]string{
 	EffectsUnspecified: unspecifiedName,
@@ -147,6 +160,7 @@ var effectsNames = map[Effects]string{
 	EffectsWritesFiles: "writes-files",
 	EffectsNetwork:     "network",
 	EffectsDestructive: "destructive",
+	EffectsDrivesInput: "drives-input",
 }
 
 func (e Effects) String() string {
