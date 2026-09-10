@@ -631,7 +631,7 @@ gets no help at all.
 | R5 | **Every element passes the contrast gate on every surface it can land on, in both themes, for every shipped preset** | §20 asserts this for the generated token set. An element is where a token actually meets text, so a gate that stops at tokens stops one layer short of the thing a person reads |
 | R6 | **No element knows which program is holding it.** It takes data and emits events | §5h's own rule: a service or surface that needs a program's identity to work is business logic in the wrong place |
 | R7 | **The typed bridge's vocabulary *is* the element list**, so using an element rig has removed fails at registration | The alternative fails at render, in front of the user, on the one surface whose entire product is presentation |
-| R8 | **The kit is section ten of `design/visual-system.html`**, each element beside the declaration that requests it | The shape §09 already uses for the six generated renderers, and the reason this visual system is measured rather than asserted |
+| R8 | **The kit is section ten of `design/visual-system.html`**, each element beside the declaration that requests it | The shape the catalogue's section 09 already uses for the six generated renderers, and the reason this visual system is measured rather than asserted |
 
 **The kit is not implemented until it has been attacked, and that is a
 precondition on M8 rather than a review step inside it.** Every program in the
