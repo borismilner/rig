@@ -112,12 +112,16 @@ func New(cfg Config) (*Daemon, error) {
 	if log == nil {
 		log = slog.New(slog.DiscardHandler)
 	}
+	k := kernel.New()
+	if err := declareSelf(k); err != nil {
+		return nil, fmt.Errorf("daemon: rig could not declare its own commands: %w", err)
+	}
 	return &Daemon{
 		version:  cfg.Version,
 		wire:     cfg.Wire,
 		log:      log,
 		lock:     cfg.Lock,
-		kernel:   kernel.New(),
+		kernel:   k,
 		ask:      cfg.Ask,
 		live:     make(map[net.Conn]struct{}),
 		programs: make(map[string]*conn),
@@ -314,7 +318,7 @@ func (d *Daemon) dispatch(ctx context.Context, c *conn, f *rigv1.Frame) {
 		return
 	}
 
-	if program == "rig" {
+	if program == kernel.SelfID {
 		d.serveSelf(ctx, c, f, command)
 		return
 	}
@@ -323,6 +327,27 @@ func (d *Daemon) dispatch(ctx context.Context, c *conn, f *rigv1.Frame) {
 
 // serveSelf answers the methods rig implements itself.
 func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command string) {
+	// rig's own methods meet the same floor as everything else, because
+	// section 13a's placement argument - "no surface can forget it" - is
+	// about surfaces, and this is one. It used to be the single surface that
+	// never reached the rules table.
+	//
+	// hello is the exception and it is not an exemption: it is the handshake
+	// that MINTS the principal, so there is no (caller, effects) pair to
+	// match before it. `caller` is what hello establishes. Authorising it
+	// would mean asking who is calling before there is an answer.
+	if command != "hello" {
+		dec, allowed, err := d.authorize(ctx, c, f, kernel.SelfID, command)
+		if err != nil {
+			c.fail(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err.Error())
+			return
+		}
+		if !allowed {
+			c.fail(f.GetStreamId(), rigv1.Code_CODE_DENIED, dec.Reason)
+			return
+		}
+	}
+
 	switch command {
 	case "hello":
 		var req rigv1.HelloRequest
@@ -334,7 +359,7 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 			c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "hello: empty program id")
 			return
 		}
-		if req.GetProgram() == "rig" {
+		if req.GetProgram() == kernel.SelfID {
 			// Otherwise a program shadows the daemon's own namespace and
 			// rig.ping stops reaching rig.
 			c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, `hello: "rig" is reserved`)
@@ -423,7 +448,7 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 		//
 		// It goes through route, so it passes the same authorization floor as
 		// any other call rather than round-tripping behind it.
-		if target := req.GetProgram(); target != "" && target != "rig" {
+		if target := req.GetProgram(); target != "" && target != kernel.SelfID {
 			d.route(ctx, c, &rigv1.Frame{
 				StreamId:  f.GetStreamId(),
 				Kind:      f.GetKind(),
@@ -436,7 +461,7 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 
 		c.reply(f.GetStreamId(), &rigv1.PingResponse{
 			Nonce:   req.GetNonce(),
-			Program: "rig",
+			Program: kernel.SelfID,
 			Version: d.version,
 		})
 

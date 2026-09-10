@@ -24,6 +24,12 @@ import (
 type Registry struct {
 	mu       sync.RWMutex
 	programs map[string]entry
+
+	// self is rig's OWN declaration, and it is deliberately not an entry in
+	// programs. It has no owner, no session and no scope, because it is not a
+	// registration: nothing connected to make it and nothing disconnecting
+	// takes it away. Only the invoker's read reaches it.
+	self Declaration
 }
 
 type entry struct {
@@ -103,6 +109,36 @@ func (k *Kernel) Register(p Principal, d Declaration) (Principal, error) {
 		decl: d, owner: p, scope: scope, schemas: schemas,
 	}
 	return p, nil
+}
+
+// DeclareSelf records rig's own commands, so the invoker resolves them to
+// declared effects instead of treating them as unresolvable.
+//
+// This is section 13a's "no surface can forget it" applied to rig itself.
+// Without it the daemon's own methods are the one surface that never reaches
+// the rules table, and an unresolvable ref would otherwise resolve to
+// EffectsCeiling - so any rule at all would stop rig answering.
+//
+// It is NOT registration. Register takes a principal because a program's
+// declaration belongs to the connection that made it (section 14); rig has no
+// connection to itself, so there is no principal to take and nothing to
+// deregister.
+func (k *Kernel) DeclareSelf(d Declaration) error {
+	if err := d.validate(true); err != nil {
+		return err
+	}
+	// A schema that does not compile is refused here for the same reason it
+	// is at registration. The compiled result is not kept: rig's own commands
+	// take no declared arguments and travel as typed protos, so nothing would
+	// ever read it, and a schema map nobody reads is a thing that rots.
+	if _, err := compileDeclaredArgs(d); err != nil {
+		return err
+	}
+
+	k.registry.mu.Lock()
+	defer k.registry.mu.Unlock()
+	k.registry.self = d
+	return nil
 }
 
 // Deregister forgets a program when its connection goes, so a restarted
@@ -206,11 +242,23 @@ func (r *Registry) command(programID, commandID string) (Command, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	e, ok := r.programs[programID]
-	if !ok {
-		return Command{}, false
+	// rig's own commands are resolvable here and nowhere else. They are held
+	// BESIDE the programs rather than in them, because rig is not a program:
+	// SelfID is refused to every registration in two independent places
+	// (Declaration.validate and the daemon's hello), and putting rig in the
+	// map would mean weakening the one reservation that stops a program
+	// shadowing rig's namespace. Held beside it, the invoker resolves
+	// rig.ping and rig.programs to declared effects while View.Programs()
+	// never lists rig, because rig is not one of the things it lists.
+	decl := r.self
+	if programID != SelfID {
+		e, ok := r.programs[programID]
+		if !ok {
+			return Command{}, false
+		}
+		decl = e.decl
 	}
-	for _, c := range e.decl.Commands {
+	for _, c := range decl.Commands {
 		if c.ID == commandID {
 			return c, true
 		}

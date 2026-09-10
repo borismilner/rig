@@ -240,16 +240,31 @@ func (s Shape) String() string {
 // It reports every problem it finds rather than the first, because a program
 // author fixing a generated declaration one error per run is a program author
 // who stops generating it.
-func (d Declaration) Validate() error {
+func (d Declaration) Validate() error { return d.validate(false) }
+
+// validate is Validate with the identity rule inverted for rig's own
+// declaration.
+//
+// SelfID is refused to every program and required of rig, which is the same
+// reservation read from its two sides. Everything else below is checked
+// identically, so rig's own declaration cannot be less complete than the one
+// it demands of a program - which is the whole reason this is one function
+// rather than two.
+func (d Declaration) validate(self bool) error {
 	var bad []string
 	add := func(f string, a ...any) { bad = append(bad, fmt.Sprintf(f, a...)) }
 
-	if d.Identity.ID == "" {
+	switch {
+	case d.Identity.ID == "":
 		add("identity.id is empty")
-	} else if reserved[d.Identity.ID] {
+	case self && d.Identity.ID != SelfID:
+		add("identity.id %q is not rig's own id", d.Identity.ID)
+	case !self && reserved[d.Identity.ID]:
 		add("identity.id %q is reserved for rig itself", d.Identity.ID)
-	} else if bad := badID(d.Identity.ID); bad != "" {
-		add("identity.id %q %s", d.Identity.ID, bad)
+	case !self:
+		if bad := badID(d.Identity.ID); bad != "" {
+			add("identity.id %q %s", d.Identity.ID, bad)
+		}
 	}
 
 	// A program does not choose which scope it is in.
@@ -306,8 +321,13 @@ func (d Declaration) Validate() error {
 	return nil
 }
 
+// SelfID is the id rig's own declaration carries. It is the same string the
+// reservation below refuses to every program, which is the point: rig is not
+// a program, and the one place that difference is written down is here.
+const SelfID = "rig"
+
 // reserved is rig's own namespace, which no program may take.
-var reserved = map[string]bool{"rig": true, "rigd": true}
+var reserved = map[string]bool{SelfID: true, "rigd": true}
 
 // badID says why an id cannot be used, or returns empty.
 //

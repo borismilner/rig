@@ -267,11 +267,21 @@ func TestASurfaceThatCannotBeReachedDeniesRatherThanAllows(t *testing.T) {
 	}
 }
 
-func TestRigsOwnMethodsStillAnswerUnderABroadDenyRule(t *testing.T) {
-	// The gap authorize documents: rig.ping and rig.apps have no registry
-	// entry, so they are not matched at all. This test is here so that
-	// closing the gap is a deliberate change with a failing test, rather than
-	// something discovered when a rule stops rig answering.
+// GAP 2 IS CLOSED, and this test is the deliberate change its predecessor
+// asked for.
+//
+// It used to assert that rig.ping still answered under a rule denying every
+// read-only call, because rig's own methods had no registry entry and were
+// not matched at all. That was the defect, not the behaviour: serveSelf was
+// the one surface that never reached the rules table, which is precisely what
+// section 13a's "no surface can forget it" forbids.
+//
+// rig now declares its own commands, so a rule denying every read-only call
+// denies rig's read-only commands too. That is the owner's rule doing what it
+// says. A refusal is still distinguishable from a dead daemon: it arrives as
+// CODE_DENIED over a connection that dialled, where a dead daemon cannot be
+// dialled at all - which is the objection this decision turned on.
+func TestRigsOwnMethodsMeetTheSameFloorAsEverythingElse(t *testing.T) {
 	sock, d := upDaemon(t, nil)
 	if err := d.kernel.SetRules([]kernel.Rule{{
 		ID: "deny-everything", Caller: kernel.AnyCaller(),
@@ -280,11 +290,35 @@ func TestRigsOwnMethodsStillAnswerUnderABroadDenyRule(t *testing.T) {
 		t.Fatalf("set rules: %v", err)
 	}
 
-	var resp rigv1.PingResponse
-	if err := dial(t, sock).Call(ctx5(t), "rig.ping",
-		&rigv1.PingRequest{Nonce: []byte("7")}, &resp); err != nil {
-		t.Fatalf("rig.ping is refused by a house rule: %v", err)
+	for _, m := range []string{"rig.ping", "rig.programs"} {
+		err := dial(t, sock).Call(ctx5(t), m, &rigv1.PingRequest{Nonce: []byte("7")},
+			&rigv1.PingResponse{})
+		if err == nil {
+			t.Fatalf("%s answered under a rule denying every read-only call", m)
+		}
+		if !strings.Contains(err.Error(), "CODE_DENIED") {
+			t.Fatalf("%s failed, but not as a refusal: %v", m, err)
+		}
 	}
+}
+
+// The one method that must NOT meet the floor, and it is not an exemption.
+//
+// hello is the handshake that MINTS the principal, so there is no
+// (caller, effects) pair to match before it - `caller` is what hello
+// establishes. Authorise it and a broad rule stops any program registering at
+// all, which makes the daemon unusable rather than restricted.
+func TestHelloIsPriorToTheFloorAndNotSubjectToIt(t *testing.T) {
+	sock, d := upDaemon(t, nil)
+	if err := d.kernel.SetRules([]kernel.Rule{{
+		ID: "deny-everything", Caller: kernel.AnyCaller(),
+		Effects: kernel.EffectsReadOnly, Action: kernel.ActionDeny,
+	}}); err != nil {
+		t.Fatalf("set rules: %v", err)
+	}
+
+	// program() completes the handshake and fails the test if it cannot.
+	program(t, sock, "fakeapp")
 }
 
 func TestOneProgramCallingAnothersReadOnlyCommandIsNotDestructive(t *testing.T) {
@@ -320,5 +354,34 @@ func TestOneProgramCallingAnothersReadOnlyCommandIsNotDestructive(t *testing.T) 
 	}
 	if !strings.Contains(err.Error(), "(program, destructive)") {
 		t.Fatalf("the refusal %q does not name the pair", err)
+	}
+}
+
+// The test that proves rig's declaration is actually READ, rather than its
+// methods merely reaching the table.
+//
+// A rule denying only the top of the danger order must NOT catch rig's own
+// read-only commands. Stop consulting rig's declaration and they resolve as
+// unresolvable, which is EffectsCeiling, which this rule denies - so rig stops
+// answering under a rule about driving the desktop. Every other test here
+// passes either way, because a rule with a read-only floor catches both an
+// honest read-only and a pessimistic ceiling.
+func TestRigsOwnCommandsResolveToWhatTheyDeclare(t *testing.T) {
+	sock, d := upDaemon(t, nil)
+	if err := d.kernel.SetRules([]kernel.Rule{{
+		ID: "no-driving-my-desktop", Caller: kernel.AnyCaller(),
+		Effects: kernel.EffectsCeiling, Action: kernel.ActionDeny,
+	}}); err != nil {
+		t.Fatalf("set rules: %v", err)
+	}
+
+	resp := &rigv1.PingResponse{}
+	if err := dial(t, sock).Call(ctx5(t), "rig.ping",
+		&rigv1.PingRequest{Nonce: []byte("q")}, resp); err != nil {
+		t.Fatalf("rig.ping is read-only and was denied by a rule about the "+
+			"top of the danger order, so its declared effects were not read: %v", err)
+	}
+	if resp.GetProgram() != "rig" {
+		t.Fatalf("answered by %q", resp.GetProgram())
 	}
 }

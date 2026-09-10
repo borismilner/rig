@@ -100,18 +100,15 @@ func TestAProbeOfAnotherProgramStillMeetsTheAuthorizationFloor(t *testing.T) {
 	}
 }
 
-// rig's own probe is unchanged and still answers under that same rule: it is
-// served by serveSelf and never reaches the rules table. That is gap 2, and
-// closing it is a deliberate change with this test failing.
-func TestRigsOwnProbeIsUnchangedByTheMove(t *testing.T) {
-	sock, d := upDaemon(t, nil)
-	if err := d.kernel.SetRules([]kernel.Rule{{
-		ID: "deny-everything", Caller: kernel.AnyCaller(),
-		Effects: kernel.EffectsReadOnly, Action: kernel.ActionDeny,
-	}}); err != nil {
-		t.Fatalf("set rules: %v", err)
-	}
-
+// An empty program name, and "rig", both mean rig itself rather than a
+// program called "". Under the shipped rules - the two url ones and nothing
+// else - rig answers its own probe.
+//
+// The deny-rule half of this used to live here and has moved to
+// TestRigsOwnMethodsMeetTheSameFloorAsEverythingElse: rig now declares its
+// own commands, so a broad rule reaches them like anything else.
+func TestAnEmptyProgramMeansRigItself(t *testing.T) {
+	sock := up(t)
 	for _, target := range []string{"", "rig"} {
 		resp := &rigv1.PingResponse{}
 		if err := dial(t, sock).Call(ctx5(t), "rig.ping",

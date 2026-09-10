@@ -43,12 +43,24 @@ type Asker interface {
 // decision is the record: an error return means the invoker could not reason
 // about the call at all, which is not the same as refusing it.
 //
-// What is NOT authorised here, and it is a gap rather than a decision: rig's
-// own methods - rig.hello, rig.ping, rig.apps - have no registry entry, so
-// there are no declared effects to match on. Treating them as unresolvable
-// would make them destructive, and a rule denying destructive calls would
-// then stop rig answering a ping. Closing it properly means rig declaring its
-// own commands the way every other program does.
+// rig's own methods reach this too, from serveSelf, and that was a gap until
+// they did: serveSelf was the one surface that never met the floor, which is
+// what section 13a's "no surface can forget it" forbids.
+//
+// The methods are rig.hello, rig.ping and rig.programs. (An earlier version
+// of this comment said rig.apps; that is the CLI verb, `rig apps list`, and
+// no such method exists on the wire.)
+//
+// rig does NOT do it "the way every other program does", because it cannot:
+// SelfID is refused to every registration in two independent places, and
+// Register takes a principal because a declaration belongs to the connection
+// that made it - rig has no connection to itself. Its declaration is held
+// beside the registry by Kernel.DeclareSelf, where only the invoker's read
+// reaches it, so rig resolves to declared effects while never appearing as a
+// program.
+//
+// hello is the one method that does not come through here, and that is not an
+// exemption: it MINTS the principal, so there is no pair to match before it.
 func (d *Daemon) authorize(
 	ctx context.Context, from *conn, f *rigv1.Frame, program, command string,
 ) (kernel.Decision, bool, error) {
