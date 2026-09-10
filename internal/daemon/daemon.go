@@ -472,6 +472,27 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 
 // route forwards a call to a program and relays its answer back.
 func (d *Daemon) route(ctx context.Context, from *conn, f *rigv1.Frame, program, command string) {
+	// Section 14, and this is the check routing did not have: a principal
+	// reaches only what it may see. Without it a program could invoke a
+	// program it could not list, because route looked the target up in the
+	// connected-programs map rather than in the caller's own view.
+	//
+	// The refusal is MISSING, not refused, and the message is byte-identical
+	// to the not-connected one below on purpose. Section 14: "a program it may
+	// not see is reported missing rather than refused, because 'you may not
+	// see shelf' tells the caller that shelf exists." A distinguishable
+	// refusal here would be an existence oracle for every program on the box.
+	//
+	// A terminal is unaffected. Introspect starts true and only hello turns it
+	// off, so the CLI and the window still reach everything; what this
+	// restricts is one PROGRAM calling another, which today means a program
+	// reaches itself and nothing else.
+	if _, visible := d.kernel.See(from.principal()).Program(program); !visible {
+		from.fail(f.GetStreamId(), rigv1.Code_CODE_NOT_FOUND,
+			fmt.Sprintf("no program %q is connected", program))
+		return
+	}
+
 	d.mu.RLock()
 	to := d.programs[program]
 	d.mu.RUnlock()
@@ -484,14 +505,12 @@ func (d *Daemon) route(ctx context.Context, from *conn, f *rigv1.Frame, program,
 	// The authorization floor, and it is here rather than on any surface so
 	// that no surface can forget it (section 13a).
 	//
-	// Note what the line above does NOT do: it looks the program up in the
-	// routing map, which is every connected program, not in the caller's
-	// scoped view. So a caller reaches a program it could not list, and
-	// section 14's "a principal sees the programs it may reach" is not true
-	// of routing yet. That gap is older than the invoker and closing it
-	// changes what one program may ask another for, so the invoker does not
-	// paper over it: it matches on what the target declared and leaves the
-	// visibility question where it belongs.
+	// The visibility half is decided above, before the routing map is even
+	// read, so section 14's "a principal sees the programs it may reach" is
+	// now true of routing. The invoker still matches on what the TARGET
+	// declared rather than on the caller's view, and closing gap 1 did not
+	// make that redundant - see Kernel.pair for what it decides for a caller
+	// that can reach its target.
 	dec, allowed, err := d.authorize(ctx, from, f, program, command)
 	if err != nil {
 		from.fail(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err.Error())

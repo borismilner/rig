@@ -666,3 +666,53 @@ func TestAnOpaqueRefResolvesToTheCeilingAndNotMerelyToDestructive(t *testing.T) 
 			d.Pair.Effects, kernel.EffectsCeiling)
 	}
 }
+
+// The invoker reads declared effects UNFILTERED, and this locks it at the
+// kernel rather than over the wire.
+//
+// It used to be locked by a daemon test where one program called another's
+// read-only command. Closing gap 1 on 2026-09-11 made routing check
+// visibility, so that call no longer reaches the invoker at all and the wire
+// test could no longer see the property. The property did not go away with
+// it: a caller that CAN reach a target - a terminal today, a crew member at
+// M7 - must still have the target's own declaration matched, not a
+// pessimistic ceiling from a view that happens to exclude it.
+//
+// Resolving through the caller's view made a read-only command resolve as
+// destructive whenever the caller was not in the target's scope, and a rule
+// denying destructive calls then refused a read-only one.
+func TestTheInvokerMatchesTheTargetsDeclarationNotTheCallersView(t *testing.T) {
+	k := kernel.New()
+
+	owner := kernel.Principal{
+		UID: 1000, Kind: kernel.KindProgram,
+		ClientID: "shelf", SessionID: "s1", PID: 1,
+	}
+	if _, err := k.Register(owner, good("shelf")); err != nil {
+		t.Fatalf("register shelf: %v", err)
+	}
+
+	// grabbit is scoped to itself, so shelf is invisible to it. The invoker
+	// must still read shelf's declaration.
+	grabbit := kernel.Principal{
+		UID: 1000, Kind: kernel.KindProgram,
+		ClientID: "grabbit", SessionID: "s2", PID: 2,
+		Scoped: true, Scopes: []string{"grabbit"},
+	}
+	if _, ok := k.See(grabbit).Program("shelf"); ok {
+		t.Fatal("shelf is visible to grabbit, so this test proves nothing")
+	}
+
+	dec, err := k.Authorize(grabbit, []kernel.Ref{{
+		Kind: kernel.RefCommand, Program: "shelf", Command: "reindex",
+	}})
+	if err != nil {
+		t.Fatalf("authorize: %v", err)
+	}
+	// good("shelf") declares reindex as writes-files. Read through grabbit's
+	// view shelf is unresolvable, which is EffectsCeiling.
+	if dec.Pair.Effects != kernel.EffectsWritesFiles {
+		t.Fatalf("the invoker resolved %s, want writes-files: it read the "+
+			"caller's view rather than the target's declaration", dec.Pair.Effects)
+	}
+}

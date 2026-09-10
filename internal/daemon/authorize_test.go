@@ -321,39 +321,79 @@ func TestHelloIsPriorToTheFloorAndNotSubjectToIt(t *testing.T) {
 	program(t, sock, "fakeapp")
 }
 
-func TestOneProgramCallingAnothersReadOnlyCommandIsNotDestructive(t *testing.T) {
-	// The bug the adversarial pass found, over the wire. A program is scoped
-	// to itself (section 14), so resolving effects through the caller's view
-	// made this call resolve as (program, destructive) and a rule denying
-	// destructive calls refused a read-only one.
-	//
-	// Routing does not check visibility, so this call is reachable whatever
-	// the invoker decides - which is why the invoker matching on the target's
-	// own declaration is the honest answer rather than the lax one.
-	sock, d := upDaemon(t, nil)
+// GAP 1 IS CLOSED. Routing now looks the target up in the CALLER'S VIEW.
+//
+// Section 14 says "a principal sees itself and the programs it may reach",
+// and until 2026-09-11 that was not true of routing: route read the
+// connected-programs map, so a program could invoke a program it could not
+// list. A program is scoped to itself, so one program calling another is now
+// refused - which is what makes section 14 a statement about reachability
+// rather than only about listing.
+//
+// Decided by Boris on 2026-09-11, having been told it restricts what one
+// program may ask another for.
+func TestOneProgramCannotReachAProgramItCannotSee(t *testing.T) {
+	sock := up(t)
 	dangerous(t, sock) // shelf, with one read-only and one destructive command
 	other := program(t, sock, "grabbit")
 
-	if err := d.kernel.SetRules([]kernel.Rule{{
-		ID: "deny-destructive", Caller: kernel.AnyCaller(),
-		Effects: kernel.EffectsDestructive, Action: kernel.ActionDeny,
-	}}); err != nil {
-		t.Fatalf("set rules: %v", err)
-	}
-
-	var resp rigv1.CallResponse
-	if err := other.Call(ctx5(t), "shelf.ping",
-		&rigv1.CallRequest{}, &resp); err != nil {
-		t.Fatalf("a read-only cross-program call was refused: %v", err)
-	}
-
-	// The destructive one is still refused, and still names the pair.
-	err := other.Call(ctx5(t), "shelf.destroy", &rigv1.CallRequest{}, &resp)
+	err := call(t, other, "shelf.ping")
 	if err == nil {
-		t.Fatal("the destructive command was allowed")
+		t.Fatal("grabbit reached shelf, which it cannot see")
 	}
-	if !strings.Contains(err.Error(), "(program, destructive)") {
-		t.Fatalf("the refusal %q does not name the pair", err)
+
+	// MISSING, not refused, and byte-identical to the not-connected message.
+	// Section 14: "you may not see shelf" tells the caller that shelf exists,
+	// so a distinguishable refusal here is an existence oracle.
+	if !strings.Contains(err.Error(), `no program "shelf" is connected`) {
+		t.Fatalf("the refusal is not the missing message: %v", err)
+	}
+	if strings.Contains(err.Error(), "CODE_DENIED") {
+		t.Fatalf("a program it may not see was refused rather than reported "+
+			"missing, which tells the caller shelf exists: %v", err)
+	}
+
+	// And it is the same message an ABSENT program gets, compared rather than
+	// eyeballed - two messages that merely look alike is how an oracle
+	// survives a review. Only the daemon's half is compared: the client
+	// prefixes the method the caller itself chose, which tells it nothing.
+	absent := call(t, other, "nosuch.ping")
+	if absent == nil {
+		t.Fatal("a call to an absent program was allowed")
+	}
+	daemonHalf := func(e error) string {
+		_, half, _ := strings.Cut(e.Error(), "CODE_NOT_FOUND: ")
+		return strings.Replace(half, `"shelf"`, `"nosuch"`, 1)
+	}
+	if daemonHalf(err) != daemonHalf(absent) {
+		t.Fatalf("invisible and absent do not read alike:\n  invisible: %s\n  absent:    %s",
+			daemonHalf(err), daemonHalf(absent))
+	}
+}
+
+// A program still reaches ITSELF, which is the half of section 14 that must
+// keep working: "a principal sees itself".
+func TestAProgramStillReachesItself(t *testing.T) {
+	sock := up(t)
+	self := program(t, sock, "grabbit")
+	if err := call(t, self, "grabbit.ping"); err != nil {
+		t.Fatalf("a program cannot reach itself: %v", err)
+	}
+}
+
+// A terminal is unaffected, and that is the whole reason closing gap 1 is
+// safe to land now. Introspect starts true and only hello turns it off, so
+// the CLI and the window reach everything they did before.
+func TestATerminalStillReachesEveryProgram(t *testing.T) {
+	sock := up(t)
+	dangerous(t, sock)
+	program(t, sock, "grabbit")
+
+	terminal := dial(t, sock) // never says hello, so it stays introspecting
+	for _, m := range []string{"shelf.ping", "grabbit.ping"} {
+		if err := call(t, terminal, m); err != nil {
+			t.Fatalf("a terminal could not reach %s: %v", m, err)
+		}
 	}
 }
 

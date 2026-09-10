@@ -355,11 +355,17 @@ func (d Decision) Allowed() bool { return d.Action == ActionAllow }
 //
 // What the invoker matches on is what the TARGET declared, not what the
 // caller may read. The cost is one enum value: a refusal names the effects of
-// a command the caller might not have been able to list. That is a smaller
-// hole than the alternative, and smaller than the one already there - routing
-// does not check visibility at all, so such a caller can invoke the command
-// and observe it working. That gap is section 14's to close, not this
-// function's to hide.
+// a command the caller might not have been able to list.
+//
+// Routing DOES check visibility as of 2026-09-11 - that was gap 1, and it is
+// closed in Daemon.route - so a caller that cannot see a program no longer
+// reaches this function for it at all. The unfiltered read is not made
+// redundant by that. It decides what happens for a caller that CAN reach the
+// target: a terminal today, a crew member at M7. Filtering there would resolve
+// a target outside the caller's scope as opaque, therefore as the ceiling, and
+// a rule denying the ceiling would refuse a read-only call.
+// TestTheInvokerMatchesTheTargetsDeclarationNotTheCallersView locks it at this
+// level, because the wire test that used to lock it is now unreachable.
 //
 // A target that is not in the registry at all - never registered, or a
 // program that disconnected between routing and authorising - is opaque and
