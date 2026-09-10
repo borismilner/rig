@@ -144,14 +144,15 @@ verify: build ## Run the conformance suite against fakeapp, then against every m
 	done
 
 contrast: contrast-selftest ## Measure WCAG contrast in a real browser, both themes
-	# Four passes, because no single instrument sees all four things: text nodes
+	# Five passes, because no single instrument sees all five things: text nodes
 	# against their composited ground, SVG <text> against the rects behind it,
-	# focus indicators at 1.4.11's 3:1 (which no text pass can see - they walk
-	# nodeType 3 and a ring is not a text node), and painted colour for anything
-	# dimmed or color-mixed. The target used to invoke this file with --themes
-	# and --fail-under; the file had never existed, so the target exited "Cannot
-	# find module" and no workflow called it. While it was down, the focus ring
-	# shipped at 2.17:1 dark and 1.48:1 light against a 3:1 requirement.
+	# boundaries and focus indicators at 1.4.11's 3:1 (which no text pass can
+	# see at all - they walk nodeType 3, and neither a border nor a ring is a
+	# text node), and painted colour for anything dimmed or color-mixed. The
+	# target used to invoke this file with --themes and --fail-under; the file
+	# had never existed, so the target exited "Cannot find module" and no
+	# workflow called it. While it was down, the focus ring shipped at 2.17:1
+	# dark and 1.48:1 light against a 3:1 requirement.
 	node tools/contrast-audit.mjs design/visual-system.html
 
 contrast-selftest: ## Prove the contrast instruments against known answers first

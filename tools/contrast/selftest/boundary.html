@@ -1,0 +1,36 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>boundary pass selftest</title>
+<!--
+  Known answers for pass-boundary.js. Page ground is #ffffff throughout.
+
+    #held      border in --border (#767676)    4.54:1  enforced by token, passes
+    #btn       a button, border #cccccc        1.61:1  enforced (interactive), FAILS
+    #plain     a div,    border #cccccc        1.61:1  NOT enforced, informational
+    #inner     bg #000000, border #ffffff      outside 1.00, inside 21.00 -> passes
+               on the inside alone. A boundary has two sides and only has to be
+               visible from one of them.
+    #dimmed    a button, border #000000 inside opacity:.4 -> paints #999999,
+               2.85:1, FAILS. Declared it is 21:1, which is what a pass reading
+               getComputedStyle without compositing the group would report.
+    #hushed    same as #btn with data-contrast-ok -> silenced, not a failure
+-->
+<style>
+  :root { --border:#767676; --border-2:#4a4a4a; }
+  html, body { background:#ffffff; margin:0; padding:30px; }
+  div, button { display:block; width:150px; height:34px; margin:18px 0;
+                background:#ffffff; color:#111111; font:14px system-ui, sans-serif; }
+  #held    { border:2px solid var(--border); }
+  #btn     { border:2px solid #cccccc; }
+  #plain   { border:2px solid #cccccc; }
+  #inner   { border:2px solid #ffffff; background:#000000; }
+  #wrap    { opacity:.4; border:0; height:auto; width:auto; background:none; }
+  #dimmed  { border:2px solid #000000; }
+  #hushed  { border:2px solid #cccccc; }
+</style>
+<div id="held">held token, 4.54</div>
+<button id="btn">interactive, 1.61</button>
+<div id="plain">decorative, 1.61</div>
+<div id="inner">inside only, 21.00</div>
+<div id="wrap"><button id="dimmed">dimmed, 2.85</button></div>
+<button id="hushed" data-contrast-ok="known and deliberate">silenced</button>

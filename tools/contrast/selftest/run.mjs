@@ -9,6 +9,7 @@ import {fileURLToPath} from 'node:url';
 import {ratio, parseColour, hex} from '../wcag.mjs';
 import {withChrome, auditPage} from '../headless.mjs';
 import {focusPass} from '../pass-focus.mjs';
+import {readFileSync} from 'node:fs';
 import {paintPass} from '../pass-paint.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -103,6 +104,35 @@ await withChrome(async browser => {
   nearColour('#chip shape colour off the band', mark('chip')?.paint, '#b0b0b0', 1);
   eq('#chip needs 3, not 4.5', mark('chip')?.need, 3);
   await p2.close();
+
+  // 4. boundaries, the half of 1.4.11 that is not a focus ring
+  console.log('\nboundary pass, known answers');
+  const p3 = await auditPage(browser, 'file://' + join(HERE, 'boundary.html'));
+  eq('page identity', await p3.eval('document.title'), 'boundary pass selftest');
+  const bd = await p3.eval(readFileSync(join(HERE, '../pass-boundary.js'), 'utf8'));
+  const row = id => bd.bad.concat(bd.informationalRows, bd.silencedRows)
+                      .find(r => r.label.includes('#' + id));
+  const failed_ = id => bd.bad.some(r => r.label.includes('#' + id));
+
+  eq('--border token read off the page', bd.held.border, '#767676');
+  eq('a held token that passes is not a failure', failed_('held'), false);
+  eq('an interactive edge under 3 fails', failed_('btn'), true);
+  near('#btn ratio', row('btn')?.ratio ?? null, 1.62, 0.02);
+  // the judgement that keeps the gate switched on: a decorative hairline is
+  // reported, not failed
+  eq('a decorative edge under 3 does NOT fail', failed_('plain'), false);
+  eq('...but it is still listed', bd.informationalRows.some(r => r.label.includes('#plain')), true);
+  // both sides of the boundary
+  eq('an edge visible only from the inside passes', failed_('inner'), false);
+  near('#inner outside ratio', row('inner')?.outsideRatio ?? 1, 1.00, 0.02);
+  // the opacity group, on a boundary this time
+  eq('a dimmed edge fails on its PAINTED colour', failed_('dimmed'), true);
+  nearColour('#dimmed painted edge', row('dimmed')?.paint, '#999999', 1);
+  near('#dimmed ratio', row('dimmed')?.ratio ?? null, 2.85, 0.05);
+  eq('data-contrast-ok silences an enforced edge', bd.silenced, 1);
+  eq('the silenced one is #hushed', bd.silencedRows[0]?.label.includes('#hushed'), true);
+  eq('two failures, no more', bd.failures, 2);
+  await p3.close();
 });
 
 console.log(failed ? `\n${failed} selftest assertion(s) FAILED - do not trust the gate` : '\nselftest: all assertions pass');

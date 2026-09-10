@@ -15,6 +15,9 @@
 //          can see one: they walk nodeType 3, and a ring is not a text node
 //   paint  anything dimmed or color-mixed, read off the screenshot rather than
 //          out of getComputedStyle
+//   bound  borders, outlines and rules, also at 1.4.11's 3:1. The other half of
+//          what a text pass cannot see, and the reason --border:#556579 sat
+//          labelled "verified" while failing on all four surfaces
 //
 // The history that shaped this: the target used to invoke tools/contrast-audit.mjs
 // with --themes and --fail-under, and that file had never existed, so `make
@@ -31,7 +34,8 @@ import {paintPass} from './contrast/pass-paint.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DOM = join(HERE, 'contrast/pass-dom-text.js');
 const SVG = join(HERE, 'contrast/pass-svg-text.js');
-const ALL = ['text', 'svg', 'focus', 'paint'];
+const BOUND = join(HERE, 'contrast/pass-boundary.js');
+const ALL = ['text', 'svg', 'bound', 'focus', 'paint'];
 
 const args = process.argv.slice(2);
 const flag = name => {
@@ -78,6 +82,7 @@ await withChrome(async browser => {
         failed++; await page.close(); continue;
       }
       const svg = only.includes('svg') ? await page.run(SVG) : null;
+      const bound = only.includes('bound') ? await page.run(BOUND) : null;
       const focus = only.includes('focus') ? await focusPass(page) : null;
       const paint = only.includes('paint') ? await paintPass(page) : null;
 
@@ -105,6 +110,23 @@ await withChrome(async browser => {
           console.log(`        ${pad(String(b.cls).slice(0, 26), 26)} ${b.fg} on ${b.bg}  ` +
                       `${num(b.ratio, 5)}:1 need ${b.need}  ${b.px}px  "${b.text}"`);
         }
+      }
+      if (bound) {
+        console.log(`  bound ${num(bound.checked, 4)} edges    ${num(bound.failures, 3)} fail  ` +
+                    `lowest ${num(bound.lowest ?? '-', 5)}  need 3 (WCAG 1.4.11)  ` +
+                    `under 3 but decorative ${bound.informational}` +
+                    (bound.failures ? '   <-- LOOK' : ''));
+        if (bound.failures) failed++;
+        silencedTotal += bound.silenced;
+        for (const b of bound.bad.slice(0, 6)) {
+          console.log(`        ${pad(b.label.slice(0, 26), 26)} ${b.kind} ${b.px}px  ${b.paint}  ` +
+                      `out ${num(b.outsideRatio, 5)} in ${num(b.insideRatio, 5)}  ` +
+                      `${b.token ? 'token ' + b.token : 'interactive'}`);
+        }
+        if (bound.bad.length > 6) console.log(`        ... and ${bound.bad.length - 6} more`);
+        // Held to 3:1 by the engine and not enforced here would be a
+        // contradiction worth seeing, so print what the tokens actually are.
+        if (bound.failures) console.log(`        held tokens: --border ${bound.held['border']}, --border-2 ${bound.held['border-2']}`);
       }
       if (focus) {
         console.log(`  focus ${num(focus.examined, 4)} targets  ${num(focus.failures, 3)} fail  ` +
