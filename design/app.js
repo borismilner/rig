@@ -982,3 +982,92 @@ document.getElementById('gp-tabs').addEventListener('click',e=>{
   gpPaint();
 });
 gpPaint();
+
+/* ── 10. the element kit ──────────────────────────────────────────────────
+   R8: each element beside the fake application that uses it. The elements are
+   the real ones - RIGKIT is design/kit/kit.js, inlined by build.py in its own
+   scope - so what this section demonstrates is behaviour rather than a picture
+   of behaviour. The data is cmd/ledger's shape (an actor, a kind, a region and
+   a count), because an element shown on data it was not built against proves
+   the wrong thing. */
+const KIT_ROWS = [
+  { actor: 'shelf',    kind: 'enterprise', region: 'eu-west-1',  layers: 1284 },
+  { actor: 'graft',    kind: 'community',  region: 'us-east-1',  layers: 87 },
+  { actor: 'dispatch', kind: 'enterprise', region: 'eu-west-1',  layers: 4310 },
+  { actor: 'archi',    kind: 'community',  region: 'ap-south-1', layers: 512 },
+  { actor: 'snapper',  kind: 'community',  region: 'us-east-1',  layers: 33 },
+  { actor: 'nudge',    kind: 'enterprise', region: 'eu-north-1', layers: 2096 },
+];
+
+const KIT_COLS = [
+  { key: 'actor',  label: 'Actor',  type: 'str', cls: 'rig-mono' },
+  { key: 'kind',   label: 'Kind',   type: 'str' },
+  { key: 'region', label: 'Region', type: 'str', cls: 'rig-mono' },
+  { key: 'layers', label: 'Layers', type: 'num', fmt: v => v.toLocaleString() },
+];
+
+(function kitSection(){
+  const table = document.getElementById('k-table');
+  const bar   = document.getElementById('k-toolbar');
+  const panel = document.getElementById('k-panel');
+  if (!table || !bar || !panel) return;
+
+  // Its own table, not the toolbar's, so the two demonstrations are
+  // independent: filtering the toolbar below must not silently empty the table
+  // above and make it look broken.
+  RIGKIT.rigTable(table, KIT_COLS, KIT_ROWS, {});
+
+  // The toolbar's SECOND arrangement - search plus a select - because that is
+  // the one with something to show. It drives a table of its own, built into
+  // the same host, so the count is real rather than a number typed in.
+  const host = document.createElement('div');
+  const wrap = document.createElement('div');
+  wrap.className = 'rig-tablewrap';
+  wrap.style.marginBlockStart = '.7rem';
+  const t2 = document.createElement('table');
+  wrap.appendChild(t2);
+  bar.append(host, wrap);
+
+  // TWO columns, not four. The table above already shows all four, and two
+  // demonstrations of different elements that render the same six rows in the
+  // same four columns read as one demonstration printed twice. What this block
+  // is showing is the TOOLBAR - the search, the select and the live count - so
+  // the table under it is deliberately the smallest thing that makes the count
+  // and the filter real.
+  const narrow = KIT_COLS.filter(c => c.key === 'actor' || c.key === 'layers');
+
+  const tb = RIGKIT.rigToolbar(host, {
+    placeholder: 'filter by actor…',
+    searchLabel: 'Filter actors',
+    selectLabel: 'Narrow by kind',
+    options: [
+      { value: 'all',        label: 'every kind' },
+      { value: 'enterprise', label: 'enterprise only' },
+      { value: 'community',  label: 'community only' },
+    ],
+  });
+
+  const rows = RIGKIT.rigTable(t2, narrow, KIT_ROWS,
+    { countEl: tb.count, searchKeys: ['actor'] });
+
+  let kind = 'all';
+  const apply = () => rows.setRows(
+    kind === 'all' ? KIT_ROWS : KIT_ROWS.filter(r => r.kind === kind));
+  tb.select.addEventListener('change', () => { kind = tb.select.value; apply(); });
+  tb.input.addEventListener('input', () => rows.setFilter(tb.input.value));
+
+  // rigPanel RETURNS the element to put content in, and a panel with nothing
+  // in it demonstrates a border. What it is for is holding something under a
+  // caveat that has to travel with it, so it gets something to hold.
+  const body = RIGKIT.rigPanel(panel,
+    'Manifest-only is not the same as a scan',
+    'one window, one registry');
+  const say = document.createElement('p');
+  say.className = 'rig-lead';
+  say.style.margin = '0';
+  say.textContent =
+    'Layer counts come from each actor\u2019s manifest, which is what the ' +
+    'registry hands back. Nothing here pulled a blob, so a manifest that ' +
+    'disagrees with its own layers is counted as the manifest says.';
+  body.appendChild(say);
+})();

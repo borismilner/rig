@@ -688,6 +688,8 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
 :root[data-motion="0"] *{animation-duration:.01ms !important;animation-iteration-count:1 !important;
   transition-duration:.01ms !important}
 ::view-transition-old(root),::view-transition-new(root){animation-duration:.32s}
+
+/* KIT CSS */
 </style>
 </head>
 <body>
@@ -1033,6 +1035,58 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
   good, which is what this page is for. <b>Embedded panes are the escape hatch</b> - a program
   that needs something rig cannot draw serves its own HTML into a themed iframe with a typed
   bridge, and pays for it by owning that surface everywhere.</span>
+</div></section>
+
+<section><div class="wrap">
+  <h2><span class="n">10</span> The element kit</h2>
+  <h3>Three elements, each beside the program that made it one</h3>
+  <p class="say">Section 09 shows a renderer beside the declaration that produced it. An element
+  has no declaration - it is what a program asks for when it serves its own HTML - so it is shown
+  beside its <strong>caller</strong> instead. Every element below is the real kit, inlined from
+  <code>design/kit/kit.js</code> and <code>design/kit/kit.css</code> by the same build that makes
+  this page. <strong>Nothing here is a drawing of an element.</strong> Sort a column, type in a
+  filter: the behaviour is the behaviour <code>cmd/ledger</code> gets.</p>
+
+  <div class="gpx" style="margin-bottom:1.5rem">
+    <div class="gpx-side">
+      <div class="gpx-cap">called by <b>cmd/ledger</b></div>
+      <pre class="gpx-code"><span class="ln"><span class="k">rigTable</span>(</span><span class="ln">  el, cols, ROWS,</span><span class="ln">  { countEl: bar.<span class="k">count</span> },</span><span class="ln">);</span></pre>
+    </div>
+    <div class="gpx-live">
+      <div class="rig-tablewrap"><table id="k-table"></table></div>
+    </div>
+    <div class="gpx-cli"><span class="lbl">rigTable</span>
+      <code>click or Tab to a header and press Enter. <code>setRows</code> narrows the rows and keeps the sort.</code></div>
+  </div>
+
+  <div class="gpx" style="margin-bottom:1.5rem">
+    <div class="gpx-side">
+      <div class="gpx-cap">called by <b>cmd/ledger</b></div>
+      <pre class="gpx-code"><span class="ln"><span class="k">rigToolbar</span>(el, {</span><span class="ln">  placeholder: <span class="s">"filter by actor…"</span>,</span><span class="ln">  selectLabel: <span class="s">"Narrow by kind"</span>,</span><span class="ln">  options: [ … ],</span><span class="ln">});</span></pre>
+    </div>
+    <div class="gpx-live"><div id="k-toolbar"></div></div>
+    <div class="gpx-cli"><span class="lbl">rigToolbar</span>
+      <code>the search is unconditional and the select is not - which is one of the three places the kit is known to bend.</code></div>
+  </div>
+
+  <div class="gpx" style="margin-bottom:1.2rem">
+    <div class="gpx-side">
+      <div class="gpx-cap">called by <b>cmd/ledger</b></div>
+      <pre class="gpx-code"><span class="ln"><span class="k">rigPanel</span>(</span><span class="ln">  el,</span><span class="ln">  <span class="s">"Manifest-only is not a scan"</span>,</span><span class="ln">  <span class="s">"one window, one registry"</span>,</span><span class="ln">);</span></pre>
+    </div>
+    <div class="gpx-live"><div id="k-panel"></div></div>
+    <div class="gpx-cli"><span class="lbl">rigPanel</span>
+      <code>the caveat goes in the heading, where <code>pull-report</code> puts it: under the box it reads as applying to whatever comes next.</code></div>
+  </div>
+
+  <span class="cap" style="max-width:84ch"><b>Three, and the list was found by subtraction.</b>
+  The candidate set had eight; building the first fake application removed five. <code>heading</code>,
+  <code>lead</code> and <code>mono</code> are classes over tokens with no behaviour to emit;
+  <code>count</code> belongs to the toolbar and <code>empty-state</code> to the table, so neither is
+  something a program places itself. All five are still classes in <code>kit.css</code> - being a class
+  in the kit and being an element in section 5h R3's list are different things, and that difference is
+  the whole content of the subtraction. <b>The inventory is open</b> (R1) while the only adopters are
+  fake, and closes on the first real one.</span>
 </div></section>
 
 <footer><div class="wrap">

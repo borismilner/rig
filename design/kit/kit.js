@@ -221,9 +221,14 @@ export function rigTable(tableEl, cols, rows, opts = {}) {
 
     if (opts.countEl) {
       const capped = opts.limit && r.length > opts.limit;
+      // "1 rows" is the kind of thing nobody notices until a filter narrows to
+      // one and the element that is meant to look like rig's stops looking
+      // like anybody's. The count is singular only when it is uncapped and
+      // there is exactly one row: "1 of 40 rows" is about the 40.
+      const noun = !capped && r.length === 1 ? "row" : "rows";
       opts.countEl.textContent = capped
-        ? `${num(opts.limit)} of ${num(r.length)} rows`
-        : `${num(r.length)} rows`;
+        ? `${num(opts.limit)} of ${num(r.length)} ${noun}`
+        : `${num(r.length)} ${noun}`;
     }
   }
 

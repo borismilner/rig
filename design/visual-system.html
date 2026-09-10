@@ -688,6 +688,298 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
 :root[data-motion="0"] *{animation-duration:.01ms !important;animation-iteration-count:1 !important;
   transition-duration:.01ms !important}
 ::view-transition-old(root),::view-transition-new(root){animation-duration:.32s}
+
+/* rig's element kit.
+ *
+ * PLAN.md section 5h: an element is markup, tokens and behaviour, with no
+ * opinion about how the program builds the page around it. This file is the
+ * markup and tokens half; kit.js is the behaviour half, which is the half the
+ * plan says has no definition anywhere.
+ *
+ * WHERE THE TOKENS COME FROM. Nothing here defines a colour, a face or a size.
+ * Every value is a custom property that the window hands to the program's page
+ * over postMessage, so an element passes the same contrast gate the shell does
+ * (R5) and cannot become a second theme surface. A fallback is given for every
+ * one, so a program that loads this file outside a rig pane still renders
+ * something rather than a page of unset properties.
+ *
+ * WHY EVERY CLASS IS PREFIXED. The shape below is modelled on pull-report's
+ * measured markup, which uses bare `.toolbar`, `.lead`, `.panel` and
+ * `.tablewrap`. Those names are what a report page tends to own already, so
+ * shipping them bare would fight the adopter's own stylesheet on the day it
+ * adopts. An adopter renames its classes once; it does not debug a collision.
+ *
+ * WHAT IS DELIBERATELY NOT HERE. No spinner: no program in the estate has one
+ * (section 5h, measured), and two of them carry 114 skeletons between them.
+ * Adding one would be the inventory growing off a sentence again.
+ */
+
+/* ── heading and lead ──────────────────────────────────────────────────────
+ * Modelled on pull-report's <h2> + <p class="lead"> pair, which opens every
+ * one of its 16 table sections. The lead is a real paragraph explaining what
+ * the table means, so it is measured for reading rather than for chrome: a
+ * max-width in ch, and the dim foreground rather than the full one.
+ */
+.rig-heading {
+  margin: 0 0 0.4rem;
+  font-family: var(--disp, inherit);
+  font-size: var(--fs-1, 1.3rem);
+  font-weight: 600;
+  letter-spacing: var(--tight-disp, normal);
+  color: var(--fg, #dae5f3);
+}
+
+.rig-lead {
+  margin: 0 0 0.9rem;
+  max-width: 68ch;
+  color: var(--fg-dim, #9aa6bb);
+}
+
+.rig-mono {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: var(--fs--1, 0.85em);
+}
+
+/* ── toolbar ───────────────────────────────────────────────────────────────
+ * Search, an optional select, and a live count. pull-report labels its search
+ * with a placeholder and nothing else, so a screen reader reaches an unnamed
+ * text field; kit.js gives every control a real label and hides it visually
+ * rather than omitting it.
+ */
+.rig-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.6rem;
+}
+
+.rig-toolbar input[type="search"],
+.rig-toolbar select {
+  font: inherit;
+  /* Grows to its content rather than clipping it: at a fixed 18ch the first
+     placeholder written for it, "filter by actor, kind or region", lost its
+     last four characters. A placeholder that does not fit is a label that
+     cannot be read. */
+  flex: 1 1 26ch;
+  max-width: 44ch;
+  padding: 0.35rem 0.55rem;
+  color: var(--fg, #dae5f3);
+  background: var(--bg-2, #1a2430);
+  border: 1px solid var(--border, #36425a);
+  border-radius: var(--radius, 6px);
+}
+
+.rig-toolbar input[type="search"]::placeholder {
+  color: var(--fg-faint, #7c879b);
+}
+
+/* One ring, from the same tokens as the shell's, so a pane does not introduce
+ * a second focus idiom. :focus-visible rather than :focus, because these are
+ * text controls a pointer user clicks constantly. */
+.rig-toolbar input[type="search"]:focus-visible,
+.rig-toolbar select:focus-visible,
+.rig-table th button:focus-visible {
+  outline: var(--ring-w, 3px) solid var(--hue, var(--fg, #dae5f3));
+  outline-offset: 1px;
+}
+
+/* Live, so a filter that changes the row count is announced rather than only
+ * drawn. kit.js sets aria-live on this element. */
+.rig-count {
+  color: var(--fg-faint, #7c879b);
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: var(--fs--1, 0.85em);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── panel ────────────────────────────────────────────────────────────────
+ * pull-report's boxed content: a title with a caveat in the heading itself,
+ * which is where the caveat belongs rather than under the box where it can be
+ * read as applying to the next thing.
+ */
+.rig-panel {
+  margin: 0 0 0.9rem;
+  padding: 0.7rem 0.85rem;
+  background: var(--panel, #212a34);
+  border: 1px solid var(--border, #36425a);
+  border-radius: var(--radius, 6px);
+}
+
+.rig-panel > .rig-panel-title {
+  margin: 0 0 0.5rem;
+  font-size: var(--fs-0, 1rem);
+  font-weight: 600;
+  color: var(--fg, #dae5f3);
+}
+
+.rig-panel-title .rig-note {
+  margin-left: 0.5rem;
+  font-weight: 400;
+  color: var(--fg-dim, #9aa6bb);
+}
+
+/* ── table ────────────────────────────────────────────────────────────────
+ * The bounded scroll box is what keeps a 5,000-row table from growing the page
+ * without limit, and it is also what the sticky head sticks to: the head
+ * freezes at the top of its nearest scrolling ancestor, so the box has to be
+ * that ancestor. Both measured in pull-report at style.css:104 and :131.
+ */
+.rig-tablewrap {
+  position: relative;
+  overflow: auto;
+  max-height: var(--rig-table-max-h, 72vh);
+  background: var(--panel, #212a34);
+  border: 1px solid var(--border, #36425a);
+  border-radius: var(--radius, 6px);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-2, #475572) transparent;
+}
+
+.rig-tablewrap::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+.rig-tablewrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.rig-tablewrap::-webkit-scrollbar-thumb {
+  background: var(--border-2, #475572);
+  border: 3px solid var(--panel, #212a34);
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+/* Pinned to the bottom of the scroll viewport, so a capped table reads as a
+ * scroll region rather than as an excerpt someone sliced off. */
+.rig-tablewrap::after {
+  content: "";
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  display: block;
+  height: 22px;
+  margin-top: -22px;
+  pointer-events: none;
+  background: linear-gradient(transparent, var(--panel, #212a34));
+}
+
+.rig-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs--1, 0.9em);
+}
+
+.rig-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0;
+  background: var(--bg-2, #1a2430);
+  box-shadow: inset 0 -1px 0 var(--border, #36425a);
+  white-space: nowrap;
+}
+
+/* The header's control is a real button, which is the whole of the kit's
+ * argument for this element existing. pull-report sorts on a click listener
+ * attached to a bare <th>: not focusable, no Enter, no Space, no aria-sort, so
+ * a keyboard user cannot sort any of its 16 tables. A button is focusable and
+ * gets both keys for free rather than by a keydown handler that has to
+ * re-implement them. It is styled flat so the visual is unchanged. */
+.rig-table th button {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font: inherit;
+  font-weight: 600;
+  color: var(--fg-dim, #9aa6bb);
+  background: none;
+  border: 0;
+  border-radius: 0;
+  text-align: inherit;
+  cursor: pointer;
+  user-select: none;
+}
+
+.rig-table th button:hover {
+  color: var(--fg, #dae5f3);
+}
+
+/* Scoped to the sorted column, and that is a fix rather than a copy:
+ * pull-report toggles `asc` on every th in the row, so with an ascending sort
+ * all of its headers claim to be the ascending one. */
+.rig-table th[aria-sort] button {
+  color: var(--fg, #dae5f3);
+}
+
+.rig-table th[aria-sort="descending"] button::after {
+  content: " ▾";
+  color: var(--hue, var(--fg, #dae5f3));
+}
+
+.rig-table th[aria-sort="ascending"] button::after {
+  content: " ▴";
+  color: var(--hue, var(--fg, #dae5f3));
+}
+
+/* By type, set from the column declaration in kit.js, rather than by position.
+ * A positional rule reads correctly only for a table whose first column is its
+ * label, which is the shape it was copied from and not the shape of every
+ * report. */
+.rig-table :is(th, td).rig-l {
+  text-align: left;
+}
+
+.rig-table :is(th, td).rig-r {
+  text-align: right;
+}
+
+.rig-table td {
+  padding: 0.45rem 0.75rem;
+  border-top: 1px solid var(--border, #36425a);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.rig-table tbody tr:hover {
+  background: var(--bg-2, #1a2430);
+}
+
+/* ── empty state ──────────────────────────────────────────────────────────
+ * A filter that matches nothing leaves pull-report with an empty tbody and no
+ * words at all, which reads as a broken table rather than as a filter that
+ * excluded everything. One row, spanning the table, saying which it is.
+ */
+.rig-empty {
+  padding: 1.4rem 0.75rem;
+  color: var(--fg-dim, #9aa6bb);
+  text-align: center;
+  white-space: normal;
+}
+
+/* Named, not omitted: a control with no visible label still has one. */
+.rig-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── holding the paint ─────────────────────────────────────────────────────
+ * pane.js sets this while it waits for the first token set, and removes it
+ * either when the set arrives or when the wait runs out. Visibility rather
+ * than display, so the page's layout is already settled when it appears.
+ */
+[data-rig-holding] {
+  visibility: hidden;
+}
+
 </style>
 </head>
 <body>
@@ -752,6 +1044,7 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
   <a href="#s-when-a-program-crashes"><b>07</b> When a program crashes</a>
   <a href="#s-who-is-using-rig"><b>08</b> Who is using rig</a>
   <a href="#s-generated-panes"><b>09</b> Generated panes</a>
+  <a href="#s-the-element-kit"><b>10</b> The element kit</a>
 </nav>
 
 <section id="s-the-window"><div class="wrap">
@@ -1045,6 +1338,58 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
   bridge, and pays for it by owning that surface everywhere.</span>
 </div></section>
 
+<section id="s-the-element-kit"><div class="wrap">
+  <h2><span class="n">10</span> The element kit</h2>
+  <h3>Three elements, each beside the program that made it one</h3>
+  <p class="say">Section 09 shows a renderer beside the declaration that produced it. An element
+  has no declaration - it is what a program asks for when it serves its own HTML - so it is shown
+  beside its <strong>caller</strong> instead. Every element below is the real kit, inlined from
+  <code>design/kit/kit.js</code> and <code>design/kit/kit.css</code> by the same build that makes
+  this page. <strong>Nothing here is a drawing of an element.</strong> Sort a column, type in a
+  filter: the behaviour is the behaviour <code>cmd/ledger</code> gets.</p>
+
+  <div class="gpx" style="margin-bottom:1.5rem">
+    <div class="gpx-side">
+      <div class="gpx-cap">called by <b>cmd/ledger</b></div>
+      <pre class="gpx-code"><span class="ln"><span class="k">rigTable</span>(</span><span class="ln">  el, cols, ROWS,</span><span class="ln">  { countEl: bar.<span class="k">count</span> },</span><span class="ln">);</span></pre>
+    </div>
+    <div class="gpx-live">
+      <div class="rig-tablewrap"><table id="k-table"></table></div>
+    </div>
+    <div class="gpx-cli"><span class="lbl">rigTable</span>
+      <code>click or Tab to a header and press Enter. <code>setRows</code> narrows the rows and keeps the sort.</code></div>
+  </div>
+
+  <div class="gpx" style="margin-bottom:1.5rem">
+    <div class="gpx-side">
+      <div class="gpx-cap">called by <b>cmd/ledger</b></div>
+      <pre class="gpx-code"><span class="ln"><span class="k">rigToolbar</span>(el, {</span><span class="ln">  placeholder: <span class="s">"filter by actor…"</span>,</span><span class="ln">  selectLabel: <span class="s">"Narrow by kind"</span>,</span><span class="ln">  options: [ … ],</span><span class="ln">});</span></pre>
+    </div>
+    <div class="gpx-live"><div id="k-toolbar"></div></div>
+    <div class="gpx-cli"><span class="lbl">rigToolbar</span>
+      <code>the search is unconditional and the select is not - which is one of the three places the kit is known to bend.</code></div>
+  </div>
+
+  <div class="gpx" style="margin-bottom:1.2rem">
+    <div class="gpx-side">
+      <div class="gpx-cap">called by <b>cmd/ledger</b></div>
+      <pre class="gpx-code"><span class="ln"><span class="k">rigPanel</span>(</span><span class="ln">  el,</span><span class="ln">  <span class="s">"Manifest-only is not a scan"</span>,</span><span class="ln">  <span class="s">"one window, one registry"</span>,</span><span class="ln">);</span></pre>
+    </div>
+    <div class="gpx-live"><div id="k-panel"></div></div>
+    <div class="gpx-cli"><span class="lbl">rigPanel</span>
+      <code>the caveat goes in the heading, where <code>pull-report</code> puts it: under the box it reads as applying to whatever comes next.</code></div>
+  </div>
+
+  <span class="cap" style="max-width:84ch"><b>Three, and the list was found by subtraction.</b>
+  The candidate set had eight; building the first fake application removed five. <code>heading</code>,
+  <code>lead</code> and <code>mono</code> are classes over tokens with no behaviour to emit;
+  <code>count</code> belongs to the toolbar and <code>empty-state</code> to the table, so neither is
+  something a program places itself. All five are still classes in <code>kit.css</code> - being a class
+  in the kit and being an element in section 5h R3's list are different things, and that difference is
+  the whole content of the subtraction. <b>The inventory is open</b> (R1) while the only adopters are
+  fake, and closes on the first real one.</span>
+</div></section>
+
 <footer><div class="wrap">
   rig visual system &middot; tokens generated by <code>design/theme.js</code> &middot;
   hues in oklch, neutrals solved against WCAG 2.x &middot; view transitions, anchor positioning,
@@ -1054,7 +1399,7 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
 </div></footer>
 
 <script>
-/* generated by design/build.py from theme.js + app.js - edit those */
+/* generated by design/build.py from theme.js + kit/kit.js + app.js - edit those */
 (function(){
 /* ═══════════════════════════════════════════════════════════════════════════
    rig - the theme engine.
@@ -1379,6 +1724,335 @@ function optimiseHues(theme, mode){
   return best;
 }
 
+var RIGKIT = (function(){
+/* rig's element kit: the behaviour half.
+ *
+ * PLAN.md section 5h calls behaviour "the half with no definition anywhere -
+ * focus order, keyboard handling, what a click does - and the fake
+ * applications are where it gets one". This file is that definition, and every
+ * semantic in it was copied from a measured program rather than invented:
+ * pull-report's assets/app.js:107 makeTable(tableEl, cols, rows, opts).
+ *
+ * WHAT WAS COPIED, so an adopter's tables behave as they already do:
+ *   - the default sort is the first column, descending
+ *   - clicking the current sort column flips its direction
+ *   - clicking a new column sets direction by type: strings ascending,
+ *     everything else descending
+ *   - the filter is a case-insensitive substring across the string columns, or
+ *     across opts.searchKeys when given
+ *   - rows are capped (5,000 by default) so one table cannot hang the page
+ *   - a column may carry html(row), fmt(value, row) and cls
+ *   - an absent value renders as an em dash
+ *
+ * WHAT WAS NOT COPIED, and is the reason this tier exists:
+ *   - pull-report's sort is MOUSE ONLY. It attaches a click listener to a bare
+ *     <th>, which is not focusable, has no Enter or Space, and carries no
+ *     aria-sort. A keyboard user cannot sort a single one of its 16 tables.
+ *     Here the header's control is a <button>, so focus and both keys come
+ *     from the platform rather than from a keydown handler, and aria-sort is
+ *     on the <th> where a screen reader looks for it.
+ *   - its `asc` class is toggled on every <th>, so an ascending sort marks
+ *     every column as the ascending one. aria-sort here is set on the sorted
+ *     column and removed from the rest.
+ *   - its filter input has a placeholder and no label, so the field reaches a
+ *     screen reader unnamed. Every control here gets a real label, hidden
+ *     visually rather than left out.
+ *   - a filter that matches nothing leaves it with an empty tbody and no
+ *     words. Here it says so, in a row that spans the table.
+ *
+ * R6: no element knows which program is holding it. Nothing below reads a
+ * program id, and the only colour any of it uses is --hue, whatever the window
+ * currently points that at.
+ */
+
+const EM_DASH = "—";
+
+/* Alignment follows the column's TYPE and not its position, which is the third
+ * bend the first fake application forced. pull-report aligns its first column
+ * left and every other column right, and that reads correctly there because
+ * its first column is always the label and the rest are always counts. A report
+ * that leads with a number and follows with names gets right-aligned text out
+ * of the same rule, which looks like a mistake because it is one. Text reads
+ * from the left; figures line up on the right. */
+function alignOf(c) {
+  return c.type === "str" ? "rig-l" : "rig-r";
+}
+
+function el(tag, className, text) {
+  const n = document.createElement(tag);
+  if (className) n.className = className;
+  if (text !== undefined) n.textContent = text;
+  return n;
+}
+
+/* A count, grouped the way a reader scans one. Its own function because the
+ * toolbar and the empty state both say it and must agree. */
+function num(n) {
+  return n.toLocaleString();
+}
+
+/* ── table ────────────────────────────────────────────────────────────────
+ *
+ * rigTable(tableEl, cols, rows, opts) -> { setFilter, rowCount }
+ *
+ * cols: [{ key, label, type, fmt, html, cls }]
+ *   type "str" sorts as text and joins the default filter; anything else
+ *   sorts numerically. A column is filtered on only if it is text, unless
+ *   opts.searchKeys names the keys instead.
+ * opts: { sortKey, sortDir, limit, searchKeys, countEl, emptyText }
+ *
+ * Sort state is held by column INDEX and not by key, which is a bend the first
+ * fake application forced. A report legitimately shows one field twice - a raw
+ * count and its share of a total - and keying the header state by c.key made
+ * the second column overwrite the first, so aria-sort landed on the wrong one
+ * and sorting was ambiguous. pull-report never does this, so its makeTable
+ * never had to; the kit is the half that bends (section 5h).
+ */
+function rigTable(tableEl, cols, rows, opts = {}) {
+  let sortAt = opts.sortKey
+    ? Math.max(
+        0,
+        cols.findIndex((c) => c.key === opts.sortKey),
+      )
+    : 0;
+  let sortDir = opts.sortDir || -1;
+  let filter = "";
+  let shown = 0;
+  let data = rows;
+
+  tableEl.classList.add("rig-table");
+  tableEl.replaceChildren();
+
+  const head = el("thead");
+  const hr = el("tr");
+  const headers = [];
+
+  cols.forEach((c, i) => {
+    const th = el("th");
+    th.dataset.key = c.key;
+    th.classList.add(alignOf(c));
+
+    // A button, not a listener on the <th>. This is the element's whole
+    // contribution over the markup it was modelled on.
+    const b = el("button", null, c.label);
+    b.type = "button";
+    b.addEventListener("click", () => {
+      if (sortAt === i) sortDir = -sortDir;
+      else {
+        sortAt = i;
+        sortDir = c.type === "str" ? 1 : -1;
+      }
+      render();
+      // Focus stays on the control that was pressed, so a keyboard user can
+      // press it again to flip rather than having to find it a second time.
+      b.focus();
+    });
+
+    th.appendChild(b);
+    headers[i] = th;
+    hr.appendChild(th);
+  });
+
+  head.appendChild(hr);
+  const body = el("tbody");
+  tableEl.append(head, body);
+
+  if (opts.countEl) {
+    // Polite, so a filter's result is heard once it settles rather than on
+    // every keystroke.
+    opts.countEl.setAttribute("aria-live", "polite");
+    opts.countEl.classList.add("rig-count");
+  }
+
+  function matching() {
+    if (!filter) return data;
+    const f = filter.toLowerCase();
+    const keys =
+      opts.searchKeys ||
+      cols.filter((c) => c.type === "str").map((c) => c.key);
+    return data.filter((row) =>
+      keys.some((k) =>
+        String(row[k] ?? "")
+          .toLowerCase()
+          .includes(f),
+      ),
+    );
+  }
+
+  function sorted(r) {
+    const col = cols[sortAt];
+    const key = col.key;
+    const text = col.type === "str";
+    return [...r].sort((a, b) => {
+      const av = a[key];
+      const bv = b[key];
+      if (text) {
+        const as = String(av ?? "");
+        const bs = String(bv ?? "");
+        return as < bs ? -sortDir : as > bs ? sortDir : 0;
+      }
+      return (Number(av || 0) - Number(bv || 0)) * sortDir;
+    });
+  }
+
+  function render() {
+    const r = sorted(matching());
+    shown = r.length;
+
+    // On the sorted column only, and removed from the others. The attribute is
+    // what a screen reader reads and what the indicator is drawn from, so
+    // there is one source for both rather than a class and an attribute that
+    // can disagree.
+    headers.forEach((th, i) => {
+      if (i === sortAt) {
+        th.setAttribute("aria-sort", sortDir === 1 ? "ascending" : "descending");
+      } else {
+        th.removeAttribute("aria-sort");
+      }
+    });
+
+    body.replaceChildren();
+
+    if (r.length === 0) {
+      const tr = el("tr");
+      const td = el(
+        "td",
+        "rig-empty",
+        filter
+          ? `Nothing matches "${filter}".`
+          : (opts.emptyText ?? "This table has no rows."),
+      );
+      td.colSpan = cols.length;
+      tr.appendChild(td);
+      body.appendChild(tr);
+    } else {
+      const frag = document.createDocumentFragment();
+      r.slice(0, opts.limit || 5000).forEach((row) => {
+        const tr = el("tr");
+        cols.forEach((c) => {
+          const td = el("td");
+          if (c.html) td.innerHTML = c.html(row);
+          else if (c.fmt) td.textContent = c.fmt(row[c.key], row);
+          else td.textContent = row[c.key] ?? EM_DASH;
+          td.classList.add(alignOf(c));
+          // add rather than assign: assigning clobbered the alignment the
+          // line above had just set, which is the sort of thing that only
+          // shows up when a column carries both.
+          if (c.cls) td.classList.add(...c.cls.split(/\s+/).filter(Boolean));
+          tr.appendChild(td);
+        });
+        frag.appendChild(tr);
+      });
+      body.appendChild(frag);
+    }
+
+    if (opts.countEl) {
+      const capped = opts.limit && r.length > opts.limit;
+      // "1 rows" is the kind of thing nobody notices until a filter narrows to
+      // one and the element that is meant to look like rig's stops looking
+      // like anybody's. The count is singular only when it is uncapped and
+      // there is exactly one row: "1 of 40 rows" is about the 40.
+      const noun = !capped && r.length === 1 ? "row" : "rows";
+      opts.countEl.textContent = capped
+        ? `${num(opts.limit)} of ${num(r.length)} ${noun}`
+        : `${num(r.length)} ${noun}`;
+    }
+  }
+
+  render();
+
+  return {
+    setFilter(v) {
+      filter = v;
+      render();
+    },
+
+    // The other bend the first fake application forced. The measured API has
+    // only setFilter, so a <select> that narrows by category - which
+    // pull-report puts beside its search - had nowhere to go: it is not text
+    // typed into a box, it is a different set of rows. Rebuilding the table per
+    // selection would lose the sort the reader had chosen, which is the part
+    // that makes this an element rather than a redraw.
+    setRows(next) {
+      data = next;
+      render();
+    },
+
+    get rowCount() {
+      return shown;
+    },
+  };
+}
+
+/* ── toolbar ──────────────────────────────────────────────────────────────
+ *
+ * rigToolbar(host, opts) -> { input, select, count }
+ *
+ * Search, an optional select, and a live count, wired to whatever is given in
+ * opts.onsearch / opts.onselect. It emits events and reads no program state,
+ * which is R6: it takes data and emits, and never learns whose table it is.
+ */
+function rigToolbar(host, opts = {}) {
+  host.classList.add("rig-toolbar");
+  host.replaceChildren();
+
+  const id = `rig-${Math.random().toString(36).slice(2, 8)}`;
+
+  const label = el("label", "rig-sr", opts.searchLabel || "Filter rows");
+  label.htmlFor = `${id}-search`;
+
+  const input = el("input");
+  input.type = "search";
+  input.id = `${id}-search`;
+  input.placeholder = opts.placeholder || "filter…";
+
+  host.append(label, input);
+
+  let select = null;
+  if (opts.options && opts.options.length) {
+    const slabel = el("label", "rig-sr", opts.selectLabel || "Narrow rows");
+    slabel.htmlFor = `${id}-select`;
+    select = el("select");
+    select.id = `${id}-select`;
+    opts.options.forEach((o) => {
+      const option = el("option", null, o.label);
+      option.value = o.value;
+      select.appendChild(option);
+    });
+    if (opts.onselect) {
+      select.addEventListener("change", () => opts.onselect(select.value));
+    }
+    host.append(slabel, select);
+  }
+
+  const count = el("span", "rig-count");
+  host.appendChild(count);
+
+  if (opts.onsearch) {
+    input.addEventListener("input", () => opts.onsearch(input.value));
+  }
+
+  return { input, select, count };
+}
+
+/* ── panel ────────────────────────────────────────────────────────────────
+ *
+ * rigPanel(host, title, note) -> the element to put content in
+ *
+ * The caveat goes in the heading, which is where pull-report puts it: under
+ * the box it reads as applying to whatever comes next.
+ */
+function rigPanel(host, title, note) {
+  host.classList.add("rig-panel");
+  const h = el("h3", "rig-panel-title", title);
+  if (note) h.appendChild(el("span", "rig-note", note));
+  const content = el("div");
+  host.replaceChildren(h, content);
+  return content;
+}
+
+return {rigTable, rigToolbar, rigPanel};
+})();
 
 /* ══ state ══════════════════════════════════════════════════════════════ */
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -2362,6 +3036,95 @@ document.getElementById('gp-tabs').addEventListener('click',e=>{
   gpPaint();
 });
 gpPaint();
+
+/* ── 10. the element kit ──────────────────────────────────────────────────
+   R8: each element beside the fake application that uses it. The elements are
+   the real ones - RIGKIT is design/kit/kit.js, inlined by build.py in its own
+   scope - so what this section demonstrates is behaviour rather than a picture
+   of behaviour. The data is cmd/ledger's shape (an actor, a kind, a region and
+   a count), because an element shown on data it was not built against proves
+   the wrong thing. */
+const KIT_ROWS = [
+  { actor: 'shelf',    kind: 'enterprise', region: 'eu-west-1',  layers: 1284 },
+  { actor: 'graft',    kind: 'community',  region: 'us-east-1',  layers: 87 },
+  { actor: 'dispatch', kind: 'enterprise', region: 'eu-west-1',  layers: 4310 },
+  { actor: 'archi',    kind: 'community',  region: 'ap-south-1', layers: 512 },
+  { actor: 'snapper',  kind: 'community',  region: 'us-east-1',  layers: 33 },
+  { actor: 'nudge',    kind: 'enterprise', region: 'eu-north-1', layers: 2096 },
+];
+
+const KIT_COLS = [
+  { key: 'actor',  label: 'Actor',  type: 'str', cls: 'rig-mono' },
+  { key: 'kind',   label: 'Kind',   type: 'str' },
+  { key: 'region', label: 'Region', type: 'str', cls: 'rig-mono' },
+  { key: 'layers', label: 'Layers', type: 'num', fmt: v => v.toLocaleString() },
+];
+
+(function kitSection(){
+  const table = document.getElementById('k-table');
+  const bar   = document.getElementById('k-toolbar');
+  const panel = document.getElementById('k-panel');
+  if (!table || !bar || !panel) return;
+
+  // Its own table, not the toolbar's, so the two demonstrations are
+  // independent: filtering the toolbar below must not silently empty the table
+  // above and make it look broken.
+  RIGKIT.rigTable(table, KIT_COLS, KIT_ROWS, {});
+
+  // The toolbar's SECOND arrangement - search plus a select - because that is
+  // the one with something to show. It drives a table of its own, built into
+  // the same host, so the count is real rather than a number typed in.
+  const host = document.createElement('div');
+  const wrap = document.createElement('div');
+  wrap.className = 'rig-tablewrap';
+  wrap.style.marginBlockStart = '.7rem';
+  const t2 = document.createElement('table');
+  wrap.appendChild(t2);
+  bar.append(host, wrap);
+
+  // TWO columns, not four. The table above already shows all four, and two
+  // demonstrations of different elements that render the same six rows in the
+  // same four columns read as one demonstration printed twice. What this block
+  // is showing is the TOOLBAR - the search, the select and the live count - so
+  // the table under it is deliberately the smallest thing that makes the count
+  // and the filter real.
+  const narrow = KIT_COLS.filter(c => c.key === 'actor' || c.key === 'layers');
+
+  const tb = RIGKIT.rigToolbar(host, {
+    placeholder: 'filter by actor…',
+    searchLabel: 'Filter actors',
+    selectLabel: 'Narrow by kind',
+    options: [
+      { value: 'all',        label: 'every kind' },
+      { value: 'enterprise', label: 'enterprise only' },
+      { value: 'community',  label: 'community only' },
+    ],
+  });
+
+  const rows = RIGKIT.rigTable(t2, narrow, KIT_ROWS,
+    { countEl: tb.count, searchKeys: ['actor'] });
+
+  let kind = 'all';
+  const apply = () => rows.setRows(
+    kind === 'all' ? KIT_ROWS : KIT_ROWS.filter(r => r.kind === kind));
+  tb.select.addEventListener('change', () => { kind = tb.select.value; apply(); });
+  tb.input.addEventListener('input', () => rows.setFilter(tb.input.value));
+
+  // rigPanel RETURNS the element to put content in, and a panel with nothing
+  // in it demonstrates a border. What it is for is holding something under a
+  // caveat that has to travel with it, so it gets something to hold.
+  const body = RIGKIT.rigPanel(panel,
+    'Manifest-only is not the same as a scan',
+    'one window, one registry');
+  const say = document.createElement('p');
+  say.className = 'rig-lead';
+  say.style.margin = '0';
+  say.textContent =
+    'Layer counts come from each actor\u2019s manifest, which is what the ' +
+    'registry hands back. Nothing here pulled a blob, so a manifest that ' +
+    'disagrees with its own layers is counted as the manifest says.';
+  body.appendChild(say);
+})();
 
 })();
 </script>
