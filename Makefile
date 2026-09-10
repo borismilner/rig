@@ -82,6 +82,10 @@ dev: ## Run the daemon with reload on save (needs air)
 
 clean: ## Remove build output, coverage and generated artefacts
 	rm -rf build dist
+	# The window's assets are embedded, so a clean that leaves them behind is
+	# how yesterday's frontend ships inside today's binary. .gitkeep stays:
+	# go:embed needs the directory to exist even when nothing is built.
+	@test -d cmd/rigwindow/dist && find cmd/rigwindow/dist -mindepth 1 ! -name .gitkeep -delete || true
 
 ##@ Test
 
