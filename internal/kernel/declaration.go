@@ -223,6 +223,23 @@ func (d Declaration) Validate() error {
 		add("identity.id is empty")
 	} else if reserved[d.Identity.ID] {
 		add("identity.id %q is reserved for rig itself", d.Identity.ID)
+	} else if bad := badID(d.Identity.ID); bad != "" {
+		add("identity.id %q %s", d.Identity.ID, bad)
+	}
+
+	// A program does not choose which scope it is in.
+	//
+	// Register would otherwise put the declared value straight into the
+	// principal's scope set, so a program declaring scope "beta" would read
+	// beta's declaration - the seventh view leaking, from attacker-controlled
+	// input, with nothing behind it. Joining a scope is what a crew is, and a
+	// crew is section 16 at M7. Until then the only scope is a program's own
+	// id, and asking for another is refused rather than quietly ignored: a
+	// program that asked for something and did not get it should be told.
+	if d.Scope != "" && d.Scope != d.Identity.ID {
+		add("scope %q is not this program's own id: a program does not choose "+
+			"its scope, and joining one is the peers service at M7 (section 16)",
+			d.Scope)
 	}
 	if d.Identity.Version == "" {
 		add("identity.version is empty")
@@ -262,6 +279,28 @@ func (d Declaration) Validate() error {
 
 // reserved is rig's own namespace, which no program may take.
 var reserved = map[string]bool{"rig": true, "rigd": true}
+
+// badID says why an id cannot be used, or returns empty.
+//
+// A method is <program>.<command> and the split takes the FIRST dot, so a
+// program whose id contains one is a program none of whose commands can ever
+// be addressed. It registers happily and is then unreachable, which is worse
+// than being refused.
+func badID(id string) string {
+	if strings.ContainsRune(id, '.') {
+		return "contains a dot: a method is <program>.<command> and the split " +
+			"takes the first one, so this program's commands would be unaddressable"
+	}
+	if strings.TrimSpace(id) != id || strings.ContainsAny(id, " \t\n\r") {
+		return "has surrounding or embedded whitespace"
+	}
+	for _, r := range id {
+		if r < 0x20 || r == 0x7f {
+			return "contains a control character"
+		}
+	}
+	return ""
+}
 
 // missing lists the mandatory properties this command did not declare.
 func (c Command) missing() []string {

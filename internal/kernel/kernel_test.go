@@ -278,3 +278,79 @@ func ids(ps []kernel.Program) []string {
 	}
 	return out
 }
+
+// A program does not choose its scope. Register puts the declared value into
+// the principal's scope set, so accepting one would let a program read
+// another's declaration from attacker-controlled input.
+func TestADeclaredScopeThatIsNotItsOwnIDIsRefused(t *testing.T) {
+	d := good("alpha")
+	d.Scope = "beta"
+	err := d.Validate()
+	if err == nil {
+		t.Fatal("a program declared beta's scope and was accepted")
+	}
+	if !strings.Contains(err.Error(), "does not choose") {
+		t.Fatalf("the refusal does not say why: %v", err)
+	}
+
+	// Its own id is fine, and so is saying nothing.
+	d.Scope = "alpha"
+	if err := d.Validate(); err != nil {
+		t.Fatalf("a program may name its own scope: %v", err)
+	}
+	d.Scope = ""
+	if err := d.Validate(); err != nil {
+		t.Fatalf("saying nothing is the normal case: %v", err)
+	}
+}
+
+// Proof that the scope hole was real: without the rule above, alpha reads
+// beta by asking for beta's scope.
+func TestAForgedScopeCannotReadAnotherProgram(t *testing.T) {
+	k := kernel.New()
+	mustRegister(t, k, "beta")
+
+	forged := good("alpha")
+	forged.Scope = "beta"
+	if _, err := k.Register(programPrincipal("alpha"), forged); err == nil {
+		t.Fatal("a program registered itself into another program's scope")
+	}
+}
+
+// A method is <program>.<command> and the split takes the first dot, so an id
+// with one in it registers and is then unreachable.
+func TestAnUnaddressableIDIsRefused(t *testing.T) {
+	for _, id := range []string{"foo.bar", "with space", " lead", "trail "} {
+		d := good(id)
+		if err := d.Validate(); err == nil {
+			t.Fatalf("%q was accepted as a program id", id)
+		}
+	}
+}
+
+// A View must not hand out the registry's own memory. Nothing edits it today,
+// which is precisely why this would have been found late.
+func TestAViewsCommandsDoNotAliasTheRegistry(t *testing.T) {
+	k := kernel.New()
+	d := good("alpha")
+	d.Commands[0].Sensitive = []string{"/args/token"}
+	d.Commands[0].Examples = []string{"alpha reindex"}
+	p, err := k.Register(programPrincipal("alpha"), d)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	first, _ := k.See(p).Program("alpha")
+	first.Commands[0].Sensitive[0] = "/args/CLOBBERED"
+	first.Commands[0].Examples[0] = "CLOBBERED"
+
+	second, _ := k.See(p).Program("alpha")
+	if second.Commands[0].Sensitive[0] != "/args/token" {
+		t.Fatalf("a reader edited the registry's sensitive list: %v",
+			second.Commands[0].Sensitive)
+	}
+	if second.Commands[0].Examples[0] != "alpha reindex" {
+		t.Fatalf("a reader edited the registry's examples: %v",
+			second.Commands[0].Examples)
+	}
+}

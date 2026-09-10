@@ -183,6 +183,29 @@ func program(e entry) Program {
 		SemanticsGen: e.decl.SemanticsGen,
 		Services:     slices.Clone(e.decl.Services),
 		Hosted:       e.decl.Hosted,
-		Commands:     slices.Clone(e.decl.Commands),
+		Commands:     cloneCommands(e.decl.Commands),
 	}
+}
+
+// cloneCommands copies the slice fields inside each command as well as the
+// slice of commands.
+//
+// slices.Clone alone is shallow: the Command structs are copied but their
+// Sensitive, Examples, Args and Preconditions still point at the registry's
+// own memory, so a reader holding a View could edit what a program declared.
+// Nothing does that today, which is exactly why it would have been found
+// late.
+func cloneCommands(in []Command) []Command {
+	if in == nil {
+		return nil
+	}
+	out := make([]Command, len(in))
+	for i, c := range in {
+		c.Sensitive = slices.Clone(c.Sensitive)
+		c.Examples = slices.Clone(c.Examples)
+		c.Args = slices.Clone(c.Args)
+		c.Preconditions = slices.Clone(c.Preconditions)
+		out[i] = c
+	}
+	return out
 }

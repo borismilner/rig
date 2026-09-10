@@ -262,6 +262,22 @@ func (d *Daemon) serveSelf(c *conn, f *rigv1.Frame, command string) {
 			return
 		}
 
+		// One handshake per connection.
+		//
+		// Section 14 makes registration a property of the connection, and a
+		// second hello was worse than merely odd: with a different id it
+		// registered a second program on the same session, and only the last
+		// id was removed from the routing map on close - leaving a name that
+		// pointed at a dead connection and answered every call with a
+		// timeout.
+		if c.scoped.Load() {
+			c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID,
+				fmt.Sprintf("this connection is already registered as %q: "+
+					"registration is the handshake and happens once, so a "+
+					"changed declaration is a reconnect", c.name()))
+			return
+		}
+
 		// The declaration is refused before anything is recorded, and the
 		// refusal names every missing property at once - a program author
 		// fixing a generated declaration one error per run is a program

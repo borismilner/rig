@@ -544,3 +544,41 @@ func TestTheDeclarationSurvivesTheRoundTripWhole(t *testing.T) {
 		}
 	}
 }
+
+// Registration is the handshake and happens once. A second hello with a
+// different id used to register a second program on the same session while
+// only the last id was removed from the routing map on close, leaving a name
+// that pointed at a dead connection and timed out every call to it.
+func TestASecondHelloOnOneConnectionIsRefused(t *testing.T) {
+	sock := up(t)
+	c := program(t, sock, "first")
+	defer c.Close()
+
+	_, err := c.Hello(ctx5(t), testDeclaration("second"))
+	wantInvalid(t, err, "already registered")
+
+	// And the routing map did not gain a name for the refused id.
+	got := programs(t, dial(t, sock))
+	if len(got) != 1 || got[0] != "first" {
+		t.Fatalf("registry holds %v, want [first] only", got)
+	}
+	err = dial(t, sock).Call(ctx5(t), "second.ping",
+		&rigv1.PingRequest{}, &rigv1.PingResponse{})
+	var ce *client.CallError
+	if !errors.As(err, &ce) || ce.Code() != rigv1.Code_CODE_NOT_FOUND {
+		t.Fatalf("the refused id is routable: %v", err)
+	}
+}
+
+// A program declaring another program's scope is refused at the boundary, not
+// only in the kernel's own tests.
+func TestAForgedScopeIsRefusedOverTheWire(t *testing.T) {
+	sock := up(t)
+	victim := program(t, sock, "victim")
+	defer victim.Close()
+
+	d := testDeclaration("attacker")
+	d.Scope = "victim"
+	_, err := dial(t, sock).Hello(ctx5(t), d)
+	wantInvalid(t, err, "does not choose")
+}
