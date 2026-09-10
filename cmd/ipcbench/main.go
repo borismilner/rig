@@ -198,6 +198,10 @@ func main() {
 			Val    string
 			N      int
 		}
+		// The payload is a realistic config read, and its serialised length
+		// is part of what section 4 measures - renaming the key would move
+		// the number this benchmark exists to reproduce.
+		//rig:allow noprogramid: a benchmark payload, not a special case
 		m := msg{"config.get", "shelf.index.path", "/home/b/me/library", 7}
 		body, _ := json.Marshal(m)
 		hdr := make([]byte, 4)

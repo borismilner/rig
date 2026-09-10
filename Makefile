@@ -109,9 +109,20 @@ cover-html: cover ## Open the coverage report in a browser
 
 ##@ Quality
 
-lint: ## Run golangci-lint plus the two house analyzers
+lint: lint-house ## Run golangci-lint plus the house analyzers
 	golangci-lint run ./...
+
+# The house rules that no off-the-shelf linter knows. Separate from lint
+# because these need nothing installed - they are go run over this module -
+# so ci can carry them while golangci-lint is still being configured.
+#
+# Each walks the filesystem rather than loading packages, so one run covers
+# every build tag rather than the default one (section 5i wants them run
+# "under every tag set CI builds"). internal/analysis has the reasoning.
+lint-house: ## Run the four house analyzers (sections 3, 14, 21, 29)
 	go run ./internal/analysis/cmd/noprogramid ./...
+	go run ./internal/analysis/cmd/noregistryhandle ./...
+	go run ./internal/analysis/cmd/noenumzero ./...
 	go run ./internal/analysis/cmd/nocontextfree ./...
 
 fmt: ## Format Go and frontend sources
@@ -242,11 +253,13 @@ package: ## Build the .deb
 	@mkdir -p dist
 	go run ./cmd/pkgdeb --version $(VERSION) --out dist/
 
-ci: fmt-check vet test-race bench-size ## Everything CI runs
+ci: fmt-check vet lint-house test-race bench-size ## Everything CI runs
 	@echo
 	@echo "  M0's gate. Targets not yet in ci, each waiting on the milestone"
 	@echo "  that gives it something to check:"
-	@echo "    lint       three house analyzers      M0, next slice"
+	@echo "    lint       golangci-lint on top       needs .golangci.yml first:"
+	@echo "               81 findings on a default config, and misspell wants"
+	@echo "               locale UK before it stops calling behaviour a typo"
 	@echo "    cover      90% on internal/           M1, once there is a registry"
 	@echo "    modules    the layering analyzer      M1"
 	@echo "    test-wire  golden wire vs last tag    M1, needs a tagged release"
@@ -273,7 +286,7 @@ help: ## Show this help
 
 .PHONY: build build-rigd build-rig build-fakeapp build-all install uninstall \
         run dev clean test test-unit test-race \
-        test-chaos test-e2e test-wire fuzz cover cover-html lint fmt vet audit \
+        test-chaos test-e2e test-wire fuzz cover cover-html lint lint-house fmt vet audit \
         verify contrast generate proto schema types docs bench bench-ipc profile \
         up down doctor apps logs tui tidy deps-check release package ci fmt-check \
         bench-idle bench-scale bench-size bench-size-update build-minimal \
