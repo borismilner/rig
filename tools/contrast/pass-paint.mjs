@@ -95,10 +95,11 @@ export async function paintPass(page, {limit = 0} = {}) {
   for (const m of list) {
     const r = await page.reveal(sel(m.i));
     if (!r) continue;
-    if (r.occluded || r.offViewport || !r.inViewport) {
-      skipped.push({...m, rect: undefined, onTop: r.onTop,
+    if (r.occluded || r.offViewport || !r.inViewport || r.underOverlay) {
+      skipped.push({...m, rect: undefined, onTop: r.onTop || r.underOverlay,
                     at: `${Math.round(r.x)},${Math.round(r.y)}`,
-                    kind: r.occluded ? 'occluded' : 'off-viewport'});
+                    kind: r.underOverlay ? 'under-fixed-overlay'
+                        : r.occluded ? 'occluded' : 'off-viewport'});
       continue;
     }
     const x = Math.max(0, Math.floor(r.x - BAND));

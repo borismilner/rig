@@ -5,6 +5,7 @@
 //   node tools/contrast-audit.mjs design/visual-system.html
 //   node tools/contrast-audit.mjs --themes=dark page.html      # one theme
 //   node tools/contrast-audit.mjs --only=focus,paint page.html  # one pass
+//   node tools/contrast-audit.mjs --open='#t-lab' page.html      # one UI state
 //
 // Four passes, because one instrument cannot see all four things:
 //
@@ -45,6 +46,13 @@ const flag = name => {
 const files = args.filter(a => !a.startsWith('-'));
 const themes = (flag('themes') || 'dark,light').split(',').map(s => s.trim()).filter(Boolean);
 const only = (flag('only') || ALL.join(',')).split(',').map(s => s.trim()).filter(Boolean);
+// A page has states, and a static audit only ever measures the one that happens
+// to be showing. On this page 29 focus targets live in a panel that is
+// translated off-screen until something opens it, so they were reported as
+// off-viewport and left unmeasured on every run. --open clicks its way into a
+// state first, using the page's own handlers rather than reaching in and
+// setting a class, so what is measured is a state a user can actually reach.
+const opens = (flag('open') || '').split(',').map(s => s.trim()).filter(Boolean);
 
 // A threshold that applies to everything is the wrong shape: 1.4.3 wants 4.5:1
 // for body text and 3:1 once it is large, and 1.4.11 wants 3:1 for a boundary.
@@ -72,7 +80,22 @@ await withChrome(async browser => {
   for (const f of files) {
     for (const theme of themes) {
       const page = await auditPage(browser, 'file://' + resolve(f), {theme});
-      const head = `${label(f)} [${theme}]`;
+      for (const sel of opens) {
+        const hit = await page.eval(`(() => {
+          const el = document.querySelector(${JSON.stringify(sel)});
+          if (!el) return 'missing';
+          el.click();
+          return 'clicked';
+        })()`);
+        if (hit === 'missing') {
+          console.error(`contrast: --open selector not found: ${sel}`);
+          process.exit(2);
+        }
+        // the click may have started transitions and animations of its own
+        await page.quiesce();
+        await page.settle();
+      }
+      const head = `${label(f)} [${theme}]${opens.length ? ' after ' + opens.join(' + ') : ''}`;
 
       const dom = only.includes('text') ? await page.run(DOM) : null;
       // A theme read in the same task as the flip that set it returns the

@@ -160,6 +160,27 @@ export async function auditPage(browser, fileUrl, {theme = null, width = 1440, h
         // element's, and every colour read out of them belongs to the overlay.
         occluded: within && !!hit && !(el === hit || el.contains(hit) || hit.contains(el)),
         offViewport: !within,
+        // A fixed element is painted relative to the VIEWPORT, and every clip
+        // here is in page coordinates, so an open fixed panel lands in the
+        // capture of anything at those coordinates whether or not it is
+        // anywhere near it. That produced a "no focus indicator" against a
+        // button whose ring is fine: the shot was of the panel. A hit test on
+        // the centre point cannot see it, because the panel may cover only part
+        // of the box. So: does any fixed element intersect this rect at all.
+        underOverlay: (() => {
+          for (const o of document.querySelectorAll('*')) {
+            if (o === el || o.contains(el) || el.contains(o)) continue;
+            const cs = getComputedStyle(o);
+            if (cs.position !== 'fixed') continue;
+            if (cs.visibility === 'hidden' || cs.display === 'none' || +cs.opacity === 0) continue;
+            const b = o.getBoundingClientRect();
+            if (b.width < 1 || b.height < 1) continue;
+            if (b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top) {
+              return o.id ? '#' + o.id : o.tagName.toLowerCase();
+            }
+          }
+          return null;
+        })(),
         onTop: hit ? (hit.id ? '#' + hit.id : hit.tagName.toLowerCase()) : null,
       };
     })()`),

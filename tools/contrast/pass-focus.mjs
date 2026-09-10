@@ -82,10 +82,11 @@ export async function focusPass(page, {limit = 0} = {}) {
     if (!rFocused) continue;
     // Not a contrast result either way: the pixels in this box belong to
     // something else, so reading a ring out of them would invent a number.
-    if (rFocused.occluded || rFocused.offViewport || !rFocused.inViewport) {
-      skipped.push({...t, onTop: rFocused.onTop,
+    if (rFocused.occluded || rFocused.offViewport || !rFocused.inViewport || rFocused.underOverlay) {
+      skipped.push({...t, onTop: rFocused.onTop || rFocused.underOverlay,
                     at: `${Math.round(rFocused.x)},${Math.round(rFocused.y)}`,
-                    kind: rFocused.occluded ? 'occluded' : 'off-viewport'});
+                    kind: rFocused.underOverlay ? 'under-fixed-overlay'
+                        : rFocused.occluded ? 'occluded' : 'off-viewport'});
       continue;
     }
     const box = clip(rFocused);
