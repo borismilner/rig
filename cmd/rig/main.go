@@ -82,10 +82,11 @@ var valuedFlags = map[string]bool{
 func usage() {
 	fmt.Fprint(os.Stderr, `usage: rig <command> [flags]
 
+  apps list        what every program declared, as this client may see it
   ping <program>   round-trip a program through rigd ("rig" pings the daemon)
   version          print every version this build carries
 
-M0 ships these two. Every other command arrives with the registry at M1.
+rig <app> <cmd> arrives with the invoker, M1's next slice.
 `)
 }
 
@@ -100,6 +101,8 @@ func run(args []string) error {
 		return cmdVersion(args[1:])
 	case "ping":
 		return cmdPing(args[1:])
+	case "apps":
+		return cmdApps(args[1:])
 	case "-h", "--help", "help":
 		usage()
 		return nil
@@ -182,4 +185,154 @@ func cmdPing(args []string) error {
 	fmt.Printf("%s %s, round trip %s\n", resp.GetProgram(), resp.GetVersion(),
 		elapsed.Round(time.Microsecond))
 	return nil
+}
+
+// cmdApps reads the registry back (PLAN.md section 5e, section 14).
+//
+// What it prints is a projection, not the registry: the daemon answers
+// rig.programs through this connection's own principal, so a program sees
+// itself and a client of the owner's sees all of it. Coverage travels with
+// every row because section 5k forbids a surface that implies completeness -
+// "shelf declared 3 of its 20 commands" has to be visible here, not inferred.
+func cmdApps(args []string) error {
+	fs := flag.NewFlagSet("apps", flag.ContinueOnError)
+	asJSON := fs.Bool("json", false, "emit JSON")
+	verbose := fs.Bool("commands", false, "list each program's commands")
+	flags, positional := partition(args)
+	if err := fs.Parse(flags); err != nil {
+		return err
+	}
+	if len(positional) == 0 || positional[0] != "list" {
+		return errors.New("usage: rig apps list [--commands] [--json]")
+	}
+
+	c, err := client.Connect()
+	if err != nil {
+		return fmt.Errorf("%w\n       is rigd running? start it with: rigd", err)
+	}
+	defer c.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resp := &rigv1.ProgramsResponse{}
+	if err := c.Call(ctx, "rig.programs", &rigv1.ProgramsRequest{}, resp); err != nil {
+		return err
+	}
+
+	if *asJSON {
+		return json.NewEncoder(os.Stdout).Encode(appsJSON(resp.GetPrograms()))
+	}
+	if len(resp.GetPrograms()) == 0 {
+		fmt.Println("no programs are registered")
+		return nil
+	}
+	// Column widths come from the widest cell, not from a guess. A version
+	// string is git describe output and can be thirty characters, which a
+	// fixed %-10s turns into a table with no columns at all.
+	wID, wVer := 0, 0
+	for _, p := range resp.GetPrograms() {
+		wID = max(wID, len(p.GetIdentity().GetId()))
+		wVer = max(wVer, len(p.GetIdentity().GetVersion()))
+	}
+	for _, p := range resp.GetPrograms() {
+		fmt.Printf("%-*s  %-*s  %-8s  %d command%s, semantics gen %d\n",
+			wID, p.GetIdentity().GetId(),
+			wVer, p.GetIdentity().GetVersion(),
+			coverageLabel(p),
+			len(p.GetCommands()), plural(len(p.GetCommands())),
+			p.GetSemanticsGen())
+		if !*verbose {
+			continue
+		}
+		wCmd, wEff := 0, 0
+		for _, cmd := range p.GetCommands() {
+			wCmd = max(wCmd, len(cmd.GetId()))
+			wEff = max(wEff, len(effectsLabel(cmd)))
+		}
+		for _, cmd := range p.GetCommands() {
+			fmt.Printf("    %-*s  %-*s  %-8s  %s\n",
+				wCmd, cmd.GetId(), wEff, effectsLabel(cmd),
+				durationLabel(cmd), cmd.GetSummary())
+		}
+	}
+	return nil
+}
+
+// coverageLabel says how much of rig a program adopted, and says it on every
+// row. Section 5k: the honest default is the conservative one.
+func coverageLabel(p *rigv1.Program) string {
+	switch p.GetCoverage() {
+	case rigv1.Coverage_COVERAGE_FULL:
+		return "full"
+	case rigv1.Coverage_COVERAGE_PARTIAL:
+		return "partial"
+	default:
+		return "coverage?"
+	}
+}
+
+// enumLabel renders a proto enum as section 5e writes it: read-only, not
+// READ_ONLY and not read_only. The plan's vocabulary is what a house rule and
+// a --help page are read against, so it is the one that ships.
+func enumLabel(full, prefix string) string {
+	return strings.ReplaceAll(
+		strings.ToLower(strings.TrimPrefix(full, prefix)), "_", "-")
+}
+
+func effectsLabel(c *rigv1.Command) string {
+	return enumLabel(c.GetEffects().String(), "EFFECTS_")
+}
+
+func durationLabel(c *rigv1.Command) string {
+	return enumLabel(c.GetDuration().String(), "DURATION_")
+}
+
+func pointers(s *rigv1.SensitiveFields) []string {
+	if p := s.GetPointers(); p != nil {
+		return p
+	}
+	return []string{}
+}
+
+func plural(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
+}
+
+func appsJSON(ps []*rigv1.Program) []map[string]any {
+	out := make([]map[string]any, 0, len(ps))
+	for _, p := range ps {
+		cmds := make([]map[string]any, 0, len(p.GetCommands()))
+		for _, c := range p.GetCommands() {
+			cmds = append(cmds, map[string]any{
+				"id":            c.GetId(),
+				"summary":       c.GetSummary(),
+				"effects":       effectsLabel(c),
+				"duration":      durationLabel(c),
+				"idempotent":    c.GetIdempotent() == rigv1.Tristate_TRISTATE_YES,
+				"needs_display": c.GetNeedsDisplay() == rigv1.Tristate_TRISTATE_YES,
+				"interactive":   c.GetInteractive() == rigv1.Tristate_TRISTATE_YES,
+				"confirms":      c.GetConfirms() == rigv1.Tristate_TRISTATE_YES,
+				// Present and empty, never null: null reads as "this program
+				// never considered the question", which is the one thing
+				// section 5e refuses to let a declaration mean by accident.
+				// The daemon always sends the wrapper, so absence cannot
+				// reach here - and if it ever does, [] is still the honest
+				// rendering of what was stored.
+				"sensitive": pointers(c.GetSensitive()),
+			})
+		}
+		out = append(out, map[string]any{
+			"id":            p.GetIdentity().GetId(),
+			"version":       p.GetIdentity().GetVersion(),
+			"coverage":      coverageLabel(p),
+			"coverage_note": p.GetCoverageNote(),
+			"semantics_gen": p.GetSemanticsGen(),
+			"commands":      cmds,
+		})
+	}
+	return out
 }

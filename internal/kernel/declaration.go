@@ -17,7 +17,7 @@ type Declaration struct {
 	Identity     Identity
 	Coverage     Coverage
 	CoverageNote string
-	SemanticsGen int
+	SemanticsGen int32
 	Services     []string
 	Preamble     string
 	Commands     []Command

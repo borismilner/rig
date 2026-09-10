@@ -224,12 +224,25 @@ func (c *Client) Call(ctx context.Context, method string, in, out proto.Message)
 	}
 }
 
-// Hello completes the program handshake. After it, this connection is scoped
-// for its whole life (section 14).
-func (c *Client) Hello(ctx context.Context, program, version string) (*rigv1.HelloResponse, error) {
+// Hello completes the program handshake by declaring what this program is.
+// After it, this connection is scoped for its whole life (section 14).
+//
+// The declaration is required, and it is the handshake rather than a later
+// call because section 14's predicate is about the connection: a connection
+// that completed registration is a program, and there is no other way to
+// become one. Section 5e says what a declaration must contain, and rig
+// refuses one that is missing a mandatory property rather than reading an
+// absent field as the safe answer.
+//
+// program and version are sent alongside the declaration and taken from it,
+// so a caller has one place to say each.
+func (c *Client) Hello(ctx context.Context, decl *rigv1.Declaration) (*rigv1.HelloResponse, error) {
 	out := &rigv1.HelloResponse{}
-	err := c.Call(ctx, "rig.hello",
-		&rigv1.HelloRequest{Program: program, Version: version}, out)
+	err := c.Call(ctx, "rig.hello", &rigv1.HelloRequest{
+		Program:     decl.GetIdentity().GetId(),
+		Version:     decl.GetIdentity().GetVersion(),
+		Declaration: decl,
+	}, out)
 	return out, err
 }
 

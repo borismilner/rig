@@ -150,8 +150,13 @@ contrast: ## Measure WCAG contrast in a real browser, both themes
 
 generate: proto schema types docs ## Regenerate everything that is generated
 
-proto: ## Generate Go and TypeScript from proto/
-	buf generate
+proto: ## Generate Go from proto/
+	# protoc directly, not buf: buf earns its keep on a multi-module workspace
+	# with remote dependencies and there is one file here with none. The -I .
+	# and the full path are load-bearing - the source path is embedded in the
+	# descriptor, so generating it any other way rewrites the whole file.
+	protoc --go_out=. --go_opt=module=$(MODULE) -I . proto/rig/v1/wire.proto
+	gofmt -s -w proto/
 
 schema: ## Emit JSON Schema from the Go declaration types
 	go run ./cmd/schemagen -out schema/

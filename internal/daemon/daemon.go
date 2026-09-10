@@ -1,11 +1,14 @@
 // Package daemon is rigd: one socket, one instance, and the routing between a
 // client and a program.
 //
-// What it is NOT, at M0: a registry. A program says hello and is routed to by
-// name. M1 replaces that with real registration - a declaration validated
-// against its schema, capabilities, and the computed projection (PLAN.md M1).
-// The line is kept deliberately visible so the registry lands as one thing
-// rather than accreting here.
+// The registry is NOT here. It is internal/kernel, and this package holds the
+// other half of the pair: connections, and the translation between the wire
+// and the kernel's vocabulary. The split is the one section 14 forces - a
+// caller cannot hold a registry handle, so the daemon holds a kernel and asks
+// it for a view of what the calling principal may see.
+//
+// What is still not here, and is M1's next slice: the invoker. A call is
+// routed by name and no house rule is consulted yet (section 13a).
 package daemon
 
 import (
@@ -23,6 +26,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/boris-milner/rig/internal/instance"
+	"github.com/boris-milner/rig/internal/kernel"
 	"github.com/boris-milner/rig/internal/wire"
 	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )
@@ -60,6 +64,14 @@ type Daemon struct {
 	log     *slog.Logger
 	lock    *instance.Lock
 
+	// kernel owns the registry. The daemon cannot hold the registry itself:
+	// noregistryhandle fails the build on the type leaving internal/kernel,
+	// which is section 14's rule that an unscoped read is unrepresentable
+	// rather than discouraged.
+	kernel *kernel.Kernel
+
+	// programs is connections, not declarations - what the kernel knows is
+	// what a program said, and what this map knows is where to send a call.
 	mu       sync.RWMutex
 	programs map[string]*conn
 }
@@ -82,6 +94,7 @@ func New(cfg Config) (*Daemon, error) {
 		wire:     cfg.Wire,
 		log:      log,
 		lock:     cfg.Lock,
+		kernel:   kernel.New(),
 		programs: make(map[string]*conn),
 	}, nil
 }
@@ -98,6 +111,11 @@ type conn struct {
 	scoped  atomic.Bool
 	program atomic.Value // string
 
+	// who this connection is, decided at accept and changed only by the
+	// program handshake. Read on every registry access, so it is a value in
+	// an atomic rather than a struct behind a mutex.
+	who atomic.Value // kernel.Principal
+
 	// Daemon-initiated streams are even; client-initiated are odd. The two
 	// sides therefore never collide without negotiating anything.
 	nextStream atomic.Uint32
@@ -109,6 +127,13 @@ type conn struct {
 func (c *conn) name() string {
 	s, _ := c.program.Load().(string)
 	return s
+}
+
+// principal is who this connection is. Never absent: handle sets it before
+// the first frame is read.
+func (c *conn) principal() kernel.Principal {
+	p, _ := c.who.Load().(kernel.Principal)
+	return p
 }
 
 // Serve accepts until the listener closes or ctx ends.
@@ -144,8 +169,13 @@ func (d *Daemon) handle(ctx context.Context, nc net.Conn) {
 		pending: make(map[uint32]chan *rigv1.Frame),
 	}
 	c.nextStream.Store(0) // +2 each time, so daemon streams stay even
+	c.who.Store(newPrincipal(nc))
 	defer func() {
 		_ = c.w.Close()
+		// The registry forgets by session, so a restarted program can take
+		// its own id back. The connection map forgets by name, and only if
+		// this connection is still the one holding it.
+		d.kernel.Deregister(c.principal().SessionID)
 		if n := c.name(); n != "" {
 			d.mu.Lock()
 			if d.programs[n] == c {
@@ -232,9 +262,26 @@ func (d *Daemon) serveSelf(c *conn, f *rigv1.Frame, command string) {
 			return
 		}
 
+		// The declaration is refused before anything is recorded, and the
+		// refusal names every missing property at once - a program author
+		// fixing a generated declaration one error per run is a program
+		// author who stops generating it.
+		decl, err := declarationFromWire(&req)
+		if err != nil {
+			c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, err.Error())
+			return
+		}
+
+		who, err := d.kernel.Register(asProgram(c.principal(), decl.Identity.ID), decl)
+		if err != nil {
+			c.fail(f.GetStreamId(), rigv1.Code_CODE_DENIED, err.Error())
+			return
+		}
+
 		d.mu.Lock()
 		if existing, taken := d.programs[req.GetProgram()]; taken && existing != c {
 			d.mu.Unlock()
+			d.kernel.Deregister(who.SessionID)
 			c.fail(f.GetStreamId(), rigv1.Code_CODE_DENIED,
 				fmt.Sprintf("program %q is already connected", req.GetProgram()))
 			return
@@ -242,15 +289,29 @@ func (d *Daemon) serveSelf(c *conn, f *rigv1.Frame, command string) {
 		d.programs[req.GetProgram()] = c
 		d.mu.Unlock()
 
+		c.who.Store(who)
 		c.program.Store(req.GetProgram())
 		c.scoped.Store(true)
-		d.log.Info("program said hello", "program", req.GetProgram(), "version", req.GetVersion())
+		d.log.Info("program registered",
+			"program", decl.Identity.ID, "version", decl.Identity.Version,
+			"coverage", decl.Coverage.String(), "commands", len(decl.Commands),
+			"semantics_gen", decl.SemanticsGen, "session", who.SessionID)
 
 		c.reply(f.GetStreamId(), &rigv1.HelloResponse{
 			Wire:          d.wire,
 			DaemonVersion: d.version,
 			Scoped:        true,
 		})
+
+	case "programs":
+		// The read side of the registry, through the calling principal's own
+		// view. There is no unscoped read to offer: See takes a principal and
+		// the filter is inside it.
+		var resp rigv1.ProgramsResponse
+		for _, p := range d.kernel.See(c.principal()).Programs() {
+			resp.Programs = append(resp.Programs, programToWire(p))
+		}
+		c.reply(f.GetStreamId(), &resp)
 
 	case "ping":
 		var req rigv1.PingRequest

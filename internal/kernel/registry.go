@@ -106,7 +106,7 @@ type Program struct {
 	Identity     Identity
 	Coverage     Coverage
 	CoverageNote string
-	SemanticsGen int
+	SemanticsGen int32
 	Services     []string
 	Hosted       bool
 	Commands     []Command

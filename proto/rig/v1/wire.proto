@@ -85,6 +85,13 @@ message Frame {
 message HelloRequest {
   string program = 1;   // the program's id, e.g. "fakeapp"
   string version = 2;   // its own version string, reported not enforced
+
+  // What this program declares (section 5e). Required: registration is the
+  // handshake, not a later call, and a connection that completes it is a
+  // program for its whole life. program and version above must agree with
+  // identity.id and identity.version, and the daemon refuses them if they do
+  // not - two places to say the same thing is two places to disagree.
+  Declaration declaration = 3;
 }
 
 message HelloResponse {
@@ -107,4 +114,161 @@ message PingResponse {
   bytes nonce = 1;
   string program = 2;   // who answered
   string version = 3;   // that program's own version string
+}
+
+// ---- Registration: what a program declares (PLAN.md section 5e) ------------
+//
+// Once, at connect, and it is data: no rig code runs inside the program to
+// produce it. Everything after identity is optional except coverage,
+// semantics_gen and the mandatory command properties.
+//
+// Every enum below reserves its zero, and here that is not only section 21's
+// wire rule: section 5e says no property may have a default that carries a
+// safety meaning, because a field whose absence means "safe" can never have
+// its default changed without lying about every declaration written before
+// the change. So an unset effects is refused rather than read as read-only.
+
+// Coverage says how much of rig a program has adopted (section 5k). The
+// honest default is the conservative one, so a program that says nothing is
+// partial rather than complete.
+enum Coverage {
+  COVERAGE_UNSPECIFIED = 0;
+  COVERAGE_PARTIAL = 1;
+  COVERAGE_FULL = 2;
+}
+
+// Effects is what running a command does to the world. Ordered by danger, so
+// a house rule written against one level covers everything above it.
+enum Effects {
+  EFFECTS_UNSPECIFIED = 0;
+  EFFECTS_READ_ONLY = 1;
+  EFFECTS_WRITES_FILES = 2;
+  EFFECTS_NETWORK = 3;
+  EFFECTS_DESTRUCTIVE = 4;
+}
+
+// Duration is an order of magnitude, not an estimate. It is what tells a
+// surface whether a command belongs on it at all.
+enum Duration {
+  DURATION_UNSPECIFIED = 0;
+  DURATION_INSTANT = 1;
+  DURATION_SECONDS = 2;
+  DURATION_MINUTES = 3;
+  DURATION_HOURS = 4;
+}
+
+// Shape is what a result is.
+enum Shape {
+  SHAPE_UNSPECIFIED = 0;
+  SHAPE_UNARY = 1;
+  SHAPE_STREAM = 2;
+  SHAPE_INTERACTIVE_STREAM = 3;
+}
+
+// Tristate is a mandatory boolean that has to have been said. A proto3 bool
+// cannot express "the program never declared this", which is exactly what
+// section 5e requires these fields to be able to say.
+enum Tristate {
+  TRISTATE_UNSPECIFIED = 0;
+  TRISTATE_NO = 1;
+  TRISTATE_YES = 2;
+}
+
+message Identity {
+  string id = 1;
+  string name = 2;
+  string version = 3;
+  string icon = 4;
+  string description = 5;
+}
+
+// SensitiveFields wraps the pointer list so absence and emptiness are
+// different things on the wire.
+//
+// A repeated field cannot carry presence in proto3: an empty list and an
+// unsent one arrive identically. Section 5e makes sensitive mandatory and
+// says it may be empty, so "this command has no sensitive fields" has to be
+// distinguishable from "this program never considered the question". The
+// wrapper is how: a nil message is the second, a present empty one the first.
+message SensitiveFields {
+  repeated string pointers = 1;  // JSON pointers into arguments and results
+}
+
+// Command is one thing a program can be asked to do.
+//
+// It declares properties and never surfaces. Section 5e calls this the single
+// most important correction in the plan: a command that named its surfaces
+// made the surface set a closed vocabulary inside this message, so every
+// surface added later cost every program an edit.
+message Command {
+  string id = 1;
+  string title = 2;
+  bytes args = 3;                 // JSON Schema for the arguments
+  repeated string examples = 4;
+
+  // Mandatory. A registration missing any of these is refused.
+  Effects effects = 5;
+  Tristate idempotent = 6;        // decides retry, replay, schedule coalescing
+  SensitiveFields sensitive = 7;
+  Tristate interactive = 8;
+  Tristate streams = 9;
+  Tristate needs_display = 10;
+  Duration duration = 11;
+  Tristate confirms = 12;
+  Shape shape = 13;
+  string summary = 14;
+  string description = 15;
+  string returns = 16;
+
+  // Planning and promotion hints. Optional, and absence means nothing.
+  bool dry_run = 17;
+  string cost = 18;
+  repeated string preconditions = 19;
+  bool promote = 20;
+}
+
+message Declaration {
+  Identity identity = 1;
+  Coverage coverage = 2;
+  string coverage_note = 3;
+
+  // Pins what every declared name means, for this program, for its lifetime
+  // (section 21). Zero is refused: it cannot be absent.
+  int32 semantics_gen = 4;
+
+  repeated string services = 5;   // an unused service costs this program nothing
+  string preamble = 6;            // the one document an agent reads first
+  repeated Command commands = 7;
+
+  // The scope this program's entries belong to. Empty means the program's own
+  // id, which is the only scope a program needs until peers (section 16).
+  string scope = 8;
+
+  bool hosted = 9;                // compiled into rigd (section 5j)
+}
+
+// Program is one program as one principal may see it (section 14).
+//
+// It is Declaration minus preamble and scope: what a reader is shown, not
+// what was stored. Section 5k's rule that no surface may imply completeness
+// is why coverage travels with it.
+message Program {
+  Identity identity = 1;
+  Coverage coverage = 2;
+  string coverage_note = 3;
+  int32 semantics_gen = 4;
+  repeated string services = 5;
+  bool hosted = 6;
+  repeated Command commands = 7;
+}
+
+// ---- rig.programs, the read side of the registry ---------------------------
+
+message ProgramsRequest {}
+
+message ProgramsResponse {
+  // Only what the calling principal may see. An unscoped, unprivileged client
+  // gets nothing; a program gets itself; a client of the owner's gets all of
+  // it, because introspect was decided when the connection was made.
+  repeated Program programs = 1;
 }

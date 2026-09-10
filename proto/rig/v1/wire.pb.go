@@ -164,6 +164,277 @@ func (Code) EnumDescriptor() ([]byte, []int) {
 	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{1}
 }
 
+// Coverage says how much of rig a program has adopted (section 5k). The
+// honest default is the conservative one, so a program that says nothing is
+// partial rather than complete.
+type Coverage int32
+
+const (
+	Coverage_COVERAGE_UNSPECIFIED Coverage = 0
+	Coverage_COVERAGE_PARTIAL     Coverage = 1
+	Coverage_COVERAGE_FULL        Coverage = 2
+)
+
+// Enum value maps for Coverage.
+var (
+	Coverage_name = map[int32]string{
+		0: "COVERAGE_UNSPECIFIED",
+		1: "COVERAGE_PARTIAL",
+		2: "COVERAGE_FULL",
+	}
+	Coverage_value = map[string]int32{
+		"COVERAGE_UNSPECIFIED": 0,
+		"COVERAGE_PARTIAL":     1,
+		"COVERAGE_FULL":        2,
+	}
+)
+
+func (x Coverage) Enum() *Coverage {
+	p := new(Coverage)
+	*p = x
+	return p
+}
+
+func (x Coverage) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Coverage) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_rig_v1_wire_proto_enumTypes[2].Descriptor()
+}
+
+func (Coverage) Type() protoreflect.EnumType {
+	return &file_proto_rig_v1_wire_proto_enumTypes[2]
+}
+
+func (x Coverage) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Coverage.Descriptor instead.
+func (Coverage) EnumDescriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{2}
+}
+
+// Effects is what running a command does to the world. Ordered by danger, so
+// a house rule written against one level covers everything above it.
+type Effects int32
+
+const (
+	Effects_EFFECTS_UNSPECIFIED  Effects = 0
+	Effects_EFFECTS_READ_ONLY    Effects = 1
+	Effects_EFFECTS_WRITES_FILES Effects = 2
+	Effects_EFFECTS_NETWORK      Effects = 3
+	Effects_EFFECTS_DESTRUCTIVE  Effects = 4
+)
+
+// Enum value maps for Effects.
+var (
+	Effects_name = map[int32]string{
+		0: "EFFECTS_UNSPECIFIED",
+		1: "EFFECTS_READ_ONLY",
+		2: "EFFECTS_WRITES_FILES",
+		3: "EFFECTS_NETWORK",
+		4: "EFFECTS_DESTRUCTIVE",
+	}
+	Effects_value = map[string]int32{
+		"EFFECTS_UNSPECIFIED":  0,
+		"EFFECTS_READ_ONLY":    1,
+		"EFFECTS_WRITES_FILES": 2,
+		"EFFECTS_NETWORK":      3,
+		"EFFECTS_DESTRUCTIVE":  4,
+	}
+)
+
+func (x Effects) Enum() *Effects {
+	p := new(Effects)
+	*p = x
+	return p
+}
+
+func (x Effects) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Effects) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_rig_v1_wire_proto_enumTypes[3].Descriptor()
+}
+
+func (Effects) Type() protoreflect.EnumType {
+	return &file_proto_rig_v1_wire_proto_enumTypes[3]
+}
+
+func (x Effects) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Effects.Descriptor instead.
+func (Effects) EnumDescriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{3}
+}
+
+// Duration is an order of magnitude, not an estimate. It is what tells a
+// surface whether a command belongs on it at all.
+type Duration int32
+
+const (
+	Duration_DURATION_UNSPECIFIED Duration = 0
+	Duration_DURATION_INSTANT     Duration = 1
+	Duration_DURATION_SECONDS     Duration = 2
+	Duration_DURATION_MINUTES     Duration = 3
+	Duration_DURATION_HOURS       Duration = 4
+)
+
+// Enum value maps for Duration.
+var (
+	Duration_name = map[int32]string{
+		0: "DURATION_UNSPECIFIED",
+		1: "DURATION_INSTANT",
+		2: "DURATION_SECONDS",
+		3: "DURATION_MINUTES",
+		4: "DURATION_HOURS",
+	}
+	Duration_value = map[string]int32{
+		"DURATION_UNSPECIFIED": 0,
+		"DURATION_INSTANT":     1,
+		"DURATION_SECONDS":     2,
+		"DURATION_MINUTES":     3,
+		"DURATION_HOURS":       4,
+	}
+)
+
+func (x Duration) Enum() *Duration {
+	p := new(Duration)
+	*p = x
+	return p
+}
+
+func (x Duration) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Duration) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_rig_v1_wire_proto_enumTypes[4].Descriptor()
+}
+
+func (Duration) Type() protoreflect.EnumType {
+	return &file_proto_rig_v1_wire_proto_enumTypes[4]
+}
+
+func (x Duration) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Duration.Descriptor instead.
+func (Duration) EnumDescriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{4}
+}
+
+// Shape is what a result is.
+type Shape int32
+
+const (
+	Shape_SHAPE_UNSPECIFIED        Shape = 0
+	Shape_SHAPE_UNARY              Shape = 1
+	Shape_SHAPE_STREAM             Shape = 2
+	Shape_SHAPE_INTERACTIVE_STREAM Shape = 3
+)
+
+// Enum value maps for Shape.
+var (
+	Shape_name = map[int32]string{
+		0: "SHAPE_UNSPECIFIED",
+		1: "SHAPE_UNARY",
+		2: "SHAPE_STREAM",
+		3: "SHAPE_INTERACTIVE_STREAM",
+	}
+	Shape_value = map[string]int32{
+		"SHAPE_UNSPECIFIED":        0,
+		"SHAPE_UNARY":              1,
+		"SHAPE_STREAM":             2,
+		"SHAPE_INTERACTIVE_STREAM": 3,
+	}
+)
+
+func (x Shape) Enum() *Shape {
+	p := new(Shape)
+	*p = x
+	return p
+}
+
+func (x Shape) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Shape) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_rig_v1_wire_proto_enumTypes[5].Descriptor()
+}
+
+func (Shape) Type() protoreflect.EnumType {
+	return &file_proto_rig_v1_wire_proto_enumTypes[5]
+}
+
+func (x Shape) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Shape.Descriptor instead.
+func (Shape) EnumDescriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{5}
+}
+
+// Tristate is a mandatory boolean that has to have been said. A proto3 bool
+// cannot express "the program never declared this", which is exactly what
+// section 5e requires these fields to be able to say.
+type Tristate int32
+
+const (
+	Tristate_TRISTATE_UNSPECIFIED Tristate = 0
+	Tristate_TRISTATE_NO          Tristate = 1
+	Tristate_TRISTATE_YES         Tristate = 2
+)
+
+// Enum value maps for Tristate.
+var (
+	Tristate_name = map[int32]string{
+		0: "TRISTATE_UNSPECIFIED",
+		1: "TRISTATE_NO",
+		2: "TRISTATE_YES",
+	}
+	Tristate_value = map[string]int32{
+		"TRISTATE_UNSPECIFIED": 0,
+		"TRISTATE_NO":          1,
+		"TRISTATE_YES":         2,
+	}
+)
+
+func (x Tristate) Enum() *Tristate {
+	p := new(Tristate)
+	*p = x
+	return p
+}
+
+func (x Tristate) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Tristate) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_rig_v1_wire_proto_enumTypes[6].Descriptor()
+}
+
+func (Tristate) Type() protoreflect.EnumType {
+	return &file_proto_rig_v1_wire_proto_enumTypes[6]
+}
+
+func (x Tristate) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Tristate.Descriptor instead.
+func (Tristate) EnumDescriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{6}
+}
+
 type Status struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Code          Code                   `protobuf:"varint,1,opt,name=code,proto3,enum=rig.v1.Code" json:"code,omitempty"`
@@ -320,9 +591,15 @@ func (x *Frame) GetStatus() *Status {
 // M0 routes by name. M1 replaces this with real registration: a declaration
 // validated against its schema, with capabilities and a computed projection.
 type HelloRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Program       string                 `protobuf:"bytes,1,opt,name=program,proto3" json:"program,omitempty"` // the program's id, e.g. "fakeapp"
-	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"` // its own version string, reported not enforced
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Program string                 `protobuf:"bytes,1,opt,name=program,proto3" json:"program,omitempty"` // the program's id, e.g. "fakeapp"
+	Version string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"` // its own version string, reported not enforced
+	// What this program declares (section 5e). Required: registration is the
+	// handshake, not a later call, and a connection that completes it is a
+	// program for its whole life. program and version above must agree with
+	// identity.id and identity.version, and the daemon refuses them if they do
+	// not - two places to say the same thing is two places to disagree.
+	Declaration   *Declaration `protobuf:"bytes,3,opt,name=declaration,proto3" json:"declaration,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -369,6 +646,13 @@ func (x *HelloRequest) GetVersion() string {
 		return x.Version
 	}
 	return ""
+}
+
+func (x *HelloRequest) GetDeclaration() *Declaration {
+	if x != nil {
+		return x.Declaration
+	}
+	return nil
 }
 
 type HelloResponse struct {
@@ -539,6 +823,630 @@ func (x *PingResponse) GetVersion() string {
 	return ""
 }
 
+type Identity struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Version       string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
+	Icon          string                 `protobuf:"bytes,4,opt,name=icon,proto3" json:"icon,omitempty"`
+	Description   string                 `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Identity) Reset() {
+	*x = Identity{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Identity) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Identity) ProtoMessage() {}
+
+func (x *Identity) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Identity.ProtoReflect.Descriptor instead.
+func (*Identity) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *Identity) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Identity) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Identity) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *Identity) GetIcon() string {
+	if x != nil {
+		return x.Icon
+	}
+	return ""
+}
+
+func (x *Identity) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+// SensitiveFields wraps the pointer list so absence and emptiness are
+// different things on the wire.
+//
+// A repeated field cannot carry presence in proto3: an empty list and an
+// unsent one arrive identically. Section 5e makes sensitive mandatory and
+// says it may be empty, so "this command has no sensitive fields" has to be
+// distinguishable from "this program never considered the question". The
+// wrapper is how: a nil message is the second, a present empty one the first.
+type SensitiveFields struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Pointers      []string               `protobuf:"bytes,1,rep,name=pointers,proto3" json:"pointers,omitempty"` // JSON pointers into arguments and results
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SensitiveFields) Reset() {
+	*x = SensitiveFields{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SensitiveFields) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SensitiveFields) ProtoMessage() {}
+
+func (x *SensitiveFields) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SensitiveFields.ProtoReflect.Descriptor instead.
+func (*SensitiveFields) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *SensitiveFields) GetPointers() []string {
+	if x != nil {
+		return x.Pointers
+	}
+	return nil
+}
+
+// Command is one thing a program can be asked to do.
+//
+// It declares properties and never surfaces. Section 5e calls this the single
+// most important correction in the plan: a command that named its surfaces
+// made the surface set a closed vocabulary inside this message, so every
+// surface added later cost every program an edit.
+type Command struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Id       string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title    string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Args     []byte                 `protobuf:"bytes,3,opt,name=args,proto3" json:"args,omitempty"` // JSON Schema for the arguments
+	Examples []string               `protobuf:"bytes,4,rep,name=examples,proto3" json:"examples,omitempty"`
+	// Mandatory. A registration missing any of these is refused.
+	Effects      Effects          `protobuf:"varint,5,opt,name=effects,proto3,enum=rig.v1.Effects" json:"effects,omitempty"`
+	Idempotent   Tristate         `protobuf:"varint,6,opt,name=idempotent,proto3,enum=rig.v1.Tristate" json:"idempotent,omitempty"` // decides retry, replay, schedule coalescing
+	Sensitive    *SensitiveFields `protobuf:"bytes,7,opt,name=sensitive,proto3" json:"sensitive,omitempty"`
+	Interactive  Tristate         `protobuf:"varint,8,opt,name=interactive,proto3,enum=rig.v1.Tristate" json:"interactive,omitempty"`
+	Streams      Tristate         `protobuf:"varint,9,opt,name=streams,proto3,enum=rig.v1.Tristate" json:"streams,omitempty"`
+	NeedsDisplay Tristate         `protobuf:"varint,10,opt,name=needs_display,json=needsDisplay,proto3,enum=rig.v1.Tristate" json:"needs_display,omitempty"`
+	Duration     Duration         `protobuf:"varint,11,opt,name=duration,proto3,enum=rig.v1.Duration" json:"duration,omitempty"`
+	Confirms     Tristate         `protobuf:"varint,12,opt,name=confirms,proto3,enum=rig.v1.Tristate" json:"confirms,omitempty"`
+	Shape        Shape            `protobuf:"varint,13,opt,name=shape,proto3,enum=rig.v1.Shape" json:"shape,omitempty"`
+	Summary      string           `protobuf:"bytes,14,opt,name=summary,proto3" json:"summary,omitempty"`
+	Description  string           `protobuf:"bytes,15,opt,name=description,proto3" json:"description,omitempty"`
+	Returns      string           `protobuf:"bytes,16,opt,name=returns,proto3" json:"returns,omitempty"`
+	// Planning and promotion hints. Optional, and absence means nothing.
+	DryRun        bool     `protobuf:"varint,17,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	Cost          string   `protobuf:"bytes,18,opt,name=cost,proto3" json:"cost,omitempty"`
+	Preconditions []string `protobuf:"bytes,19,rep,name=preconditions,proto3" json:"preconditions,omitempty"`
+	Promote       bool     `protobuf:"varint,20,opt,name=promote,proto3" json:"promote,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Command) Reset() {
+	*x = Command{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Command) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Command) ProtoMessage() {}
+
+func (x *Command) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Command.ProtoReflect.Descriptor instead.
+func (*Command) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *Command) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Command) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *Command) GetArgs() []byte {
+	if x != nil {
+		return x.Args
+	}
+	return nil
+}
+
+func (x *Command) GetExamples() []string {
+	if x != nil {
+		return x.Examples
+	}
+	return nil
+}
+
+func (x *Command) GetEffects() Effects {
+	if x != nil {
+		return x.Effects
+	}
+	return Effects_EFFECTS_UNSPECIFIED
+}
+
+func (x *Command) GetIdempotent() Tristate {
+	if x != nil {
+		return x.Idempotent
+	}
+	return Tristate_TRISTATE_UNSPECIFIED
+}
+
+func (x *Command) GetSensitive() *SensitiveFields {
+	if x != nil {
+		return x.Sensitive
+	}
+	return nil
+}
+
+func (x *Command) GetInteractive() Tristate {
+	if x != nil {
+		return x.Interactive
+	}
+	return Tristate_TRISTATE_UNSPECIFIED
+}
+
+func (x *Command) GetStreams() Tristate {
+	if x != nil {
+		return x.Streams
+	}
+	return Tristate_TRISTATE_UNSPECIFIED
+}
+
+func (x *Command) GetNeedsDisplay() Tristate {
+	if x != nil {
+		return x.NeedsDisplay
+	}
+	return Tristate_TRISTATE_UNSPECIFIED
+}
+
+func (x *Command) GetDuration() Duration {
+	if x != nil {
+		return x.Duration
+	}
+	return Duration_DURATION_UNSPECIFIED
+}
+
+func (x *Command) GetConfirms() Tristate {
+	if x != nil {
+		return x.Confirms
+	}
+	return Tristate_TRISTATE_UNSPECIFIED
+}
+
+func (x *Command) GetShape() Shape {
+	if x != nil {
+		return x.Shape
+	}
+	return Shape_SHAPE_UNSPECIFIED
+}
+
+func (x *Command) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *Command) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *Command) GetReturns() string {
+	if x != nil {
+		return x.Returns
+	}
+	return ""
+}
+
+func (x *Command) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
+}
+
+func (x *Command) GetCost() string {
+	if x != nil {
+		return x.Cost
+	}
+	return ""
+}
+
+func (x *Command) GetPreconditions() []string {
+	if x != nil {
+		return x.Preconditions
+	}
+	return nil
+}
+
+func (x *Command) GetPromote() bool {
+	if x != nil {
+		return x.Promote
+	}
+	return false
+}
+
+type Declaration struct {
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Identity     *Identity              `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
+	Coverage     Coverage               `protobuf:"varint,2,opt,name=coverage,proto3,enum=rig.v1.Coverage" json:"coverage,omitempty"`
+	CoverageNote string                 `protobuf:"bytes,3,opt,name=coverage_note,json=coverageNote,proto3" json:"coverage_note,omitempty"`
+	// Pins what every declared name means, for this program, for its lifetime
+	// (section 21). Zero is refused: it cannot be absent.
+	SemanticsGen int32      `protobuf:"varint,4,opt,name=semantics_gen,json=semanticsGen,proto3" json:"semantics_gen,omitempty"`
+	Services     []string   `protobuf:"bytes,5,rep,name=services,proto3" json:"services,omitempty"` // an unused service costs this program nothing
+	Preamble     string     `protobuf:"bytes,6,opt,name=preamble,proto3" json:"preamble,omitempty"` // the one document an agent reads first
+	Commands     []*Command `protobuf:"bytes,7,rep,name=commands,proto3" json:"commands,omitempty"`
+	// The scope this program's entries belong to. Empty means the program's own
+	// id, which is the only scope a program needs until peers (section 16).
+	Scope         string `protobuf:"bytes,8,opt,name=scope,proto3" json:"scope,omitempty"`
+	Hosted        bool   `protobuf:"varint,9,opt,name=hosted,proto3" json:"hosted,omitempty"` // compiled into rigd (section 5j)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Declaration) Reset() {
+	*x = Declaration{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Declaration) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Declaration) ProtoMessage() {}
+
+func (x *Declaration) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Declaration.ProtoReflect.Descriptor instead.
+func (*Declaration) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *Declaration) GetIdentity() *Identity {
+	if x != nil {
+		return x.Identity
+	}
+	return nil
+}
+
+func (x *Declaration) GetCoverage() Coverage {
+	if x != nil {
+		return x.Coverage
+	}
+	return Coverage_COVERAGE_UNSPECIFIED
+}
+
+func (x *Declaration) GetCoverageNote() string {
+	if x != nil {
+		return x.CoverageNote
+	}
+	return ""
+}
+
+func (x *Declaration) GetSemanticsGen() int32 {
+	if x != nil {
+		return x.SemanticsGen
+	}
+	return 0
+}
+
+func (x *Declaration) GetServices() []string {
+	if x != nil {
+		return x.Services
+	}
+	return nil
+}
+
+func (x *Declaration) GetPreamble() string {
+	if x != nil {
+		return x.Preamble
+	}
+	return ""
+}
+
+func (x *Declaration) GetCommands() []*Command {
+	if x != nil {
+		return x.Commands
+	}
+	return nil
+}
+
+func (x *Declaration) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *Declaration) GetHosted() bool {
+	if x != nil {
+		return x.Hosted
+	}
+	return false
+}
+
+// Program is one program as one principal may see it (section 14).
+//
+// It is Declaration minus preamble and scope: what a reader is shown, not
+// what was stored. Section 5k's rule that no surface may imply completeness
+// is why coverage travels with it.
+type Program struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Identity      *Identity              `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
+	Coverage      Coverage               `protobuf:"varint,2,opt,name=coverage,proto3,enum=rig.v1.Coverage" json:"coverage,omitempty"`
+	CoverageNote  string                 `protobuf:"bytes,3,opt,name=coverage_note,json=coverageNote,proto3" json:"coverage_note,omitempty"`
+	SemanticsGen  int32                  `protobuf:"varint,4,opt,name=semantics_gen,json=semanticsGen,proto3" json:"semantics_gen,omitempty"`
+	Services      []string               `protobuf:"bytes,5,rep,name=services,proto3" json:"services,omitempty"`
+	Hosted        bool                   `protobuf:"varint,6,opt,name=hosted,proto3" json:"hosted,omitempty"`
+	Commands      []*Command             `protobuf:"bytes,7,rep,name=commands,proto3" json:"commands,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Program) Reset() {
+	*x = Program{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Program) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Program) ProtoMessage() {}
+
+func (x *Program) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Program.ProtoReflect.Descriptor instead.
+func (*Program) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *Program) GetIdentity() *Identity {
+	if x != nil {
+		return x.Identity
+	}
+	return nil
+}
+
+func (x *Program) GetCoverage() Coverage {
+	if x != nil {
+		return x.Coverage
+	}
+	return Coverage_COVERAGE_UNSPECIFIED
+}
+
+func (x *Program) GetCoverageNote() string {
+	if x != nil {
+		return x.CoverageNote
+	}
+	return ""
+}
+
+func (x *Program) GetSemanticsGen() int32 {
+	if x != nil {
+		return x.SemanticsGen
+	}
+	return 0
+}
+
+func (x *Program) GetServices() []string {
+	if x != nil {
+		return x.Services
+	}
+	return nil
+}
+
+func (x *Program) GetHosted() bool {
+	if x != nil {
+		return x.Hosted
+	}
+	return false
+}
+
+func (x *Program) GetCommands() []*Command {
+	if x != nil {
+		return x.Commands
+	}
+	return nil
+}
+
+type ProgramsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProgramsRequest) Reset() {
+	*x = ProgramsRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProgramsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProgramsRequest) ProtoMessage() {}
+
+func (x *ProgramsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProgramsRequest.ProtoReflect.Descriptor instead.
+func (*ProgramsRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{11}
+}
+
+type ProgramsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Only what the calling principal may see. An unscoped, unprivileged client
+	// gets nothing; a program gets itself; a client of the owner's gets all of
+	// it, because introspect was decided when the connection was made.
+	Programs      []*Program `protobuf:"bytes,1,rep,name=programs,proto3" json:"programs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProgramsResponse) Reset() {
+	*x = ProgramsResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProgramsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProgramsResponse) ProtoMessage() {}
+
+func (x *ProgramsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProgramsResponse.ProtoReflect.Descriptor instead.
+func (*ProgramsResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ProgramsResponse) GetPrograms() []*Program {
+	if x != nil {
+		return x.Programs
+	}
+	return nil
+}
+
 var File_proto_rig_v1_wire_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_wire_proto_rawDesc = "" +
@@ -554,10 +1462,11 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\n" +
 	"request_id\x18\x04 \x01(\tR\trequestId\x12\x18\n" +
 	"\apayload\x18\x05 \x01(\fR\apayload\x12&\n" +
-	"\x06status\x18\x06 \x01(\v2\x0e.rig.v1.StatusR\x06status\"B\n" +
+	"\x06status\x18\x06 \x01(\v2\x0e.rig.v1.StatusR\x06status\"y\n" +
 	"\fHelloRequest\x12\x18\n" +
 	"\aprogram\x18\x01 \x01(\tR\aprogram\x12\x18\n" +
-	"\aversion\x18\x02 \x01(\tR\aversion\"b\n" +
+	"\aversion\x18\x02 \x01(\tR\aversion\x125\n" +
+	"\vdeclaration\x18\x03 \x01(\v2\x13.rig.v1.DeclarationR\vdeclaration\"b\n" +
 	"\rHelloResponse\x12\x12\n" +
 	"\x04wire\x18\x01 \x01(\tR\x04wire\x12%\n" +
 	"\x0edaemon_version\x18\x02 \x01(\tR\rdaemonVersion\x12\x16\n" +
@@ -567,7 +1476,60 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\fPingResponse\x12\x14\n" +
 	"\x05nonce\x18\x01 \x01(\fR\x05nonce\x12\x18\n" +
 	"\aprogram\x18\x02 \x01(\tR\aprogram\x12\x18\n" +
-	"\aversion\x18\x03 \x01(\tR\aversion*\xbc\x01\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\"~\n" +
+	"\bIdentity\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\x12\x12\n" +
+	"\x04icon\x18\x04 \x01(\tR\x04icon\x12 \n" +
+	"\vdescription\x18\x05 \x01(\tR\vdescription\"-\n" +
+	"\x0fSensitiveFields\x12\x1a\n" +
+	"\bpointers\x18\x01 \x03(\tR\bpointers\"\xce\x05\n" +
+	"\aCommand\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\x12\n" +
+	"\x04args\x18\x03 \x01(\fR\x04args\x12\x1a\n" +
+	"\bexamples\x18\x04 \x03(\tR\bexamples\x12)\n" +
+	"\aeffects\x18\x05 \x01(\x0e2\x0f.rig.v1.EffectsR\aeffects\x120\n" +
+	"\n" +
+	"idempotent\x18\x06 \x01(\x0e2\x10.rig.v1.TristateR\n" +
+	"idempotent\x125\n" +
+	"\tsensitive\x18\a \x01(\v2\x17.rig.v1.SensitiveFieldsR\tsensitive\x122\n" +
+	"\vinteractive\x18\b \x01(\x0e2\x10.rig.v1.TristateR\vinteractive\x12*\n" +
+	"\astreams\x18\t \x01(\x0e2\x10.rig.v1.TristateR\astreams\x125\n" +
+	"\rneeds_display\x18\n" +
+	" \x01(\x0e2\x10.rig.v1.TristateR\fneedsDisplay\x12,\n" +
+	"\bduration\x18\v \x01(\x0e2\x10.rig.v1.DurationR\bduration\x12,\n" +
+	"\bconfirms\x18\f \x01(\x0e2\x10.rig.v1.TristateR\bconfirms\x12#\n" +
+	"\x05shape\x18\r \x01(\x0e2\r.rig.v1.ShapeR\x05shape\x12\x18\n" +
+	"\asummary\x18\x0e \x01(\tR\asummary\x12 \n" +
+	"\vdescription\x18\x0f \x01(\tR\vdescription\x12\x18\n" +
+	"\areturns\x18\x10 \x01(\tR\areturns\x12\x17\n" +
+	"\adry_run\x18\x11 \x01(\bR\x06dryRun\x12\x12\n" +
+	"\x04cost\x18\x12 \x01(\tR\x04cost\x12$\n" +
+	"\rpreconditions\x18\x13 \x03(\tR\rpreconditions\x12\x18\n" +
+	"\apromote\x18\x14 \x01(\bR\apromote\"\xc6\x02\n" +
+	"\vDeclaration\x12,\n" +
+	"\bidentity\x18\x01 \x01(\v2\x10.rig.v1.IdentityR\bidentity\x12,\n" +
+	"\bcoverage\x18\x02 \x01(\x0e2\x10.rig.v1.CoverageR\bcoverage\x12#\n" +
+	"\rcoverage_note\x18\x03 \x01(\tR\fcoverageNote\x12#\n" +
+	"\rsemantics_gen\x18\x04 \x01(\x05R\fsemanticsGen\x12\x1a\n" +
+	"\bservices\x18\x05 \x03(\tR\bservices\x12\x1a\n" +
+	"\bpreamble\x18\x06 \x01(\tR\bpreamble\x12+\n" +
+	"\bcommands\x18\a \x03(\v2\x0f.rig.v1.CommandR\bcommands\x12\x14\n" +
+	"\x05scope\x18\b \x01(\tR\x05scope\x12\x16\n" +
+	"\x06hosted\x18\t \x01(\bR\x06hosted\"\x90\x02\n" +
+	"\aProgram\x12,\n" +
+	"\bidentity\x18\x01 \x01(\v2\x10.rig.v1.IdentityR\bidentity\x12,\n" +
+	"\bcoverage\x18\x02 \x01(\x0e2\x10.rig.v1.CoverageR\bcoverage\x12#\n" +
+	"\rcoverage_note\x18\x03 \x01(\tR\fcoverageNote\x12#\n" +
+	"\rsemantics_gen\x18\x04 \x01(\x05R\fsemanticsGen\x12\x1a\n" +
+	"\bservices\x18\x05 \x03(\tR\bservices\x12\x16\n" +
+	"\x06hosted\x18\x06 \x01(\bR\x06hosted\x12+\n" +
+	"\bcommands\x18\a \x03(\v2\x0f.rig.v1.CommandR\bcommands\"\x11\n" +
+	"\x0fProgramsRequest\"?\n" +
+	"\x10ProgramsResponse\x12+\n" +
+	"\bprograms\x18\x01 \x03(\v2\x0f.rig.v1.ProgramR\bprograms*\xbc\x01\n" +
 	"\tFrameKind\x12\x1a\n" +
 	"\x16FRAME_KIND_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12FRAME_KIND_REQUEST\x10\x01\x12\x17\n" +
@@ -584,7 +1546,32 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\fCODE_INVALID\x10\x04\x12\x0f\n" +
 	"\vCODE_DENIED\x10\x05\x12\x11\n" +
 	"\rCODE_DEADLINE\x10\x06\x12\x11\n" +
-	"\rCODE_INTERNAL\x10\aB0Z.github.com/boris-milner/rig/proto/rig/v1;rigv1b\x06proto3"
+	"\rCODE_INTERNAL\x10\a*M\n" +
+	"\bCoverage\x12\x18\n" +
+	"\x14COVERAGE_UNSPECIFIED\x10\x00\x12\x14\n" +
+	"\x10COVERAGE_PARTIAL\x10\x01\x12\x11\n" +
+	"\rCOVERAGE_FULL\x10\x02*\x81\x01\n" +
+	"\aEffects\x12\x17\n" +
+	"\x13EFFECTS_UNSPECIFIED\x10\x00\x12\x15\n" +
+	"\x11EFFECTS_READ_ONLY\x10\x01\x12\x18\n" +
+	"\x14EFFECTS_WRITES_FILES\x10\x02\x12\x13\n" +
+	"\x0fEFFECTS_NETWORK\x10\x03\x12\x17\n" +
+	"\x13EFFECTS_DESTRUCTIVE\x10\x04*z\n" +
+	"\bDuration\x12\x18\n" +
+	"\x14DURATION_UNSPECIFIED\x10\x00\x12\x14\n" +
+	"\x10DURATION_INSTANT\x10\x01\x12\x14\n" +
+	"\x10DURATION_SECONDS\x10\x02\x12\x14\n" +
+	"\x10DURATION_MINUTES\x10\x03\x12\x12\n" +
+	"\x0eDURATION_HOURS\x10\x04*_\n" +
+	"\x05Shape\x12\x15\n" +
+	"\x11SHAPE_UNSPECIFIED\x10\x00\x12\x0f\n" +
+	"\vSHAPE_UNARY\x10\x01\x12\x10\n" +
+	"\fSHAPE_STREAM\x10\x02\x12\x1c\n" +
+	"\x18SHAPE_INTERACTIVE_STREAM\x10\x03*G\n" +
+	"\bTristate\x12\x18\n" +
+	"\x14TRISTATE_UNSPECIFIED\x10\x00\x12\x0f\n" +
+	"\vTRISTATE_NO\x10\x01\x12\x10\n" +
+	"\fTRISTATE_YES\x10\x02B0Z.github.com/boris-milner/rig/proto/rig/v1;rigv1b\x06proto3"
 
 var (
 	file_proto_rig_v1_wire_proto_rawDescOnce sync.Once
@@ -598,27 +1585,56 @@ func file_proto_rig_v1_wire_proto_rawDescGZIP() []byte {
 	return file_proto_rig_v1_wire_proto_rawDescData
 }
 
-var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
+var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_proto_rig_v1_wire_proto_goTypes = []any{
-	(FrameKind)(0),        // 0: rig.v1.FrameKind
-	(Code)(0),             // 1: rig.v1.Code
-	(*Status)(nil),        // 2: rig.v1.Status
-	(*Frame)(nil),         // 3: rig.v1.Frame
-	(*HelloRequest)(nil),  // 4: rig.v1.HelloRequest
-	(*HelloResponse)(nil), // 5: rig.v1.HelloResponse
-	(*PingRequest)(nil),   // 6: rig.v1.PingRequest
-	(*PingResponse)(nil),  // 7: rig.v1.PingResponse
+	(FrameKind)(0),           // 0: rig.v1.FrameKind
+	(Code)(0),                // 1: rig.v1.Code
+	(Coverage)(0),            // 2: rig.v1.Coverage
+	(Effects)(0),             // 3: rig.v1.Effects
+	(Duration)(0),            // 4: rig.v1.Duration
+	(Shape)(0),               // 5: rig.v1.Shape
+	(Tristate)(0),            // 6: rig.v1.Tristate
+	(*Status)(nil),           // 7: rig.v1.Status
+	(*Frame)(nil),            // 8: rig.v1.Frame
+	(*HelloRequest)(nil),     // 9: rig.v1.HelloRequest
+	(*HelloResponse)(nil),    // 10: rig.v1.HelloResponse
+	(*PingRequest)(nil),      // 11: rig.v1.PingRequest
+	(*PingResponse)(nil),     // 12: rig.v1.PingResponse
+	(*Identity)(nil),         // 13: rig.v1.Identity
+	(*SensitiveFields)(nil),  // 14: rig.v1.SensitiveFields
+	(*Command)(nil),          // 15: rig.v1.Command
+	(*Declaration)(nil),      // 16: rig.v1.Declaration
+	(*Program)(nil),          // 17: rig.v1.Program
+	(*ProgramsRequest)(nil),  // 18: rig.v1.ProgramsRequest
+	(*ProgramsResponse)(nil), // 19: rig.v1.ProgramsResponse
 }
 var file_proto_rig_v1_wire_proto_depIdxs = []int32{
-	1, // 0: rig.v1.Status.code:type_name -> rig.v1.Code
-	0, // 1: rig.v1.Frame.kind:type_name -> rig.v1.FrameKind
-	2, // 2: rig.v1.Frame.status:type_name -> rig.v1.Status
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	1,  // 0: rig.v1.Status.code:type_name -> rig.v1.Code
+	0,  // 1: rig.v1.Frame.kind:type_name -> rig.v1.FrameKind
+	7,  // 2: rig.v1.Frame.status:type_name -> rig.v1.Status
+	16, // 3: rig.v1.HelloRequest.declaration:type_name -> rig.v1.Declaration
+	3,  // 4: rig.v1.Command.effects:type_name -> rig.v1.Effects
+	6,  // 5: rig.v1.Command.idempotent:type_name -> rig.v1.Tristate
+	14, // 6: rig.v1.Command.sensitive:type_name -> rig.v1.SensitiveFields
+	6,  // 7: rig.v1.Command.interactive:type_name -> rig.v1.Tristate
+	6,  // 8: rig.v1.Command.streams:type_name -> rig.v1.Tristate
+	6,  // 9: rig.v1.Command.needs_display:type_name -> rig.v1.Tristate
+	4,  // 10: rig.v1.Command.duration:type_name -> rig.v1.Duration
+	6,  // 11: rig.v1.Command.confirms:type_name -> rig.v1.Tristate
+	5,  // 12: rig.v1.Command.shape:type_name -> rig.v1.Shape
+	13, // 13: rig.v1.Declaration.identity:type_name -> rig.v1.Identity
+	2,  // 14: rig.v1.Declaration.coverage:type_name -> rig.v1.Coverage
+	15, // 15: rig.v1.Declaration.commands:type_name -> rig.v1.Command
+	13, // 16: rig.v1.Program.identity:type_name -> rig.v1.Identity
+	2,  // 17: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
+	15, // 18: rig.v1.Program.commands:type_name -> rig.v1.Command
+	17, // 19: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
+	20, // [20:20] is the sub-list for method output_type
+	20, // [20:20] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_wire_proto_init() }
@@ -631,8 +1647,8 @@ func file_proto_rig_v1_wire_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_wire_proto_rawDesc), len(file_proto_rig_v1_wire_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   6,
+			NumEnums:      7,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
