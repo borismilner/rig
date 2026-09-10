@@ -86,6 +86,16 @@ build-ledger: ## Build M1a's first fake application, kit and all
 	cp design/kit/kit.css design/kit/kit.js design/kit/pane.js cmd/ledger/kit/
 	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o build/ledger ./cmd/ledger
 
+build-docket: ## Build M1a's second fake application, on dispatch's shape
+	# Its own target rather than a flag on build-ledger, for the same reason it
+	# is its own binary: section 5h says a fake application written to fit the
+	# kit proves nothing, and a second adopter that shares the first one's
+	# build is a second adopter in name only.
+	@mkdir -p build cmd/docket/kit
+	@find cmd/docket/kit -mindepth 1 ! -name .gitkeep -delete
+	cp design/kit/kit.css design/kit/kit.js design/kit/pane.js cmd/docket/kit/
+	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o build/docket ./cmd/docket
+
 # The window is the third binary (section 17, section 22) and deliberately not
 # part of `build`: it is the only one that needs cgo, gtk and a webview, so a
 # machine without those can still build and test everything else. That is also
@@ -300,12 +310,12 @@ bench-ipc: ## Reproduce the transport numbers in PLAN.md section 4
 bench-size: build ## Record or check the binary-size ratchet (PLAN.md 17, 22)
 	go run ./cmd/sizeratchet --ratchet $(RATCHET) \
 	  --bin build/$(BIND) --bin build/$(BIN) --bin build/fakeapp \
-	  --bin build/ledger
+	  --bin build/ledger --bin build/docket
 
 bench-size-update: build ## Accept the current sizes as the new ratchet
 	go run ./cmd/sizeratchet --ratchet $(RATCHET) --update \
 	  --bin build/$(BIND) --bin build/$(BIN) --bin build/fakeapp \
-	  --bin build/ledger
+	  --bin build/ledger --bin build/docket
 
 # ledger is NOT split out the way the window is. The window's split exists for
 # one reason - it needs cgo, gtk and a webview - and none of that applies to a

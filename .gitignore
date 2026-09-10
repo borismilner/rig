@@ -7,11 +7,15 @@ build/
 cmd/rigwindow/dist/*
 !cmd/rigwindow/dist/.gitkeep
 
-# design/kit is the source and cmd/ledger/kit is where the build copies it,
-# because go:embed cannot reach above its own package. Same arrangement as
-# dist above, and cmd/ledger/embed_test.go is what notices if it breaks.
+# design/kit is the source and each fake application's kit/ is where the build
+# copies it, because go:embed cannot reach above its own package. Same
+# arrangement as dist above, and each program's embed_test.go is what notices
+# if it breaks. One pair of lines per adopter rather than a cmd/*/kit glob: a
+# glob would silently cover a directory somebody added for another reason.
 cmd/ledger/kit/*
 !cmd/ledger/kit/.gitkeep
+cmd/docket/kit/*
+!cmd/docket/kit/.gitkeep
 node_modules/
 *.out
 *.test

@@ -1800,6 +1800,9 @@ function num(n) {
  *   sorts numerically. A column is filtered on only if it is text, unless
  *   opts.searchKeys names the keys instead.
  * opts: { sortKey, sortDir, limit, searchKeys, countEl, emptyText }
+ *   emptyText may be a string or a function returning one.
+ * cols: { key, label, type, cls, fmt, el }
+ *   fmt returns text; el returns a NODE for a cell that is not text.
  *
  * Sort state is held by column INDEX and not by key, which is a bend the first
  * fake application forced. A report legitimately shows one field twice - a raw
@@ -1918,9 +1921,16 @@ function rigTable(tableEl, cols, rows, opts = {}) {
       const td = el(
         "td",
         "rig-empty",
+        // emptyText may be a function, because dispatch's board says
+        // something different for each of its three filters ("No failing
+        // runs.", "Nothing running right now.", "No linked PRs yet.") and a
+        // single string cannot. The search filter keeps its own message: that
+        // one is about what was typed, which the caller did not choose.
         filter
           ? `Nothing matches "${filter}".`
-          : (opts.emptyText ?? "This table has no rows."),
+          : (typeof opts.emptyText === "function"
+              ? opts.emptyText()
+              : (opts.emptyText ?? "This table has no rows.")),
       );
       td.colSpan = cols.length;
       tr.appendChild(td);
@@ -1931,8 +1941,19 @@ function rigTable(tableEl, cols, rows, opts = {}) {
         const tr = el("tr");
         cols.forEach((c) => {
           const td = el("td");
-          if (c.html) td.innerHTML = c.html(row);
-          else if (c.fmt) td.textContent = c.fmt(row[c.key], row);
+          // c.el returns a NODE, and it replaced a c.html that returned a
+          // string. Nothing used c.html, it was not in the documented option
+          // list, and it assigned innerHTML - so the first adopter with a cell
+          // that is not text would have reached for an injection sink built
+          // into rig's own element and interpolated a repo name or a title
+          // into it. The second fake application is what found that: every
+          // interesting column on dispatch's board is a link, a chip or a
+          // matrix, so "a cell can be a thing rather than a string" is the
+          // normal case for that shape and not an escape hatch at all.
+          if (c.el) {
+            const node = c.el(row);
+            if (node != null) td.append(node);
+          } else if (c.fmt) td.textContent = c.fmt(row[c.key], row);
           else td.textContent = row[c.key] ?? EM_DASH;
           td.classList.add(alignOf(c));
           // add rather than assign: assigning clobbered the alignment the
