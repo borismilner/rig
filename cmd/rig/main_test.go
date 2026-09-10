@@ -4,6 +4,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/boris-milner/rig/internal/daemon"
 )
 
 // Section 10 promises --json on everything. Go's flag package stops at the
@@ -79,5 +81,24 @@ func TestPingRefusesAnEmptyProgramName(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "the program name is empty") {
 		t.Fatalf("refused for the wrong reason: %v", err)
+	}
+}
+
+// The client must outlast the daemon, or rig's own diagnosis never reaches
+// the user.
+//
+// Section 18 makes the daemon's deadline a supervision decision and rig
+// answers a hang itself, naming the program and the deadline it missed. If
+// the CLI gives up first the user sees `context deadline exceeded` from their
+// own process instead. `rig ping` defaulted to 5s against a 10s CallTimeout
+// and did exactly that.
+//
+// This test imports the daemon so the two numbers cannot drift apart in
+// silence. It is a test-only import: the CLI does not link the daemon.
+func TestTheClientOutlastsTheDaemonsOwnDeadline(t *testing.T) {
+	if defaultCallTimeout <= daemon.CallTimeout {
+		t.Fatalf("the CLI waits %s and the daemon answers a hang at %s, so the "+
+			"client gives up first and rig's own message never lands",
+			defaultCallTimeout, daemon.CallTimeout)
 	}
 }

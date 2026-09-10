@@ -166,13 +166,13 @@ func cmdVersion(args []string) error {
 func cmdPing(args []string) error {
 	fs := flag.NewFlagSet("ping", flag.ContinueOnError)
 	asJSON := fs.Bool("json", false, "emit JSON")
-	timeout := fs.Duration("timeout", 5*time.Second, "how long to wait")
+	timeout := fs.Duration("timeout", defaultCallTimeout, "how long to wait")
 	flags, positional := partition(args)
 	if err := fs.Parse(flags); err != nil {
 		return err
 	}
 	if len(positional) != 1 {
-		return errors.New("usage: rig ping <program> [--json] [--timeout=5s]")
+		return errors.New("usage: rig ping <program> [--json] [--timeout=30s]")
 	}
 	program := positional[0]
 	// An empty name used to fail at the daemon, because ".ping" is not a

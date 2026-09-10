@@ -31,6 +31,21 @@ import (
 // the error says so.
 var ownFlags = map[string]bool{"json": true, "timeout": true, "args": true}
 
+// defaultCallTimeout is how long the CLI waits, and it is deliberately LONGER
+// than the daemon's own CallTimeout.
+//
+// Section 18 makes the daemon's deadline a supervision decision - "a program
+// that misses them is degraded, then restarted" - and rig answers a hang
+// itself, naming the program and the deadline it missed. The client's number
+// is not that. It is patience, and if it is the smaller of the two the client
+// gives up first: the user gets `context deadline exceeded` from their own
+// process instead of rig's diagnosis, on the commonest failure there is.
+//
+// `rig ping` used to default to 5s against a 10s CallTimeout and did exactly
+// that, needing --timeout 30s to see what rig had to say. One number now, and
+// TestTheClientOutlastsTheDaemonsOwnDeadline stops the two drifting apart.
+const defaultCallTimeout = 30 * time.Second
+
 // callFlags is what rig itself takes on a call.
 type callFlags struct {
 	asJSON  bool
@@ -80,7 +95,7 @@ func cmdCall(program, command string, argv []string) error {
 // the registry has been read, and partition's set of value-taking flags is
 // fixed at compile time.
 func splitOwnFlags(argv []string) (callFlags, []string, error) {
-	own := callFlags{timeout: 30 * time.Second}
+	own := callFlags{timeout: defaultCallTimeout}
 	var rest []string
 
 	for i := 0; i < len(argv); i++ {
