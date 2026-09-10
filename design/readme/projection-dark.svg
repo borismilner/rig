@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600" width="900" height="600" role="img" aria-label="Six programs declare once into rig, which projects the declaration onto nine surfaces">
+  <rect x=".5" y=".5" width="899" height="599" rx="16" fill="#121a23" stroke="#64778c" stroke-opacity=".45"/>
+  <linearGradient id="thread0" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#92cf9a"/><stop offset="1" stop-color="#64778c"/></linearGradient>
+  <path d="M120 62 C 120 96, 450 86, 450 120" fill="none" stroke="url(#thread0)" stroke-width="1.5" opacity=".85"/>
+  <rect x="62" y="28" width="116" height="34" rx="9" fill="#1a222c" stroke="#64778c" stroke-opacity=".7"/>
+  <circle cx="79" cy="45" r="4" fill="#92cf9a"/>
+  <text x="92" y="49.5" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="12.5" fill="#dae5f3">shelf</text>
+  <linearGradient id="thread1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#68d1d2"/><stop offset="1" stop-color="#64778c"/></linearGradient>
+  <path d="M252 62 C 252 96, 450 86, 450 120" fill="none" stroke="url(#thread1)" stroke-width="1.5" opacity=".85"/>
+  <rect x="194" y="28" width="116" height="34" rx="9" fill="#1a222c" stroke="#64778c" stroke-opacity=".7"/>
+  <circle cx="211" cy="45" r="4" fill="#68d1d2"/>
+  <text x="224" y="49.5" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="12.5" fill="#dae5f3">graft</text>
+  <linearGradient id="thread2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fc2fb"/><stop offset="1" stop-color="#64778c"/></linearGradient>
+  <path d="M384 62 C 384 96, 450 86, 450 120" fill="none" stroke="url(#thread2)" stroke-width="1.5" opacity=".85"/>
+  <rect x="326" y="28" width="116" height="34" rx="9" fill="#1a222c" stroke="#64778c" stroke-opacity=".7"/>
+  <circle cx="343" cy="45" r="4" fill="#8fc2fb"/>
+  <text x="356" y="49.5" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="12.5" fill="#dae5f3">archi</text>
+  <linearGradient id="thread3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c1b2f7"/><stop offset="1" stop-color="#64778c"/></linearGradient>
+  <path d="M516 62 C 516 96, 450 86, 450 120" fill="none" stroke="url(#thread3)" stroke-width="1.5" opacity=".85"/>
+  <rect x="458" y="28" width="116" height="34" rx="9" fill="#1a222c" stroke="#64778c" stroke-opacity=".7"/>
+  <circle cx="475" cy="45" r="4" fill="#c1b2f7"/>
+  <text x="488" y="49.5" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="12.5" fill="#dae5f3">snapper</text>
+  <linearGradient id="thread4" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eca4cc"/><stop offset="1" stop-color="#64778c"/></linearGradient>
+  <path d="M648 62 C 648 96, 450 86, 450 120" fill="none" stroke="url(#thread4)" stroke-width="1.5" opacity=".85"/>
+  <rect x="590" y="28" width="116" height="34" rx="9" fill="#1a222c" stroke="#64778c" stroke-opacity=".7"/>
+  <circle cx="607" cy="45" r="4" fill="#eca4cc"/>
+  <text x="620" y="49.5" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="12.5" fill="#dae5f3">nudge</text>
+  <linearGradient id="thread5" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#92cf9a"/><stop offset="1" stop-color="#64778c"/></linearGradient>
+  <path d="M780 62 C 780 96, 450 86, 450 120" fill="none" stroke="url(#thread5)" stroke-width="1.5" opacity=".85"/>
+  <rect x="722" y="28" width="116" height="34" rx="9" fill="#1a222c" stroke="#64778c" stroke-opacity=".7"/>
+  <circle cx="739" cy="45" r="4" fill="#92cf9a"/>
+  <text x="752" y="49.5" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="12.5" fill="#dae5f3">grabbit</text>
+  <text x="450" y="146" text-anchor="middle" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="10" letter-spacing="1.5" fill="#8e9fb1">DECLARES ONCE</text>
+  <text x="450" y="167" text-anchor="middle" font-family='"Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif' font-size="12.5" fill="#a1b1c5">commands · config schema · state · data · events</text>
+  <path d="M450 178 L450 192 M445 187 L450 192 L455 187" fill="none" stroke="#8195ab" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="90" y="200" width="720" height="208" rx="14" fill="#212a34" stroke="#64778c"/>
+  <text x="118" y="244" font-family='"Fraunces", ui-serif, Georgia, serif' font-size="30" font-weight="600" letter-spacing="-.7" fill="#dae5f3">rig</text>
+  <text x="782" y="242" text-anchor="end" font-family='"Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif' font-size="12" fill="#8e9fb1">one daemon, no GUI, upgrades on its own</text>
+  <line x1="118" y1="260" x2="782" y2="260" stroke="#64778c" stroke-opacity=".55"/>
+  <text x="118" y="288" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="12" fill="#dae5f3">registry</text>
+  <text x="196" y="288" font-family='"Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif' font-size="11" fill="#8e9fb1">what each program declared</text>
+  <text x="462" y="288" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="12" fill="#dae5f3">config</text>
+  <text x="540" y="288" font-family='"Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif' font-size="11" fill="#8e9fb1">layers, schema, provenance, live push</text>
+  <text x="118" y="313" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="12" fill="#dae5f3">store</text>
+  <text x="196" y="313" font-family='"Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif' font-size="11" fill="#8e9fb1">location, migrations, backup, integrity</text>
+  <text x="462" y="313" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="12" fill="#dae5f3">secrets</text>
+  <text x="540" y="313" font-family='"Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif' font-size="11" fill="#8e9fb1">keyring, namespaced per program</text>
+  <text x="118" y="338" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="12" fill="#dae5f3">observe</text>
+  <text x="196" y="338" font-family='"Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif' font-size="11" fill="#8e9fb1">log, trace and metric, merged</text>
+  <text x="462" y="338" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="12" fill="#dae5f3">control</text>
+  <text x="540" y="338" font-family='"Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif' font-size="11" fill="#8e9fb1">start, stop, invoke, health</text>
+  <text x="118" y="363" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="12" fill="#dae5f3">schedule</text>
+  <text x="196" y="363" font-family='"Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif' font-size="11" fill="#8e9fb1">one scheduler for the whole estate</text>
+  <text x="462" y="363" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="12" fill="#dae5f3">bus</text>
+  <text x="540" y="363" font-family='"Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif' font-size="11" fill="#8e9fb1">events between programs, by grant</text>
+  <text x="118" y="388" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="12" fill="#dae5f3">rules</text>
+  <text x="196" y="388" font-family='"Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif' font-size="11" fill="#8e9fb1">who may run what, what must ask first</text>
+  <text x="462" y="388" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="12" fill="#dae5f3">hosted</text>
+  <text x="540" y="388" font-family='"Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif' font-size="11" fill="#8e9fb1">programs with no binary of their own</text>
+  <text x="450" y="430" text-anchor="middle" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="11" fill="#a1b1c5">one unix socket · length-prefixed protobuf · 6.2 µs round trip</text>
+  <path d="M450 442 C 450 468, 66 458, 66 484" fill="none" stroke="#64778c" stroke-width="1.1" opacity=".8"/>
+  <rect x="22" y="484" width="88" height="32" rx="8" fill="#1a222c" stroke="#64778c" stroke-opacity=".7"/>
+  <text x="66" y="504.2" text-anchor="middle" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="11.5" fill="#dae5f3">CLI</text>
+  <text x="66" y="534" text-anchor="middle" font-family='"Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif' font-size="10.5" fill="#8e9fb1">terminal</text>
+  <path d="M450 442 C 450 468, 162 458, 162 484" fill="none" stroke="#64778c" stroke-width="1.1" opacity=".8"/>
+  <rect x="118" y="484" width="88" height="32" rx="8" fill="#1a222c" stroke="#64778c" stroke-opacity=".7"/>
+  <text x="162" y="504.2" text-anchor="middle" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="11.5" fill="#dae5f3">MCP</text>
+  <text x="162" y="534" text-anchor="middle" font-family='"Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif' font-size="10.5" fill="#8e9fb1">agents</text>
+  <path d="M450 442 C 450 468, 258 458, 258 484" fill="none" stroke="#64778c" stroke-width="1.1" opacity=".8"/>
+  <rect x="214" y="484" width="88" height="32" rx="8" fill="#1a222c" stroke="#64778c" stroke-opacity=".7"/>
+  <text x="258" y="504.2" text-anchor="middle" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="11.5" fill="#dae5f3">HTTP</text>
+  <text x="258" y="534" text-anchor="middle" font-family='"Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif' font-size="10.5" fill="#8e9fb1">scripts</text>
+  <path d="M450 442 C 450 468, 354 458, 354 484" fill="none" stroke="#64778c" stroke-width="1.1" opacity=".8"/>
+  <rect x="310" y="484" width="88" height="32" rx="8" fill="#1a222c" stroke="#64778c" stroke-opacity=".7"/>
+  <text x="354" y="504.2" text-anchor="middle" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="11.5" fill="#dae5f3">Window</text>
+  <text x="354" y="534" text-anchor="middle" font-family='"Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif' font-size="10.5" fill="#8e9fb1">a mouse</text>
+  <path d="M450 442 C 450 468, 450 458, 450 484" fill="none" stroke="#64778c" stroke-width="1.1" opacity=".8"/>
+  <rect x="406" y="484" width="88" height="32" rx="8" fill="#1a222c" stroke="#64778c" stroke-opacity=".7"/>
+  <text x="450" y="504.2" text-anchor="middle" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="11.5" fill="#dae5f3">Tray</text>
+  <text x="450" y="534" text-anchor="middle" font-family='"Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif' font-size="10.5" fill="#8e9fb1">presence</text>
+  <path d="M450 442 C 450 468, 546 458, 546 484" fill="none" stroke="#64778c" stroke-width="1.1" opacity=".8"/>
+  <rect x="502" y="484" width="88" height="32" rx="8" fill="#1a222c" stroke="#64778c" stroke-opacity=".7"/>
+  <text x="546" y="504.2" text-anchor="middle" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="11.5" fill="#dae5f3">Toast</text>
+  <text x="546" y="534" text-anchor="middle" font-family='"Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif' font-size="10.5" fill="#8e9fb1">attention</text>
+  <path d="M450 442 C 450 468, 642 458, 642 484" fill="none" stroke="#64778c" stroke-width="1.1" opacity=".8"/>
+  <rect x="598" y="484" width="88" height="32" rx="8" fill="#1a222c" stroke="#64778c" stroke-opacity=".7"/>
+  <text x="642" y="504.2" text-anchor="middle" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="11.5" fill="#dae5f3">Palette</text>
+  <text x="642" y="534" text-anchor="middle" font-family='"Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif' font-size="10.5" fill="#8e9fb1">keyboard</text>
+  <path d="M450 442 C 450 468, 738 458, 738 484" fill="none" stroke="#64778c" stroke-width="1.1" opacity=".8"/>
+  <rect x="694" y="484" width="88" height="32" rx="8" fill="#1a222c" stroke="#64778c" stroke-opacity=".7"/>
+  <text x="738" y="504.2" text-anchor="middle" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="11.5" fill="#dae5f3">Schedule</text>
+  <text x="738" y="534" text-anchor="middle" font-family='"Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif' font-size="10.5" fill="#8e9fb1">time</text>
+  <path d="M450 442 C 450 468, 834 458, 834 484" fill="none" stroke="#64778c" stroke-width="1.1" opacity=".8"/>
+  <rect x="790" y="484" width="88" height="32" rx="8" fill="#1a222c" stroke="#64778c" stroke-opacity=".7"/>
+  <text x="834" y="504.2" text-anchor="middle" font-family='"JetBrains Mono", ui-monospace, monospace' font-size="11.5" fill="#dae5f3">URL</text>
+  <text x="834" y="534" text-anchor="middle" font-family='"Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif' font-size="10.5" fill="#8e9fb1">links</text>
+  <text x="450" y="568" text-anchor="middle" font-family='"Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif' font-size="12.5" fill="#a1b1c5">An app writes nothing to get any of these. It declared its commands; rig did the rest.</text>
+</svg>
