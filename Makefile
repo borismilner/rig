@@ -72,6 +72,20 @@ build-fakeapp: ## Build the reference program the conformance suite drives
 	@mkdir -p build
 	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o build/fakeapp ./cmd/fakeapp
 
+# M1a's first fake application (section 5h, section 23), modelled on
+# pull-report's measured markup. It serves its own pane and the element kit
+# beside it, because rig has no HTTP server to publish the kit from until M2.
+#
+# The copy is the whole reason this is a target rather than a plain go build:
+# go:embed cannot reach above its own package, exactly as it cannot for the
+# window's built frontend, so design/kit is the source and cmd/ledger/kit is
+# where it has to sit to be embedded. rsync is not assumed; cp -R is.
+build-ledger: ## Build M1a's first fake application, kit and all
+	@mkdir -p build cmd/ledger/kit
+	@find cmd/ledger/kit -mindepth 1 ! -name .gitkeep -delete
+	cp design/kit/kit.css design/kit/kit.js design/kit/pane.js cmd/ledger/kit/
+	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o build/ledger ./cmd/ledger
+
 # The window is the third binary (section 17, section 22) and deliberately not
 # part of `build`: it is the only one that needs cgo, gtk and a webview, so a
 # machine without those can still build and test everything else. That is also
@@ -395,7 +409,7 @@ help: ## Show this help
 	  /^[a-zA-Z_-]+:.*##/ {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo
 
-.PHONY: build build-rigd build-rig build-fakeapp deps-frontend build-frontend build-rigwindow build-all install uninstall \
+.PHONY: build build-rigd build-rig build-fakeapp build-ledger deps-frontend build-frontend build-rigwindow build-all install uninstall \
         run dev clean test test-unit test-race \
         test-chaos test-e2e test-wire fuzz cover cover-html lint lint-house fmt vet audit \
         vet-window test-window verify contrast contrast-selftest contrast-window generate proto schema types docs bench bench-ipc profile \
