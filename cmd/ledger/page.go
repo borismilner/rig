@@ -23,6 +23,14 @@ import (
 // report page tends to own `.toolbar`, `.lead` and `.panel` already, so the
 // prefix is what keeps adoption from fighting the adopter's own stylesheet.
 
+// Named because they are said eleven and nine times below, and a report that
+// spells one of them wrong once would filter to an empty table rather than
+// fail. The select in the page matches on these exact strings.
+const (
+	kindEnterprise = "enterprise"
+	kindCommunity  = "community"
+)
+
 type row struct {
 	Actor    string `json:"actor"`
 	Kind     string `json:"kind"`
@@ -36,26 +44,26 @@ type row struct {
 // demonstration twice and a screenshot means something.
 func rows() []row {
 	base := []row{
-		{"acme-platform", "enterprise", "europe-west4", 18402, 17233, 1169},
-		{"acme-ci", "enterprise", "europe-west4", 9120, 8940, 180},
-		{"northwind-dev", "enterprise", "us-central1", 7731, 6002, 1729},
-		{"ja4:t13d1516h2", "community", "us-east1", 6640, 12, 6628},
-		{"orbit-runners", "enterprise", "us-central1", 5518, 5501, 17},
-		{"ja4:t13d1517h2", "community", "asia-south1", 4402, 0, 4402},
-		{"helix-staging", "enterprise", "europe-west1", 3980, 3712, 268},
-		{"ja4:t12d0908h1", "community", "sa-east1", 3211, 44, 3167},
-		{"vega-batch", "enterprise", "us-west2", 2884, 2790, 94},
-		{"ja4:t13d1516h1", "community", "europe-north1", 2540, 8, 2532},
-		{"quill-preview", "enterprise", "europe-west4", 2190, 1980, 210},
-		{"ja4:t11d0705h3", "community", "af-south1", 1806, 0, 1806},
-		{"tessellate-qa", "enterprise", "us-central1", 1640, 1602, 38},
-		{"ja4:t13d1514h2", "community", "me-central1", 1422, 3, 1419},
-		{"lumen-edge", "enterprise", "asia-east1", 1180, 1040, 140},
-		{"ja4:t12d0909h2", "community", "us-east4", 980, 0, 980},
-		{"crate-mirror", "enterprise", "europe-west3", 802, 640, 162},
-		{"ja4:t13d1518h1", "community", "australia-southeast1", 640, 12, 628},
-		{"pilot-sandbox", "enterprise", "us-west1", 512, 480, 32},
-		{"ja4:t10d0604h1", "community", "asia-northeast1", 388, 0, 388},
+		{"acme-platform", kindEnterprise, "europe-west4", 18402, 17233, 1169},
+		{"acme-ci", kindEnterprise, "europe-west4", 9120, 8940, 180},
+		{"northwind-dev", kindEnterprise, "us-central1", 7731, 6002, 1729},
+		{"ja4:t13d1516h2", kindCommunity, "us-east1", 6640, 12, 6628},
+		{"orbit-runners", kindEnterprise, "us-central1", 5518, 5501, 17},
+		{"ja4:t13d1517h2", kindCommunity, "asia-south1", 4402, 0, 4402},
+		{"helix-staging", kindEnterprise, "europe-west1", 3980, 3712, 268},
+		{"ja4:t12d0908h1", kindCommunity, "sa-east1", 3211, 44, 3167},
+		{"vega-batch", kindEnterprise, "us-west2", 2884, 2790, 94},
+		{"ja4:t13d1516h1", kindCommunity, "europe-north1", 2540, 8, 2532},
+		{"quill-preview", kindEnterprise, "europe-west4", 2190, 1980, 210},
+		{"ja4:t11d0705h3", kindCommunity, "af-south1", 1806, 0, 1806},
+		{"tessellate-qa", kindEnterprise, "us-central1", 1640, 1602, 38},
+		{"ja4:t13d1514h2", kindCommunity, "me-central1", 1422, 3, 1419},
+		{"lumen-edge", kindEnterprise, "asia-east1", 1180, 1040, 140},
+		{"ja4:t12d0909h2", kindCommunity, "us-east4", 980, 0, 980},
+		{"crate-mirror", kindEnterprise, "europe-west3", 802, 640, 162},
+		{"ja4:t13d1518h1", kindCommunity, "australia-southeast1", 640, 12, 628},
+		{"pilot-sandbox", kindEnterprise, "us-west1", 512, 480, 32},
+		{"ja4:t10d0604h1", kindCommunity, "asia-northeast1", 388, 0, 388},
 	}
 	return base
 }
@@ -69,6 +77,9 @@ func pane() string {
 	}
 
 	var b strings.Builder
+	//nolint:misspell // `color` is a CSS property name, which is American by
+	// spec. The repo's UK locale is deliberate and right for prose, so this is
+	// exempted where it meets CSS rather than weakened everywhere.
 	b.WriteString(`<!doctype html>
 <meta charset="utf-8">
 <title>ledger</title>

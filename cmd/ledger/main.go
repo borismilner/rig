@@ -21,6 +21,7 @@ package main
 import (
 	"context"
 	"embed"
+	"errors"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -35,10 +36,12 @@ import (
 	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )
 
-// go:embed cannot reach above its own package, exactly as it cannot for the
-// window's built frontend, so `make build-ledger` copies design/kit in here
-// first and kit/.gitkeep is what keeps this embed resolvable on a fresh clone.
-// The `all:` prefix is what makes .gitkeep count as a match.
+// The `go:embed` directive cannot reach above its own package, exactly as it
+// cannot for the window's built frontend, so `make build-ledger` copies
+// design/kit in here first and kit/.gitkeep is what keeps this embed
+// resolvable on a fresh clone. The `all:` prefix makes .gitkeep count as a
+// match. (Written with backticks: as bare prose, the space after the slashes
+// reads to staticcheck as a broken compiler directive.)
 //
 //go:embed all:kit
 var kitFS embed.FS
@@ -60,7 +63,7 @@ func run() error {
 	origin := "http://" + *addr
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/pane", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/pane", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("content-type", "text/html; charset=utf-8")
 		fmt.Fprint(w, pane())
 	})
@@ -87,7 +90,7 @@ func run() error {
 	// testing something no real adopter can do.
 	runtimeDir := os.Getenv("XDG_RUNTIME_DIR")
 	if runtimeDir == "" {
-		return fmt.Errorf("XDG_RUNTIME_DIR is unset, so rig's socket cannot be found")
+		return errors.New("XDG_RUNTIME_DIR is unset, so rig's socket cannot be found")
 	}
 	sock := filepath.Join(runtimeDir, "rig", "rigd.sock")
 
@@ -97,7 +100,9 @@ func run() error {
 	}
 	defer c.Close()
 
-	c.Handle(func(method string, payload []byte) (proto.Message, error) {
+	// The method is not read: this program declares one command and answers the
+	// probe, so there is nothing to route on yet.
+	c.Handle(func(_ string, payload []byte) (proto.Message, error) {
 		var req rigv1.PingRequest
 		if err := proto.Unmarshal(payload, &req); err != nil {
 			return nil, err
