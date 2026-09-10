@@ -309,6 +309,131 @@ func (x *Frame) GetStatus() *Status {
 	return nil
 }
 
+// HelloRequest is a program declaring itself on the connection it just opened.
+//
+// This is the seed of the predicate PLAN.md section 14 rests on: a connection
+// that completes the program handshake is a program and is scoped for the life
+// of that connection; every other local connection from this uid is a client of
+// the owner's and reads everything. Nothing is distributed, minted or
+// inherited - the connection itself carries the answer.
+//
+// M0 routes by name. M1 replaces this with real registration: a declaration
+// validated against its schema, with capabilities and a computed projection.
+type HelloRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Program       string                 `protobuf:"bytes,1,opt,name=program,proto3" json:"program,omitempty"` // the program's id, e.g. "fakeapp"
+	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"` // its own version string, reported not enforced
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HelloRequest) Reset() {
+	*x = HelloRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HelloRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HelloRequest) ProtoMessage() {}
+
+func (x *HelloRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HelloRequest.ProtoReflect.Descriptor instead.
+func (*HelloRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *HelloRequest) GetProgram() string {
+	if x != nil {
+		return x.Program
+	}
+	return ""
+}
+
+func (x *HelloRequest) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+type HelloResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Wire          string                 `protobuf:"bytes,1,opt,name=wire,proto3" json:"wire,omitempty"` // the wire major this daemon is serving
+	DaemonVersion string                 `protobuf:"bytes,2,opt,name=daemon_version,json=daemonVersion,proto3" json:"daemon_version,omitempty"`
+	// True once this connection has said hello as a program. It is the whole
+	// authorisation state a connection carries: one boolean, set here, with no
+	// other way to become either kind of caller (section 14).
+	Scoped        bool `protobuf:"varint,3,opt,name=scoped,proto3" json:"scoped,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HelloResponse) Reset() {
+	*x = HelloResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HelloResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HelloResponse) ProtoMessage() {}
+
+func (x *HelloResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HelloResponse.ProtoReflect.Descriptor instead.
+func (*HelloResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *HelloResponse) GetWire() string {
+	if x != nil {
+		return x.Wire
+	}
+	return ""
+}
+
+func (x *HelloResponse) GetDaemonVersion() string {
+	if x != nil {
+		return x.DaemonVersion
+	}
+	return ""
+}
+
+func (x *HelloResponse) GetScoped() bool {
+	if x != nil {
+		return x.Scoped
+	}
+	return false
+}
+
 type PingRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Echoed back verbatim, so a caller can prove the round trip is its own.
@@ -319,7 +444,7 @@ type PingRequest struct {
 
 func (x *PingRequest) Reset() {
 	*x = PingRequest{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[2]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -331,7 +456,7 @@ func (x *PingRequest) String() string {
 func (*PingRequest) ProtoMessage() {}
 
 func (x *PingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[2]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -344,7 +469,7 @@ func (x *PingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PingRequest.ProtoReflect.Descriptor instead.
 func (*PingRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{2}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *PingRequest) GetNonce() []byte {
@@ -365,7 +490,7 @@ type PingResponse struct {
 
 func (x *PingResponse) Reset() {
 	*x = PingResponse{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[3]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -377,7 +502,7 @@ func (x *PingResponse) String() string {
 func (*PingResponse) ProtoMessage() {}
 
 func (x *PingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[3]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -390,7 +515,7 @@ func (x *PingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PingResponse.ProtoReflect.Descriptor instead.
 func (*PingResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{3}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *PingResponse) GetNonce() []byte {
@@ -429,7 +554,14 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\n" +
 	"request_id\x18\x04 \x01(\tR\trequestId\x12\x18\n" +
 	"\apayload\x18\x05 \x01(\fR\apayload\x12&\n" +
-	"\x06status\x18\x06 \x01(\v2\x0e.rig.v1.StatusR\x06status\"#\n" +
+	"\x06status\x18\x06 \x01(\v2\x0e.rig.v1.StatusR\x06status\"B\n" +
+	"\fHelloRequest\x12\x18\n" +
+	"\aprogram\x18\x01 \x01(\tR\aprogram\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\tR\aversion\"b\n" +
+	"\rHelloResponse\x12\x12\n" +
+	"\x04wire\x18\x01 \x01(\tR\x04wire\x12%\n" +
+	"\x0edaemon_version\x18\x02 \x01(\tR\rdaemonVersion\x12\x16\n" +
+	"\x06scoped\x18\x03 \x01(\bR\x06scoped\"#\n" +
 	"\vPingRequest\x12\x14\n" +
 	"\x05nonce\x18\x01 \x01(\fR\x05nonce\"X\n" +
 	"\fPingResponse\x12\x14\n" +
@@ -467,14 +599,16 @@ func file_proto_rig_v1_wire_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_proto_rig_v1_wire_proto_goTypes = []any{
-	(FrameKind)(0),       // 0: rig.v1.FrameKind
-	(Code)(0),            // 1: rig.v1.Code
-	(*Status)(nil),       // 2: rig.v1.Status
-	(*Frame)(nil),        // 3: rig.v1.Frame
-	(*PingRequest)(nil),  // 4: rig.v1.PingRequest
-	(*PingResponse)(nil), // 5: rig.v1.PingResponse
+	(FrameKind)(0),        // 0: rig.v1.FrameKind
+	(Code)(0),             // 1: rig.v1.Code
+	(*Status)(nil),        // 2: rig.v1.Status
+	(*Frame)(nil),         // 3: rig.v1.Frame
+	(*HelloRequest)(nil),  // 4: rig.v1.HelloRequest
+	(*HelloResponse)(nil), // 5: rig.v1.HelloResponse
+	(*PingRequest)(nil),   // 6: rig.v1.PingRequest
+	(*PingResponse)(nil),  // 7: rig.v1.PingResponse
 }
 var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	1, // 0: rig.v1.Status.code:type_name -> rig.v1.Code
@@ -498,7 +632,7 @@ func file_proto_rig_v1_wire_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_wire_proto_rawDesc), len(file_proto_rig_v1_wire_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

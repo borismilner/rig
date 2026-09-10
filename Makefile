@@ -1,7 +1,11 @@
 # rig - the platform every in-house program runs on.
 # `make help` lists every target. Nothing important happens outside this file.
 
+# Two binaries, and the split is load-bearing (section 22): rigd links none of
+# the terminal stack, rig links no daemon internals. bench-size attributes a
+# dependency's cost to whichever of them actually pays it.
 BIN        := rig
+BIND       := rigd
 MODULE     := github.com/boris-milner/rig
 PREFIX     ?= $(HOME)/.local
 VERSION    := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
@@ -13,6 +17,11 @@ LDFLAGS    := -s -w \
               -X main.sha=$(SHA)         -X main.date=$(DATE)
 GOFLAGS    := -trimpath
 COVER_MIN  := 90
+RATCHET    := size-ratchet.json
+# Set explicitly rather than left to the runtime's defaults (section 22),
+# and the same values the unit file will carry.
+GOMEMLIMIT ?= 64MiB
+GOGC       ?= 100
 COVER_OUT  := build/cover.out
 CHAOS_ITER ?= 10000
 FUZZ_TIME  ?= 60s
@@ -23,9 +32,19 @@ SHELL := bash
 
 ##@ Build
 
-build: ## Build the rig binary into build/
+build: build-rigd build-rig build-fakeapp ## Build every binary into build/
+
+build-rigd: ## Build the daemon (links none of the terminal stack)
+	@mkdir -p build
+	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o build/$(BIND) ./cmd/rigd
+
+build-rig: ## Build the client (links none of the daemon's internals)
 	@mkdir -p build
 	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o build/$(BIN) ./cmd/rig
+
+build-fakeapp: ## Build the reference program the conformance suite drives
+	@mkdir -p build
+	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o build/fakeapp ./cmd/fakeapp
 
 build-all: ## Cross-compile for every supported target
 	@mkdir -p build
@@ -43,8 +62,8 @@ install: build ## Install rig to $(PREFIX)/bin and register the user service
 uninstall: ## Remove the installed binary and the user service
 	rm -f $(PREFIX)/bin/$(BIN)
 
-run: build ## Run the daemon in the foreground with debug logging
-	./build/$(BIN) serve --log-level=debug
+run: build-rigd ## Run the daemon in the foreground with debug logging
+	GOMEMLIMIT=$(GOMEMLIMIT) GOGC=$(GOGC) ./build/$(BIND) --log-level=debug
 
 dev: ## Run the daemon with reload on save (needs air)
 	@command -v air >/dev/null || { echo "air not found: go install github.com/air-verse/air@latest"; exit 1; }
@@ -138,7 +157,17 @@ bench: ## Run Go benchmarks
 	go test -bench=. -benchmem -run=NONE ./...
 
 bench-ipc: ## Reproduce the transport numbers in PLAN.md section 4
-	cd ipcbench && go build -o ../build/ipcbench . && ../build/ipcbench
+	@mkdir -p build
+	go build $(GOFLAGS) -o build/ipcbench ./cmd/ipcbench
+	./build/ipcbench
+
+bench-size: build ## Record or check the binary-size ratchet (PLAN.md 17, 22)
+	go run ./cmd/sizeratchet --ratchet $(RATCHET) \
+	  --bin build/$(BIND) --bin build/$(BIN) --bin build/fakeapp
+
+bench-size-update: build ## Accept the current sizes as the new ratchet
+	go run ./cmd/sizeratchet --ratchet $(RATCHET) --update \
+	  --bin build/$(BIND) --bin build/$(BIN) --bin build/fakeapp
 
 bench-idle: build ## Measure idle footprint against the budget in PLAN.md section 13
 	go run ./cmd/footprint --binary build/$(BIN) --quiet-for 60s \
@@ -149,12 +178,25 @@ bench-scale: build ## Measure the per-program overhead with 1, 10 and 50 program
 
 build-minimal: ## Build the kernel-only daemon, no services, no surfaces
 	@mkdir -p build
-	go build $(GOFLAGS) -tags minimal -ldflags '$(LDFLAGS)' -o build/$(BIN)-minimal ./cmd/rig
-	@ls -la build/$(BIN)-minimal
+	go build $(GOFLAGS) -tags minimal -ldflags '$(LDFLAGS)' -o build/$(BIND)-minimal ./cmd/rigd
+	@ls -la build/$(BIND)-minimal
 
 modules: ## List every service, surface and renderer, and prove none imports another
 	go run ./cmd/rig modules list
 	go run ./internal/analysis/cmd/nomodulecross ./...
+
+modules-matrix: ## Build kernel-plus-one for every module in turn (PLAN.md 5i)
+	@set -e; mods="$$(cat modules.txt 2>/dev/null || true)"; \
+	 echo "  N=0 (build-minimal)"; $(MAKE) --no-print-directory build-minimal; \
+	 if [ -z "$$mods" ]; then \
+	   echo "  no modules yet: the matrix is the N=0 case alone."; \
+	   echo "  Each module adds a line to modules.txt as it lands (5i)."; \
+	 else \
+	   for m in $$mods; do \
+	     echo "  kernel + $$m"; \
+	     go build $(GOFLAGS) -tags "minimal $$m" -o /dev/null ./cmd/rigd; \
+	   done; \
+	 fi
 
 profile: build ## Capture a CPU profile of the daemon under load
 	./build/$(BIN) serve --pprof=127.0.0.1:6060 & \
@@ -200,7 +242,17 @@ package: ## Build the .deb
 	@mkdir -p dist
 	go run ./cmd/pkgdeb --version $(VERSION) --out dist/
 
-ci: fmt-check lint vet audit modules cover test-race test-wire verify bench-idle ## Everything CI runs
+ci: fmt-check vet test-race bench-size ## Everything CI runs
+	@echo
+	@echo "  M0's gate. Targets not yet in ci, each waiting on the milestone"
+	@echo "  that gives it something to check:"
+	@echo "    lint       three house analyzers      M0, next slice"
+	@echo "    cover      90% on internal/           M1, once there is a registry"
+	@echo "    modules    the layering analyzer      M1"
+	@echo "    test-wire  golden wire vs last tag    M1, needs a tagged release"
+	@echo "    verify     conformance vs fakeapp     M1"
+	@echo "    bench-idle idle footprint             M6, needs a supervised daemon"
+	@echo "    audit      govulncheck                any time, needs network"
 
 fmt-check: ## Fail if anything is unformatted
 	@out=$$(gofmt -s -l .); test -z "$$out" || { echo "unformatted:"; echo "$$out"; exit 1; }
@@ -219,8 +271,10 @@ help: ## Show this help
 	  /^[a-zA-Z_-]+:.*##/ {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo
 
-.PHONY: build build-all install uninstall run dev clean test test-unit test-race \
+.PHONY: build build-rigd build-rig build-fakeapp build-all install uninstall \
+        run dev clean test test-unit test-race \
         test-chaos test-e2e test-wire fuzz cover cover-html lint fmt vet audit \
         verify contrast generate proto schema types docs bench bench-ipc profile \
         up down doctor apps logs tui tidy deps-check release package ci fmt-check \
-        bench-idle bench-scale build-minimal modules version help
+        bench-idle bench-scale bench-size bench-size-update build-minimal \
+        modules modules-matrix version help

@@ -1,0 +1,220 @@
+// Package client dials rigd and speaks the wire.
+//
+// One implementation, used by cmd/rig and by a program's own side, because
+// PLAN.md section 5d's whole complaint about the previous design was a second
+// implementation of things that should exist once.
+package client
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"net"
+	"sync"
+	"sync/atomic"
+
+	"google.golang.org/protobuf/proto"
+
+	"github.com/boris-milner/rig/internal/wire"
+	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+)
+
+// Handler answers a request rigd routed to this program.
+type Handler func(method string, payload []byte) (proto.Message, error)
+
+// Client is one connection to rigd.
+type Client struct {
+	w *wire.Conn
+
+	// Client-opened streams are odd; the daemon's are even (section 5f's
+	// multiplexing), so neither side needs to negotiate a range.
+	next atomic.Uint32
+
+	pmu     sync.Mutex
+	pending map[uint32]chan *rigv1.Frame
+
+	handler Handler
+
+	closeOnce sync.Once
+	readErr   atomic.Value // error
+	done      chan struct{}
+}
+
+// Dial connects to the socket and starts the read loop.
+func Dial(socket string) (*Client, error) {
+	nc, err := net.Dial("unix", socket)
+	if err != nil {
+		return nil, fmt.Errorf("client: dial %s: %w", socket, err)
+	}
+	c := &Client{
+		w:       wire.NewConn(nc),
+		pending: make(map[uint32]chan *rigv1.Frame),
+		done:    make(chan struct{}),
+	}
+	c.next.Store(1) // +2, so client streams stay odd
+	go c.read()
+	return c, nil
+}
+
+// Handle sets the handler for requests rigd routes to this program. Set it
+// before Hello, or a request can arrive with nothing to answer it.
+func (c *Client) Handle(h Handler) { c.handler = h }
+
+// Done closes when the connection ends. Err says why.
+func (c *Client) Done() <-chan struct{} { return c.done }
+
+// Err returns the read loop's error, or nil if it ended cleanly.
+func (c *Client) Err() error {
+	if e, ok := c.readErr.Load().(error); ok {
+		return e
+	}
+	return nil
+}
+
+func (c *Client) Close() error {
+	var err error
+	c.closeOnce.Do(func() { err = c.w.Close() })
+	return err
+}
+
+func (c *Client) read() {
+	defer close(c.done)
+	for {
+		f, err := c.w.ReadFrame()
+		if err != nil {
+			if !errors.Is(err, io.EOF) && !errors.Is(err, net.ErrClosed) {
+				c.readErr.Store(err)
+			}
+			// Wake everything waiting, or a caller blocks until its deadline
+			// on a connection that is already gone.
+			c.pmu.Lock()
+			for id, ch := range c.pending {
+				close(ch)
+				delete(c.pending, id)
+			}
+			c.pmu.Unlock()
+			return
+		}
+
+		c.pmu.Lock()
+		ch, waiting := c.pending[f.GetStreamId()]
+		if waiting {
+			delete(c.pending, f.GetStreamId())
+		}
+		c.pmu.Unlock()
+		if waiting {
+			ch <- f
+			continue
+		}
+		// Not a reply: rigd is asking this program for something.
+		go c.answer(f)
+	}
+}
+
+func (c *Client) answer(f *rigv1.Frame) {
+	if c.handler == nil || f.GetKind() != rigv1.FrameKind_FRAME_KIND_REQUEST {
+		_ = c.w.WriteFrame(&rigv1.Frame{
+			StreamId: f.GetStreamId(),
+			Kind:     rigv1.FrameKind_FRAME_KIND_ERROR,
+			Status: &rigv1.Status{
+				Code:    rigv1.Code_CODE_NOT_FOUND,
+				Message: "this program serves no requests",
+			},
+		})
+		return
+	}
+	msg, err := c.handler(f.GetMethod(), f.GetPayload())
+	if err != nil {
+		_ = c.w.WriteFrame(&rigv1.Frame{
+			StreamId: f.GetStreamId(),
+			Kind:     rigv1.FrameKind_FRAME_KIND_ERROR,
+			Status:   &rigv1.Status{Code: rigv1.Code_CODE_INTERNAL, Message: err.Error()},
+		})
+		return
+	}
+	body, err := proto.Marshal(msg)
+	if err != nil {
+		_ = c.w.WriteFrame(&rigv1.Frame{
+			StreamId: f.GetStreamId(),
+			Kind:     rigv1.FrameKind_FRAME_KIND_ERROR,
+			Status:   &rigv1.Status{Code: rigv1.Code_CODE_INTERNAL, Message: err.Error()},
+		})
+		return
+	}
+	_ = c.w.WriteFrame(&rigv1.Frame{
+		StreamId: f.GetStreamId(),
+		Kind:     rigv1.FrameKind_FRAME_KIND_RESPONSE,
+		Payload:  body,
+	})
+}
+
+// Call makes one request and decodes the response into out.
+func (c *Client) Call(ctx context.Context, method string, in, out proto.Message) error {
+	body, err := proto.Marshal(in)
+	if err != nil {
+		return fmt.Errorf("client: marshal %s: %w", method, err)
+	}
+
+	sid := c.next.Add(2)
+	ch := make(chan *rigv1.Frame, 1)
+	c.pmu.Lock()
+	c.pending[sid] = ch
+	c.pmu.Unlock()
+	defer func() {
+		c.pmu.Lock()
+		delete(c.pending, sid)
+		c.pmu.Unlock()
+	}()
+
+	if err := c.w.WriteFrame(&rigv1.Frame{
+		StreamId: sid,
+		Kind:     rigv1.FrameKind_FRAME_KIND_REQUEST,
+		Method:   method,
+		Payload:  body,
+	}); err != nil {
+		return fmt.Errorf("client: %s: %w", method, err)
+	}
+
+	select {
+	case f, open := <-ch:
+		if !open {
+			if e := c.Err(); e != nil {
+				return fmt.Errorf("client: %s: connection ended: %w", method, e)
+			}
+			return fmt.Errorf("client: %s: connection closed before a reply", method)
+		}
+		if f.GetKind() == rigv1.FrameKind_FRAME_KIND_ERROR {
+			return &CallError{Method: method, Status: f.GetStatus()}
+		}
+		if err := proto.Unmarshal(f.GetPayload(), out); err != nil {
+			return fmt.Errorf("client: %s: unmarshal: %w", method, err)
+		}
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("client: %s: %w", method, ctx.Err())
+	}
+}
+
+// Hello completes the program handshake. After it, this connection is scoped
+// for its whole life (section 14).
+func (c *Client) Hello(ctx context.Context, program, version string) (*rigv1.HelloResponse, error) {
+	out := &rigv1.HelloResponse{}
+	err := c.Call(ctx, "rig.hello",
+		&rigv1.HelloRequest{Program: program, Version: version}, out)
+	return out, err
+}
+
+// CallError is a wire-level refusal, carrying rig's own status.
+type CallError struct {
+	Method string
+	Status *rigv1.Status
+}
+
+func (e *CallError) Error() string {
+	return fmt.Sprintf("%s: %s: %s", e.Method,
+		e.Status.GetCode(), e.Status.GetMessage())
+}
+
+// Code lets a caller branch on the refusal without string matching.
+func (e *CallError) Code() rigv1.Code { return e.Status.GetCode() }

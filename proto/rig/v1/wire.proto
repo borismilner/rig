@@ -70,6 +70,32 @@ message Frame {
   Status status = 6;
 }
 
+// ---- rig.hello, the handshake that decides what a connection is ------------
+
+// HelloRequest is a program declaring itself on the connection it just opened.
+//
+// This is the seed of the predicate PLAN.md section 14 rests on: a connection
+// that completes the program handshake is a program and is scoped for the life
+// of that connection; every other local connection from this uid is a client of
+// the owner's and reads everything. Nothing is distributed, minted or
+// inherited - the connection itself carries the answer.
+//
+// M0 routes by name. M1 replaces this with real registration: a declaration
+// validated against its schema, with capabilities and a computed projection.
+message HelloRequest {
+  string program = 1;   // the program's id, e.g. "fakeapp"
+  string version = 2;   // its own version string, reported not enforced
+}
+
+message HelloResponse {
+  string wire = 1;              // the wire major this daemon is serving
+  string daemon_version = 2;
+  // True once this connection has said hello as a program. It is the whole
+  // authorisation state a connection carries: one boolean, set here, with no
+  // other way to become either kind of caller (section 14).
+  bool scoped = 3;
+}
+
 // ---- rig.ping, the one method M0 ships -------------------------------------
 
 message PingRequest {
