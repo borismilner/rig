@@ -386,7 +386,7 @@ later free, and it is the single most important correction in this document.
 
 | Property | What it says | Mandatory |
 |---|---|---|
-| `effects` | `read-only`, `writes-files`, `network`, `destructive` | **yes** |
+| `effects` | `read-only`, `writes-files`, `network`, `destructive`, `drives-input` | **yes** |
 | `idempotent` | Whether re-running is safe. Decides retry, replay and schedule coalescing | **yes** |
 | `sensitive` | JSON pointers into arguments and results that must never be recorded (§15) | **yes**, may be empty |
 | `interactive` | Needs a human in the loop while it runs | yes |
@@ -1041,9 +1041,11 @@ cannot re-derive:
   into is a different and worse feature. `rig doctor` (§8) is where the backend
   appears by name.
 
-**What it does not decide** is in §26: whether `effects` needs a fifth value for
-driving input (question 11), and whether a redaction pointer can address every
-element of an array (question 12).
+**What it does not decide** is §26 question 12: whether a redaction pointer can
+address every element of an array. Question 11, whether `effects` needed a value
+of its own for driving input, is decided and shipped - `drives-input`, above
+`destructive`, with an `EffectsCeiling` constant guarding the level the invoker
+assumes for anything it cannot resolve.
 
 ---
 
@@ -2903,14 +2905,14 @@ what re-checking looks like.
    program adopter, because it is a source on the `events` service rather than a service a
    program calls, and it lands at M13 with the bus (§5h).
 
-11. **Does `effects` need a fifth value for driving the human's input?** (§5e, §5m) Today the
-   vocabulary is `read-only`, `writes-files`, `network`, `destructive`, and synthetic input is
-   none of them exactly. `destructive` is the safe classification and the floor semantics make it
-   hold, but it is the wrong *word*: a house rule cannot then say "this program may delete its own
-   files but may not type into my windows", because both sit at the same floor. The proposal is
-   `drives-input`, ordered above `destructive`. It is one enum value and it is a wire change, so
-   it is **Boris's call and not a detail**, and it wants deciding before M7a rather than after,
-   because the value is what house rules are written against.
+11. ~~**Does `effects` need a fifth value for driving input?**~~ **Decided yes and shipped**,
+   while the wire was still unfrozen, because §21 makes a new value a hard refusal at an older
+   daemon's boundary and the cheap moment is before the first major. `EFFECTS_DRIVES_INPUT = 5`
+   sits above `destructive`, so a rule can say "may delete its own files, may not type into my
+   windows". **It also found a defect it would otherwise have caused**: the invoker floored an
+   unresolvable ref at the `destructive` literal, which stopped being the top of the order, so an
+   opaque call would have slipped under a rule denying the new level. There is now an
+   `EffectsCeiling` constant and a test that fails when a named value appears above it.
 12. **Can a redaction pointer address every element of an array?** (§15, §5m) Every
    declared-sensitive field in this plan is at a fixed path, and `/steps/*/text` is not: the
    number of steps is known per call. Whether the compiled-span construction expresses a wildcard
