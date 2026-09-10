@@ -120,6 +120,14 @@ UI - and every program already has it, without being touched.
   acceptable and was agreed; durability is what makes event logging expensive, so it is not
   bought. A process crash loses at most one flush interval, because the kernel already holds the
   rest.
+- **An agent Boris runs may read every part of rig.** Introspection is complete for it, not
+  scoped: the estate-wide views, the full capability map, any client's history, every trace,
+  every config resolution. It is acting for him, and a picture of the estate that is silently
+  partial is worse to him than no picture. §14 said the opposite by implication and named the
+  contradiction without deciding it - "seven things that sat outside the old six-view list, one
+  of which §9 tells an agent to read first". This line decides it. The credential splits in two
+  (§14): **reading everything and acting on everything are different grants**, and only the
+  first is handed out by default. Decided 2026-09-10.
 - **Linux and X11 first**, on this laptop. Nothing knowingly non-portable, and no cross-platform
   claim until it is tested.
 - **Dependencies:** best library for the job, newest published version, **and a measured binary
@@ -164,7 +172,7 @@ independently of the programs using it. Adjectives do not pass or fail. Each bel
 | Every setting of rig or any program is declared as JSON Schema and the settings UI is generated. There is no hand-written settings form in the codebase |
 | `rig config origin <key>` prints the winning layer, its value, and every layer that lost with its value. No setting is ever unexplained |
 | Config changes apply live. The program is pushed the new value, validates it, and accepts or rejects with a reason shown in the UI |
-| `rig config export` writes one file that reproduces **the caller's** machine exactly, every program it is permitted to see included. Reproducing the whole machine is an operator action and needs the operator credential (§14) |
+| `rig config export` writes one file that reproduces **the caller's** machine exactly, every program it is permitted to see included. Reproducing the whole machine is an estate-wide read and needs `introspect` (§14), which an agent Boris runs holds |
 
 ### Introspectable
 
@@ -173,10 +181,14 @@ independently of the programs using it. Adjectives do not pass or fail. Each bel
 | Every call in both directions is recorded: caller, callee, method, duration, status, size, trace id. Live in the UI and exportable |
 | For any program: pid, uptime, restarts with the reason for each, RSS, CPU, wire version, health history, last 1000 log lines, live goroutine dump |
 | One trace covers an action end to end across both processes, whichever surface started it - a click, a CLI call, an MCP call from an agent, a scheduled fire |
-| `rig doctor` reports the health of the whole installation in one screen and exits non-zero if anything is wrong. It is an operator surface, because its product is an estate-wide aggregate |
+| `rig doctor` reports the health of the whole installation in one screen and exits non-zero if anything is wrong. Its product is an estate-wide aggregate, so it is a granted surface - **readable with `introspect`**, which an agent holds (§14) |
 | Every answer about a program states its coverage. An agent that asks what a program can do is told, in the same answer, whether that list is everything |
 | `rig loose-ends` reports what stopped pointing at anything after a declaration changed: schedule entries, bus rules, capability grants, tray entries, promoted tools, `rig://` routes, config overrides |
 | No answer drawn from history is given without its coverage. A gap caused by sampling, ring overwrite or segment eviction is rendered, not silently omitted |
+| **An agent holding `introspect` can read every part of rig** (§2, §14): the full capability map, every program, every client and its whole history, every trace, every config resolution with its losers, the schedule, the audit log, the notification centre. Asserted positively - a scoped answer where a complete one was owed is a failure |
+| **An agent can answer "what is this machine doing right now" in one call, without knowing what to ask.** `query` reaches state, data, logs, traces and history; a whole-estate snapshot is one of its shapes, not nine calls an agent has to know to make |
+| **Everything a surface renders, an agent can obtain as data.** No view computes something it does not also return, so an agent is never reduced to reading a screenshot of a screen it cannot query |
+| The one thing no reader gets is the thing that was never written: a declared-`sensitive` value, or anything the `secrets` service returned. Absent, not filtered - and the difference is stated in the answer rather than left to look like an empty field |
 
 ### Reliable and tested
 
@@ -189,7 +201,8 @@ independently of the programs using it. Adjectives do not pass or fail. Each bel
 | Coverage: 90% statements on `internal/`, 100% on the wire contract and the client stub |
 | Timing behaviour - backoff, budgets, deadlines, debounce, schedules - is tested with `testing/synctest`, so those tests are deterministic and take microseconds |
 | Every UI claim was exercised in a real window with a real keyboard before being called done |
-| Two clients on one daemon cannot see each other. Asserted by **observational equivalence over two worlds**: the whole battery runs against W1={A} and W2={A,B} with B exercising every primitive, and A's transcript - responses, error codes, ids and tokens issued, ordering - must be identical. A difference is a failure unless it is on an enumerated, reviewed list of permitted disclosures. The battery covers non-surface observation too: the runtime directory, the config tree, the state tree, the process table |
+| Two **ungranted** clients on one daemon cannot see each other. Asserted by **observational equivalence over two worlds**: the whole battery runs against W1={A} and W2={A,B} with B exercising every primitive, and A's transcript - responses, error codes, ids and tokens issued, ordering - must be identical. A difference is a failure unless it is on an enumerated, reviewed list of permitted disclosures. The battery covers non-surface observation too: the runtime directory, the config tree, the state tree, the process table |
+| The same battery, re-run with A holding `introspect`, asserts the opposite: A sees B **completely**. A view that quietly returns the scoped answer to a principal holding the read grant fails this run, and it is ranked as a defect exactly as high as a leak (§14) |
 | No secret reaches the history. `secrets.get` is a call and a call's arguments and results are recorded, so the test asserts a known token appears in no segment, in no encoding, at any sampling rate |
 | A caller with no grant cannot run a destructive command. House rules are enforced in the invoker, so one test covers every surface, present and future |
 | Idle footprint stays inside the budget in §17. `make bench-idle` fails the build on a regression |
@@ -602,7 +615,7 @@ That difference is not free, and the plan states the price rather than implying 
 
 **The rules that make it safe enough to offer:**
 
-- `hosted: true` in the declaration, so every surface, the operator view and `rig doctor` can
+- `hosted: true` in the declaration, so every surface, the clients view and `rig doctor` can
   say which programs have no process of their own.
 - **Panic to quarantine.** The invoker recovers a panic from a hosted program, quarantines that
   program with the stack and the reason exactly as §18 quarantines a crashing process, and keeps
@@ -640,7 +653,7 @@ everywhere" quietly assumed a program declares everything. It will not. So every
 | `rig shelf --help` lists 3 commands; shelf has 20 | No surface may imply completeness |
 | An agent asks what shelf can do and gets 3 | **The capability map carries coverage per program**, so an agent knows its picture is incomplete before it reasons from it (§9). This is the sharpest one |
 | The audit log covers 3 of 20 commands | "One audit log for the estate" carries the caveat, and the coverage log (§15) records it |
-| The operator view shows partial activity | §15 states what it cannot see |
+| The clients view shows partial activity | §15 states what it cannot see |
 
 - `coverage` is `full` or `partial`, with an optional note. **The default is `partial`**, because
   the honest default is the conservative one.
@@ -674,8 +687,8 @@ Layers, lowest to highest, with the winner recorded per key:
   reason, or needs-restart with a one-click restart.
 - A change set is validated whole before any of it is sent, so nothing lands half-applied.
 - `rig config export` and `rig config diff` reproduce and compare **the caller's** machine.
-  Reproducing the whole machine is an estate-wide aggregate and therefore an operator action
-  (§14).
+  Reproducing the whole machine is an estate-wide read and therefore needs `introspect`
+  (§14), which an agent Boris runs holds.
 - **Every resolution is written to a snapshot on disk**, already merged, with provenance, the
   database path assigned and the schema version migrated to. That file is what a program reads
   when rig is unreachable (§5g), and it is the reason there is exactly one implementation of
@@ -908,6 +921,44 @@ provenance, schedule history, the audit log. So an agent can answer "why did the
 fail" from rig alone, with the trace, the log lines and the config that was in effect at the
 time, rather than asking Boris to look.
 
+### Nothing is hidden from an agent that is not hidden from Boris
+
+The point of §2's decision, stated once so no later section has to re-derive it. An agent he
+runs holds `introspect` (§14) and the answer to every question below is *yes*:
+
+| Can an agent read... | |
+|---|---|
+| every program, its pid, restarts, health history, log tail, goroutine dump | yes |
+| **every other client**, including another agent, its calls in flight and its whole history | yes |
+| every trace end to end, across both processes, whatever surface began it | yes |
+| every config key with its winning layer and all its losers | yes |
+| the complete capability map, not the reachable subset | yes |
+| the schedule, the audit log, the notification centre, `doctor`'s whole output | yes |
+| the coverage of each of those answers, so a gap is visible rather than absent | yes |
+
+**One exception, and it is an absence rather than a filter.** A value a command declared
+`sensitive`, and anything the `secrets` service returned, was never written (§15). An agent
+does not get "permission denied" for these; it gets an answer that says the field exists and
+was never recorded. That distinction matters: a filtered field invites an agent to go looking
+for another route to it, and a field that does not exist ends the search. Reading a secret is
+`secrets.get` with a grant, which is a different door and an audited one.
+
+**Three limits of this, stated rather than claimed away:**
+
+- **A program never receives `introspect`.** rig scrubs it from the environment of every
+  program it starts (§14), and it is refused to a connection that registered as a program. A
+  program that goes and reads it out of an agent's `/proc/<pid>/environ` would get it, and
+  nothing here stops that - same-uid is the floor on Linux. Not defended against, because
+  every program in this estate is his own code; written down so the boundary is not mistaken
+  for a stronger one, the way §13 labels best-effort capability enforcement.
+- **Reading is audited by grant use, coalesced, not per read.** §15's "looking is itself an
+  event" was written for a human opening one client's history. An agent sweeping the estate
+  would turn the audit log into its own transcript, so the record is one entry per principal
+  per view per minute, with a count - and that is stated in §15's coverage line rather than
+  left for someone to discover as a gap.
+- **Complete does not mean instant.** §15's history query budget governs; a thirty-day sweep is
+  bounded by that section's numbers, not by this one's promise.
+
 ### Discovery is a resource, not a guess
 
 rig serves one MCP resource that is the whole capability map of the estate, versioned and
@@ -916,8 +967,10 @@ new command, the map changes, and no agent needs updating.
 
 **It carries coverage per program** (§5k), so an agent knows its picture is incomplete before it
 reasons from it - the alternative is an agent confidently reporting that shelf has three
-commands. And because its product is an estate-wide aggregate, the full map is an operator
-surface: a scoped client gets the map of what it may reach (§14).
+commands. Its product is an estate-wide aggregate, so it is a granted surface: a client with no
+grant gets the map of what it may reach, **and an agent Boris runs holds `introspect` and gets
+all of it** (§2, §14). The earlier version of this line made the map an operator surface and
+left §9 telling agents to read a document §14 would not serve them.
 
 ---
 
@@ -1106,13 +1159,20 @@ action  = "confirm"         # allow | confirm | deny
 | Boundary | Between | How |
 |---|---|---|
 | **Instance** | Unix users | One daemon per uid. One socket at `$XDG_RUNTIME_DIR/rig/rigd.sock`, mode 0600, separate config, state and storage trees. Nothing is shared, including the tray, the window and the notification centre |
-| **Session** | Clients of one daemon: agents, terminals, the window, scripts | Every connection carries a principal - uid, client kind, client id, session id - and belongs to one or more **scopes**. Every kernel view is filtered by scope set |
+| **Session** | Clients of one daemon: agents, terminals, the window, scripts | Every connection carries a principal - uid, client kind, client id, session id - and belongs to one or more **scopes**. Every kernel view is filtered by scope set, **unless the principal presents `introspect`** (below). Enforced against accident and against a merely buggy client; see the floor stated below for what it is not enforced against |
 | **Program** | Programs | Capabilities (§13): secrets namespaced, storage pathed, events by grant, no cross-program read of anything |
 
 **A client sees itself and the programs it may reach. Nothing else.** It cannot enumerate other
 clients, cannot see their commands, cannot receive their events and does not appear in their
 views. Two agents working in the same repository, through the same daemon, are invisible to each
 other unless both opt in.
+
+**That is the ordinary API, and it has exactly one door out of it: `introspect` (below).** The
+default is deny because a program should not read another program's events by accident; it is
+not deny because Boris should be kept out of his own machine. An agent he runs holds
+`introspect` and sees all of it. The isolation this section builds is between *programs and
+unprivileged clients*, and the proof below is stated over that population, not over a
+principal that was handed the read grant on purpose.
 
 ### The kernel exposes no unscoped accessor at all
 
@@ -1124,24 +1184,56 @@ read is unrepresentable rather than discouraged.** A house analyzer - `no regist
 outside the kernel` - sits beside the existing `no program id in rig code`.
 
 **The corollary the plan was missing: any surface whose product is an estate-wide aggregate is
-by definition an operator surface**, and needs the operator credential below. That is the
+by definition a granted surface**, and needs one of the two grants below. That is the
 capability map, `config export`, `doctor`, the palette, the tray, the notification centre and
 the schedule - seven things that sat outside the old six-view list, one of which §9 tells an
-agent to read first.
+agent to read first. **Which grant is the whole question**, and the earlier version of this
+section answered it with the only credential it had, making every one of those seven closed to
+an agent. Reading them takes `introspect`; changing anything through them takes `operate`.
 
 ### The operator is a credential, not a uid
 
-§15 used to grant the operator view to "the uid that runs the daemon", and §14 puts one daemon
+§15 used to grant the clients view to "the uid that runs the daemon", and §14 puts one daemon
 per uid. A unix socket carries no credential but `SO_PEERCRED`, so **every client that could
 connect already satisfied that predicate** - and `rig history --client=X` would then hand any
 agent another program's secrets (§15). It is the highest-ranked finding of the 2026-09-10
 attack and it was invisible to every seat individually.
 
-- At startup `rigd` mints one operator token into a file, mode 0600, whose path is passed only
-  to the process that launched it.
-- A connection is an operator **iff it presents that token**. Every other connection from the
-  same uid is scoped, by default, forever.
-- One field on the principal struct. There is no other way to become an operator.
+- At startup `rigd` mints **two** tokens. Neither is a file on the socket's path.
+- **`introspect`** grants **every read**: the estate-wide views, the full capability map,
+  `config export`, `doctor`, the schedule, the notification centre, any client's history, any
+  trace. It grants **no action at all**.
+- **`operate`** grants estate-wide *action*: stopping a program another client owns, revoking a
+  grant, breaking a lease, editing config outside the caller's scope.
+- Two booleans on the principal struct. There is no other way to become either.
+
+**How a token reaches a reader, and why it is not a file.** A 0600 file readable by this uid
+is readable by *every* client, since they all run as this uid - so a file would make the
+session boundary in the table above a comment rather than a boundary, and any program could
+grant itself the estate. Instead:
+
+| Grant | Delivered by | So it reaches | And not |
+|---|---|---|---|
+| `introspect` | `RIG_INTROSPECT` in the environment, exported by Boris's shell profile from `rigd`'s startup handshake | every terminal, agent and window he starts | anything `rigd` spawns - **rig scrubs both variables from the environment of every program it starts** (§18) |
+| `operate` | passed only to the process that launched `rigd` | that process | everything else, including agents |
+
+**Why complete reading is safe once it is reaching the right readers.** The 2026-09-10
+attack's highest-ranked finding was that `SO_PEERCRED` made every client an operator, and that
+`rig history --client=X` would then hand any agent **another program's secrets**. That was a
+finding about *what the history contains*, and §15 fixed it at the source: anything `secrets`
+returns is never recorded, and every field declared `sensitive` is blanked before the write.
+**Redaction is the precondition for complete introspection.** With it, the worst an
+introspecting agent can read is everything Boris could read himself - the requirement, not the
+leak. Without it, no delivery mechanism would have been safe enough.
+
+**The floor, stated because a boundary nobody wrote down is a boundary nobody tests.** Same-uid
+processes on Linux can read each other's `/proc/<pid>/environ`. A program determined to
+introspect can therefore take the grant from an agent's environment, and nothing in this design
+prevents it. What the environment delivery does buy is real and is the thing that matters here:
+**no program acquires the estate by accident, or by being merely buggy** - it has to go and
+take it. That is the same standard §13 sets for capability enforcement, labelled the same way.
+Genuinely enforced against a hostile local process: only the uid boundary, `operate`, and
+redaction.
 
 ### Scopes, so peers is not a hole in the filter
 
@@ -1166,7 +1258,8 @@ A boundary nobody wrote down is a boundary nobody tests.
 - Acquiring a contended lease reveals that *a* peer exists. Accepted, and stated.
 - `try_lock` returning BUSY reveals the same. Accepted.
 - Deadlock refusal names **the leases the caller holds or requested**, never the peers. The
-  named cycle goes to the operator view only.
+  named cycle goes to the clients view only, which needs `introspect` (§14) - so an agent
+  debugging a stuck `make deploy` can see the cycle, and the blocked peer still cannot.
 - Counters are scoped: fencing tokens monotonic **per lease**, blackboard revisions **per
   namespace**. Never one global sequence, which leaks the rate of other clients' activity.
 - A crew is created by a principal and joined only through a handle it hands out. Joining an
@@ -1192,15 +1285,36 @@ process table.
 This is the same machinery §16 already buys for deterministic simulation at M7. It just has to
 be pointed at isolation as well as at linearizability.
 
+**A is a client with no grants. That is the whole population the property is stated over**,
+and saying so is not a weakening - a property whose population is unstated is a property that
+gets quietly falsified the first time a legitimate reader is added. So the battery runs three
+ways, and the third is the one that catches the bug this design could actually have:
+
+| Run | A holds | Required outcome |
+|---|---|---|
+| 1 | nothing | A's transcript is identical in W1 and W2. Isolation holds |
+| 2 | `introspect` | A sees B completely, in every view, with no gaps and no silent filtering. **A missing row is a failure here**, the same way an extra row is a failure in run 1 |
+| 3 | `introspect` | Every value B declared `sensitive`, and everything B's `secrets` calls returned, is absent from A's transcript - at any sampling rate, in any encoding |
+
+Run 2 is the requirement in §2 made testable, and it fails loudly rather than
+degrading: **a view that quietly returns the scoped answer to a principal holding
+`introspect` is a defect of the same rank as a leak.** Run 3 is why run 2 is safe, and it is
+§3's existing no-secret-reaches-the-history test pointed at the reader instead of the log.
+
 ## 15. Who is using rig, and what they did
 
-§14 says clients cannot see each other. **The operator can see all of them.** That asymmetry is
-deliberate: isolation is between clients, not between rig and its owner. The operator is a
-**credential** (§14), not a uid - one token minted at startup into a 0600 file. Without that
-correction every client on a one-user machine is the operator, and the rest of this section is
-a hole rather than a feature.
+§14 says clients cannot see each other. **A holder of `introspect` can see all of them, and
+that includes every agent Boris runs** (§2). The asymmetry is deliberate: isolation is between
+clients, not between rig and the people and agents working for its owner.
 
-### The operator view
+Both halves of that sentence are corrections, and they were made a day apart. `introspect` is
+a **credential** (§14), not a uid - a token minted at startup into a 0600 file - because
+without that correction every client on a one-user machine reads everything by accident, and
+`rig history --client=X` hands over another program's secrets. And it is deliberately **not**
+the same grant as acting estate-wide, because the version of the fix that made this section
+safe also made it useless to the reader it exists for.
+
+### The clients view
 
 | Column | For every connected client |
 |---|---|
@@ -1214,12 +1328,22 @@ a hole rather than a feature.
 Selecting a client opens its history: every call it made, when, with what arguments, how long it
 took, what came back - **minus everything declared sensitive**, which was never recorded at all.
 The same view exists in the window, the TUI, the CLI (`rig clients`, `rig history --client=X`)
-and over MCP, because they are all surfaces over one registry, and all of them require the
-operator credential.
+and over MCP, because they are all surfaces over one registry, and all of them require
+`introspect` (§14). **An agent Boris runs holds it**, so `rig history --client=X` is a question
+an agent may ask about any client, including another agent - that is §2's decision, and the
+redaction above is what makes it safe rather than the scoping that used to sit here.
 
 **Looking is itself an event.** Opening another client's history is written to the audit log.
 On a single-user machine that is close to pointless, but it costs nothing and it means the rule
 is the same rule when it stops being a single-user machine.
+
+**Coalesced, because the reader is usually an agent.** Written for a person opening one
+history, per-read auditing turns the log into a transcript of whatever agent is sweeping the
+estate (§9). The record is therefore **one entry per principal, per view, per minute, with a
+count and the widest range touched** - which answers "who read what, when" exactly as well and
+does not drown the thing it is auditing. A grant being *presented* is always its own
+uncoalesced entry, so the interesting event - a principal becoming an introspector - is never
+buried in a count.
 
 ### Redaction, or the history is an exfiltration channel
 
@@ -1540,6 +1664,10 @@ benchmark as evidence of anything.
 - **Register:** handshake, wire version check, declaration validated against its schema,
   capabilities granted, then the program appears on every surface. A failure at any step is a
   quarantine with the reason, not a retry loop.
+- **Start:** rig builds the child's environment rather than inheriting its own, and
+  **`RIG_INTROSPECT` and the `operate` variable are removed from it** (§14). A program is
+  never handed the estate by inheriting the environment of the thing that started it, which is
+  the accident this is guarding against. Asserted by a conformance item, not by review.
 - **Health:** on the interval, with a timeout. Three failures is degraded, five is a restart.
 - **Restart:** exponential backoff inside a budget. Exceeding it is quarantine - a visible state
   with the full history and a manual restart, never a silent disappearance.
@@ -1614,6 +1742,14 @@ program's own CI runs it. This is what makes the contract real.
     every surface from one test
 22. **A hosted program passes items 1-21 unchanged**, from the same package, with no branch in
     the suite
+23. **A started program's environment carries neither grant.** `RIG_INTROSPECT` and the
+    `operate` variable are absent from the child's environment, asserted by reading
+    `/proc/self/environ` from inside a program rig started (§14, §18). The inheritance version
+    of this bug is silent, survives review, and hands the estate to the first program launched
+24. **Introspection is complete, and asserted positively.** A principal holding `introspect`
+    gets the *full* answer from every estate-wide view - capability map, clients, history,
+    traces, config, schedule, audit. **A scoped answer where a complete one was owed fails
+    this item**, and it is ranked with the leak tests rather than below them (§3, §14)
 
 `fakeapp` is the misbehaving reference program and ships in the repo. It hangs, crashes, leaks,
 floods, lies about its schema, ignores cancellation and returns garbage, each on a flag.
@@ -1742,7 +1878,7 @@ program that needs it. Each ends green, committed, and demonstrated.
 | M | Name | Ships | The demo that closes it |
 |---|---|---|---|
 | M0 | Skeleton | Repo, module, Makefile, CI, lint with all three analyzers, **`cmd/rigd` and `cmd/rig` as separate binaries**, the socket, the hand-framed protobuf codec, `GOMEMLIMIT`/`GOGC`, `make bench-size`, `make modules-matrix`, `fakeapp` | `make ci` green; `rig ping fakeapp` round-trips; `make bench-ipc` reproduces §4; `make bench-size` records the ratchet's starting number |
-| **M1** | **Register and the CLI** | Registration with declared **properties** and the computed projection, the registry, argument schemas, coverage, `semantics_gen`, the operator credential, **house rules in the invoker**, `rig <app> <cmd>`, generated `--help`, completion, `--json` everywhere | **The week-one product.** `rig shelf reindex` from any terminal. One front door, no GUI. A destructive command with no grant is refused, and the same test covers every surface added later |
+| **M1** | **Register and the CLI** | Registration with declared **properties** and the computed projection, the registry, argument schemas, coverage, `semantics_gen`, **the two grants - `introspect` and `operate` (§14)**, **house rules in the invoker**, `rig <app> <cmd>`, generated `--help`, completion, `--json` everywhere | **The week-one product.** `rig shelf reindex` from any terminal. One front door, no GUI. A destructive command with no grant is refused, and the same test covers every surface added later |
 | M2 | MCP and HTTP | The four meta tools, promotion, the capability-map resource **with coverage per program**, the per-program preamble, HTTP routes with **minted principals**, structured errors | An agent runs a real command in a real program through one MCP server, having written nothing - and is told, in the same answer, that its picture of that program is partial |
 | M3 | Terminal client | `rig shell` with completion and inline describe, the `rig tui` frame, `huh` forms from declared schemas, `--batch --json` | Every registered command discoverable and runnable from the TUI, by a person who read no docs |
 | M4 | Config | Layers, schema, provenance, live push, validate, export, diff, and its TUI view | `rig config origin` explains a surprising value; a change applies live with no restart |
@@ -1962,7 +2098,7 @@ their product.
 | The stub | A 300-line un-upgradable copy of config, storage, secrets and logging | Tolerant client + resolved snapshot + lifecycle notices (§5g) |
 | Hot upgrade | A locked requirement | **Not built.** Measured at 1.9 ms marginal benefit against four defect classes (§18) |
 | Authorization | Absent. Zero such language in the document | `house rules`, in the kernel's invoker (§13a) |
-| The operator | The uid running the daemon | A credential, minted to a 0600 file (§14) |
+| The operator | The uid running the daemon | A credential, minted to a 0600 file (§14). **Since split in two by §2's introspection decision: `introspect` reads everything, `operate` acts** |
 | Redaction | Absent | Declared at registration, compiled to byte spans, 82.5 ns (§15) |
 | Leases | A TTL and a fencing token | A liveness witness, two-step expiry, `rig peers run`, and an honest statement of what a token can fence (§16) |
 | Time | Unnamed | `CLOCK_BOOTTIME`, absolute deadlines, a resume grace epoch (§16) |
@@ -1976,5 +2112,48 @@ their product.
 ### What was not attacked
 
 The peers service's *feature list* (as opposed to its semantics), the wire numbers in §4, the
-visual system, and the plan's own milestone ordering. The blind-spot sweep over this applied
-diff, and the `advocate` pass, are both owed and are recorded as such in the attack file.
+visual system, and the plan's own milestone ordering. The `advocate` pass has since run
+(`logbook/projects/rig/advocate/2026-09-10-post-fix.md`); the blind-spot sweep over this
+applied diff was run afterwards and is recorded in the attack file.
+
+---
+
+## 32. What full introspection changed, 2026-09-10
+
+A requirement arrived after the attack and after the advocate pass: **rig must be fully
+introspectable to the agents Boris runs.** It is not a new feature - §3 already called
+introspection a maximal and §9 already called an agent a first-class user - but it decides a
+contradiction the attack created and named without resolving.
+
+**The contradiction.** The attack's highest-ranked finding made the operator a credential
+rather than a uid, correctly. §14 then made every estate-wide view an operator surface -
+seven of them - and observed in its own text that "one of which §9 tells an agent to read
+first". §9 kept telling agents to read the capability map; §14 had just made sure they could
+not. Both sections were individually right and jointly wrong, which is precisely the failure
+mode of ten seats each attacking one surface.
+
+| Was | Is |
+|---|---|
+| One operator credential, minted to a path only the launching process gets | **Two grants.** `introspect` reads everything and arrives in the environment of what Boris starts; `operate` acts estate-wide and keeps the old distribution. rig scrubs both from every program it spawns |
+| Estate-wide views closed to every agent | Open to any agent Boris runs, completely - the full map, any client's history, every trace, every config resolution |
+| §3's isolation test: "two clients cannot see each other" | Three runs. Ungranted A sees nothing of B; A holding `introspect` sees **all** of B and a missing row is a failure; and no run at any sampling rate surfaces a `sensitive` value |
+| "Looking is an event", one audit entry per read | Coalesced per principal, per view, per minute, with a count. Presenting a grant stays uncoalesced |
+
+**The argument that makes it safe is one the plan already owned.** §15 does not filter secrets
+out of the history; it never writes them. So the worst an introspecting agent can read is
+everything Boris could read himself. **Redaction is the precondition for complete
+introspection**, and the two features are complements rather than a trade.
+
+**What this deliberately does not do.** It does not widen what an agent may *run* - `house
+rules` (§13a) is untouched and a destructive command still needs its grant. It does not make
+programs introspectors: the grant never enters a spawned program's environment (§18) and is
+refused to a connection that registered as a program.
+
+**And one thing it costs, written down rather than argued away.** The session boundary in
+§14's table was previously enforced for every client; it is now enforced against accident and
+against a merely buggy client, and a determined same-uid process can still read the grant out
+of an agent's `/proc/<pid>/environ`. That is the floor of same-uid isolation on Linux and no
+arrangement of tokens beats it. Three things remain genuinely enforced against a hostile local
+process: the uid boundary, `operate`, and redaction. **The first draft of this change put the
+grant in a 0600 file, which would have made the session boundary a comment** - it is recorded
+here because the next person to simplify the delivery will reach for exactly that file.
