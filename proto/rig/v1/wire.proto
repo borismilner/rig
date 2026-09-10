@@ -1,0 +1,84 @@
+// The rig wire contract, major version 1.
+//
+// Versioned by major in the path (PLAN.md section 21): rig serves every wire
+// major it has ever shipped, so v2 lands beside this file rather than
+// replacing it.
+//
+// Framing is NOT in this file. A frame on the socket is a 4-byte big-endian
+// length prefix followed by one encoded Frame. See internal/wire.
+syntax = "proto3";
+
+package rig.v1;
+
+option go_package = "github.com/boris-milner/rig/proto/rig/v1;rigv1";
+
+// FrameKind says what a Frame is for.
+//
+// Zero is UNSPECIFIED and is refused at the daemon boundary rather than
+// treated as a default (PLAN.md section 21: "meaningful enum zero is banned").
+// A value this binary does not know is refused the same way, so a newer peer
+// cannot have an unknown kind silently decode as something harmless.
+enum FrameKind {
+  FRAME_KIND_UNSPECIFIED = 0;
+  FRAME_KIND_REQUEST = 1;      // opens a stream, carries the call
+  FRAME_KIND_RESPONSE = 2;     // terminal, carries the result
+  FRAME_KIND_STREAM_DATA = 3;  // one frame of a stream that is still open
+  FRAME_KIND_STREAM_END = 4;   // terminal, closes a stream with no payload
+  FRAME_KIND_ERROR = 5;        // terminal, carries Status
+  FRAME_KIND_CANCEL = 6;       // caller-side cancellation of an open stream
+}
+
+// Code is a wire-level status. Program-level failure is a RESPONSE payload,
+// not an ERROR frame: an ERROR means the call did not reach the program or
+// could not be understood.
+enum Code {
+  CODE_UNSPECIFIED = 0;
+  CODE_OK = 1;
+  CODE_UNAVAILABLE = 2;        // rig is not there, or is shutting down
+  CODE_NOT_FOUND = 3;          // no such program, method or stream
+  CODE_INVALID = 4;            // malformed frame, bad argument, unknown enum
+  CODE_DENIED = 5;             // refused by capabilities or house rules
+  CODE_DEADLINE = 6;           // the call's deadline passed
+  CODE_INTERNAL = 7;
+}
+
+message Status {
+  Code code = 1;
+  string message = 2;
+}
+
+// Frame is the only thing that crosses the socket.
+message Frame {
+  // Identifies one logical call. Odd ids are client-opened, even are
+  // daemon-opened, so the two sides never collide without negotiation.
+  uint32 stream_id = 1;
+
+  FrameKind kind = 2;
+
+  // Dotted method name: "rig.ping", "shelf.reindex". Set on REQUEST only.
+  string method = 3;
+
+  // Client-generated, stable across a retry. rig dedups against a bounded
+  // window and returns the original response (PLAN.md section 4), so a
+  // retried mutating call applies once. Set on REQUEST only.
+  string request_id = 4;
+
+  // The encoded body. Its type is implied by method and kind.
+  bytes payload = 5;
+
+  // Set on ERROR only.
+  Status status = 6;
+}
+
+// ---- rig.ping, the one method M0 ships -------------------------------------
+
+message PingRequest {
+  // Echoed back verbatim, so a caller can prove the round trip is its own.
+  bytes nonce = 1;
+}
+
+message PingResponse {
+  bytes nonce = 1;
+  string program = 2;   // who answered
+  string version = 3;   // that program's own version string
+}
