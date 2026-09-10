@@ -72,6 +72,68 @@ export const contrast = (a, b) => {
   return (Math.max(A,B)+0.05)/(Math.min(A,B)+0.05);
 };
 
+/* ── perceptual separation: CIEDE2000 ───────────────────────────────────
+   Contrast answers "can this be read". It says nothing about whether two
+   colours shown side by side can be TOLD APART, which is a different
+   question with its own measurement. CIEDE2000 is that measurement: the
+   CIE's perceptual colour difference, where ~1 is the just-noticeable
+   difference, ~5 is "clearly different at a glance" and ~10+ is
+   unmistakable across a room. A categorical palette is judged by its
+   WORST pair, never its average.                                        */
+function hexToLab(hex){
+  const n = hex.replace('#','');
+  let [r,g,b] = [0,2,4].map(i => s2f(parseInt(n.substr(i,2),16)/255));
+  // sRGB D65 -> XYZ, then XYZ -> CIELAB against the D65 white point
+  const X = (0.4124564*r + 0.3575761*g + 0.1804375*b) / 0.95047;
+  const Y = (0.2126729*r + 0.7151522*g + 0.0721750*b) / 1.00000;
+  const Z = (0.0193339*r + 0.1191920*g + 0.9503041*b) / 1.08883;
+  const f = t => t > 216/24389 ? Math.cbrt(t) : (841/108)*t + 4/29;
+  const [fx,fy,fz] = [f(X),f(Y),f(Z)];
+  return [116*fy - 16, 500*(fx-fy), 200*(fy-fz)];
+}
+export function deltaE2000(hexA, hexB){
+  const [L1,a1,b1] = hexToLab(hexA), [L2,a2,b2] = hexToLab(hexB);
+  const rad = Math.PI/180, deg = 180/Math.PI;
+  const C1 = Math.hypot(a1,b1), C2 = Math.hypot(a2,b2), Cb = (C1+C2)/2;
+  const G  = 0.5*(1 - Math.sqrt(Math.pow(Cb,7)/(Math.pow(Cb,7)+Math.pow(25,7))));
+  const A1 = (1+G)*a1, A2 = (1+G)*a2;
+  const Cp1 = Math.hypot(A1,b1), Cp2 = Math.hypot(A2,b2);
+  const hp = (b,a) => { if (b===0 && a===0) return 0;
+    const h = Math.atan2(b,a)*deg; return h < 0 ? h+360 : h; };
+  const hp1 = hp(b1,A1), hp2 = hp(b2,A2);
+  const dLp = L2-L1, dCp = Cp2-Cp1;
+  let dhp = 0;
+  if (Cp1*Cp2 !== 0){
+    dhp = hp2-hp1;
+    if (dhp >  180) dhp -= 360;
+    if (dhp < -180) dhp += 360;
+  }
+  const dHp = 2*Math.sqrt(Cp1*Cp2)*Math.sin(dhp/2*rad);
+  const Lbp = (L1+L2)/2, Cbp = (Cp1+Cp2)/2;
+  let hbp;
+  if (Cp1*Cp2 === 0) hbp = hp1+hp2;
+  else if (Math.abs(hp1-hp2) <= 180) hbp = (hp1+hp2)/2;
+  else hbp = (hp1+hp2 < 360) ? (hp1+hp2+360)/2 : (hp1+hp2-360)/2;
+  const T = 1 - 0.17*Math.cos((hbp-30)*rad) + 0.24*Math.cos(2*hbp*rad)
+              + 0.32*Math.cos((3*hbp+6)*rad) - 0.20*Math.cos((4*hbp-63)*rad);
+  const dTh = 30*Math.exp(-Math.pow((hbp-275)/25, 2));
+  const Rc  = 2*Math.sqrt(Math.pow(Cbp,7)/(Math.pow(Cbp,7)+Math.pow(25,7)));
+  const Sl  = 1 + (0.015*Math.pow(Lbp-50,2))/Math.sqrt(20+Math.pow(Lbp-50,2));
+  const Sc  = 1 + 0.045*Cbp, Sh = 1 + 0.015*Cbp*T;
+  const Rt  = -Math.sin(2*dTh*rad)*Rc;
+  return Math.sqrt(Math.pow(dLp/Sl,2) + Math.pow(dCp/Sc,2) + Math.pow(dHp/Sh,2)
+                 + Rt*(dCp/Sc)*(dHp/Sh));
+}
+/** The worst pair in a set. A palette is only as separable as this number. */
+export function separation(hexes){
+  let worst = Infinity, pair = null;
+  for (let i=0;i<hexes.length;i++) for (let j=i+1;j<hexes.length;j++){
+    const d = deltaE2000(hexes[i], hexes[j]);
+    if (d < worst){ worst = d; pair = [i,j]; }
+  }
+  return {worst, pair};
+}
+
 /* ── the solver: the lightest/darkest neutral that clears a target ──────── */
 function solveNeutral(target, grounds, {hue, chroma, dark}){
   // binary search on oklch L. Dark themes want the DIMMEST passing value, so
@@ -99,13 +161,29 @@ export const DEFAULTS = {
   },
   type: { base: 16, scale: 1.26, uiTight: -0.011, dispTight: -0.024, lineHeight: 1.55 },
   shape:{ radius: 12, density: 1, gut: 1.6 },
-  hues: {                       // the family, generated not typed
-    count: 6,
-    names: ['steel','sage','teal','lilac','clay','sand'],
-    angles:[250, 145, 185, 310, 50, 95],
+  /* THE FAMILY, and it carries meaning as well as identity.
+     Red is bad and green is good everywhere a person has ever used a
+     computer, so those two angles are ANCHORED and the optimiser is not
+     allowed to move them. `role` says what a member means; `identity: false`
+     means no program may ever own it, because a shell that turns red when
+     you open a program is telling you something untrue.
+
+     The free angles are placed to maximise the WORST pairwise CIEDE2000 in
+     the set, which is the measurement for "can these be told apart", and is
+     a different question from contrast. */
+  hues: {
+    members: [
+      {name:'rust',  angle: 27, role:'bad',      identity:false, anchored:true },
+      {name:'amber', angle: 78, role:'warn',     identity:false, anchored:true },
+      {name:'sage',  angle:148, role:'good',     identity:true,  anchored:true },
+      {name:'teal',  angle:196, role:'progress', identity:true,  anchored:false},
+      {name:'steel', angle:252, role:'info',     identity:true,  anchored:true },
+      {name:'indigo',angle:294, role:'-',        identity:true,  anchored:false},
+      {name:'lilac', angle:345, role:'-',        identity:true,  anchored:false},
+    ],
     rotate: 0,
-    dark:  { L: 0.800, C: 0.070 },
-    light: { L: 0.470, C: 0.085 },
+    dark:  { L: 0.800, C: 0.098 },
+    light: { L: 0.470, C: 0.110 },
   },
   surfaces: {
     hue: 252, chroma: 0.022,
@@ -141,10 +219,10 @@ export function tokens(theme, mode){
   const border2 = solveNeutral(4.5, grounds, {hue:s.hue, chroma:s.chroma*1.8, dark});
 
   const hue = {};
-  theme.hues.names.forEach((n,i) => {
-    const a = (theme.hues.angles[i] + theme.hues.rotate + 360) % 360;
-    hue[n] = okhex(H.L, H.C, a);
-    hue['o-'+n] = `oklch(${(H.L*100).toFixed(1)}% ${H.C.toFixed(3)} ${a.toFixed(0)})`;
+  theme.hues.members.forEach(m => {
+    const a = (m.angle + theme.hues.rotate + 360) % 360;
+    hue[m.name] = okhex(H.L, H.C, a);
+    hue['o-'+m.name] = `oklch(${(H.L*100).toFixed(1)}% ${H.C.toFixed(3)} ${a.toFixed(0)})`;
   });
 
   const t = theme.type, sc = t.scale;
@@ -153,9 +231,12 @@ export function tokens(theme, mode){
     '--fg':fg, '--fg-dim':fgDim, '--fg-faint':fgFaint,
     '--border':border, '--border-2':border2,
     '--on-hue': dark ? '#0d1117' : '#ffffff',
-    ...Object.fromEntries(theme.hues.names.flatMap(n => [
-      [`--h-${n}`, hue[n]], [`--o-${n}`, hue['o-'+n]],
+    ...Object.fromEntries(theme.hues.members.flatMap(m => [
+      [`--h-${m.name}`, hue[m.name]], [`--o-${m.name}`, hue['o-'+m.name]],
     ])),
+    // semantic aliases, so a surface asks for meaning and never for a colour
+    ...Object.fromEntries(theme.hues.members.filter(m => m.role !== '-').map(m =>
+      [`--sem-${m.role}`, hue[m.name]])),
     '--disp': `"${theme.faces.display}", ui-serif, Georgia, serif`,
     '--sans': `"${theme.faces.ui}", Cantarell, ui-sans-serif, system-ui, sans-serif`,
     '--mono': `"${theme.faces.mono}", ui-monospace, monospace`,
@@ -201,4 +282,36 @@ export function toToml(theme, mode){
   for (const [k,v] of Object.entries(t))
     if (k.startsWith('--') && v.startsWith('#')) lines.push(`${k.slice(2).replace(/-/g,'_')} = "${v}"`);
   return lines.join('\n');
+}
+
+
+/* ── place the free hues for maximum worst-pair separation ──────────────
+   Anchored members (red = bad, green = good, blue = info, amber = warn) do
+   not move: their meaning is worth more than a point of deltaE. Everything
+   else is searched, coarse then fine, maximising the WORST pair - which is
+   the only statistic that matters for a categorical set, because the palette
+   fails at its closest pair and nowhere else.                            */
+export function optimiseHues(theme, mode){
+  const H = mode === 'dark' ? theme.hues.dark : theme.hues.light;
+  const ms = theme.hues.members;
+  const hexes = () => ms.map(m => okhex(H.L, H.C, (m.angle+360)%360));
+  const score = () => separation(hexes()).worst;
+  const free = ms.map((m,i)=>[m,i]).filter(([m])=>!m.anchored);
+  let best = score();
+  for (const step of [12, 5, 2, 1]){
+    let moved = true, guard = 0;
+    while (moved && guard++ < 60){
+      moved = false;
+      for (const [m] of free){
+        for (const d of [step, -step]){
+          const was = m.angle;
+          m.angle = (m.angle + d + 360) % 360;
+          const now = score();
+          if (now > best + 1e-6){ best = now; moved = true; }
+          else m.angle = was;
+        }
+      }
+    }
+  }
+  return best;
 }

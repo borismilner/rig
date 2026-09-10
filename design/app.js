@@ -1,4 +1,4 @@
-import {DEFAULTS, tokens, apply, toToml, contrast} from './theme.js';
+import {DEFAULTS, tokens, apply, toToml, contrast, separation, optimiseHues} from './theme.js';
 
 /* ══ state ══════════════════════════════════════════════════════════════ */
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -125,9 +125,17 @@ document.getElementById('copytoml').onclick=async e=>{
   e.target.textContent='Copied'; setTimeout(()=>e.target.textContent='Copy',1400);
 };
 document.getElementById('reset').onclick=()=>{ theme=clone(DEFAULTS); buildLab(); render(); };
+document.getElementById('optimise').onclick=e=>{
+  const before=separation(theme.hues.members.map(m=>tokv('h-'+m.name))).worst;
+  optimiseHues(theme, mode);
+  render();
+  const after=separation(theme.hues.members.map(m=>tokv('h-'+m.name))).worst;
+  e.target.textContent=`ΔE ${before.toFixed(1)} → ${after.toFixed(1)}`;
+  setTimeout(()=>e.target.textContent='Optimise separation', 2600);
+};
 
 /* ══ the projection diagram ═════════════════════════════════════════════ */
-const SURFACES=['CLI','MCP','HTTP','turret','tray','toast','palette','cron','URL'];
+const SURFACES=['CLI','MCP','HTTP','window','tray','toast','palette','cron','URL'];
 (function(){
   const g=document.getElementById('dg'), cx=220, cy=182, R=140;
   let s=`<circle class="ring" cx="${cx}" cy="${cy}" r="36"/>
@@ -163,7 +171,7 @@ const APPS={
   acts:['Timeline','Run'],
   log:[['14:19:41','graft','run    nightly-audit started'],['14:21:02','graft','frame  41,208 appended'],
        ['14:22:03','graft','tok    124.6k in, 8.1k out']]},
- dispatch:{hue:'clay',ver:'2.0.0',a:'11 open',b:'2 overdue',ms:9,title:'Assignments',cov:'coverage: full',
+ dispatch:{hue:'indigo',ver:'2.0.0',a:'11 open',b:'2 overdue',ms:9,title:'Assignments',cov:'coverage: full',
   cols:['Assignment','Owner','Due','Age','Done'],
   rows:[['rig spec pass','me','today','4h',72],['grabbit revival','me','Fri','30d',12],
         ['shelf pilot','me','next week','2d',5],['romsort','me','-','9d',2]],
@@ -177,14 +185,14 @@ const APPS={
   acts:['Canvas','Validate'],
   log:[['14:18:02','archi','model  upsert_element x12'],['14:18:04','archi','check  0 dangling edges'],
        ['14:22:01','archi','idle']]},
- snapper:{hue:'clay',ver:'0.3.0',a:'stopped',b:'-',ms:0,title:'Captures',cov:'coverage: partial',
+ snapper:{hue:'teal',ver:'0.3.0',a:'stopped',b:'-',ms:0,title:'Captures',cov:'coverage: partial',
   cols:['Capture','Kind','When','Size','Annotated'],
   rows:[['tray-now','region','4m ago','213 KB',3],['plan-diff','window','2h ago','1.1 MB',100],
         ['desktop','full','2h ago','2.4 MB',3],['rail-states','region','1d ago','88 KB',100]],
   acts:['Open folder','Capture'],
   log:[['12:45:02','snapper','exit   stopped by user'],['12:44:58','snapper','write  desktop.png'],
        ['12:44:51','snapper','start  region capture']]},
- nudge:{hue:'sand',ver:'1.0.0',a:'3 watches',b:'0 firing',ms:2,title:'Watches',cov:'coverage: full',
+ nudge:{hue:null,ver:'1.0.0',a:'3 watches',b:'0 firing',ms:2,title:'Watches',cov:'coverage: full',
   cols:['Path','Trigger','Last fire','Fires','Health'],
   rows:[['~/me/inbox','any write','4m ago','128',100],['~/dl','new file','1h ago','44',100],
         ['~/me/study','md change','3d ago','9',82],['~/tmp','stale 7d','-','0',60]],
@@ -212,8 +220,10 @@ function select(k){
   const a=APPS[k];
   const go=()=>{
     rail.querySelectorAll('.mark').forEach(b=>b.setAttribute('aria-current',String(b.dataset.app===k)));
-    document.documentElement.style.setProperty('--hue',`var(--h-${a.hue})`);
-    document.documentElement.style.setProperty('--ohue',`var(--o-${a.hue})`);
+    // a program never owns an alarm hue, and a program with no identity hue
+    // leaves the shell achromatic - which is what the shell is anyway
+    document.documentElement.style.setProperty('--hue', a.hue?`var(--h-${a.hue})`:'var(--fg)');
+    document.documentElement.style.setProperty('--ohue', a.hue?`var(--o-${a.hue})`:'var(--fg)');
     document.getElementById('ctx-name').textContent=k;
     document.getElementById('ctx-ver').textContent=a.ver;
     document.getElementById('ctx-a').textContent=a.a;
@@ -230,9 +240,9 @@ rail.addEventListener('click',e=>{const b=e.target.closest('.mark'); if(b) selec
 const CASES=[
  {cap:'<b>All well.</b> No colour anywhere but the current program&rsquo;s notch.',
   m:[['sh','ok',1],['gr','ok',0],['ar','ok',0],['nu','ok',0]]},
- {cap:'<b>Degraded.</b> One sand pip, and nothing moves.',
+ {cap:'<b>Degraded.</b> One amber pip, and nothing moves.',
   m:[['sh','ok',1],['gr','degraded',0],['ar','ok',0],['nu','ok',0]]},
- {cap:'<b>Failing, and one stopped.</b> The clay pip breathes; a stopped program keeps its '+
+ {cap:'<b>Failing, and one stopped.</b> The red pip breathes; a stopped program keeps its '+
       'place and goes dashed, so the rail never re-orders under your hand.',
   m:[['sh','ok',1],['gr','failing',0],['ar','stopped',0],['nu','ok',0]]}];
 document.getElementById('railrow').innerHTML=CASES.map(c=>`<div>
@@ -258,7 +268,7 @@ function menu(st, banner){
       <div class="tm-act">dispatch: restart budget spent<span class="k">quarantined</span></div>
       <div class="tm-act">Open the crash panel</div></div>
     <div class="tm-sep"></div>
-    <div class="tm-act">Open turret<span class="k">Ctrl Space</span></div>
+    <div class="tm-act">Open the window<span class="k">Ctrl Space</span></div>
     <div class="tm-act">Notifications<span class="k">3</span></div>
     <div class="tm-act">Do not disturb</div>`;
 }
@@ -282,7 +292,8 @@ const T={
  warn:{src:'rigd',t:'graft failed 3 health checks',b:'Degraded. Two more and the restart budget starts.',acts:['Logs','Restart now']},
  error:{src:'dispatch',t:'Exited 1 during migration 020',b:'Rolled back. The database is untouched and the last 200 log lines are kept.',acts:['Crash panel','Copy trace id']},
  progress:{src:'grabbit',t:'Downloading 3 of 8',b:'42.1 MB/s &middot; about 4 minutes left',bar:true,acts:[]}};
-const TONE={info:'steel',success:'sage',warn:'sand',error:'clay',progress:'teal'};
+// severity asks for a MEANING, never for a colour
+const TONE={info:'steel',success:'sage',warn:'amber',error:'rust',progress:'teal'};
 function build(kind){
   const d=T[kind], el=document.createElement('div');
   const dwell=Math.min(20, 10+5*Math.ceil(d.b.length/46));
@@ -290,7 +301,8 @@ function build(kind){
   el.style.setProperty('--tone',`var(--h-${TONE[kind]})`);
   el.style.setProperty('--otone',`var(--o-${TONE[kind]})`);
   el.style.setProperty('--dwell', dwell+'s');
-  el.innerHTML=`<div class="th"><span class="badge">${kind}</span><span class="src">${d.src}</span></div>
+  el.innerHTML=`<div class="th"><span class="badge">${kind}</span><span class="src">${d.src}</span>
+    <button class="x" aria-label="Dismiss">&times;</button></div>
     <p class="tt">${d.t}</p><p class="tb">${d.b}</p>
     ${d.bar?'<div class="prog"><i></i></div>':''}
     ${d.acts.length?`<div class="row">${d.acts.map(a=>`<button class="btn">${a}</button>`).join('')}</div>`:''}
@@ -298,36 +310,54 @@ function build(kind){
   return el;
 }
 const deck=document.getElementById('deck');
+function dismiss(el){
+  if (el.dataset.going) return;
+  el.dataset.going='1';
+  el.classList.add('leaving');
+  el.addEventListener('animationend',()=>el.remove(),{once:true});
+  setTimeout(()=>el.remove(), 400);   // belt and braces if the animation is off
+}
 function fire(kind){
+  // newest first in the DOM, and the deck runs top-down, so an unread notice
+  // is never underneath one you have already seen
   const el=build(kind); deck.prepend(el);
   while(deck.children.length>5) deck.lastElementChild.remove();
   const dw=el.querySelector('.dwell');
   el.addEventListener('mouseenter',()=>dw.style.animationPlayState='paused');
   el.addEventListener('mouseleave',()=>dw.style.animationPlayState='running');
-  dw.addEventListener('animationend',()=>{el.classList.add('leaving');
-    el.addEventListener('animationend',()=>el.remove(),{once:true})});
+  dw.addEventListener('animationend',()=>dismiss(el));
+  el.querySelector('.x').addEventListener('click',()=>dismiss(el));
 }
+// Esc dismisses the top of the deck, the way every notification centre does
+addEventListener('keydown',e=>{
+  if(e.key==='Escape' && deck.firstElementChild && !document.getElementById('lab').classList.contains('open'))
+    dismiss(deck.firstElementChild);
+});
 document.querySelectorAll('[data-fire]').forEach(b=>b.onclick=()=>fire(b.dataset.fire));
 document.getElementById('fire-all').onclick=()=>
   ['info','success','warn','error','progress'].forEach((k,i)=>setTimeout(()=>fire(k),i*170));
 ['error','warn','progress','success','info'].forEach((k,i)=>setTimeout(()=>fire(k),250+i*110));
-document.getElementById('stagetoast').appendChild(build('success'));
+const st=build('success');
+st.querySelector('.x').addEventListener('click',()=>dismiss(st));
+document.getElementById('stagetoast').appendChild(st);
 
 /* ══ palette, measured from the tokens actually painted ═════════════════ */
-const USE={steel:'shelf · info',sage:'graft · ok',teal:'grabbit · prog',
-           lilac:'archi',clay:'snapper · err',sand:'nudge · warn'};
+const USE={rust:'error · failing',amber:'warn · degraded',sage:'success · ok',
+           teal:'progress · snapper',steel:'info · shelf',indigo:'dispatch',lilac:'archi'};
 const GROUNDS=['bg','bg-2','panel','glow'];
 const tokv=n=>getComputedStyle(document.documentElement).getPropertyValue('--'+n).trim();
 function paintPalette(){
-  const names=theme.hues.names;
-  document.getElementById('ring-n').textContent=names.length;
-  document.getElementById('swatches').innerHTML=names.map(h=>`
-    <div class="sw" style="--c:var(--h-${h})"><div class="band">${h}</div>
-    <div class="meta"><span>${USE[h]||''}</span><b>${
-      contrast(tokv('h-'+h), tokv('glow')).toFixed(2)}:1</b></div></div>`).join('');
+  const ms=theme.hues.members;
+  document.getElementById('ring-n').textContent=ms.length;
+  document.getElementById('swatches').innerHTML=ms.map(m=>`
+    <div class="sw" style="--c:var(--h-${m.name})"><div class="band">${m.name}</div>
+    <div class="meta"><span>${USE[m.name]||''}</span><b>${
+      contrast(tokv('h-'+m.name), tokv('glow')).toFixed(2)}:1</b></div>
+    <div class="meta"><span class="role">${m.role==='-'?'identity':m.role}${
+      m.identity?'':' · reserved'}</span><span class="role">${m.angle}°</span></div></div>`).join('');
 
   const rows=[['fg',4.5],['fg-dim',4.5],['fg-faint',4.5],['border',3],['border-2',3],
-    ...names.map(n=>['h-'+n,4.5])];
+    ...ms.map(m=>['h-'+m.name,4.5])];
   let worst=Infinity, fails=0;
   document.getElementById('ratiobody').innerHTML=rows.map(([n,need])=>{
     const cells=GROUNDS.map(g=>{
@@ -339,11 +369,21 @@ function paintPalette(){
     return `<tr><td class="m">--${n}</td>${cells}<td class="m">${need.toFixed(1)}</td></tr>`;
   }).join('');
 
-  const w=worst.toFixed(2);
+  // the second question: can two of them be told apart
+  const hexes=ms.map(m=>tokv('h-'+m.name));
+  const sep=separation(hexes);
+  const w=worst.toFixed(2), sw=sep.worst.toFixed(1);
   document.getElementById('hero-ratio').textContent=w;
+  document.getElementById('hero-sep').textContent=sw;
+  document.getElementById('q-contrast').textContent=w+':1';
+  document.getElementById('q-sep').textContent=sw;
+  document.getElementById('q-pair').textContent=
+    `${ms[sep.pair[0]].name} / ${ms[sep.pair[1]].name}`;
+
   const v=document.getElementById('verdict');
   v.classList.toggle('failing', fails>0);
   document.getElementById('v-worst').textContent=w;
+  document.getElementById('v-sep').textContent=sw;
   document.getElementById('v-count').textContent=
     fails ? `${fails} cell${fails>1?'s':''} failing` : 'every token passes, both themes';
 }

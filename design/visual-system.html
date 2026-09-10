@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>rig / turret - visual system</title>
+<title>rig - the visual system</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Fraunces:opsz,wght,SOFT,WONK@9..144,400..900,0..100,0..1&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Martian+Mono:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400..700&family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -23,10 +23,11 @@
 :root{
   --bg:#121a23;--bg-2:#1a222c;--panel:#212a34;--glow:#242d37;--tint:#2b3542;
   --fg:#dae5f3;--fg-dim:#95a6b9;--fg-faint:#8494a7;--border:#64778c;--border-2:#8195ab;
-  --h-steel:#9cc2ea;--h-sage:#a2caa2;--h-teal:#89cdc3;--h-lilac:#ccb2e0;
-  --h-clay:#e4b196;--h-sand:#ccbe8a;
-  --o-steel:oklch(80% .07 250);--o-sage:oklch(80% .07 145);--o-teal:oklch(80% .07 185);
-  --o-lilac:oklch(80% .07 310);--o-clay:oklch(80% .07 50);--o-sand:oklch(80% .07 95);
+  --h-rust:#f7a59c;--h-amber:#e1b673;--h-sage:#92cf9a;--h-teal:#68d1d2;
+  --h-steel:#8fc2fb;--h-indigo:#c1b2f7;--h-lilac:#eca4cc;
+  --o-rust:oklch(80% .098 27);--o-amber:oklch(80% .098 78);--o-sage:oklch(80% .098 148);
+  --o-teal:oklch(80% .098 196);--o-steel:oklch(80% .098 252);
+  --o-indigo:oklch(80% .098 294);--o-lilac:oklch(80% .098 345);
   --disp:"Fraunces",ui-serif,Georgia,serif;
   --sans:"Inter Tight",ui-sans-serif,system-ui,sans-serif;
   --mono:"JetBrains Mono",ui-monospace,monospace;
@@ -54,6 +55,8 @@ body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);
   font-size:var(--fs-0);line-height:var(--lh);letter-spacing:var(--tight-ui);
   -webkit-font-smoothing:antialiased;overflow-x:hidden}
 code,.mono,kbd{font-family:var(--mono);letter-spacing:0}
+/* nested em sizing multiplies below the 12px floor - readable-output bug 6 */
+sub,sup{font-size:max(12px,.72em);line-height:0}
 .wrap{max-width:1240px;margin:0 auto;padding:0 var(--gut)}
 
 /* ── decoration layers. No body text ever sits on these. ────────────────── */
@@ -176,8 +179,8 @@ p.say strong{color:var(--fg);font-weight:600}
   background:color-mix(in srgb,var(--hue) 13%,var(--panel));
   box-shadow:0 0 20px -4px color-mix(in srgb,var(--hue) 75%,transparent)}
 .mark .pip{position:absolute;right:6px;top:7px;width:8px;height:8px;border-radius:50%}
-.mark[data-state="degraded"] .pip{background:var(--h-sand)}
-.mark[data-state="failing"] .pip{background:var(--h-clay);animation:breathe 2.4s ease-in-out infinite}
+.mark[data-state="degraded"] .pip{background:var(--h-amber)}
+.mark[data-state="failing"] .pip{background:var(--h-rust);animation:breathe 2.4s ease-in-out infinite}
 @keyframes breathe{0%,100%{opacity:1}50%{opacity:.42}}
 .mark[data-state="stopped"] .ico{opacity:.5;border-style:dashed}
 .notch{position:absolute;inset-inline-start:0;width:3px;height:44px;background:var(--hue);
@@ -268,8 +271,8 @@ table.tbl td.m{font-family:var(--mono);font-size:var(--fs--2);color:var(--fg-dim
 .tm-row:hover{background:var(--glow)}
 .tm-row .g{width:8px;height:8px;border-radius:50%;background:var(--border-2)}
 .tm-row .g.ok{background:transparent;border:1.5px solid var(--border-2)}
-.tm-row .g.degraded{background:var(--h-sand)}
-.tm-row .g.failing{background:var(--h-clay);animation:breathe 2.4s ease-in-out infinite}
+.tm-row .g.degraded{background:var(--h-amber)}
+.tm-row .g.failing{background:var(--h-rust);animation:breathe 2.4s ease-in-out infinite}
 .tm-row .g.stopped{background:transparent;border:1.5px dashed var(--border)}
 .tm-row .nm{font-weight:500}
 .tm-row .st{margin-inline-start:auto;color:var(--fg-dim);font-size:var(--fs--2);font-family:var(--mono)}
@@ -282,7 +285,7 @@ table.tbl td.m{font-family:var(--mono);font-size:var(--fs--2);color:var(--fg-dim
 .tm-act .k{margin-inline-start:auto;color:var(--fg-faint);font-size:var(--fs--2);font-family:var(--mono)}
 .tm-banner{padding:.6rem .85rem;background:var(--glow);border-bottom:1px solid var(--border);
   font-size:var(--fs--1);display:flex;gap:.55rem;align-items:flex-start}
-.tm-banner .pip{width:8px;height:8px;border-radius:50%;background:var(--h-sand);margin-top:.34rem;flex:none}
+.tm-banner .pip{width:8px;height:8px;border-radius:50%;background:var(--h-amber);margin-top:.34rem;flex:none}
 .traymenu:not(:has(.g.failing,.g.degraded)) .needsyou{display:none}
 .scene{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);
   padding:1.3rem;display:flex;gap:1.8rem;flex-wrap:wrap;align-items:flex-start;box-shadow:var(--shadow-sm)}
@@ -299,6 +302,13 @@ table.tbl td.m{font-family:var(--mono);font-size:var(--fs--2);color:var(--fg-dim
 .toast .th{display:flex;align-items:center;gap:.55rem;margin-bottom:.15rem;position:relative;z-index:1}
 .toast .badge{font-size:var(--fs--2);font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tone)}
 .toast .src{margin-inline-start:auto;font-size:var(--fs--2);color:var(--fg-faint);font-family:var(--mono)}
+.toast .x{appearance:none;border:1px solid transparent;background:none;cursor:pointer;
+  color:var(--fg-faint);font:inherit;font-size:var(--fs--1);line-height:1;
+  width:1.35rem;height:1.35rem;display:grid;place-items:center;border-radius:6px;margin:-.15rem -.2rem -.15rem 0;
+  transition:color .15s,background .15s,border-color .15s}
+.toast .x:hover{color:var(--fg);background:var(--glow);border-color:var(--border)}
+.toast .x:focus-visible{outline:none;border-color:var(--tone);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--tone) 34%,transparent)}
 .toast .tt,.toast .tb,.toast .row,.toast .prog{position:relative;z-index:1}
 .toast .tt{font-weight:700;font-size:var(--fs-0);margin:0 0 .15rem}
 .toast .tb{font-size:var(--fs--1);color:var(--fg-dim);margin:0}
@@ -314,17 +324,25 @@ table.tbl td.m{font-family:var(--mono);font-size:var(--fs--2);color:var(--fg-dim
 @keyframes dwell{from{scale:1 1}to{scale:0 1}}
 #toastfield{position:relative;overflow:hidden;min-height:19rem;border-radius:var(--radius);
   border:1px solid var(--border);padding:1.3rem;
-  background:radial-gradient(90% 70% at 82% 8%,color-mix(in oklab,var(--o-sand) 14%,transparent),
+  background:radial-gradient(90% 70% at 82% 8%,color-mix(in oklab,var(--o-amber) 14%,transparent),
     transparent 60%),var(--bg-2)}
+/* newest first in the DOM and first on screen: a notice you have not read
+   must never appear underneath one you have */
 #deck{position:absolute;inset-block-end:1.3rem;inset-inline-end:1.3rem;width:22rem;
-  display:flex;flex-direction:column-reverse;gap:.65rem}
-#deck.stacked > .toast:nth-child(n+2){margin-block-end:-3.9rem;scale:.965;filter:brightness(.9);
-  transition:margin-block-end .38s var(--spring),scale .38s var(--spring),filter .3s}
-#deck.stacked:hover > .toast:nth-child(n+2){margin-block-end:0;scale:1;filter:none}
+  display:flex;flex-direction:column;gap:.65rem}
+#deck > .toast:nth-child(1){z-index:5}
+#deck > .toast:nth-child(2){z-index:4}
+#deck > .toast:nth-child(3){z-index:3}
+#deck > .toast:nth-child(4){z-index:2}
+#deck > .toast:nth-child(5){z-index:1}
+#deck.stacked > .toast:nth-child(n+2){margin-block-start:-4.1rem;scale:.965;
+  filter:brightness(.9);
+  transition:margin-block-start .38s var(--spring),scale .38s var(--spring),filter .3s}
+#deck.stacked:hover > .toast:nth-child(n+2){margin-block-start:0;scale:1;filter:none}
 .paletterow{display:grid;grid-template-columns:minmax(0,15rem) minmax(0,1fr);gap:2.2rem;align-items:start}
 .huering{position:relative;aspect-ratio:1;border-radius:50%;animation:spin 34s linear infinite;
   background:conic-gradient(from var(--spin),var(--o-steel),var(--o-sage),var(--o-teal),
-    var(--o-lilac),var(--o-clay),var(--o-sand),var(--o-steel));
+    var(--o-lilac),var(--o-rust),var(--o-amber),var(--o-steel));
   mask:radial-gradient(circle,transparent 56%,#000 57%);
   -webkit-mask:radial-gradient(circle,transparent 56%,#000 57%)}
 @keyframes spin{to{--spin:360deg}}
@@ -332,6 +350,16 @@ table.tbl td.m{font-family:var(--mono);font-size:var(--fs--2);color:var(--fg-dim
 .ringmid{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
 .ringmid b{display:block;font-family:var(--mono);font-size:var(--fs-2);color:var(--fg)}
 .ringmid span{font-size:var(--fs--2);color:var(--fg-dim)}
+.twoq{display:grid;grid-template-columns:repeat(auto-fit,minmax(19rem,1fr));gap:1rem;
+  margin:0 0 1.4rem}
+.twoq > div{border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.1rem;
+  background:var(--bg-2);display:grid;gap:.35rem;align-content:start}
+.twoq b{font-family:var(--disp);font-size:var(--fs-1);font-weight:600;letter-spacing:var(--tight-disp)}
+.twoq span{font-size:var(--fs--1);color:var(--fg-dim)}
+.twoq i{font-style:normal;font-family:var(--mono);font-size:var(--fs-2);color:var(--hue);
+  font-weight:600;margin-top:.3rem}
+.twoq em{font-style:normal;font-size:var(--fs--2);color:var(--fg-faint);font-family:var(--mono)}
+.sw .role{font-size:var(--fs--2);color:var(--fg-faint);font-family:var(--mono)}
 .swatches{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.8rem}
 .sw{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--panel);
   border-inline-start:4px solid var(--c);transition:translate .25s var(--spring),box-shadow .25s}
@@ -347,7 +375,7 @@ table.ratios th{text-align:start;font-size:var(--fs--2);letter-spacing:.08em;tex
 table.ratios td{padding:.42rem .7rem .42rem 0;border-bottom:1px solid var(--bg-2)}
 table.ratios td.m,table.ratios th.m{font-family:var(--mono)}
 .pass{color:var(--h-sage);font-weight:600}
-.bad{color:var(--h-clay);font-weight:700}
+.bad{color:var(--h-rust);font-weight:700}
 
 /* ── the lab ────────────────────────────────────────────────────────────── */
 .dock{position:fixed;inset-block-start:1rem;inset-inline-end:1rem;z-index:60;display:flex;gap:.4rem;
@@ -393,7 +421,7 @@ table.ratios td.m,table.ratios th.m{font-family:var(--mono)}
   padding:.6rem;resize:vertical;line-height:1.5}
 .verdict{display:flex;gap:.5rem;align-items:center;font-size:var(--fs--1);margin:.5rem 0 0}
 .verdict .dot{width:10px;height:10px;border-radius:50%;background:var(--h-sage)}
-.verdict.failing .dot{background:var(--h-clay)}
+.verdict.failing .dot{background:var(--h-rust)}
 .verdict b{color:var(--fg)}
 
 footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
@@ -429,7 +457,11 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
   page - it is the same object rig loads as config, and the box at the bottom is the
   <code>rig.toml</code> fragment that reproduces whatever you just made.</p>
   <div class="verdict" id="verdict"><i class="dot"></i>
-    <span><b id="v-worst">-</b> worst ratio &middot; <span id="v-count">-</span></span></div>
+    <span><b id="v-worst">-</b> worst ratio &middot; <b id="v-sep">-</b> worst ΔE<sub>00</sub>
+    &middot; <span id="v-count">-</span></span></div>
+  <div class="controls" style="margin:.6rem 0 1rem">
+    <button class="tg" id="optimise">Optimise separation</button>
+    <span class="hint">Moves only the unanchored hues. Red and green do not move.</span></div>
   <div id="labbody"></div>
   <fieldset><legend>Export</legend><textarea id="export" readonly spellcheck="false"></textarea>
     <div class="controls" style="margin-top:.6rem">
@@ -441,18 +473,19 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
   <div class="aurora"></div><div class="grain"></div>
   <div class="wrap">
     <div>
-      <p class="eyebrow">rig / turret &middot; visual system</p>
+      <p class="eyebrow">rig &middot; the visual system</p>
       <h1>One declaration.<br><em>Every surface.</em></h1>
       <div class="rule"></div>
-      <p class="lede">turret adds no features. Everything it shows already exists in a program
-      you can already run, so its whole value is the cost of reaching it: how fast you find the
-      thing, how much you see at once, how little you have to think. That cost is made almost
-      entirely of visual decisions.</p>
+      <p class="lede">rig's window adds no features. Everything it shows already exists in a
+      program you can already run, so its whole value is the cost of reaching it: how fast you
+      find the thing, how much you see at once, how little you have to think. That cost is made
+      almost entirely of visual decisions.</p>
       <div class="stats">
         <div><b>6.1%</b><span>chrome budget</span></div>
         <div><b>1</b><span>hue on screen</span></div>
         <div><b>7&rarr;1</b><span>tray icons</span></div>
         <div><b id="hero-ratio">-</b><span>worst ratio, live</span></div>
+        <div><b id="hero-sep">-</b><span>worst ΔE<sub>00</sub></span></div>
       </div>
     </div>
     <div><svg class="diagram" viewBox="0 0 440 380" role="img"
@@ -560,14 +593,30 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
 
 <section><div class="wrap">
   <h2><span class="n">05</span> The palette</h2>
-  <h3>Generated, not typed - and the neutrals are solved</h3>
-  <p class="say">The six hues are produced in <code>oklch</code> at one lightness and one chroma,
-  evenly spaced, so "a family" is arithmetic rather than a promise: move the lightness and all
-  six move together. <strong>The neutrals are not chosen at all.</strong>
-  <code>--border</code>, <code>--fg-dim</code> and <code>--fg-faint</code> are binary-searched to
-  the dimmest value that still clears their WCAG target on <em>every</em> surface they can land
-  on - which is how the inherited <code>#556579</code> border, 2.40:1 on a panel, stops being
-  something anyone can type.</p>
+  <h3>Generated, measured twice, and anchored to meaning</h3>
+  <p class="say">The family is produced in <code>oklch</code> at one lightness and one chroma,
+  so "a family" is arithmetic rather than a promise: move the lightness and every member moves
+  together. Then it is measured <strong>twice, against two different questions</strong>.</p>
+  <div class="twoq">
+    <div><b>Can it be read?</b><span>WCAG 2.x contrast, against every surface it can land on.
+      4.5:1 for text, 3:1 for a component boundary. The table below, live.</span>
+      <i id="q-contrast">-</i><em>worst ratio</em></div>
+    <div><b>Can two of them be told apart?</b><span>CIEDE2000, the CIE's perceptual colour
+      difference. ~1 is just noticeable, ~5 clearly different, 10+ unmistakable. A categorical
+      set is only as good as its <em>worst pair</em>, never its average.</span>
+      <i id="q-sep">-</i><em>worst ΔE<sub>00</sub>, <span id="q-pair">-</span></em></div>
+  </div>
+  <p class="say"><strong>Red is bad and green is good</strong> everywhere a person has ever used
+  a computer, so those angles are anchored and the optimiser may not move them. Amber is warn,
+  blue is info. The free members are then placed to maximise that worst pair - press
+  <em>Optimise separation</em> in the lab and watch the number climb without a single anchor
+  shifting. <strong>And no program ever owns an alarm hue:</strong> a shell that turns red when
+  you open a program is telling you something untrue, so a sixth program takes the achromatic
+  accent, which the shell is anyway.</p>
+  <p class="say"><strong>The neutrals are not chosen at all.</strong> <code>--border</code>,
+  <code>--fg-dim</code> and <code>--fg-faint</code> are binary-searched to the dimmest value
+  that still clears their WCAG target on <em>every</em> surface - which is how the inherited
+  <code>#556579</code> border, 2.40:1 on a panel, stops being something anyone can type.</p>
   <div class="paletterow">
     <div class="ringwrap"><div class="huering"></div>
       <div class="ringmid"><div><b id="ring-n">6</b><span>evenly spaced</span></div></div></div>
@@ -582,7 +631,7 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
 </div></section>
 
 <footer><div class="wrap">
-  rig / turret visual system &middot; tokens generated by <code>design/theme.js</code> &middot;
+  rig visual system &middot; tokens generated by <code>design/theme.js</code> &middot;
   hues in oklch, neutrals solved against WCAG 2.x &middot; view transitions, anchor positioning,
   <code>@property</code>, <code>@starting-style</code>, scroll-driven reveals,
   <code>linear()</code> springs, container queries, <code>:has()</code> &middot; all motion off
@@ -666,6 +715,68 @@ const contrast = (a, b) => {
   return (Math.max(A,B)+0.05)/(Math.min(A,B)+0.05);
 };
 
+/* ── perceptual separation: CIEDE2000 ───────────────────────────────────
+   Contrast answers "can this be read". It says nothing about whether two
+   colours shown side by side can be TOLD APART, which is a different
+   question with its own measurement. CIEDE2000 is that measurement: the
+   CIE's perceptual colour difference, where ~1 is the just-noticeable
+   difference, ~5 is "clearly different at a glance" and ~10+ is
+   unmistakable across a room. A categorical palette is judged by its
+   WORST pair, never its average.                                        */
+function hexToLab(hex){
+  const n = hex.replace('#','');
+  let [r,g,b] = [0,2,4].map(i => s2f(parseInt(n.substr(i,2),16)/255));
+  // sRGB D65 -> XYZ, then XYZ -> CIELAB against the D65 white point
+  const X = (0.4124564*r + 0.3575761*g + 0.1804375*b) / 0.95047;
+  const Y = (0.2126729*r + 0.7151522*g + 0.0721750*b) / 1.00000;
+  const Z = (0.0193339*r + 0.1191920*g + 0.9503041*b) / 1.08883;
+  const f = t => t > 216/24389 ? Math.cbrt(t) : (841/108)*t + 4/29;
+  const [fx,fy,fz] = [f(X),f(Y),f(Z)];
+  return [116*fy - 16, 500*(fx-fy), 200*(fy-fz)];
+}
+function deltaE2000(hexA, hexB){
+  const [L1,a1,b1] = hexToLab(hexA), [L2,a2,b2] = hexToLab(hexB);
+  const rad = Math.PI/180, deg = 180/Math.PI;
+  const C1 = Math.hypot(a1,b1), C2 = Math.hypot(a2,b2), Cb = (C1+C2)/2;
+  const G  = 0.5*(1 - Math.sqrt(Math.pow(Cb,7)/(Math.pow(Cb,7)+Math.pow(25,7))));
+  const A1 = (1+G)*a1, A2 = (1+G)*a2;
+  const Cp1 = Math.hypot(A1,b1), Cp2 = Math.hypot(A2,b2);
+  const hp = (b,a) => { if (b===0 && a===0) return 0;
+    const h = Math.atan2(b,a)*deg; return h < 0 ? h+360 : h; };
+  const hp1 = hp(b1,A1), hp2 = hp(b2,A2);
+  const dLp = L2-L1, dCp = Cp2-Cp1;
+  let dhp = 0;
+  if (Cp1*Cp2 !== 0){
+    dhp = hp2-hp1;
+    if (dhp >  180) dhp -= 360;
+    if (dhp < -180) dhp += 360;
+  }
+  const dHp = 2*Math.sqrt(Cp1*Cp2)*Math.sin(dhp/2*rad);
+  const Lbp = (L1+L2)/2, Cbp = (Cp1+Cp2)/2;
+  let hbp;
+  if (Cp1*Cp2 === 0) hbp = hp1+hp2;
+  else if (Math.abs(hp1-hp2) <= 180) hbp = (hp1+hp2)/2;
+  else hbp = (hp1+hp2 < 360) ? (hp1+hp2+360)/2 : (hp1+hp2-360)/2;
+  const T = 1 - 0.17*Math.cos((hbp-30)*rad) + 0.24*Math.cos(2*hbp*rad)
+              + 0.32*Math.cos((3*hbp+6)*rad) - 0.20*Math.cos((4*hbp-63)*rad);
+  const dTh = 30*Math.exp(-Math.pow((hbp-275)/25, 2));
+  const Rc  = 2*Math.sqrt(Math.pow(Cbp,7)/(Math.pow(Cbp,7)+Math.pow(25,7)));
+  const Sl  = 1 + (0.015*Math.pow(Lbp-50,2))/Math.sqrt(20+Math.pow(Lbp-50,2));
+  const Sc  = 1 + 0.045*Cbp, Sh = 1 + 0.015*Cbp*T;
+  const Rt  = -Math.sin(2*dTh*rad)*Rc;
+  return Math.sqrt(Math.pow(dLp/Sl,2) + Math.pow(dCp/Sc,2) + Math.pow(dHp/Sh,2)
+                 + Rt*(dCp/Sc)*(dHp/Sh));
+}
+/** The worst pair in a set. A palette is only as separable as this number. */
+function separation(hexes){
+  let worst = Infinity, pair = null;
+  for (let i=0;i<hexes.length;i++) for (let j=i+1;j<hexes.length;j++){
+    const d = deltaE2000(hexes[i], hexes[j]);
+    if (d < worst){ worst = d; pair = [i,j]; }
+  }
+  return {worst, pair};
+}
+
 /* ── the solver: the lightest/darkest neutral that clears a target ──────── */
 function solveNeutral(target, grounds, {hue, chroma, dark}){
   // binary search on oklch L. Dark themes want the DIMMEST passing value, so
@@ -693,13 +804,29 @@ const DEFAULTS = {
   },
   type: { base: 16, scale: 1.26, uiTight: -0.011, dispTight: -0.024, lineHeight: 1.55 },
   shape:{ radius: 12, density: 1, gut: 1.6 },
-  hues: {                       // the family, generated not typed
-    count: 6,
-    names: ['steel','sage','teal','lilac','clay','sand'],
-    angles:[250, 145, 185, 310, 50, 95],
+  /* THE FAMILY, and it carries meaning as well as identity.
+     Red is bad and green is good everywhere a person has ever used a
+     computer, so those two angles are ANCHORED and the optimiser is not
+     allowed to move them. `role` says what a member means; `identity: false`
+     means no program may ever own it, because a shell that turns red when
+     you open a program is telling you something untrue.
+
+     The free angles are placed to maximise the WORST pairwise CIEDE2000 in
+     the set, which is the measurement for "can these be told apart", and is
+     a different question from contrast. */
+  hues: {
+    members: [
+      {name:'rust',  angle: 27, role:'bad',      identity:false, anchored:true },
+      {name:'amber', angle: 78, role:'warn',     identity:false, anchored:true },
+      {name:'sage',  angle:148, role:'good',     identity:true,  anchored:true },
+      {name:'teal',  angle:196, role:'progress', identity:true,  anchored:false},
+      {name:'steel', angle:252, role:'info',     identity:true,  anchored:true },
+      {name:'indigo',angle:294, role:'-',        identity:true,  anchored:false},
+      {name:'lilac', angle:345, role:'-',        identity:true,  anchored:false},
+    ],
     rotate: 0,
-    dark:  { L: 0.800, C: 0.070 },
-    light: { L: 0.470, C: 0.085 },
+    dark:  { L: 0.800, C: 0.098 },
+    light: { L: 0.470, C: 0.110 },
   },
   surfaces: {
     hue: 252, chroma: 0.022,
@@ -735,10 +862,10 @@ function tokens(theme, mode){
   const border2 = solveNeutral(4.5, grounds, {hue:s.hue, chroma:s.chroma*1.8, dark});
 
   const hue = {};
-  theme.hues.names.forEach((n,i) => {
-    const a = (theme.hues.angles[i] + theme.hues.rotate + 360) % 360;
-    hue[n] = okhex(H.L, H.C, a);
-    hue['o-'+n] = `oklch(${(H.L*100).toFixed(1)}% ${H.C.toFixed(3)} ${a.toFixed(0)})`;
+  theme.hues.members.forEach(m => {
+    const a = (m.angle + theme.hues.rotate + 360) % 360;
+    hue[m.name] = okhex(H.L, H.C, a);
+    hue['o-'+m.name] = `oklch(${(H.L*100).toFixed(1)}% ${H.C.toFixed(3)} ${a.toFixed(0)})`;
   });
 
   const t = theme.type, sc = t.scale;
@@ -747,9 +874,12 @@ function tokens(theme, mode){
     '--fg':fg, '--fg-dim':fgDim, '--fg-faint':fgFaint,
     '--border':border, '--border-2':border2,
     '--on-hue': dark ? '#0d1117' : '#ffffff',
-    ...Object.fromEntries(theme.hues.names.flatMap(n => [
-      [`--h-${n}`, hue[n]], [`--o-${n}`, hue['o-'+n]],
+    ...Object.fromEntries(theme.hues.members.flatMap(m => [
+      [`--h-${m.name}`, hue[m.name]], [`--o-${m.name}`, hue['o-'+m.name]],
     ])),
+    // semantic aliases, so a surface asks for meaning and never for a colour
+    ...Object.fromEntries(theme.hues.members.filter(m => m.role !== '-').map(m =>
+      [`--sem-${m.role}`, hue[m.name]])),
     '--disp': `"${theme.faces.display}", ui-serif, Georgia, serif`,
     '--sans': `"${theme.faces.ui}", Cantarell, ui-sans-serif, system-ui, sans-serif`,
     '--mono': `"${theme.faces.mono}", ui-monospace, monospace`,
@@ -795,6 +925,38 @@ function toToml(theme, mode){
   for (const [k,v] of Object.entries(t))
     if (k.startsWith('--') && v.startsWith('#')) lines.push(`${k.slice(2).replace(/-/g,'_')} = "${v}"`);
   return lines.join('\n');
+}
+
+
+/* ── place the free hues for maximum worst-pair separation ──────────────
+   Anchored members (red = bad, green = good, blue = info, amber = warn) do
+   not move: their meaning is worth more than a point of deltaE. Everything
+   else is searched, coarse then fine, maximising the WORST pair - which is
+   the only statistic that matters for a categorical set, because the palette
+   fails at its closest pair and nowhere else.                            */
+function optimiseHues(theme, mode){
+  const H = mode === 'dark' ? theme.hues.dark : theme.hues.light;
+  const ms = theme.hues.members;
+  const hexes = () => ms.map(m => okhex(H.L, H.C, (m.angle+360)%360));
+  const score = () => separation(hexes()).worst;
+  const free = ms.map((m,i)=>[m,i]).filter(([m])=>!m.anchored);
+  let best = score();
+  for (const step of [12, 5, 2, 1]){
+    let moved = true, guard = 0;
+    while (moved && guard++ < 60){
+      moved = false;
+      for (const [m] of free){
+        for (const d of [step, -step]){
+          const was = m.angle;
+          m.angle = (m.angle + d + 360) % 360;
+          const now = score();
+          if (now > best + 1e-6){ best = now; moved = true; }
+          else m.angle = was;
+        }
+      }
+    }
+  }
+  return best;
 }
 
 
@@ -923,9 +1085,17 @@ document.getElementById('copytoml').onclick=async e=>{
   e.target.textContent='Copied'; setTimeout(()=>e.target.textContent='Copy',1400);
 };
 document.getElementById('reset').onclick=()=>{ theme=clone(DEFAULTS); buildLab(); render(); };
+document.getElementById('optimise').onclick=e=>{
+  const before=separation(theme.hues.members.map(m=>tokv('h-'+m.name))).worst;
+  optimiseHues(theme, mode);
+  render();
+  const after=separation(theme.hues.members.map(m=>tokv('h-'+m.name))).worst;
+  e.target.textContent=`ΔE ${before.toFixed(1)} → ${after.toFixed(1)}`;
+  setTimeout(()=>e.target.textContent='Optimise separation', 2600);
+};
 
 /* ══ the projection diagram ═════════════════════════════════════════════ */
-const SURFACES=['CLI','MCP','HTTP','turret','tray','toast','palette','cron','URL'];
+const SURFACES=['CLI','MCP','HTTP','window','tray','toast','palette','cron','URL'];
 (function(){
   const g=document.getElementById('dg'), cx=220, cy=182, R=140;
   let s=`<circle class="ring" cx="${cx}" cy="${cy}" r="36"/>
@@ -961,7 +1131,7 @@ const APPS={
   acts:['Timeline','Run'],
   log:[['14:19:41','graft','run    nightly-audit started'],['14:21:02','graft','frame  41,208 appended'],
        ['14:22:03','graft','tok    124.6k in, 8.1k out']]},
- dispatch:{hue:'clay',ver:'2.0.0',a:'11 open',b:'2 overdue',ms:9,title:'Assignments',cov:'coverage: full',
+ dispatch:{hue:'indigo',ver:'2.0.0',a:'11 open',b:'2 overdue',ms:9,title:'Assignments',cov:'coverage: full',
   cols:['Assignment','Owner','Due','Age','Done'],
   rows:[['rig spec pass','me','today','4h',72],['grabbit revival','me','Fri','30d',12],
         ['shelf pilot','me','next week','2d',5],['romsort','me','-','9d',2]],
@@ -975,14 +1145,14 @@ const APPS={
   acts:['Canvas','Validate'],
   log:[['14:18:02','archi','model  upsert_element x12'],['14:18:04','archi','check  0 dangling edges'],
        ['14:22:01','archi','idle']]},
- snapper:{hue:'clay',ver:'0.3.0',a:'stopped',b:'-',ms:0,title:'Captures',cov:'coverage: partial',
+ snapper:{hue:'teal',ver:'0.3.0',a:'stopped',b:'-',ms:0,title:'Captures',cov:'coverage: partial',
   cols:['Capture','Kind','When','Size','Annotated'],
   rows:[['tray-now','region','4m ago','213 KB',3],['plan-diff','window','2h ago','1.1 MB',100],
         ['desktop','full','2h ago','2.4 MB',3],['rail-states','region','1d ago','88 KB',100]],
   acts:['Open folder','Capture'],
   log:[['12:45:02','snapper','exit   stopped by user'],['12:44:58','snapper','write  desktop.png'],
        ['12:44:51','snapper','start  region capture']]},
- nudge:{hue:'sand',ver:'1.0.0',a:'3 watches',b:'0 firing',ms:2,title:'Watches',cov:'coverage: full',
+ nudge:{hue:null,ver:'1.0.0',a:'3 watches',b:'0 firing',ms:2,title:'Watches',cov:'coverage: full',
   cols:['Path','Trigger','Last fire','Fires','Health'],
   rows:[['~/me/inbox','any write','4m ago','128',100],['~/dl','new file','1h ago','44',100],
         ['~/me/study','md change','3d ago','9',82],['~/tmp','stale 7d','-','0',60]],
@@ -1010,8 +1180,10 @@ function select(k){
   const a=APPS[k];
   const go=()=>{
     rail.querySelectorAll('.mark').forEach(b=>b.setAttribute('aria-current',String(b.dataset.app===k)));
-    document.documentElement.style.setProperty('--hue',`var(--h-${a.hue})`);
-    document.documentElement.style.setProperty('--ohue',`var(--o-${a.hue})`);
+    // a program never owns an alarm hue, and a program with no identity hue
+    // leaves the shell achromatic - which is what the shell is anyway
+    document.documentElement.style.setProperty('--hue', a.hue?`var(--h-${a.hue})`:'var(--fg)');
+    document.documentElement.style.setProperty('--ohue', a.hue?`var(--o-${a.hue})`:'var(--fg)');
     document.getElementById('ctx-name').textContent=k;
     document.getElementById('ctx-ver').textContent=a.ver;
     document.getElementById('ctx-a').textContent=a.a;
@@ -1028,9 +1200,9 @@ rail.addEventListener('click',e=>{const b=e.target.closest('.mark'); if(b) selec
 const CASES=[
  {cap:'<b>All well.</b> No colour anywhere but the current program&rsquo;s notch.',
   m:[['sh','ok',1],['gr','ok',0],['ar','ok',0],['nu','ok',0]]},
- {cap:'<b>Degraded.</b> One sand pip, and nothing moves.',
+ {cap:'<b>Degraded.</b> One amber pip, and nothing moves.',
   m:[['sh','ok',1],['gr','degraded',0],['ar','ok',0],['nu','ok',0]]},
- {cap:'<b>Failing, and one stopped.</b> The clay pip breathes; a stopped program keeps its '+
+ {cap:'<b>Failing, and one stopped.</b> The red pip breathes; a stopped program keeps its '+
       'place and goes dashed, so the rail never re-orders under your hand.',
   m:[['sh','ok',1],['gr','failing',0],['ar','stopped',0],['nu','ok',0]]}];
 document.getElementById('railrow').innerHTML=CASES.map(c=>`<div>
@@ -1056,7 +1228,7 @@ function menu(st, banner){
       <div class="tm-act">dispatch: restart budget spent<span class="k">quarantined</span></div>
       <div class="tm-act">Open the crash panel</div></div>
     <div class="tm-sep"></div>
-    <div class="tm-act">Open turret<span class="k">Ctrl Space</span></div>
+    <div class="tm-act">Open the window<span class="k">Ctrl Space</span></div>
     <div class="tm-act">Notifications<span class="k">3</span></div>
     <div class="tm-act">Do not disturb</div>`;
 }
@@ -1080,7 +1252,8 @@ const T={
  warn:{src:'rigd',t:'graft failed 3 health checks',b:'Degraded. Two more and the restart budget starts.',acts:['Logs','Restart now']},
  error:{src:'dispatch',t:'Exited 1 during migration 020',b:'Rolled back. The database is untouched and the last 200 log lines are kept.',acts:['Crash panel','Copy trace id']},
  progress:{src:'grabbit',t:'Downloading 3 of 8',b:'42.1 MB/s &middot; about 4 minutes left',bar:true,acts:[]}};
-const TONE={info:'steel',success:'sage',warn:'sand',error:'clay',progress:'teal'};
+// severity asks for a MEANING, never for a colour
+const TONE={info:'steel',success:'sage',warn:'amber',error:'rust',progress:'teal'};
 function build(kind){
   const d=T[kind], el=document.createElement('div');
   const dwell=Math.min(20, 10+5*Math.ceil(d.b.length/46));
@@ -1088,7 +1261,8 @@ function build(kind){
   el.style.setProperty('--tone',`var(--h-${TONE[kind]})`);
   el.style.setProperty('--otone',`var(--o-${TONE[kind]})`);
   el.style.setProperty('--dwell', dwell+'s');
-  el.innerHTML=`<div class="th"><span class="badge">${kind}</span><span class="src">${d.src}</span></div>
+  el.innerHTML=`<div class="th"><span class="badge">${kind}</span><span class="src">${d.src}</span>
+    <button class="x" aria-label="Dismiss">&times;</button></div>
     <p class="tt">${d.t}</p><p class="tb">${d.b}</p>
     ${d.bar?'<div class="prog"><i></i></div>':''}
     ${d.acts.length?`<div class="row">${d.acts.map(a=>`<button class="btn">${a}</button>`).join('')}</div>`:''}
@@ -1096,36 +1270,54 @@ function build(kind){
   return el;
 }
 const deck=document.getElementById('deck');
+function dismiss(el){
+  if (el.dataset.going) return;
+  el.dataset.going='1';
+  el.classList.add('leaving');
+  el.addEventListener('animationend',()=>el.remove(),{once:true});
+  setTimeout(()=>el.remove(), 400);   // belt and braces if the animation is off
+}
 function fire(kind){
+  // newest first in the DOM, and the deck runs top-down, so an unread notice
+  // is never underneath one you have already seen
   const el=build(kind); deck.prepend(el);
   while(deck.children.length>5) deck.lastElementChild.remove();
   const dw=el.querySelector('.dwell');
   el.addEventListener('mouseenter',()=>dw.style.animationPlayState='paused');
   el.addEventListener('mouseleave',()=>dw.style.animationPlayState='running');
-  dw.addEventListener('animationend',()=>{el.classList.add('leaving');
-    el.addEventListener('animationend',()=>el.remove(),{once:true})});
+  dw.addEventListener('animationend',()=>dismiss(el));
+  el.querySelector('.x').addEventListener('click',()=>dismiss(el));
 }
+// Esc dismisses the top of the deck, the way every notification centre does
+addEventListener('keydown',e=>{
+  if(e.key==='Escape' && deck.firstElementChild && !document.getElementById('lab').classList.contains('open'))
+    dismiss(deck.firstElementChild);
+});
 document.querySelectorAll('[data-fire]').forEach(b=>b.onclick=()=>fire(b.dataset.fire));
 document.getElementById('fire-all').onclick=()=>
   ['info','success','warn','error','progress'].forEach((k,i)=>setTimeout(()=>fire(k),i*170));
 ['error','warn','progress','success','info'].forEach((k,i)=>setTimeout(()=>fire(k),250+i*110));
-document.getElementById('stagetoast').appendChild(build('success'));
+const st=build('success');
+st.querySelector('.x').addEventListener('click',()=>dismiss(st));
+document.getElementById('stagetoast').appendChild(st);
 
 /* ══ palette, measured from the tokens actually painted ═════════════════ */
-const USE={steel:'shelf · info',sage:'graft · ok',teal:'grabbit · prog',
-           lilac:'archi',clay:'snapper · err',sand:'nudge · warn'};
+const USE={rust:'error · failing',amber:'warn · degraded',sage:'success · ok',
+           teal:'progress · snapper',steel:'info · shelf',indigo:'dispatch',lilac:'archi'};
 const GROUNDS=['bg','bg-2','panel','glow'];
 const tokv=n=>getComputedStyle(document.documentElement).getPropertyValue('--'+n).trim();
 function paintPalette(){
-  const names=theme.hues.names;
-  document.getElementById('ring-n').textContent=names.length;
-  document.getElementById('swatches').innerHTML=names.map(h=>`
-    <div class="sw" style="--c:var(--h-${h})"><div class="band">${h}</div>
-    <div class="meta"><span>${USE[h]||''}</span><b>${
-      contrast(tokv('h-'+h), tokv('glow')).toFixed(2)}:1</b></div></div>`).join('');
+  const ms=theme.hues.members;
+  document.getElementById('ring-n').textContent=ms.length;
+  document.getElementById('swatches').innerHTML=ms.map(m=>`
+    <div class="sw" style="--c:var(--h-${m.name})"><div class="band">${m.name}</div>
+    <div class="meta"><span>${USE[m.name]||''}</span><b>${
+      contrast(tokv('h-'+m.name), tokv('glow')).toFixed(2)}:1</b></div>
+    <div class="meta"><span class="role">${m.role==='-'?'identity':m.role}${
+      m.identity?'':' · reserved'}</span><span class="role">${m.angle}°</span></div></div>`).join('');
 
   const rows=[['fg',4.5],['fg-dim',4.5],['fg-faint',4.5],['border',3],['border-2',3],
-    ...names.map(n=>['h-'+n,4.5])];
+    ...ms.map(m=>['h-'+m.name,4.5])];
   let worst=Infinity, fails=0;
   document.getElementById('ratiobody').innerHTML=rows.map(([n,need])=>{
     const cells=GROUNDS.map(g=>{
@@ -1137,11 +1329,21 @@ function paintPalette(){
     return `<tr><td class="m">--${n}</td>${cells}<td class="m">${need.toFixed(1)}</td></tr>`;
   }).join('');
 
-  const w=worst.toFixed(2);
+  // the second question: can two of them be told apart
+  const hexes=ms.map(m=>tokv('h-'+m.name));
+  const sep=separation(hexes);
+  const w=worst.toFixed(2), sw=sep.worst.toFixed(1);
   document.getElementById('hero-ratio').textContent=w;
+  document.getElementById('hero-sep').textContent=sw;
+  document.getElementById('q-contrast').textContent=w+':1';
+  document.getElementById('q-sep').textContent=sw;
+  document.getElementById('q-pair').textContent=
+    `${ms[sep.pair[0]].name} / ${ms[sep.pair[1]].name}`;
+
   const v=document.getElementById('verdict');
   v.classList.toggle('failing', fails>0);
   document.getElementById('v-worst').textContent=w;
+  document.getElementById('v-sep').textContent=sw;
   document.getElementById('v-count').textContent=
     fails ? `${fails} cell${fails>1?'s':''} failing` : 'every token passes, both themes';
 }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>rig / turret - visual system</title>
+<title>rig - the visual system</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Fraunces:opsz,wght,SOFT,WONK@9..144,400..900,0..100,0..1&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Martian+Mono:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400..700&family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -23,10 +23,11 @@
 :root{
   --bg:#121a23;--bg-2:#1a222c;--panel:#212a34;--glow:#242d37;--tint:#2b3542;
   --fg:#dae5f3;--fg-dim:#95a6b9;--fg-faint:#8494a7;--border:#64778c;--border-2:#8195ab;
-  --h-steel:#9cc2ea;--h-sage:#a2caa2;--h-teal:#89cdc3;--h-lilac:#ccb2e0;
-  --h-clay:#e4b196;--h-sand:#ccbe8a;
-  --o-steel:oklch(80% .07 250);--o-sage:oklch(80% .07 145);--o-teal:oklch(80% .07 185);
-  --o-lilac:oklch(80% .07 310);--o-clay:oklch(80% .07 50);--o-sand:oklch(80% .07 95);
+  --h-rust:#f7a59c;--h-amber:#e1b673;--h-sage:#92cf9a;--h-teal:#68d1d2;
+  --h-steel:#8fc2fb;--h-indigo:#c1b2f7;--h-lilac:#eca4cc;
+  --o-rust:oklch(80% .098 27);--o-amber:oklch(80% .098 78);--o-sage:oklch(80% .098 148);
+  --o-teal:oklch(80% .098 196);--o-steel:oklch(80% .098 252);
+  --o-indigo:oklch(80% .098 294);--o-lilac:oklch(80% .098 345);
   --disp:"Fraunces",ui-serif,Georgia,serif;
   --sans:"Inter Tight",ui-sans-serif,system-ui,sans-serif;
   --mono:"JetBrains Mono",ui-monospace,monospace;
@@ -54,6 +55,8 @@ body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);
   font-size:var(--fs-0);line-height:var(--lh);letter-spacing:var(--tight-ui);
   -webkit-font-smoothing:antialiased;overflow-x:hidden}
 code,.mono,kbd{font-family:var(--mono);letter-spacing:0}
+/* nested em sizing multiplies below the 12px floor - readable-output bug 6 */
+sub,sup{font-size:max(12px,.72em);line-height:0}
 .wrap{max-width:1240px;margin:0 auto;padding:0 var(--gut)}
 
 /* ── decoration layers. No body text ever sits on these. ────────────────── */
@@ -176,8 +179,8 @@ p.say strong{color:var(--fg);font-weight:600}
   background:color-mix(in srgb,var(--hue) 13%,var(--panel));
   box-shadow:0 0 20px -4px color-mix(in srgb,var(--hue) 75%,transparent)}
 .mark .pip{position:absolute;right:6px;top:7px;width:8px;height:8px;border-radius:50%}
-.mark[data-state="degraded"] .pip{background:var(--h-sand)}
-.mark[data-state="failing"] .pip{background:var(--h-clay);animation:breathe 2.4s ease-in-out infinite}
+.mark[data-state="degraded"] .pip{background:var(--h-amber)}
+.mark[data-state="failing"] .pip{background:var(--h-rust);animation:breathe 2.4s ease-in-out infinite}
 @keyframes breathe{0%,100%{opacity:1}50%{opacity:.42}}
 .mark[data-state="stopped"] .ico{opacity:.5;border-style:dashed}
 .notch{position:absolute;inset-inline-start:0;width:3px;height:44px;background:var(--hue);
@@ -268,8 +271,8 @@ table.tbl td.m{font-family:var(--mono);font-size:var(--fs--2);color:var(--fg-dim
 .tm-row:hover{background:var(--glow)}
 .tm-row .g{width:8px;height:8px;border-radius:50%;background:var(--border-2)}
 .tm-row .g.ok{background:transparent;border:1.5px solid var(--border-2)}
-.tm-row .g.degraded{background:var(--h-sand)}
-.tm-row .g.failing{background:var(--h-clay);animation:breathe 2.4s ease-in-out infinite}
+.tm-row .g.degraded{background:var(--h-amber)}
+.tm-row .g.failing{background:var(--h-rust);animation:breathe 2.4s ease-in-out infinite}
 .tm-row .g.stopped{background:transparent;border:1.5px dashed var(--border)}
 .tm-row .nm{font-weight:500}
 .tm-row .st{margin-inline-start:auto;color:var(--fg-dim);font-size:var(--fs--2);font-family:var(--mono)}
@@ -282,7 +285,7 @@ table.tbl td.m{font-family:var(--mono);font-size:var(--fs--2);color:var(--fg-dim
 .tm-act .k{margin-inline-start:auto;color:var(--fg-faint);font-size:var(--fs--2);font-family:var(--mono)}
 .tm-banner{padding:.6rem .85rem;background:var(--glow);border-bottom:1px solid var(--border);
   font-size:var(--fs--1);display:flex;gap:.55rem;align-items:flex-start}
-.tm-banner .pip{width:8px;height:8px;border-radius:50%;background:var(--h-sand);margin-top:.34rem;flex:none}
+.tm-banner .pip{width:8px;height:8px;border-radius:50%;background:var(--h-amber);margin-top:.34rem;flex:none}
 .traymenu:not(:has(.g.failing,.g.degraded)) .needsyou{display:none}
 .scene{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);
   padding:1.3rem;display:flex;gap:1.8rem;flex-wrap:wrap;align-items:flex-start;box-shadow:var(--shadow-sm)}
@@ -299,6 +302,13 @@ table.tbl td.m{font-family:var(--mono);font-size:var(--fs--2);color:var(--fg-dim
 .toast .th{display:flex;align-items:center;gap:.55rem;margin-bottom:.15rem;position:relative;z-index:1}
 .toast .badge{font-size:var(--fs--2);font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tone)}
 .toast .src{margin-inline-start:auto;font-size:var(--fs--2);color:var(--fg-faint);font-family:var(--mono)}
+.toast .x{appearance:none;border:1px solid transparent;background:none;cursor:pointer;
+  color:var(--fg-faint);font:inherit;font-size:var(--fs--1);line-height:1;
+  width:1.35rem;height:1.35rem;display:grid;place-items:center;border-radius:6px;margin:-.15rem -.2rem -.15rem 0;
+  transition:color .15s,background .15s,border-color .15s}
+.toast .x:hover{color:var(--fg);background:var(--glow);border-color:var(--border)}
+.toast .x:focus-visible{outline:none;border-color:var(--tone);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--tone) 34%,transparent)}
 .toast .tt,.toast .tb,.toast .row,.toast .prog{position:relative;z-index:1}
 .toast .tt{font-weight:700;font-size:var(--fs-0);margin:0 0 .15rem}
 .toast .tb{font-size:var(--fs--1);color:var(--fg-dim);margin:0}
@@ -314,17 +324,25 @@ table.tbl td.m{font-family:var(--mono);font-size:var(--fs--2);color:var(--fg-dim
 @keyframes dwell{from{scale:1 1}to{scale:0 1}}
 #toastfield{position:relative;overflow:hidden;min-height:19rem;border-radius:var(--radius);
   border:1px solid var(--border);padding:1.3rem;
-  background:radial-gradient(90% 70% at 82% 8%,color-mix(in oklab,var(--o-sand) 14%,transparent),
+  background:radial-gradient(90% 70% at 82% 8%,color-mix(in oklab,var(--o-amber) 14%,transparent),
     transparent 60%),var(--bg-2)}
+/* newest first in the DOM and first on screen: a notice you have not read
+   must never appear underneath one you have */
 #deck{position:absolute;inset-block-end:1.3rem;inset-inline-end:1.3rem;width:22rem;
-  display:flex;flex-direction:column-reverse;gap:.65rem}
-#deck.stacked > .toast:nth-child(n+2){margin-block-end:-3.9rem;scale:.965;filter:brightness(.9);
-  transition:margin-block-end .38s var(--spring),scale .38s var(--spring),filter .3s}
-#deck.stacked:hover > .toast:nth-child(n+2){margin-block-end:0;scale:1;filter:none}
+  display:flex;flex-direction:column;gap:.65rem}
+#deck > .toast:nth-child(1){z-index:5}
+#deck > .toast:nth-child(2){z-index:4}
+#deck > .toast:nth-child(3){z-index:3}
+#deck > .toast:nth-child(4){z-index:2}
+#deck > .toast:nth-child(5){z-index:1}
+#deck.stacked > .toast:nth-child(n+2){margin-block-start:-4.1rem;scale:.965;
+  filter:brightness(.9);
+  transition:margin-block-start .38s var(--spring),scale .38s var(--spring),filter .3s}
+#deck.stacked:hover > .toast:nth-child(n+2){margin-block-start:0;scale:1;filter:none}
 .paletterow{display:grid;grid-template-columns:minmax(0,15rem) minmax(0,1fr);gap:2.2rem;align-items:start}
 .huering{position:relative;aspect-ratio:1;border-radius:50%;animation:spin 34s linear infinite;
   background:conic-gradient(from var(--spin),var(--o-steel),var(--o-sage),var(--o-teal),
-    var(--o-lilac),var(--o-clay),var(--o-sand),var(--o-steel));
+    var(--o-lilac),var(--o-rust),var(--o-amber),var(--o-steel));
   mask:radial-gradient(circle,transparent 56%,#000 57%);
   -webkit-mask:radial-gradient(circle,transparent 56%,#000 57%)}
 @keyframes spin{to{--spin:360deg}}
@@ -332,6 +350,16 @@ table.tbl td.m{font-family:var(--mono);font-size:var(--fs--2);color:var(--fg-dim
 .ringmid{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
 .ringmid b{display:block;font-family:var(--mono);font-size:var(--fs-2);color:var(--fg)}
 .ringmid span{font-size:var(--fs--2);color:var(--fg-dim)}
+.twoq{display:grid;grid-template-columns:repeat(auto-fit,minmax(19rem,1fr));gap:1rem;
+  margin:0 0 1.4rem}
+.twoq > div{border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.1rem;
+  background:var(--bg-2);display:grid;gap:.35rem;align-content:start}
+.twoq b{font-family:var(--disp);font-size:var(--fs-1);font-weight:600;letter-spacing:var(--tight-disp)}
+.twoq span{font-size:var(--fs--1);color:var(--fg-dim)}
+.twoq i{font-style:normal;font-family:var(--mono);font-size:var(--fs-2);color:var(--hue);
+  font-weight:600;margin-top:.3rem}
+.twoq em{font-style:normal;font-size:var(--fs--2);color:var(--fg-faint);font-family:var(--mono)}
+.sw .role{font-size:var(--fs--2);color:var(--fg-faint);font-family:var(--mono)}
 .swatches{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.8rem}
 .sw{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--panel);
   border-inline-start:4px solid var(--c);transition:translate .25s var(--spring),box-shadow .25s}
@@ -347,7 +375,7 @@ table.ratios th{text-align:start;font-size:var(--fs--2);letter-spacing:.08em;tex
 table.ratios td{padding:.42rem .7rem .42rem 0;border-bottom:1px solid var(--bg-2)}
 table.ratios td.m,table.ratios th.m{font-family:var(--mono)}
 .pass{color:var(--h-sage);font-weight:600}
-.bad{color:var(--h-clay);font-weight:700}
+.bad{color:var(--h-rust);font-weight:700}
 
 /* ── the lab ────────────────────────────────────────────────────────────── */
 .dock{position:fixed;inset-block-start:1rem;inset-inline-end:1rem;z-index:60;display:flex;gap:.4rem;
@@ -393,7 +421,7 @@ table.ratios td.m,table.ratios th.m{font-family:var(--mono)}
   padding:.6rem;resize:vertical;line-height:1.5}
 .verdict{display:flex;gap:.5rem;align-items:center;font-size:var(--fs--1);margin:.5rem 0 0}
 .verdict .dot{width:10px;height:10px;border-radius:50%;background:var(--h-sage)}
-.verdict.failing .dot{background:var(--h-clay)}
+.verdict.failing .dot{background:var(--h-rust)}
 .verdict b{color:var(--fg)}
 
 footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
@@ -429,7 +457,11 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
   page - it is the same object rig loads as config, and the box at the bottom is the
   <code>rig.toml</code> fragment that reproduces whatever you just made.</p>
   <div class="verdict" id="verdict"><i class="dot"></i>
-    <span><b id="v-worst">-</b> worst ratio &middot; <span id="v-count">-</span></span></div>
+    <span><b id="v-worst">-</b> worst ratio &middot; <b id="v-sep">-</b> worst ΔE<sub>00</sub>
+    &middot; <span id="v-count">-</span></span></div>
+  <div class="controls" style="margin:.6rem 0 1rem">
+    <button class="tg" id="optimise">Optimise separation</button>
+    <span class="hint">Moves only the unanchored hues. Red and green do not move.</span></div>
   <div id="labbody"></div>
   <fieldset><legend>Export</legend><textarea id="export" readonly spellcheck="false"></textarea>
     <div class="controls" style="margin-top:.6rem">
@@ -441,18 +473,19 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
   <div class="aurora"></div><div class="grain"></div>
   <div class="wrap">
     <div>
-      <p class="eyebrow">rig / turret &middot; visual system</p>
+      <p class="eyebrow">rig &middot; the visual system</p>
       <h1>One declaration.<br><em>Every surface.</em></h1>
       <div class="rule"></div>
-      <p class="lede">turret adds no features. Everything it shows already exists in a program
-      you can already run, so its whole value is the cost of reaching it: how fast you find the
-      thing, how much you see at once, how little you have to think. That cost is made almost
-      entirely of visual decisions.</p>
+      <p class="lede">rig's window adds no features. Everything it shows already exists in a
+      program you can already run, so its whole value is the cost of reaching it: how fast you
+      find the thing, how much you see at once, how little you have to think. That cost is made
+      almost entirely of visual decisions.</p>
       <div class="stats">
         <div><b>6.1%</b><span>chrome budget</span></div>
         <div><b>1</b><span>hue on screen</span></div>
         <div><b>7&rarr;1</b><span>tray icons</span></div>
         <div><b id="hero-ratio">-</b><span>worst ratio, live</span></div>
+        <div><b id="hero-sep">-</b><span>worst ΔE<sub>00</sub></span></div>
       </div>
     </div>
     <div><svg class="diagram" viewBox="0 0 440 380" role="img"
@@ -560,14 +593,30 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
 
 <section><div class="wrap">
   <h2><span class="n">05</span> The palette</h2>
-  <h3>Generated, not typed - and the neutrals are solved</h3>
-  <p class="say">The six hues are produced in <code>oklch</code> at one lightness and one chroma,
-  evenly spaced, so "a family" is arithmetic rather than a promise: move the lightness and all
-  six move together. <strong>The neutrals are not chosen at all.</strong>
-  <code>--border</code>, <code>--fg-dim</code> and <code>--fg-faint</code> are binary-searched to
-  the dimmest value that still clears their WCAG target on <em>every</em> surface they can land
-  on - which is how the inherited <code>#556579</code> border, 2.40:1 on a panel, stops being
-  something anyone can type.</p>
+  <h3>Generated, measured twice, and anchored to meaning</h3>
+  <p class="say">The family is produced in <code>oklch</code> at one lightness and one chroma,
+  so "a family" is arithmetic rather than a promise: move the lightness and every member moves
+  together. Then it is measured <strong>twice, against two different questions</strong>.</p>
+  <div class="twoq">
+    <div><b>Can it be read?</b><span>WCAG 2.x contrast, against every surface it can land on.
+      4.5:1 for text, 3:1 for a component boundary. The table below, live.</span>
+      <i id="q-contrast">-</i><em>worst ratio</em></div>
+    <div><b>Can two of them be told apart?</b><span>CIEDE2000, the CIE's perceptual colour
+      difference. ~1 is just noticeable, ~5 clearly different, 10+ unmistakable. A categorical
+      set is only as good as its <em>worst pair</em>, never its average.</span>
+      <i id="q-sep">-</i><em>worst ΔE<sub>00</sub>, <span id="q-pair">-</span></em></div>
+  </div>
+  <p class="say"><strong>Red is bad and green is good</strong> everywhere a person has ever used
+  a computer, so those angles are anchored and the optimiser may not move them. Amber is warn,
+  blue is info. The free members are then placed to maximise that worst pair - press
+  <em>Optimise separation</em> in the lab and watch the number climb without a single anchor
+  shifting. <strong>And no program ever owns an alarm hue:</strong> a shell that turns red when
+  you open a program is telling you something untrue, so a sixth program takes the achromatic
+  accent, which the shell is anyway.</p>
+  <p class="say"><strong>The neutrals are not chosen at all.</strong> <code>--border</code>,
+  <code>--fg-dim</code> and <code>--fg-faint</code> are binary-searched to the dimmest value
+  that still clears their WCAG target on <em>every</em> surface - which is how the inherited
+  <code>#556579</code> border, 2.40:1 on a panel, stops being something anyone can type.</p>
   <div class="paletterow">
     <div class="ringwrap"><div class="huering"></div>
       <div class="ringmid"><div><b id="ring-n">6</b><span>evenly spaced</span></div></div></div>
@@ -582,7 +631,7 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
 </div></section>
 
 <footer><div class="wrap">
-  rig / turret visual system &middot; tokens generated by <code>design/theme.js</code> &middot;
+  rig visual system &middot; tokens generated by <code>design/theme.js</code> &middot;
   hues in oklch, neutrals solved against WCAG 2.x &middot; view transitions, anchor positioning,
   <code>@property</code>, <code>@starting-style</code>, scroll-driven reveals,
   <code>linear()</code> springs, container queries, <code>:has()</code> &middot; all motion off
