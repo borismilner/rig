@@ -149,6 +149,17 @@ func declaration(id, paneURL string) *rigv1.Declaration {
 		CoverageNote: "the wire and its own pane: no config, no storage, no logs",
 		SemanticsGen: 1,
 		PaneUrl:      paneURL,
+
+		// R3: the element list is a REGISTRATION declaration, so this is where
+		// it is said. R7 then refuses the handshake on a name rig does not
+		// serve, which means a page rig cannot draw stops the program at
+		// startup rather than at render.
+		//
+		// These three are what page.go actually imports, and
+		// TestTheDeclaredElementsAreTheOnesThePageImports is what keeps that
+		// true: a declaration that drifts from the page it describes is the
+		// exact failure R3 centralises the check to avoid.
+		Elements: []string{"rigPanel", "rigTable", "rigToolbar"},
 		Commands: []*rigv1.Command{{
 			Id:           "ping",
 			Title:        "Ping",
