@@ -11,9 +11,8 @@ The name: a rig is a platform. A rig is also your whole setup. Rigging is the ro
 that control a ship. And to rig something up is to assemble it. Four meanings, all correct.
 
 Status: planning. Nothing built. Written 2026-09-10.
-**Being revised 2026-09-10, after a ten-seat adversarial attack on this document.** The fix
-pass is PART-APPLIED: §1-§5d carry the attack's fixes, §5e onward do not yet. Do not read an
-unmarked section as final until this notice is gone and §31 exists.
+**Revised 2026-09-10, after a ten-seat adversarial attack on this document.** Every fix that
+survived verification is applied; §31 records what changed and what it cost.
 Last verified: 2026-09-10 (Go 1.27.1 installed, Wails v3 beta.19, IPC costs measured on this
 laptop, see section 4).
 
@@ -53,8 +52,10 @@ UI - and every program already has it, without being touched.
 ## 2. Decisions locked
 
 - **Name:** rig. CLI `rig`, daemon `rigd`, module `github.com/boris-milner/rig`. The UI shell
-  component inside it keeps the name **turret**, because a lathe turret carries many tools and
-  rotates the right one into place, which is what that component does.
+  UI shell component is **the window**. `turret` was chosen for it after the lathe turret that
+  carries many tools and rotates the right one into place, and dropped on 2026-09-10: the
+  product is rig, one name is enough, and a second name for a component only Boris ever opens
+  buys nothing. §27 assumption 5 is resolved by this line. The command is `rig window`.
 - **Two binaries, not one.** `rigd` is the daemon; `rig` is the CLI and TUI. Measured: keeping
   bubbletea, huh, glamour and keyring out of the daemon recovers **8.89 MiB resident and 27 ms
   of cold start**, and it is a build-graph change only (§17).
@@ -247,7 +248,7 @@ as `cmd/ipcbench` so the numbers can be re-taken on any machine.
   │  bus          events between programs, by grant                    │
   │  rules        who may run what, and what must ask first            │
   │  hosted       in-house programs with no binary of their own (5j)   │
-  │  surfaces     CLI · MCP · HTTP · turret · tray · toast · URL       │
+  │  surfaces     CLI · MCP · HTTP · window · tray · toast · URL       │
   └───────────────────────▲────────────────────────────────────────────┘
                           │  one unix socket, length-prefixed protobuf frames
                           │  supply ▲   control ▼
@@ -264,7 +265,7 @@ as `cmd/ipcbench` so the numbers can be re-taken on any machine.
 | **CLI** | `rig shelf reindex --since 7d`, with `--help` and completion generated from the declared argument schema | A terminal, a script, a Makefile |
 | **MCP** | Every declared command is an MCP tool on a server rig exposes. An agent drives the whole estate through one server | Claude Code, and any other agent |
 | **HTTP** | `POST /v1/shelf/reindex` on `127.0.0.1`, same schema, same auth | curl, scripts, other machines later |
-| **turret** | The window: a rail of programs, a pane each, generated or embedded | A mouse and a keyboard |
+| **Window** | A rail of programs, a pane each, generated or embedded | A mouse and a keyboard |
 | **Tray** | One icon for the whole estate, per-program status and commands | Always-on presence |
 | **Toast** | A notification with the command's own actions inside it | Attention when something finishes |
 | **Palette** | `Ctrl+Space` over every command in every program | Keyboard-first work |
@@ -327,53 +328,167 @@ wire version it has ever shipped.
 
 ### 5e. Registration: what a program declares
 
-Once, at connect. This is the whole contract from the program's side.
+Once, at connect. This is the whole contract from the program's side, and it is data: no rig
+code runs inside the program to produce it.
 
 ```
-identity      id, name, version, icon, description
-commands      id, title, argument schema, danger level, cancellable,
-              which surfaces it should appear on
-config        JSON Schema for everything it can be told, with defaults
-state         named values rig may read and display
-data          queryable collections: column schema, filters, sorts
-events        topics it publishes, with payload schemas
-ui            nothing (generated), or a URL rig should proxy and embed
-tray          which commands belong in the tray
-capabilities  what it needs: secrets by name, paths, network, other
-              programs' events
-health        how to check it and how often
+identity        id, name, version, icon, description
+coverage        full | partial (default partial), with a note
+semantics_gen   integer. Pins what every declared name means, for this
+                program, for its lifetime (§21)
+services        which rig services this program uses. Unused services are
+                never initialised for it and cost it nothing (§5k)
+preamble        the one document an agent must read before touching this
+                program. Optional, markdown, served as its own MCP resource
+commands        id, title, argument schema, properties (below), examples
+config          JSON Schema for everything it can be told, with defaults
+state           named values rig may read and display
+data            queryable collections: column schema, filters, sorts
+events          topics it publishes, with payload schemas
+ui              nothing (generated), or a URL rig should proxy and embed
+capabilities    what it needs: secrets by name, paths, network, other
+                programs' events
+health          how to check it and how often
+hosted          false (its own binary) | true (compiled into rigd, §5j)
 ```
 
-Everything after `identity` is optional. A program that declares only `commands` still gets a
-CLI, an MCP tool, an HTTP route, a palette entry, a tray item and a schedulable job.
+**A command declares properties, never surfaces.** This is the change that makes a surface added
+later free, and it is the single most important correction in this document.
+
+| Property | What it says | Mandatory |
+|---|---|---|
+| `effects` | `read-only`, `writes-files`, `network`, `destructive` | **yes** |
+| `idempotent` | Whether re-running is safe. Decides retry, replay and schedule coalescing | **yes** |
+| `sensitive` | JSON pointers into arguments and results that must never be recorded (§15) | **yes**, may be empty |
+| `interactive` | Needs a human in the loop while it runs | yes |
+| `streams` | Emits a stream rather than one result | yes |
+| `needs_display` | Draws on screen and is meaningless without one | yes |
+| `duration` | Order of magnitude: instant, seconds, minutes, hours | yes |
+| `confirms` | Asks before doing the irreversible part | yes |
+| `shape` | `unary`, `stream`, `interactive-stream`. What a result *is* | yes |
+| `summary`, `description`, `examples`, `returns` | For a reader who has never seen the program (§9) | yes |
+| `dry_run`, `cost`, `preconditions`, `promote` | Planning and promotion hints | no |
+
+**Surfaces declare requirements, and rig computes the projection.** Each surface states which
+properties it can carry, plus a rig-side predicate over them - `slack.include = "effects !=
+destructive && duration < 30s"` - living in that surface's own config schema, defaulted by its
+author and overridable by Boris in one place. No program is ever touched to add or remove a
+surface.
+
+`snapper.capture-region` is the worked example. It declares `needs_display: true`,
+`interactive: true`, `duration: seconds`. The scheduler declares that it can satisfy neither
+`needs_display` nor `interactive`, so the command is not schedulable - and nobody wrote
+`snapper` anywhere inside rig to get that answer. The plan's previous shape, where a command
+named its surfaces, made the surface set a closed vocabulary inside the registration schema and
+killed the compounding claim in §1 outright.
+
+**No property has a default that carries a safety meaning.** `effects`, `idempotent` and
+`sensitive` are mandatory and a registration missing any of them is refused. A field whose
+absence means "safe" can never have its default changed without lying about every declaration
+written before the change. Where a default genuinely must exist, it is pinned by
+`semantics_gen`.
+
+**The declaration is generated, not hand-written.** Measured: one real archi command written
+exactly as this section and §9 require is **160 non-blank lines of JSON**, and archi has 28
+deduplicated operations. The 100-line budget in §3 is per program of *hand-written Go*; the
+declaration itself comes out of the program's existing command definitions, and `rig verify`
+checks the artefact.
+
+Everything after `identity` is optional except `coverage`, `semantics_gen` and the mandatory
+command properties. A program that declares only `commands` still gets a CLI, an MCP tool, an
+HTTP route, a palette entry, a tray item and a schedulable job - each one wherever its declared
+properties allow it.
 
 ### 5f. Transport
 
-One unix socket per program, at `$XDG_RUNTIME_DIR/rig/<id>.sock`. Length-prefixed protobuf
-frames, bidirectional, multiplexed streams. Numbers in §4 say this is enough.
+**One socket for the whole daemon**, at `$XDG_RUNTIME_DIR/rig/rigd.sock`, mode 0600. A program's
+channel is a multiplexed stream on the connection it already holds. There is no per-program
+path: a socket named after a program turns the runtime directory into a second copy of the
+registry that `ls` enumerates and `stat` polls for presence, and a mode bit is a uid instrument
+being asked to enforce a client boundary (§14).
+
+Length-prefixed protobuf frames, hand-framed, bidirectional, multiplexed streams. **No gRPC**:
+its server on a unix socket measured +9.80 MiB resident for HTTP/2 machinery a local socket does
+not need, which is 58% of the whole footprint budget (§17). Numbers in §4 say a plain socket is
+enough.
 
 - Control plane, request/response: 6.2µs. Config, commands, queries, health.
 - Data plane, one-way: 561ns. Logs, traces, metrics, progress events.
 - Large payloads: 64KB frames at 19µs is 3.4 GB/s effective. Fine for a table of 100k rows.
 - Every frame carries a trace context so a span crosses the process boundary.
+- **Every mutating call carries a client-generated request id.** rig dedups against a bounded
+  window persisted in the WAL and returns *the original response*, never a fresh application.
+  Without it, one retried call after a timeout is enough to make §16's linearizability claim
+  false, and the retry cannot live in the stub because the stub is forbidden semantics (§5d).
+- **Every connection carries a session token that survives reconnect.** On reconnect rig either
+  resumes the session, with leases and subscriptions intact, or answers `SESSION_DEAD`, at which
+  point the client knows exactly what it lost. Silence is not an answer either way.
+- **Every proto enum reserves `*_UNSPECIFIED = 0`** and an unknown enum value is refused at the
+  daemon boundary rather than decoded to zero. Without this a new `effects` value falls through
+  to zero on an old binary and a destructive command reports itself read-only. Lint gate, §21.
 
 ### 5g. When rig is not running
 
-The stub carries a small local fallback so a program is never blocked by an absent platform.
+**The client tolerates rig's absence. It does not reimplement rig.** The 300-line fallback this
+plan carried before the attack was a second, un-upgradable, unobservable implementation of
+config layering, storage paths, secret sources and log sinks, compiled into every program - that
+is policy, in the one component §5d requires to be semantics-free, and it cannot be patched from
+the daemon. It is deleted. Three mechanisms replace it.
+
+**1. A tolerant client.** A reconnect loop with backoff to a deadline, a bounded outbound queue,
+and one typed `unavailable` error. Mechanism only: no layering, no merging, no answers.
+
+**2. A resolved snapshot on disk.** Every time rig resolves configuration it writes the
+already-merged result to a known path, with provenance comments, the database path it assigned,
+and the schema version it migrated to. When rig is unreachable the stub reads that one file and
+hands over the bytes. There is still exactly one implementation of config resolution, and it
+lives in the daemon. About fifteen lines in the stub.
+
+Secrets are deliberately not snapshotted - that would be plaintext on disk - so they are
+unavailable while rig is, and a program declares whether it can run without them.
+
+**3. Lifecycle notices**, so the client knows whether to wait and for how long. A control frame
+on the existing connection, best effort by definition: a SIGKILLed rig sends nothing and the
+client sees EOF.
+
+| State | Meaning | What the client does |
+|---|---|---|
+| `READY` | Serving | Normal |
+| `DRAINING` + `back_in` | Going down deliberately, expected back | Hold requests in the bounded queue, wait, resume |
+| `UPGRADING` + `back_in` | Going down and straight back on the same socket | Same, tighter window, reconnect with the session token |
+| `GOING_AWAY` | Going down and not coming back | Stop waiting. Refuse new work with an honest message |
+| EOF, no notice | Crashed | Unknown. Retry with backoff to a deadline, then treat as `GOING_AWAY` |
+
+Every notice carries a reason string, so the program's log and the terminal say *why* they are
+waiting rather than only that they are.
+
+**"Coming back up" cannot be a push, and this plan says so.** Once the connection is gone rig has
+nobody to notify. The honest mechanism is client-side retry bounded by the deadline in the notice
+it already received, plus a **readiness handshake on reconnect**: rig sends `HELLO` carrying its
+version, wire version, whether this is the same instance, whether the session was restored, and
+explicitly what was lost - which in-flight commands, which leases. For a client that was never
+connected, a socket that exists and accepts is the whole signal.
+
+**The window draws the degraded state, not the daemon.** A toast saying "rig is restarting"
+cannot be drawn by the thing that is restarting. This is where §17's separate-window rule pays
+off a second time: the window process survives a daemon restart, so the tray icon gains a fourth
+state beyond ok/degraded/stopped - **detached**, meaning the window is up and the daemon is not.
+
+**What a program actually loses while rig is down**, stated plainly, because the previous table
+claimed more than it could deliver:
 
 | Capability | rig up | rig down |
 |---|---|---|
-| Config | Served, live reload, provenance | Read straight off disk, no reload |
-| Logs | Collected, merged, viewable | Written to stderr and a local file |
-| Storage | Managed location, migrations run | Default path, no migration check |
-| Secrets | From the keyring | From the environment, or refused |
-| Notifications | Toast in the corner | One line on stderr |
-| Tray, window, palette, schedule | Present | Absent |
-| **Business logic** | **Works** | **Works** |
+| Config | Served, live reload, provenance | The resolved snapshot, read once, no reload |
+| Storage | Managed location, migrations run before start | The snapshot names the path; **a program that has never started under rig does not start** |
+| Secrets | From the keyring | Unavailable. The program declared whether it can run without them |
+| Logs | Collected, merged, viewable | The program's own stderr. rig collects nothing it did not see |
+| Notifications, tray, window, palette, schedule | Present | Absent |
+| **Business logic** | **Works** | **Works, if its declared preconditions are met** |
 
-That fallback is the one part of the stub that duplicates daemon behaviour, and therefore the
-one part that cannot upgrade independently. It is kept deliberately stupid for that reason:
-about 300 lines, no policy, no cleverness.
+That last row is the honest version. A migrated `nudge` whose rig unit failed used to boot into
+eight hours as a headless process with no interface at all, and call it success; now it says
+`unavailable`, with a reason, and `rig doctor` can see it.
 
 ### 5h. Extending rig itself
 
@@ -389,7 +504,7 @@ answer: both are driven off the one registry.
       ├─ config             │   │              CLI ────────┤
       ├─ store              │   │              MCP ────────┤
       ├─ secrets            │   │             HTTP ────────┤
-      ├─ observe            │   │           turret ────────┤
+      ├─ observe            │   │           window ────────┤
       ├─ schedule           │   │             tray ────────┤
       ├─ bus                │   │            toast ────────┤
       ├─ queue      ← new   │   │          palette ────────┤
@@ -416,10 +531,34 @@ worth more than any individual surface.
 map, a waveform, a calendar - is a renderer registered against a schema shape. Programs that
 already declare that shape get it without changing.
 
-All three can be **in-tree** (compiled into rig, for the ones that are core) or **out-of-tree**
-(a separate process rig supervises, speaking the same wire in the opposite direction). Out-of-tree
-is the same machinery a program uses, pointed the other way, so there is one contract to test
-rather than two.
+**A renderer publishes a capability profile**, and this is what stops "one schema, two
+renderers" being a lie. The program declares *semantics only* - types, constraints, relations,
+cardinality - and never a widget or a hint. Each renderer publishes the JSON Schema constructs
+it can express, so a renderer that cannot draw an array of objects says so, in its own artefact,
+and the conformance test asserts **fidelity** rather than the existence of a renderer. Where a
+human genuinely wants a different widget, the override is rig-side config against the schema
+shape, never a field in the program's declaration.
+
+**Modules contribute capability names; the kernel does not enumerate them.** §13's capability
+set was literally `tray`, `notify`, `schedule` - three module names hard-coded inside the
+kernel's enforcement point, so adding a surface meant editing the kernel before the surface
+existed. A module registers the capabilities it grants, and the kernel checks grants against a
+set it never had to know in advance.
+
+All four kinds can be **in-tree** (compiled into `rigd`) or **out-of-tree** (a separate process
+rig supervises, speaking the same wire in the opposite direction). Out-of-tree is the same
+machinery a program uses, pointed the other way, so there is one contract to test rather than
+two.
+
+**Go has no working dynamic loading, so "hot-reloadable" and "out-of-tree" are the same
+statement.** An in-tree module changes only when `rigd` is rebuilt. This plan says that rather
+than implying a free choice, and it is the reason a hosted program (§5j) forfeits independent
+upgrade.
+
+**The notification centre is a service, not part of the toast surface.** It is the record of
+record for everything that was ever notified, and §12 promises nothing is ever only a toast. A
+surface that owns it means `make build-minimal` silently drops that record; a service means the
+toast surface, the window, the TUI and the CLI all read one thing.
 
 **The rule that keeps this honest:** a service or surface that needs to know a program's
 identity to work is not a service or surface. It is business logic in the wrong place, and the
@@ -427,18 +566,90 @@ lint rule that bans program ids in rig code catches it.
 
 ### 5i. Modularity, made testable rather than claimed
 
-"Modular" is an adjective until something fails when it stops being true. Four rules, each with
-a test behind it.
+"Modular" is an adjective until something fails when it stops being true. Six rules, each with a
+test behind it, and the tests are the point - the previous set had two rules whose gates could
+not fail.
 
 | Rule | The test |
 |---|---|
-| **The kernel is small.** Registry, wire, principal, invoker, supervision. Nothing else | The kernel's public API is enumerated in one file and reviewed on every change |
-| **No module imports another module.** Services and surfaces talk through the kernel, never to each other | `make modules` runs a layering analyzer that fails the build on a cross-import |
-| **Every module can be compiled out.** `make build-minimal` produces a kernel-only daemon | It builds, it runs, it serves the wire, and its footprint is measured |
-| **A module knows no program's name.** A service or surface that needs one is business logic in the wrong place | The same lint that bans program ids in rig code |
+| **The kernel is small, and it is mechanisms.** Registry, wire, principal and scope, invoker (with streams), supervision, config resolution, capability check, module lifecycle | The kernel's public API is enumerated in one file with a **symbol budget asserted in `make ci`**, exactly as §3 already does for the client stub. Growth costs a recorded decision, not a nod |
+| **The kernel holds no domain type.** No `Severity`, no `LogRecord`, no `Lease` | Shared vocabulary lives in the service that owns it, and another module reaches it as a *renderer of that service* - a directed edge the analyzer is taught to allow. Without this rule, the cheapest way to share anything is always to move it into the kernel |
+| **No module imports another module.** Services and surfaces talk through the kernel | `make modules` runs a layering analyzer that fails the build on a cross-import, **runs under every tag set CI builds**, and rejects the untyped service locator that made the previous analyzer blind: modules receive kernel-owned interfaces injected at construction from a declared dependency list |
+| **Every module compiles in alone.** Not merely out | `make modules-matrix` builds kernel-plus-one for every module in turn. `make build-minimal` is the N=0 case. One build tag proves only that coupled modules are removed together |
+| **A module knows no program's name** | The same lint that bans program ids in rig code, extended to the frontend: a program id special-case in Svelte used to pass `make ci` untouched |
+| **A module's dependencies are data** | The declared list the analyzer and `modules-matrix` both read, from which init ordering is derived rather than assumed |
 
 Modules are declared in one registration file, in-tree or out-of-tree, and the out-of-tree case
 uses the same wire a program uses, pointed the other way. One contract, tested once.
+
+### 5j. Hosted programs: an in-house program with no binary of its own
+
+Most in-house programs are separate binaries that talk to rig over the socket. **Some are
+better as plugins**: things we write, program-shaped, that run inside `rigd` rather than as a
+process of their own. A hosted program declares exactly what an external one declares, is
+projected onto exactly the same surfaces, and passes exactly the same conformance battery from
+the same test package. The only difference is where it runs.
+
+That difference is not free, and the plan states the price rather than implying there is none.
+
+| Property | External program | Hosted program |
+|---|---|---|
+| Upgrades independently of rig | **yes** - the defining maximal (§3) | **no.** Rebuilt with `rigd`, always |
+| Crash containment | `kill -9` it; rig never blinks (§18) | A panic must be recovered by the invoker; an unrecovered one takes the daemon with it |
+| Capability enforcement | Real: path confinement, network namespace, landlock (§13) | **In-process only.** There is no OS boundary to enforce against, and §13's table says so per program |
+| Contribution to the footprint budget | Zero. It is another process | Its entire dependency tree links into `rigd` and lands in the binary-size budget (§17) |
+| Who may write one | Anyone whose program speaks the wire, in any language | Us, in Go, at build time. Go has no working dynamic loading (§5h) |
+
+**The rules that make it safe enough to offer:**
+
+- `hosted: true` in the declaration, so every surface, the operator view and `rig doctor` can
+  say which programs have no process of their own.
+- **Panic to quarantine.** The invoker recovers a panic from a hosted program, quarantines that
+  program with the stack and the reason exactly as §18 quarantines a crashing process, and keeps
+  serving. A hosted program that panics twice inside the restart budget stays quarantined until
+  a manual start.
+- **Its own goroutine budget and deadline.** A hosted program is subject to the same rule as any
+  call: no work without a deadline, and it can never block a kernel goroutine.
+- **A CI check on the binary.** `make bench-size` attributes the delta, so a plugin's
+  dependencies cannot quietly spend the daemon's size budget.
+- **It is still not business logic in rig.** The lint that bans program ids in rig code applies
+  to the kernel, the services and the surfaces - never to a hosted program, which is a program
+  and is allowed to know its own name. `make modules-matrix` builds `rigd` with each hosted
+  program in and out.
+
+This partly flips §27 assumption 4. Programs stay separate binaries **by default**, and hosting
+is a deliberate choice made per program, for small things where an extra process is the larger
+cost.
+
+### 5k. Adoption is per service, and coverage is declared
+
+> "When creating an in-house application, obviously, not all functionality will be using rig,
+> but everything that is beneficial is going to use it." - Boris, 2026-09-10
+
+rig is a la carte. A program adopts one service at a time, declares only the commands worth
+projecting, and pays nothing for what it does not use. This fits the no-imports design exactly:
+there is no framework to buy into, no lifecycle to hand over, and no all-or-nothing migration. A
+program that uses rig for notifications alone is a legitimate rig program.
+
+**What it stresses, and this is the part the plan was missing.** "Declare once, projected
+everywhere" quietly assumed a program declares everything. It will not. So every surface shows a
+*partial* view, and a surface that implies completeness lies.
+
+| Consequence | What the plan therefore requires |
+|---|---|
+| `rig shelf --help` lists 3 commands; shelf has 20 | No surface may imply completeness |
+| An agent asks what shelf can do and gets 3 | **The capability map carries coverage per program**, so an agent knows its picture is incomplete before it reasons from it (§9). This is the sharpest one |
+| The audit log covers 3 of 20 commands | "One audit log for the estate" carries the caveat, and the coverage log (§15) records it |
+| The operator view shows partial activity | §15 states what it cannot see |
+
+- `coverage` is `full` or `partial`, with an optional note. **The default is `partial`**, because
+  the honest default is the conservative one.
+- A program declares which rig **services** it uses. An unused service is not initialised for it
+  and costs it nothing, which is also how §17's laziness rule stops being a hope.
+- §3 gains the maximal: a program that adopts exactly one service works and is not degraded for
+  adopting one.
+- §25's migration order becomes **per service**. "shelf takes config and notifications" is a
+  valid milestone, and full migration is not the unit of progress.
 
 ---
 
@@ -462,7 +673,32 @@ Layers, lowest to highest, with the winner recorded per key:
 - Changes apply live: rig validates, pushes, and shows accepted, rejected with the program's own
   reason, or needs-restart with a one-click restart.
 - A change set is validated whole before any of it is sent, so nothing lands half-applied.
-- `rig config export` and `rig config diff` reproduce and compare a machine.
+- `rig config export` and `rig config diff` reproduce and compare **the caller's** machine.
+  Reproducing the whole machine is an estate-wide aggregate and therefore an operator action
+  (§14).
+- **Every resolution is written to a snapshot on disk**, already merged, with provenance, the
+  database path assigned and the schema version migrated to. That file is what a program reads
+  when rig is unreachable (§5g), and it is the reason there is exactly one implementation of
+  config resolution.
+- **A renamed key reports its losers.** `rig loose-ends` (§8) names every override that stopped
+  applying, because the silent version of this bug is invisible to `rig config origin`: the
+  override does not lose, it simply no longer exists under that spelling.
+
+**The visual system is configuration, not code.** Faces, base size, type scale, tracking, line
+height, corner radius, density, the six-hue family's lightness, chroma and rotation, the neutral
+surface ladder and whether anything animates are all declared under `ui.theme` as JSON Schema,
+layered and live-pushed like every other setting. `design/theme.js` is the reference
+implementation and `design/visual-system.html` is the live editor over it; the export box there
+emits exactly this fragment.
+
+Two rules travel with it, because a theme is the one setting a user can break the product with:
+
+- **The hues are generated in oklch**, six evenly spaced at one lightness and one chroma, so a
+  family stays a family when any parameter moves.
+- **The neutrals are solved, not chosen.** `--border`, `--fg-dim` and `--fg-faint` are searched
+  to the dimmest value that still clears their WCAG target on *every* surface they can land on.
+  rig refuses to apply a token set that fails, naming the token and the ground, so a theme
+  cannot silently produce an unreadable product.
 
 ---
 
@@ -483,7 +719,9 @@ costs. The tedious half - migration running, backup, integrity, retention - upgr
 independently, which is the half that is copy-pasted fifteen times today.
 
 Nothing may hold the only copy of anything in SQLite. Files on disk are the record; the database
-is an index and is rebuildable.
+is an index and is rebuildable. **That rule binds rig's own storage too**, and §15 breaks it
+unless the history's interning dictionary travels inside the segments rather than in the index -
+see §15, where the plan's previous advice to delete the index and rescan destroyed data.
 
 ---
 
@@ -501,8 +739,39 @@ everything rather than fifteen times badly.
 | Events | A live tap on the bus: publisher, topic, payload, who received, who was denied |
 | Config | Every key, the winning layer and every losing value. Searchable |
 | Schedule | What is due, what fired, what failed, what it cost |
-| Audit | Every action taken anywhere, by whom, through which surface. One log for the estate |
-| Doctor | Versions, drift, orphaned registrations, quarantined programs, capability warnings, disk, permissions |
+| Audit | Every action taken anywhere, by whom, through which surface. One log for the estate, with its coverage stated (§5k) |
+| Loose ends | What stopped pointing at anything after a declaration changed. See below |
+| Doctor | Versions, drift, orphaned registrations, quarantined programs, capability warnings, disk, permissions, stub build vintages, programs on a frozen wire major |
+
+Every view above states its coverage, and none of them answers a question about history without
+saying what it could not see (§15).
+
+### Loose ends
+
+When a declaration changes, rig reports what in the rest of the estate stopped pointing at
+anything: schedule entries, bus rules, capability grants, tray entries, promoted MCP tools,
+`rig://` routes, config overrides. `rig loose-ends` on the CLI, a view in the window and the
+TUI, and a line in `rig doctor`.
+
+It is cheap - the registry already holds both sides - and it catches a real bug class the rest
+of the plan cannot. A renamed config key does not make its override *lose*; the override simply
+stops existing under that spelling, so `rig config origin` shows no loser and the setting
+silently reverts to a default.
+
+### What a recorded call actually costs
+
+§15's budget covers the history append alone. This section mandates two more recordings per
+call, and the plan used to contradict itself about the total:
+
+| Recording | Measured | Mandated by |
+|---|---|---|
+| History append, one writer | 110.8 ns | §15 |
+| OpenTelemetry span | 1019 ns, and a *rejected* span still costs 195.6 ns | this section |
+| `slog` record | 627 ns | this section |
+| **Total per call** | **1757 ns** | 28% on top of §4's 6.2µs wire |
+
+The budget in §15 is stated against that total, not against one third of it. Sampling does not
+rescue the span, because a rejected span is not free.
 
 ---
 
@@ -536,12 +805,20 @@ Beyond the argument schema, a declaration carries the things an agent has to gue
 |---|---|
 | `summary`, `description` | Plain language, written for a reader who has never seen the program |
 | `examples` | Two or three real invocations with real values. This is the single highest-value field |
-| `effects` | `read-only`, `writes-files`, `network`, `destructive`. An agent can refuse or confirm on its own |
+| `effects` | `read-only`, `writes-files`, `network`, `destructive`. **Mandatory**, and rig - not the agent - decides what may run (§13) |
 | `idempotent` | Whether re-running is safe. Decides retry behaviour |
 | `dry_run` | Whether the command can be simulated. rig exposes `--dry-run` wherever this is true |
 | `cost` | Rough duration and whether it spends money. Lets an agent plan |
 | `preconditions` | What must be true. Checked before the call, so failure is early and explained |
 | `returns` | The output schema, so a result can be used rather than parsed out of prose |
+| `shape` | `unary`, `stream` or `interactive-stream`. `returns` alone models one request and one response, which `graft run` is not: it emits frames for twenty minutes and may stop to ask a human. Without a shape, four surfaces invent four different treatments of one command and the conformance suite forbids the only correct one |
+
+**A program declares a preamble, not just commands.** One document an agent must read before
+touching that program, served as its own MCP resource and returned by `describe` on the program
+rather than on a command. archi's own ordered list of what matters in AI integration begins
+"the doctrine is handed over first, before the format, before the tools" - and with per-command
+metadata only, that cannot be expressed, so archi keeps its own MCP server and the estate ends
+with two.
 
 ### Errors an agent can act on
 
@@ -562,6 +839,11 @@ time, rather than asking Boris to look.
 rig serves one MCP resource that is the whole capability map of the estate, versioned and
 diffable. An agent reads it once and knows everything that exists. When a program registers a
 new command, the map changes, and no agent needs updating.
+
+**It carries coverage per program** (§5k), so an agent knows its picture is incomplete before it
+reasons from it - the alternative is an agent confidently reporting that shelf has three
+commands. And because its product is an estate-wide aggregate, the full map is an operator
+surface: a scoped client gets the map of what it may reach (§14).
 
 ---
 
@@ -624,16 +906,28 @@ can operate the entire estate.
 
 ### The rule that keeps the terminal first-class
 
-**A view ships in the TUI when its data lands.** Once the window exists at M7, no view ships in
+**A view ships in the TUI when its data lands.** Once the window exists at M8, no view ships in
 one without the other. The TUI is written as a surface plugin like any other, so it costs one
 module rather than a parallel product.
 
+**And the claim is scoped, because the unscoped version is false.** "Everything the window can
+do, the terminal can do" holds for **generated** panes - the ones rig draws from a declared
+schema - and cannot hold for embedded ones. archi's pane is an iframe over a hand-built SVG
+canvas; there is no TUI renderer for it and there can be none, and writing one would put archi's
+business logic inside rig, which §5h calls a bug. Six of eleven programs in §25 are tier-two.
+
+So the test in §3 asserts: **every generated view has a TUI renderer, and every embedded pane
+declares a terminal fallback** - the commands, state and data behind it, reachable and runnable
+from the terminal even though the canvas is not drawable there. A program that offers an
+embedded pane and no fallback fails `rig verify`.
+
 ---
 
-## 11. turret: the window
+## 11. The window
 
 The UI shell inside rig. Its visual system is a separate piece of work (§23 M8) because for a
-program whose whole job is presenting other programs, the visual design *is* the product.
+program whose whole job is presenting other programs, the visual design *is* the product. It is
+built and measured: `design/visual-system.html`, engine at `design/theme.js`.
 
 - **One window.** A left rail of registered programs, a context bar, a pane, a status strip.
   Chrome budget is a number that gets defended, not a feeling.
@@ -646,6 +940,16 @@ program whose whole job is presenting other programs, the visual design *is* the
 - **The shell is achromatic.** Each program owns one hue from a uniform six-hue family, and that
   is the only saturated colour on screen while you are in it. A host that wears the colour of
   whatever it is holding.
+- **Healthy is the absence of colour.** Six programs, most idle, most of the time, so `ok` is
+  drawn as a hollow tick and a hue appears only when something wants you. A stopped program
+  keeps its place and goes dashed, so the rail never re-orders under your hand.
+- **The window survives a daemon restart.** It is a separate process (§17), which is what makes
+  the lifecycle notice in §5g drawable at all: the tray gains a fourth state, **detached**,
+  meaning the window is up and `rigd` is not.
+- **The visual system is config** (§6). Faces, sizes, scale, radius, density, the hue family's
+  parameters and whether anything animates are declared, layered and live-pushed, and rig
+  refuses a token set that fails its contrast targets. Built and measured:
+  `design/visual-system.html`, with `design/theme.js` as the engine.
 
 ## 12. Toasts
 
@@ -664,6 +968,9 @@ present on this laptop, so an ARGB visual and a real backdrop blur are available
 - Do Not Disturb and a fullscreen-focus rule. Suppressed toasts go to the centre, never dropped.
 - Falls back to `org.freedesktop.Notifications` where the frameless window is unavailable, and
   `rig doctor` says which is live.
+- **The notification centre is a service, not part of this surface** (§5h). It is the record of
+  record, so `make build-minimal` must not be able to drop it, and the window, the TUI and the
+  CLI all read the same one.
 
 ---
 
@@ -679,11 +986,42 @@ denial is logged with a trace id and shown.
 | `network` | An allowlist, via a network namespace where available, otherwise at the proxy and honestly labelled best-effort |
 | `filesystem` | Declared paths only, mode-checked, landlock where the kernel supports it |
 | `subscribe` | The bus refuses a subscription without a grant |
-| `tray`, `notify`, `schedule` | Requests from a program that did not declare them are dropped and reported |
+| module-contributed | Every service and surface registers the capability names it grants (§5h). The kernel checks a grant against a set it never had to know in advance - the previous enum literally listed `tray`, `notify`, `schedule`, three module names inside the kernel |
 
 Capabilities are enforced where enforcement is real and labelled best-effort where it is not; the
 UI says which per program. Widening a capability needs an explicit confirmation, so an edited
-manifest cannot quietly gain access.
+manifest cannot quietly gain access. **Widening `sensitive` needs the same confirmation**, since
+after §15 that declaration is security-relevant.
+
+**A hosted program (§5j) gets in-process enforcement only.** Path confinement, network
+namespaces and landlock are per-process instruments and there is no second process. The Programs
+view says so per program rather than implying a boundary that is not there.
+
+### 13a. house rules - the authorization floor
+
+**There is no authorization language anywhere else in this plan.** rig carries `effects` and a
+danger level from the registry, and the principal from the connection, and before this section
+it never put the two together. Its answer used to be §9's "an agent can refuse or confirm on its
+own" - which is the restraint living inside the thing being restrained.
+
+`house rules` is a small table: which kinds of caller may run which kinds of command, and which
+must ask first.
+
+```
+[[rules]]
+caller  = "agent"           # agent | terminal | window | script | program | any
+effects = "destructive"     # matched against the declared property
+action  = "confirm"         # allow | confirm | deny
+```
+
+- **It lives in the kernel's invoker**, so no surface can forget it and a surface added in 2028
+  is covered by rules written in 2026. One test covers every surface, present and future.
+- **The default rule set is empty**, so nothing already working breaks the day it lands.
+- **It costs a registered program nothing.** Both fields it matches on are already declared.
+- `confirm` routes through the same `ask` primitive the peers service uses (§16), so the
+  question reaches whoever is actually present - window, toast, terminal or phone.
+- Every decision is written to the audit log with the rule that fired, so "why was I asked" and
+  "why was that allowed" are answerable from the record.
 
 ---
 
@@ -693,8 +1031,8 @@ manifest cannot quietly gain access.
 
 | Boundary | Between | How |
 |---|---|---|
-| **Instance** | Unix users | One daemon per uid. Socket at `$XDG_RUNTIME_DIR/rig/` mode 0600, separate config, state and storage trees. Nothing is shared, including the tray, the window and the notification centre |
-| **Session** | Clients of one daemon: agents, terminals, the window, scripts | Every connection carries a principal - uid, client kind, client id, session id. The registry view, the event stream, notifications, in-flight commands, the call log and the audit log are all filtered to that principal |
+| **Instance** | Unix users | One daemon per uid. One socket at `$XDG_RUNTIME_DIR/rig/rigd.sock`, mode 0600, separate config, state and storage trees. Nothing is shared, including the tray, the window and the notification centre |
+| **Session** | Clients of one daemon: agents, terminals, the window, scripts | Every connection carries a principal - uid, client kind, client id, session id - and belongs to one or more **scopes**. Every kernel view is filtered by scope set |
 | **Program** | Programs | Capabilities (§13): secrets namespaced, storage pathed, events by grant, no cross-program read of anything |
 
 **A client sees itself and the programs it may reach. Nothing else.** It cannot enumerate other
@@ -702,37 +1040,134 @@ clients, cannot see their commands, cannot receive their events and does not app
 views. Two agents working in the same repository, through the same daemon, are invisible to each
 other unless both opt in.
 
-**The filtering is in the kernel, not in each surface.** A surface receives an already-scoped
-view, so a new surface cannot leak by forgetting to filter. That is the only way this stays true
-as surfaces multiply, and it is asserted by a test that runs every surface against a two-client
-fixture and fails if either sees the other.
+### The kernel exposes no unscoped accessor at all
 
----
+The previous version of this section listed six views that get filtered, and claimed in the same
+paragraph that a new surface cannot leak. An allowlist of six is exactly how a seventh leaks.
+
+**Every registry read is a method on a principal, the principal is in the type, and an unscoped
+read is unrepresentable rather than discouraged.** A house analyzer - `no registry handle
+outside the kernel` - sits beside the existing `no program id in rig code`.
+
+**The corollary the plan was missing: any surface whose product is an estate-wide aggregate is
+by definition an operator surface**, and needs the operator credential below. That is the
+capability map, `config export`, `doctor`, the palette, the tray, the notification centre and
+the schedule - seven things that sat outside the old six-view list, one of which §9 tells an
+agent to read first.
+
+### The operator is a credential, not a uid
+
+§15 used to grant the operator view to "the uid that runs the daemon", and §14 puts one daemon
+per uid. A unix socket carries no credential but `SO_PEERCRED`, so **every client that could
+connect already satisfied that predicate** - and `rig history --client=X` would then hand any
+agent another program's secrets (§15). It is the highest-ranked finding of the 2026-09-10
+attack and it was invisible to every seat individually.
+
+- At startup `rigd` mints one operator token into a file, mode 0600, whose path is passed only
+  to the process that launched it.
+- A connection is an operator **iff it presents that token**. Every other connection from the
+  same uid is scoped, by default, forever.
+- One field on the principal struct. There is no other way to become an operator.
+
+### Scopes, so peers is not a hole in the filter
+
+`announce` must return the crew, so under the old design the kernel needed a peers special case
+at the very enforcement point that was supposed to make leaks impossible - and §3's two-client
+test would have had to fail the moment peers compiled in.
+
+Instead the kernel offers one general mechanism: `MintPrincipal(evidence)` and
+`JoinScope(principal, scope, grant)`. Peers becomes an ordinary service that creates a crew
+scope and joins consenting principals to it. The visibility it needs is **granted data, not a
+code branch**, which is what §14 always intended by "invisible to each other unless both opt in".
+
+`MintPrincipal` also answers a question no section previously did: **a surface with no unix peer
+has to mint a principal from something.** HTTP hits this at M2. Evidence is a bearer token
+issued per client kind, and an unauthenticated HTTP request gets a principal with no scopes
+rather than the daemon's own.
+
+### Written down, and therefore testable: what a client may infer
+
+A boundary nobody wrote down is a boundary nobody tests.
+
+- Acquiring a contended lease reveals that *a* peer exists. Accepted, and stated.
+- `try_lock` returning BUSY reveals the same. Accepted.
+- Deadlock refusal names **the leases the caller holds or requested**, never the peers. The
+  named cycle goes to the operator view only.
+- Counters are scoped: fencing tokens monotonic **per lease**, blackboard revisions **per
+  namespace**. Never one global sequence, which leaks the rate of other clients' activity.
+- A crew is created by a principal and joined only through a handle it hands out. Joining an
+  unknown crew name returns the same error as joining one that does not exist.
+- A colliding program id from a principal that cannot see the incumbent returns exactly the
+  error it would get for an id it is not permitted to use - indistinguishable from "not
+  allowed", never "already exists". An error that distinguishes those two is an oracle.
+
+### The proof: observational equivalence over two worlds
+
+§3's old test was a *content* predicate - run every surface against a two-client fixture and
+fail if either sees the other - and every channel above except one is a **differential**
+channel, invisible to it. Worse: with the operator bug, the fixture's expected result for
+`rig clients` was "B is visible", so the test asserted the breach.
+
+The property is stated as observational equivalence instead. Run the whole battery against
+**W1 = {A}** and **W2 = {A, B}**, with B exercising every primitive, and require A's complete
+transcript - responses, error codes, ids and tokens issued, ordering - to be identical. A
+difference is a failure unless it appears on the enumerated, reviewed list above. The battery
+covers non-surface observation too: the runtime directory, the config tree, the state tree, the
+process table.
+
+This is the same machinery §16 already buys for deterministic simulation at M7. It just has to
+be pointed at isolation as well as at linearizability.
 
 ## 15. Who is using rig, and what they did
 
-§14 says clients cannot see each other. **You can see all of them.** That asymmetry is
-deliberate: isolation is between clients, not between rig and its owner. The uid that runs the
-daemon gets a privileged operator view, and every other principal gets the scoped one.
+§14 says clients cannot see each other. **The operator can see all of them.** That asymmetry is
+deliberate: isolation is between clients, not between rig and its owner. The operator is a
+**credential** (§14), not a uid - one token minted at startup into a 0600 file. Without that
+correction every client on a one-user machine is the operator, and the rest of this section is
+a hole rather than a feature.
 
 ### The operator view
 
 | Column | For every connected client |
 |---|---|
 | Who | Kind (agent, terminal, window, script, program), pid, command line, uid, session id |
-| Since | Connected at, last active, wire version |
+| Since | Connected at, last active, wire version, stub build |
 | Holding | Leases held, crew membership, subscriptions, capabilities granted |
 | Waiting | What it is blocked on, and for how long |
 | Doing | Calls in flight right now, with elapsed time |
 | Rate | Calls per second, bytes, error rate, denied capability attempts |
 
 Selecting a client opens its history: every call it made, when, with what arguments, how long it
-took, what came back. The same view exists in the window, in the TUI, on the CLI (`rig clients`,
-`rig history --client=X`) and over MCP, because they are all surfaces over one registry.
+took, what came back - **minus everything declared sensitive**, which was never recorded at all.
+The same view exists in the window, the TUI, the CLI (`rig clients`, `rig history --client=X`)
+and over MCP, because they are all surfaces over one registry, and all of them require the
+operator credential.
 
 **Looking is itself an event.** Opening another client's history is written to the audit log.
 On a single-user machine that is close to pointless, but it costs nothing and it means the rule
 is the same rule when it stops being a single-user machine.
+
+### Redaction, or the history is an exfiltration channel
+
+**`secrets.get` is a call, and this section records what every call returned, verbatim.** With
+no redaction anywhere, a keyring token lands in an unencrypted segment kept for thirty days, and
+`rig history` hands it over. Conformance item 15 does not catch it: that tests the *program's*
+logs, not rig's own history.
+
+Redaction is therefore part of the **registration declaration**, not of the logger:
+
+- A command declares `sensitive`: a list of JSON pointers into its arguments and its results.
+  Mandatory, may be empty (§5e).
+- At registration rig compiles that list once per `(method, wire version)` into a **byte-span
+  list over the wire encoding**. The hot path blanks known offsets: **82.5 ns, zero
+  allocations**, inside budget. Decoding the payload to redact it at record time costs
+  **3100 ns**, which is 15x the whole budget - so the declaration is the only affordable place
+  for this.
+- **Anything the `secrets` service returns is never recorded at all**, only the key name. A
+  field that is not declared sensitive *is* recorded, so the default for a secret cannot be left
+  to a declaration.
+- The declaration is now security-relevant, so widening it needs the same explicit confirmation
+  §13 requires for widening a capability.
 
 ### History has to be nearly free, and it can be
 
@@ -744,55 +1179,82 @@ design completely.
   call happens
       │
       ▼
-  ring buffer in memory        fixed byte ceiling, lock-free append
-      │                        reads are free, no disk involved
-      │  every 250 ms, or 256 KB, whichever first
+  per-client ring buffer      sharded, so the cursor and the interner are
+      │                       uncontended by construction, not by luck
+      │  flush armed BY THE FIRST RECORD, then 250 ms or 256 KB
       ▼
-  write(2) to a segment file   NO fsync, ever
-      │                        the kernel now owns it
+  write(2) to a segment file  NO fsync, ever
+      │                       the kernel now owns it
       │  on rotation
       ▼
-  zstd the closed segment      plus an offset index in SQLite
+  zstd the closed segment     + a self-describing header
+                              + a per-segment column summary
+                              + an offset index (rebuildable)
 ```
 
-**What that actually costs you in a failure**, stated precisely because "buffered" is vague:
+**Six things that keep it cheap, and each one was wrong in at least one way before.**
 
-| Failure | What is lost |
-|---|---|
-| `kill -9 rig`, or a panic | Only the in-memory batch: at most 250 ms of history. The kernel already holds everything written before that |
-| Power cut or kernel panic | The in-memory batch plus whatever the page cache had not flushed. Seconds, not minutes |
-| Disk full | The oldest segments are dropped first, and rig says so rather than stopping |
+- **No fsync in the hot path.** The whole reason it is affordable, and a locked decision.
+- **Sharded per client, merged at flush.** A single shared ring measured 2.1x over budget on the
+  mean at ten clients and 5.1x at p99; with the obvious RWMutex-map interner, 33x over. The
+  budget below is stated at p99 with sixteen concurrent clients, because a single-writer mean is
+  not a number anyone experiences.
+- **Interned, fixed-width records**, with the **dictionary written into the segment**, not the
+  index. A segment holds the integer 42, not `peers.lease.acquire`; if that mapping lives only
+  in the index then "delete the index, it rebuilds by scanning" - which this plan used to
+  advise - destroys data and breaks §7's locked rule. Each segment carries a header of the
+  id→name pairs first referenced in it, appended at rotation from data already in memory. A
+  segment then decodes standalone, ids are scoped to the segment that defines them, so a rename
+  coexists with its old spelling instead of colliding. Client ids are interned **per principal**,
+  not per connection, so a Makefile loop does not mint 100k entries.
+- **The flush timer is armed by the first record**, not run on an interval. An idle daemon has no
+  history timer at all, which is where §17's wakeup budget went: a 250 ms ticker alone measured
+  **45.5 wakeups/second** against a stated budget of one.
+- **Sampling under load, with the rate recorded**, so counts stay correct.
+- **Retention by size, age AND rate.** 500 MB holds 10.56M records; ten programs health-checking
+  once a second collapses "thirty days" to 12.2 days, and one client at the wire's own 161k
+  calls/s unlinks everything in 66 seconds. A per-client rate ceiling is enforced before the
+  size ceiling, so one noisy client cannot evict the estate's record.
 
-**Six things that keep it cheap.**
+### The coverage log, so a gap is visible rather than silent
 
-- **No fsync in the hot path.** This is the whole reason it is affordable, and it is a locked
-  decision rather than an oversight.
-- **Interned, fixed-width records.** Method names, program ids, client ids and error codes are
-  dictionary-encoded integers, not repeated strings. Roughly a tenth of the size of JSON and far
-  faster to write and scan.
-- **Ring buffer with a byte ceiling.** Memory is bounded before disk is involved, so a flood
-  costs a fixed amount and drops the oldest rather than growing.
-- **Sampling under load.** Past a configured rate, records are sampled and **the sampling rate is
-  recorded with them**, so counts stay correct even though not every entry is kept.
-- **Retention by both size and age**, enforced by dropping whole segments, which is one unlink
-  rather than a compaction.
-- **The index is rebuildable.** SQLite holds offsets into the segments. Delete it and it is
-  reconstructed by scanning. Nothing holds the only copy of anything.
+Four separate paths lose records - sampling engaging, the ring overwriting, a segment being
+unlinked, a segment failing to close cleanly - and without this they are indistinguishable from
+"nothing happened", which makes the whole log useless for the one question it exists to answer.
+
+One small append-only object: `(from_ts, to_ts, client_id or *, cause, retained/total)`, written
+on the cold path whenever any of those four occurs. **Every view in §8 and §15 renders a gap
+band and refuses to answer "every call it made" without stating its coverage.**
+
+**The audit log and the peers timeline are never sampled and have their own budget.** They are
+not the same kind of object as a call log and must not share its eviction.
+
+### Querying thirty days without nine cores
+
+500 MB of zstd is 2.0 GB raw; at a measured 1197 MB/s/core, a full scan is 1.7 s of core time,
+so the old "< 200 ms over 30 days" needed 8.5 cores. A segment is therefore not the unit of
+reading. On rotation, alongside the blob and the index, rig writes a **column summary**: the set
+of client ids present, the set of method ids, min/max timestamp, error count, and a bitmap of
+which client appears in which one-second bucket. A few KB per 64 MB segment, computed from data
+already in hand.
 
 ### The budget
 
-| What | Target |
-|---|---|
-| Cost of recording one call, amortised | **< 200 ns** |
-| Worst-case history lost to a power cut | **< 1 s** |
-| Memory ceiling for all history buffers | **8 MB**, configurable |
-| Disk ceiling, default | **500 MB**, configurable, oldest dropped first |
-| Cost of a history query over 30 days | **< 200 ms** |
+| What | Target | Basis |
+|---|---|---|
+| History append, **p99 at 16 concurrent clients** | **< 200 ns** | measured 110.8 ns single, 334.9 ns unsharded at 8 |
+| **Whole recorded call**: history + span + slog | **< 2 µs** | measured 1757 ns (§8). The old budget bounded one third of the cost |
+| Redaction, per sensitive field | **< 100 ns** | measured 82.5 ns as compiled spans |
+| Worst-case history lost to a power cut | **< 1 s** | unchanged |
+| Memory: all history buffers | **2 MB**, configurable | was 8 MB, which was 41% of the whole RSS budget (§17) |
+| Memory: interning dictionary, resident | **512 KB** | new line; it was previously unbudgeted |
+| Disk, default | **500 MB** call log, **plus** a separate audit + timeline budget | oldest dropped first, with a coverage entry |
+| **Filtered** 30-day query | **< 200 ms** | what the column summary delivers |
+| **Unfiltered** 30-day scan | **seconds, streaming** | the truth, and it is fine |
 
-All five are asserted by `make bench-idle` and a history-specific benchmark, so a regression
-fails the build rather than being noticed a year later.
-
----
+All of them are asserted by `make bench-idle` and a history-specific benchmark, so a regression
+fails the build rather than being noticed a year later. Index rebuild is an explicit background
+task with history served degraded-but-labelled meanwhile, so it cannot blow §17's cold start.
 
 ## 16. The peers service
 
@@ -810,8 +1272,34 @@ Paxos, no split brain, no clock skew, no quorum. Distributed coordination is har
 consensus; rig does not need consensus, so it can spend the entire budget on semantics and
 observability instead. That is why this can be better than the general-purpose tools.
 
+**Except that one serialization point orders *applied* operations, and linearizability is about
+the client's view.** A `barrier.arrive()` that times out and is retried once releases a barrier
+of nine with eight agents present. The fix is not in this service: it is the request id and the
+session token on the wire (§5f), so every mutating call is exactly-once from the client's side
+and every future primitive gets it free. Without those two fields the claim above is false on
+any retry, and §5d forbids the stub from fixing it.
+
 Durability comes from a write-ahead log: coordination state survives a daemon restart, and
 clients reconcile on reconnect rather than losing their place.
+
+### Time, named, because a laptop suspends
+
+Every deadline in this service is **absolute, on `CLOCK_BOOTTIME`**, stored in the WAL as
+`boot_id + boottime_deadline`. Never a remaining TTL, which a restart silently extends; never
+the client's clock; never wall time, which a timezone change moves.
+
+Go's monotonic clock does not advance across suspend, and this laptop suspends nightly, so the
+two readings of "the same lease" differ by hours depending on whether rig restarted. A changed
+`boot_id` means the machine rebooted, which is a different and simpler case.
+
+**A resume grace epoch.** rig detects a gap larger than one TTL (BOOTTIME against MONOTONIC, or
+logind's `PrepareForSleep`) and freezes expiry for one full TTL after resume, during which every
+holder must re-present its token before its first guarded operation. Without it, a suspend
+expires the whole estate's leases at once, on the machine this is built for.
+
+§20 mandates `testing/synctest` for all timing, and synctest **cannot model suspend**. So this
+class needs a real-clock test with an injected clock jump, or the Simulated gate below is
+structurally blind to it.
 
 ### The primitives
 
@@ -828,7 +1316,9 @@ clients reconcile on reconnect rather than losing their place.
 | Primitive | Why it is here |
 |---|---|
 | **Leases, not locks** | Every hold has a TTL and must be renewed. A dead holder expires automatically. There is no orphan state to detect and no human to break a lock |
-| **Fencing tokens** | The bug that breaks every naive distributed lock: holder A stalls, its lease expires, B acquires, A wakes and writes anyway. Each acquisition returns a monotonically increasing token, and every guarded write must present it. rig rejects a stale token. **Without this, a lock is a suggestion** |
+| **Fencing tokens, scoped to what they can actually fence** | The classic bug: holder A stalls, its lease expires, B acquires, A wakes and writes anyway. Each acquisition returns a token, monotonic **per lease**, and every rig-mediated write must present it. **But a token can only fence writes rig mediates**, and every lease in this estate guards something rig does not own - git, a deploy, the VM, the desktop. The token is rejected while `make deploy` runs on regardless. Said plainly here, because the unqualified sentence will otherwise be quoted back later |
+| **A liveness witness, and two-step expiry** | This is what makes the line above safe. `acquire` takes a witness: a pid or pidfd rig can poll, a cgroup, or the literal `unwitnessed`, recorded in the WAL beside the token. TTL expiry moves the lease to **ORPHANED, not FREE**; ORPHANED becomes FREE only when the witness is observed dead. An `unwitnessed` lease needs an explicit break, which is a recorded human action - AgentBox already works this way and discarding it would be a regression |
+| **`rig peers run --lease=NAME -- make deploy`** | The primitive that makes the honest path the easy path. rig owns the child process, so the witness is exact and, critically, **expiry can kill the writer**. It is the only real fence for a resource rig does not own, which is all of them |
 | **Read/write leases** | Many readers or one writer, because "everyone waits for everyone" is how a crew stops working |
 | **Deadlock detection** | rig holds the wait-for graph and can see a cycle. It refuses the acquisition that would close one, naming the cycle, rather than letting two agents wait forever |
 | **Semaphores** | At most N agents doing the expensive thing at once |
@@ -841,13 +1331,14 @@ clients reconcile on reconnect rather than losing their place.
 |---|---|
 | **Versioned blackboard** | Compare-and-swap on a key, with a revision per change |
 | **Multi-key transactions** | Claim three things or none. Single-key CAS cannot express "divide this work" safely |
-| **Watches with a cursor** | Subscribe from a revision. A client that reconnects gets what it missed instead of a gap it cannot detect |
+| **Watches with a cursor** | Subscribe from a revision. A client that reconnects gets what it missed instead of a gap it cannot detect. **One global revision, transaction-granular delivery**, so a multi-key claim is never observed half-applied |
 
 **Work distribution**, which is what "divide the work so nobody doubles" actually needs.
 
 | Primitive | Why it is here |
 |---|---|
-| **Claimable queues** | Claim a task under a lease, heartbeat it, and it is automatically requeued if you die. This is the correct shape for handing work to agents that can be killed |
+| **Claimable queues, at-least-once and it says so** | Claim a task under a lease, heartbeat it, and it is requeued if you die. **Duplicates are possible**: a task carries a mandatory `idempotency_key` and the consumer contract is replay-safety, or the task runs through the witnessed path above so requeue can kill the stalled worker before re-offering it. Requeue is the same two-step machine: EXPIRED → witness dead → REQUEUEABLE; witness alive → ORPHANED. One mechanism, three findings |
+| **`duplicate_execution` is an event, not an error** | A stale `complete` is recorded on the timeline, so the post-mortem view can answer the question this primitive creates. Detecting it in the simulator is not the same as seeing it in production |
 | **Rendezvous** | Hand a result to a named successor and park until it is collected |
 | **Signals** | `post` and `await`. Park with nothing burned until a peer wakes you. Replaces every poll loop and every "check back in five minutes" |
 
@@ -857,10 +1348,13 @@ is kept whole.
 
 ### Safety defaults, because agents get killed mid-operation
 
-- Every lease has a TTL. There is no infinite hold.
+- Every lease has a TTL, and an absolute one on `CLOCK_BOOTTIME`. There is no infinite hold.
 - Every `await` has a deadline. There is no infinite block.
 - A lock is never held across a question to a human. rig refuses the combination.
 - Every primitive's crash semantics are written down and tested, not inferred.
+- **What a contended acquisition reveals about other clients is written down in §14** and
+  accepted there, rather than discovered later: BUSY proves a peer exists, and a refused
+  acquisition names leases, never peers.
 
 ### Observability of coordination, which is where it wins
 
@@ -883,9 +1377,15 @@ The cutover from AgentBox does not happen on a feeling. Four gates, all of them 
 | **Specified** | Lease, fencing and transaction semantics written as a model, with property tests generated against it |
 | **Simulated** | Deterministic simulation testing: thousands of randomised interleavings with injected crashes, restarts and slow clients, asserting linearizability. Seed printed on failure so any violation reproduces exactly |
 | **Adversarial** | The specific attacks: two holders of one exclusive lease, a stale fence token accepted, a watch that misses a revision, a claimed task run twice, a deadlock not detected. Each is a named test that must fail before the fix and pass after |
-| **Baked** | Run in parallel with AgentBox on real agent sessions for a fortnight, with both recording. Any divergence is a bug in one of them and gets found before anything is switched off |
+| **Shadowed** | Replaces "baked", which had two readings and the plan stated neither. During the shadow period **AgentBox remains the sole authority**: every coordination call still goes to it, and rig receives the same request in the same order and records what it *would* have decided. Divergence then means something, and there is never a second lock namespace over one resource. Cutover flips the authority, not the traffic - and **the dual-write path is in M7's ships column**, because it is the gate's only apparatus and it was previously in nobody's milestone |
+| **Fenced** | The fifth gate, and the only one that tests the boundary rather than rig's own model. For every class of guarded external resource, name the enforcement mechanism - rig-owned pid, pidfd witness, cgroup kill - and prove by test that a stalled holder's **work stops**, not merely that its token is rejected. Without this the other four are self-referential |
 
-Only after all four does the agent tooling point at rig. AgentBox stays running and untouched
+**Simulated is only adequate if it injects the right failures**: lost replies (apply the
+operation, drop the response, watch the client retry), a clock jump across suspend, and a
+restart mid-transaction. Add to Adversarial: *an operation whose reply was lost is applied
+exactly once when the client retries.*
+
+Only after all five does the agent tooling point at rig. AgentBox stays running and untouched
 until then, and stays available afterwards until a month has passed with no regression.
 
 ---
@@ -895,33 +1395,71 @@ until then, and stays available afterwards until a month has passed with no regr
 rig is resident all day. A platform that costs the machine something noticeable has taken back
 what it gave. The budget is numbers, and `make bench-idle` fails the build when one is missed.
 
+**The previous budget was set without measurement and three of its seven lines were
+unreachable.** §22's own dependency list, assembled into a daemon that does nothing, measured
+**43.43 MiB resident, 43 wakeups/second, 0.150% CPU** - with no rig code in it at all. What
+follows is built from that ladder rather than from a wish.
+
+### Where the bytes went, measured
+
+| Rung | Idle RSS | Delta | In the budget? |
+|---|---|---|---|
+| bare Go, `time.Sleep` only | 1.88 MiB | - | yes |
+| + gRPC server on a unix socket | 11.68 | **+9.80** | **no. gRPC is not bought** (§2, §5f) |
+| + `modernc.org/sqlite` **linked, never opened** | 13.22 | +1.54 | yes. Laziness cannot reclaim a link |
+| + that database opened, WAL, 10k rows | 17.96 | +4.74 | **transient only** - migrations open, run, close |
+| + OTel trace + metric + OTLP exporters | 23.58 | +5.62 | yes |
+| + koanf, cobra, jsonschema, ring, timers, 10 programs | 34.54 | +10.96 | yes, with the ring cut from 8 MB to 2 |
+| + bubbletea, huh, glamour, lipgloss, keyring | 43.43 | **+8.89** | **no. That is `rig`, not `rigd`** (§2) |
+
+**Two structural facts the old budget did not know.** Go RSS tracks binary size, because text
+and rodata pages are resident - so an RSS budget without a **binary-size budget** is an RSS
+budget with no cause. And a single 1 Hz ticker in Go floors at **5.60 wakeups/second**, so
+"< 1 per second" was never reachable by any amount of care.
+
+### The budget
+
 | What | Budget | Measured by |
 |---|---|---|
-| Daemon idle, resident memory | **< 20 MB** | `make bench-idle`, after 60s quiet |
+| **`rigd` binary size** | **< 20 MB, and ratcheted** | `make bench-size`. A PR adding more than 1 MB fails unless this line is edited in the same commit. This is the budget that causes the next one |
+| Daemon idle, resident memory | **< 20 MB** | `make bench-idle`, after 60s quiet. Reachable only with gRPC and the TUI out: 1.88 + framing + 1.54 + 5.62 + ~3 + 2 |
 | Daemon idle, CPU | **< 0.1%** | same |
-| Wakeups at idle | **< 1 per second** | same. This is the one that costs battery |
-| Overhead per registered program | **< 500 KB** | `make bench-scale`, at 1, 10 and 50 programs |
-| Cold start to first command served | **< 100 ms** | measured in CI |
+| **Wakeups above the unavoidable timer floor** | **< 2 per second** | same. The floor is measured and printed beside the number, because budgeting against zero is budgeting against Go |
+| Wakeups with no program connected | **< 1 per second** | same. Reachable: bare Go with no timer measured 0.00, and the history flush is armed by the first record (§15), not by an interval |
+| Overhead per registered program | **< 500 KB** | `make bench-scale` at 1, 10 and 50. Measured 23 KiB, 21x headroom - this line has never been the problem |
+| Cold start to first command served | **< 100 ms** | measured in CI. Daemon-only measured 83 ms; daemon plus TUI was 115.81 ms, which is why they are two binaries |
 | A no-op command, end to end | **< 10 ms** | the wire is 6.2µs of it (§4); the rest is process |
+| A fully recorded call | **< 2 µs** | history + span + slog, §15 |
 | The window, when closed | **zero** | it is not the same process |
 
-**Six rules that deliver those numbers.**
+**A warning about the gates themselves:** the problem is entirely fixed cost, so `bench-scale`
+will stay green forever while `bench-idle` is the one that fails. Do not read a green scale
+benchmark as evidence of anything.
 
+**Eight rules that deliver those numbers.**
+
+- **Two binaries.** `rigd` is the daemon; `rig` is the CLI and TUI. Recovers 8.89 MiB and 27 ms
+  of cold start, and it is a build-graph change only.
 - **The window is a separate process.** The daemon has no GUI dependency, does not link Wails,
-  and does not link a webview. `rig turret` starts the window; closing it returns every byte.
+  and does not link a webview. `rig window` starts it; closing it returns every byte.
   This also confines the Wails beta to a process that can crash without touching anything, and
-  keeps the daemon cross-compilable with no cgo.
-- **Nothing polls.** Everything is epoll-driven. Health checks are timers, and timers are
-  coalesced onto one wheel so ten programs do not mean ten wakeups.
-- **Programs are lazy.** `autostart = lazy` means a program is not started until a surface
-  actually needs it, and may be stopped again when idle if it declares that it can be.
-- **Services are lazy.** A service nobody has used is registered but not initialised. The
-  storage service does not open a database until someone asks for one.
-- **Observability is bounded.** Logs and traces are ring-buffered with a byte ceiling, spilled
-  to disk, and sampled under load. Introspection must never be the reason the machine is slow.
+  keeps the daemon cross-compilable with no cgo. It is also what makes the lifecycle notice in
+  §5g drawable.
+- **No gRPC.** Hand-framed length-prefixed protobuf on one socket (§5f).
+- **`GOMEMLIMIT` and `GOGC` are set explicitly**, in the unit file and in the Makefile. Neither
+  appeared anywhere in this plan or the Makefile before, which means the Go heap was being left
+  to a default nobody chose.
+- **One memory arena, one owner.** The history ring, log and trace buffers share a single
+  declared ceiling rather than three independent ones; the old 8 MB history line alone was 41%
+  of the whole RSS budget.
+- **Nothing polls.** Everything is epoll-driven. Timers are coalesced onto one wheel - measured:
+  ten coalesced tickers cost 8.60 wakeups/s against 5.60 for one, so the rule works and is
+  worth far less than the floor it sits on.
+- **Programs and services are lazy.** A program with `autostart = lazy` is not started until a
+  surface needs it; a service nobody has used is registered but not initialised, and §5k makes
+  that real by having programs declare which services they use. Linked-but-unopened cost is not
+  reclaimable this way, which is why sqlite is a budget line rather than a laziness win.
 - **A regression fails CI.** The budget is a test, not an aspiration.
-
----
 
 ## 18. Supervision and failure
 
@@ -936,9 +1474,31 @@ what it gave. The budget is numbers, and `make bench-idle` fails the build when 
 - **Hang:** every call has a deadline. A program that misses them is degraded, then restarted. A
   hung program can never block a rig goroutine, and a lint rule keeps it that way.
 - **Flood:** per-program rate limits on events, logs and notifications, with the drop count shown.
-- **rig dies:** every program keeps running on its fallback. On restart, all reconnect and
-  re-register. In-flight commands are marked interrupted with partial output kept.
-- **Shutdown:** SIGTERM, grace period, then SIGKILL. Programs rig did not start are never killed.
+- **rig dies:** every program keeps running, tolerating the absence (§5g). On restart all
+  reconnect, present their session token, and are told explicitly what was lost. In-flight
+  commands are marked interrupted with partial output kept, and are **never silently replayed** -
+  a retry is the client's decision, made against the `idempotent` property and deduplicated by
+  the request id on the wire (§5f).
+- **Shutdown:** the lifecycle notice first (§5g), then SIGTERM, grace period, then SIGKILL.
+  Programs rig did not start are never killed. A `DRAINING` notice moves every held lease to
+  ORPHANED rather than FREE, so a restart cannot hand one resource to two holders (§16).
+- **Upgrade:** stop, swap the binary, start. **No handover.** Measured against a built handover
+  path with fifteen connections and real fd inheritance: worst client gap 4.4-5.0 ms plain
+  against 2.5-3.4 ms handed over, and the handover's 30-45 refused dials are removed by the
+  notice alone. The entire marginal benefit is **1.9 ms per upgrade**, or 5.2 seconds a year at
+  weekly upgrades, against four defect classes - a replay path less safe than `kill -9`, a
+  fencing counter that breaks in the 0.86 ms serialise window, an unversioned second wire
+  format, and value that is highest exactly when the state struct changes daily.
+- **A hosted program panics** (§5j): the invoker recovers it, quarantines that program with the
+  stack and the reason, and keeps serving. Twice inside the restart budget and it stays
+  quarantined.
+- **A missed schedule fire.** The laptop suspends nightly, so this is the normal case rather
+  than the exception, and cron's answer (drop it) and anacron's (fire them all) are both wrong
+  here. The policy is decided by the command's own `idempotent` property: **idempotent** - all
+  missed fires coalesce into exactly one run at resume; **not idempotent** - nothing fires,
+  and the misses are reported in the schedule view with their times and a one-click run. Either
+  way the coverage log records the gap (§15), and expiry is frozen for one TTL after resume
+  (§16).
 
 ---
 
@@ -962,8 +1522,24 @@ program's own CI runs it. This is what makes the contract real.
 13. SIGTERM shuts down cleanly inside the grace period
 14. SIGKILL mid-command leaves no corrupt state
 15. Log hygiene: no secrets, no unbounded lines, valid JSON where claimed
-16. Golden wire: an archived binary from the last release still works against HEAD
-17. Runs correctly with rig absent, on the fallback
+16. **Golden wire: every retained fixture, not the last release.** One frozen conformance
+    fixture per wire major, built the day that major ships and archived with its vendored
+    source, run against HEAD. Each asserts a recorded **behaviour transcript** - which default
+    applied, whether a confirm fired, what each enum decoded to - because a successful round
+    trip proves nothing about meaning
+17. Runs correctly with rig absent: the tolerant client, the resolved snapshot, one typed
+    `unavailable` error, and no second implementation of anything (§5g)
+18. **Declaration completeness:** `effects`, `idempotent` and `sensitive` present on every
+    command, `coverage` present, `semantics_gen` present. A missing safety field is a refusal,
+    not a default
+19. **Nothing sensitive is recorded.** A known token passed through a declared-sensitive field
+    appears in no segment, in no encoding, at any sampling rate
+20. **Renderer fidelity:** every declared schema shape either has a renderer that can express
+    it, or an explicit terminal fallback. Asserting that *a* renderer exists is not the test
+21. **House rules are enforced in the invoker**, proven by running one denied command through
+    every surface from one test
+22. **A hosted program passes items 1-21 unchanged**, from the same package, with no branch in
+    the suite
 
 `fakeapp` is the misbehaving reference program and ships in the repo. It hangs, crashes, leaks,
 floods, lies about its schema, ignores cancellation and returns garbage, each on a flag.
@@ -977,13 +1553,15 @@ floods, lies about its schema, ignores cancellation and returns garbage, each on
 | Wire contract | 100% coverage, table-driven, plus the golden-wire compatibility test |
 | Supervisor and scheduler | `testing/synctest` for all timing. Deterministic, microseconds, no `time.Sleep` in any test |
 | Chaos | 10000 randomised kill / hang / flood / restart sequences against `fakeapp`, seed printed on failure |
+| Suspend | A real-clock test with an injected `CLOCK_BOOTTIME` jump. `synctest` cannot model suspend, and this laptop suspends nightly, so the mandate above would otherwise make the whole class untestable |
+| Isolation | Observational equivalence over two worlds (§14), including the runtime directory, the config tree, the state tree and the process table |
 | Fuzz | Registration parser, JSON Schema inputs, frame decoding, the postMessage bridge |
 | CLI | testscript golden transcripts for every command including failures |
 | Generated UI | Golden snapshot per schema shape |
 | Frontend | Vitest on the bridge and stores; Playwright driving the real window - click, Esc, Tab, Enter, tray, theme switch, crash and recovery |
-| Contrast | Measured in a real browser both themes, asserted against WCAG. A failing ratio fails the build |
+| Contrast | Measured in a real browser, **both themes, and for every shipped theme preset** - the token set is generated (§6), so the gate asserts the generator's output, not one static page. A failing ratio fails the build |
 | Integration | The pilot runs the real `shelf` binary in CI, not a mock |
-| Gates | 90% on `internal/`, 100% on wire and stub, no call without a deadline, no program id in rig code |
+| Gates | 90% on `internal/`, 100% on wire and stub, no call without a deadline, no program id in rig code, no registry handle outside the kernel, no meaningful enum zero, kernel and stub symbol budgets, `make modules-matrix` green, `make bench-size` within the ratchet |
 
 ---
 
@@ -991,13 +1569,52 @@ floods, lies about its schema, ignores cancellation and returns garbage, each on
 
 - The wire is versioned by major in the path. rig serves **every** wire version it has ever
   shipped; that is the promise that makes independent upgrade real.
+- **One frozen conformance fixture per wire major**, built the day that major ships, archived
+  with its full vendored source tree so it can be rebuilt in 2035, and **retained forever**. The
+  previous plan archived only the last release, and "N works against N+1" repeated is not
+  "1 works against N".
+- **Each fixture asserts a behaviour transcript**, recorded at ship time: which default applied,
+  whether a confirm fired, what each enum decoded to. A round-trip test passes while a new
+  `effects` value silently decodes to zero on an old binary and a destructive command reports
+  itself read-only.
+- **Meaningful enum zero is banned.** Every proto enum reserves `*_UNSPECIFIED = 0`; an unknown
+  value is a hard refusal at the daemon boundary, never a zero-value fall-through. Lint gate,
+  §20.
 - Capability differences are negotiated at connect: the program says what it supports, rig uses
   what it has, and the gap is visible in the Programs view rather than a failure.
-- The stub's public surface is enumerated in one file. Adding to it requires a recorded decision,
-  because it is a rebuild nobody can avoid later.
-- The golden-wire test runs an archived binary against HEAD in CI every release.
+- The stub's public surface is enumerated in one file with a symbol budget in `make ci`, and
+  every connection reports its `stub_build`, so rig can name every program carrying an old pipe.
 
----
+### The version that is not the wire: `semantics_gen`
+
+"Old declarations keep parsing" is not the property that matters. Turning `network` from a
+best-effort proxy into a real namespace breaks a 2027 declaration that parses perfectly - the
+bytes are fine and the meaning moved. Nothing in a wire major can express that.
+
+So a registration carries **one integer, `semantics_gen`**, distinct from the wire major. It
+pins, for that program, for its lifetime: what every capability name means, what every
+declaration default is, and which JSON Schema dialect and validator behaviour apply to its
+schemas. rig carries a generation table instead of pretending meanings are immutable. It is the
+cheapest option available, and the only version number that can ever be *retired* - once no
+registration claims a generation, its row goes.
+
+### The escape hatch, which costs nothing now and everything later
+
+Serving every wire version forever, with no stated end, quietly grows the test matrix without
+limit and leaves old programs hollowing out unannounced. There are 2 hits for deprecation
+language in this document and neither is a policy. Three sentences fix it:
+
+1. **A support window ships with the version.** Every wire major declares, in this plan, on the
+   day it ships, the date it moves from *supported* to *frozen*. A date, not a feeling.
+2. **Two states, explicitly.** *Supported* means new services are reachable and the full
+   conformance suite applies. *Frozen* means it still connects and existing behaviour still
+   works, and it is permanently excluded from new services and new conformance items. That caps
+   the matrix at (supported majors x 22), which is the number that has to stay small.
+3. **`rig doctor` names every connected program still speaking a frozen major**, and the
+   Programs view carries the state. The alarm already exists; it just has to be wired.
+
+Nothing is ever switched off. A frozen major keeps working forever - it simply stops growing,
+in public, on a schedule.
 
 ## 22. Tech stack
 
@@ -1006,7 +1623,7 @@ Versions verified 2026-09-10.
 | Concern | Choice | Version |
 |---|---|---|
 | Language | Go | 1.27.1 |
-| Wire | protobuf over a unix socket | google.golang.org/grpc v1.83.2 |
+| Wire | protobuf messages, hand-framed on a unix socket | google.golang.org/protobuf v1.36.x. **Not gRPC**: measured +9.80 MiB resident for HTTP/2 machinery a local socket does not need (§17) |
 | Schema | JSON Schema 2020-12: santhosh-tekuri/jsonschema (validate), invopop/jsonschema (emit) | v6.0.3 / v0.14.0 |
 | Config | knadh/koanf/v2 | v2.3.6 |
 | CLI | spf13/cobra | v1.10.2 |
@@ -1026,7 +1643,12 @@ Versions verified 2026-09-10.
 | Toast content | shiki, marked | 4.4.3 / 18.0.12 |
 | Testing | stdlib, testing/synctest, go-cmp, testscript | v0.7.0 / v1.16.0 |
 | Frontend testing | Vitest, Playwright | 5.0.0 / 1.63.0 |
-| Lint | golangci-lint plus two house analyzers | |
+| Lint | golangci-lint plus three house analyzers: no program id in rig code, no registry handle outside the kernel, no meaningful enum zero | |
+| Runtime tuning | `GOMEMLIMIT` and `GOGC` set explicitly in the unit file and the Makefile | neither appeared anywhere before |
+
+**Two binaries** (§17): `cmd/rigd` links none of the terminal or keyring stack; `cmd/rig` links
+bubbletea, huh, glamour, lipgloss and go-keyring and never the daemon's internals. `make
+bench-size` attributes every dependency's contribution to each.
 
 ---
 
@@ -1037,20 +1659,20 @@ program that needs it. Each ends green, committed, and demonstrated.
 
 | M | Name | Ships | The demo that closes it |
 |---|---|---|---|
-| M0 | Skeleton | Repo, module, Makefile, CI, lint with both analyzers, the daemon, the socket, the frame codec, `rig` CLI, `fakeapp` | `make ci` green; `rig ping fakeapp` round-trips; `make bench-ipc` reproduces §4 |
-| **M1** | **Register and the CLI** | Registration, the registry, argument schemas, `rig <app> <cmd>`, generated `--help`, shell completion, `--json` everywhere | **The week-one product.** `rig shelf reindex` from any terminal. One front door, no GUI |
-| M2 | MCP and HTTP | The four meta tools, promotion, the capability-map resource, HTTP routes, structured errors | An agent runs a real command in a real program through one MCP server, having written nothing |
+| M0 | Skeleton | Repo, module, Makefile, CI, lint with all three analyzers, **`cmd/rigd` and `cmd/rig` as separate binaries**, the socket, the hand-framed protobuf codec, `GOMEMLIMIT`/`GOGC`, `make bench-size`, `make modules-matrix`, `fakeapp` | `make ci` green; `rig ping fakeapp` round-trips; `make bench-ipc` reproduces §4; `make bench-size` records the ratchet's starting number |
+| **M1** | **Register and the CLI** | Registration with declared **properties** and the computed projection, the registry, argument schemas, coverage, `semantics_gen`, the operator credential, **house rules in the invoker**, `rig <app> <cmd>`, generated `--help`, completion, `--json` everywhere | **The week-one product.** `rig shelf reindex` from any terminal. One front door, no GUI. A destructive command with no grant is refused, and the same test covers every surface added later |
+| M2 | MCP and HTTP | The four meta tools, promotion, the capability-map resource **with coverage per program**, the per-program preamble, HTTP routes with **minted principals**, structured errors | An agent runs a real command in a real program through one MCP server, having written nothing - and is told, in the same answer, that its picture of that program is partial |
 | M3 | Terminal client | `rig shell` with completion and inline describe, the `rig tui` frame, `huh` forms from declared schemas, `--batch --json` | Every registered command discoverable and runnable from the TUI, by a person who read no docs |
 | M4 | Config | Layers, schema, provenance, live push, validate, export, diff, and its TUI view | `rig config origin` explains a surprising value; a change applies live with no restart |
-| M5 | Observability | Log, trace and metric ingest, merge, query, the call log, `rig logs`, `rig doctor`, TUI views for all of it | One MCP call from an agent traced end to end across two processes and read back in the TUI |
-| M6 | Control and supervision | Start, stop, restart, health, budgets, quarantine, graceful shutdown, reconnect | `kill -9` in a loop both ways: rig survives a program dying, programs survive rig dying |
-| M7 | Peers | Presence, leases with fencing tokens, read/write, semaphores, barriers, election, versioned blackboard with multi-key transactions, watches with a cursor, claimable queues, rendezvous, signals, `ask`. The crew, wait-for graph, contention and timeline views | The deterministic simulation suite green over 10000 seeded interleavings with injected crashes, and every adversarial test passing |
-| M8 | turret: window and tray | The rail, panes, embedded mode over the localhost SPAs six programs already serve, one tray icon, the visual system | One window, one tray, three programs in a rail. Six tray icons become one |
+| M5 | Observability | Log, trace and metric ingest, merge, query, the call log, **compiled redaction spans**, the **coverage log**, segment-embedded dictionaries, column summaries, `rig logs`, `rig loose-ends`, `rig doctor`, TUI views | One MCP call traced end to end across two processes and read back in the TUI; and a known secret passed through a declared-sensitive field appears in no segment |
+| M6 | Control and supervision | Start, stop, restart, health, budgets, quarantine, **lifecycle notices**, the **tolerant client and the resolved snapshot**, reconnect with a session token, request-id dedup | `kill -9` in a loop both ways, plus a deliberate restart under load with **zero refused dials and zero silent replays** |
+| M7 | Peers | Presence, leases with **witnesses and two-step expiry**, `rig peers run`, fencing tokens per lease, read/write, semaphores, barriers, election, versioned blackboard with multi-key transactions, watches with a cursor, claimable queues, rendezvous, signals, `ask`, **the AgentBox dual-write shadow path**, the crew, wait-for graph, contention and timeline views | The simulation suite green over 10000 seeded interleavings with injected crashes, **lost replies and a suspend clock jump**; every adversarial test passing; a stalled holder's `make deploy` actually stops |
+| M8 | The window and the tray | The rail, panes, embedded mode over the localhost SPAs six programs already serve, one tray icon with the **detached** state, and the visual system from `design/` as live `ui.theme` config | One window, one tray, three programs in a rail. Six tray icons become one, and the theme is changed from the settings UI with the contrast gate refusing an unreadable set |
 | M9 | Toasts | The frameless toast, severities, springs, stacking, live bodies, inline actions, the centre, Do Not Disturb, D-Bus fallback | A command answered from inside a toast with no window open |
 | M10 | Generated UI | Forms, tables, actions, progress, detail, status from declared schema, in both window and TUI | `nudge` gets a complete pane and a complete TUI view with zero frontend code |
 | M11 | Storage and secrets | Managed location, migration runner, backup, integrity, retention, browser; keyring with per-program namespaces | A program's migration runs before it starts, and its backup restores |
 | M12 | Pilot: shelf | shelf entirely on rig: config, storage, logs, tray, pane, TUI, commands on every surface. A week of daily use | shelf loses its own tray icon and loses no capability |
-| M13 | Palette, search, schedule, bus, URL | Cross-program palette, federated search, one scheduler, events with grants, `rig://` | graft finishing a run triggers a shelf reindex, with the grant visible and revocable |
+| M13 | Palette, search, schedule, bus, URL | Cross-program palette, federated search, one scheduler **with the missed-fire policy (§18)**, events with grants, `rig://` | graft finishing a run triggers a shelf reindex, with the grant visible and revocable; and an overnight suspend coalesces four missed idempotent reindexes into one |
 | M14 | Hardening | Chaos at full size, fuzz corpora, cgroups and landlock, security review, coverage to target | The chaos suite green over 10000 iterations |
 | M15 | Packaging and updates | `.deb`, desktop entry, autostart, signed update channel for rig and programs, self-update | Fresh machine to a working rig with three programs in one command |
 | M16 | Estate migration and the AgentBox cutover | The rest of the estate, in the order in §25, then the agent tooling repointed from AgentBox to the peers service | Every in-house program reachable from one CLI, one TUI, one tray, one window, one MCP server |
@@ -1075,15 +1697,20 @@ enough, M10 and beyond wait for a program that genuinely needs them.
 
 ## 25. Migration order
 
-Each program keeps working standalone throughout, and gives up its own tray icon when it is
-migrated. **State** is what was on disk on 2026-09-10, because rig's value is a function of how
-many of these are worth reaching.
+**The unit of progress is a service, not a program** (§5k). "shelf takes config and
+notifications" is a valid milestone; a program is never blocked waiting to adopt everything, and
+its declaration says `coverage: partial` until it does. The order below is the order programs
+*start*, not the order they finish.
+
+Each program keeps working standalone throughout, and gives up its own tray icon when its tray
+adoption lands. **State** is what was on disk on 2026-09-10, because rig's value is a function
+of how many of these are worth reaching.
 
 | Order | Program | State on 2026-09-10 | Why here |
 |---|---|---|---|
 | 1 | `shelf` | 45 commits, built, used daily | The pilot. Designs the contract against something real |
 | 2 | `dispatch` | 45 commits, built | Already Wails v3; proves an existing app becoming a pane |
-| 3 | `nudge` | 11 commits, built | Tiny and tray-only. Designs the generated UI and proves the 100-line claim |
+| 3 | `nudge` | 11 commits, built | Tiny and tray-only. Designs the generated UI, and is the honest test of the hand-written budget in §3 - the *declaration* is generated, and one rich archi command alone measured 160 lines of JSON |
 | 4 | `sigs` | 113 commits | The second generated-UI program, so it is designed against two |
 | 5 | `snapper` | 197 commits, built | Native capture stays its own window; history and settings come in |
 | 6 | `graft` | 2 commits, planned 2026-09-10 | **Its M14 (its own Wails window, tray, badge, .desktop, icon) should be struck now and replaced with registering with rig, while it is still unbuilt** |
@@ -1099,16 +1726,23 @@ many of these are worth reaching.
 1. **Does a transparent, frameless, always-on-top, focus-refusing webview work under GNOME Shell
    on X11 from Wails v3 beta?** Load-bearing for §12 and unverified. Compositor and ARGB visual
    confirmed present on this laptop; what is not confirmed is whether Wails reaches the
-   override-redirect and input-shape hints. Decided at M7 by building one first. Fallback: the
-   toast layer becomes its own small GTK4 or Gio process rig drives.
-2. **Does the Wails v3 beta tray behave on X11 here?** Decided at M6. `fyne.io/systray` is the
-   fallback and six programs already use it.
+   override-redirect and input-shape hints. Decided at **M9** by building one first. Fallback:
+   the toast layer becomes its own small GTK4 or Gio process rig drives.
+2. **Does the Wails v3 beta tray behave on X11 here?** Decided at **M8**. `fyne.io/systray` is
+   the fallback and six programs already use it.
 3. **Generated forms: `@sjsf/form` or hand-rolled?** Decided at M8. The table, action and
    progress surfaces are ours either way.
 4. **How hard is network capability enforcement worth making?** Namespaces are real enforcement
    and real complexity. M12 decides; until then it is declared and honestly labelled.
-5. **Does `snapper`'s capture window belong in turret at all?** Probably not, and the plan
-   assumes not.
+5. **Does `snapper`'s capture window belong in rig's window at all?** Probably not, and the
+   plan assumes not. Note that this is now *answered by the declaration* rather than by naming
+   a program: `capture-region` declares `needs_display` and `interactive`, and the pane surface
+   states what it can carry (§5e).
+6. **Which programs, if any, are worth hosting inside `rigd` rather than as binaries?** (§5j)
+   Nothing is hosted until one is actually cheaper that way. Decided per program, and the four
+   costs are stated so the decision is not made by accident.
+7. **What is the first wire major's support window?** §21 requires a date on the day v1 ships.
+   It does not exist yet because v1 has not shipped.
 
 ---
 
@@ -1118,11 +1752,11 @@ Flip any of these with a sentence and the plan changes accordingly.
 
 | # | Assumed | The alternative, and what it costs |
 |---|---|---|
-| 1 | **A program with no rig degrades but still runs** (§5g) | Refuse to start instead: zero duplicate code and a tiny stub, but rig becomes a hard dependency of everything - the single point of failure that was explicitly rejected earlier |
+| 1 | ~~A program with no rig degrades but still runs~~ **Resolved 2026-09-10, and the middle path won.** The stub reimplements nothing; it tolerates absence, reads a snapshot rig wrote, and a program whose declared preconditions are unmet says `unavailable` with a reason instead of running headless for eight hours (§5g) | The two rejected ends: a 300-line un-upgradable copy of the platform inside every binary, or refusing to start and making rig a hard dependency |
 | 2 | **rig manages storage, the program opens it** (§7) | Everything over RPC: one audit point and a swappable engine, but ~6µs per query and a contract that must keep up with SQL. Or storage stays entirely with the program, which leaves migrations copy-pasted fifteen times |
 | 3 | **rig owns config, storage, secrets, GUI, observability, lifecycle, scheduling and updates** | You named config, storage and GUI. The rest is my proposal; say which to drop |
-| 4 | **Programs stay separate binaries** | The alternative is that they become modules of one program, which is a different design entirely |
-| 5 | **`turret` survives as the name of the UI component** | It can just be called "the window" |
+| 4 | **Programs stay separate binaries by default**, and hosting one inside `rigd` is a deliberate per-program choice (§5j). Partly flipped 2026-09-10 at Boris's instruction | Hosting everything makes rig a monolith and forfeits the defining maximal; hosting nothing loses the case where an extra process is the larger cost |
+| 5 | ~~`turret` survives as the name of the UI component~~ **Resolved 2026-09-10: it does not.** The product is rig and the window is the window | Keeping a second name for a component only its owner opens, at the cost of every reader having to learn it |
 
 ---
 
@@ -1135,6 +1769,7 @@ Flip any of these with a sentence and the plan changes accordingly.
 | **Product** | The `rig` binary. Semver, git tag `v1.4.2` | Any release |
 | **Wire** | The contract programs speak. Major only, in the path | A breaking contract change, which rig then serves *alongside* every previous version, forever |
 | **Registration schema** | The shape of what a program declares | Independently, and old declarations keep parsing |
+| **Semantics generation** | What the declared names *mean*: capability meanings, declaration defaults, schema dialect | Whenever any of those changes meaning. Old registrations stay pinned to the generation they declared, and a generation nobody claims is retired (§21) |
 
 `rig version` prints all three plus the build SHA and date. A program's `rig version` mismatch
 is never an error, only a line in the Programs view.
@@ -1157,11 +1792,11 @@ a README that is not a target, because a documented command drifts and a target 
 
 | Group | Targets |
 |---|---|
-| Build | `build` `install` `run` `dev` `clean` |
+| Build | `build` `build-rigd` `build-rig` `install` `run` `dev` `clean` |
 | Test | `test` `test-unit` `test-race` `test-chaos` `test-e2e` `fuzz` `cover` |
-| Quality | `lint` `fmt` `vet` `contrast` `verify` `audit` |
+| Quality | `lint` `fmt` `vet` `contrast` `verify` `audit` `modules` `modules-matrix` `build-minimal` |
 | Generate | `generate` `proto` `schema` `types` `docs` |
-| Measure | `bench` `bench-ipc` `profile` |
+| Measure | `bench` `bench-ipc` `bench-idle` `bench-scale` `bench-size` `profile` |
 | Operate | `doctor` `logs` `apps` `up` `down` |
 | Ship | `deps-check` `tidy` `release` `package` `ci` |
 
@@ -1175,6 +1810,13 @@ a README that is not a target, because a documented command drifts and a target 
   is a mistake in our own code, not an adversary.
 - rig does not replace any program's own CLI. `shelf` still works as `shelf`.
 - rig does not own data. Programs own their data; rig owns the plumbing around it.
+- **rig does not hot-upgrade itself.** Measured at 1.9 ms of marginal benefit per upgrade
+  against four defect classes (§18). Notice, restart, resume.
+- **rig does not host anything we did not write.** A hosted program (§5j) is compiled into
+  `rigd` at build time, because Go has no working dynamic loading and because an in-process
+  plugin has no capability boundary. Third-party code is a separate process or it is not run.
+- rig does not decide what a program's declaration *means*. It records what was declared, pins
+  the generation it was declared under, and refuses what is missing.
 
 ---
 
@@ -1182,5 +1824,57 @@ a README that is not a target, because a documented command drifts and a target 
 
 A rig is a platform. A rig is your whole setup. Rigging is the ropes and tackle that control a
 ship. To rig up is to assemble. Binary `rig`, socket at `$XDG_RUNTIME_DIR/rig/`, config at
-`~/.config/rig/`. The window component inside it is `turret`, after the lathe turret that carries
-many tools and rotates the right one into place.
+`~/.config/rig/`. There is no second name inside it: the window is the window, and `turret` -
+after the lathe turret that carries many tools and rotates the right one into place - was
+considered for it and dropped on 2026-09-10.
+
+
+---
+
+## 31. What the attack changed
+
+Ten adversarial seats were run against this document at `73d7ff4` on 2026-09-10, one per
+failure surface, plus one pointed the other way at features the shape makes possible. All ten
+returned; every citation in the attack record was independently re-checked and held. The record
+is `logbook/projects/rig/attacks/2026-09-10-rig-architecture.md`; each seat's full findings, and
+the four measurement harnesses, are in `logbook/projects/rig/agent-work/`.
+
+**Verdict: the architecture survived, and the fixes were substantial.** Nothing found argued for
+abandoning it. The daemon shape, the projection model and the single-serialization-point
+advantage all held. What failed was almost entirely the layer below: budgets set without
+measurement, enforcement mechanisms that could not detect what they promised to prevent, and one
+security composition that no single surface owned.
+
+### The finding that mattered most, because no seat could see it alone
+
+**Any agent could read any secret.** History recorded what every call returned, verbatim, with
+zero redaction in 1104 lines (`grep -ci redact` returned 0). `secrets.get` is a call. And every
+client satisfied the operator predicate, because it was "the uid that runs the daemon" and there
+is one daemon per uid. So one `rig history --client=X` handed over another program's token. The
+storage half and the isolation half were each a finding of their own; the harm existed only in
+their product.
+
+### What changed
+
+| Area | Was | Now |
+|---|---|---|
+| Projection | A command named the surfaces it appears on | Commands declare **properties**, surfaces declare requirements, rig computes it (§5e) |
+| The stub | A 300-line un-upgradable copy of config, storage, secrets and logging | Tolerant client + resolved snapshot + lifecycle notices (§5g) |
+| Hot upgrade | A locked requirement | **Not built.** Measured at 1.9 ms marginal benefit against four defect classes (§18) |
+| Authorization | Absent. Zero such language in the document | `house rules`, in the kernel's invoker (§13a) |
+| The operator | The uid running the daemon | A credential, minted to a 0600 file (§14) |
+| Redaction | Absent | Declared at registration, compiled to byte spans, 82.5 ns (§15) |
+| Leases | A TTL and a fencing token | A liveness witness, two-step expiry, `rig peers run`, and an honest statement of what a token can fence (§16) |
+| Time | Unnamed | `CLOCK_BOOTTIME`, absolute deadlines, a resume grace epoch (§16) |
+| Wire compatibility | One archived binary, round-trip asserted | A frozen fixture per major kept forever, behaviour transcripts, banned enum zero, `semantics_gen`, and a support window with a date (§21) |
+| Isolation proof | A two-client content test | Observational equivalence over two worlds (§14) |
+| Footprint | Seven budget lines, three unreachable | Rebuilt from a measured 12-rung ladder, plus a binary-size ratchet (§17) |
+| Modularity gates | Two of four could not fail | `modules-matrix`, symbol budgets, analyzers under every tag set and on the frontend (§5i) |
+| Adoption | Implicitly all-or-nothing | Per service, `coverage: partial` by default (§5k) |
+| Where a program runs | Always its own binary | Hosted plugins exist, with four costs stated (§5j) |
+
+### What was not attacked
+
+The peers service's *feature list* (as opposed to its semantics), the wire numbers in §4, the
+visual system, and the plan's own milestone ordering. The blind-spot sweep over this applied
+diff, and the `advocate` pass, are both owed and are recorded as such in the attack file.
