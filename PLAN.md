@@ -648,12 +648,14 @@ is modelled on a real program's measured markup and the kit is what has to bend.
 | R7 | **Using an element rig has removed fails at registration**, which follows from R3 rather than from a bridge | The alternative fails at render, in front of the user, on the one surface whose entire product is presentation |
 | R8 | **The kit is a section of `design/visual-system.html`**, each element beside the fake application that uses it | Section 09 shows renderers beside the declaration *that produced them*; an element has no declaration, so it is shown beside its caller instead. The page has nine sections and **no navigation of any kind** - no nav, no anchors, no ids - which is fixed before a tenth is added |
 
-**Every requirement above gets a test or it is deleted.** R1-R8's first version had none: zero
-of §19's twenty-four conformance items and zero of §20's rows mention an element or the kit, so
-eight rules were enforced by review. **Minimum: a §19 item extending declaration completeness to
-the element list, a §19 item asserting fidelity per element, a §20 contrast row at element
-scale, and `make contrast` wired into CI.** A requirement with no test is a preference with a
-bold heading, which §3 and §5i both already say in their own headings.
+**Every requirement above gets a test or it is deleted.** R1-R8's first version had none: no
+conformance item and no §20 row mentioned an element or the kit, so eight rules were enforced
+by review. **They now have four**: §19 item 24 checks the declared element list, item 25 renders
+every element at every generation rig serves, §20's element-scale row measures contrast where a
+token actually meets text, and `make contrast` runs in CI. **R3, R5 and R7 are tested by those
+and R2 by item 25.** R1, R4, R6 and R8 are still enforced by review, and each says so above
+rather than implying otherwise. A requirement with no test is a preference with a bold heading,
+which §3 and §5i both already say in their own headings.
 
 **What the kit is not.** It is not a second theme surface - there is one token set and the
 element list selects from it rather than adding to it. It is not a widget hint on declared data,
@@ -2170,7 +2172,16 @@ program's own CI runs it. This is what makes the contract real.
     connection, and no handshake, reconnect or capability grant changes that (§14). This is
     the item a hosted program must pass, and the reason the predicate is on the connection
     rather than on the environment
-24. **A hosted program passes items 1-23 unchanged**, from the same package, with no branch in
+24. **A program's declared element list is complete and resolvable** (§5h R3). Every name in it
+    exists in the kit at the declared generation, and a name that does not **refuses the
+    registration** rather than reaching a page. Item 18 asserts declaration completeness for
+    `effects`, `idempotent`, `sensitive`, `coverage` and `semantics_gen`; the element list is
+    the sixth and was enforced by review until 2026-09-10
+25. **Every kit element renders, in the window, at every generation rig still serves**, and the
+    pane holding it declares a terminal fallback (item 20's disjunction, applied to a tier that
+    has no declared schema shape). **Asserting that the element exists is not the test**: it is
+    rendered and read back. This item is what stops R2 being satisfied by a stub
+26. **A hosted program passes items 1-25 unchanged**, from the same package, with no branch in
     the suite. Item 22 is the one that would have been impossible under the old design - a
     hosted plugin is compiled into `rigd` and shares its environment, so it is exempted from
     the allowlist half and held to item 23 instead, which is the assertion that actually
@@ -2204,7 +2215,8 @@ expensive.
 | CLI | testscript golden transcripts for every command including failures |
 | Generated UI | Golden snapshot per schema shape |
 | Frontend | Vitest on the bridge and stores; Playwright driving the real window - click, Esc, Tab, Enter, tray, theme switch, crash and recovery |
-| Contrast | Measured in a real browser, **both themes, and for every shipped theme preset** - the token set is generated (§6), so the gate asserts the generator's output, not one static page. A failing ratio fails the build |
+| Contrast | Measured in a real browser, **both themes** - the token set is generated (§6), so the gate asserts the generator's output, not one static page. A failing ratio fails the build. **`make contrast` is the gate and CI runs it**; until 2026-09-10 it invoked a tool that had never existed and CI never called it, so the rule was prose |
+| Contrast at element scale | **Every kit element, on every ground text lands on, in both themes** (§5h R5). Three things the page-level gate does not see, each found by measurement on 2026-09-10 and each now asserted: a **focus ring** is non-text contrast and owes 3:1 against the surface behind it, not 4.5:1 against nothing; **`opacity` and `color-mix` are invisible to a DOM audit**, which reads the declared colour and not the painted one, so anything dimmed that way is sampled from pixels; and the ground set is the **five** in `theme.js`'s `textGrounds`, tint included, not the four the catalogue draws |
 | Integration | The pilot runs the real `shelf` binary in CI, not a mock |
 | Gates | 90% on `internal/`, 100% on wire and stub, no call without a deadline, no program id in rig code, no registry handle outside the kernel, no meaningful enum zero, kernel and stub symbol budgets, `make modules-matrix` green, `make bench-size` within the ratchet |
 
