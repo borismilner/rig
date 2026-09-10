@@ -98,10 +98,11 @@ UI - and every program already has it, without being touched.
 - **There is an authorization layer.** `house rules` says which kinds of caller may run which
   kinds of command, and which must ask first. It lives in the kernel's invoker, so no surface can
   forget it, and the default rule set is empty so nothing already working breaks (§13).
-- **The operator is a credential, not a uid.** One token minted at startup into a 0600 file whose
-  path is handed only to the launching process. Without this, every client on a one-user machine
-  satisfies the operator predicate, which is exactly how the compound secret leak worked
-  (§14, §15).
+- **Operating is a credential, not a uid, and reading is a different credential.** Without the
+  first correction every client on a one-user machine satisfies the operator predicate, which
+  is exactly how the compound secret leak worked. Without the second, the fix locks Boris's own
+  agents out of the estate they exist to read (§14, §15). `introspect` arrives in the
+  environment of what he starts; `operate` is **asked for, not carried** (§14).
 - **Nothing sensitive is recorded.** Redaction is declared at registration as JSON pointers and
   compiled once into byte spans over the wire encoding: **82.5 ns** in the hot path, against
   3100 ns for redacting at record time. Anything the `secrets` service returns is never recorded
@@ -314,7 +315,7 @@ claim in §1 and the only version of it that survives a surface being added late
 ### 5d. The client is a dumb pipe
 
 The one piece of rig code that lives inside a program has to be as close to frozen as it can be,
-because every symbol in it is a rebuild nobody can avoid later. So it does exactly four things:
+because every symbol in it is a rebuild nobody can avoid later. So it does exactly five things:
 
 1. Find the socket.
 2. Frame messages, and stamp every mutating call with a client-generated request id.
@@ -1207,6 +1208,30 @@ attack and it was invisible to every seat individually.
   grant, breaking a lease, editing config outside the caller's scope.
 - Two booleans on the principal struct. There is no other way to become either.
 
+**`operate` is asked for, not carried, and that is the whole distribution mechanism.** The
+first draft handed it to "the process that launched `rigd`" - which under M15's autostart is
+systemd, so `rig stop shelf` from a terminal, the tray's Start entry and the crash panel's
+manual restart were all unreachable. Every human surface is launched by something other than
+the daemon's launcher, so a carried token can never reach the surfaces that need it.
+
+Instead, an estate-wide action elevates through **the same `ask` primitive §13a already uses
+for `confirm`** (§16):
+
+| Caller | How it gets `operate` |
+|---|---|
+| Any interactive surface - terminal, tray, window, an agent | Asks. The question reaches whoever is present, and the answer elevates **that one call**, not the connection |
+| A non-interactive caller that must act unattended - systemd units, `make deploy` | The token, still passed only to the process that launched `rigd`, still a file it alone can read |
+
+This buys three things and adds no concept. There is no new elevation vocabulary - `confirm`
+already routes to window, toast or terminal. Elevation is per call, so nothing holds standing
+estate-wide power for hours. And every elevation is a `confirm` decision, so §13a's rule that
+each one is written to the audit log with the rule that fired covers it for free.
+
+**A timed-out elevation is denied, and the denial is recorded.** Estate-wide action fails
+closed: an agent at 3am that asks to stop a program another client owns, with nobody present,
+is refused rather than queued. Do Not Disturb never suppresses an `ask` that gates a command
+(§12) - it suppresses notices, and this is not one.
+
 **How a token reaches a reader, and why it is not a file.** A 0600 file readable by this uid
 is readable by *every* client, since they all run as this uid - so a file would make the
 session boundary in the table above a comment rather than a boundary, and any program could
@@ -1215,7 +1240,7 @@ grant itself the estate. Instead:
 | Grant | Delivered by | So it reaches | And not |
 |---|---|---|---|
 | `introspect` | `RIG_INTROSPECT` in the environment, exported by Boris's shell profile from `rigd`'s startup handshake | every terminal, agent and window he starts | anything `rigd` spawns - **rig scrubs both variables from the environment of every program it starts** (§18) |
-| `operate` | passed only to the process that launched `rigd` | that process | everything else, including agents |
+| `operate` | **asked for per call** through `confirm`/`ask` (§13a, §16); a file for non-interactive callers only | any surface where Boris can answer, one call at a time | anything unattended that did not launch `rigd`, and anything at all when nobody answers |
 
 **Why complete reading is safe once it is reaching the right readers.** The 2026-09-10
 attack's highest-ranked finding was that `SO_PEERCRED` made every client an operator, and that
@@ -2134,7 +2159,7 @@ mode of ten seats each attacking one surface.
 
 | Was | Is |
 |---|---|
-| One operator credential, minted to a path only the launching process gets | **Two grants.** `introspect` reads everything and arrives in the environment of what Boris starts; `operate` acts estate-wide and keeps the old distribution. rig scrubs both from every program it spawns |
+| One operator credential, minted to a path only the launching process gets | **Two grants.** `introspect` reads everything and arrives in the environment of what Boris starts. `operate` acts estate-wide and is **asked for per call**, because a carried token reaches systemd and not one surface a human touches. rig scrubs both from every program it spawns |
 | Estate-wide views closed to every agent | Open to any agent Boris runs, completely - the full map, any client's history, every trace, every config resolution |
 | §3's isolation test: "two clients cannot see each other" | Three runs. Ungranted A sees nothing of B; A holding `introspect` sees **all** of B and a missing row is a failure; and no run at any sampling rate surfaces a `sensitive` value |
 | "Looking is an event", one audit entry per read | Coalesced per principal, per view, per minute, with a count. Presenting a grant stays uncoalesced |
@@ -2148,6 +2173,15 @@ introspection**, and the two features are complements rather than a trade.
 rules` (§13a) is untouched and a destructive command still needs its grant. It does not make
 programs introspectors: the grant never enters a spawned program's environment (§18) and is
 refused to a connection that registered as a program.
+
+**Found by the blind-spot sweep, an hour after the first draft.** Two defects in this change
+were caught by seat s9 reading it while it was still uncommitted, and both are fixed above: the
+grant delivered as a uid-readable file (which would have let any program read every other
+program's history, against §14's own Program row), and `operate` distributed to a process no
+human surface descends from. The record is
+`logbook/projects/rig/agent-work/attack-2026-09-10-s9-blindspot-sweep/FINDINGS.md`, findings
+B1 and B3. **Both are the same mistake**: reasoning about the grant from the reader it was
+written for, and not from the other four kinds of caller.
 
 **And one thing it costs, written down rather than argued away.** The session boundary in
 §14's table was previously enforced for every client; it is now enforced against accident and
