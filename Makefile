@@ -143,8 +143,23 @@ verify: build ## Run the conformance suite against fakeapp, then against every m
 	  ./build/$(BIN) verify ./build/fakeapp --misbehave=$$m && { echo "  did not fail"; exit 1; } || true; \
 	done
 
-contrast: ## Measure WCAG contrast in a real browser, both themes
-	node tools/contrast-audit.mjs --themes=light,dark --fail-under=4.5
+contrast: contrast-selftest ## Measure WCAG contrast in a real browser, both themes
+	# Four passes, because no single instrument sees all four things: text nodes
+	# against their composited ground, SVG <text> against the rects behind it,
+	# focus indicators at 1.4.11's 3:1 (which no text pass can see - they walk
+	# nodeType 3 and a ring is not a text node), and painted colour for anything
+	# dimmed or color-mixed. The target used to invoke this file with --themes
+	# and --fail-under; the file had never existed, so the target exited "Cannot
+	# find module" and no workflow called it. While it was down, the focus ring
+	# shipped at 2.17:1 dark and 1.48:1 light against a 3:1 requirement.
+	node tools/contrast-audit.mjs design/visual-system.html
+
+contrast-selftest: ## Prove the contrast instruments against known answers first
+	# A script that lies is worse than no script: the SVG audit shipped for
+	# months dropping alpha, and on its own self-test found 0 of 1 real failures
+	# while inventing 2. `contrast` depends on this, so the gate cannot report
+	# on a page through a broken instrument.
+	node tools/contrast/selftest/run.mjs
 
 ##@ Generate
 
@@ -292,7 +307,7 @@ help: ## Show this help
 .PHONY: build build-rigd build-rig build-fakeapp build-all install uninstall \
         run dev clean test test-unit test-race \
         test-chaos test-e2e test-wire fuzz cover cover-html lint lint-house fmt vet audit \
-        verify contrast generate proto schema types docs bench bench-ipc profile \
+        verify contrast contrast-selftest generate proto schema types docs bench bench-ipc profile \
         up down doctor apps logs tui tidy deps-check release package ci fmt-check \
         bench-idle bench-scale bench-size bench-size-update build-minimal \
         modules modules-matrix version help

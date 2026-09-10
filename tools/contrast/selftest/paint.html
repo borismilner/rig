@@ -1,0 +1,31 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>paint pass selftest</title>
+<!--
+  Known answers for pass-paint.mjs, all on #ffffff with literal hex colours.
+
+    #dim    #000000 at opacity .4  -> painted #999999, 2.85:1.
+            Declared it is 21.00:1, which is what a DOM-only audit reports.
+            This row is the whole reason the pass exists.
+    #solid  #000000 at opacity 1   -> painted #000000, 21.00:1. Must pass, so a
+            failure elsewhere cannot be the pass simply failing everything.
+    #mixed  color-mix 20% black    -> painted #cccccc, 1.61:1. Declared and
+            painted AGREE here, which is how a color-mix differs from an
+            opacity: the DOM audit can see this one, if it parses
+            "color(srgb ...)" as 0-1 floats rather than as 0-255.
+    #chip   a 24x24 shape, #b0b0b0 border on white -> non-text, 2.20:1.
+  Text is 40px bold so the glyph cores are solid colour rather than antialiased
+  blends; the pass takes the most contrasting colour present, and at 12px on a
+  light weight that is a blend, which is a measurement of the renderer.
+-->
+<style>
+  html, body { background: #ffffff; margin: 0; padding: 40px; }
+  span { display: block; margin: 24px 0; font: 700 40px/1.2 system-ui, sans-serif; color: #000000; }
+  #dim   { opacity: .4; }
+  #mixed { color: color-mix(in srgb, #000000 20%, #ffffff); }
+  #chip  { display: block; width: 24px; height: 24px; border: 3px solid #b0b0b0; background: #ffffff; }
+</style>
+<span id="dim">dimmed 2.85</span>
+<span id="solid" data-contrast-mark>solid 21.00</span>
+<span id="mixed">mixed 1.61</span>
+<div id="chip" data-contrast-mark></div>

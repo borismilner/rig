@@ -1,0 +1,52 @@
+<!doctype html><meta charset=utf-8><title>svg-audit known answers</title>
+<style>
+ body{margin:0;background:#161b26}
+ svg{display:block}
+ .tint-warm{fill:rgba(206,190,141,.15)}
+ .tint-mix{fill:color-mix(in srgb,#cebe8d 15%,transparent)}
+ .solid-pale{fill:#cebe8d}
+ .lbl-a{fill:#0d1117}
+ .lbl-b{fill:color-mix(in srgb,#dae1e8 90%,transparent)}
+ .lbl-e{fill:#dae1e8}
+ .lbl-d{font-size:26px;fill:#5b6b7f}
+</style>
+<!-- one case per 100px row, nothing overlaps anything it should not -->
+<svg width="600" height="700" font-family="sans-serif" font-size="13">
+  <!-- A  y 0-100: real failure the OLD script HIDES by dropping the rect's alpha -->
+  <rect class="tint-warm" x="0" y="0" width="400" height="100"/>
+  <text class="lbl-a" x="12" y="55">A real failure, hidden by the alpha bug</text>
+
+  <!-- B  y 100-200: OLD reports a false 1.00:1 - color-mix floats round to 0/1 -->
+  <rect class="tint-mix" x="0" y="100" width="400" height="100"/>
+  <text class="lbl-b" x="12" y="155">B false positive, both collapse to black</text>
+
+  <!-- C  y 200-300: no rect at all behind it, so only the CSS ground counts -->
+  <text class="lbl-e" x="12" y="255">C label on the page ground, no rect</text>
+
+  <!-- D  y 300-400: 26px at 3.16:1 - passes WCAG large text, OLD hardcodes 4.5 -->
+  <text class="lbl-d" x="12" y="355">D large text at 3.16:1</text>
+
+  <!-- E  y 400-500: the rect's RAW box (y 440-520) overlaps the label's raw box,
+          but translate(0,120) paints it at y 560-640, well below the label. OLD
+          compares raw getBBox() and so invents an overlap that is not on screen. -->
+  <g transform="translate(0,120)">
+    <rect class="solid-pale" x="0" y="440" width="400" height="80"/>
+  </g>
+  <text class="lbl-e" x="12" y="455">E transform, raw boxes overlap only</text>
+</svg>
+<!--
+  Known-answer self-test for contrast-audit-svg.js. Every value below was computed
+  independently (sRGB relative luminance, WCAG 2.x) and then confirmed in Chrome.
+
+    A  #0d1117 on rgba(206,190,141,.15) over #161b26 = #323335   1.50:1  FAIL
+    B  color-mix(#dae1e8 90%) over that tint = #c9d0d6 on #323335 8.12:1  pass
+    C  #dae1e8 on the page ground #161b26                       13.06:1  pass
+    D  #5b6b7f at 26px on #161b26                                3.16:1  pass (large text, needs 3.0)
+    E  #dae1e8 on #161b26; the pale rect's RAW box overlaps the
+       label but it is painted 120px lower                      13.06:1  pass
+
+  A is the ONLY correct failure. Measured 2026-09-05:
+    old script  0 of 1 real failures, 2 false positives (B and E)
+    new script  1 of 1 real failures, 0 false positives
+  If a change to the script makes it report anything but exactly A, it regressed.
+-->

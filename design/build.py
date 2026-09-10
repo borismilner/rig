@@ -8,7 +8,7 @@ produces the artefact.
 
     python3 design/build.py        # -> design/visual-system.html
 """
-import re, pathlib, sys
+import re, pathlib, subprocess, sys
 
 HERE = pathlib.Path(__file__).parent
 src   = (HERE / "visual-system.src.html").read_text(encoding="utf-8")
@@ -35,6 +35,16 @@ out, n = re.subn(
 )
 if n != 1:
     sys.exit("build: script placeholder not found exactly once (found %d)" % n)
+
+# theme.js and app.js share one IIFE, so a syntax error in either kills all nine
+# sections at once - and this script used to print success and exit 0 over a page
+# whose script does not parse, so a broken page and a working one were
+# indistinguishable to anything downstream, CI included.
+check = subprocess.run(["node", "--check", "-"], input=bundle,
+                       capture_output=True, text=True)
+if check.returncode != 0:
+    sys.exit("build: the emitted script does not parse, refusing to write "
+             "visual-system.html\n" + (check.stderr or check.stdout).rstrip())
 
 (HERE / "visual-system.html").write_text(out, encoding="utf-8")
 print("built design/visual-system.html  (%d KB)" % (len(out) // 1024))
