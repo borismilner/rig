@@ -37,6 +37,7 @@
       services: ["storage", "logs"],
       hosted: false,
       commands: 3,
+      paneUrl: "",
     },
     {
       id: "graft",
@@ -49,6 +50,7 @@
       services: [],
       hosted: false,
       commands: 7,
+      paneUrl: "",
     },
     {
       id: "snapper",
@@ -61,6 +63,7 @@
       services: [],
       hosted: true,
       commands: 1,
+      paneUrl: "",
     },
   ];
 
