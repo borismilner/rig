@@ -11,6 +11,9 @@ The name: a rig is a platform. A rig is also your whole setup. Rigging is the ro
 that control a ship. And to rig something up is to assemble it. Four meanings, all correct.
 
 Status: planning. Nothing built. Written 2026-09-10.
+**Being revised 2026-09-10, after a ten-seat adversarial attack on this document.** The fix
+pass is PART-APPLIED: §1-§5d carry the attack's fixes, §5e onward do not yet. Do not read an
+unmarked section as final until this notice is gone and §31 exists.
 Last verified: 2026-09-10 (Go 1.27.1 installed, Wails v3 beta.19, IPC costs measured on this
 laptop, see section 4).
 
@@ -49,20 +52,63 @@ UI - and every program already has it, without being touched.
 
 ## 2. Decisions locked
 
-- **Name:** rig. Binary `rig`, daemon `rig`, module `github.com/boris-milner/rig`. The UI shell
+- **Name:** rig. CLI `rig`, daemon `rigd`, module `github.com/boris-milner/rig`. The UI shell
   component inside it keeps the name **turret**, because a lathe turret carries many tools and
   rotates the right one into place, which is what that component does.
+- **Two binaries, not one.** `rigd` is the daemon; `rig` is the CLI and TUI. Measured: keeping
+  bubbletea, huh, glamour and keyring out of the daemon recovers **8.89 MiB resident and 27 ms
+  of cold start**, and it is a build-graph change only (§17).
 - **No imports.** An in-house program does not link any rig code beyond a dumb pipe (§5d). All
   behaviour lives in the daemon, so all behaviour upgrades without a rebuild.
-- **One socket, binary frames.** Measured at 6.2µs round trip and 1.8M one-way records/second
-  on this laptop (§4), which is far more than anything here needs. No shared memory, no
-  io_uring, no zero-copy codec. That complexity is not bought.
+- **One socket, binary frames, and no gRPC.** Measured at 6.2µs round trip and 1.8M one-way
+  records/second on this laptop (§4), which is far more than anything here needs. A gRPC server
+  on a unix socket costs **9.80 MiB resident** before it carries a byte, which is 58% of the
+  whole footprint budget for HTTP/2 machinery a local socket does not need. So: protobuf
+  messages, hand-framed, length-prefixed. No shared memory, no io_uring, no zero-copy codec.
+  That complexity is not bought either.
 - **Two directions.** Apps call rig for supply (config, storage, notify, UI). rig calls apps for
   control (start, stop, invoke, query, reload). Both over the same connection.
 - **Declarative wins.** Where an app *describes* something, rig can improve it forever. Where an
   app *calls* something, that call is frozen. So the contract is biased hard toward description.
-- **rig degrades, it never blocks.** An app whose rig is not running still starts and still
-  works, with reduced service (§5g). This is an assumption Boris can flip; see §27.
+- **Commands declare properties; surfaces declare requirements.** A declaration never names a
+  surface. It says what the command *is* - interactive, streaming, needs a display, how long it
+  runs, whether it confirms - and each surface says what it can carry. rig computes the
+  projection. This is the only construction under which a surface added in 2028 matches a
+  declaration written in 2026, and it costs one enum today (§5e).
+- **Adoption is per service, and coverage is declared.** A program adopts one service at a time
+  and declares only the commands worth projecting. Every declaration carries `coverage`, which
+  defaults to `partial`, and every surface renders it, because a surface that implies
+  completeness lies (§5k).
+- **A program may run inside rig, and pays four prices for it.** Most in-house programs are
+  separate binaries. A hosted plugin is compiled into `rigd`, declares and projects identically,
+  and gives up independent upgrade, crash containment, OS-level capability enforcement and a
+  zero footprint contribution to do it (§5j).
+- **The client tolerates rig's absence; it does not reimplement rig.** There is no second
+  implementation of config, storage, secrets or logging inside any program. The stub reconnects,
+  queues, and returns one typed `unavailable` error. rig writes an already-resolved snapshot to
+  disk for the few things that must survive its absence (§5g). This replaces the 300-line
+  fallback this plan carried before the attack, which was policy in the one component that can
+  never be upgraded.
+- **No hot upgrade.** Measured, both paths built: once clients are told rig is going, the
+  handover's entire marginal benefit over a plain restart is **1.9 ms per upgrade**, which at
+  weekly upgrades is 5.2 seconds a year. It was priced at four defect classes, including a
+  silent replay path less safe than `kill -9`. Lifecycle notice plus a sub-100 ms restart
+  delivers the requirement instead (§5g, §18).
+- **There is an authorization layer.** `house rules` says which kinds of caller may run which
+  kinds of command, and which must ask first. It lives in the kernel's invoker, so no surface can
+  forget it, and the default rule set is empty so nothing already working breaks (§13).
+- **The operator is a credential, not a uid.** One token minted at startup into a 0600 file whose
+  path is handed only to the launching process. Without this, every client on a one-user machine
+  satisfies the operator predicate, which is exactly how the compound secret leak worked
+  (§14, §15).
+- **Nothing sensitive is recorded.** Redaction is declared at registration as JSON pointers and
+  compiled once into byte spans over the wire encoding: **82.5 ns** in the hot path, against
+  3100 ns for redacting at record time. Anything the `secrets` service returns is never recorded
+  at all, only the key name (§15).
+- **Time is CLOCK_BOOTTIME, and every deadline is absolute.** Lease, budget and expiry arithmetic
+  in the daemon runs on boottime, stored as `boot_id + deadline`, never as a remaining TTL and
+  never on the client's clock. This laptop suspends nightly and Go's monotonic clock does not
+  advance across suspend (§16).
 - **Storage: rig manages, the app opens.** rig owns location, migrations, backup, integrity and
   retention; the app opens the file and runs its own queries at full speed. Also an assumption
   in §27.
@@ -75,8 +121,9 @@ UI - and every program already has it, without being touched.
   rest.
 - **Linux and X11 first**, on this laptop. Nothing knowingly non-portable, and no cross-platform
   claim until it is tested.
-- **Dependencies:** best library for the job, newest published version. Hand-rolling needs a
-  product reason.
+- **Dependencies:** best library for the job, newest published version, **and a measured binary
+  cost**. Hand-rolling needs a product reason; so does any dependency that moves the size budget
+  in §17, because in Go resident memory tracks binary size.
 
 ---
 
@@ -91,7 +138,9 @@ independently of the programs using it. Adjectives do not pass or fail. Each bel
 | The test it has to pass |
 |---|
 | Ship a new rig with a redesigned toast, a new settings UI and a new log viewer. No in-house program is rebuilt, and all of them show the new behaviour on next connect |
-| A program compiled today against wire v1 still works against a rig built three years from now. Enforced by a golden-wire test that runs an archived binary against HEAD in CI |
+| A program compiled today against wire v1 still works against a rig built three years from now. Enforced by **one frozen conformance fixture per wire major**, built the day that major ships, archived with its vendored source so it can be rebuilt in 2035, and retained forever. Each fixture asserts a recorded **behaviour transcript** - which default applied, whether a confirm fired, what each enum decoded to - not merely a successful round trip |
+| A surface added in 2028 gets a correct projection of a declaration written in 2026, because the declaration never named a surface. Proven by adding a surface whose requirements no registered program was written against, and touching no program |
+| Every wire major carries, in this plan, the date it moves from *supported* to *frozen*. `rig doctor` names every connected program still speaking a frozen major |
 | Adding a whole new surface to rig (a new UI, a phone client, a voice interface) gives every already-registered program that surface with zero code change. Proven once by adding the HTTP surface after the CLI surface, touching no app |
 | The client stub's public surface is enumerated in one file and does not grow without an explicit decision recorded in this plan. Every symbol in it is a future rebuild that cannot be avoided |
 
@@ -99,7 +148,9 @@ independently of the programs using it. Adjectives do not pass or fail. Each bel
 
 | The test it has to pass |
 |---|
-| A new program registers and becomes fully reachable - CLI, TUI, MCP, tray, HTTP, palette, schedule - in under 100 lines and zero frontend code |
+| A new program registers and becomes fully reachable - CLI, TUI, MCP, tray, HTTP, palette, schedule - with **zero frontend code and no rig-specific logic**. The declaration is data, and it is budgeted per command, not per program: one real archi command written exactly as §5e and §9 require measured **160 lines of JSON**, and archi has 28 operations. So the hand-written budget is under 100 lines of Go, the declaration is generated from the program's existing command definitions, and `rig verify` checks the generated artefact |
+| A program that adopts exactly one service works, is not degraded for adopting one, and says so: `coverage: partial` travels with it onto every surface |
+| A hosted plugin (§5j) and an external program pass the same conformance battery, from the same test package, with no branch anywhere in the suite |
 | Everything the window can do, the terminal can do. Asserted by a test that enumerates the registry's views and fails if one has no TUI renderer |
 | Adding a service or a surface to rig gives every already-registered program that capability with no program rebuilt. Proven once by adding HTTP after CLI, touching no app |
 | Registration is data, not code. A program written in Python or Rust registers the same way, proven by a reference implementation in each, kept building in CI |
@@ -112,7 +163,7 @@ independently of the programs using it. Adjectives do not pass or fail. Each bel
 | Every setting of rig or any program is declared as JSON Schema and the settings UI is generated. There is no hand-written settings form in the codebase |
 | `rig config origin <key>` prints the winning layer, its value, and every layer that lost with its value. No setting is ever unexplained |
 | Config changes apply live. The program is pushed the new value, validates it, and accepts or rejects with a reason shown in the UI |
-| `rig config export` writes one file that reproduces the machine exactly, every program included |
+| `rig config export` writes one file that reproduces **the caller's** machine exactly, every program it is permitted to see included. Reproducing the whole machine is an operator action and needs the operator credential (§14) |
 
 ### Introspectable
 
@@ -121,7 +172,10 @@ independently of the programs using it. Adjectives do not pass or fail. Each bel
 | Every call in both directions is recorded: caller, callee, method, duration, status, size, trace id. Live in the UI and exportable |
 | For any program: pid, uptime, restarts with the reason for each, RSS, CPU, wire version, health history, last 1000 log lines, live goroutine dump |
 | One trace covers an action end to end across both processes, whichever surface started it - a click, a CLI call, an MCP call from an agent, a scheduled fire |
-| `rig doctor` reports the health of the whole installation in one screen and exits non-zero if anything is wrong |
+| `rig doctor` reports the health of the whole installation in one screen and exits non-zero if anything is wrong. It is an operator surface, because its product is an estate-wide aggregate |
+| Every answer about a program states its coverage. An agent that asks what a program can do is told, in the same answer, whether that list is everything |
+| `rig loose-ends` reports what stopped pointing at anything after a declaration changed: schedule entries, bus rules, capability grants, tray entries, promoted tools, `rig://` routes, config overrides |
+| No answer drawn from history is given without its coverage. A gap caused by sampling, ring overwrite or segment eviction is rendered, not silently omitted |
 
 ### Reliable and tested
 
@@ -134,9 +188,12 @@ independently of the programs using it. Adjectives do not pass or fail. Each bel
 | Coverage: 90% statements on `internal/`, 100% on the wire contract and the client stub |
 | Timing behaviour - backoff, budgets, deadlines, debounce, schedules - is tested with `testing/synctest`, so those tests are deterministic and take microseconds |
 | Every UI claim was exercised in a real window with a real keyboard before being called done |
-| Two clients on one daemon cannot see each other. Asserted by running every surface against a two-client fixture and failing if either sees the other |
+| Two clients on one daemon cannot see each other. Asserted by **observational equivalence over two worlds**: the whole battery runs against W1={A} and W2={A,B} with B exercising every primitive, and A's transcript - responses, error codes, ids and tokens issued, ordering - must be identical. A difference is a failure unless it is on an enumerated, reviewed list of permitted disclosures. The battery covers non-surface observation too: the runtime directory, the config tree, the state tree, the process table |
+| No secret reaches the history. `secrets.get` is a call and a call's arguments and results are recorded, so the test asserts a known token appears in no segment, in no encoding, at any sampling rate |
+| A caller with no grant cannot run a destructive command. House rules are enforced in the invoker, so one test covers every surface, present and future |
 | Idle footprint stays inside the budget in §17. `make bench-idle` fails the build on a regression |
-| Every module compiles out. `make build-minimal` builds, runs and serves the wire with no service and no surface |
+| The daemon binary does not grow by accident. `make bench-size` records `rigd`'s size and fails a PR that adds more than 1 MB unless the budget line in §17 is edited in the same commit. In Go, this is the budget that causes the RSS budget |
+| Every module compiles out, and compiles in **alone**. `make modules-matrix` builds kernel-plus-one for every module in turn; `make build-minimal` is the N=0 case, which builds, runs and serves the wire with no service and no surface. Both analyzers run under every tag set CI builds |
 
 ---
 
@@ -165,6 +222,10 @@ as `cmd/ipcbench` so the numbers can be re-taken on any machine.
   ever appears, the number above is what justifies adding it, and not before.
 - A binary codec is worth having over JSON (5µs of the 11.4µs is the codec), but it is a
   preference, not a requirement.
+- **gRPC is not bought.** Its server on a unix socket measured **+9.80 MiB resident** for
+  HTTP/2 framing, flow control and stream machinery that a single local socket does not need.
+  The framing this plan actually requires is a length prefix, and §17 is where that 9.80 MiB
+  went. Protobuf stays; gRPC goes.
 
 ---
 
@@ -173,20 +234,22 @@ as `cmd/ipcbench` so the numbers can be re-taken on any machine.
 ### 5a. The shape
 
 ```
-  ┌──────────────────────────────────────────────────────────────┐
-  │  rig daemon  (one process, one binary, upgrades alone)       │
-  │                                                              │
-  │  registry     who is registered, what they declared          │
-  │  config       layers, schema, provenance, live push          │
-  │  store        location, migrations, backup, integrity        │
-  │  secrets      keyring, namespaced per program                │
-  │  observe      log + trace + metric ingest, merge, query       │
-  │  control      start, stop, invoke, health, supervision       │
-  │  schedule     one scheduler for the whole estate             │
-  │  bus          events between programs, by grant              │
-  │  surfaces     CLI · MCP · HTTP · turret · tray · toast · URL │
-  └───────────────────────▲──────────────────────────────────────┘
-                          │  unix socket, length-prefixed frames
+  ┌────────────────────────────────────────────────────────────────────┐
+  │  rigd - the daemon. One process, no GUI, no TUI, upgrades alone    │
+  │                                                                    │
+  │  registry     who is registered, what they declared                │
+  │  config       layers, schema, provenance, live push                │
+  │  store        location, migrations, backup, integrity              │
+  │  secrets      keyring, namespaced per program, never recorded      │
+  │  observe      log + trace + metric ingest, merge, query            │
+  │  control      start, stop, invoke, health, supervision             │
+  │  schedule     one scheduler for the whole estate                   │
+  │  bus          events between programs, by grant                    │
+  │  rules        who may run what, and what must ask first            │
+  │  hosted       in-house programs with no binary of their own (5j)   │
+  │  surfaces     CLI · MCP · HTTP · turret · tray · toast · URL       │
+  └───────────────────────▲────────────────────────────────────────────┘
+                          │  one unix socket, length-prefixed protobuf frames
                           │  supply ▲   control ▼
    ┌──────────────────────┼──────────────────────┬───────────────┐
  shelf                  graft                  archi           nudge
@@ -209,6 +272,13 @@ as `cmd/ipcbench` so the numbers can be re-taken on any machine.
 | **URL** | `rig://shelf/search?q=...` | Links, other apps, the browser |
 | **Bus** | One program's event fires another's command | Automation between programs |
 
+**A declaration never names one of these.** A command declares properties (§5e); each surface
+declares which properties it can carry, plus a rig-side predicate over them - `slack.include =
+"effects != destructive && duration < 30s"` - living in that surface's own config schema,
+defaulted by the surface author and overridable by Boris in one place. Adding a row to this
+table is therefore a change to rig and never to a program, which is the whole compounding
+claim in §1 and the only version of it that survives a surface being added later.
+
 ### 5c. What lives where
 
 | Concern | rig | The program |
@@ -222,6 +292,9 @@ as `cmd/ipcbench` so the numbers can be re-taken on any machine.
 | Process lifecycle, restart, supervision | ✔ | responds to health checks |
 | Scheduling, event routing, workflows | ✔ | declares events and commands |
 | Packaging, updates, install | ✔ | ships a binary and a manifest |
+| Authorization: which caller may run which command | ✔ | declares `effects` and danger, nothing more |
+| Redaction: what must never be recorded | ✔ enforces | declares which fields are sensitive |
+| Coverage: whether this is the whole program | renders it | ✔ declares it honestly |
 | **Business logic** | | ✔ **all of it** |
 
 ### 5d. The client is a dumb pipe
@@ -230,14 +303,23 @@ The one piece of rig code that lives inside a program has to be as close to froz
 because every symbol in it is a rebuild nobody can avoid later. So it does exactly four things:
 
 1. Find the socket.
-2. Frame messages.
-3. Reconnect when rig restarts.
-4. Fall back when rig is absent (§5g).
+2. Frame messages, and stamp every mutating call with a client-generated request id.
+3. Reconnect when rig restarts, presenting the session token it already holds.
+4. Tolerate absence: a bounded outbound queue, backoff to a deadline, and one typed
+   `unavailable` error (§5g).
+5. Hand over the bytes of the resolved snapshot when the program asks for them, without
+   interpreting them (§5g).
 
 **It carries no semantics.** It does not know what a notification looks like, what config keys
 mean, how a UI is described or what commands exist. All of that is data negotiated at connect
 time. This is the Language Server Protocol lesson: the editor holds a dumb client, every bit of
 intelligence is server-side, and servers upgrade freely.
+
+**Its surface is enumerated, budgeted and reported.** The public symbols are listed in one file
+with a count asserted in `make ci`, and every connection reports `stub_build` alongside the wire
+version. That last part matters: a defect in the pipe is fixed in code the daemon cannot reach,
+so rig must at least be able to name every program still carrying an old one rather than
+guessing. `rig doctor` lists them.
 
 There is a **generated convenience layer** on top, giving typed methods for ergonomics. It is
 optional and versioned. If it goes stale, the program still works, because rig accepts every
