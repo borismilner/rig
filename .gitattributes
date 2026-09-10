@@ -1,0 +1,5 @@
+# Generated, and counted as neither authorship nor language. build.py inlines
+# the scripts into visual-system.html and readme-art.mjs draws the SVGs, so
+# both are outputs of files that are already in the repo.
+design/visual-system.html  linguist-generated=true
+design/readme/*.svg        linguist-generated=true

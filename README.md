@@ -43,7 +43,7 @@ There is no daemon yet. `PLAN.md` is the whole design at 2300 lines, ordered
 into seventeen milestones, and it is what the rest of this repo exists to
 support.
 
-| | State |
+| Piece | State |
 |---|---|
 | `PLAN.md` | Complete. Architecture, wire protocol, capability model, isolation, the conformance suite, the milestone order |
 | `design/` | Built. A live, self-contained visual system with a theme engine that measures its own contrast |
