@@ -315,14 +315,14 @@ func (d *Daemon) dispatch(ctx context.Context, c *conn, f *rigv1.Frame) {
 	}
 
 	if program == "rig" {
-		d.serveSelf(c, f, command)
+		d.serveSelf(ctx, c, f, command)
 		return
 	}
 	d.route(ctx, c, f, program, command)
 }
 
 // serveSelf answers the methods rig implements itself.
-func (d *Daemon) serveSelf(c *conn, f *rigv1.Frame, command string) {
+func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command string) {
 	switch command {
 	case "hello":
 		var req rigv1.HelloRequest
@@ -414,6 +414,26 @@ func (d *Daemon) serveSelf(c *conn, f *rigv1.Frame, command string) {
 			c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "ping: "+err.Error())
 			return
 		}
+
+		// A probe naming another program is rig probing THAT program, and it
+		// still reaches the program as <program>.ping - what moved is the
+		// method the caller sends, not the one the program answers. The frame
+		// is rebuilt rather than forwarded, because route copies the method
+		// verbatim and the program must not be handed rig's own method name.
+		//
+		// It goes through route, so it passes the same authorization floor as
+		// any other call rather than round-tripping behind it.
+		if target := req.GetProgram(); target != "" && target != "rig" {
+			d.route(ctx, c, &rigv1.Frame{
+				StreamId:  f.GetStreamId(),
+				Kind:      f.GetKind(),
+				Method:    target + "." + ProbeCommand,
+				RequestId: f.GetRequestId(),
+				Payload:   f.GetPayload(),
+			}, target, ProbeCommand)
+			return
+		}
+
 		c.reply(f.GetStreamId(), &rigv1.PingResponse{
 			Nonce:   req.GetNonce(),
 			Program: "rig",

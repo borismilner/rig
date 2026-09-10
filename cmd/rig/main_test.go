@@ -2,6 +2,7 @@ package main
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -62,5 +63,21 @@ func TestPartitionAcceptsFlagsAnywhere(t *testing.T) {
 				t.Errorf("positional = %q, want %q", gotPos, tc.wantPosArg)
 			}
 		})
+	}
+}
+
+// `rig ping ""` must be refused before anything is dialled.
+//
+// It used to fail at the daemon, because ".ping" is not a
+// <program>.<command>. Once the target moved into rig.ping's argument the
+// daemon would have read an empty name as "probe rig itself", so the command
+// would have answered about rig and looked like it had worked.
+func TestPingRefusesAnEmptyProgramName(t *testing.T) {
+	err := cmdPing([]string{""})
+	if err == nil {
+		t.Fatal(`rig ping "" was accepted`)
+	}
+	if !strings.Contains(err.Error(), "the program name is empty") {
+		t.Fatalf("refused for the wrong reason: %v", err)
 	}
 }

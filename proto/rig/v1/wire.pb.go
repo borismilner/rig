@@ -734,7 +734,21 @@ func (x *HelloResponse) GetScoped() bool {
 type PingRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Echoed back verbatim, so a caller can prove the round trip is its own.
-	Nonce         []byte `protobuf:"bytes,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
+	Nonce []byte `protobuf:"bytes,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
+	// Which program to probe. Empty, or "rig", means rig itself.
+	//
+	// The probe is rig's, not the program's. It used to travel as
+	// "<program>.ping", which put a reserved command id inside every program's
+	// own namespace: a program could not declare `ping` for itself, and nothing
+	// reading a command list could tell a declared command from rig's probe,
+	// because the bytes did not say which it was. PingRequest and CallRequest
+	// are wire-compatible - both are one `bytes` field at tag 1 - so a nonce
+	// decodes cleanly as `args` and the difference was unrecoverable at the
+	// boundary. Naming the target here makes the probe rig's own method with an
+	// argument, which is what it always was.
+	//
+	// "<program>.ping" still routes, so an older rig keeps working.
+	Program       string `protobuf:"bytes,2,opt,name=program,proto3" json:"program,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -774,6 +788,13 @@ func (x *PingRequest) GetNonce() []byte {
 		return x.Nonce
 	}
 	return nil
+}
+
+func (x *PingRequest) GetProgram() string {
+	if x != nil {
+		return x.Program
+	}
+	return ""
 }
 
 type PingResponse struct {
@@ -1608,9 +1629,10 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\rHelloResponse\x12\x12\n" +
 	"\x04wire\x18\x01 \x01(\tR\x04wire\x12%\n" +
 	"\x0edaemon_version\x18\x02 \x01(\tR\rdaemonVersion\x12\x16\n" +
-	"\x06scoped\x18\x03 \x01(\bR\x06scoped\"#\n" +
+	"\x06scoped\x18\x03 \x01(\bR\x06scoped\"=\n" +
 	"\vPingRequest\x12\x14\n" +
-	"\x05nonce\x18\x01 \x01(\fR\x05nonce\"X\n" +
+	"\x05nonce\x18\x01 \x01(\fR\x05nonce\x12\x18\n" +
+	"\aprogram\x18\x02 \x01(\tR\aprogram\"X\n" +
 	"\fPingResponse\x12\x14\n" +
 	"\x05nonce\x18\x01 \x01(\fR\x05nonce\x12\x18\n" +
 	"\aprogram\x18\x02 \x01(\tR\aprogram\x12\x18\n" +

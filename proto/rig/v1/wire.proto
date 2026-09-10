@@ -108,6 +108,21 @@ message HelloResponse {
 message PingRequest {
   // Echoed back verbatim, so a caller can prove the round trip is its own.
   bytes nonce = 1;
+
+  // Which program to probe. Empty, or "rig", means rig itself.
+  //
+  // The probe is rig's, not the program's. It used to travel as
+  // "<program>.ping", which put a reserved command id inside every program's
+  // own namespace: a program could not declare `ping` for itself, and nothing
+  // reading a command list could tell a declared command from rig's probe,
+  // because the bytes did not say which it was. PingRequest and CallRequest
+  // are wire-compatible - both are one `bytes` field at tag 1 - so a nonce
+  // decodes cleanly as `args` and the difference was unrecoverable at the
+  // boundary. Naming the target here makes the probe rig's own method with an
+  // argument, which is what it always was.
+  //
+  // "<program>.ping" still routes, so an older rig keeps working.
+  string program = 2;
 }
 
 message PingResponse {

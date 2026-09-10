@@ -175,6 +175,13 @@ func cmdPing(args []string) error {
 		return errors.New("usage: rig ping <program> [--json] [--timeout=5s]")
 	}
 	program := positional[0]
+	// An empty name used to fail at the daemon, because ".ping" is not a
+	// <program>.<command>. Now that the target travels as an argument the
+	// daemon would read it as "probe rig itself", so `rig ping ""` would
+	// answer about rig and look like it worked. Refuse it here instead.
+	if program == "" {
+		return errors.New("usage: rig ping <program>: the program name is empty")
+	}
 
 	sock, err := paths.Socket()
 	if err != nil {
@@ -199,7 +206,10 @@ func cmdPing(args []string) error {
 
 	start := time.Now()
 	resp := &rigv1.PingResponse{}
-	if err := c.Call(ctx, program+".ping", &rigv1.PingRequest{Nonce: nonce}, resp); err != nil {
+	// rig.ping with the program as an argument, not <program>.ping: the probe
+	// is rig's method and never was one of the program's own commands.
+	if err := c.Call(ctx, "rig.ping",
+		&rigv1.PingRequest{Nonce: nonce, Program: program}, resp); err != nil {
 		return err
 	}
 	elapsed := time.Since(start)
