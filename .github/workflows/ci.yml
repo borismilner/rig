@@ -65,6 +65,39 @@ jobs:
         # because a contrast script that lies certifies defects.
         run: make contrast
 
+      - uses: actions/setup-node@v4
+        # AFTER `make contrast` on purpose. That step runs on whatever node the
+        # runner image ships and has never had a pin; putting setup-node above
+        # it would silently change the node its measurements come from, which
+        # is a change to the gate disguised as a change to the workflow. The
+        # window's page is the only thing here that needs a node_modules tree.
+        #
+        # Pinned to a major rather than read from a file because the frontend
+        # declares no engines field. If one is ever added, delete the literal
+        # and use node-version-file, so the version lives in one place the way
+        # the Go toolchain already does.
+        with:
+          node-version: '26'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: make deps-frontend
+        run: make deps-frontend
+
+      - name: make contrast-window
+        # The shell's own page, which section 20's gate could not see at all
+        # until the page existed. Its own step for the same reason as contrast:
+        # it needs Chrome from the runner image, and now a node_modules tree as
+        # well, and `make ci` must not assume a machine has either.
+        #
+        # This can run here while `bench-size-window` cannot, and the reason is
+        # the split in the Makefile: contrast-window depends on build-frontend,
+        # which is pure node, while the window BINARY needs cgo, gtk3 and
+        # webkit2gtk, none of which ubuntu-latest carries. So the page is
+        # measured in CI and the binary's size row is still only guarded by
+        # hand - that gap is real and is not closed by this step.
+        run: make contrast-window
+
       # Not here, and each for a reason:
       #
       #   bench-ipc     a measurement. A shared runner cannot reproduce

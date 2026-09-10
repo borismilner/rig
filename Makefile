@@ -56,6 +56,17 @@ build-fakeapp: ## Build the reference program the conformance suite drives
 # the split exists - it is twice the size of the CLI.
 # Split from build-rigwindow so the frontend can be built, and measured, on a
 # machine with no webview: contrast-window needs the page and not the binary.
+deps-frontend: ## Install the frontend's pinned dependencies from the lockfile
+	# `npm ci` and not `npm install`, because ci installs exactly what
+	# package-lock.json pins and fails if the lockfile and package.json
+	# disagree, where install would quietly resolve a newer tree and rewrite
+	# the lock. A gate measuring a build nobody can reproduce is not a gate.
+	#
+	# Its own target so the workflow can call it: section 28 says CI defines
+	# nothing that is not a Makefile target, and `npm ci` written as a raw
+	# workflow step is a second definition of how this repo installs.
+	cd frontend && npm ci
+
 build-frontend: ## Build the window's frontend into cmd/rigwindow/dist
 	@find cmd/rigwindow/dist -mindepth 1 ! -name .gitkeep -delete
 	cd frontend && npm run build
@@ -355,7 +366,7 @@ help: ## Show this help
 	  /^[a-zA-Z_-]+:.*##/ {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo
 
-.PHONY: build build-rigd build-rig build-fakeapp build-frontend build-rigwindow build-all install uninstall \
+.PHONY: build build-rigd build-rig build-fakeapp deps-frontend build-frontend build-rigwindow build-all install uninstall \
         run dev clean test test-unit test-race \
         test-chaos test-e2e test-wire fuzz cover cover-html lint lint-house fmt vet audit \
         verify contrast contrast-selftest contrast-window generate proto schema types docs bench bench-ipc profile \
