@@ -120,6 +120,18 @@ UI - and every program already has it, without being touched.
 - **The peers service supersedes AgentBox.** rig builds the best inter-client coordination
   substrate it can (§16), proves it against four gates, and only then do the agents move off
   AgentBox. AgentBox keeps running untouched until that happens. Decided 2026-09-10.
+- **rig drives the desktop, and the driver is its own binary.** AgentBox's synthetic input comes
+  over as `hand`, a program that declares its commands like any other, in `cmd/righand` and not
+  in `rigd` (§5m). It is the **fourth** binary, after `rigd`, `rig` and `rigwindow`, and the line
+  above about two binaries is untouched by it: that decision is about keeping the terminal stack
+  out of the daemon, not a cap on how many processes rig ships. The test each new one has to pass
+  is the window's - a dependency the daemon must not link - and this is the second thing to pass
+  it. Measured: the X11 dependency alone is **1,015,911 bytes**, and the successor
+  backend is a C library, so a daemon that absorbed the driver would need cgo - which is the same
+  argument §17 already makes for keeping the window out. The consequence is the point: because
+  `righand` is reachable only through rig, the display becomes the **one lease in this estate a
+  fencing token can genuinely fence**, which §16 says of no other and now states as an
+  exception.
 - **History is buffered and never fsynced.** Losing under a second of history to a power cut is
   acceptable and was agreed; durability is what makes event logging expensive, so it is not
   bought. A process crash loses at most one flush interval, because the kernel already holds the
@@ -949,6 +961,207 @@ rig is up, because §12's toasts and §11's tray are not features of a daemon so
 remember to start, and because §14's `operate` argument is already written against "under M15's
 autostart is systemd" - a sentence that is load-bearing several milestones before the milestone
 it names.
+
+### 5m. The hand: rig drives the desktop, and that is what makes one lease real
+
+AgentBox can move the pointer, click, drag, scroll and type on Boris's own display, as real
+synthetic input that no application can distinguish from a hand on the hardware. It is the only
+tool in that daemon that *acts* on the desktop instead of putting something in front of him and
+waiting, and it works. What follows is that capability brought over, and the several places
+where rig's own model makes it better rather than merely relocated.
+
+**The service is named `hand`, and the verb is `rig hand`.** One syllable, the thing it is, and
+it does not collide with `rig window`, which draws.
+
+#### It is a program, not a service inside `rigd`, and the reason is measured
+
+| Binary | Size | Delta |
+|---|---|---|
+| Go hello-world, `-trimpath -s -w` | 1,507,488 | |
+| the same, plus `jezek/xgb` + `xproto` + `xtest` | 2,523,399 | **+1,015,911** |
+
+That is 0.97 MB, which sits just under §17's 1 MB trip wire, and putting it in the daemon would
+take `rigd` from 39% to 44% of its budget at M1 of 16. The size is the smaller reason. The
+structural one is §17's own rule about the window: *"The daemon has no GUI dependency, does not
+link Wails, and does not link a webview ... keeps the daemon cross-compilable with no cgo."*
+Every argument in that line applies here and one of them applies harder. X11 through XTEST is
+pure Go, so today the daemon *could* carry it. The named successor backend below is a C library,
+and the day the hand moves to it a daemon that had absorbed the driver would need cgo. A
+dependency that is free now and structural later is exactly the one to put behind a process
+boundary before it is load-bearing.
+
+So `cmd/righand` is a fourth binary, after `rigd`, `rig` and the window, and it declares its
+commands the way `shelf` will. **It is the window's argument reused, not a new one**: §2's "two
+binaries, not one" is about where the terminal stack lives, and `rigwindow` already ships outside
+that count for exactly the reason given here. The rule that generalises out of both is the one
+worth writing down - **a dependency the daemon must not link gets a process, not a build tag** -
+and this is its second application. rig learns nothing about input synthesis; it learns that a program called
+`hand` declares eleven commands with declared properties. §29's first non-goal holds: no program
+id appears in rig's code, `hand` included.
+
+#### And that is what turns §16's most careful sentence from a caveat into an exception
+
+§16 says, of fencing tokens, that *"every lease in this estate guards something rig does not own
+- git, a deploy, the VM, the desktop. The token is rejected while `make deploy` runs on
+regardless"*, and it adds that this is said plainly because the unqualified version will be
+quoted back later. This is the quote-back, and it is a narrowing rather than a contradiction.
+
+**The desktop stops being a resource rig does not own the moment rig is the only thing that can
+drive it.** `righand` binds no socket of its own, is reachable through no path but an invocation
+from `rigd`, and is started by rig or not at all. Every synthetic event therefore passes rig's
+boundary before it reaches the display, so an expired lease does not merely fail to discourage
+the next step, it refuses it. The classic stall - holder A's lease expires, B acquires, A wakes
+and writes anyway - is closed here and nowhere else, because A's write has to come back through
+the process that knows the lease is gone.
+
+Three consequences, and the third is the one to keep:
+
+- **The fencing token is checked by `righand` on every call**, not once at acquisition, and a
+  call arriving with a stale token is refused with the current holder named.
+- **The lease is witnessed by `righand`'s own pid**, so §16's two-step expiry is exact rather
+  than approximate: a hand that died releases the display when the process is observed dead, and
+  a hand that hung holds ORPHANED until somebody looks.
+- **This is not a general result.** It works because the resource is reached only through rig,
+  which is false of git, `make deploy` and the VM, and will stay false of them. One lease being
+  genuinely fenceable is not evidence that any other is, and §16's sentence stands for the rest.
+
+#### What it declares
+
+Eleven commands, each with §5e's mandatory properties. `effects` is the interesting column and
+§26 carries the question it raises.
+
+| Command | `effects` | `duration` | `idempotent` | Notes |
+|---|---|---|---|---|
+| `where` | `read-only` | instant | yes | where the pointer is, the screen box, the focused window. **Its result is declared sensitive** |
+| `windows` | `read-only` | instant | yes | what is on screen, titles and boxes, for planning a script. **Its result is declared sensitive** |
+| `move` | see §26 | instant | yes | ends where it was told to end whatever the path |
+| `click`, `double` | see §26 | instant | **no** | a second click is a second click |
+| `drag` | see §26 | instant | **no** | |
+| `scroll` | see §26 | instant | **no** | |
+| `type` | see §26 | seconds | **no** | its argument is declared `sensitive` |
+| `key` | see §26 | instant | **no** | |
+| `script` | see §26 | seconds | **no** | the composite, and the one that is actually used |
+| `hold`, `release` | same floor as driving | instant | yes | take and give back the display lease. **Not `read-only`, and that was the first thing this table got wrong** |
+
+Every one of them declares `needs_display: true` and `interactive: false`: the hand needs a
+display and does not need a human, which is precisely why it needs the lease and the strip.
+`script` declares `confirms: true`; the single steps do not, because a rule that has to confirm
+each `move` in a forty-step script confirms nothing.
+
+**Two rows in that table were written wrong first, and both errors are worth keeping visible
+because they are the shape of error this whole design is supposed to prevent.**
+
+- **`hold` is not `read-only`.** Acquiring the display lease changes nothing in the world, so
+  the word looks right. But a house rule that denies driving while allowing `read-only` would
+  then let a program take the display and never give it back: the desktop is starved without a
+  single denied call, and the rule that was supposed to stop it reports success. **Gating the
+  drive while leaving the grab open gates nothing**, so `hold` carries the same floor as the
+  commands it is the precondition for. `release` follows it rather than being weaker, because a
+  caller that may not hold has no lease to give back.
+- **`windows` returns every window title on Boris's screen**, which is document names, ticket
+  numbers, customer names and whatever is in a browser tab. It is genuinely `read-only` and it
+  is also the exact shape of the compound leak §31 records: a call nobody would gate, returning
+  what the gated calls were protecting. So its result carries §15 pointers and is redacted out of
+  history like any other declared-sensitive field, and a caller that is allowed to plan a script
+  is not thereby allowed to leave a permanent record of what was on screen while it planned.
+
+#### The script is a typed array, and the terse form is sugar over it
+
+AgentBox's script is one step per line, `window agentbox` / `move 25% -46` / `click` / `type
+Ship it`, and it is a good notation: no quoting rules, the whole thing parsed before the first
+event, and one call instead of six that each pay for a process and an X connection. Keeping it
+as *the* interface would break §5e, which is not a formality here. A line-oriented DSL is not a
+JSON Schema, so it cannot be validated by the daemon, generated into `--help`, completed by the
+shell, addressed by a redaction pointer or projected onto any surface rig adds later. Every one
+of those is something rig gives a declaration for free and cannot give a string.
+
+**So the contract is an array of typed step objects, and the text form is a parser in `rig` that
+produces one.** The notation survives for the caller who wants it, `--args` remains the exact
+form for the caller who does not, and everything generated stays generated. This is the same
+shape as the flag sugar M1 slice 5 already ships: the schema is what is real, the terse form is
+convenience over it.
+
+#### The typed text is declared sensitive rather than specially handled
+
+AgentBox logs the shape of every script and never the text it typed. That is the right
+behaviour, hand-rolled in the one place that needed it. rig already has the general form: §15
+declares redaction as JSON pointers at registration and compiles them once into byte spans over
+the wire encoding, measured at **82.5 ns** in the hot path against 3100 ns for redacting at
+record time.
+
+    sensitive: ["/text", "/steps/*/text"]
+
+**That pointer is doing something §15 has never been asked for.** Every declared-sensitive field
+in this plan so far is at a fixed path; this one has to address every element of an array whose
+length is only known per call. Whether the compiled-span construction can express that, and at
+what cost, is a real question and not a detail, so it is in §26 rather than assumed here. If it
+cannot, the fallback is not to log a redacted script but to declare the whole `steps` array
+sensitive and record only its length and the op of each step, which is what AgentBox does today
+and is a defensible floor.
+
+#### Six things carried over unchanged, because each of them was paid for once already
+
+These are not implementation notes. Each is a defect that reached the screen, and a rewrite that
+does not know them will reintroduce them.
+
+| Kept | The failure it prevents |
+|---|---|
+| **A named window is a lock, not a coordinate frame.** It is resolved, raised, followed, and re-checked before *every* click (the pointer is really over it) and before every type or key (the keyboard is really in it). A mismatch raises once more and then fails the step naming what was there instead | A window that moved, closed or was covered sends the keystrokes into somebody else's document. This is the one that cannot be taken back |
+| **A menu, tooltip or combo popup, and a `WM_TRANSIENT_FOR` child, count as the target** | Otherwise every real toolkit's own menu fails its own lock |
+| **The XKB group is locked immediately before every single keystroke**, not once per call, because GNOME re-asserts the human's input source and wins any race that needs a round trip | The release tag `2026.7.3` reached a card as `2026ץ7ץ3`, on camera. One read in two hundred caught the lock before the revert |
+| **Window geometry comes from the X server in root coordinates**, never from `wmctrl -lG` | `wmctrl` reports doubled coordinates on a HiDPI display, so everything computed from it lands somewhere else |
+| **The pointer settles before a press.** Measured at 90 ms | Press in the same instant as the last motion event and the application sees a press at the old position, which looks exactly like "the webview ignores the mouse" |
+| **The park latch stops at the end of the current step, except a `type`, which stops between characters.** Boris's rule, settled at the mock | Stopping a drag half way leaves a button held down on his desktop. A `type` is the only step whose length is its text rather than a fixed beat, so finishing it politely means seconds of typing into whatever he just switched to |
+
+Two of those become config rather than constants (§6): the settle delay and the retry count. Both
+are numbers measured on one machine, and §6 exists so a number measured on one machine is not
+frozen into the binary.
+
+#### Four things rig makes better
+
+- **The presence signal is rig's job and is tied to the lease, not to the agent's diligence.**
+  AgentBox's HANDS OFF strip is drawn while an agent holds control and must live exactly as long
+  as the run, which means an agent that forgets to release leaves it up and an agent that
+  releases early takes it down mid-drive. Under rig the strip is the window's rendering of a held
+  display lease (§11), so it appears when the lease is taken and goes when the lease goes,
+  including when it goes by expiry. Nobody has to remember anything.
+- **The gating question has a real surface.** §13a specifies `confirm` and M1 ships it with
+  `Asker` nil, so every confirm is denied as an unanswered gating question. The hand is the
+  archetypal thing a house rule should confirm rather than allow, and §16's `ask` routes the
+  question to whoever is actually present. The hand does not need a bespoke consent prompt; it
+  needs the one rig already owes itself.
+- **A house rule can say what no AgentBox setting can.** `(program, drives-input) = deny` stops
+  one program driving the display while leaving Boris's own terminal able to, and the floor
+  semantics from `b40d62c` mean it holds for anything at least as dangerous without enumerating
+  it.
+- **A seeded hand is reproducible, so a demo and a golden test are one artefact.** AgentBox's
+  `Open(seed)` already takes 0 for a varying path and any other value for a repeatable session,
+  and the motion planner is deliberately pure with no X11 in it. §20 gets that as a rule: the
+  path is a property of the numbers, so it is tested as numbers, and the display is exercised
+  only where the display is the thing under test.
+
+#### The backend is not in the declaration, and here is the one that comes next
+
+X11 through XTEST today, which §2's "Linux and X11 first" already licenses and which has the
+property that matters: the events are indistinguishable from hardware, so an application that
+special-cases automation cannot special-case this. Under Wayland it reports that it cannot drive
+the display rather than pretending it did.
+
+**The successor is libei with the XDG Desktop Portal `RemoteDesktop` interface**, and it is
+better on the axis this section cares about most. The portal asks the human for consent at the
+compositor, which is an OS-enforced version of the strip rather than a window rig draws over its
+own screen, and it is how input emulation is meant to work on every current compositor. Its cost
+is a C library, which is the whole reason the hand is its own binary above.
+
+`/dev/uinput` was considered and rejected. It works under any compositor and needs no portal, and
+it is blind: a uinput device knows nothing about windows, so the window lock - the single most
+valuable safety property in this section - cannot be built on it at all. A backend that cannot
+tell you what it is about to type into is not a fallback, it is a different and worse feature.
+
+**None of that is in the declaration.** A program declaring `hand` commands says what they do,
+not how the events are made, so the backend moves without a program changing and without a
+surface changing. `rig doctor` (§8) is where the backend appears by name, with what is missing
+and what stops working, which is the rule §8 already sets for every optional dependency.
 
 ---
 
@@ -2176,7 +2389,7 @@ structurally blind to it.
 | Primitive | Why it is here |
 |---|---|
 | **Leases, not locks** | Every hold has a TTL and must be renewed. A dead holder expires automatically. There is no orphan state to detect and no human to break a lock |
-| **Fencing tokens, scoped to what they can actually fence** | The classic bug: holder A stalls, its lease expires, B acquires, A wakes and writes anyway. Each acquisition returns a token, monotonic **per lease**, and every rig-mediated write must present it. **But a token can only fence writes rig mediates**, and every lease in this estate guards something rig does not own - git, a deploy, the VM, the desktop. The token is rejected while `make deploy` runs on regardless. Said plainly here, because the unqualified sentence will otherwise be quoted back later |
+| **Fencing tokens, scoped to what they can actually fence** | The classic bug: holder A stalls, its lease expires, B acquires, A wakes and writes anyway. Each acquisition returns a token, monotonic **per lease**, and every rig-mediated write must present it. **But a token can only fence writes rig mediates**, and every lease in this estate guards something rig does not own - git, a deploy, the VM, the desktop. The token is rejected while `make deploy` runs on regardless. Said plainly here, because the unqualified sentence will otherwise be quoted back later. **One exception now exists and it is narrow**: the display, once rig owns the only driver that can reach it (§5m). It is an exception because the resource is reached only through rig, which stays false of git, the deploy and the VM |
 | **A liveness witness, and two-step expiry** | This is what makes the line above safe. `acquire` takes a witness: a pid or pidfd rig can poll, a cgroup, or the literal `unwitnessed`, recorded in the WAL beside the token. TTL expiry moves the lease to **ORPHANED, not FREE**; ORPHANED becomes FREE only when the witness is observed dead. An `unwitnessed` lease needs an explicit break, which is a recorded human action - AgentBox already works this way and discarding it would be a regression |
 | **`rig peers run --lease=NAME -- make deploy`** | The primitive that makes the honest path the easy path. rig owns the child process, so the witness is exact and, critically, **expiry can kill the writer**. It is the only real fence for a resource rig does not own, which is all of them |
 | **Read/write leases** | Many readers or one writer, because "everyone waits for everyone" is how a crew stops working |
@@ -2350,6 +2563,7 @@ budget with no cause. And a single 1 Hz ticker in Go floors at **5.60 wakeups/se
 | A no-op command, end to end | **< 10 ms** | the wire is 6.2µs of it (§4); the rest is process |
 | A fully recorded call | **< 2 µs** | history + span + slog, §15 |
 | The window, when closed | **zero** | it is not the same process |
+| **`righand`, when nothing is being driven** | **zero** | same argument, and the same mechanism. `rig hand` starts it, a released lease can stop it, and the X11 dependency measured at **1,015,911 bytes** is never linked into `rigd` at all (§5m) |
 
 **A warning about the gates themselves:** the problem is entirely fixed cost, so `bench-scale`
 will stay green forever while `bench-idle` is the one that fails. Do not read a green scale
@@ -2615,6 +2829,7 @@ Versions verified 2026-09-10.
 | Logging | log/slog | stdlib |
 | Secrets | zalando/go-keyring | v0.2.8 |
 | Desktop | Wails v3 | v3.0.0-beta.19, confined to one package, pinned exactly |
+| Synthetic input | `jezek/xgb` with `xproto` and `xtest`, in `cmd/righand` only | v1.3.1. Measured at **+1,015,911 bytes** over a hello-world, which is why it is its own binary and not a daemon dependency (§5m). Named successor: **libei** through the XDG Desktop Portal `RemoteDesktop` interface, which is cgo and is the other half of that reason |
 | Tray | Wails v3 systray, `fyne.io/systray` v1.12.2 as fallback | |
 | Terminal UI | charmbracelet bubbletea + bubbles + lipgloss | v1.3.10 / v1.0.0 / v1.1.0 |
 | Terminal forms | charmbracelet huh, rendered from the same JSON Schema as the window | v1.0.0 |
@@ -2669,6 +2884,7 @@ the ordering cannot be changed later by someone who never reads §14 - **house r
 | M5 | Observability | Log, trace and metric ingest, merge, query, the call log, **compiled redaction spans**, the **coverage log**, segment-embedded dictionaries, column summaries, `rig logs`, `rig loose-ends`, `rig doctor` **with its dependency check - required, optional and build-time, every optional degradation naming what stops working and what happens instead (§8)**, `disk.pressure` and `memory.pressure` polled from the PSI read side (§5h), TUI views | One MCP call traced end to end across two processes and read back in the TUI; a known secret passed through a declared-sensitive field appears in no segment; **and `rig doctor` on a machine with the audio player removed names the player, what stops working, the fallback and the command that installs it** |
 | M6 | Control, supervision, and rig starting by itself | Start, stop, restart, health, budgets, quarantine, **lifecycle notices**, the **tolerant client and the resolved snapshot**, reconnect with a session token, request-id dedup; **the `systemd --user` unit with no `ExecStop` (§5l)**; and three event kinds that fall out of being the supervisor - `system.resumed`, `program.health` and `process.exited` (§5h) | `kill -9` in a loop both ways, plus a deliberate restart under load with **zero refused dials and zero silent replays**. **Log out and back in and rig is already serving.** A suspend and resume publishes `system.resumed` to an armed program; a killed process publishes `process.exited` **with its code where rig is the parent and the literal `unknown` where it is not** |
 | M7 | Peers | Presence, leases with **witnesses and two-step expiry**, `rig peers run`, fencing tokens per lease, read/write, semaphores, barriers, election, **continuation slots** (§16), versioned blackboard with multi-key transactions, watches with a cursor, claimable queues, rendezvous, signals, `ask`, **the AgentBox dual-write shadow path**, the crew, wait-for graph, contention and timeline views | The simulation suite green over 10000 seeded interleavings with injected crashes, **lost replies and a suspend clock jump**; every adversarial test passing; a stalled holder's `make deploy` actually stops |
+| **M7a** | **The hand** | `cmd/righand` as a fourth binary, eleven declared commands, the typed step array with the terse text form as sugar over it, the window lock re-checked before every event, the per-stroke XKB group lock, the park latch, the display lease witnessed by the hand's own pid and **fenced on every call**, and the HANDS OFF strip as the window's rendering of a held lease (§5m) | **An agent fills a form in a window it did not open, and Boris takes the desktop back mid-script.** The strip is up for exactly the length of the run and goes down on expiry with nobody releasing anything. A second agent asking to drive is told who holds it. A house rule denying `(program, drives-input)` refuses a program's script while Boris's own terminal still drives. **And the release tag `2026.7.3` types as `2026.7.3` with a second keyboard layout selected**, which is the regression this whole section exists to keep from coming back |
 | M8 | The tray, and the window over real programs | Embedded mode over the localhost SPAs the estate already serves, one tray icon with the **detached** state, **the decision on who hosts the tray and the toast layer, with its §17 budget row** (§17), and **the first real adopter of the element kit, which is where R1 closes and R4's generations begin (§5h)** | One tray icon where six were, real programs in the rail M1a built, and one of them serving its own HTML through kit elements that a fake application shook out first. **`make bench-idle` covers every resident rig process, not only `rigd`** |
 | M9 | Toasts, and speech | The frameless toast, severities, springs, stacking, live bodies, inline actions, the centre, Do Not Disturb, D-Bus fallback; **speech as a renderer on the centre (§12) - one estate-wide queue, a long-lived engine, engine and player resolved at startup, its §17 budget row, and its `rig doctor` rows** | A command answered from inside a toast with no window open. **Two programs notify at once and are heard one after the other rather than over each other; Do Not Disturb silences both while an `ask` that gates a command still speaks; and with the engine uninstalled rig still toasts and `rig doctor` says why it is quiet** |
 | M10 | Generated UI | Forms, tables, actions, progress, detail, status from declared schema, in both window and TUI | `nudge` gets a complete pane and a complete TUI view with zero frontend code |
@@ -2804,6 +3020,22 @@ what re-checking looks like.
    is no answer yet. **The file-watcher was the fourth and is now answered**: it needed no
    program adopter, because it is a source on the `events` service rather than a service a
    program calls, and it lands at M13 with the bus (§5h).
+
+11. **Does `effects` need a fifth value for driving the human's input?** (§5e, §5m) Today the
+   vocabulary is `read-only`, `writes-files`, `network`, `destructive`, and synthetic input is
+   none of them exactly. `destructive` is the safe classification and the floor semantics make it
+   hold, but it is the wrong *word*: a house rule cannot then say "this program may delete its own
+   files but may not type into my windows", because both sit at the same floor. The proposal is
+   `drives-input`, ordered above `destructive`. It is one enum value and it is a wire change, so
+   it is **Boris's call and not a detail**, and it wants deciding before M7a rather than after,
+   because the value is what house rules are written against.
+12. **Can a redaction pointer address every element of an array?** (§15, §5m) Every
+   declared-sensitive field in this plan is at a fixed path, and `/steps/*/text` is not: the
+   number of steps is known per call. Whether the compiled-span construction expresses a wildcard
+   at 82.5 ns, or at all, decides whether the hand can log a redacted script or must fall back to
+   declaring the whole `steps` array sensitive and recording only its length and each step's op.
+   The fallback is what AgentBox does today, so nothing is lost by taking it, but the answer
+   changes §15 rather than §5m and should be measured there.
 
 ---
 
