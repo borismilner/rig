@@ -6,3 +6,4 @@ node_modules/
 .air.toml
 frontend/.svelte-kit/
 ipcbench/bench
+HANDOFF.md
