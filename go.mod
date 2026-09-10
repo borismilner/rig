@@ -3,6 +3,7 @@ module github.com/boris-milner/rig
 go 1.27.1
 
 require (
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/wailsapp/wails/v3 v3.0.0-beta.19
 	google.golang.org/protobuf v1.36.11
 )
@@ -16,4 +17,5 @@ require (
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/text v0.39.0 // indirect
 )

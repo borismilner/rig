@@ -5,6 +5,8 @@ import (
 	"slices"
 	"sort"
 	"sync"
+
+	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 // Registry holds what every program declared.
@@ -28,6 +30,11 @@ type entry struct {
 	decl  Declaration
 	owner Principal
 	scope string
+
+	// schemas is the compiled argument schema per command, built once at
+	// registration. A command that declared none is absent rather than nil,
+	// and absent means the command takes no arguments (see ValidateArgs).
+	schemas map[string]*jsonschema.Schema
 }
 
 // Kernel is what a caller outside this package holds.
@@ -67,6 +74,14 @@ func (k *Kernel) Register(p Principal, d Declaration) (Principal, error) {
 		return p, err
 	}
 
+	// A declared schema that does not compile is a registration rig cannot
+	// reason about, and this is the only moment at which telling the
+	// program's author is cheap.
+	schemas, err := compileDeclaredArgs(d)
+	if err != nil {
+		return p, err
+	}
+
 	scope := d.Scope
 	if scope == "" {
 		scope = d.Identity.ID
@@ -84,7 +99,9 @@ func (k *Kernel) Register(p Principal, d Declaration) (Principal, error) {
 		return p, fmt.Errorf("kernel: program %q is already registered by %s",
 			d.Identity.ID, prev.owner)
 	}
-	k.registry.programs[d.Identity.ID] = entry{decl: d, owner: p, scope: scope}
+	k.registry.programs[d.Identity.ID] = entry{
+		decl: d, owner: p, scope: scope, schemas: schemas,
+	}
 	return p, nil
 }
 
