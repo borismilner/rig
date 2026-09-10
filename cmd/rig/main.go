@@ -82,11 +82,14 @@ var valuedFlags = map[string]bool{
 func usage() {
 	fmt.Fprint(os.Stderr, `usage: rig <command> [flags]
 
+  <app> <cmd>      run a command a program declared, with its declared flags
   apps list        what every program declared, as this client may see it
   ping <program>   round-trip a program through rigd ("rig" pings the daemon)
   version          print every version this build carries
 
-rig <app> <cmd> arrives with the invoker, M1's next slice.
+Every command takes --json. A declared command also takes --timeout and
+--args '<json>', the second being the exact argument object when a flag will
+not do.
 `)
 }
 
@@ -107,8 +110,20 @@ func run(args []string) error {
 		usage()
 		return nil
 	default:
-		usage()
-		return fmt.Errorf("no such command %q", args[0])
+		// Anything rig does not implement itself is a program's command, and
+		// the registry decides whether it exists. Nothing here is a list of
+		// programs: section 5e's whole point is that adopting rig costs a
+		// declaration, not an edit to this file.
+		if strings.HasPrefix(args[0], "-") {
+			usage()
+			return fmt.Errorf("no such command %q", args[0])
+		}
+		if len(args) < 2 || strings.HasPrefix(args[1], "-") {
+			return fmt.Errorf("usage: rig %s <command> [flags]\n"+
+				"       rig apps list --commands  lists what %s declares",
+				args[0], args[0])
+		}
+		return cmdCall(args[0], args[1], args[2:])
 	}
 }
 
@@ -302,12 +317,30 @@ func plural(n int) string {
 	return "s"
 }
 
+// rawSchema embeds a declared schema in the output as JSON, not as a string.
+//
+// json.RawMessage rather than re-encoding: what the program declared is what
+// an agent has to validate against, and re-marshalling a schema through a
+// map is how key order, numbers and unknown keywords quietly change.
+func rawSchema(args []byte) any {
+	if len(bytes.TrimSpace(args)) == 0 {
+		return nil
+	}
+	if !json.Valid(args) {
+		// A schema this malformed cannot have been registered - the kernel
+		// compiles it at connect - so reaching here means the wire or the
+		// daemon changed it. Say so rather than emitting broken JSON.
+		return "unreadable: the declared schema is not JSON"
+	}
+	return json.RawMessage(args)
+}
+
 func appsJSON(ps []*rigv1.Program) []map[string]any {
 	out := make([]map[string]any, 0, len(ps))
 	for _, p := range ps {
 		cmds := make([]map[string]any, 0, len(p.GetCommands()))
 		for _, c := range p.GetCommands() {
-			cmds = append(cmds, map[string]any{
+			row := map[string]any{
 				"id":            c.GetId(),
 				"summary":       c.GetSummary(),
 				"effects":       effectsLabel(c),
@@ -323,7 +356,20 @@ func appsJSON(ps []*rigv1.Program) []map[string]any {
 				// reach here - and if it ever does, [] is still the honest
 				// rendering of what was stored.
 				"sensitive": pointers(c.GetSensitive()),
-			})
+
+				// The declared argument schema is added below, embedded as
+				// JSON rather than as a string. Section 9 says an agent gets
+				// everything it needs to use a command well, and without it
+				// an agent can read that reindex exists and still not be
+				// able to construct a call.
+			}
+			// Omitted rather than null when the command declares none: a
+			// command that takes no arguments has no schema, which is not
+			// the same as a schema nobody wrote down.
+			if schema := rawSchema(c.GetArgs()); schema != nil {
+				row["args"] = schema
+			}
+			cmds = append(cmds, row)
 		}
 		out = append(out, map[string]any{
 			"id":            p.GetIdentity().GetId(),
