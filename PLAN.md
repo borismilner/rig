@@ -99,7 +99,8 @@ UI - and every program already has it, without being touched.
   delivers the requirement instead (§5g, §18).
 - **There is an authorization layer.** `house rules` says which kinds of caller may run which
   kinds of command, and which must ask first. It lives in the kernel's invoker, so no surface can
-  forget it, and the default rule set is empty so nothing already working breaks (§13).
+  forget it, and the default rule set carries only the two `url` rules, so nothing already
+  working breaks (§13).
 - **Operating is a credential, not a uid, and reading is a different credential.** Without the
   first correction every client on a one-user machine satisfies the operator predicate, which
   is exactly how the compound secret leak worked. Without the second, the fix locks Boris's own
@@ -1598,9 +1599,22 @@ must ask first.
 [[rules]]
 caller  = "agent"           # agent | terminal | window | script | program
                             # | schedule | bus | url | any
-effects = "destructive"     # matched against the declared property
+effects = "destructive"     # at least as dangerous as this, per the declared property
 action  = "confirm"         # allow | confirm | deny
 ```
+
+**`effects` in a rule is a floor, not an equality.** It matches a command whose declared
+effects are **at least as dangerous** as the value named, so a rule written against
+`writes-files` covers `destructive` too. Equality was the first reading and it cannot express
+the one default this section ships: a rule naming `read-only` would match read-only calls and
+nothing else, so the dangerous call - the only call the rule exists for - falls through to the
+empty set and is allowed. The kernel already orders the enum, for exactly this.
+
+**When more than one rule matches, the most restrictive wins: `deny` over `confirm` over
+`allow`.** The table needs this the day it ships, because the `url` default below is two rules
+that both match the same call. First-match makes the outcome depend on the order lines happen
+to sit in a file, and most-specific makes a narrow `allow` beat a broad `deny`; both fail open,
+and this is the authorization floor.
 
 **The last three are not connections, and that is why they are in the enum.** §14 says every
 *connection* carries a principal, and a scheduled fire, a bus-triggered invocation and a
@@ -1609,10 +1623,28 @@ action  = "confirm"         # allow | confirm | deny
 mints a principal at the point of invocation: `schedule` from the schedule entry's owner,
 `bus` from the rule's owner, and `url` from nothing, because a URL arrives from the browser.
 
-**`url` therefore defaults to `read-only` plus `confirm`, and that default ships with the
-enum.** A `rig://` scheme registered on the desktop is reachable from any web page, email or
+**`url` is therefore denied above read-only and confirmed at it - which is two rules, and both
+ship with the enum.**
+
+```
+[[rules]]
+caller  = "url"
+effects = "writes-files"
+action  = "deny"
+
+[[rules]]
+caller  = "url"
+effects = "read-only"
+action  = "confirm"
+```
+
+A `rig://` scheme registered on the desktop is reachable from any web page, email or
 chat message; §29's "the threat model is a mistake in our own code, not an adversary" was
 written about hosted programs and does not cover an inbound handler that anything can address.
+A destructive call arriving over `rig://` matches both rules - the first through the floor
+above - and the precedence rule resolves it to `deny`. **It is written as two rules rather than
+as prose because "read-only plus confirm" is not something the grammar can say in one**, and a
+default that cannot be expressed in the grammar it ships beside is a default nobody can audit.
 The URL surface itself is M13. **The enum ships at M1**, because it lives in the kernel's
 invoker and the whole point of that placement is that a surface added in 2028 is covered by
 rules written in 2026 - which only holds if the vocabulary can name it.
@@ -1642,7 +1674,10 @@ declare, and it has not.
 
 - **It lives in the kernel's invoker**, so no surface can forget it and a surface added in 2028
   is covered by rules written in 2026. One test covers every surface, present and future.
-- **The default rule set is empty**, so nothing already working breaks the day it lands.
+- **The default rule set is the two `url` rules and nothing else**, so nothing already working
+  breaks the day it lands: no surface mints a `url` principal before M13, and every other
+  caller starts unmatched. An unmatched call is allowed, which is what makes the table safe to
+  land early - and is why the M1 demo writes a rule rather than relying on a default.
 - **It costs a registered program nothing.** Both fields it matches on are already declared.
 - `confirm` routes through the same `ask` primitive the peers service uses (§16), so the
   question reaches whoever is actually present - window, toast, terminal or phone.
@@ -2626,7 +2661,7 @@ dependency, because §14's safety argument turns on it: the predicate ships here
 **complete history reading is gated on M5's compiled redaction spans**, so between M1 and M5
 an introspecting client reads the registry and the live views but not a recorded transcript.
 The call log itself lands at M5, so the exposure is thin in practice; it is written down so
-the ordering cannot be changed later by someone who never reads §14 - **house rules in the invoker**, `rig <app> <cmd>`, generated `--help`, completion, `--json` everywhere | **The week-one product.** `rig shelf reindex` from any terminal. One front door, no GUI. A destructive command with no grant is refused, and the same test covers every surface added later |
+the ordering cannot be changed later by someone who never reads §14 - **house rules in the invoker**, `rig <app> <cmd>`, generated `--help`, completion, `--json` everywhere | **The week-one product.** `rig shelf reindex` from any terminal. One front door, no GUI. **One house rule is written, and a `destructive` command is then refused with the refusal naming the pair it matched** - the wording before this said "with no grant is refused", which the authorisation model does not do: §14 disowns `operate` as a grant, and §13a's unmatched call is allowed. The same test covers every surface added later |
 | **M1a** | **The shell, and two fake applications that use it** | The window shell - rail, context bar, pane, status strip - over the visual system in `design/` as live `ui.theme` config; **`make contrast` repaired and wired into CI** before any of it is drawn; and **two fake applications, each modelled on a real program's measured markup**, serving their own HTML and composing it from the first kit elements they turn out to need (§5h) | **Two fake programs in one rail, drawn by rig, and the element list is whatever those two actually needed rather than whatever this document guessed.** The theme is changed from the settings UI and an unreadable set is refused by a gate that runs |
 | M2 | MCP and HTTP | The four meta tools, promotion, the capability-map resource **with coverage per program**, the per-program preamble, HTTP routes with **minted principals**, structured errors | An agent runs a real command in a real program through one MCP server, having written nothing - and is told, in the same answer, that its picture of that program is partial |
 | M3 | Terminal client | `rig shell` with completion and inline describe, the `rig tui` frame, `huh` forms from declared schemas, `--batch --json` | Every registered command discoverable and runnable from the TUI, by a person who read no docs |
