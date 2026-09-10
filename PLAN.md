@@ -975,193 +975,75 @@ it does not collide with `rig window`, which draws.
 
 #### It is a program, not a service inside `rigd`, and the reason is measured
 
-| Binary | Size | Delta |
-|---|---|---|
-| Go hello-world, `-trimpath -s -w` | 1,507,488 | |
-| the same, plus `jezek/xgb` + `xproto` + `xtest` | 2,523,399 | **+1,015,911** |
+Measured: a Go hello-world at `-trimpath -s -w` is 1,507,488 bytes and the same binary plus
+`jezek/xgb` with `xproto` and `xtest` is 2,523,399, so **the X11 dependency is +1,015,911
+bytes**. That is 0.97 MB, under §17's 1 MB trip wire, and it would take `rigd` from 39% to 44%
+of its budget at M1 of 16.
 
-That is 0.97 MB, which sits just under §17's 1 MB trip wire, and putting it in the daemon would
-take `rigd` from 39% to 44% of its budget at M1 of 16. The size is the smaller reason. The
-structural one is §17's own rule about the window: *"The daemon has no GUI dependency, does not
-link Wails, and does not link a webview ... keeps the daemon cross-compilable with no cgo."*
-Every argument in that line applies here and one of them applies harder. X11 through XTEST is
-pure Go, so today the daemon *could* carry it. The named successor backend below is a C library,
-and the day the hand moves to it a daemon that had absorbed the driver would need cgo. A
-dependency that is free now and structural later is exactly the one to put behind a process
-boundary before it is load-bearing.
-
-So `cmd/righand` is a fourth binary, after `rigd`, `rig` and the window, and it declares its
-commands the way `shelf` will. **It is the window's argument reused, not a new one**: §2's "two
-binaries, not one" is about where the terminal stack lives, and `rigwindow` already ships outside
-that count for exactly the reason given here. The rule that generalises out of both is the one
-worth writing down - **a dependency the daemon must not link gets a process, not a build tag** -
-and this is its second application. rig learns nothing about input synthesis; it learns that a program called
-`hand` declares eleven commands with declared properties. §29's first non-goal holds: no program
-id appears in rig's code, `hand` included.
+**The size is the smaller reason.** §17's rule for the window is that the daemon links no
+display dependency and stays cgo-free, and the successor backend below is a C library: XTEST is
+pure Go so the daemon *could* carry it today, and the day the hand moves a daemon that had
+absorbed the driver would need cgo. So `cmd/righand` is a fourth binary, after `rigd`, `rig` and
+the window. §2's "two binaries, not one" is about where the terminal stack lives and is not a
+cap; `rigwindow` already ships outside that count for this same reason, and **the rule that
+generalises out of both cases is that a dependency the daemon must not link gets a process, not
+a build tag.** §29's first non-goal holds either way: rig learns that a program called `hand`
+declares eleven commands, and no program id appears in its code.
 
 #### And that is what turns §16's most careful sentence from a caveat into an exception
 
-§16 says, of fencing tokens, that *"every lease in this estate guards something rig does not own
-- git, a deploy, the VM, the desktop. The token is rejected while `make deploy` runs on
-regardless"*, and it adds that this is said plainly because the unqualified version will be
-quoted back later. This is the quote-back, and it is a narrowing rather than a contradiction.
+§16 says fencing tokens guard resources rig does not own - "git, a deploy, the VM, the desktop"
+- and says it plainly because the unqualified version will be quoted back. This is the
+quote-back, and it narrows rather than contradicts.
 
-**The desktop stops being a resource rig does not own the moment rig is the only thing that can
-drive it.** `righand` binds no socket of its own, is reachable through no path but an invocation
-from `rigd`, and is started by rig or not at all. Every synthetic event therefore passes rig's
-boundary before it reaches the display, so an expired lease does not merely fail to discourage
-the next step, it refuses it. The classic stall - holder A's lease expires, B acquires, A wakes
-and writes anyway - is closed here and nowhere else, because A's write has to come back through
-the process that knows the lease is gone.
+**The desktop stops being one of those the moment rig owns the only driver that reaches it.**
+`righand` binds no socket, is reachable only through an invocation from `rigd`, and is started
+by rig or not at all, so every event crosses rig's boundary and an expired lease *refuses* the
+next step rather than failing to discourage it. The classic stall - A's lease expires, B
+acquires, A wakes and writes anyway - is closed here because A's write comes back through the
+process that knows the lease is gone. The token is therefore checked on **every call** rather
+than once at acquisition, and the lease is witnessed by `righand`'s own pid, which makes §16's
+two-step expiry exact. **It does not generalise**: it works only because the resource is reached
+solely through rig, which stays false of git, the deploy and the VM.
 
-Three consequences, and the third is the one to keep:
+#### The four things it decides, and the two it does not
 
-- **The fencing token is checked by `righand` on every call**, not once at acquisition, and a
-  call arriving with a stale token is refused with the current holder named.
-- **The lease is witnessed by `righand`'s own pid**, so §16's two-step expiry is exact rather
-  than approximate: a hand that died releases the display when the process is observed dead, and
-  a hand that hung holds ORPHANED until somebody looks.
-- **This is not a general result.** It works because the resource is reached only through rig,
-  which is false of git, `make deploy` and the VM, and will stay false of them. One lease being
-  genuinely fenceable is not evidence that any other is, and §16's sentence stands for the rest.
+**The design lives in `logbook/projects/rig/hand.md`**, per `logbook/CONVENTION.md`
+and the still-open advocate item asking this document to stop growing. The
+declaration table, the six carried-over traps with the defect each prevents, and
+the backend comparison are all there. What has to be here is what a later reader
+cannot re-derive:
 
-#### What it declares
+- **The contract is a typed array of step objects, and the terse one-step-per-line
+  form is a parser in `rig` that produces one.** AgentBox's notation is good and it
+  survives as sugar, but a line-oriented string cannot be validated by the daemon,
+  generated into `--help`, completed, addressed by a redaction pointer or projected
+  onto a surface added later, and §5e gives all five to a schema for free. Same
+  shape as M1 slice 5's flag sugar: the schema is real, the notation is convenience.
+- **Typed text is declared sensitive, not specially handled.** `sensitive:
+  ["/text", "/steps/*/text"]`, compiled to byte spans like anything else (§15).
+  AgentBox logs a script's shape and never its text, hand-rolled in the one place
+  that needed it; rig already owns the general form.
+- **Two commands are not what they look like, and both errors were made here
+  first.** `hold` is not `read-only`: acquiring the lease changes nothing in the
+  world, but a rule that denies driving while allowing read-only lets a program
+  take the display and never give it back, so **gating the drive while leaving the
+  grab open gates nothing**. And `windows` returns every window title on screen -
+  document names, ticket numbers, browser tabs - which is genuinely read-only and
+  is also the shape of the compound leak §31 records, so its **result** carries §15
+  pointers.
+- **The backend never appears in a declaration.** X11 through XTEST today, which §2
+  already licenses; **libei through the XDG Desktop Portal `RemoteDesktop`
+  interface** is the named successor, and its consent prompt is an OS-enforced
+  version of the strip rather than a window rig draws over its own screen.
+  `/dev/uinput` is rejected outright: it is blind to windows, so the window lock
+  cannot be built on it, and a backend that cannot say what it is about to type
+  into is a different and worse feature. `rig doctor` (§8) is where the backend
+  appears by name.
 
-Eleven commands, each with §5e's mandatory properties. `effects` is the interesting column and
-§26 carries the question it raises.
-
-| Command | `effects` | `duration` | `idempotent` | Notes |
-|---|---|---|---|---|
-| `where` | `read-only` | instant | yes | where the pointer is, the screen box, the focused window. **Its result is declared sensitive** |
-| `windows` | `read-only` | instant | yes | what is on screen, titles and boxes, for planning a script. **Its result is declared sensitive** |
-| `move` | see §26 | instant | yes | ends where it was told to end whatever the path |
-| `click`, `double` | see §26 | instant | **no** | a second click is a second click |
-| `drag` | see §26 | instant | **no** | |
-| `scroll` | see §26 | instant | **no** | |
-| `type` | see §26 | seconds | **no** | its argument is declared `sensitive` |
-| `key` | see §26 | instant | **no** | |
-| `script` | see §26 | seconds | **no** | the composite, and the one that is actually used |
-| `hold`, `release` | same floor as driving | instant | yes | take and give back the display lease. **Not `read-only`, and that was the first thing this table got wrong** |
-
-Every one of them declares `needs_display: true` and `interactive: false`: the hand needs a
-display and does not need a human, which is precisely why it needs the lease and the strip.
-`script` declares `confirms: true`; the single steps do not, because a rule that has to confirm
-each `move` in a forty-step script confirms nothing.
-
-**Two rows in that table were written wrong first, and both errors are worth keeping visible
-because they are the shape of error this whole design is supposed to prevent.**
-
-- **`hold` is not `read-only`.** Acquiring the display lease changes nothing in the world, so
-  the word looks right. But a house rule that denies driving while allowing `read-only` would
-  then let a program take the display and never give it back: the desktop is starved without a
-  single denied call, and the rule that was supposed to stop it reports success. **Gating the
-  drive while leaving the grab open gates nothing**, so `hold` carries the same floor as the
-  commands it is the precondition for. `release` follows it rather than being weaker, because a
-  caller that may not hold has no lease to give back.
-- **`windows` returns every window title on Boris's screen**, which is document names, ticket
-  numbers, customer names and whatever is in a browser tab. It is genuinely `read-only` and it
-  is also the exact shape of the compound leak §31 records: a call nobody would gate, returning
-  what the gated calls were protecting. So its result carries §15 pointers and is redacted out of
-  history like any other declared-sensitive field, and a caller that is allowed to plan a script
-  is not thereby allowed to leave a permanent record of what was on screen while it planned.
-
-#### The script is a typed array, and the terse form is sugar over it
-
-AgentBox's script is one step per line, `window agentbox` / `move 25% -46` / `click` / `type
-Ship it`, and it is a good notation: no quoting rules, the whole thing parsed before the first
-event, and one call instead of six that each pay for a process and an X connection. Keeping it
-as *the* interface would break §5e, which is not a formality here. A line-oriented DSL is not a
-JSON Schema, so it cannot be validated by the daemon, generated into `--help`, completed by the
-shell, addressed by a redaction pointer or projected onto any surface rig adds later. Every one
-of those is something rig gives a declaration for free and cannot give a string.
-
-**So the contract is an array of typed step objects, and the text form is a parser in `rig` that
-produces one.** The notation survives for the caller who wants it, `--args` remains the exact
-form for the caller who does not, and everything generated stays generated. This is the same
-shape as the flag sugar M1 slice 5 already ships: the schema is what is real, the terse form is
-convenience over it.
-
-#### The typed text is declared sensitive rather than specially handled
-
-AgentBox logs the shape of every script and never the text it typed. That is the right
-behaviour, hand-rolled in the one place that needed it. rig already has the general form: §15
-declares redaction as JSON pointers at registration and compiles them once into byte spans over
-the wire encoding, measured at **82.5 ns** in the hot path against 3100 ns for redacting at
-record time.
-
-    sensitive: ["/text", "/steps/*/text"]
-
-**That pointer is doing something §15 has never been asked for.** Every declared-sensitive field
-in this plan so far is at a fixed path; this one has to address every element of an array whose
-length is only known per call. Whether the compiled-span construction can express that, and at
-what cost, is a real question and not a detail, so it is in §26 rather than assumed here. If it
-cannot, the fallback is not to log a redacted script but to declare the whole `steps` array
-sensitive and record only its length and the op of each step, which is what AgentBox does today
-and is a defensible floor.
-
-#### Six things carried over unchanged, because each of them was paid for once already
-
-These are not implementation notes. Each is a defect that reached the screen, and a rewrite that
-does not know them will reintroduce them.
-
-| Kept | The failure it prevents |
-|---|---|
-| **A named window is a lock, not a coordinate frame.** It is resolved, raised, followed, and re-checked before *every* click (the pointer is really over it) and before every type or key (the keyboard is really in it). A mismatch raises once more and then fails the step naming what was there instead | A window that moved, closed or was covered sends the keystrokes into somebody else's document. This is the one that cannot be taken back |
-| **A menu, tooltip or combo popup, and a `WM_TRANSIENT_FOR` child, count as the target** | Otherwise every real toolkit's own menu fails its own lock |
-| **The XKB group is locked immediately before every single keystroke**, not once per call, because GNOME re-asserts the human's input source and wins any race that needs a round trip | The release tag `2026.7.3` reached a card as `2026ץ7ץ3`, on camera. One read in two hundred caught the lock before the revert |
-| **Window geometry comes from the X server in root coordinates**, never from `wmctrl -lG` | `wmctrl` reports doubled coordinates on a HiDPI display, so everything computed from it lands somewhere else |
-| **The pointer settles before a press.** Measured at 90 ms | Press in the same instant as the last motion event and the application sees a press at the old position, which looks exactly like "the webview ignores the mouse" |
-| **The park latch stops at the end of the current step, except a `type`, which stops between characters.** Boris's rule, settled at the mock | Stopping a drag half way leaves a button held down on his desktop. A `type` is the only step whose length is its text rather than a fixed beat, so finishing it politely means seconds of typing into whatever he just switched to |
-
-Two of those become config rather than constants (§6): the settle delay and the retry count. Both
-are numbers measured on one machine, and §6 exists so a number measured on one machine is not
-frozen into the binary.
-
-#### Four things rig makes better
-
-- **The presence signal is rig's job and is tied to the lease, not to the agent's diligence.**
-  AgentBox's HANDS OFF strip is drawn while an agent holds control and must live exactly as long
-  as the run, which means an agent that forgets to release leaves it up and an agent that
-  releases early takes it down mid-drive. Under rig the strip is the window's rendering of a held
-  display lease (§11), so it appears when the lease is taken and goes when the lease goes,
-  including when it goes by expiry. Nobody has to remember anything.
-- **The gating question has a real surface.** §13a specifies `confirm` and M1 ships it with
-  `Asker` nil, so every confirm is denied as an unanswered gating question. The hand is the
-  archetypal thing a house rule should confirm rather than allow, and §16's `ask` routes the
-  question to whoever is actually present. The hand does not need a bespoke consent prompt; it
-  needs the one rig already owes itself.
-- **A house rule can say what no AgentBox setting can.** `(program, drives-input) = deny` stops
-  one program driving the display while leaving Boris's own terminal able to, and the floor
-  semantics from `b40d62c` mean it holds for anything at least as dangerous without enumerating
-  it.
-- **A seeded hand is reproducible, so a demo and a golden test are one artefact.** AgentBox's
-  `Open(seed)` already takes 0 for a varying path and any other value for a repeatable session,
-  and the motion planner is deliberately pure with no X11 in it. §20 gets that as a rule: the
-  path is a property of the numbers, so it is tested as numbers, and the display is exercised
-  only where the display is the thing under test.
-
-#### The backend is not in the declaration, and here is the one that comes next
-
-X11 through XTEST today, which §2's "Linux and X11 first" already licenses and which has the
-property that matters: the events are indistinguishable from hardware, so an application that
-special-cases automation cannot special-case this. Under Wayland it reports that it cannot drive
-the display rather than pretending it did.
-
-**The successor is libei with the XDG Desktop Portal `RemoteDesktop` interface**, and it is
-better on the axis this section cares about most. The portal asks the human for consent at the
-compositor, which is an OS-enforced version of the strip rather than a window rig draws over its
-own screen, and it is how input emulation is meant to work on every current compositor. Its cost
-is a C library, which is the whole reason the hand is its own binary above.
-
-`/dev/uinput` was considered and rejected. It works under any compositor and needs no portal, and
-it is blind: a uinput device knows nothing about windows, so the window lock - the single most
-valuable safety property in this section - cannot be built on it at all. A backend that cannot
-tell you what it is about to type into is not a fallback, it is a different and worse feature.
-
-**None of that is in the declaration.** A program declaring `hand` commands says what they do,
-not how the events are made, so the backend moves without a program changing and without a
-surface changing. `rig doctor` (§8) is where the backend appears by name, with what is missing
-and what stops working, which is the rule §8 already sets for every optional dependency.
+**What it does not decide** is in §26: whether `effects` needs a fifth value for
+driving input (question 11), and whether a redaction pointer can address every
+element of an array (question 12).
 
 ---
 
