@@ -1,0 +1,59 @@
+# CI runs the same targets a human does (PLAN.md section 28).
+#
+# Nothing is defined here that is not a Makefile target, because a workflow
+# that reassembles the gate out of raw go commands is a second definition of
+# it, and the two drift. Every step below is `make <target>`, and what CI
+# checks changes by changing the Makefile.
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The full history, because the Makefile's VERSION comes from
+          # `git describe --tags`. A shallow clone has no tags, that falls
+          # back to "dev", and the string length reaches the binary through
+          # -ldflags -X, which is a number `make bench-size` ratchets.
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          # From go.mod, so the toolchain version lives in one place. The
+          # size ratchet is only meaningful against a fixed toolchain: with
+          # -trimpath and the same version, the build is reproducible.
+          go-version-file: go.mod
+          check-latest: false
+
+      - name: make ci
+        run: make ci
+
+      - name: make modules-matrix
+        run: make modules-matrix
+
+      # Not here, and each for a reason:
+      #
+      #   bench-ipc     a measurement. A shared runner cannot reproduce
+      #                 section 4's numbers, and a benchmark that reports
+      #                 whatever the neighbour VM left it is worse than none.
+      #   lint          golangci-lint has no config yet: 81 findings on the
+      #                 default set, and misspell calls every British
+      #                 spelling in the repo a typo.
+      #   cover verify modules test-wire bench-idle
+      #                 waiting on the milestone that gives each something to
+      #                 check. `make ci` prints the list and why.
