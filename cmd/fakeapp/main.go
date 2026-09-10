@@ -11,9 +11,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -47,22 +49,27 @@ func run() error {
 	}
 	defer c.Close()
 
-	c.Handle(func(_ string, payload []byte) (proto.Message, error) {
+	c.Handle(func(method string, payload []byte) (proto.Message, error) {
 		if *misbehave == "hang" {
 			// Longer than the daemon's CallTimeout, so rig answers DEADLINE
 			// instead of waiting on this process.
 			time.Sleep(time.Hour)
 			return nil, nil
 		}
-		var req rigv1.PingRequest
-		if err := proto.Unmarshal(payload, &req); err != nil {
-			return nil, err
+		// The probe carries rig's own typed message; every declared command
+		// carries CallRequest with the JSON its schema describes.
+		if command(method) == "ping" {
+			var req rigv1.PingRequest
+			if err := proto.Unmarshal(payload, &req); err != nil {
+				return nil, err
+			}
+			return &rigv1.PingResponse{
+				Nonce:   req.GetNonce(),
+				Program: *name,
+				Version: version,
+			}, nil
 		}
-		return &rigv1.PingResponse{
-			Nonce:   req.GetNonce(),
-			Program: *name,
-			Version: version,
-		}, nil
+		return answer(method, payload)
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -121,6 +128,125 @@ func declaration(id string) *rigv1.Declaration {
 			Description: "Echoes the nonce it was given, so a caller can " +
 				"prove the round trip was its own and not a cached reply.",
 			Returns: "The nonce, this program's id and its version.",
+		}, {
+			Id:    "reindex",
+			Title: "Reindex",
+			// The argument schema. rig validates against THIS at the
+			// boundary and builds the CLI's flags from it, so `--since` is
+			// not written down anywhere in rig.
+			Args: []byte(`{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["since"],
+  "properties": {
+    "since": {
+      "type": "string",
+      "pattern": "^[0-9]+[dhm]$",
+      "description": "how far back to reindex, e.g. 7d"
+    },
+    "dry_run": {
+      "type": "boolean",
+      "description": "count what would be done and change nothing"
+    },
+    "workers": {"type": "integer", "minimum": 1, "maximum": 64}
+  }
+}`),
+			Examples: []string{
+				"rig fakeapp reindex --since 7d",
+				"rig fakeapp reindex --since 24h --dry-run --json",
+			},
+			// Writes files rather than destructive: it rebuilds an index it
+			// owns. A house rule naming destructive does not fire on it, and
+			// that is the declaration doing its job.
+			Effects:      rigv1.Effects_EFFECTS_WRITES_FILES,
+			Idempotent:   rigv1.Tristate_TRISTATE_YES,
+			Sensitive:    &rigv1.SensitiveFields{},
+			Interactive:  rigv1.Tristate_TRISTATE_NO,
+			Streams:      rigv1.Tristate_TRISTATE_NO,
+			NeedsDisplay: rigv1.Tristate_TRISTATE_NO,
+			Duration:     rigv1.Duration_DURATION_SECONDS,
+			Confirms:     rigv1.Tristate_TRISTATE_NO,
+			Shape:        rigv1.Shape_SHAPE_UNARY,
+			Summary:      "Rebuild the index over a window",
+			Description: "Walks everything changed in the window and " +
+				"rebuilds the index for it. Re-running is free.",
+			Returns: "The window it used, how many items it indexed, and " +
+				"whether it was a dry run.",
+		}, {
+			Id:    "purge",
+			Title: "Purge",
+			// No argument schema at all, which means it takes none - and rig
+			// refuses a call that passes some rather than dropping them.
+			Effects:      rigv1.Effects_EFFECTS_DESTRUCTIVE,
+			Idempotent:   rigv1.Tristate_TRISTATE_YES,
+			Sensitive:    &rigv1.SensitiveFields{},
+			Interactive:  rigv1.Tristate_TRISTATE_NO,
+			Streams:      rigv1.Tristate_TRISTATE_NO,
+			NeedsDisplay: rigv1.Tristate_TRISTATE_NO,
+			Duration:     rigv1.Duration_DURATION_INSTANT,
+			Confirms:     rigv1.Tristate_TRISTATE_YES,
+			Shape:        rigv1.Shape_SHAPE_UNARY,
+			Summary:      "Delete the index",
+			Description: "Deletes the index and everything derived from it. " +
+				"Declared destructive, which is what a house rule matches on.",
+			Returns: "Nothing.",
 		}},
 	}
+}
+
+// command is the part of <program>.<command> after the first dot.
+func command(method string) string {
+	if _, c, ok := strings.Cut(method, "."); ok {
+		return c
+	}
+	return method
+}
+
+// answer runs a declared command over CallRequest/CallResponse.
+//
+// fakeapp does not re-validate the arguments: rig validated them against the
+// declared schema at the boundary, and a program that checks again is a
+// program with a second opinion about its own declaration.
+func answer(method string, payload []byte) (proto.Message, error) {
+	var req rigv1.CallRequest
+	if err := proto.Unmarshal(payload, &req); err != nil {
+		return nil, err
+	}
+
+	switch command(method) {
+	case "reindex":
+		var args struct {
+			Since   string `json:"since"`
+			DryRun  bool   `json:"dry_run"`
+			Workers int    `json:"workers"`
+		}
+		if len(req.GetArgs()) > 0 {
+			if err := json.Unmarshal(req.GetArgs(), &args); err != nil {
+				return nil, err
+			}
+		}
+		if args.Workers == 0 {
+			args.Workers = 4
+		}
+		// A number that depends on the window, so the demo shows the
+		// arguments actually arriving rather than a constant.
+		indexed := len(args.Since) * 137
+		if args.DryRun {
+			indexed = 0
+		}
+		out, err := json.Marshal(map[string]any{
+			"since":   args.Since,
+			"indexed": indexed,
+			"workers": args.Workers,
+			"dry_run": args.DryRun,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return &rigv1.CallResponse{Result: out}, nil
+
+	case "purge":
+		return &rigv1.CallResponse{Result: []byte(`{"purged":true}`)}, nil
+	}
+	return nil, fmt.Errorf("fakeapp: no command %q", command(method))
 }
