@@ -1,0 +1,7 @@
+build/
+dist/
+node_modules/
+*.out
+*.test
+.air.toml
+frontend/.svelte-kit/
