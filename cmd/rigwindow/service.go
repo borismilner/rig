@@ -47,6 +47,13 @@ type Program struct {
 	Services     []string `json:"services"`
 	Hosted       bool     `json:"hosted"`
 	Commands     int      `json:"commands"`
+
+	// Where the program serves its own HTML, empty if it serves none.
+	// Section 11's three tiers turn on this one field: empty means rig draws
+	// the pane from what was declared, and a value means the program draws it.
+	// rig refuses anything but a loopback origin at registration, so by the
+	// time a value reaches here it has already been checked.
+	PaneURL string `json:"paneUrl"`
 }
 
 // Health is what the status strip renders.
@@ -93,6 +100,7 @@ func (RigService) Programs() ([]Program, error) {
 			Services:     p.GetServices(),
 			Hosted:       p.GetHosted(),
 			Commands:     len(p.GetCommands()),
+			PaneURL:      p.GetPaneUrl(),
 		})
 	}
 	return out, nil

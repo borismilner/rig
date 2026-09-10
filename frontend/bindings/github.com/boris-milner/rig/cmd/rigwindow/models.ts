@@ -37,4 +37,13 @@ export interface Program {
     "services": string[] | null;
     "hosted": boolean;
     "commands": number;
+
+    /**
+     * Where the program serves its own HTML, empty if it serves none.
+     * Section 11's three tiers turn on this one field: empty means rig draws
+     * the pane from what was declared, and a value means the program draws it.
+     * rig refuses anything but a loopback origin at registration, so by the
+     * time a value reaches here it has already been checked.
+     */
+    "paneUrl": string;
 }
