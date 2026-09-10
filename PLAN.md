@@ -556,8 +556,9 @@ file-watcher and declared state machines are drawn because they are plausible, n
 are planned - and drawing an unowned box as though it were scheduled is how a plan lies to its
 own reader. Also named and not drawn: an HTTP client with shared retry and rate limits, a
 template renderer, a lock manager, a diff service. **Nothing here ships without a program that
-adopts it**, per §5k, and the §24 gate on 2026-10-22 is where each is either given a milestone
-or struck.
+adopts it** - the rule is stated here, and §5k covers per-service adoption and declared
+coverage rather than this gate - and the §24 gate on 2026-10-22 is where each is either given a
+milestone or struck.
 
 ### Declared state machines, if the supervisor can be its first client
 
@@ -612,9 +613,8 @@ shape, never a field in the program's declaration.
 ### The element kit, so a program that draws itself still looks like rig
 
 A renderer draws something the program **declared**. A **kit element** is the other direction: a
-program serving its own HTML asks rig for a table, a toolbar, an empty state, a spinner - and
+program serving its own HTML asks rig for a table, a toolbar, an empty state, a skeleton - and
 gets rig's, in rig's theme, behaving the way that element behaves on every other surface.
-`ui.elements`, beside `ui.theme` in §6, and layered and live-pushed the same way.
 
 **A program picks a subset and fits it to its own layout. It does not get to invent one.** That
 split is the whole design: *which* elements to use is the program's choice, and how each one
@@ -622,34 +622,45 @@ looks and behaves is rig's. It does not weaken the rule above - a program still 
 widget for **declared** data. It names elements only for the HTML it serves itself, which today
 gets no help at all.
 
+**The first version of this tier was attacked on 2026-09-10 and did not survive**, and the two
+things that killed it are the two this version is built to avoid.
+
+**First, it had no adopter.** It was pitched on `archi`, `dispatch` and `snapper` each
+reimplementing a table, a toolbar, an empty state and a spinner "and all four subtly wrong".
+Measured: `archi` has zero tables, `dispatch` has one call site, `snapper` serves no HTML at
+all, and **no program in the estate has a spinner** while two of them have 114 skeletons. Six of
+those twelve claims did not exist. **So the adopters are now the fake applications of §23**,
+which is the only way this tier gets exercised before a real program is asked to change.
+
+**Second, the inventory was taken from a sentence rather than from the estate.** The census that
+should have set it: `clinic` 143 tables, `pull-report` 18, `devtool` 4, `minibot` 4, `archi` 2,
+`dispatch` 1. **A fake application that is written to fit the kit proves nothing**, so each one
+is modelled on a real program's measured markup and the kit is what has to bend.
+
 | # | Requirement | Why it is a requirement and not a preference |
 |---|---|---|
-| R1 | **The inventory is closed and rig owns it.** A program picks from the kit and cannot extend it; adding an element changes rig and the catalogue | An open inventory is the fragmentation this tier exists to prevent, arriving through the door marked "just one more" |
-| R2 | **Three renderers or it is not in the kit** - the window, the TUI (§10 mirrors every view the window has) and a terminal fallback | Conformance item 20 already says that asserting *a* renderer exists is not the test. An element that lives only in the window quietly makes the terminal the poor relation §10 forbids |
-| R3 | **A program declares which elements it uses**, and the list is checked at registration | Adoption becomes per element, so §5k's `coverage: partial` keeps working; and the catalogue can show what nothing uses, so a dead element is deleted rather than maintained forever |
-| R4 | **The kit carries a generation, and rig serves every generation it has shipped** | An element whose *look* changed is fine; one whose *behaviour* changed breaks a program that never asked for it. That is §21's `semantics_gen` problem exactly, so it gets §21's answer rather than a second mechanism |
-| R5 | **Every element passes the contrast gate on every surface it can land on, in both themes, for every shipped preset** | §20 asserts this for the generated token set. An element is where a token actually meets text, so a gate that stops at tokens stops one layer short of the thing a person reads |
-| R6 | **No element knows which program is holding it.** It takes data and emits events | §5h's own rule: a service or surface that needs a program's identity to work is business logic in the wrong place |
-| R7 | **The typed bridge's vocabulary *is* the element list**, so using an element rig has removed fails at registration | The alternative fails at render, in front of the user, on the one surface whose entire product is presentation |
-| R8 | **The kit is section ten of `design/visual-system.html`**, each element beside the declaration that requests it | The shape the catalogue's section 09 already uses for the six generated renderers, and the reason this visual system is measured rather than asserted |
+| R1 | **The inventory is open while the only adopters are fake, and closes on the first real one.** Until then adding an element is a normal change | A closed inventory bought protection for programs that had not adopted, and cost the ability to change the kit at all. The fragmentation it guarded against has not happened: `dispatch` and `devtool` already share a byte-identical component set that rig did not supply |
+| R2 | **One renderer, plus the pane-level terminal fallback §10 already requires of the program** | A renderer draws a *declared* thing, and a kit element declares nothing, so there is no input a second renderer could consume. Conformance item 20 says every declared schema shape has a renderer **or** a fallback; it is a disjunction, about the generated tier, and it does not reach an element |
+| R3 | **The element list is a registration declaration** - a field in §5e beside `services` - and config may subtract from it, never add | One authority, so the check has somewhere to run. Routing it through §6 put four layers above the program's own declaration and made the failure land at render, which R7 exists to prevent |
+| R4 | **The kit is unversioned until the first real adopter, and carries a generation from that day** | Serving every generation forever protects a program that never asked, and there is no such program yet. Applied now it would freeze the kit against the one thing it needs, which is to change while the fake applications are still finding its shape |
+| R5 | **Every element passes the contrast gate on every surface it can land on, in both themes.** The gate is `make contrast`, and it runs in CI | §20 asserts this for the generated token set. An element is where a token actually meets text. **`make contrast` currently invokes a tool that has never existed and CI never calls it**, so this requirement is a promise about a gate that has to be built first |
+| R6 | **No element knows which program is holding it.** It takes data and emits events | §5h's own rule: a service or surface that needs a program's identity to work is business logic in the wrong place. Measured and it holds: the hue reaches an element as a custom property on the root, so the element reads a token and never learns an id |
+| R7 | **Using an element rig has removed fails at registration**, which follows from R3 rather than from a bridge | The alternative fails at render, in front of the user, on the one surface whose entire product is presentation |
+| R8 | **The kit is a section of `design/visual-system.html`**, each element beside the fake application that uses it | Section 09 shows renderers beside the declaration *that produced them*; an element has no declaration, so it is shown beside its caller instead. The page has nine sections and **no navigation of any kind** - no nav, no anchors, no ids - which is fixed before a tenth is added |
 
-**The kit is not implemented until it has been attacked, and that is a
-precondition on M8 rather than a review step inside it.** Every program in the
-estate touches the kit, and it is the one surface where a wrong decision cannot
-be contained to a single adopter: a bad service is adopted by nobody and struck
-at a gate (§5k), but a bad element inventory is a shape every program has
-already built against by the time the defect shows. **It is the only one-way
-door in this plan.** R1-R8 were written in one pass by one session and have had
-no adversarial reading; the `/attack` findings land here before any element is
-written. If the attack says the kit does not survive, it is struck and the
-embedded tier keeps getting tokens only - which is today's behaviour and is not
-a regression.
+**Every requirement above gets a test or it is deleted.** R1-R8's first version had none: zero
+of §19's twenty-four conformance items and zero of §20's rows mention an element or the kit, so
+eight rules were enforced by review. **Minimum: a §19 item extending declaration completeness to
+the element list, a §19 item asserting fidelity per element, a §20 contrast row at element
+scale, and `make contrast` wired into CI.** A requirement with no test is a preference with a
+bold heading, which §3 and §5i both already say in their own headings.
 
-**What the kit is not.** It is not a second theme surface - there is one token set and
-`ui.elements` selects from it rather than adding to it. It is not a widget hint on declared data,
+**What the kit is not.** It is not a second theme surface - there is one token set and the
+element list selects from it rather than adding to it. It is not a widget hint on declared data,
 which §5h forbids above and which would fragment the generated tier to fix the embedded one. And
 it is not a framework: an element is markup, tokens and behaviour, with no opinion about how the
-program builds the page around it.
+program builds the page around it. **Behaviour is the half with no definition anywhere** - focus
+order, keyboard handling, what a click does - and the fake applications are where it gets one.
 
 **Modules contribute capability names; the kernel does not enumerate them.** §13's capability
 set was literally `tray`, `notify`, `schedule` - three module names hard-coded inside the
@@ -797,7 +808,7 @@ Layers, lowest to highest, with the winner recorded per key:
   override does not lose, it simply no longer exists under that spelling.
 
 **The visual system is configuration, not code.** Faces, base size, type scale, tracking, line
-height, corner radius, density, the six-hue family's lightness, chroma and rotation, the neutral
+height, corner radius, density, the hue family's lightness, chroma and rotation, the neutral
 surface ladder and whether anything animates are all declared under `ui.theme` as JSON Schema,
 layered and live-pushed like every other setting. `design/theme.js` is the reference
 implementation and `design/visual-system.html` is the live editor over it; the export box there
@@ -1183,7 +1194,7 @@ can operate the entire estate.
 
 ### The rule that keeps the terminal first-class
 
-**A view ships in the TUI when its data lands.** Once the window exists at M8, no view ships in
+**A view ships in the TUI when its data lands.** Once the window exists at M1a, no view ships in
 one without the other. The TUI is written as a surface plugin like any other, so it costs one
 module rather than a parallel product.
 
@@ -1193,16 +1204,19 @@ schema - and cannot hold for embedded ones. archi's pane is an iframe over a han
 canvas; there is no TUI renderer for it and there can be none, and writing one would put archi's
 business logic inside rig, which §5h calls a bug. Six of eleven programs in §25 are tier-two.
 
-So the test in §3 asserts: **every generated view has a TUI renderer, and every embedded pane
-declares a terminal fallback** - the commands, state and data behind it, reachable and runnable
-from the terminal even though the canvas is not drawable there. A program that offers an
-embedded pane and no fallback fails `rig verify`.
+So the test in §3 asserts: **every generated view has a TUI renderer, and every pane a program
+draws itself declares a terminal fallback** - the commands, state and data behind it, reachable
+and runnable from the terminal even though the canvas is not drawable there. A program that
+offers such a pane and no fallback fails `rig verify`. **That covers the kit tier as well as
+the embedded one**, and it has to say so: §11 has three tiers, this test used to name two, and
+a kit element cannot carry a fallback of its own because the fallback is per pane and only the
+program knows what is behind it (§5h R2).
 
 ---
 
 ## 11. The window
 
-The UI shell inside rig. Its visual system is a separate piece of work (§23 M8) because for a
+The UI shell inside rig. Its visual system is a separate piece of work (§23 M1a) because for a
 program whose whole job is presenting other programs, the visual design *is* the product. It is
 built and measured: `design/visual-system.html`, engine at `design/theme.js`.
 
@@ -1214,18 +1228,18 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
 - **Three pane tiers**, and the middle one exists because the outer two leave a gap.
   *Generated*: the program declared a schema and rig renders forms, tables, actions, progress,
   detail and status - and the program never names a widget (§5h). *Kit*: the program serves its
-  own HTML and composes it from rig's own elements, so a table in `archi` is rig's table rather
-  than `archi`'s fourth attempt at one. *Embedded*: the program serves its own HTML and brings
-  its own components, getting the token set and nothing more.
-- **The gap the kit closes, stated because it is the whole reason for a third tier.** `archi`,
-  `dispatch` and `snapper` draw their own UI, and under two tiers rig hands them tokens and
-  stops there. Each then reimplements a table, a toolbar, an empty state and a spinner, and all
-  four are subtly wrong - which is exactly the per-program visual system this section exists to
-  abolish, surviving inside the embedded tier. **The kit is how one visual system reaches a
-  program rig does not draw.**
-- **The shell is achromatic.** Each program owns one hue from a uniform six-hue family, and that
-  is the only saturated colour on screen while you are in it. A host that wears the colour of
-  whatever it is holding.
+  own HTML and composes it from rig's own elements. *Embedded*: the program serves its own HTML
+  and brings its own components, getting the token set and nothing more.
+- **The gap the kit closes, and the version of this claim that was measured and found false.**
+  The tier exists because a program serving its own HTML gets tokens and stops there, so one
+  visual system cannot reach it. What this section used to say - that `archi`, `dispatch` and
+  `snapper` each rebuild a table, a toolbar, an empty state and a spinner and get all four
+  subtly wrong - is not true of any of them (§5h). **The kit's adopters are the fake
+  applications of §23 until a real program asks for it.**
+- **The shell is achromatic.** `design/theme.js` ships **seven** hues of which **five** are
+  ownable, and a program with no identity hue stays achromatic, which is what the shell is
+  anyway. The owned hue is the only saturated colour on screen while you are in it. A host that
+  wears the colour of whatever it is holding.
 - **Healthy is the absence of colour.** Six programs, most idle, most of the time, so `ok` is
   drawn as a hollow tick and a hue appears only when something wants you. A stopped program
   keeps its place and goes dashed, so the rail never re-orders under your hand.
@@ -2320,13 +2334,14 @@ dependency, because §14's safety argument turns on it: the predicate ships here
 an introspecting client reads the registry and the live views but not a recorded transcript.
 The call log itself lands at M5, so the exposure is thin in practice; it is written down so
 the ordering cannot be changed later by someone who never reads §14 - **house rules in the invoker**, `rig <app> <cmd>`, generated `--help`, completion, `--json` everywhere | **The week-one product.** `rig shelf reindex` from any terminal. One front door, no GUI. A destructive command with no grant is refused, and the same test covers every surface added later |
+| **M1a** | **The shell, and two fake applications that use it** | The window shell - rail, context bar, pane, status strip - over the visual system in `design/` as live `ui.theme` config; **`make contrast` repaired and wired into CI** before any of it is drawn; and **two fake applications, each modelled on a real program's measured markup**, serving their own HTML and composing it from the first kit elements they turn out to need (§5h) | **Two fake programs in one rail, drawn by rig, and the element list is whatever those two actually needed rather than whatever this document guessed.** The theme is changed from the settings UI and an unreadable set is refused by a gate that runs |
 | M2 | MCP and HTTP | The four meta tools, promotion, the capability-map resource **with coverage per program**, the per-program preamble, HTTP routes with **minted principals**, structured errors | An agent runs a real command in a real program through one MCP server, having written nothing - and is told, in the same answer, that its picture of that program is partial |
 | M3 | Terminal client | `rig shell` with completion and inline describe, the `rig tui` frame, `huh` forms from declared schemas, `--batch --json` | Every registered command discoverable and runnable from the TUI, by a person who read no docs |
 | M4 | Config | Layers, schema, provenance, live push, validate, export, diff, and its TUI view | `rig config origin` explains a surprising value; a change applies live with no restart |
 | M5 | Observability | Log, trace and metric ingest, merge, query, the call log, **compiled redaction spans**, the **coverage log**, segment-embedded dictionaries, column summaries, `rig logs`, `rig loose-ends`, `rig doctor`, TUI views | One MCP call traced end to end across two processes and read back in the TUI; and a known secret passed through a declared-sensitive field appears in no segment |
 | M6 | Control and supervision | Start, stop, restart, health, budgets, quarantine, **lifecycle notices**, the **tolerant client and the resolved snapshot**, reconnect with a session token, request-id dedup | `kill -9` in a loop both ways, plus a deliberate restart under load with **zero refused dials and zero silent replays** |
 | M7 | Peers | Presence, leases with **witnesses and two-step expiry**, `rig peers run`, fencing tokens per lease, read/write, semaphores, barriers, election, **continuation slots** (§16), versioned blackboard with multi-key transactions, watches with a cursor, claimable queues, rendezvous, signals, `ask`, **the AgentBox dual-write shadow path**, the crew, wait-for graph, contention and timeline views | The simulation suite green over 10000 seeded interleavings with injected crashes, **lost replies and a suspend clock jump**; every adversarial test passing; a stalled holder's `make deploy` actually stops |
-| M8 | The window and the tray | The rail, panes, embedded mode over the localhost SPAs six programs already serve, one tray icon with the **detached** state, the visual system from `design/` as live `ui.theme` config, **the element kit and its eight requirements (§5h) with `archi` as the named adopter - not started until the kit has been through `/attack` (§5h)**, and **the decision on who hosts the tray and the toast layer, with its §17 budget row** (§17) | One window, one tray, three programs in a rail. Six tray icons become one, and the theme is changed from the settings UI with the contrast gate refusing an unreadable set. **`make bench-idle` covers every resident rig process, not only `rigd`** |
+| M8 | The tray, and the window over real programs | Embedded mode over the localhost SPAs the estate already serves, one tray icon with the **detached** state, **the decision on who hosts the tray and the toast layer, with its §17 budget row** (§17), and **the first real adopter of the element kit, which is where R1 closes and R4's generations begin (§5h)** | One tray icon where six were, real programs in the rail M1a built, and one of them serving its own HTML through kit elements that a fake application shook out first. **`make bench-idle` covers every resident rig process, not only `rigd`** |
 | M9 | Toasts | The frameless toast, severities, springs, stacking, live bodies, inline actions, the centre, Do Not Disturb, D-Bus fallback | A command answered from inside a toast with no window open |
 | M10 | Generated UI | Forms, tables, actions, progress, detail, status from declared schema, in both window and TUI | `nudge` gets a complete pane and a complete TUI view with zero frontend code |
 | M11 | Storage and secrets | Managed location, migration runner, backup, integrity, retention, browser; keyring with per-program namespaces, **in `rigd`** (§22); **`rig backup` and `rig restore` for rig's own state** (§7) | A program's migration runs before it starts, and its backup restores. **A fresh machine restores the audit log, the notification centre and the config tree from one archive** |
@@ -2337,6 +2352,15 @@ the ordering cannot be changed later by someone who never reads §14 - **house r
 | M16 | Estate migration and the AgentBox cutover | The rest of the estate, in the order in §25, then the agent tooling repointed from AgentBox to the peers service | Every in-house program reachable from one CLI, one TUI, one tray, one window, one MCP server |
 
 **v1 is M0 through M13.**
+
+**M1a is inserted rather than numbered, and that is deliberate.** The GUI moved early on
+2026-09-10 because a fake application that uses the shell is the only demonstration of it that
+exists before a real program is asked to change, and because the element kit had been specified
+for two years' time against an inventory nobody had built. Renumbering M2-M16 to make room
+would have moved **85 milestone references**, invalidated §24's M3 gate - which is **dated
+2026-10-22** and whose date is the point of it - and rewritten the numbering under a session
+that was mid-M1 at the time. A letter costs one line of explanation; a renumber costs the dated
+gate.
 
 ---
 
@@ -2349,16 +2373,22 @@ an agent can call, and the TUI makes all of it explorable. That is a large fract
 total work. The question gets asked honestly: is the GUI worth the remaining twelve milestones,
 or are the front door and the terminal enough? A platform nobody stopped to question is how months disappear.
 
+**M1a makes this gate answerable instead of rhetorical, and that is the point of moving it
+early.** By M3 the shell exists and two fake applications are running in it, so the question is
+asked in front of the thing rather than in front of a description of it. **What M1a cannot
+answer is this gate**, and the distinction has to be held: fake applications show that the GUI
+*works*, and this gate asks whether it is *worth the remaining milestones*. A demonstration
+that looks good is the most likely way this gate gets passed rather than taken.
+
 **After M8.** One window and one tray exist over programs that were not modified. If that is
 enough, M10 and beyond wait for a program that genuinely needs them.
 
-**The element kit makes that question harder to answer lazily, which is why it ships at M8
-rather than after the gate.** M10's main product is panes that look like one system; the kit
-delivers that for the three programs that draw themselves (§11). So by the time this gate is
-taken, "stop at M8" is a *real* option with visible evidence rather than a rhetorical one - and
-if `archi` has adopted the kit and looks right, the honest question becomes whether generated
-panes are worth M10 at all. **The gate is answered on what the kit actually did for `archi`**,
-not on the plan's confidence about it.
+**The gate is answered on whether a real program adopted the kit, and what that cost it in
+hours** - not on the fake applications, which were built to use it and therefore cannot fail to.
+M10's main product is panes that look like one system; if a real adopter got that from the kit
+at M8, the honest question becomes whether generated panes are worth M10 at all. **If no real
+program has adopted by M8, that is the answer**, and the kit is struck with the shell kept:
+the shell is M1a's and does not depend on it.
 
 ### Both gates are dated, because an undated gate is passed rather than taken
 
@@ -2399,7 +2429,7 @@ what re-checking looks like.
 | 4 | `sigs` | 113 commits | The second generated-UI program, so it is designed against two |
 | 5 | `snapper` | 197 commits, built | Native capture stays its own window; history and settings come in |
 | - | `graft` | 2 commits, **deferred 2026-09-10** | **Not an adopter, and not counted as one.** Its own window/tray milestone was struck the day this row was written, and Boris then deferred graft entirely until rig v1 and the client stub exist. It is a *consumer* of rig's schedule, not a contributor to it: counting it here would let rig's payoff borrow a program that is waiting on rig |
-| 7 | `archi` | 237 commits, no built binary | The richest frontend under the theme bridge |
+| 7 | `archi` | 237 commits, two built binaries (13M, 19M) | The richest frontend under the theme bridge |
 | 8 | `grabbit` | 100 commits, stalled since 2026-08-11 | A stalled project is the best test of whether rig makes finishing cheaper |
 | 9 | `devtool` | 65 commits | The endpoint of the argument: unbundle it, each utility its own program |
 | 10 | `romsort`, `dedup` | 7 and 2 commits | Deferred until they are real programs |
@@ -2433,15 +2463,16 @@ what re-checking looks like.
    code. If yes, the service is real and gets a milestone at the §24 gate; if no, it is struck
    and the three machines rig hard-codes stay hard-coded. Nothing else adopts it today, so
    there is no second candidate to fall back on.
-9. **Will `archi`, `dispatch` and `snapper` actually adopt the element kit?** (§5h, §11) The
-   kit's whole justification is that three programs draw their own UI and get nothing but
-   tokens. But each of them already *has* a table and a toolbar that work, and replacing
-   working UI with rig's is effort with no feature at the end of it - the same reason §25's
-   stalled programs are stalled. `archi` is the named adopter at M8 and the M8 gate is
-   answered on what actually happened, not on the intent. **If none of the three adopts, the
-   kit is eight requirements serving nobody** and should be struck rather than maintained.
+9. **Which real program adopts the element kit, and what does it cost that program?**
+   (§5h, §11) **Asked and answered once already, and the answer was none.** Measured
+   2026-09-10: `archi` has zero tables, `dispatch` has one call site and its own table has no
+   behaviour to lose, `snapper` serves no HTML at all, and replacing working UI with rig's is
+   effort with no feature at the end of it - the same reason §25's stalled programs are
+   stalled. The kit's adopters are now M1a's fake applications, which cannot answer this
+   question because they were written to use it. **The question stays open until a real
+   program adopts or M8 arrives, and if M8 arrives first the kit is struck** (§24).
 10. **Do the four `← open` services survive the §24 gate?** A job queue, a cache, a
-   file-watcher and state machines are drawn in §5h and owned by no milestone. §5k says nothing
+   file-watcher and state machines are drawn in §5h and owned by no milestone. §5h says nothing
    ships without a program that adopts it, so the question is really "which program", and for
    three of the four there is no answer yet.
 
