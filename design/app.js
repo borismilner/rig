@@ -344,7 +344,15 @@ document.getElementById('stagetoast').appendChild(st);
 /* ══ palette, measured from the tokens actually painted ═════════════════ */
 const USE={rust:'error · failing',amber:'warn · degraded',sage:'success · ok',
            teal:'progress · snapper',steel:'info · shelf',indigo:'dispatch',lilac:'archi'};
-const GROUNDS=['bg','bg-2','panel','glow'];
+// Five, not four. theme.js solves every text token against
+// [bg, bg2, panel, glow, tint] and every boundary token against the first four,
+// and the comment three lines above that split says a token solved on four and
+// then used on tint "is exactly how a 3.95:1 shipped". This table asked four
+// questions of tokens that answer five, so the one ground most likely to fail
+// was the one never shown. A boundary genuinely never lands on --tint, so its
+// cell says so instead of quietly not existing.
+const GROUNDS=['bg','bg-2','panel','glow','tint'];
+const BOUNDARY=new Set(['border','border-2']);
 const tokv=n=>getComputedStyle(document.documentElement).getPropertyValue('--'+n).trim();
 function paintPalette(){
   const ms=theme.hues.members;
@@ -361,6 +369,8 @@ function paintPalette(){
   let worst=Infinity, fails=0;
   document.getElementById('ratiobody').innerHTML=rows.map(([n,need])=>{
     const cells=GROUNDS.map(g=>{
+      if(g==='tint' && BOUNDARY.has(n))
+        return `<td class="m" title="a boundary never lands on --tint">n/a</td>`;
       const r=contrast(tokv(n), tokv(g)), ok=r>=need;
       if(!ok) fails++;
       worst=Math.min(worst, r/need*4.5);

@@ -55,6 +55,16 @@ jobs:
       - name: make modules-matrix
         run: make modules-matrix
 
+      - name: make contrast
+        # Section 20's "a failing ratio fails the build" was prose until this
+        # step existed: the target it needed had never been written, and no
+        # workflow called it. Its own step rather than part of `make ci` for the
+        # same reason as lint - it needs something the runner provides (Chrome
+        # at /usr/bin/google-chrome) and `make ci` must not assume a machine has
+        # it. The target self-tests its instruments against known answers first,
+        # because a contrast script that lies certifies defects.
+        run: make contrast
+
       # Not here, and each for a reason:
       #
       #   bench-ipc     a measurement. A shared runner cannot reproduce

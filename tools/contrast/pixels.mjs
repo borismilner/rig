@@ -110,3 +110,21 @@ export function boxAndBand(img, box, band = 4) {
   }
   return {inside, around};
 }
+
+// How many distinct colours the selected pixels hold. One means nothing is
+// painted in that region: no border, no glyph, no ring, just the surface behind
+// it. Distinguishing that from "focusing this changes nothing" matters, because
+// one is an accessibility defect and the other is an element that is laid out
+// but not drawn - and accusing the page of the first when it is the second is
+// how a gate stops being believed.
+export function distinct(img, select, cap = 64) {
+  const seen = new Set();
+  const n = img.width * img.height;
+  for (let i = 0; i < n; i++) {
+    if (select && !select[i]) continue;
+    const p = i * 4;
+    seen.add((img.data[p] << 16) | (img.data[p + 1] << 8) | img.data[p + 2]);
+    if (seen.size >= cap) return cap;
+  }
+  return seen.size;
+}

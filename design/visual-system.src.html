@@ -36,6 +36,21 @@
   --lh:1.55;--tight-ui:-.011em;--tight-disp:-.024em;
   --radius:12px;--den:1;--gut:1.6rem;--motion:1;
   --hue:var(--h-steel);--ohue:var(--o-steel);
+  /* A focus indicator is WCAG 1.4.11 non-text contrast: 3:1 against whatever it
+     is seen against. These rings were color-mix(... 36%, transparent) over the
+     surface and measured 1.52:1 dark, 1.76:1 light - `make contrast` fails the
+     build on that now. Solid, the accent is already binary-searched past 4.5:1
+     on every ground the palette is solved against, so the ring is measured
+     rather than picked.
+
+     The WIDTH is the token and the colour is not, deliberately. Folding the
+     colour in here looks like it would let each rule pick its own, and it does
+     not: a var() nested inside a custom property is substituted where that
+     property is DECLARED, so every ring would inherit the root's colour already
+     resolved. A toast setting its own tone changed nothing and still rang in the
+     shell's blue - which no contrast number catches, because the wrong colour
+     passed at 8.03:1. Write the colour at the point of use. */
+  --ring-w:3px;
   --shadow-lg:0 2px 4px rgba(0,0,0,.3),0 24px 70px -12px rgba(0,0,0,.62);
   --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 34px rgba(0,0,0,.38);
   --shadow-sm:0 1px 2px rgba(0,0,0,.32);
@@ -178,15 +193,23 @@ p.say strong{color:var(--fg);font-weight:600}
   transition:color .2s,border-color .2s,background .2s,scale .3s var(--spring)}
 .mark:hover .ico{border-color:var(--border-2);color:var(--fg);scale:1.09}
 .mark:focus-visible{outline:none}
-.mark:focus-visible .ico{box-shadow:0 0 0 3px color-mix(in srgb,var(--hue) 42%,transparent)}
+.mark:focus-visible .ico{box-shadow:0 0 0 var(--ring-w) var(--hue)}
 .mark[aria-current="true"] .ico{color:var(--hue);border-color:var(--hue);
   background:color-mix(in srgb,var(--hue) 13%,var(--panel));
   box-shadow:0 0 20px -4px color-mix(in srgb,var(--hue) 75%,transparent)}
+/* box-shadow is one property, so the rule above silently replaced the focus
+   ring on whichever marker was current - equal specificity, and it comes later.
+   The selected app was the one element on the page with no focus indicator at
+   all, which is the opposite of what anyone would choose. Both shadows, named
+   together, so a future state rule on .ico has to reckon with this one. */
+.mark[aria-current="true"]:focus-visible .ico{
+  box-shadow:0 0 20px -4px color-mix(in srgb,var(--hue) 75%,transparent),
+              0 0 0 var(--ring-w) var(--hue)}
 .mark .pip{position:absolute;right:6px;top:7px;width:8px;height:8px;border-radius:50%}
 .mark[data-state="degraded"] .pip{background:var(--h-amber)}
 .mark[data-state="failing"] .pip{background:var(--h-rust);animation:breathe 2.4s ease-in-out infinite}
 @keyframes breathe{0%,100%{opacity:1}50%{opacity:.42}}
-.mark[data-state="stopped"] .ico{opacity:.5;border-style:dashed}
+.mark[data-state="stopped"] .ico{color:var(--fg-faint);border-style:dashed}
 .notch{position:absolute;inset-inline-start:0;width:3px;height:44px;background:var(--hue);
   border-radius:0 3px 3px 0;transition:translate .44s var(--spring),background .2s;
   box-shadow:0 0 16px color-mix(in srgb,var(--hue) 85%,transparent)}
@@ -214,7 +237,7 @@ kbd{border:1px solid var(--border);border-radius:5px;padding:.05rem .4rem;font-s
   background:var(--panel);color:var(--fg);
   transition:border-color .16s,background .16s,translate .2s var(--spring)}
 .btn:hover{border-color:var(--border-2);background:var(--glow);translate:0 -1px}
-.btn:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--hue) 36%,transparent)}
+.btn:focus-visible{outline:none;box-shadow:0 0 0 var(--ring-w) var(--hue)}
 .btn.primary{border-color:var(--hue);color:var(--hue);background:color-mix(in srgb,var(--hue) 11%,var(--panel))}
 table.tbl{width:100%;border-collapse:collapse;font-size:var(--fs--1)}
 table.tbl th{text-align:start;font-weight:600;color:var(--fg-dim);font-size:var(--fs--2);
@@ -312,7 +335,7 @@ table.tbl td.m{font-family:var(--mono);font-size:var(--fs--2);color:var(--fg-dim
   transition:color .15s,background .15s,border-color .15s}
 .toast .x:hover{color:var(--fg);background:var(--glow);border-color:var(--border)}
 .toast .x:focus-visible{outline:none;border-color:var(--tone);
-  box-shadow:0 0 0 3px color-mix(in srgb,var(--tone) 34%,transparent)}
+  box-shadow:0 0 0 var(--ring-w) var(--tone)}
 .toast .tt,.toast .tb,.toast .row,.toast .prog{position:relative;z-index:1}
 .toast .tt{font-weight:700;font-size:var(--fs-0);margin:0 0 .15rem}
 .toast .tb{font-size:var(--fs--1);color:var(--fg-dim);margin:0}
@@ -323,7 +346,7 @@ table.tbl td.m{font-family:var(--mono);font-size:var(--fs--2);color:var(--fg-dim
   animation:fill 9s linear forwards}
 @keyframes fill{to{width:100%}}
 .toast .dwell{position:absolute;inset-block-end:0;inset-inline:0;height:2px;z-index:2;
-  background:color-mix(in srgb,var(--tone) 62%,transparent);transform-origin:left;
+  background:var(--tone);transform-origin:left;
   animation:dwell var(--dwell,9s) linear forwards}
 @keyframes dwell{from{scale:1 1}to{scale:0 1}}
 #toastfield{position:relative;overflow:hidden;min-height:19rem;border-radius:var(--radius);
@@ -393,7 +416,7 @@ table.ratios td.m,table.ratios th.m{font-family:var(--mono)}
   padding:calc(.3rem * var(--den)) .65rem;min-width:10rem;flex:1 1 10rem}
 .nc-search::placeholder{color:var(--fg-faint)}
 .nc-search:focus-visible{outline:none;border-color:var(--hue);
-  box-shadow:0 0 0 3px color-mix(in srgb,var(--hue) 32%,transparent)}
+  box-shadow:0 0 0 var(--ring-w) var(--hue)}
 .nc-filters{display:flex;gap:.35rem;flex-wrap:wrap}
 .tg.sm{padding:calc(.22rem * var(--den)) .6rem;font-size:var(--fs--2);
   border-radius:calc(var(--radius) * .6)}
@@ -546,7 +569,7 @@ table.ratios td.m,table.ratios th.m{font-family:var(--mono)}
   background:var(--bg);color:var(--fg);border:1px solid var(--border);
   border-radius:calc(var(--radius) * .6);padding:calc(.3rem * var(--den)) .55rem;min-width:0}
 .gfield select:focus-visible,.gfield input:focus-visible{outline:none;border-color:var(--hue);
-  box-shadow:0 0 0 3px color-mix(in srgb,var(--hue) 30%,transparent)}
+  box-shadow:0 0 0 var(--ring-w) var(--hue)}
 .gcheck{display:flex;gap:.5rem;align-items:flex-start}
 .gcheck input{margin:.28rem 0 0;accent-color:var(--hue);width:15px;height:15px;flex:none}
 .grange{display:flex;gap:.6rem;align-items:center}
@@ -585,7 +608,7 @@ table.ratios td.m,table.ratios th.m{font-family:var(--mono)}
   padding:calc(.42rem * var(--den)) .85rem;
   transition:border-color .16s,background .16s,translate .2s var(--spring)}
 .tg:hover{border-color:var(--border-2);background:var(--glow);translate:0 -1px}
-.tg:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--hue) 36%,transparent)}
+.tg:focus-visible{outline:none;box-shadow:0 0 0 var(--ring-w) var(--hue)}
 .tg[aria-pressed="true"]{border-color:var(--hue);color:var(--hue);
   background:color-mix(in srgb,var(--hue) 11%,var(--panel))}
 .controls{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
@@ -819,7 +842,8 @@ footer{margin-top:5rem;padding:1.4rem 0 4rem;border-top:1px solid var(--border);
     <div><div class="swatches" id="swatches"></div>
       <table class="ratios"><thead><tr><th>Token</th><th class="m">on --bg</th>
         <th class="m">on --bg-2</th><th class="m">on --panel</th><th class="m">on --glow</th>
-        <th class="m">need</th></tr></thead><tbody id="ratiobody"></tbody></table></div>
+        <th class="m">on --tint</th><th class="m">need</th></tr></thead>
+        <tbody id="ratiobody"></tbody></table></div>
   </div>
   <div class="note"><b>Move anything in the lab and this table re-measures.</b> A theme that
   breaks legibility cannot be saved quietly: the failing cell turns clay, the verdict at the top

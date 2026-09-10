@@ -195,6 +195,16 @@ export async function auditPage(browser, fileUrl, {theme = null, width = 1440, h
       return decodePng(Buffer.from(data, 'base64'));
     },
 
+    // The same capture, undecoded, for when a human has to look at it. A clean
+    // audit is not a clean page: every number can pass while a swatch reads as
+    // an empty checkbox or a pin sits on the word it annotates.
+    shotPng: async clip => {
+      const params = {format: 'png', captureBeyondViewport: false};
+      if (clip) params.clip = {x: clip.x, y: clip.y, width: clip.width, height: clip.height, scale: 1};
+      const {data} = await S('Page.captureScreenshot', params);
+      return Buffer.from(data, 'base64');
+    },
+
     close: () => S('Target.closeTarget', {targetId}).catch(() => {}),
   };
 }

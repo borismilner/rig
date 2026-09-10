@@ -12,7 +12,7 @@
 // outline, a box-shadow, a border swap and a background change all show up the
 // same way, which is the point.
 import {ratio, hex, NON_TEXT} from './wcag.mjs';
-import {diffMask, modal, bestAgainst, adjacentUnchanged} from './pixels.mjs';
+import {diffMask, modal, bestAgainst, adjacentUnchanged, distinct} from './pixels.mjs';
 
 const PAD = 12;          // outline-offset and small shadow spreads live out here
 
@@ -102,10 +102,23 @@ export async function focusPass(page, {limit = 0} = {}) {
     }
     const shotBlurred = await page.shot(box);
 
+    // An element that is laid out but painted nowhere: every pixel in its box
+    // and the pad around it is one colour, so there is no border, no glyph and
+    // no ring to find. Reporting that as a missing focus indicator would be an
+    // accusation about the wrong thing.
+    const colours = distinct(shotFocused, null, 3);
+    if (colours <= 1) {
+      skipped.push({...t, kind: 'not-painted', at: `${Math.round(rFocused.x)},${Math.round(rFocused.y)}`,
+                    note: `the whole ${box.width}x${box.height} clip is ${hex(modal(shotFocused).colour)}`});
+      continue;
+    }
+
     const {mask, count: changed} = diffMask(shotBlurred, shotFocused);
     if (changed === 0) {
       const f = {...t, kind: 'no-indicator', changed: 0,
-                 note: 'focusing this element changes no pixel within ' + PAD + 'px of it'};
+                 at: `${Math.round(rFocused.x)},${Math.round(rFocused.y)}`,
+                 note: `focusing changes no pixel within ${PAD}px of it, and the clip holds ` +
+                       `${distinct(shotFocused, null, 64)}+ colours so it is drawn`};
       (t.ok ? silenced : findings).push(f);
       continue;
     }

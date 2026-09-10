@@ -286,6 +286,9 @@ ci: fmt-check vet lint-house test-race bench-size ## Everything CI runs
 	@echo "    verify     conformance vs fakeapp     M1"
 	@echo "    bench-idle idle footprint             M6, needs a supervised daemon"
 	@echo "    audit      govulncheck                any time, needs network"
+	@echo "    contrast   WCAG in a real browser      green, and CI runs it as"
+	@echo "               its own step - it needs a browser, which ci must not"
+	@echo "               assume a machine has"
 
 fmt-check: ## Fail if anything is unformatted
 	@out=$$(gofmt -s -l .); test -z "$$out" || { echo "unformatted:"; echo "$$out"; exit 1; }
