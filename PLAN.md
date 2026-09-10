@@ -700,6 +700,64 @@ Two rules travel with it, because a theme is the one setting a user can break th
   rig refuses to apply a token set that fails, naming the token and the ground, so a theme
   cannot silently produce an unreadable product.
 
+**`ui.theme`, as schema.** This is the whole surface - there is no second set of knobs hidden in
+code, and `design/theme.js` implements exactly this object.
+
+```jsonc
+{ "$id": "rig://schema/ui.theme", "type": "object", "additionalProperties": false,
+  "properties": {
+    "faces":  { "type": "object", "additionalProperties": false, "properties": {
+      "display": {"type":"string"}, "ui": {"type":"string"}, "mono": {"type":"string"} } },
+    "type":   { "type": "object", "additionalProperties": false, "properties": {
+      "base":       {"type":"number","minimum":12,"maximum":22,"default":16,"unit":"px"},
+      "scale":      {"type":"number","minimum":1.10,"maximum":1.45,"default":1.26},
+      "lineHeight": {"type":"number","minimum":1.2,"maximum":1.9,"default":1.55},
+      "uiTight":    {"type":"number","minimum":-0.04,"maximum":0.02,"default":-0.011,"unit":"em"},
+      "dispTight":  {"type":"number","minimum":-0.06,"maximum":0.02,"default":-0.024,"unit":"em"} } },
+    "shape":  { "type": "object", "additionalProperties": false, "properties": {
+      "radius":  {"type":"number","minimum":0,"maximum":26,"default":12,"unit":"px"},
+      "density": {"type":"number","minimum":0.7,"maximum":1.4,"default":1.0},
+      "gut":     {"type":"number","minimum":0.8,"maximum":3.0,"default":1.6,"unit":"rem"} } },
+    "hues":   { "type": "object", "additionalProperties": false, "properties": {
+      "members": { "type":"array","minItems":6,"maxItems":9,"items": {
+        "type":"object","required":["name","angle","role","identity","anchored"],
+        "properties": {
+          "name":     {"type":"string","pattern":"^[a-z][a-z0-9-]{1,15}$"},
+          "angle":    {"type":"number","minimum":0,"exclusiveMaximum":360},
+          "role":     {"enum":["bad","warn","good","progress","info","-"]},
+          "identity": {"type":"boolean","description":"false = no program may own it"},
+          "anchored": {"type":"boolean","description":"true = the optimiser may not move it"} } } },
+      "rotate": {"type":"number","minimum":-180,"maximum":180,"default":0},
+      "dark":   {"$ref":"#/$defs/lc","default":{"L":0.800,"C":0.098}},
+      "light":  {"$ref":"#/$defs/lc","default":{"L":0.470,"C":0.110}} } },
+    "surfaces": { "type":"object","additionalProperties":false,"properties": {
+      "hue":    {"type":"number","minimum":0,"exclusiveMaximum":360,"default":252},
+      "chroma": {"type":"number","minimum":0,"maximum":0.06,"default":0.022},
+      "dark":   {"$ref":"#/$defs/ladder"}, "light": {"$ref":"#/$defs/ladder"} } },
+    "motion": {"type":"boolean","default":true,
+               "description":"forced false under prefers-reduced-motion, never the other way"} },
+  "$defs": {
+    "lc":     {"type":"object","additionalProperties":false,"properties":{
+                 "L":{"type":"number","minimum":0.2,"maximum":0.95},
+                 "C":{"type":"number","minimum":0,"maximum":0.22}}},
+    "ladder": {"type":"object","additionalProperties":false,
+               "required":["bg","bg2","panel","glow","tint","fg"],
+               "description":"oklch L per surface. Every surface is its own knob: one step cannot express a light theme, where panel goes UP toward white and the recessed grounds go DOWN away from it",
+               "properties":{"bg":{"type":"number"},"bg2":{"type":"number"},
+                 "panel":{"type":"number"},"glow":{"type":"number"},
+                 "tint":{"type":"number"},"fg":{"type":"number"}}} } }
+```
+
+**Three things the schema cannot express, and rig enforces them after validation:**
+
+1. `--border`, `--border-2`, `--fg-dim` and `--fg-faint` are **not in the schema at all**. They
+   are solved from the ladder, so there is no spelling of a failing border.
+2. **Text tokens are solved against every surface text lands on, `tint` included; boundary
+   tokens against the four a boundary sits on.** The two sets are different, and solving a text
+   token against the wrong one is how a 3.95:1 reaches a page that audits clean.
+3. Rejection names the token *and the ground it failed on*, because "contrast too low" without
+   the ground is not actionable.
+
 ---
 
 ## 7. Storage
@@ -812,6 +870,22 @@ Beyond the argument schema, a declaration carries the things an agent has to gue
 | `preconditions` | What must be true. Checked before the call, so failure is early and explained |
 | `returns` | The output schema, so a result can be used rather than parsed out of prose |
 | `shape` | `unary`, `stream` or `interactive-stream`. `returns` alone models one request and one response, which `graft run` is not: it emits frames for twenty minutes and may stop to ask a human. Without a shape, four surfaces invent four different treatments of one command and the conformance suite forbids the only correct one |
+
+**`interactive-stream` has one worked case, and it is the hardest one in the estate.** `graft
+run` was specified on 2026-09-10 by the session planning it, and it asks for all five of these
+in one command:
+
+| What it does | What the contract has to carry |
+|---|---|
+| Runs for minutes to hours | A deadline that is not a timeout (§18's hang rule cannot fire on a long-running command that is behaving) |
+| Emits tens of thousands of frames | Backpressure and a cursor, not a socket that buffers 20k frames for a client that scrolled away |
+| **Stops mid-stream to ask a human a permission question** | An inbound question on an outbound stream, answerable **from the toast** and not only from the window (§12), and a run that is *parked* rather than failed while it waits |
+| Carries per-run dollar cost | Cost as a typed field on the frame, not a line of log text a surface has to parse back out |
+| Needs a 20,000-frame scrubbable timeline | A generated pane that renders a range of a stream, not a table of all of it |
+
+**If `interactive-stream` survives that, it survives everything else here.** It is therefore
+the conformance suite's case for the shape (§19), and `fakeapp` grows a command that does all
+five, so the shape is tested before graft exists rather than discovered by it.
 
 **A program declares a preamble, not just commands.** One document an agent must read before
 touching that program, served as its own MCP resource and returned by `describe` on the program
@@ -1544,6 +1618,14 @@ program's own CI runs it. This is what makes the contract real.
 `fakeapp` is the misbehaving reference program and ships in the repo. It hangs, crashes, leaks,
 floods, lies about its schema, ignores cancellation and returns garbage, each on a flag.
 
+**It also behaves, once, in the hardest way any program will.** `fakeapp longrun` is the
+`interactive-stream` case from §9: it runs for as long as it is told, emits 20,000 frames with
+a cursor, stops in the middle to ask a permission question that has to be answerable from a
+toast, reports a per-run cost as a typed field, and parks rather than fails while it waits.
+That case exists so the shape is proved before the program that needs it is written - the
+alternative is discovering the contract's gaps from the program, which is when they are
+expensive.
+
 ---
 
 ## 20. Testing strategy
@@ -1693,6 +1775,18 @@ or are the front door and the terminal enough? A platform nobody stopped to ques
 **After M8.** One window and one tray exist over programs that were not modified. If that is
 enough, M10 and beyond wait for a program that genuinely needs them.
 
+### Both gates are dated, because an undated gate is passed rather than taken
+
+| Gate | Asked on | Answered where |
+|---|---|---|
+| **M3** | **2026-10-22**, or the day M3 lands, whichever is first | `DECISIONS.md`, in writing |
+| **M8** | the day M8 lands. **M9 does not start until the answer is written** | `DECISIONS.md`, in writing |
+
+The M3 answer is one of three, and it names what it cuts: *continue*, *stop at M3*, or
+*continue with a cut list*. **If nothing is built by 2026-10-22 the question is still asked on
+that date** - six weeks of no progress is itself an answer to "is the GUI worth twelve more
+milestones", and the version of this gate that waits for M3 is the version that never fires.
+
 ---
 
 ## 25. Migration order
@@ -1706,6 +1800,12 @@ Each program keeps working standalone throughout, and gives up its own tray icon
 adoption lands. **State** is what was on disk on 2026-09-10, because rig's value is a function
 of how many of these are worth reaching.
 
+**One row already moved, and the direction it moved is the warning.** `graft` was written in as
+adopter 6 on the morning of 2026-09-10 and was out of the order by that afternoon, because it
+is now waiting on rig rather than adopting it. Nothing here is load-bearing until it is built
+and used; the advocate's item 3 asks for this table to be re-checked before M12, and this is
+what re-checking looks like.
+
 | Order | Program | State on 2026-09-10 | Why here |
 |---|---|---|---|
 | 1 | `shelf` | 45 commits, built, used daily | The pilot. Designs the contract against something real |
@@ -1713,7 +1813,7 @@ of how many of these are worth reaching.
 | 3 | `nudge` | 11 commits, built | Tiny and tray-only. Designs the generated UI, and is the honest test of the hand-written budget in §3 - the *declaration* is generated, and one rich archi command alone measured 160 lines of JSON |
 | 4 | `sigs` | 113 commits | The second generated-UI program, so it is designed against two |
 | 5 | `snapper` | 197 commits, built | Native capture stays its own window; history and settings come in |
-| 6 | `graft` | 2 commits, planned 2026-09-10 | **Its M14 (its own Wails window, tray, badge, .desktop, icon) should be struck now and replaced with registering with rig, while it is still unbuilt** |
+| - | `graft` | 2 commits, **deferred 2026-09-10** | **Not an adopter, and not counted as one.** Its own window/tray milestone was struck the day this row was written, and Boris then deferred graft entirely until rig v1 and the client stub exist. It is a *consumer* of rig's schedule, not a contributor to it: counting it here would let rig's payoff borrow a program that is waiting on rig |
 | 7 | `archi` | 237 commits, no built binary | The richest frontend under the theme bridge |
 | 8 | `grabbit` | 100 commits, stalled since 2026-08-11 | A stalled project is the best test of whether rig makes finishing cheaper |
 | 9 | `devtool` | 65 commits | The endpoint of the argument: unbundle it, each utility its own program |
