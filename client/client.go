@@ -15,8 +15,8 @@ package client
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/hex"
+	"math/rand/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -282,12 +282,33 @@ func (c *Client) Hello(ctx context.Context, decl *rigv1.Declaration) (*rigv1.Hel
 // minting its own identities and a client minting its own call ids are two
 // parties doing two things that happen to want the same spelling.
 //
-// crypto/rand.Read never returns an error and always fills its argument
-// (Go 1.24 onwards), so there is nothing here to handle or to paper over with
-// a counter that could collide.
+// IT IS math/rand/v2 RATHER THAN crypto/rand, AND THE REASON IS MEASURED.
+//
+// crypto/rand costs this package 159,744 bytes and drags in SEVENTEEN
+// crypto/internal/fips140 packages - SHA-256, SHA-3, SHA-512, HMAC, AES,
+// AES-GCM and the FIPS self-check - which every program linking the stub then
+// carries forever. Measured on cmd/fakeapp with make's own flags: 5,849,351
+// bytes with math/rand/v2, which is byte-identical to the binary before this
+// id existed, against 6,009,095 with crypto/rand. Section 5d wants this
+// package "as close to frozen as it can be" because "every symbol in it is a
+// rebuild nobody can avoid later"; 156KB of cryptography for an eight-byte
+// dedup key is the opposite of that.
+//
+// A REQUEST ID IS A DEDUP KEY, NOT AN AUTHENTICATOR, and that is the whole
+// argument. Nothing in section 4 or section 5d asks for it to be unguessable;
+// they ask for it to be client-generated and stable across a retry. The daemon
+// does use crypto/rand, for session TOKENS, and that is correct - a token
+// authenticates and this does not. math/rand/v2 is seeded from the operating
+// system per process, so two processes do not agree on a sequence.
+//
+// IF THE WINDOW THAT EVENTUALLY CONSUMES THIS TURNS OUT TO NEED UNGUESSABLE
+// IDS, the change is one import and the price is the 159,744 bytes above,
+// now known in advance rather than discovered by a red ratchet.
 func requestID() string {
 	b := make([]byte, 8)
-	_, _ = rand.Read(b)
+	for i := range b {
+		b[i] = byte(rand.UintN(256))
+	}
 	return "req-" + hex.EncodeToString(b)
 }
 
