@@ -401,7 +401,7 @@ release: ci ## Tag, generate the changelog and build release artefacts
 	git add CHANGELOG.md && git commit -m "chore(release): v$(V)"
 	$(MAKE) build-all package
 
-package: ## Build the .deb
+package: build ## Build the .deb from freshly built binaries
 	@mkdir -p dist
 	go run ./cmd/pkgdeb --version $(VERSION) --out dist/
 
