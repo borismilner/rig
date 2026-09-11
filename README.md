@@ -47,7 +47,7 @@ support.
 |---|---|
 | `PLAN.md` | Complete. Architecture, wire protocol, capability model, isolation, the conformance suite, the milestone order |
 | `design/` | Built. A live, self-contained visual system with a theme engine that measures its own contrast |
-| `ipcbench/` | Built and measured. The transport numbers the daemon architecture rests on |
+| `cmd/ipcbench/` | Built and measured. The transport numbers the daemon architecture rests on |
 | `cmd/rigd`, `cmd/rig` | Not started. Milestone M0 |
 
 ## Measured before it was designed
@@ -111,8 +111,7 @@ design/              the visual system, live in one HTML file
   visual-system.src.html   markup and CSS. Edit this, not the built file
   build.py             inlines the scripts into visual-system.html
   readme-art.mjs       the artwork on this page
-ipcbench/            the transport benchmark behind the table above
-tools/contrast.py    WCAG measurement used by the gates
+cmd/ipcbench/        the transport benchmark behind the table above
 Makefile             the targets the milestones are demonstrated with
 ```
 
