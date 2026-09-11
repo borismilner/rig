@@ -135,21 +135,41 @@ export function separation(hexes){
 }
 
 /* ── the solver: the lightest/darkest neutral that clears a target ──────── */
-function solveNeutral(target, grounds, {hue, chroma, dark}){
+
+/* solveNeutralChecked -> {hex, ok}
+ *
+ * `ok` exists because the search ALWAYS returns a colour. Thirty iterations
+ * narrow the bracket whether or not any L clears the target, so on a ladder
+ * where nothing can pass, the old signature handed back a failing neutral and
+ * said nothing - and section 6's promise is that "rig refuses to apply a token
+ * set that fails, naming the token and the ground", which needs a signal to
+ * refuse on. checkTheme re-measures every token anyway, so this is belt and
+ * braces; what it adds is the DISTINCTION between "this value fails" and "no
+ * value exists", which are different messages to put in front of a person.
+ */
+function solveNeutralChecked(target, grounds, {hue, chroma, dark}){
   // binary search on oklch L. Dark themes want the DIMMEST passing value, so
-  // nothing is brighter than it has to be (halation is a real cost, see
-  // readable-output); light themes want the LIGHTEST passing value.
+  // nothing is brighter than it has to be (halation is a real cost, see the
+  // readable-output notes); light themes want the LIGHTEST passing value.
   let lo = 0, hi = 1;
   const passes = L => {
     const hex = okhex(L, chroma, hue);
     return grounds.every(g => contrast(hex, g) >= target);
   };
+  // Probe both ends first: if neither extreme passes, no interior value will
+  // either, and the bracket the loop below reports would be meaningless.
+  const anyEnd = passes(0) || passes(1);
   for (let i = 0; i < 30; i++){
     const mid = (lo+hi)/2;
-    if (dark ? passes(mid) : passes(mid)) { dark ? hi = mid : lo = mid; }
-    else { dark ? lo = mid : hi = mid; }
+    if (passes(mid)) { if (dark) hi = mid; else lo = mid; }
+    else             { if (dark) lo = mid; else hi = mid; }
   }
-  return okhex(dark ? hi : lo, chroma, hue);
+  const hex = okhex(dark ? hi : lo, chroma, hue);
+  return {hex, ok: anyEnd && grounds.every(g => contrast(hex, g) >= target)};
+}
+
+function solveNeutral(target, grounds, opts){
+  return solveNeutralChecked(target, grounds, opts).hex;
 }
 
 /* ── the default theme. Every number here is a knob. ────────────────────── */
@@ -260,6 +280,116 @@ export function tokens(theme, mode){
     '--gut': `${theme.shape.gut}rem`,
     '--motion': theme.motion ? '1' : '0',
   };
+}
+
+/* ── the gate: refuse a token set a person could not read ────────────────
+ *
+ * Section 6: "rig refuses to apply a token set that fails, naming the token
+ * and the ground, so a theme cannot silently produce an unreadable product."
+ * This is that refusal, and it lives in the engine rather than in the window
+ * so that the window, the design page and CI all judge a theme the same way.
+ *
+ * TWO GROUND SETS, because they answer different questions. Text lands on all
+ * five surfaces including `tint`; a boundary never lands on `tint`. Solving or
+ * checking a text token against the boundary four is how a 3.95:1 reaches a
+ * page that audits clean - section 6 rule 2, and the reason the split is
+ * duplicated here rather than shared with tokens(): each is meant to be
+ * readable on its own.
+ *
+ * WHAT IS CHECKED, and why each one can actually fail:
+ *
+ *   --fg           4.5  on the 5 text grounds. CHOSEN from the ladder, not
+ *                       solved, so it is the one a settings box can break
+ *                       directly. Measured: dragging dark fg L from 0.918 to
+ *                       0.40 takes it to 1.52-1.91:1 on every ground.
+ *   --fg-dim       5.6  solved, but the solver returns a colour whether or not
+ *   --fg-faint     4.5  one passes, so the result is re-measured here.
+ *   --border       3.0  on the 4 boundary grounds (WCAG 1.4.11).
+ *   --border-2     4.5
+ *   --h-*          4.5  on the 5 text grounds. A hue is TEXT wherever
+ *                       --sem-<role> or --hue is used as a colour, and the
+ *                       hues come from an L/C pair a person can set: dropping
+ *                       dark L from 0.800 to 0.35 puts all seven at 1.03-1.13
+ *                       on --tint.
+ *   --on-hue       4.5  against each hue, since that is text ON a hue ground.
+ *
+ * WHAT IS DELIBERATELY NOT CHECKED. Composited surfaces - a
+ * `color-mix(in srgb, var(--hue) 13%, transparent)` callout, for instance -
+ * are not tokens and cannot be resolved without a layout engine. The browser
+ * contrast gate measures those on the real page, which is the right division:
+ * this gate judges the token set, that one judges what gets painted. Neither
+ * subsumes the other and a theme needs both.
+ *
+ * Rejection names the token AND the ground (section 6 rule 3): "contrast too
+ * low" without the ground is not actionable, because the fix differs depending
+ * on which surface it failed against.
+ */
+export function checkTheme(theme, mode){
+  const k = tokens(theme, mode);
+  const g = n => [n, k['--' + n]];
+  const textGrounds  = ['bg', 'bg-2', 'panel', 'glow', 'tint'].map(g);
+  const boundGrounds = ['bg', 'bg-2', 'panel', 'glow'].map(g);
+
+  const findings = [];
+  const check = (token, need, grounds, kind) => {
+    const fg = k[token];
+    if (!fg) return;
+    for (const [name, hex] of grounds){
+      const ratio = contrast(fg, hex);
+      if (ratio < need - 0.005){
+        findings.push({token, ground: '--' + name, ratio: Math.round(ratio*100)/100,
+                       need, kind, colour: fg});
+      }
+    }
+  };
+
+  check('--fg',       4.5, textGrounds,  'text');
+  check('--fg-dim',   5.6, textGrounds,  'text');
+  check('--fg-faint', 4.5, textGrounds,  'text');
+  check('--border',   3.0, boundGrounds, 'boundary');
+  check('--border-2', 4.5, boundGrounds, 'boundary');
+
+  for (const m of theme.hues.members) check('--h-' + m.name, 4.5, textGrounds, 'text');
+
+  // Text ON a hue, which is the mirror of the row above and fails separately:
+  // --on-hue is a fixed near-black or white, so a hue L chosen in the middle
+  // of the range can leave nothing readable on top of it.
+  check('--on-hue', 4.5, theme.hues.members.map(m => [
+    'h-' + m.name, k['--h-' + m.name]]), 'text');
+
+  // Named separately from the ratio findings: "no value exists" and "this
+  // value fails" call for different fixes - the first means the ladder itself
+  // has no room, the second means this token is wrong.
+  const s = theme.surfaces, sm = mode === 'dark' ? s.dark : s.light;
+  const dark = mode === 'dark';
+  const N = (L) => okhex(Math.min(1, Math.max(0, L)), s.chroma, s.hue);
+  const tg = ['bg', 'bg2', 'panel', 'glow', 'tint'].map(n => N(sm[n]));
+  const bg4 = ['bg', 'bg2', 'panel', 'glow'].map(n => N(sm[n]));
+  const unsolvable = [];
+  for (const [token, target, grounds, chromaMul] of [
+    ['--fg-dim',   5.6, tg,  1.5], ['--fg-faint', 4.5, tg,  1.5],
+    ['--border',   3.0, bg4, 1.8], ['--border-2', 4.5, bg4, 1.8],
+  ]){
+    const r = solveNeutralChecked(target, grounds,
+                                  {hue: s.hue, chroma: s.chroma*chromaMul, dark});
+    if (!r.ok) unsolvable.push({token, need: target});
+  }
+
+  return {ok: findings.length === 0 && unsolvable.length === 0, findings, unsolvable, mode};
+}
+
+/* One line per finding, for a terminal or a settings panel. */
+export function explainCheck(result){
+  const out = [];
+  for (const u of result.unsolvable){
+    out.push(`${u.token}: no value clears ${u.need.toFixed(1)}:1 on every ground ` +
+             `in this ladder - the surfaces are too close together`);
+  }
+  for (const f of result.findings){
+    out.push(`${f.token} (${f.colour}) on ${f.ground}: ${f.ratio.toFixed(2)}:1, ` +
+             `needs ${f.need.toFixed(1)} as ${f.kind}`);
+  }
+  return out;
 }
 
 export function apply(theme, mode, root = document.documentElement){

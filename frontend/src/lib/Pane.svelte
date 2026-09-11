@@ -21,7 +21,7 @@
      section 6's live push needs anyway. -->
 <script lang="ts">
   import type { Program } from "../../bindings/github.com/boris-milner/rig/cmd/rigwindow/models.js";
-  import { tokenSet, type Mode } from "./theme";
+  import { liveTokenSet, type Mode } from "./theme";
 
   interface Props {
     program: Program | null;
@@ -58,10 +58,23 @@
     //                      port ALONE measures a blank frame and calls it
     //                      clean, which is a zero measurement wearing a pass.
     paneFixture: boolean;
+    // Bumped by the settings panel whenever the live theme is replaced. It is
+    // read by the effect below purely so that the effect re-runs: the token
+    // VALUES live in the theme module, not in a prop, so without a changing
+    // input Svelte has nothing to notice and a program's page keeps the set it
+    // was handed while the window around it changes colour.
+    themeGen?: number;
   }
 
-  let { program, programs, detail, connected, mode, paneFixture }: Props =
-    $props();
+  let {
+    program,
+    programs,
+    detail,
+    connected,
+    mode,
+    paneFixture,
+    themeGen = 0,
+  }: Props = $props();
 
   let frame: HTMLIFrameElement | null = $state(null);
   let loaded = $state(false);
@@ -101,7 +114,7 @@
     switch (d.type) {
       case "hello":
         helloed = true;
-        post({ rig: 1, type: "theme", mode, tokens: tokenSet(mode) });
+        post({ rig: 1, type: "theme", mode, tokens: liveTokenSet(mode) });
         break;
       case "focus":
         framedFocus = true;
@@ -177,7 +190,10 @@
   // push is the same shape, and a program's page must not be the one surface
   // left in the previous mode.
   $effect(() => {
-    if (helloed) post({ rig: 1, type: "theme", mode, tokens: tokenSet(mode) });
+    // themeGen is referenced, not used: it is the dependency that makes a live
+    // theme change re-push. See the prop's own note.
+    void themeGen;
+    if (helloed) post({ rig: 1, type: "theme", mode, tokens: liveTokenSet(mode) });
   });
 
   // The frame keeps its real loopback origin (allow-same-origin) because the

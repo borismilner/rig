@@ -16,6 +16,7 @@
   import ContextBar from "./lib/ContextBar.svelte";
   import Pane from "./lib/Pane.svelte";
   import StatusStrip from "./lib/StatusStrip.svelte";
+  import Settings from "./lib/Settings.svelte";
 
   // A measurement fixture, and it is not a mock of the product path.
   //
@@ -117,6 +118,17 @@
   // source: this is the same mode applyTheme is called with.
   let mode: Mode = $state(preferredMode());
 
+  // M1a step 5. Opened with "," and closed with Esc, both from the window
+  // handler below, so the panel is reachable without a pointer - which is the
+  // only way it is reachable at all while the context bar has no room for
+  // another control.
+  let settingsOpen = $state(false);
+  // Bumped whenever the live theme changes, so Pane re-pushes the token set to
+  // every program. Without it the window changes colour and the panes keep the
+  // set they were handed, which is the one bug a shell-wide theme must not
+  // have.
+  let themeGen = $state(0);
+
   let current = $derived(programs.find((p) => p.id === selected) ?? null);
 
   async function refresh() {
@@ -197,6 +209,17 @@
   }
 
   function onkeydown(e: KeyboardEvent) {
+    if (e.key === "Escape" && settingsOpen) {
+      settingsOpen = false;
+      return;
+    }
+    // A single-letter shortcut must not fire while the panel has the keyboard:
+    // "r" inside a settings field would refresh the rail mid-edit.
+    if (settingsOpen) return;
+    if (e.key === "," && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      settingsOpen = true;
+      return;
+    }
     if (e.key === "r" && !e.ctrlKey && !e.metaKey && !e.altKey) void refresh();
   }
 
@@ -242,6 +265,7 @@
       detail={health.detail}
       connected={health.connected}
       {mode}
+      {themeGen}
       {paneFixture}
     />
     <StatusStrip
@@ -253,3 +277,12 @@
     />
   </div>
 </div>
+
+{#if settingsOpen}
+  <Settings
+    {mode}
+    onclose={() => (settingsOpen = false)}
+    onmode={(m) => (mode = m)}
+    onthemechange={() => (themeGen += 1)}
+  />
+{/if}
