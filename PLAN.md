@@ -995,6 +995,17 @@ remember to start, and because §14's `operate` argument is already written agai
 autostart is systemd" - a sentence that is load-bearing several milestones before the milestone
 it names.
 
+**AND IT LANDS IN A NEW TOP-LEVEL `packaging/`, ruled 2026-09-12.** This section
+specified the unit and said nothing about where the file goes, so a reader with
+only the specification could not find it. **Not `cmd/rigd/`:** a `cmd/` tree
+builds a binary, and the unit is an artefact the build installs rather than
+compiles, so putting it there makes the one directory that means *a Go main
+package* also mean *and some data files*. `packaging/` is where M15's `.deb` and
+desktop entry arrive, so the unit is not relocated a second time. **The
+`COORDINATION.md` ownership row was written before the directory existed**, which
+is what stops it becoming the absent-row hole that `tools/`, `cmd/ledger`,
+`README.md` and `schema/` each were. `DECISIONS.md` carries the argument.
+
 ### 5m. The hand: rig drives the desktop, and that is what makes one lease real
 
 AgentBox can move the pointer, click, drag, scroll and type on Boris's own display, as real
@@ -4692,6 +4703,70 @@ than left to a convention.
 **Nothing enters the backlog without a named adopter**, and under self-hosting
 the adopter is usually the seat that proposed it, which is the strongest form
 that has ever been available here.
+
+### Every seat is ARMED, not merely permitted, and this is his stated MAIN REASON for the self-hosting push
+
+**Boris, 2026-09-12, extending the instruction above rather than replacing it:**
+
+> *"I want that the general briefing of the project for Claude to make it arm all
+> peers see if the difficulties or errors they experience due to lack of
+> coordination or loss of sync or anything having relation to abilities rig can
+> implement to greatly ease future work that they can make suggestions to the
+> lead and the lead shall weigh them against our plan and backlog and anything
+> it finds necessary to review and consider the suggestion so that rig is
+> improved from its own development experience; That's basically the main reason
+> I want to come as fast as possible to the point we are able to have the peers
+> to use production instance of rig for rig development."*
+
+**THE RATIONALE IS THE PART THAT WAS MISSING, and it reorders nothing by
+itself.** The subsection above already carried the obligation. What it did not
+carry is **why, in his words**. A future seat weighing *"is §37 worth what it
+costs"* now has his answer rather than a lead's inference: **getting the peers
+onto a production rig for rig's own development is his stated main reason for
+the urgency, because that is what lets rig be improved out of its own
+development experience.**
+
+**ARMED, not permitted.** Noticing is part of a seat's job rather than a
+courtesy it extends when it has spare time. The bar does not drop: an armed seat
+reports more, not worse.
+
+**THE THREE TRIGGERS HE NAMED**, broken out because they are the ones a seat is
+most likely to absorb silently as "how it is":
+
+| Trigger | What it looks like from inside a seat |
+|---|---|
+| **Lack of coordination** | two seats colliding, work redone, a file edited under someone, an ownership question nobody could answer, a decision taken twice |
+| **Loss of sync** | acting on something that had already changed: a stale count, a rotted citation, a peer's status that was true when written, a gate result that had expired |
+| **Anything rig could implement** | something done by hand, or derived twice, that a supervisor on this machine could have told you |
+
+**The third is the widest and deliberately so.** It is not "a rig feature a seat
+wants". It is **anything that cost a seat time and that a program coordinating
+agents on one machine could have prevented.**
+
+**THE LOOP, stated once so it is a mechanism rather than a sentiment:**
+
+> a seat hits coordination pain -> it proposes to the **lead** -> the lead
+> **weighs it against this plan AND the backlog**, and says what else it
+> reviewed -> what survives lands, with its evidence and its adopter.
+
+**"Against our plan and backlog and anything it finds necessary to review" is
+his wording and it widens the lead's half.** The five attack questions in the
+subsection above are how; this says what the proposal is weighed against, and
+that the lead states what else it consulted.
+
+**THE BRIEFING HALF IS NOT HERE AND MUST NOT BE DUPLICATED.**
+`~/.claude/skills/team-up/references/ROLES.md` carries it, with this same
+verbatim and the three triggers, so every seat is armed at spawn. **Cited rather
+than reproduced, so the two cannot drift** - the same treatment §36's V20 gets
+against the basis-marker entry.
+
+**WHAT THIS DOES NOT DO, and a seat must not over-read it:**
+
+- **It does not renumber or reorder any milestone.** The rationale explains the
+  urgency of the existing route; it does not change it.
+- **It does not relax the backlog's admission bar.** Evidence rather than a
+  wish, and a named adopter, both unchanged.
+- **It does not let a seat file straight to the backlog.** To the lead, always.
 
 ### The notification obligation, written as a mechanism because a promise cannot survive a session
 
