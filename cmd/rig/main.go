@@ -99,21 +99,70 @@ program declared, so they list what it actually has.
 `)
 }
 
+// verbAt is the index of the command word, so rig's own flags may come BEFORE
+// it as well as after.
+//
+// partition already lets a flag follow the verb, and the comment on it says
+// why: section 10 promises --json on everything and a promise that depends on
+// argument order is not one. This is the other half of that promise and it
+// was missing. PLAN.md:1512 names `rig --json list` as the agent affordance
+// BY EXAMPLE, and that exact line failed with `no such command "--json"`.
+// Found by running the plan's own example.
+//
+// Returns len(args) when there is no verb at all, which is what keeps
+// `rig -h` and `rig --help` reaching the help case rather than being stripped
+// down to nothing.
+func verbAt(args []string) int {
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if a == "--" {
+			return i + 1
+		}
+		if !strings.HasPrefix(a, "-") || a == "-" {
+			return i
+		}
+		// `--timeout 5s ping` - the value is not the verb.
+		if !strings.Contains(a, "=") && takesValue(a) && i+1 < len(args) {
+			i++
+		}
+	}
+	return len(args)
+}
+
+// with puts the flags that preceded the verb back at the END of what the
+// handler sees, rather than reordering argv in place.
+//
+// Appending is what makes `rig --json fakeapp reindex --since 7d` work:
+// the program and the command have to stay in positions 0 and 1, so a flag
+// moved to just after the verb would be read as the command.
+func with(args, lead []string) []string {
+	if len(lead) == 0 {
+		return args
+	}
+	out := make([]string, 0, len(args)+len(lead))
+	return append(append(out, args...), lead...)
+}
+
 func run(args []string) error {
 	if len(args) == 0 {
 		usage()
-		return errors.New("no command given")
+		return badArgumentf("no command given")
+	}
+
+	var lead []string
+	if v := verbAt(args); v > 0 && v < len(args) {
+		lead, args = args[:v], args[v:]
 	}
 
 	switch args[0] {
 	case verbVersion:
-		return cmdVersion(args[1:])
+		return cmdVersion(with(args[1:], lead))
 	case "ping":
-		return cmdPing(args[1:])
+		return cmdPing(with(args[1:], lead))
 	case "apps":
-		return cmdApps(args[1:])
+		return cmdApps(with(args[1:], lead))
 	case "down":
-		return cmdDown(args[1:])
+		return cmdDown(with(args[1:], lead))
 	case "completion":
 		return cmdCompletion(args[1:])
 	case "__complete":
@@ -130,7 +179,7 @@ func run(args []string) error {
 		// declaration, not an edit to this file.
 		if strings.HasPrefix(args[0], "-") {
 			usage()
-			return fmt.Errorf("no such command %q", args[0])
+			return badArgumentf("no such command %q", args[0])
 		}
 		// Help is generated from the declaration, so it is answered here
 		// rather than from a string in this file (slice 6).
@@ -145,7 +194,7 @@ func run(args []string) error {
 		if asksForHelp(args[2:]) {
 			return helpForCommand(args[0], args[1])
 		}
-		return cmdCall(args[0], args[1], args[2:])
+		return cmdCall(args[0], args[1], with(args[2:], lead))
 	}
 }
 
