@@ -41,6 +41,19 @@ func unitText(t *testing.T) string {
 // broken by what the unit SAYS. The comment block explaining the missing
 // ExecStop names ExecStop repeatedly, and a naive grep over the whole file
 // would match its own explanation.
+//
+// ONLY A WHOLE-LINE COMMENT IS DROPPED, AND THAT IS MEASURED RATHER THAN
+// ASSUMED. systemd has no inline comment: a trailing # on a directive is part
+// of the VALUE. Checked against systemd 255 on 2026-09-12 -
+// `Restart=on-failure # trailing` is reported as "Failed to parse service
+// restart specifier, ignoring: on-failure # trailing", and on an ExecStart the
+// # and the words after it simply become ARGUMENTS to the command, which is
+// why that case passes verification while doing something nobody intended.
+//
+// So keeping the trailing text is correct rather than sloppy: this function
+// reads a line the way systemd reads it. A future unit carrying a trailing
+// comment is a BUG IN THE UNIT, and an assertion here firing on one is the
+// right answer rather than a false positive.
 func directives(t *testing.T, s string) []string {
 	t.Helper()
 	var out []string
