@@ -2,6 +2,8 @@ package main
 
 import (
 	"errors"
+	"io"
+	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -240,5 +242,62 @@ func TestTheFlagsBeforeTheVerbReachTheHandler(t *testing.T) {
 				t.Errorf("the handler saw --json as %v, want %v", l.asJSON, tc.want)
 			}
 		})
+	}
+}
+
+// renderUsage captures what usage() actually prints, rather than asserting
+// against a copy of the string. A test holding its own copy of the text
+// cannot see the text move.
+func renderUsage(t *testing.T) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	saved := os.Stderr
+	os.Stderr = w
+	usage()
+	os.Stderr = saved
+	if err := w.Close(); err != nil {
+		t.Fatalf("closing the pipe: %v", err)
+	}
+	out, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("reading the pipe: %v", err)
+	}
+	return string(out)
+}
+
+// The help text said "Every command takes --json" and completion does not:
+// it writes a shell script for eval, so `rig completion bash --json` exits 1
+// with a usage error. Found by RUNNING the claim rather than reading it.
+//
+// The sentence and the behaviour are asserted together on purpose. Correcting
+// only the sentence leaves nothing to stop it drifting back, and teaching
+// completion to accept --json would be a different decision that should fail
+// here and be taken deliberately rather than arrived at.
+func TestCompletionTakesNoJSONFlagAndTheHelpTextSaysWhich(t *testing.T) {
+	if err := cmdCompletion([]string{"bash", "--json"}); err == nil {
+		t.Error("completion accepted --json; if that is now intended, the " +
+			"help text has to change in the same commit")
+	}
+
+	help := renderUsage(t)
+	var para string
+	for _, p := range strings.Split(help, "\n\n") {
+		if strings.Contains(p, "--json") {
+			para = p
+			break
+		}
+	}
+	if para == "" {
+		t.Fatalf("the help text no longer mentions --json at all:\n%s", help)
+	}
+	// Whatever the wording, the paragraph that introduces --json has to name
+	// the command that does not take it. Checked semantically rather than
+	// against a fixed sentence, so a rewrite that keeps the caveat passes.
+	if !strings.Contains(para, "completion") {
+		t.Errorf("the --json paragraph does not name completion as the "+
+			"exception, so the help promises something rig refuses:\n%s", para)
 	}
 }

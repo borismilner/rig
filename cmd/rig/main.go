@@ -90,9 +90,10 @@ func usage() {
   version          print every version this build carries
   completion <sh>  a completion script for bash, zsh or fish
 
-Every command takes --json. A declared command also takes --timeout and
---args '<json>', the second being the exact argument object when a flag will
-not do.
+Every command that answers takes --json. completion does not: it writes a
+shell script for eval, which is not an answer to put in an object. A declared
+command also takes --timeout and --args '<json>', the second being the exact
+argument object when a flag will not do.
 
 rig <app> --help and rig <app> <cmd> --help are generated from what the
 program declared, so they list what it actually has.
