@@ -3405,6 +3405,61 @@ the ordering cannot be changed later by someone who never reads §14 - **house r
 | M15 | Packaging and updates | `.deb`, desktop entry, the signed update channel for rig and programs, self-update. **The autostart unit itself moved to M6** (§5l); what is left here is packaging it | Fresh machine to a working rig with three programs in one command, **and `rig restore` carries the state M11 backed up** |
 | M16 | Estate migration and the AgentBox cutover | The rest of the estate, in the order in §25, then the agent tooling repointed from AgentBox to the peers service - **and every agent's instructions repointed from AgentBox's `speak` to rig's speech (§12), which is a decision M9 deliberately does not make** | Every in-house program reachable from one CLI, one TUI, one tray, one window, one MCP server |
 
+### M3 TO M6 ARE CHERRY-PICKED, RULED BY BORIS 2026-09-11
+
+**His words, choosing between three shapes put to him the day M2 closed:**
+*"M3-M6 cherry-picked for only what M7 and §37 actually need."*
+
+**This does not renumber anything and does not cancel anything.** M3, M4, M5
+and M6 keep their numbers, their contents and their demos. What changes is
+WHEN the parts below are built: the listed items move ahead of M7 because M7
+or §37 cannot be finished without them, and everything else in those four
+milestones waits.
+
+**The ruling this follows from is his earlier one**, that the agent-facing path
+gets perfected first. M2 was the half of that which was one slice from done and
+it closed on 2026-09-11. M7 is the other half.
+
+#### What is KEPT, with what needs it
+
+| From | Kept | Needed by | State today |
+|---|---|---|---|
+| **M6** | **A client-generated request id on every mutating call** | **M7, and §16 says so in as many words**: without the request id and the session token *"the claim above is false on any retry"*, because a `barrier.arrive()` that times out and is retried releases a barrier of nine with eight agents present | **HALF BUILT AND THE HALF THAT EXISTS IS THE WRONG HALF.** `request_id` is wire field 4 and the daemon dedups against a bounded window; **nothing in any client or the CLI ever sets it**, so the window has never fired from a rig surface. §14's own audit says this at `:1895` |
+| **M6** | **A session token that survives a reconnect** | same sentence of §16, and §37 precondition 4 | **NOT ON THE WIRE AT ALL.** `grep session proto/rig/v1/wire.proto` returns nothing. A proto change, so it batches with anything else in flight there |
+| **M6** | **The tolerant client** (§5g): reconnect loop with backoff to a deadline, bounded outbound queue, one typed `unavailable` | §37 precondition 4 - *a restart is survivable and distinguishable from a blip*. An agent whose daemon restarts mid-development must reconcile rather than fail | not built |
+| **M6** | **The `systemd --user` unit with no `ExecStop`** (§5l) | **§37 precondition 5**, and nothing else. Production must still be serving after a logout or the agents cannot depend on it | not built. **The unit sets no `XDG_RUNTIME_DIR`**, which is what makes it unable to reach `development` - see §37 |
+
+#### What WAITS, and why each is genuinely off the path
+
+| Deferred | Why it is not needed |
+|---|---|
+| **M3 entirely** - `rig shell`, the `rig tui` frame, `huh` forms | **agents do not use a TUI.** M7's own contention and timeline views are TUI views and defer with it; they are observability OF the coordination service, not part of it |
+| **M4's config layers, provenance, diff and the `events` service** | **M7's signals and watches are its own primitives**, not subscriptions on the config bus. §16 gives `post`/`await` and a watch with one global revision and a cursor. The rider - news appended to the result of whatever call you make next - needs no subscription at all, which is its whole point |
+| **M5 entirely** - ingest, the call log, redaction spans, `rig doctor`, `rig logs` | none of it is reachable from a coordination primitive, and §14 already gates history reading behind M5's redaction spans rather than the other way round |
+| **M6's start, stop, restart, health, budgets, quarantine, lifecycle notices, and the three supervisor event kinds** | supervision of OTHER programs. M7 coordinates agents that are already running |
+| **M6's resolved snapshot on disk** | a config-availability mechanism. Coordination state has its own durability - see the correction below |
+
+#### THE CORRECTION THIS RULING FORCED, and it moves a §37 precondition
+
+**§16 gives the coordination service its own write-ahead log:** *"Durability
+comes from a write-ahead log: coordination state survives a daemon restart, and
+clients reconcile on reconnect rather than losing their place."* Continuation
+slots say the same thing about themselves - `rigd` writes slots to the WAL.
+
+**So M7's WAL is the first persistent state rig holds, and §37 precondition 2
+was anchored to M5 on the assumption that storage arrives there.** It does not
+arrive there first. **Precondition 2 now bites at M7**, and its failure is the
+one already written down: a development estate writing into production's store
+with no error at all - except that the store in question is the coordination
+WAL, so what leaks across is leases, claims and the blackboard rather than
+logs.
+
+**The specification written on 2026-09-11 is what the WAL path must use:**
+`$XDG_STATE_HOME/rig/estates/<name>/`, and an unnamed estate gets none. **An
+ephemeral estate has no WAL**, which is consistent rather than awkward: §18
+already says nothing rig holds survives a restart for callers who did not claim
+a name, and every test in this repository starts an unnamed estate.
+
 **v1 is M0 through M13.**
 
 **M1a is inserted rather than numbered, and that is deliberate.** The GUI moved early on
@@ -4207,7 +4262,7 @@ for rig's own development.** The gate in §24 fires when the last one lands.
 | # | Precondition | Where it lands | State |
 |---|---|---|---|
 | 1 | **Estate identity in the protocol.** A name and a role (`production` / `development`) an agent can READ | §14, and the wire | **DONE 2026-09-11, both halves.** On the wire as `rig.estate` (`1177f80`); reachable from a terminal as `rig estate` (`9e8b9fc`, ratchet `a3c97e1`). **Demonstrated on three live estates** - unnamed, `production` and `development` - each isolated in its own `XDG_RUNTIME_DIR`, plus the no-daemon refusal through the shared renderer and completion offering the verb. **Zero and `UNNAMED` render differently on both surfaces, asserted by a test that fails if they ever match**, and role and name are asserted to travel together or not at all |
-| 2 | **State scoped per estate.** Config, storage and the call log keyed by estate, not by uid | M5, where storage lands | **SPECIFIED 2026-09-11, builds at M5.** Estate-scoped state lives under `$XDG_STATE_HOME/rig/estates/<name>/`, extending the subtree `paths.EstateLock` already keys by name. The shared root keeps exactly one tenant, the cross-estate name claim. **An unnamed estate gets no persistent state at all**, and that is the answer rather than an omission - see below |
+| 2 | **State scoped per estate.** Config, storage and the call log keyed by estate, not by uid | **M7, where the WAL lands - CORRECTED 2026-09-11.** It said M5, where storage lands; §16's coordination service carries its own write-ahead log and that is the first persistent state rig holds | **SPECIFIED 2026-09-11, builds at M5.** Estate-scoped state lives under `$XDG_STATE_HOME/rig/estates/<name>/`, extending the subtree `paths.EstateLock` already keys by name. The shared root keeps exactly one tenant, the cross-estate name claim. **An unnamed estate gets no persistent state at all**, and that is the answer rather than an omission - see below |
 | 3 | **Build and semantic skew is detected, not discovered.** A client built from the development tree talking to the production daemon is refused or warned | §21, and **the wire** | **RE-MEASURED 2026-09-11, and it is TWO different gaps wearing one row - see below.** For a PROGRAM the fields already exist and nothing reads them. For a TERMINAL or an AGENT there is no handshake to carry them at all. **Batched with row 1 as one wire change** |
 | 4 | **A restart is survivable and distinguishable from a blip.** Epoch handles, two-step lease expiry with witnesses, and `owner_gone` | M7, §16 | **ruled, unbuilt, and the gap in the ruling is CLOSED 2026-09-11.** V15 rules the daemon publishes an epoch and every handle carries it. The row used to end *"ruled for crashes; a deliberate self-upgrade is the SAME event and nothing says so"*. It says so now: **the epoch is bumped on every start, unconditionally, and nothing distinguishes a planned restart from a crash** - see below. The BUILD is still M7 |
 | 5 | **The `systemd --user` unit manages production ONLY.** The development estate is never under it | M6, §5l | **SPECIFIED 2026-09-11, builds at M6.** **`production` owns the DEFAULT `XDG_RUNTIME_DIR` and `development` is always placed explicitly**, so a unit that sets nothing cannot reach development by construction rather than by a flag it might omit. `ExecStop` is `rig down`, never a signal to a pid. §5l's AgentBox scar - an `ExecStop` killing the healthy daemon it managed - is what this is shaped against |
