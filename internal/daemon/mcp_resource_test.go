@@ -80,6 +80,12 @@ func TestSliceFourDemoAcrossTheTwoSockets(t *testing.T) {
 	if wide["depth"] != "commands" {
 		t.Errorf("the resource does not say what depth it answered at: %v", wide["depth"])
 	}
+	// And how it was filtered, which is what tells a caller whether absent
+	// means absent. The agent introspects, so for it absent really is absent.
+	if wide["basis"] != "complete" {
+		t.Errorf("the introspecting caller's map claims basis %v, not complete",
+			wide["basis"])
+	}
 	version, _ := wide["version"].(string)
 	if version == "" {
 		t.Fatal("the map carries no version, so an agent cannot tell whether it changed")
@@ -145,6 +151,23 @@ func TestTheResourceIsBuiltForTheCallerInFrontOfIt(t *testing.T) {
 		t.Error("two different maps share one version, so a cache keyed on " +
 			"the version serves the scoped caller the whole estate - which " +
 			"is the leak the digest exists to close")
+	}
+
+	// EACH MAP SAYS WHICH IT IS. Without this the scoped caller's map is
+	// indistinguishable from a complete map of a smaller estate, and the two
+	// call for opposite actions.
+	if wide["basis"] != "complete" || narrow["basis"] != "scoped" {
+		t.Errorf("the maps do not state how they were filtered: "+
+			"introspecting=%v scoped=%v", wide["basis"], narrow["basis"])
+	}
+	// AND NEITHER SAYS WHAT WAS WITHHELD. Naming or counting it would make
+	// the map an enumeration oracle for the one caller that must not have
+	// one, which is what the rule above View.Program refuses.
+	for _, leak := range []string{"withheld", "withheldCount", "hidden", "total"} {
+		if _, found := narrow[leak]; found {
+			t.Errorf("the scoped map carries %q, which tells the caller "+
+				"about programs it may not see", leak)
+		}
 	}
 }
 

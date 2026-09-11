@@ -64,6 +64,7 @@ func MarshalCapabilityMap(m kernel.CapabilityMap) ([]byte, error) {
 	return json.Marshal(capabilityMapJSON{
 		Version:  m.Version,
 		Depth:    m.Depth.String(),
+		Basis:    m.Basis.String(),
 		Partial:  incompleteListJSON(partialOf(m.Programs...)),
 		Programs: programs,
 	})
@@ -83,6 +84,25 @@ type capabilityMapJSON struct {
 	// in it. A reader inferring depth from content cannot tell "commands, and
 	// this program has none" from "programs, so no commands were asked for".
 	Depth string `json:"depth"`
+
+	// Basis says how this map was filtered: "complete" is the whole estate
+	// and "scoped" is what this caller may reach. It is emitted always, and
+	// it is the field that lets a scoped caller tell an estate of one from an
+	// estate of three it may see one of - which is section 36's V20, that
+	// absent and withheld are different facts and only one of them means
+	// "ask for more access".
+	//
+	// IT NEVER SAYS WHAT WAS FILTERED OUT. No identities, no count, no size.
+	// Naming or counting would make the map an enumeration oracle for exactly
+	// the caller that must not have one, and the kernel refuses that in as
+	// many words above View.Program.
+	//
+	// "unspecified" is a real answer here and is NOT a synonym for
+	// "complete". A map that did not set its basis must never tell a scoped
+	// caller it has seen everything: the safe reading and the convenient
+	// reading point opposite ways, and that asymmetry is the whole reason the
+	// zero value is its own name.
+	Basis string `json:"basis"`
 
 	// Partial is emitted always, empty included, for the reason
 	// answerJSON.Partial is: section 5k forbids a surface implying

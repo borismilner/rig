@@ -10,6 +10,68 @@ import (
 	"strconv"
 )
 
+// Basis says HOW a capability map was filtered. It never says WHAT was
+// filtered out, and that distinction is the whole of it (PLAN.md section 36,
+// V20 projection totality).
+//
+// V20 rules that a projection must be TOTAL: sanitisation is declared rather
+// than incidental, because "absent" and "withheld" are different facts and
+// only one of them means "ask for more access". A scoped caller reading a map
+// of one program cannot otherwise tell an estate of one from an estate of
+// three it may see one of.
+//
+// IT STATES THE BASIS AND NAMES NOTHING, WHICH IS WHY IT DOES NOT COLLIDE
+// WITH THE RULE ABOVE View.Program. That rule refuses to report a program the
+// caller may not see, in as many words, because "you may not see shelf" tells
+// the caller that shelf exists. Both rules hold at once as long as withheld
+// never means named or counted: a count is enumeration with the labels taken
+// off, and estate size is precisely what a scoped caller must not be able to
+// enumerate. So there is no count here, no identity, and no size.
+//
+// IT DESCRIBES THE MAP, NOT THE CALLER. V20's own words are that the
+// projection states its own coverage, so this is a property of the
+// projection. Naming the caller's grant here would conflate two subjects,
+// which is the section 21 conflation this repository keeps catching. An agent
+// reading BasisScoped knows its picture is bounded; section 14 is where it
+// learns the grant it lacks is called introspect.
+type Basis uint8
+
+const (
+	// BasisUnspecified is nothing said, and it is its own value rather than a
+	// synonym for complete. THE ASYMMETRY IS THE POINT: a map that forgot to
+	// set this must not tell a scoped caller it has seen everything. The safe
+	// guess and the useful guess point opposite ways, which is the same trap
+	// an unset estate role and an unnamed estate were each ruled on.
+	BasisUnspecified Basis = iota
+
+	// BasisComplete is the whole estate. Nothing was filtered away for this
+	// caller, so absent really does mean absent.
+	BasisComplete
+
+	// BasisScoped is what this caller may reach. Something may have been
+	// filtered away and the map does not say what, so absent here means
+	// "not shown to you or not there", and asking for more access is a move.
+	//
+	// It covers every caller that is not seeing everything, not only one with
+	// scopes: an unprivileged client reading only what is unscoped is equally
+	// bounded, and telling it otherwise would be the false reassurance this
+	// field exists to prevent.
+	BasisScoped
+)
+
+var basisNames = map[Basis]string{
+	BasisUnspecified: unspecifiedName,
+	BasisComplete:    "complete",
+	BasisScoped:      "scoped",
+}
+
+func (b Basis) String() string {
+	if n, ok := basisNames[b]; ok {
+		return n
+	}
+	return fmt.Sprintf("Basis(%d)", uint8(b))
+}
+
 // CapabilityMap is the whole estate as ONE principal may see it (PLAN.md
 // section 9, "Discovery is a resource, not a guess").
 //
@@ -25,6 +87,11 @@ type CapabilityMap struct {
 	// it: the same estate at two depths is two different maps and must never
 	// share a version.
 	Depth Depth
+
+	// Basis says how this map was filtered: the whole estate, or what this
+	// caller may reach. It is what lets a scoped caller tell an estate of one
+	// from an estate of three it may see one of.
+	Basis Basis
 
 	Programs []Program
 }
@@ -59,7 +126,7 @@ func (v View) CapabilityMap(d Depth) (CapabilityMap, error) {
 	// THE MAP and a map cannot carry its own version while it is being
 	// computed. The ordering is the whole of the change: what is hashed is
 	// now the thing that was produced, not the arguments that produced it.
-	m := CapabilityMap{Depth: d, Programs: programs}
+	m := CapabilityMap{Depth: d, Basis: v.basis(), Programs: programs}
 	m.Version = mapVersion(m)
 	return m, nil
 }
@@ -90,6 +157,7 @@ func (v View) CapabilityMap(d Depth) (CapabilityMap, error) {
 func mapVersion(m CapabilityMap) string {
 	h := sha256.New()
 	writeUint(h, uint64(m.Depth))
+	writeUint(h, uint64(m.Basis))
 	writeUint(h, uint64(len(m.Programs)))
 	for _, p := range m.Programs {
 		writeProgram(h, p)
@@ -220,4 +288,19 @@ func writeUint(h hash.Hash, v uint64) {
 func (m CapabilityMap) String() string {
 	return fmt.Sprintf("capability map %s at depth %s, %d programs",
 		m.Version[:min(12, len(m.Version))], m.Depth, len(m.Programs))
+}
+
+// basis reports how this view filters, which is the map's basis.
+//
+// Complete is exactly the introspecting case and nothing else, because
+// canSee's one door out of default deny is Introspect: every other principal
+// is filtered, whether by its scopes or by having none. Deriving it from the
+// same predicate the filter uses is deliberate - a second rule for "is this
+// caller seeing everything" is how the two drift and the map starts claiming
+// completeness the filter did not give it.
+func (v View) basis() Basis {
+	if v.p.Introspect {
+		return BasisComplete
+	}
+	return BasisScoped
 }

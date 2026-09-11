@@ -432,6 +432,7 @@ func fullMap() kernel.CapabilityMap {
 	return kernel.CapabilityMap{
 		Version:  "v-fixture",
 		Depth:    kernel.DepthCommands,
+		Basis:    kernel.BasisComplete,
 		Programs: []kernel.Program{fullProgram()},
 	}
 }

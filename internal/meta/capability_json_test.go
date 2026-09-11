@@ -32,6 +32,7 @@ func TestEveryCapabilityMapFieldReachesTheResource(t *testing.T) {
 	change := map[string]func(*kernel.CapabilityMap){
 		"Version": func(m *kernel.CapabilityMap) { m.Version = m.Version + "-changed" },
 		"Depth":   func(m *kernel.CapabilityMap) { m.Depth = kernel.DepthFull },
+		"Basis":   func(m *kernel.CapabilityMap) { m.Basis = kernel.BasisScoped },
 		"Programs": func(m *kernel.CapabilityMap) {
 			m.Programs = append(m.Programs, kernel.Program{
 				Identity: kernel.Identity{ID: "added"},
@@ -97,7 +98,7 @@ func TestTheResourceStatesItsOwnDepthAndAdmitsAnEmptyEstate(t *testing.T) {
 		t.Fatalf("the resource did not emit an object: %v", err)
 	}
 
-	for _, key := range []string{"version", "depth", "partial", "programs"} {
+	for _, key := range []string{"version", "depth", "basis", "partial", "programs"} {
 		if _, ok := got[key]; !ok {
 			t.Errorf("an empty estate's map omits %q, so a reader cannot "+
 				"tell it apart from a daemon too old to have the field: %s",
@@ -188,6 +189,7 @@ func mapFixture() kernel.CapabilityMap {
 	return kernel.CapabilityMap{
 		Version: "v-fixture",
 		Depth:   kernel.DepthCommands,
+		Basis:   kernel.BasisComplete,
 		Programs: []kernel.Program{{
 			Identity: kernel.Identity{ID: "shelf", Name: "Shelf"},
 			Coverage: kernel.CoveragePartial,
@@ -234,5 +236,91 @@ func TestACallerWithNoGrantGetsAnEmptyMapRatherThanAnError(t *testing.T) {
 	}
 	if string(got["programs"]) != `[]` {
 		t.Errorf("a reachable empty map rendered programs as %s, not []", got["programs"])
+	}
+}
+
+// TestTwoEMPTYMapsAreNotTheSameAnswer is V20's acceptance test, and it is the
+// one assertion this whole field exists for.
+//
+//	"This is everything, and everything is nothing" and "this is what you may
+//	 reach, which is nothing" are different answers.
+//
+// Before the basis they were IDENTICAL BYTES. A scoped caller reading an
+// empty map could not tell an empty estate from an estate it may see none of,
+// and those two call for opposite actions: one is "there is nothing to use",
+// the other is "ask for more access". A projection that returns the same
+// answer to both is not merely terse, it is wrong.
+//
+// The empty case is chosen deliberately over a populated one. With programs
+// in the map the two answers differ in their contents anyway, so a test there
+// passes whether or not the basis exists - green for the wrong reason. Empty
+// is where the field is the only thing carrying the difference.
+func TestTwoEMPTYMapsAreNotTheSameAnswer(t *testing.T) {
+	s := meta.New(kernel.New(), nil)
+
+	everything, err := s.CapabilityMap(agent(), kernel.DepthCommands)
+	if err != nil {
+		t.Fatalf("the introspecting map: %v", err)
+	}
+	bounded, err := s.CapabilityMap(kernel.Principal{
+		UID: 1000, Kind: kernel.KindProgram,
+		ClientID: "shelf", SessionID: "s-shelf", PID: 1,
+		Scoped: true, Scopes: []string{"shelf"},
+	}, kernel.DepthCommands)
+	if err != nil {
+		t.Fatalf("the scoped map: %v", err)
+	}
+
+	if len(everything.Programs) != 0 || len(bounded.Programs) != 0 {
+		t.Fatal("this test is only meaningful on two empty maps")
+	}
+
+	a, err := meta.MarshalCapabilityMap(everything)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	b, err := meta.MarshalCapabilityMap(bounded)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	if string(a) == string(b) {
+		t.Fatalf("two empty maps are byte-identical, so a caller cannot tell "+
+			"'the estate is empty' from 'you may see none of it':\n%s", a)
+	}
+	if everything.Version == bounded.Version {
+		t.Error("two different answers share a version, so anything caching " +
+			"on it serves one caller the other's answer")
+	}
+}
+
+// TestAnUnsetBasisNeverReadsAsComplete is the house rule on a zero value that
+// would be a false reassurance.
+//
+// The safe reading and the convenient reading point opposite ways here: a map
+// that forgot to set its basis must not tell a scoped caller it has seen
+// everything. That is the same asymmetry an unset estate role was ruled on,
+// and it is why the zero is a value of its own rather than a default.
+func TestAnUnsetBasisNeverReadsAsComplete(t *testing.T) {
+	b, err := meta.MarshalCapabilityMap(kernel.CapabilityMap{
+		Version: "v", Depth: kernel.DepthCommands,
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var got map[string]json.RawMessage
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatalf("not an object: %v", err)
+	}
+	basis := string(got["basis"])
+	if basis == `"complete"` {
+		t.Fatal("an unset basis rendered as \"complete\", which tells a " +
+			"caller it has seen the whole estate on the strength of a field " +
+			"nobody set")
+	}
+	if basis == `""` || basis == "" {
+		t.Errorf("an unset basis rendered as %q, which is absent wearing a "+
+			"different hat: a reader cannot tell it from a daemon too old to "+
+			"have the field", basis)
 	}
 }
