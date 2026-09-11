@@ -683,10 +683,32 @@ func (c *conn) reply(stream uint32, msg proto.Message) {
 }
 
 func (c *conn) fail(stream uint32, code rigv1.Code, msg string) {
+	c.failStatus(stream, &rigv1.Status{Code: code, Message: msg})
+}
+
+// failErr is fail for a refusal that may know more than its sentence.
+//
+// A kernel.RefusalError carries what section 9 asks a failed call for - the
+// precondition, the state actually found, and the fix including its exact
+// command - and this is the one place those reach the wire. An error that is
+// not a RefusalError produces exactly the frame fail would have: the structure is an
+// addition, never a condition of reporting a failure.
+func (c *conn) failErr(stream uint32, code rigv1.Code, err error) {
+	st := &rigv1.Status{Code: code, Message: err.Error()}
+	if f, ok := kernel.AsRefusal(err); ok {
+		st.Precondition = f.Precondition
+		st.Actual = f.Actual
+		st.Fix = f.Fix
+		st.FixCommand = f.FixCommand
+	}
+	c.failStatus(stream, st)
+}
+
+func (c *conn) failStatus(stream uint32, st *rigv1.Status) {
 	if err := c.w.WriteFrame(&rigv1.Frame{
 		StreamId: stream,
 		Kind:     rigv1.FrameKind_FRAME_KIND_ERROR,
-		Status:   &rigv1.Status{Code: code, Message: msg},
+		Status:   st,
 	}); err != nil {
 		c.log.Warn("could not write error", "err", err)
 	}

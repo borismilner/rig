@@ -163,3 +163,66 @@ func TestTheDeclaredSchemaIsReadableThroughTheScopeFilter(t *testing.T) {
 		t.Fatal("one program read another program's argument schema")
 	}
 }
+
+// TestARefusalNamesThePreconditionAndTheFixCommand locks PLAN.md section 9's
+// requirement that a failed call returns structure rather than prose: what
+// failed, which precondition, what was actually found, and the exact command
+// that fixes it.
+//
+// The fix command is asserted to be the program's OWN declared example rather
+// than any string rig composes. Section 9 calls examples "the single
+// highest-value field", and a fix_command rig invented would be the one field
+// in the error nobody had checked.
+func TestARefusalNamesThePreconditionAndTheFixCommand(t *testing.T) {
+	k := kernel.New()
+	d := good("shelf")
+	c := d.Commands[0]
+	c.ID = "reindex"
+	c.Args = []byte(sinceSchema)
+	c.Examples = []string{"rig shelf reindex --since 7d"}
+	d.Commands = []kernel.Command{c}
+	if _, err := k.Register(programPrincipal("shelf"), d); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+
+	err := k.ValidateArgs("shelf", "reindex", []byte(`{"since":"soon"}`))
+	if err == nil {
+		t.Fatal("a value the schema refuses was accepted")
+	}
+	f, ok := kernel.AsRefusal(err)
+	if !ok {
+		t.Fatalf("a schema refusal is not a RefusalError, so no surface can render "+
+			"section 9's fields: %v", err)
+	}
+	if !strings.Contains(f.Precondition, "since") {
+		t.Errorf("precondition does not name the failing field: %q", f.Precondition)
+	}
+	if !strings.Contains(f.Actual, "soon") {
+		t.Errorf("actual does not name the value that was sent: %q", f.Actual)
+	}
+	if f.FixCommand != "rig shelf reindex --since 7d" {
+		t.Errorf("fix command is not the program's declared example: %q", f.FixCommand)
+	}
+	// The sentence survives, because everything already handling a kernel
+	// error keeps working and the structure is an addition.
+	if !strings.Contains(f.Error(), "declared schema") {
+		t.Errorf("the message was replaced rather than added to: %q", f.Error())
+	}
+}
+
+// TestARefusalWithNothingTrueToSayLeavesTheFieldsEMPTY is the other half, and
+// it is the one that keeps the fields worth reading. A command declaring no
+// examples gets no fix command - not a composed one - because the value of
+// these fields is that they are true when set.
+func TestARefusalWithNothingTrueToSayLeavesTheFieldsEmpty(t *testing.T) {
+	k := withArgs(t) // its commands declare no Examples
+
+	f, ok := kernel.AsRefusal(k.ValidateArgs("shelf", "reindex", []byte(`{"since":"soon"}`)))
+	if !ok {
+		t.Fatal("expected a RefusalError")
+	}
+	if f.FixCommand != "" {
+		t.Errorf("a fix command was invented for a command that declares no "+
+			"examples: %q", f.FixCommand)
+	}
+}

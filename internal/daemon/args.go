@@ -59,7 +59,9 @@ func (d *Daemon) validateArgs(from *conn, f *rigv1.Frame, program, command strin
 		return true
 	}
 	if err := d.kernel.ValidateArgs(program, command, callArgs(f)); err != nil {
-		from.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, err.Error())
+		// failErr rather than fail: the kernel's refusal carries section 9's
+		// structure and this is the boundary that puts it on the wire.
+		from.failErr(f.GetStreamId(), rigv1.Code_CODE_INVALID, err)
 		d.log.Debug("arguments refused at the boundary",
 			"method", f.GetMethod(), "err", err)
 		return false
