@@ -94,7 +94,16 @@
   // otherwise reach. Both are audited, so neither costs the other its coverage.
   const params = new URLSearchParams(location.search);
   const paneFixture = params.get("pane") === "1";
-  const fixture = params.get("fixture") === "1" || paneFixture;
+  // A THIRD fixture, and it exists because the gate could not see the settings
+  // panel at all. contrast-window serves ?fixture=1 and ?pane=1, and the panel
+  // opens only from a keypress, so its stylesheet had never been measured by
+  // anything - a clean contrast run said nothing about it. Measured 2026-09-11
+  // by opening it in the real window for the first time. It seeds the rail like
+  // ?fixture=1 does, so the panel is judged over the ground it actually sits on
+  // rather than over an empty page.
+  const settingsFixture = params.get("settings") === "1";
+  const fixture =
+    params.get("fixture") === "1" || paneFixture || settingsFixture;
 
   let programs: Program[] = $state(fixture ? FIXTURE : []);
   let health: Health = $state(
@@ -122,7 +131,7 @@
   // handler below, so the panel is reachable without a pointer - which is the
   // only way it is reachable at all while the context bar has no room for
   // another control.
-  let settingsOpen = $state(false);
+  let settingsOpen = $state(settingsFixture);
   // Bumped whenever the live theme changes, so Pane re-pushes the token set to
   // every program. Without it the window changes colour and the panes keep the
   // set they were handed, which is the one bug a shell-wide theme must not

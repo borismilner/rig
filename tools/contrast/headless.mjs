@@ -175,9 +175,29 @@ export async function auditPage(browser, fileUrl, {theme = null, width = 1440, h
             if (cs.visibility === 'hidden' || cs.display === 'none' || +cs.opacity === 0) continue;
             const b = o.getBoundingClientRect();
             if (b.width < 1 || b.height < 1) continue;
-            if (b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top) {
-              return o.id ? '#' + o.id : o.tagName.toLowerCase();
+            if (!(b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top)) continue;
+            // Overlapping rects do NOT mean the overlay is on top, and treating
+            // them as if they did measured nothing while reporting clean. A
+            // modal's scrim is position:fixed with inset 0, so it intersects
+            // EVERY element on the page - including the dialog's own buttons,
+            // which paint above it. Measured 2026-09-11 on ?settings=1: all 12
+            // focus targets and 1 paint mark skipped as "under-fixed-overlay",
+            // 0 fail, and the run still printed clean.
+            //
+            // So read the real stacking order at a point inside the overlap.
+            // elementsFromPoint is front-to-back, and neither element's
+            // stacking changes across the intersection, so one sample settles
+            // it. Outside the viewport there is nothing to sample and the
+            // conservative answer stands.
+            const sx = (Math.max(r.left, b.left) + Math.min(r.right, b.right)) / 2;
+            const sy = (Math.max(r.top, b.top) + Math.min(r.bottom, b.bottom)) / 2;
+            if (sx >= 0 && sx < innerWidth && sy >= 0 && sy < innerHeight) {
+              const stack = document.elementsFromPoint(sx, sy);
+              const iEl = stack.findIndex(n => n === el || el.contains(n));
+              const iO  = stack.findIndex(n => n === o  || o.contains(n));
+              if (iEl !== -1 && iO !== -1 && iEl < iO) continue;
             }
+            return o.id ? '#' + o.id : o.tagName.toLowerCase();
           }
           return null;
         })(),

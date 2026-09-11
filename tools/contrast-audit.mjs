@@ -74,7 +74,7 @@ const pad = (s, n) => String(s).padEnd(n);
 const num = (s, n) => String(s).padStart(n);
 
 let failed = 0, silencedTotal = 0;
-const hiddenRows = [], notMeasured = [];
+const hiddenRows = [], notMeasured = [], zeroCoverage = [];
 
 await withChrome(async browser => {
   for (const f of files) {
@@ -182,6 +182,9 @@ await withChrome(async browser => {
         }
         if (focus.findings.length > 6) console.log(`        ... and ${focus.findings.length - 6} more`);
         notMeasured.push(...focus.skipped.map(x => ({theme, pass: 'focus', ...x})));
+        if (focus.examined > 0 && focus.skipped.length === focus.examined) {
+          zeroCoverage.push({head, pass: 'focus', n: focus.examined});
+        }
       }
       if (paint) {
         console.log(`  paint ${num(paint.examined, 4)} marks    ${num(paint.failures, 3)} fail  ` +
@@ -197,6 +200,9 @@ await withChrome(async browser => {
         if (paint.findings.length > 6) console.log(`        ... and ${paint.findings.length - 6} more`);
         hiddenRows.push(...paint.hidden.map(h => ({theme, pass: 'paint', ...h})));
         notMeasured.push(...paint.skipped.map(x => ({theme, pass: 'paint', ...x})));
+        if (paint.examined > 0 && paint.skipped.length === paint.examined) {
+          zeroCoverage.push({head, pass: 'paint', n: paint.examined});
+        }
       }
       await page.close();
     }
@@ -226,6 +232,25 @@ if (notMeasured.length) {
   for (const n of notMeasured.slice(0, 5)) {
     console.log(`    ${pad((n.label || n.sel || '').slice(0, 26), 26)} at ${n.at || '?'}  ` +
                 `${n.kind}${n.onTop ? ' behind ' + n.onTop : ''}  "${n.text || ''}"`);
+  }
+}
+// A pass that examined targets and measured NONE of them reports "0 fail" and
+// prints a dash for its lowest ratio, and the run still ends "clean". That is
+// the zero-measurement-wearing-a-pass shape the DOM guard above exists for, one
+// level down: the guard asks whether the PAGE rendered, this asks whether the
+// PASS saw anything. Measured 2026-09-11 on ?settings=1, where the occlusion
+// test counted a modal's own buttons as being under its scrim and skipped all
+// 12 focus targets while printing clean.
+//
+// Loud rather than fatal, on the same reasoning as the silence block below: a
+// pass can legitimately measure nothing on a page where its one target really
+// is behind a modal, and failing the build for that would be a false red. What
+// must not happen is it going unsaid.
+if (zeroCoverage.length) {
+  console.log(`\n${zeroCoverage.length} pass(es) MEASURED NONE of their targets - a "0 fail" that looked at nothing:`);
+  for (const z of zeroCoverage) {
+    console.log(`  ${z.head}  ${z.pass}: ${z.n} target(s), all skipped. Read the reasons above` +
+                ' before reading this page as covered.');
   }
 }
 if (silencedTotal) {

@@ -269,7 +269,24 @@ contrast-window: contrast-selftest build-frontend ## Measure the shell's own pag
 	  sleep 1; \
 	  node tools/contrast-audit.mjs \
 	    'http://127.0.0.1:$(CONTRAST_PORT)/index.html?fixture=1' \
-	    'http://127.0.0.1:$(CONTRAST_PORT)/index.html?pane=1'
+	    'http://127.0.0.1:$(CONTRAST_PORT)/index.html?pane=1' \
+	    'http://127.0.0.1:$(CONTRAST_PORT)/index.html?settings=1'
+
+theme-gate: ## Prove the palette engine refuses an unreadable token set
+	# Section 6 promises rig refuses a token set that cannot be read and names
+	# the token and the ground. checkTheme in design/theme.js is that promise,
+	# and the settings panel and this target are the same call - so the window,
+	# the design page and the gate cannot disagree about what unreadable means.
+	#
+	# --selftest carries seven known answers, five of them deliberately
+	# unreadable themes, and fails if any is called clean. Same reasoning as
+	# contrast-selftest: this gate's whole job is to say no, so one that cannot
+	# say no is worse than none.
+	#
+	# It shipped at 9db5a4b with no target and therefore no CI step. A gate that
+	# exists and is not called is the state that let the focus ring ship at
+	# 2.17:1 - see the comment on `contrast`. That is why this is in `ci`.
+	node tools/theme-gate.mjs --selftest
 
 contrast-selftest: ## Prove the contrast instruments against known answers first
 	# A script that lies is worse than no script: the SVG audit shipped for
@@ -446,7 +463,7 @@ package: build ## Build the .deb from freshly built binaries
 	@mkdir -p dist
 	go run ./cmd/pkgdeb --version $(VERSION) --out dist/
 
-ci: fmt-check vet lint-house test-race bench-size schema-check ## Everything CI runs
+ci: fmt-check vet lint-house test-race bench-size schema-check theme-gate ## Everything CI runs
 	@echo
 	@echo "  M0's gate. Targets not yet in ci, each waiting on the milestone"
 	@echo "  that gives it something to check:"
@@ -494,7 +511,7 @@ help: ## Show this help
 .PHONY: build build-rigd build-rig build-fakeapp build-ledger deps-frontend build-frontend build-rigwindow build-all install uninstall \
         run dev clean test test-unit test-race \
         test-chaos test-e2e test-wire fuzz cover cover-html lint lint-house fmt vet audit \
-        vet-window test-window verify contrast contrast-selftest contrast-window generate proto schema types docs bench bench-ipc profile \
+        vet-window test-window verify contrast contrast-selftest contrast-window theme-gate generate proto schema types docs bench bench-ipc profile \
         up down doctor apps logs tui tidy deps-check release package ci fmt-check \
         bench-idle bench-scale bench-size bench-size-update build-minimal \
         bench-size-window bench-size-window-update \
