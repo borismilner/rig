@@ -15,6 +15,8 @@ package client
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -184,6 +186,20 @@ func (c *Client) Call(ctx context.Context, method string, in, out proto.Message)
 		return fmt.Errorf("client: marshal %s: %w", method, err)
 	}
 
+	// Section 5d duty 2, and WHERE it is minted is the whole point.
+	//
+	// One Call is one logical invocation. The id is minted here, once, above
+	// everything that could ever re-send: when duty 3's reconnect and duty 4's
+	// backoff land in this package, their loop goes below this line and the id
+	// it carries is already fixed. That is what makes "stable across a retry"
+	// true by construction rather than by a rule somebody has to remember.
+	//
+	// Minting inside the write instead would produce an id that is unique per
+	// ATTEMPT, which is the exact inversion internal/daemon/meta.go warns
+	// about: it would make every retry look like a new call and defeat the
+	// window meant to consume it.
+	rid := requestID()
+
 	sid := c.next.Add(2)
 	ch := make(chan *rigv1.Frame, 1)
 	c.pmu.Lock()
@@ -196,10 +212,11 @@ func (c *Client) Call(ctx context.Context, method string, in, out proto.Message)
 	}()
 
 	if err := c.w.WriteFrame(&rigv1.Frame{
-		StreamId: sid,
-		Kind:     rigv1.FrameKind_FRAME_KIND_REQUEST,
-		Method:   method,
-		Payload:  body,
+		StreamId:  sid,
+		Kind:      rigv1.FrameKind_FRAME_KIND_REQUEST,
+		Method:    method,
+		RequestId: rid,
+		Payload:   body,
 	}); err != nil {
 		return fmt.Errorf("client: %s: %w", method, err)
 	}
@@ -244,6 +261,34 @@ func (c *Client) Hello(ctx context.Context, decl *rigv1.Declaration) (*rigv1.Hel
 		Declaration: decl,
 	}, out)
 	return out, err
+}
+
+// requestID mints the client-generated id section 5d duty 2 asks for.
+//
+// EVERY call is stamped, not only the mutating ones, and that is a deliberate
+// reading of a tension inside section 5d itself: duty 2 says "stamp every
+// mutating call", while the paragraph below it forbids this package from
+// knowing "what commands exist". Deciding that a call mutates needs declared
+// effects, which is exactly the schema knowledge that paragraph bars. Stamping
+// unconditionally needs none, and it cannot get the answer wrong: a stamped
+// read is ignored by a window keyed on the method, where an unstamped write is
+// the failure the id exists to prevent. Ruled 2026-09-11.
+//
+// It is unexported, so section 3's surface does not grow.
+//
+// The shape matches randomID in internal/daemon, on purpose, so ids across the
+// estate read alike. It is not shared code: this package must not import the
+// daemon, and cmd/rig's layering test exists to keep it that way. A daemon
+// minting its own identities and a client minting its own call ids are two
+// parties doing two things that happen to want the same spelling.
+//
+// crypto/rand.Read never returns an error and always fills its argument
+// (Go 1.24 onwards), so there is nothing here to handle or to paper over with
+// a counter that could collide.
+func requestID() string {
+	b := make([]byte, 8)
+	_, _ = rand.Read(b)
+	return "req-" + hex.EncodeToString(b)
 }
 
 // CallError is a wire-level refusal, carrying rig's own status.

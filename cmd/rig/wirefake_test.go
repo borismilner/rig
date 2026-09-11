@@ -212,3 +212,108 @@ func TestAProgramThatIsNotConnectedIsRefusedWithTheOnesThatAre(t *testing.T) {
 		}
 	}
 }
+
+// frames returns the raw frames this daemon was sent, before any payload is
+// decoded. sent() above throws the envelope away, and the request id lives on
+// the envelope rather than in the body.
+func (d *fakeDaemon) frames(t *testing.T) []*rigv1.Frame {
+	t.Helper()
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return append([]*rigv1.Frame(nil), d.requests...)
+}
+
+// EVERY CALL PUTS A CLIENT-GENERATED REQUEST ID ON THE WIRE.
+//
+// Section 5d duty 2. Before this, `request_id` was wire field 4, plumbed
+// through the daemon in both directions, and set by nothing: a grep for it
+// across client/ and cmd/rig returned no occurrences at all, so the field
+// travelled empty from every rig surface that exists.
+//
+// WHAT THIS TEST DOES NOT PROVE, said plainly rather than left to be assumed:
+// that the id is STABLE ACROSS A RETRY. It cannot, because there is no retry
+// to be stable across - section 5d's duties 3 and 4 are not built yet, and a
+// grep for retry or backoff in client/ finds only the comment saying where
+// they belong. The id is minted above everything in Call that could re-send,
+// which makes stability true by construction; the test that can actually fail
+// arrives with the reconnect loop, and this comment is here so nobody reads
+// the two tests below as having covered it.
+func TestEveryCallCarriesARequestID(t *testing.T) {
+	d := startFakeDaemon(t, &rigv1.ProgramsResponse{
+		Programs: []*rigv1.Program{{
+			Identity: &rigv1.Identity{Id: "fakeapp", Version: "1.0.0"},
+		}},
+	})
+	c, err := client.Dial(d.socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if _, err := programAt(ctx, c, "fakeapp", rigv1.Depth_DEPTH_FULL); err != nil {
+		t.Fatalf("programAt: %v", err)
+	}
+
+	sent := d.frames(t)
+	if len(sent) != 1 {
+		t.Fatalf("the daemon was sent %d frames, want 1", len(sent))
+	}
+	got := sent[0].GetRequestId()
+	if got == "" {
+		t.Fatal("the request carried an EMPTY request id. That is what every " +
+			"rig surface sent before section 5d duty 2 was built, and it is " +
+			"the state this test exists to stop returning to")
+	}
+
+	// The shape is pinned so that a change to it is visible in a diff rather
+	// than discovered by whatever eventually consumes the id.
+	const wantLen = len("req-") + 16 // 8 random bytes, hex
+	if !strings.HasPrefix(got, "req-") || len(got) != wantLen {
+		t.Errorf("the request id is %q, which is not the documented shape "+
+			"(req- and 16 hex characters)", got)
+	}
+}
+
+// THE CONTROL, AND IT IS WHAT MAKES THE TEST ABOVE MEAN ANYTHING.
+//
+// A hardcoded constant would satisfy every assertion in TestEveryCallCarries
+// ARequestID: it is non-empty and it has the right shape. An id that never
+// varies is worse than no id, because the daemon's window would eventually
+// treat two unrelated calls as the same one and answer the second with the
+// first one's reply.
+//
+// So this asserts the id is a property of the INVOCATION. Two calls, two ids.
+func TestTwoCallsDoNotShareARequestID(t *testing.T) {
+	d := startFakeDaemon(t, &rigv1.ProgramsResponse{
+		Programs: []*rigv1.Program{{
+			Identity: &rigv1.Identity{Id: "fakeapp", Version: "1.0.0"},
+		}},
+	})
+	c, err := client.Dial(d.socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	for range 2 {
+		if _, err := programAt(ctx, c, "fakeapp", rigv1.Depth_DEPTH_FULL); err != nil {
+			t.Fatalf("programAt: %v", err)
+		}
+	}
+
+	sent := d.frames(t)
+	if len(sent) != 2 {
+		t.Fatalf("the daemon was sent %d frames, want 2", len(sent))
+	}
+	if a, b := sent[0].GetRequestId(), sent[1].GetRequestId(); a == b {
+		t.Errorf("two separate calls both carried request id %q. The id is "+
+			"minted per invocation, so a constant here means the window that "+
+			"consumes it would deduplicate calls that are not duplicates", a)
+	}
+}
