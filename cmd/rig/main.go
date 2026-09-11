@@ -87,6 +87,7 @@ func usage() {
   <app> <cmd>      run a command a program declared, with its declared flags
   apps list        what every program declared, as this client may see it
   ping <program>   round-trip a program through rigd ("rig" pings the daemon)
+  estate           which estate this shell reached, and what it is for
   down             stop the daemon serving this XDG_RUNTIME_DIR
   version          print every version this build carries
   completion <sh>  a completion script for bash, zsh or fish
@@ -165,6 +166,8 @@ func run(args []string) error {
 		return cmdApps(with(args[1:], lead))
 	case "down":
 		return cmdDown(with(args[1:], lead))
+	case "estate":
+		return cmdEstate(with(args[1:], lead))
 	case "completion":
 		return cmdCompletion(args[1:])
 	case "__complete":

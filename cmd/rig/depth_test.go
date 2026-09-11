@@ -3,6 +3,10 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -261,25 +265,37 @@ func TestParseDepthRefusesTheZeroAndTakesAnAbsentFlagAsAbsent(t *testing.T) {
 // This is the argv path, which nothing else in cmd/rig covers - the fifteen
 // functions that need a live rigd are this package's documented coverage hole,
 // and the defect this test pins was found by running the binary, not by a test.
+// IT WALKS EVERY FLAG SET THIS PACKAGE BUILDS, NOT ONLY apps'. It walked only
+// apps' until `rig estate` added the second one, and a test that walks one
+// command's flags is blind to the next command by construction - which is the
+// same shape as the defect it was written for: the coupling existed and
+// nothing exercised it. Adding a verb with a valued flag and forgetting
+// valuedFlags would have been invisible again.
 func TestEveryFlagThatTakesAValueIsDeclaredToThePartitioner(t *testing.T) {
-	fs, _, _, _ := appsFlagSet()
+	appsFS, _, _, _ := appsFlagSet()
+	estateFS, _, _ := estateFlagSet()
+	sets := map[string]*flag.FlagSet{"apps": appsFS, "estate": estateFS}
 
 	var checked int
-	fs.VisitAll(func(f *flag.Flag) {
-		// A boolean is the only kind that does not consume its next argument.
-		// flag's own BoolFlag marker is what the parser itself reads, so it is
-		// what this asks rather than the name or the default.
-		bf, ok := f.Value.(interface{ IsBoolFlag() bool })
-		if ok && bf.IsBoolFlag() {
-			return
-		}
-		checked++
-		if !valuedFlags[f.Name] {
-			t.Errorf("--%s takes a value and valuedFlags does not list it, so "+
-				"partition() hands its value to the positionals and the command "+
-				"fails with \"flag needs an argument\"", f.Name)
-		}
-	})
+	for verb, fs := range sets {
+		fs.VisitAll(func(f *flag.Flag) {
+			// A boolean is the only kind that does not consume its next
+			// argument. flag's own BoolFlag marker is what the parser itself
+			// reads, so it is what this asks rather than the name or the
+			// default.
+			bf, ok := f.Value.(interface{ IsBoolFlag() bool })
+			if ok && bf.IsBoolFlag() {
+				return
+			}
+			checked++
+			if !valuedFlags[f.Name] {
+				t.Errorf("rig %s --%s takes a value and valuedFlags does not "+
+					"list it, so partition() hands its value to the positionals "+
+					"and the command fails with \"flag needs an argument\"",
+					verb, f.Name)
+			}
+		})
+	}
 
 	// The positive control: an absence is also what a walk that never ran
 	// produces, and this test is entirely assertions about absence.
@@ -287,6 +303,80 @@ func TestEveryFlagThatTakesAValueIsDeclaredToThePartitioner(t *testing.T) {
 		t.Fatal("no non-boolean flag was examined, so this test would pass " +
 			"against a VisitAll that visited nothing")
 	}
+
+	// THE CONTROL THAT MAKES THE LIST ABOVE MAINTAIN ITSELF, and the first
+	// version of it did not work.
+	//
+	// A count-based control - "checked must be at least len(sets)" - passes
+	// whether the map holds one flag set or both, because dropping a set drops
+	// its flags from the count too. A MUTATION PROVED THAT: removing `estate`
+	// from the map survived. So the control reads the SOURCE for every
+	// constructor that builds a *flag.FlagSet and fails if one is not walked,
+	// which is client/surface_test.go's technique applied to a second
+	// enumeration that has to stay complete.
+	for _, name := range flagSetConstructors(t) {
+		if _, ok := sets[strings.TrimSuffix(name, "FlagSet")]; !ok {
+			t.Errorf("%s builds a flag set and this test does not walk it, so "+
+				"a valued flag on that verb is not coupled to valuedFlags and "+
+				"its value will be handed to the positionals", name)
+		}
+	}
+}
+
+// flagSetConstructors names every top-level function in this package that
+// returns a *flag.FlagSet, read off the source.
+//
+// Reflection cannot answer this: the constructors are unexported and nothing
+// registers them anywhere, so the only record that a verb has flags is the
+// function itself. Reading the source is what client/surface_test.go does for
+// the stub's exported surface, and for the same reason - the thing being
+// asserted is that an ENUMERATION is complete, and an enumeration cannot check
+// its own completeness.
+func flagSetConstructors(t *testing.T) []string {
+	t.Helper()
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := token.NewFileSet()
+	var out []string
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || !strings.HasSuffix(name, ".go") ||
+			strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		f, err := parser.ParseFile(fset, name, nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, d := range f.Decls {
+			fn, ok := d.(*ast.FuncDecl)
+			if !ok || fn.Recv != nil || fn.Type.Results == nil {
+				continue
+			}
+			for _, r := range fn.Type.Results.List {
+				star, ok := r.Type.(*ast.StarExpr)
+				if !ok {
+					continue
+				}
+				sel, ok := star.X.(*ast.SelectorExpr)
+				if !ok || sel.Sel.Name != "FlagSet" {
+					continue
+				}
+				if id, ok := sel.X.(*ast.Ident); ok && id.Name == "flag" {
+					out = append(out, fn.Name.Name)
+				}
+			}
+		}
+	}
+	// The control on the control: a source walk that found nothing is
+	// indistinguishable from a package with no flag sets in it.
+	if len(out) == 0 {
+		t.Fatal("no flag-set constructor was found in this package's source, " +
+			"so this check would pass against a parse that read nothing")
+	}
+	return out
 }
 
 // The whole argv path for the flag, which is what actually broke.

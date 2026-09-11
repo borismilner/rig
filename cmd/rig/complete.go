@@ -43,7 +43,7 @@ import (
 const verbVersion = "version"
 
 // staticVerbs are rig's own, and the only names in this file.
-var staticVerbs = []string{"apps", "ping", "down", verbVersion, "completion", "help"}
+var staticVerbs = []string{"apps", "ping", "down", "estate", verbVersion, "completion", "help"}
 
 // cmdCompletion prints the script for one shell.
 func cmdCompletion(args []string) error {
@@ -94,6 +94,13 @@ func candidates(argv []string) []string {
 			// there is nothing to name. Offering a program id here would
 			// suggest `rig down <program>` is a thing, which is exactly the
 			// named-estate concept proposal P5 was refused for wanting.
+			return []string{"--json", "--timeout"}
+		case "estate":
+			// Same shape as down and for the same reason: the estate is the
+			// runtime dir, so there is nothing to name. Offering a name here
+			// would suggest `rig estate <name>` selects one, when the whole
+			// point of the verb is that it reports the one you already
+			// reached.
 			return []string{"--json", "--timeout"}
 		case verbVersion, "help":
 			return []string{"--json"}
