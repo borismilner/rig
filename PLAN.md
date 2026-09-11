@@ -1509,8 +1509,33 @@ escapes, redraws, cursor state. So the agent affordance in the terminal is not t
 - `rig shell --batch --json`, which reads commands on stdin and writes one JSON object per line,
   for a scripted session that needs state
 
-An agent that only knows `rig --json list`, `rig --json describe X` and `rig --json invoke X`
-can operate the entire estate.
+An agent that only knows **list**, **describe** and **invoke** can operate the entire estate.
+
+**Those are the MCP TOOL names, and this line used to write them as CLI verbs -
+`rig --json list` and so on - which do not exist.** Corrected 2026-09-11, found
+by typing the line rather than by reading it. `rig list` today dispatches as a
+program named `list`; there is no `describe` and no `invoke` verb at all.
+
+**The CLI spelling and the MCP tool name are DIFFERENT SURFACES OF ONE
+OPERATION, and §10's rule is about the OBJECT, not the spelling.** *"`--json`
+returns exactly what the MCP tool returns"* constrains what comes back, and
+deliberately does not require the two surfaces to be typed the same way - an MCP
+tool name is a flat identifier in a tool list, and a CLI is a verb over a
+namespaced estate.
+
+| Operation | MCP tool | CLI today | CLI when M2 lands |
+|---|---|---|---|
+| enumerate the estate | `list` | `rig apps list` | `rig apps list` |
+| one thing in full | `describe` | **does not exist** | `rig describe <anything>`, above |
+| run a command | `invoke` | `rig <app> <cmd>` | `rig <app> <cmd>` |
+
+**`invoke` is the one worth noticing: the CLI has had it since M1 and it is not
+spelled like a verb at all**, because `rig shelf reindex` is the whole point of
+the front door. An agent reading this plan for CLI syntax would have gone
+looking for a command that was never going to exist.
+
+**These three are M2 slices 2 and 3**, so the surfaces arrive together and the
+table's last column is a commitment rather than a description.
 
 ### rig's own failures carry a code, and it cannot collide with the daemon's
 
