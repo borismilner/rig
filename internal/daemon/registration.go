@@ -162,6 +162,32 @@ func commandFromWire(c *rigv1.Command) kernel.Command {
 	return out
 }
 
+// depthIn reads the depth a caller asked for, and decides what an ABSENT one
+// means.
+//
+// It means DEPTH_FULL, and that is a compatibility rule rather than a default
+// worth having on its own. Every caller written before the field existed
+// asked for the whole estate, and proto3 hands an old message the zero value
+// whether the sender said anything or not - so reading zero as "the cheapest
+// depth" would silently empty the commands list of every client that has not
+// been recompiled.
+//
+// The kernel refuses an unspecified depth outright, and the two are meant to
+// disagree: the kernel will not guess, and this is the one place that knows
+// what the wire used to mean. Section 21's enum rule is about what a zero may
+// MEAN in a decision; restoring a previous wire's behaviour at the boundary is
+// not a decision the sender is being credited with.
+func depthIn(d rigv1.Depth) kernel.Depth {
+	switch d {
+	case rigv1.Depth_DEPTH_PROGRAMS:
+		return kernel.DepthPrograms
+	case rigv1.Depth_DEPTH_COMMANDS:
+		return kernel.DepthCommands
+	default:
+		return kernel.DepthFull
+	}
+}
+
 // programToWire renders one program as a principal was allowed to see it.
 func programToWire(p kernel.Program) *rigv1.Program {
 	out := &rigv1.Program{
@@ -179,6 +205,7 @@ func programToWire(p kernel.Program) *rigv1.Program {
 		Elements:     p.Elements,
 		Hosted:       p.Hosted,
 		PaneUrl:      p.PaneURL,
+		Preamble:     p.Preamble,
 	}
 	for _, c := range p.Commands {
 		out.Commands = append(out.Commands, commandToWire(c))

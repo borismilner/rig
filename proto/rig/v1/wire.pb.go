@@ -448,6 +448,75 @@ func (Tristate) EnumDescriptor() ([]byte, []int) {
 	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{6}
 }
 
+// Depth is how much of the estate a read wants (section 9).
+//
+// Section 9's argument for four meta tools is a context budget: fifteen
+// programs with twenty commands each is three hundred tools, and handing an
+// agent all of it "destroys its context before it has done anything". So
+// `list` "returns the estate at whatever depth is asked for".
+//
+// The line between the last two is one sentence: DEPTH_COMMANDS carries what
+// an agent picks a command BY, DEPTH_FULL carries what it calls the command
+// WITH. Scalars and the one-line summary are how you choose; schemas,
+// examples, preconditions and prose are how you invoke.
+type Depth int32
+
+const (
+	Depth_DEPTH_UNSPECIFIED Depth = 0
+	// The estate itself: who is registered and how much of rig each has
+	// adopted. No commands, no preamble.
+	Depth_DEPTH_PROGRAMS Depth = 1
+	// Every command's scalar properties and its summary - enough to choose
+	// one, and nothing that costs a schema.
+	Depth_DEPTH_COMMANDS Depth = 2
+	// Everything this principal may see, preamble and argument schemas
+	// included.
+	Depth_DEPTH_FULL Depth = 3
+)
+
+// Enum value maps for Depth.
+var (
+	Depth_name = map[int32]string{
+		0: "DEPTH_UNSPECIFIED",
+		1: "DEPTH_PROGRAMS",
+		2: "DEPTH_COMMANDS",
+		3: "DEPTH_FULL",
+	}
+	Depth_value = map[string]int32{
+		"DEPTH_UNSPECIFIED": 0,
+		"DEPTH_PROGRAMS":    1,
+		"DEPTH_COMMANDS":    2,
+		"DEPTH_FULL":        3,
+	}
+)
+
+func (x Depth) Enum() *Depth {
+	p := new(Depth)
+	*p = x
+	return p
+}
+
+func (x Depth) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Depth) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_rig_v1_wire_proto_enumTypes[7].Descriptor()
+}
+
+func (Depth) Type() protoreflect.EnumType {
+	return &file_proto_rig_v1_wire_proto_enumTypes[7]
+}
+
+func (x Depth) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Depth.Descriptor instead.
+func (Depth) EnumDescriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{7}
+}
+
 type Status struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Code  Code                   `protobuf:"varint,1,opt,name=code,proto3,enum=rig.v1.Code" json:"code,omitempty"`
@@ -1406,9 +1475,17 @@ func (x *Declaration) GetElements() []string {
 
 // Program is one program as one principal may see it (section 14).
 //
-// It is Declaration minus preamble and scope: what a reader is shown, not
-// what was stored. Section 5k's rule that no surface may imply completeness
-// is why coverage travels with it.
+// It is Declaration minus scope: what a reader is shown, not what was stored.
+// Section 5k's rule that no surface may imply completeness is why coverage
+// travels with it.
+//
+// THIS COMMENT USED TO SAY "minus preamble and scope", AND THAT WAS THE BUG.
+// Section 9 requires the preamble to be "returned by describe on the program",
+// and a program has been able to declare one since M1 - accepted at hello,
+// validated, stored in the registry - with no message on any path able to
+// carry it back. It was a dead field for as long as it existed. Scope stays
+// out: it is how rig decides who may see this program, not something the
+// program said about itself.
 type Program struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	Identity     *Identity              `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
@@ -1424,7 +1501,13 @@ type Program struct {
 	// The kit elements this program declares (section 5h R3). A reader gets it
 	// for the same reason it gets services: it is part of what the program said
 	// about itself, not part of how anything draws it.
-	Elements      []string `protobuf:"bytes,9,rep,name=elements,proto3" json:"elements,omitempty"`
+	Elements []string `protobuf:"bytes,9,rep,name=elements,proto3" json:"elements,omitempty"`
+	// The one document an agent reads before touching this program (section 9).
+	//
+	// Carried at DEPTH_FULL only. It is prose, it can be long, and fifteen of
+	// them in one list is the context cost section 9's whole tiering argument
+	// exists to avoid - so it travels with describe and not with list.
+	Preamble      string `protobuf:"bytes,10,opt,name=preamble,proto3" json:"preamble,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1522,8 +1605,23 @@ func (x *Program) GetElements() []string {
 	return nil
 }
 
+func (x *Program) GetPreamble() string {
+	if x != nil {
+		return x.Preamble
+	}
+	return ""
+}
+
 type ProgramsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// How much to say about each program. Absent means DEPTH_FULL, and that is
+	// a COMPATIBILITY rule rather than a default worth having: every caller
+	// written before this field existed asked for everything, and proto3 gives
+	// it the zero value whether it says so or not. The kernel refuses an
+	// unspecified depth outright (section 21's enum rule); the boundary is
+	// where the old wire's meaning is restored, so exactly one place has to
+	// know that the two disagree.
+	Depth         Depth `protobuf:"varint,1,opt,name=depth,proto3,enum=rig.v1.Depth" json:"depth,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1556,6 +1654,13 @@ func (x *ProgramsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ProgramsRequest.ProtoReflect.Descriptor instead.
 func (*ProgramsRequest) Descriptor() ([]byte, []int) {
 	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ProgramsRequest) GetDepth() Depth {
+	if x != nil {
+		return x.Depth
+	}
+	return Depth_DEPTH_UNSPECIFIED
 }
 
 type ProgramsResponse struct {
@@ -1870,7 +1975,7 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x06hosted\x18\t \x01(\bR\x06hosted\x12\x19\n" +
 	"\bpane_url\x18\n" +
 	" \x01(\tR\apaneUrl\x12\x1a\n" +
-	"\belements\x18\v \x03(\tR\belements\"\xc7\x02\n" +
+	"\belements\x18\v \x03(\tR\belements\"\xe3\x02\n" +
 	"\aProgram\x12,\n" +
 	"\bidentity\x18\x01 \x01(\v2\x10.rig.v1.IdentityR\bidentity\x12,\n" +
 	"\bcoverage\x18\x02 \x01(\x0e2\x10.rig.v1.CoverageR\bcoverage\x12#\n" +
@@ -1880,8 +1985,11 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x06hosted\x18\x06 \x01(\bR\x06hosted\x12+\n" +
 	"\bcommands\x18\a \x03(\v2\x0f.rig.v1.CommandR\bcommands\x12\x19\n" +
 	"\bpane_url\x18\b \x01(\tR\apaneUrl\x12\x1a\n" +
-	"\belements\x18\t \x03(\tR\belements\"\x11\n" +
-	"\x0fProgramsRequest\"?\n" +
+	"\belements\x18\t \x03(\tR\belements\x12\x1a\n" +
+	"\bpreamble\x18\n" +
+	" \x01(\tR\bpreamble\"6\n" +
+	"\x0fProgramsRequest\x12#\n" +
+	"\x05depth\x18\x01 \x01(\x0e2\r.rig.v1.DepthR\x05depth\"?\n" +
 	"\x10ProgramsResponse\x12+\n" +
 	"\bprograms\x18\x01 \x03(\v2\x0f.rig.v1.ProgramR\bprograms\"\r\n" +
 	"\vDownRequest\":\n" +
@@ -1934,7 +2042,13 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\bTristate\x12\x18\n" +
 	"\x14TRISTATE_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vTRISTATE_NO\x10\x01\x12\x10\n" +
-	"\fTRISTATE_YES\x10\x02B0Z.github.com/boris-milner/rig/proto/rig/v1;rigv1b\x06proto3"
+	"\fTRISTATE_YES\x10\x02*V\n" +
+	"\x05Depth\x12\x15\n" +
+	"\x11DEPTH_UNSPECIFIED\x10\x00\x12\x12\n" +
+	"\x0eDEPTH_PROGRAMS\x10\x01\x12\x12\n" +
+	"\x0eDEPTH_COMMANDS\x10\x02\x12\x0e\n" +
+	"\n" +
+	"DEPTH_FULL\x10\x03B0Z.github.com/boris-milner/rig/proto/rig/v1;rigv1b\x06proto3"
 
 var (
 	file_proto_rig_v1_wire_proto_rawDescOnce sync.Once
@@ -1948,7 +2062,7 @@ func file_proto_rig_v1_wire_proto_rawDescGZIP() []byte {
 	return file_proto_rig_v1_wire_proto_rawDescData
 }
 
-var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
+var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
 var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(FrameKind)(0),           // 0: rig.v1.FrameKind
@@ -1958,50 +2072,52 @@ var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(Duration)(0),            // 4: rig.v1.Duration
 	(Shape)(0),               // 5: rig.v1.Shape
 	(Tristate)(0),            // 6: rig.v1.Tristate
-	(*Status)(nil),           // 7: rig.v1.Status
-	(*Frame)(nil),            // 8: rig.v1.Frame
-	(*HelloRequest)(nil),     // 9: rig.v1.HelloRequest
-	(*HelloResponse)(nil),    // 10: rig.v1.HelloResponse
-	(*PingRequest)(nil),      // 11: rig.v1.PingRequest
-	(*PingResponse)(nil),     // 12: rig.v1.PingResponse
-	(*Identity)(nil),         // 13: rig.v1.Identity
-	(*SensitiveFields)(nil),  // 14: rig.v1.SensitiveFields
-	(*Command)(nil),          // 15: rig.v1.Command
-	(*Declaration)(nil),      // 16: rig.v1.Declaration
-	(*Program)(nil),          // 17: rig.v1.Program
-	(*ProgramsRequest)(nil),  // 18: rig.v1.ProgramsRequest
-	(*ProgramsResponse)(nil), // 19: rig.v1.ProgramsResponse
-	(*DownRequest)(nil),      // 20: rig.v1.DownRequest
-	(*DownResponse)(nil),     // 21: rig.v1.DownResponse
-	(*CallRequest)(nil),      // 22: rig.v1.CallRequest
-	(*CallResponse)(nil),     // 23: rig.v1.CallResponse
+	(Depth)(0),               // 7: rig.v1.Depth
+	(*Status)(nil),           // 8: rig.v1.Status
+	(*Frame)(nil),            // 9: rig.v1.Frame
+	(*HelloRequest)(nil),     // 10: rig.v1.HelloRequest
+	(*HelloResponse)(nil),    // 11: rig.v1.HelloResponse
+	(*PingRequest)(nil),      // 12: rig.v1.PingRequest
+	(*PingResponse)(nil),     // 13: rig.v1.PingResponse
+	(*Identity)(nil),         // 14: rig.v1.Identity
+	(*SensitiveFields)(nil),  // 15: rig.v1.SensitiveFields
+	(*Command)(nil),          // 16: rig.v1.Command
+	(*Declaration)(nil),      // 17: rig.v1.Declaration
+	(*Program)(nil),          // 18: rig.v1.Program
+	(*ProgramsRequest)(nil),  // 19: rig.v1.ProgramsRequest
+	(*ProgramsResponse)(nil), // 20: rig.v1.ProgramsResponse
+	(*DownRequest)(nil),      // 21: rig.v1.DownRequest
+	(*DownResponse)(nil),     // 22: rig.v1.DownResponse
+	(*CallRequest)(nil),      // 23: rig.v1.CallRequest
+	(*CallResponse)(nil),     // 24: rig.v1.CallResponse
 }
 var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	1,  // 0: rig.v1.Status.code:type_name -> rig.v1.Code
 	0,  // 1: rig.v1.Frame.kind:type_name -> rig.v1.FrameKind
-	7,  // 2: rig.v1.Frame.status:type_name -> rig.v1.Status
-	16, // 3: rig.v1.HelloRequest.declaration:type_name -> rig.v1.Declaration
+	8,  // 2: rig.v1.Frame.status:type_name -> rig.v1.Status
+	17, // 3: rig.v1.HelloRequest.declaration:type_name -> rig.v1.Declaration
 	3,  // 4: rig.v1.Command.effects:type_name -> rig.v1.Effects
 	6,  // 5: rig.v1.Command.idempotent:type_name -> rig.v1.Tristate
-	14, // 6: rig.v1.Command.sensitive:type_name -> rig.v1.SensitiveFields
+	15, // 6: rig.v1.Command.sensitive:type_name -> rig.v1.SensitiveFields
 	6,  // 7: rig.v1.Command.interactive:type_name -> rig.v1.Tristate
 	6,  // 8: rig.v1.Command.streams:type_name -> rig.v1.Tristate
 	6,  // 9: rig.v1.Command.needs_display:type_name -> rig.v1.Tristate
 	4,  // 10: rig.v1.Command.duration:type_name -> rig.v1.Duration
 	6,  // 11: rig.v1.Command.confirms:type_name -> rig.v1.Tristate
 	5,  // 12: rig.v1.Command.shape:type_name -> rig.v1.Shape
-	13, // 13: rig.v1.Declaration.identity:type_name -> rig.v1.Identity
+	14, // 13: rig.v1.Declaration.identity:type_name -> rig.v1.Identity
 	2,  // 14: rig.v1.Declaration.coverage:type_name -> rig.v1.Coverage
-	15, // 15: rig.v1.Declaration.commands:type_name -> rig.v1.Command
-	13, // 16: rig.v1.Program.identity:type_name -> rig.v1.Identity
+	16, // 15: rig.v1.Declaration.commands:type_name -> rig.v1.Command
+	14, // 16: rig.v1.Program.identity:type_name -> rig.v1.Identity
 	2,  // 17: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
-	15, // 18: rig.v1.Program.commands:type_name -> rig.v1.Command
-	17, // 19: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
-	20, // [20:20] is the sub-list for method output_type
-	20, // [20:20] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	16, // 18: rig.v1.Program.commands:type_name -> rig.v1.Command
+	7,  // 19: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
+	18, // 20: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
+	21, // [21:21] is the sub-list for method output_type
+	21, // [21:21] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_wire_proto_init() }
@@ -2014,7 +2130,7 @@ func file_proto_rig_v1_wire_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_wire_proto_rawDesc), len(file_proto_rig_v1_wire_proto_rawDesc)),
-			NumEnums:      7,
+			NumEnums:      8,
 			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   0,

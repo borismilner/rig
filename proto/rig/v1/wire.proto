@@ -341,9 +341,17 @@ message Declaration {
 
 // Program is one program as one principal may see it (section 14).
 //
-// It is Declaration minus preamble and scope: what a reader is shown, not
-// what was stored. Section 5k's rule that no surface may imply completeness
-// is why coverage travels with it.
+// It is Declaration minus scope: what a reader is shown, not what was stored.
+// Section 5k's rule that no surface may imply completeness is why coverage
+// travels with it.
+//
+// THIS COMMENT USED TO SAY "minus preamble and scope", AND THAT WAS THE BUG.
+// Section 9 requires the preamble to be "returned by describe on the program",
+// and a program has been able to declare one since M1 - accepted at hello,
+// validated, stored in the registry - with no message on any path able to
+// carry it back. It was a dead field for as long as it existed. Scope stays
+// out: it is how rig decides who may see this program, not something the
+// program said about itself.
 message Program {
   Identity identity = 1;
   Coverage coverage = 2;
@@ -361,11 +369,54 @@ message Program {
   // for the same reason it gets services: it is part of what the program said
   // about itself, not part of how anything draws it.
   repeated string elements = 9;
+
+  // The one document an agent reads before touching this program (section 9).
+  //
+  // Carried at DEPTH_FULL only. It is prose, it can be long, and fifteen of
+  // them in one list is the context cost section 9's whole tiering argument
+  // exists to avoid - so it travels with describe and not with list.
+  string preamble = 10;
+}
+
+// Depth is how much of the estate a read wants (section 9).
+//
+// Section 9's argument for four meta tools is a context budget: fifteen
+// programs with twenty commands each is three hundred tools, and handing an
+// agent all of it "destroys its context before it has done anything". So
+// `list` "returns the estate at whatever depth is asked for".
+//
+// The line between the last two is one sentence: DEPTH_COMMANDS carries what
+// an agent picks a command BY, DEPTH_FULL carries what it calls the command
+// WITH. Scalars and the one-line summary are how you choose; schemas,
+// examples, preconditions and prose are how you invoke.
+enum Depth {
+  DEPTH_UNSPECIFIED = 0;
+
+  // The estate itself: who is registered and how much of rig each has
+  // adopted. No commands, no preamble.
+  DEPTH_PROGRAMS = 1;
+
+  // Every command's scalar properties and its summary - enough to choose
+  // one, and nothing that costs a schema.
+  DEPTH_COMMANDS = 2;
+
+  // Everything this principal may see, preamble and argument schemas
+  // included.
+  DEPTH_FULL = 3;
 }
 
 // ---- rig.programs, the read side of the registry ---------------------------
 
-message ProgramsRequest {}
+message ProgramsRequest {
+  // How much to say about each program. Absent means DEPTH_FULL, and that is
+  // a COMPATIBILITY rule rather than a default worth having: every caller
+  // written before this field existed asked for everything, and proto3 gives
+  // it the zero value whether it says so or not. The kernel refuses an
+  // unspecified depth outright (section 21's enum rule); the boundary is
+  // where the old wire's meaning is restored, so exactly one place has to
+  // know that the two disagree.
+  Depth depth = 1;
+}
 
 message ProgramsResponse {
   // Only what the calling principal may see. An unscoped, unprivileged client

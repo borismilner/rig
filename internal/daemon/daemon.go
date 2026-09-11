@@ -499,8 +499,24 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 		// The read side of the registry, through the calling principal's own
 		// view. There is no unscoped read to offer: See takes a principal and
 		// the filter is inside it.
+		//
+		// A malformed payload is NOT refused here, deliberately: this method
+		// took an empty request before it took a depth, so a caller that
+		// sends nothing at all is an old caller rather than a broken one, and
+		// depthIn turns its zero into the estate it used to get.
+		var req rigv1.ProgramsRequest
+		_ = proto.Unmarshal(f.GetPayload(), &req)
+
+		// The depth decides how much is said about each program and never
+		// which programs are named: the scope filter is inside See and runs
+		// first either way.
+		estate, err := d.kernel.See(c.principal()).Estate(depthIn(req.GetDepth()))
+		if err != nil {
+			c.failErr(f.GetStreamId(), rigv1.Code_CODE_INVALID, err)
+			return
+		}
 		var resp rigv1.ProgramsResponse
-		for _, p := range d.kernel.See(c.principal()).Programs() {
+		for _, p := range estate {
 			resp.Programs = append(resp.Programs, programToWire(p))
 		}
 		c.reply(f.GetStreamId(), &resp)
