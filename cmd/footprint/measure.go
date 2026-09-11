@@ -102,10 +102,17 @@ func scale(ctx context.Context, o opts) error {
 		return err
 	}
 	fmt.Printf("scale, from a baseline of %s with no programs\n\n", showSize(base.RSSBytes))
-	fmt.Printf("  %8s %14s %14s %16s\n", "programs", "resident", "over base", "per program")
+	fmt.Printf("  %8s %14s %14s %14s %16s\n",
+		"programs", "resident", "over base", "average", "marginal")
 
-	var worst float64
-	var worstAt int
+	type step struct {
+		n        int
+		marginal float64
+	}
+	var steps []step
+	prevN := 0
+	prevRSS := base.RSSBytes
+
 	for _, n := range want {
 		if n > len(e.programs) {
 			if err := e.addPrograms(ctx, o.program, n-len(e.programs)); err != nil {
@@ -117,16 +124,42 @@ func scale(ctx context.Context, o opts) error {
 			return err
 		}
 		delta := s.RSSBytes - base.RSSBytes
-		per := float64(delta)
+		average := float64(delta)
 		if n > 0 {
-			per /= float64(n)
+			average /= float64(n)
 		}
-		fmt.Printf("  %8d %14s %14s %16s\n",
-			n, showSize(s.RSSBytes), showSize(delta), showSize(int64(per)))
-		if n > 0 && per > worst {
-			worst, worstAt = per, n
+		marginal := float64(s.RSSBytes - prevRSS)
+		if n > prevN {
+			marginal /= float64(n - prevN)
 		}
+		fmt.Printf("  %8d %14s %14s %14s %16s\n",
+			n, showSize(s.RSSBytes), showSize(delta),
+			showSize(int64(average)), showSize(int64(marginal)))
+		steps = append(steps, step{n: n, marginal: marginal})
+		prevN, prevRSS = n, s.RSSBytes
 	}
+
+	if len(steps) == 0 {
+		return nil
+	}
+
+	// THE STATISTIC THAT ANSWERS "what does one more program cost" IS THE
+	// MARGINAL COST AT THE LARGEST STEP, and picking any other one gets this
+	// wrong in a way that looks rigorous.
+	//
+	// Go grows RSS in allocator arenas rather than per connection, so the
+	// first program appears to cost most of an arena and each later one
+	// appears to cost less. Reporting the worst figure across every step
+	// therefore reports allocator granularity as a per-program cost, and it
+	// fails a budget the daemon is nowhere near. The first step is printed
+	// because it IS a real cost - it is just a one-off, paid once whatever
+	// the estate's size, and it is not what --max-delta is asking about.
+	last := steps[len(steps)-1]
+	first := steps[0]
+
+	fmt.Printf("\n  one-off, the first program: %s (allocator arena and the "+
+		"first connection, paid once)\n", showSize(int64(first.marginal)))
+	fmt.Printf("  per program at %d: %s\n", last.n, showSize(int64(last.marginal)))
 
 	if o.maxDelta == "" {
 		return nil
@@ -135,11 +168,10 @@ func scale(ctx context.Context, o opts) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("\n  worst per-program cost %s at %d programs, budget %s\n",
-		showSize(int64(worst)), worstAt, showSize(limit))
-	if int64(worst) > limit {
-		return fmt.Errorf("a program costs %s, over the %s budget",
-			showSize(int64(worst)), showSize(limit))
+	fmt.Printf("  budget: %s per program\n", showSize(limit))
+	if int64(last.marginal) > limit {
+		return fmt.Errorf("each program costs %s at %d registered, over the %s budget",
+			showSize(int64(last.marginal)), last.n, showSize(limit))
 	}
 	return nil
 }

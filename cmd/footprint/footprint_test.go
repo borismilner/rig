@@ -112,3 +112,45 @@ func TestAZeroLengthWindowDoesNotDivideByZero(t *testing.T) {
 			w.CPUPercent, w.WakeupsPerS)
 	}
 }
+
+// The marginal cost is the statistic that answers "what does one more program
+// cost", and the obvious wrong choice - the worst figure across every step -
+// reports allocator granularity as a per-program cost.
+//
+// These are the shape of a real run: RSS grows in arenas, so the first program
+// looks expensive and each later one looks cheaper. A budget judged on the
+// worst step fails a daemon that is nowhere near it.
+func TestTheMarginalCostIsNotTheWorstStep(t *testing.T) {
+	mib := float64(int64(1) << 20)
+	base := int64(11.09 * mib)
+	readings := []struct {
+		n   int
+		rss int64
+	}{
+		{1, int64(12.00 * mib)},
+		{10, int64(14.79 * mib)},
+		{50, int64(17.06 * mib)},
+	}
+
+	var worstAverage, lastMarginal float64
+	prevN, prevRSS := 0, base
+	for _, r := range readings {
+		average := float64(r.rss-base) / float64(r.n)
+		if average > worstAverage {
+			worstAverage = average
+		}
+		lastMarginal = float64(r.rss-prevRSS) / float64(r.n-prevN)
+		prevN, prevRSS = r.n, r.rss
+	}
+
+	const budget = 500 * (1 << 10)
+	if worstAverage <= budget {
+		t.Fatal("this fixture no longer shows the problem: the worst step is " +
+			"inside the budget, so it cannot demonstrate the wrong statistic")
+	}
+	if lastMarginal > budget {
+		t.Fatalf("the marginal cost at the largest step is %.0f bytes, over "+
+			"the budget, so the fixture does not show a daemon that should "+
+			"pass", lastMarginal)
+	}
+}
