@@ -18,6 +18,11 @@ LDFLAGS    := -s -w \
 GOFLAGS    := -trimpath
 COVER_MIN  := 90
 RATCHET    := size-ratchet.json
+# The binaries `build` produces and the ratchet guards, in ONE list so
+# bench-size, bench-size-update and bench-size-one cannot drift apart. The
+# window is deliberately not here: it needs cgo and a webview, and ci must
+# not assume either, so it keeps its own pair of targets.
+RATCHET_BINS := $(BIND) $(BIN) fakeapp ledger docket
 # Only used to serve the window's built page to the contrast gate. Nothing
 # listens on it outside that target.
 CONTRAST_PORT ?= 8731
@@ -345,13 +350,32 @@ bench-ipc: ## Reproduce the transport numbers in PLAN.md section 4
 
 bench-size: build ## Record or check the binary-size ratchet (PLAN.md 17, 22)
 	go run ./cmd/sizeratchet --ratchet $(RATCHET) \
-	  --bin build/$(BIND) --bin build/$(BIN) --bin build/fakeapp \
-	  --bin build/ledger --bin build/docket
+	  $(addprefix --bin build/,$(RATCHET_BINS))
 
 bench-size-update: build ## Accept the current sizes as the new ratchet
 	go run ./cmd/sizeratchet --ratchet $(RATCHET) --update \
-	  --bin build/$(BIND) --bin build/$(BIN) --bin build/fakeapp \
-	  --bin build/ledger --bin build/docket
+	  $(addprefix --bin build/,$(RATCHET_BINS))
+
+# One binary's row, without building anybody else's. bench-size depends on
+# `build`, so the only way to reach one row was to build all five - which means
+# a seat could never gate the row its own commits move. On 2026-09-11 the seat
+# that grew rigd by a page could not check it for exactly that reason, and CI
+# caught it on main instead. That is the whole case for this target.
+#
+# B, because BIN and BIND are taken above. An explicit target rather than a
+# bench-size-% pattern rule, because `make help` reads `^[a-zA-Z_-]+:.*##` and
+# cannot see a % - a target nobody can find is a target nobody runs.
+#
+# The name is checked against RATCHET_BINS rather than passed straight through:
+# sizeratchet WRITES a row for a binary it has never seen, on a plain run and
+# by design, so an unguarded B would silently add a row to a shared file.
+bench-size-one: ## Check ONE binary's ratchet row: make bench-size-one B=rigd
+	@test -n "$(B)" || { echo "usage: make bench-size-one B=<one of: $(RATCHET_BINS)>"; exit 1; }
+	@case " $(RATCHET_BINS) " in *" $(B) "*) ;; \
+	  *) echo "bench-size-one: no ratchet row for '$(B)'; one of: $(RATCHET_BINS)"; exit 1 ;; \
+	esac
+	$(MAKE) --no-print-directory build-$(B)
+	go run ./cmd/sizeratchet --ratchet $(RATCHET) --bin build/$(B)
 
 # ledger is NOT split out the way the window is. The window's split exists for
 # one reason - it needs cgo, gtk and a webview - and none of that applies to a
@@ -513,6 +537,6 @@ help: ## Show this help
         test-chaos test-e2e test-wire fuzz cover cover-html lint lint-house fmt vet audit \
         vet-window test-window verify contrast contrast-selftest contrast-window theme-gate generate proto schema types docs bench bench-ipc profile \
         up down doctor apps logs tui tidy deps-check release package ci fmt-check \
-        bench-idle bench-scale bench-size bench-size-update build-minimal \
+        bench-idle bench-scale bench-size bench-size-update bench-size-one build-minimal \
         bench-size-window bench-size-window-update \
         modules modules-matrix version help
