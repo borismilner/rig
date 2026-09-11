@@ -40,6 +40,8 @@ func main() {
 func run() error {
 	level := flag.String("log-level", "info", "debug | info | warn | error")
 	showVersion := flag.Bool("version", false, "print every version this build carries and exit")
+	estate := flag.String("estate", "", "name this estate (PLAN.md section 37); "+
+		"unnamed estates claim no name and collide with nothing")
 	flag.Parse()
 
 	if *showVersion {
@@ -81,6 +83,38 @@ func run() error {
 		return err
 	}
 	defer func() { _ = lock.Close() }()
+
+	// A NAMED estate takes a SECOND claim, and it is taken HERE - beside the
+	// directory lock and before the first os.Remove below - rather than
+	// anywhere later (section 37, precondition 6).
+	//
+	// THE ORDER IS THE MECHANISM, not tidiness. The directory lock cannot see a
+	// second estate at all, because two estates differ exactly in their runtime
+	// directory. If this claim were taken after the removals, a second estate
+	// calling itself `production` would unlink the incumbent's sockets, THEN
+	// discover the name was held, and exit with the right message and the right
+	// code having already broken a live estate - and this function's defers do
+	// not put another process's sockets back.
+	//
+	// An estate started without --estate claims nothing and reaches none of
+	// this, which is how every test in this repository keeps working by
+	// construction rather than by exemption.
+	if *estate != "" {
+		claimPath, err := paths.EstateLock(*estate)
+		if err != nil {
+			return err
+		}
+		nameClaim, err := instance.AcquireName(claimPath, *estate)
+		if err != nil {
+			var held *instance.NameHeldError
+			if errors.As(err, &held) {
+				return errors.New(held.Error())
+			}
+			return err
+		}
+		defer func() { _ = nameClaim.Close() }()
+		log.Info("estate named", "estate", *estate, "claim", claimPath)
+	}
 
 	// Only now, holding the lock, is a stale socket ours to remove. Doing this
 	// before the lock is how a second daemon steals a live one's socket.

@@ -1,9 +1,23 @@
-// Package instance enforces exactly one rigd per user.
+// Package instance enforces exactly one rigd per ESTATE, and one holder per
+// estate NAME.
 //
-// PLAN.md section 5f: "Exactly one rigd per user, and it is enforced rather
-// than assumed." rigd takes an exclusive flock on the pidfile BEFORE it binds,
-// and a second instance exits naming the incumbent's pid rather than unlinking
-// the socket and taking over.
+// PLAN.md section 5f: "Exactly one rigd per ESTATE, and it is enforced rather
+// than assumed... The boundary is the runtime directory, not the uid, and
+// section 37 is where that is specified." rigd takes an exclusive flock on the
+// pidfile BEFORE it binds, and a second instance exits naming the incumbent's
+// pid rather than unlinking the socket and taking over.
+//
+// THE "PER USER" WORDING THIS FILE USED TO CARRY IS SUPERSEDED, and section 5f
+// now flags it by name: the mechanism has always been per directory, and
+// section 5f says in as many words "do not 'fix' the mechanism to match the old
+// sentence... a genuinely per-uid lock makes rig undevelopable", because every
+// test in this repository starts an estate of its own.
+//
+// The directory lock alone cannot see a second estate, though, because two
+// estates differ exactly in their runtime directory. A NAMED estate therefore
+// takes a SECOND claim, keyed on the name and living outside the runtime
+// directory - see AcquireName and paths.EstateLock. An unnamed estate takes
+// none and collides with nothing.
 //
 // This is the mechanism section 16's entire argument rests on - "every
 // coordination operation passes through a single serialisation point, which
@@ -120,4 +134,56 @@ func readPID(f *os.File) int {
 		return 0
 	}
 	return pid
+}
+
+// NameHeldError means another estate already holds this NAME. Inspect
+// Incumbent for its pid.
+//
+// It is a distinct type from HeldError because it is a distinct refusal: a
+// HeldError means "somebody is already in this directory", which is a second
+// daemon; a NameHeldError means "somebody else is already called this", which
+// is a second ESTATE in a directory of its own. Collapsing them would produce
+// a message naming the wrong boundary.
+type NameHeldError struct {
+	Name      string
+	Path      string
+	Incumbent int // 0 when the pidfile could not be read or held no number
+}
+
+func (e *NameHeldError) Error() string {
+	if e.Incumbent > 0 {
+		return fmt.Sprintf("the estate name %q is already held (pid %d, claim %s)",
+			e.Name, e.Incumbent, e.Path)
+	}
+	// Same reasoning as HeldError: the lock decides, not the file's contents,
+	// and reporting no pid beats reporting a wrong one.
+	return fmt.Sprintf("the estate name %q is already held (pid unknown, claim %s)",
+		e.Name, e.Path)
+}
+
+// AcquireName claims an estate NAME at path (PLAN.md section 37, precondition
+// 6), returning *NameHeldError when another estate already holds it.
+//
+// IT MUST BE TAKEN BEFORE THE FIRST os.Remove IN THE CALLER, ALONGSIDE THE
+// DIRECTORY LOCK, and that ordering is the reason this is a named function
+// rather than an inline Acquire. rigd removes a stale socket only once it holds
+// the lock - "doing this before the lock is how a second daemon steals a live
+// one's socket". A name claim taken AFTER the removals would let a
+// duplicate-named estate unlink a live estate's sockets and only then discover
+// the name is held: it would exit with the correct message and the correct
+// code, having already broken the incumbent, and the failing process's defer
+// does not put them back.
+//
+// The invariant that covers this and the next path somebody adds: every path
+// run() removes or binds is covered by a lock acquired before the removal.
+func AcquireName(path, name string) (*Lock, error) {
+	l, err := Acquire(path)
+	if err != nil {
+		var held *HeldError
+		if errors.As(err, &held) {
+			return nil, &NameHeldError{Name: name, Path: held.Path, Incumbent: held.Incumbent}
+		}
+		return nil, err
+	}
+	return l, nil
 }

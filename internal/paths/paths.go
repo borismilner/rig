@@ -87,3 +87,97 @@ func PIDFile() (string, error) {
 	}
 	return filepath.Join(d, "rigd.pid"), nil
 }
+
+// MaxEstateNameLen bounds an estate name, because the name becomes a path
+// component. It is generous: section 37 allows two names and both are words.
+const MaxEstateNameLen = 64
+
+// ValidEstateName refuses anything that would not be a safe single path
+// component.
+//
+// The name is joined into a filename, so this is a correctness requirement and
+// not a style rule: a name containing a separator, a "..", a NUL or a space is
+// a claim on a path the caller did not mean to make. Lowercase letters, digits
+// and hyphens, starting with a letter, is total and leaves nothing to reason
+// about.
+//
+// IT DELIBERATELY DOES NOT ENFORCE SECTION 37'S TWO NAMES. "At most two named
+// estates, production and development" is that section's rule, and hardcoding
+// the pair here would be writing an unreviewed policy into the mechanism that
+// enforces a different precondition. Precondition 6 is "a named estate refuses
+// a name already held"; the enum is not it.
+func ValidEstateName(name string) error {
+	if name == "" {
+		return errors.New("paths: an estate name may not be empty; an estate " +
+			"started without a name claims no name and collides with nothing")
+	}
+	if len(name) > MaxEstateNameLen {
+		return fmt.Errorf("paths: estate name is %d bytes, over the %d-byte limit: %q",
+			len(name), MaxEstateNameLen, name)
+	}
+	for i, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z':
+		case r >= '0' && r <= '9', r == '-':
+			if i == 0 {
+				return fmt.Errorf("paths: estate name %q must start with a lowercase letter", name)
+			}
+		default:
+			return fmt.Errorf("paths: estate name %q may use lowercase letters, "+
+				"digits and hyphens only; it becomes a path component", name)
+		}
+	}
+	return nil
+}
+
+// StateDir is $XDG_STATE_HOME/rig, and it is deliberately NOT under
+// XDG_RUNTIME_DIR.
+//
+// THIS IS THE WHOLE MECHANISM OF THE NAMED-ESTATE CLAIM, so the reasoning is
+// here rather than at the call site. Two estates differ exactly in their
+// runtime directory (sections 5f and 37), so a name claim placed beside the
+// socket would collide with NOTHING: production and development would each take
+// an uncontested claim inside their own tree and both would call themselves
+// production. A claim only refuses a duplicate if both estates can see it, and
+// the one place the runtime directory does not reach is outside the runtime
+// directory.
+//
+// DEFAULTING THIS IS NOT THE ACT RuntimeDir REFUSES TO PERFORM, and the
+// difference is in the spec rather than in taste. The XDG basedir spec defines
+// a default for XDG_STATE_HOME ($HOME/.local/state) and defines NONE for
+// XDG_RUNTIME_DIR - which is why RuntimeDir refuses to guess and this does not.
+// Nothing here is a socket, so no client boundary rides on its mode (section
+// 14): it is a lock file whose only requirement is that it is the user's own.
+//
+// A claim surviving a reboot is harmless and deliberately not swept. The lock
+// lives on the open descriptor, so it is released by the process dying; the
+// file's contents are never trusted, exactly as the pidfile's are not.
+func StateDir() (string, error) {
+	if d := os.Getenv("XDG_STATE_HOME"); d != "" {
+		return filepath.Join(d, "rig"), nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("paths: XDG_STATE_HOME is unset and the home "+
+			"directory could not be resolved, so the estate-name claim has "+
+			"nowhere to live: %w", err)
+	}
+	return filepath.Join(home, ".local", "state", "rig"), nil
+}
+
+// EstateLock is the claim path for a NAMED estate (section 37, precondition 6).
+//
+// An estate started without a name never calls this and claims nothing, which
+// is section 37's ephemeral-estates clause working by construction rather than
+// by exemption: every test in this repository starts an unnamed estate in a
+// temporary runtime directory and none of them touch this path.
+func EstateLock(name string) (string, error) {
+	if err := ValidEstateName(name); err != nil {
+		return "", err
+	}
+	d, err := StateDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(d, "estates", name+".pid"), nil
+}
