@@ -97,10 +97,61 @@
     onmode(setModeChoice(c));
   }
 
+  // MEASURED 2026-09-11, the first time anyone opened this panel: aria-modal
+  // was declared and the focus behaviour behind it was never wired, so opening
+  // it left focus on the document. Three Tab presses walked the rail BEHIND the
+  // scrim and then landed inside docket's own pane - the keyboard reached an
+  // embedded program's document through a dialog claiming to be modal. The
+  // frame boundary is what makes this worse than the ordinary missing-trap bug,
+  // and it is the same boundary section 11 already knows :focus-within will not
+  // cross, so nothing in the shell could have noticed from the outside.
+  let panelEl: HTMLElement | undefined = $state();
+  const returnTo = typeof document === "undefined"
+    ? null
+    : (document.activeElement as HTMLElement | null);
+
+  // Focus the dialog itself rather than its first control: a screen reader then
+  // announces the dialog and its heading before any widget, and the first Tab
+  // goes to the close button rather than skipping it.
+  $effect(() => {
+    panelEl?.focus();
+    // Put focus back where it came from, so closing does not dump the user at
+    // the top of the document.
+    return () => returnTo?.focus?.();
+  });
+
+  const FOCUSABLE =
+    'button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),' +
+    'textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+
   function onkeydown(e: KeyboardEvent) {
     if (e.key === "Escape") {
       e.stopPropagation();
       onclose();
+      return;
+    }
+    if (e.key !== "Tab" || !panelEl) return;
+    // The trap. Queried on every press rather than cached, because the refusal
+    // block appears and disappears as the sliders move and a cached list would
+    // send Tab to an element that is no longer there.
+    const items = [...panelEl.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+      (el) => el.offsetParent !== null || el === document.activeElement,
+    );
+    if (items.length === 0) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    const active = document.activeElement as HTMLElement | null;
+    // Wrapping is the whole point: without it Tab off the last control leaves
+    // the dialog and there is no way back except the pointer.
+    if (e.shiftKey && (active === first || active === panelEl)) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && active === last) {
+      e.preventDefault();
+      first.focus();
+    } else if (active === panelEl && !e.shiftKey) {
+      e.preventDefault();
+      first.focus();
     }
   }
 </script>
@@ -116,6 +167,7 @@
 
 <div
   class="panel"
+  bind:this={panelEl}
   role="dialog"
   aria-modal="true"
   aria-labelledby="settings-title"
