@@ -8,6 +8,9 @@ BIN        := rig
 BIND       := rigd
 MODULE     := github.com/boris-milner/rig
 PREFIX     ?= $(HOME)/.local
+# Where the systemd --user unit lands. systemd reads XDG_CONFIG_HOME
+# and falls back to ~/.config, so this follows it rather than guessing.
+UNITDIR    ?= $(or $(XDG_CONFIG_HOME),$(HOME)/.config)/systemd/user
 VERSION    := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 WIRE       := v1
 SHA        := $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
@@ -140,12 +143,24 @@ build-all: ## Cross-compile for every supported target
 	    -o build/$(BIN)-$$os-$$arch ./cmd/rig; \
 	done
 
-install: build ## Install rig to $(PREFIX)/bin and register the user service
+install: build ## Install rig and rigd to $(PREFIX)/bin and register the user service
 	install -Dm755 build/$(BIN) $(PREFIX)/bin/$(BIN)
-	@echo "installed $(PREFIX)/bin/$(BIN) ($(VERSION))"
+	install -Dm755 build/$(BIND) $(PREFIX)/bin/$(BIND)
+	install -Dm644 packaging/$(BIND).service $(UNITDIR)/$(BIND).service
+	@systemctl --user daemon-reload 2>/dev/null || \
+	  echo "no user systemd here; the unit is installed but not registered"
+	@echo "installed $(PREFIX)/bin/$(BIN) and $(PREFIX)/bin/$(BIND) ($(VERSION))"
+	@echo "installed $(UNITDIR)/$(BIND).service"
+	@echo
+	@echo "NOT ENABLED. Enabling changes when your session starts a daemon, so"
+	@echo "it is your call rather than this target's:"
+	@echo "    systemctl --user enable --now $(BIND).service"
 
-uninstall: ## Remove the installed binary and the user service
-	rm -f $(PREFIX)/bin/$(BIN)
+uninstall: ## Remove the installed binaries and the user service
+	-@systemctl --user disable --now $(BIND).service 2>/dev/null || true
+	rm -f $(PREFIX)/bin/$(BIN) $(PREFIX)/bin/$(BIND)
+	rm -f $(UNITDIR)/$(BIND).service
+	@systemctl --user daemon-reload 2>/dev/null || true
 
 run: build-rigd ## Run the daemon in the foreground with debug logging
 	GOMEMLIMIT=$(GOMEMLIMIT) GOGC=$(GOGC) ./build/$(BIND) --log-level=debug

@@ -1,0 +1,50 @@
+# rig's systemd --user unit (PLAN.md section 5l).
+#
+# THIS UNIT DELIBERATELY HAS NO ExecStop, AND THE ABSENCE IS LOAD-BEARING.
+# Do not add one. cmd/rigd/unit_test.go fails if anybody does, because a rule
+# whose only enforcement is a comment is the thing this repo keeps paying for.
+#
+# THE SCAR, and it was paid for on this machine rather than read about.
+# AgentBox's unit carried ExecStop=agentbox quit. agentbox is single-instance
+# by flock and auto-spawns on first use, so `agentbox daemon` prints "already
+# running" and exits 0 when one is up. systemd sees a Type=simple main process
+# exit successfully, decides the service finished, and runs ExecStop - which
+# killed the healthy daemon that was already serving. Enabling the unit left
+# the desktop with no agentbox at all.
+#
+# rig has the identical shape: section 5f is a single-instance flock, section
+# 5g auto-spawns on the first client call, and section 18's SIGTERM path is
+# the same graceful drain a stop command would use. So the unit needs no stop
+# verb, and adding one recreates a defect already paid for once here. This
+# holds for `rig down` too: the lesson is not "no signal to a pid", it is no
+# stop command in any form. `agentbox quit` was not a signal either.
+#
+# IT MANAGES production ONLY, and by construction rather than by a flag
+# somebody might omit (section 37, precondition 5). It sets no
+# XDG_RUNTIME_DIR and passes no --estate, so it inherits the ordinary
+# environment and reaches the default runtime directory, which is
+# production's. development is always placed explicitly, so this unit cannot
+# reach it.
+#
+# ONE WRINKLE, INHERITED AND ACCEPTED: start the unit while a daemon is
+# already up and the unit reports inactive while that daemon keeps serving.
+# At login - the case this unit exists for - nothing is running yet, so it
+# starts one and stays active.
+
+[Unit]
+Description=rig, the estate platform
+Documentation=https://github.com/boris-milner/rig
+
+# graphical-session.target, not default.target: rig needs the session bus and
+# the display for section 12's toasts and section 11's tray.
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/rigd
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target
