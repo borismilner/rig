@@ -4265,6 +4265,94 @@ terminal-shaped. Same callers, same missing carrier. **One change.**
 **A method is readable by every caller kind without changing what any of them
 IS**, which is the property both alternatives destroy.
 
+#### Precondition 3 is THREE halves, not one, and only one has nothing behind it
+
+**Measured by backend-1 2026-09-11, verified by the lead.** The row read as one
+missing capability. It is three facts in three different states:
+
+| | State |
+|---|---|
+| **per-program semantic skew** | **fields EXIST and are READABLE.** `semantics_gen` is on the wire and `rig apps list --json` already returns it for a registered program. Missing only a CONSUMER |
+| **the daemon's own semantic generation** | **exists and is UNREACHABLE.** `self.go` declares rig with `SemanticsGen: 1`, and `registry.go` keeps `self` deliberately out of `programs` - *"it has no owner, no session and no scope, because it is not a registration"* - so the estate projection never reaches it. **rig is absent from its own estate** |
+| **the daemon's build** | **already reachable, and UNDISCOVERABLE.** `rig ping rig` replies `Program: SelfID, Version: d.version`, which is rigd's own build. Reachable only by a caller that already knows to address the probe to `rig` |
+| **the estate's name and role** | **does not exist anywhere.** The only one of the four with nothing behind it |
+
+**So `rig.estate` is a CONSOLIDATION for three of these and a new capability for
+one.** That is a weaker and more honest claim than the row made.
+
+**And the two generations must not be conflated, which is what the row did.**
+`EstateResponse.semantics_gen` is **rig's OWN** generation - "what semantics does
+this daemon implement", which a client built from the development tree needs.
+**It is NOT a per-program skew detector.** "Has `fakeapp`'s meaning changed under
+me" is per-program, already on the wire, and belongs on the **capability map**
+(M2 slice 4). Two halves, two places, and the proto comment says so.
+
+#### The wire shape
+
+    message EstateRequest {}
+
+    message EstateResponse {
+      string name           = 1;  // "" when the estate is unnamed
+      EstateRole role       = 2;  // DERIVED from name by the daemon, never stored
+      string daemon_version = 3;  // the same value `rig ping rig` returns
+      string wire           = 4;  // the major, from the daemon's config
+      int32  semantics_gen  = 5;  // rig's OWN generation, from self.go. NOT per-program
+    }
+
+    enum EstateRole {
+      ESTATE_ROLE_UNSPECIFIED = 0;  // nothing was said (section 21). Never a fact
+      ESTATE_ROLE_UNNAMED     = 1;  // deliberately unnamed: a test, a build, an
+                                    // ephemeral run. THIS is the fact
+      ESTATE_ROLE_PRODUCTION  = 2;
+      ESTATE_ROLE_DEVELOPMENT = 3;
+    }
+
+**`EstateRequest` is empty and still exists**, for `ProgramsRequest`'s reason: a
+method with no request message cannot later gain an argument without a wire
+break.
+
+**Why `UNNAMED` gets a number of its own rather than sharing zero.** Proto3
+cannot tell an unset scalar from a zero one, so a daemon that has the field and
+fails to set it renders as *"this is an unnamed estate"* - and **an unnamed
+estate reads as ephemeral and disposable where production does not.** The safe
+guess and the useful guess point opposite ways, which is `answerJSON.Partial`'s
+argument in a different file. **Zero must mean unset, always, because the wire
+cannot say otherwise.**
+
+**Why name AND role, when the closed set makes them equivalent.** Because they
+are equivalent *today* and the set is reopenable. **With name alone, the
+derivation `name == "production"` lives in every consumer** - every agent, every
+script, uncountable and outside this project's control - and reopening the set
+breaks all of them silently. **With both, the derivation lives in the daemon,
+once.** The "two places to disagree" objection is answered structurally rather
+than by discipline: **role is never stored and never accepted as input**, but
+computed from the name at reply time, so there is no second place to write.
+
+#### The section 14 walk, which is required rather than a review comment
+
+**`rig.estate` is UNSCOPED. Every caller kind gets the same full answer.**
+
+| Caller | Gets |
+|---|---|
+| an agent Boris runs, unregistered | **full** - and it is the motivating caller |
+| a terminal, the window, the tray | **full** |
+| a script, a `make` target, anything from his shell | **full** |
+| **a registered program** | **full** |
+| an HTTP client | full, and deferred with the HTTP surface |
+| a scheduled fire, a house rule, an internal timer | no connection, so rig's own principal - named explicitly or refused (§13a) |
+
+**Why it is not a granted surface**, which is the question this section's own
+rule forces. §14 says *"any surface whose product is an estate-wide AGGREGATE is
+by definition a granted surface"* and names seven. **`rig.estate` aggregates
+nothing**: every field is a fact about the DAEMON ITSELF and none is data
+belonging to another principal. Scoping restricts which PROGRAMS a client sees,
+and the estate is not a program.
+
+**So it is the first rig method whose answer does not depend on who is asking.**
+That is the property that makes it safe without a grant, and it is the property
+a later field would quietly destroy - **anything added to `EstateResponse` that
+varies by caller turns this into a granted surface and re-opens this walk.**
+
 #### What is still open, and it is a worker's measurement rather than a ruling
 
 **Whether a DAEMON-level semantic generation floor is coherent at all.**
