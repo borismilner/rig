@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
@@ -53,6 +54,14 @@ func up(t *testing.T) string {
 // confirm that has no surface to reach at M1.
 func upDaemon(t *testing.T, ask Asker) (string, *Daemon) {
 	t.Helper()
+	return upDaemonLogged(t, ask, nil)
+}
+
+// upDaemonLogged is upDaemon with somewhere to put the daemon's log, for the
+// tests whose assertion is about what was or was not recorded. A nil logger
+// is the discarding default New already applies.
+func upDaemonLogged(t *testing.T, ask Asker, log *slog.Logger) (string, *Daemon) {
+	t.Helper()
 	// Kept short deliberately: sun_path is 108 bytes and t.TempDir under a
 	// long TMPDIR silently exceeds it, failing as EINVAL.
 	dir, err := os.MkdirTemp("", "rigt")
@@ -75,7 +84,7 @@ func upDaemon(t *testing.T, ask Asker) (string, *Daemon) {
 	}
 	t.Cleanup(func() { _ = lock.Close() })
 
-	d, err := New(Config{Version: "test", Wire: "v1", Lock: lock, Ask: ask})
+	d, err := New(Config{Version: "test", Wire: "v1", Lock: lock, Ask: ask, Log: log})
 	if err != nil {
 		t.Fatal(err)
 	}
