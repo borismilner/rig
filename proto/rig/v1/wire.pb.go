@@ -1549,6 +1549,98 @@ func (x *ProgramsResponse) GetPrograms() []*Program {
 	return nil
 }
 
+type DownRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DownRequest) Reset() {
+	*x = DownRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DownRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DownRequest) ProtoMessage() {}
+
+func (x *DownRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DownRequest.ProtoReflect.Descriptor instead.
+func (*DownRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{13}
+}
+
+type DownResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Who is stopping, so the answer names what it acted on rather than saying
+	// "ok". Two estates run on this machine under different XDG_RUNTIME_DIRs
+	// and `pgrep -x rigd` cannot tell them apart, so the pid is the only thing
+	// in the answer that identifies WHICH daemon just agreed to stop.
+	Pid           int32  `protobuf:"varint,1,opt,name=pid,proto3" json:"pid,omitempty"`
+	Version       string `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DownResponse) Reset() {
+	*x = DownResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DownResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DownResponse) ProtoMessage() {}
+
+func (x *DownResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DownResponse.ProtoReflect.Descriptor instead.
+func (*DownResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *DownResponse) GetPid() int32 {
+	if x != nil {
+		return x.Pid
+	}
+	return 0
+}
+
+func (x *DownResponse) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
 type CallRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// A JSON object. Empty means no arguments, and is distinct from `{}` only
@@ -1560,7 +1652,7 @@ type CallRequest struct {
 
 func (x *CallRequest) Reset() {
 	*x = CallRequest{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[13]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1572,7 +1664,7 @@ func (x *CallRequest) String() string {
 func (*CallRequest) ProtoMessage() {}
 
 func (x *CallRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[13]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1585,7 +1677,7 @@ func (x *CallRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CallRequest.ProtoReflect.Descriptor instead.
 func (*CallRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{13}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *CallRequest) GetArgs() []byte {
@@ -1607,7 +1699,7 @@ type CallResponse struct {
 
 func (x *CallResponse) Reset() {
 	*x = CallResponse{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[14]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1619,7 +1711,7 @@ func (x *CallResponse) String() string {
 func (*CallResponse) ProtoMessage() {}
 
 func (x *CallResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[14]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1632,7 +1724,7 @@ func (x *CallResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CallResponse.ProtoReflect.Descriptor instead.
 func (*CallResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{14}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *CallResponse) GetResult() []byte {
@@ -1730,7 +1822,11 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\belements\x18\t \x03(\tR\belements\"\x11\n" +
 	"\x0fProgramsRequest\"?\n" +
 	"\x10ProgramsResponse\x12+\n" +
-	"\bprograms\x18\x01 \x03(\v2\x0f.rig.v1.ProgramR\bprograms\"!\n" +
+	"\bprograms\x18\x01 \x03(\v2\x0f.rig.v1.ProgramR\bprograms\"\r\n" +
+	"\vDownRequest\":\n" +
+	"\fDownResponse\x12\x10\n" +
+	"\x03pid\x18\x01 \x01(\x05R\x03pid\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\tR\aversion\"!\n" +
 	"\vCallRequest\x12\x12\n" +
 	"\x04args\x18\x01 \x01(\fR\x04args\"&\n" +
 	"\fCallResponse\x12\x16\n" +
@@ -1792,7 +1888,7 @@ func file_proto_rig_v1_wire_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
-var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(FrameKind)(0),           // 0: rig.v1.FrameKind
 	(Code)(0),                // 1: rig.v1.Code
@@ -1814,8 +1910,10 @@ var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(*Program)(nil),          // 17: rig.v1.Program
 	(*ProgramsRequest)(nil),  // 18: rig.v1.ProgramsRequest
 	(*ProgramsResponse)(nil), // 19: rig.v1.ProgramsResponse
-	(*CallRequest)(nil),      // 20: rig.v1.CallRequest
-	(*CallResponse)(nil),     // 21: rig.v1.CallResponse
+	(*DownRequest)(nil),      // 20: rig.v1.DownRequest
+	(*DownResponse)(nil),     // 21: rig.v1.DownResponse
+	(*CallRequest)(nil),      // 22: rig.v1.CallRequest
+	(*CallResponse)(nil),     // 23: rig.v1.CallResponse
 }
 var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	1,  // 0: rig.v1.Status.code:type_name -> rig.v1.Code
@@ -1856,7 +1954,7 @@ func file_proto_rig_v1_wire_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_wire_proto_rawDesc), len(file_proto_rig_v1_wire_proto_rawDesc)),
 			NumEnums:      7,
-			NumMessages:   15,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

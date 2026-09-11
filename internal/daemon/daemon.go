@@ -18,6 +18,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -97,6 +98,58 @@ type Daemon struct {
 	cmu     sync.Mutex
 	live    map[net.Conn]struct{}
 	closing bool
+
+	// stop ends Serve, and it is how rig.down reaches the shutdown that until
+	// now only a signal could start.
+	//
+	// It is set by Serve rather than by New because the context to cancel is
+	// Serve's argument, and a Daemon that was never served has nothing to
+	// stop. Nil until then, and rig.down says so rather than panicking: a
+	// daemon under test that is dispatched to directly is a real case
+	// (TestSliceFourDemo builds one), and "no listener is running" is a
+	// truthful answer to "stop the listener".
+	stopMu sync.Mutex
+	stop   context.CancelFunc
+}
+
+// replyThenStop answers rig.down and only then ends Serve. The ordering is the
+// whole function, and it is a function so that the ordering is structural.
+//
+// Cancelling runs closeLive(), which closes every live connection INCLUDING
+// the caller's. Stop before replying and the caller races the teardown for its
+// own answer: it usually wins, and when it loses it sees a dropped connection,
+// which is indistinguishable from the daemon having crashed mid-call. rig would
+// still have stopped, so the defect would present as cosmetic while actually
+// lying about whether rig agreed to stop or died.
+//
+// A `defer` rather than two adjacent statements BECAUSE NO TEST CATCHES THIS.
+// It is a race, not a deterministic failure: a mutation swapping the two
+// statements passed the whole suite, because the reply almost always wins.
+// A test that catches a race one run in ten is worse than no test, so the
+// ordering is enforced by construction instead - reversing it now means
+// deleting a defer whose comment says not to, rather than moving a line.
+func (d *Daemon) replyThenStop(c *conn, streamID uint32, stop context.CancelFunc) {
+	defer stop()
+	c.reply(streamID, &rigv1.DownResponse{
+		Pid:     int32(os.Getpid()),
+		Version: d.version,
+	})
+}
+
+// setStop records how to end Serve. Separate from Serve only so the locking is
+// in one place rather than inline in a function that already has a goroutine
+// and a WaitGroup in it.
+func (d *Daemon) setStop(cancel context.CancelFunc) {
+	d.stopMu.Lock()
+	defer d.stopMu.Unlock()
+	d.stop = cancel
+}
+
+// stopper returns the cancel func, or nil if Serve is not running.
+func (d *Daemon) stopper() context.CancelFunc {
+	d.stopMu.Lock()
+	defer d.stopMu.Unlock()
+	return d.stop
 }
 
 // New builds a daemon, and refuses without a held single-instance lock.
@@ -210,6 +263,18 @@ func (c *conn) principal() kernel.Principal {
 
 // Serve accepts until the listener closes or ctx ends.
 func (d *Daemon) Serve(ctx context.Context, l net.Listener) error {
+	// Derived so rig.down can end Serve the same way SIGTERM does, rather
+	// than through a second shutdown path that would have to be kept in step
+	// with this one. Cancelling the derived context runs exactly the sequence
+	// below, which is the sequence a signal already runs.
+	//
+	// The deadlines that matter are per call (section 18), on contexts derived
+	// from this one. A deadline HERE would be an expiry date on serving at all.
+	//rig:allow nocontextfree: this context bounds the daemon's whole serving life, so being unbounded is the requirement rather than an oversight
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	d.setStop(cancel)
+
 	go func() {
 		<-ctx.Done()
 		// The listener first, so nothing new arrives, then every live
@@ -464,6 +529,22 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 			Program: kernel.SelfID,
 			Version: d.version,
 		})
+
+	case "down":
+		// Authorised above like everything else, and it is declared
+		// destructive in self.go, so a house rule denying destructive calls
+		// refuses this one before it reaches here.
+		stop := d.stopper()
+		if stop == nil {
+			// Serve is not running, so there is no listener to stop. Only
+			// reachable for a Daemon dispatched to directly, which tests do.
+			c.fail(f.GetStreamId(), rigv1.Code_CODE_UNAVAILABLE,
+				"rig.down: this daemon is not serving a listener, so there is nothing to stop")
+			return
+		}
+
+		d.log.Info("stopping on rig.down", "pid", os.Getpid())
+		d.replyThenStop(c, f.GetStreamId(), stop)
 
 	default:
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_NOT_FOUND, "no such method rig."+command)

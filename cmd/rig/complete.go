@@ -25,7 +25,7 @@ import (
 // half-typed command line is worse than one that offers nothing.
 
 // staticVerbs are rig's own, and the only names in this file.
-var staticVerbs = []string{"apps", "ping", "version", "completion", "help"}
+var staticVerbs = []string{"apps", "ping", "down", "version", "completion", "help"}
 
 // cmdCompletion prints the script for one shell.
 func cmdCompletion(args []string) error {
@@ -71,6 +71,12 @@ func candidates(argv []string) []string {
 			return programIDs()
 		case "completion":
 			return []string{"bash", "zsh", "fish"}
+		case "down":
+			// No positional argument: the estate is the runtime dir, so
+			// there is nothing to name. Offering a program id here would
+			// suggest `rig down <program>` is a thing, which is exactly the
+			// named-estate concept proposal P5 was refused for wanting.
+			return []string{"--json", "--timeout"}
 		case "version", "help":
 			return []string{"--json"}
 		}

@@ -41,6 +41,51 @@ func selfDeclaration() kernel.Declaration {
 				"List what this principal may reach",
 				"Reads the registry through the calling principal's own view.",
 				"Every program this principal may see."),
+
+			// The first thing rig declares about itself that is not read-only,
+			// and the properties are the point rather than paperwork: this is
+			// the declaration a house rule matches on, so getting `effects`
+			// wrong here is what would let a rule denying destructive calls
+			// fail to catch the most destructive call rig has.
+			{
+				ID: "down", Title: "Down",
+				Effects: kernel.EffectsDestructive,
+
+				// Idempotent because the ESTATE ends up stopped either way.
+				// The second call gets no answer - there is nothing left to
+				// answer it - but idempotence is about the state left behind,
+				// not about whether the reply is identical, and the CLI is
+				// built to treat "already stopped" as success for exactly
+				// this reason.
+				Idempotent: kernel.Yes,
+
+				Sensitive:   []string{},
+				Interactive: kernel.No,
+				Streams:     kernel.No,
+
+				NeedsDisplay: kernel.No,
+
+				// Instant: the daemon replies, then stops. What follows the
+				// reply is closing connections already known to be
+				// interruptible (section 18 gives every call a deadline and
+				// the stub survives rig going away), not work the caller
+				// waits on.
+				Duration: kernel.DurationInstant,
+
+				// No. There IS no surface to confirm through at M1 - Asker is
+				// nil, so a confirm is denied as an unanswered gating question
+				// - and declaring Yes here would make `rig down` undeniable-by
+				// -accident: the honest reading of Confirms is "this command
+				// asks the caller first", and it does not. The protection is
+				// the destructive effects level above, which a house rule can
+				// act on today.
+				Confirms: kernel.No,
+
+				Shape:       kernel.ShapeUnary,
+				Summary:     "Stop the daemon",
+				Description: "Stops this rigd, the one serving the socket in this XDG_RUNTIME_DIR. It is scoped by that directory and needs no estate name.",
+				Returns:     "The pid and version of the daemon that agreed to stop.",
+			},
 		},
 	}
 }

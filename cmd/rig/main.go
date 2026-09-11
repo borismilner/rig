@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/boris-milner/rig/client"
@@ -85,6 +86,7 @@ func usage() {
   <app> <cmd>      run a command a program declared, with its declared flags
   apps list        what every program declared, as this client may see it
   ping <program>   round-trip a program through rigd ("rig" pings the daemon)
+  down             stop the daemon serving this XDG_RUNTIME_DIR
   version          print every version this build carries
   completion <sh>  a completion script for bash, zsh or fish
 
@@ -110,6 +112,8 @@ func run(args []string) error {
 		return cmdPing(args[1:])
 	case "apps":
 		return cmdApps(args[1:])
+	case "down":
+		return cmdDown(args[1:])
 	case "completion":
 		return cmdCompletion(args[1:])
 	case "__complete":
@@ -228,6 +232,82 @@ func cmdPing(args []string) error {
 	fmt.Printf("%s %s, round trip %s\n", resp.GetProgram(), resp.GetVersion(),
 		elapsed.Round(time.Microsecond))
 	return nil
+}
+
+// cmdDown stops the daemon serving this XDG_RUNTIME_DIR.
+//
+// A wire call, not a signal. The cheap version would read paths.PIDFile() and
+// SIGTERM the pid, and it loses twice: it skips the house-rules floor at the
+// most destructive call rig has, and rigd.pid outlives its own process - a
+// SIGTERM'd daemon exits 0 and removes the socket but leaves the pid file
+// behind pointing at nothing, so the file is not evidence that anything is
+// running.
+//
+// Scoped for free: it talks to the socket in this XDG_RUNTIME_DIR, which
+// internal/paths refuses to guess. Two estates are two runtime directories,
+// so a stop needs no estate name and there is nothing to get wrong.
+func cmdDown(args []string) error {
+	fs := flag.NewFlagSet("down", flag.ContinueOnError)
+	asJSON := fs.Bool("json", false, "emit JSON")
+	timeout := fs.Duration("timeout", defaultCallTimeout, "how long to wait")
+	flags, positional := partition(args)
+	if err := fs.Parse(flags); err != nil {
+		return err
+	}
+	if len(positional) != 0 {
+		return errors.New("usage: rig down [--json] [--timeout=30s]")
+	}
+
+	c, err := client.Connect()
+	if err != nil {
+		// STOPPING A STOPPED DAEMON SUCCEEDS, and this is where that is
+		// decided. Every other verb treats an unreachable socket as the
+		// error it is; for this one the caller's goal is already true, and
+		// `make down` is a script that should not have to special-case it.
+		//
+		// Only the two errors that mean "nothing is listening" count:
+		// ENOENT for no socket file, ECONNREFUSED for one left behind by a
+		// daemon that died without removing it. Anything else - a permission
+		// error, an unreadable runtime dir - is a real failure and must not
+		// be reported as a successful stop.
+		if notRunning(err) {
+			if *asJSON {
+				return json.NewEncoder(os.Stdout).Encode(map[string]any{
+					"stopped": false, "reason": "not running",
+				})
+			}
+			fmt.Println("nothing to stop")
+			return nil
+		}
+		return fmt.Errorf("%w\n       is rigd running? start it with: rigd", err)
+	}
+	defer c.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+	defer cancel()
+
+	resp := &rigv1.DownResponse{}
+	if err := c.Call(ctx, "rig.down", &rigv1.DownRequest{}, resp); err != nil {
+		return err
+	}
+
+	if *asJSON {
+		return json.NewEncoder(os.Stdout).Encode(map[string]any{
+			"stopped": true,
+			"pid":     resp.GetPid(),
+			"version": resp.GetVersion(),
+		})
+	}
+	// The pid is in the answer because two estates run on this machine under
+	// different XDG_RUNTIME_DIRs and `pgrep -x rigd` cannot tell them apart.
+	fmt.Printf("stopped rigd %s (pid %d)\n", resp.GetVersion(), resp.GetPid())
+	return nil
+}
+
+// notRunning reports whether a dial error means no daemon is listening, as
+// opposed to something being wrong with reaching one that is.
+func notRunning(err error) bool {
+	return errors.Is(err, syscall.ENOENT) || errors.Is(err, syscall.ECONNREFUSED)
 }
 
 // cmdApps reads the registry back (PLAN.md section 5e, section 14).

@@ -343,6 +343,30 @@ message ProgramsResponse {
   repeated Program programs = 1;
 }
 
+// ---- rig.down, stopping the daemon (PLAN.md section 5f) --------------------
+//
+// A method rather than a signal, and that is the whole decision. The cheap
+// alternative was for the CLI to read rigd.pid and send SIGTERM itself, which
+// loses twice: it skips the house-rules floor at the single most destructive
+// call any surface can make - the gap serveSelf used to have and no longer
+// does - and the pid file outlives its own process, because a SIGTERM'd rigd
+// exits 0 and removes the socket but leaves the file behind pointing at
+// nothing. Stopping the daemon travels the same path as every other call.
+//
+// It is destructive and it is idempotent: the estate ends up stopped either
+// way, which is exactly what idempotent means here.
+
+message DownRequest {}
+
+message DownResponse {
+  // Who is stopping, so the answer names what it acted on rather than saying
+  // "ok". Two estates run on this machine under different XDG_RUNTIME_DIRs
+  // and `pgrep -x rigd` cannot tell them apart, so the pid is the only thing
+  // in the answer that identifies WHICH daemon just agreed to stop.
+  int32 pid = 1;
+  string version = 2;
+}
+
 // ---- Invoking a declared command (PLAN.md section 5e, M1 slice 5) ----------
 //
 // One message pair for EVERY declared command, of every program, forever.
