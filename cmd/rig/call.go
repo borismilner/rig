@@ -154,33 +154,53 @@ func splitOwnFlags(argv []string) (callFlags, []string, error) {
 // of its 20 commands" is the difference between a typo and a command that
 // exists but has not been adopted yet.
 func lookup(ctx context.Context, c *client.Client, program, command string) (*rigv1.Command, error) {
+	p, err := programAt(ctx, c, program, rigv1.Depth_DEPTH_FULL)
+	if err != nil {
+		return nil, err
+	}
+	for _, cmd := range p.GetCommands() {
+		if cmd.GetId() == command {
+			return cmd, nil
+		}
+	}
+	coverage := strings.ToLower(strings.TrimPrefix(p.GetCoverage().String(), "COVERAGE_"))
+	return nil, local(jsonStatus{
+		Code:         codeNoSuchCommand,
+		Message:      fmt.Sprintf("%s declares no command %q", program, command),
+		Precondition: fmt.Sprintf("%s declares a command named %q", program, command),
+		Actual: fmt.Sprintf("it declares: %s\ncoverage is %s, so this may be a "+
+			"command it has not adopted yet",
+			strings.Join(commandIDs(p), ", "), coverage),
+		Fix:        "run one it declares, or see what else it has",
+		FixCommand: "rig " + program + " --help",
+	})
+}
+
+// programAt fetches the estate at a depth and returns one program, or the
+// refusal that says what IS connected.
+//
+// The depth is a parameter rather than an omitted field because the two
+// callers want different things from it and one of them is `describe`, whose
+// whole definition is "one thing IN FULL". An omitted depth arrives at the
+// daemon as the zero and is restored to DEPTH_FULL by a compatibility rule
+// written to keep the OLD output unchanged - correct, and not something a new
+// surface should be resting its definition on. Asking for what it needs costs
+// one field and cannot be quietly re-pointed by a change to that rule.
+func programAt(ctx context.Context, c *client.Client, program string,
+	d rigv1.Depth,
+) (*rigv1.Program, error) {
 	var resp rigv1.ProgramsResponse
-	if err := call(ctx, c, "rig.programs", &rigv1.ProgramsRequest{}, &resp); err != nil {
+	req := &rigv1.ProgramsRequest{Depth: d}
+	if err := call(ctx, c, "rig.programs", req, &resp); err != nil {
 		return nil, err
 	}
 
 	var names []string
 	for _, p := range resp.GetPrograms() {
+		if p.GetIdentity().GetId() == program {
+			return p, nil
+		}
 		names = append(names, p.GetIdentity().GetId())
-		if p.GetIdentity().GetId() != program {
-			continue
-		}
-		for _, cmd := range p.GetCommands() {
-			if cmd.GetId() == command {
-				return cmd, nil
-			}
-		}
-		coverage := strings.ToLower(strings.TrimPrefix(p.GetCoverage().String(), "COVERAGE_"))
-		return nil, local(jsonStatus{
-			Code:         codeNoSuchCommand,
-			Message:      fmt.Sprintf("%s declares no command %q", program, command),
-			Precondition: fmt.Sprintf("%s declares a command named %q", program, command),
-			Actual: fmt.Sprintf("it declares: %s\ncoverage is %s, so this may be a "+
-				"command it has not adopted yet",
-				strings.Join(commandIDs(p), ", "), coverage),
-			Fix:        "run one it declares, or see what else it has",
-			FixCommand: "rig " + program + " --help",
-		})
 	}
 
 	sort.Strings(names)

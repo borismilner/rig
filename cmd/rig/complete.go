@@ -43,7 +43,10 @@ import (
 const verbVersion = "version"
 
 // staticVerbs are rig's own, and the only names in this file.
-var staticVerbs = []string{"apps", "ping", "down", "estate", verbVersion, "completion", "help"}
+var staticVerbs = []string{
+	"apps", "ping", "down", "estate", "describe",
+	verbVersion, "completion", "help",
+}
 
 // cmdCompletion prints the script for one shell.
 func cmdCompletion(args []string) error {
@@ -85,7 +88,7 @@ func candidates(argv []string) []string {
 		switch argv[0] {
 		case "apps":
 			return []string{"list"}
-		case "ping":
+		case "ping", "describe":
 			return programIDs()
 		case "completion":
 			return []string{"bash", "zsh", "fish"}
@@ -109,6 +112,13 @@ func candidates(argv []string) []string {
 	default:
 		if argv[0] == "apps" {
 			return []string{"--commands", "--depth", "--json"}
+		}
+		// `rig describe <program> <TAB>` offers that program's commands. It
+		// is the one static verb whose SECOND position is a program's own
+		// namespace rather than a flag list, which is what makes describe
+		// reachable by tab from nothing but the verb.
+		if argv[0] == "describe" && len(argv) == 2 {
+			return commandsOf(argv[1])
 		}
 		return flagsOf(argv[0], argv[1])
 	}

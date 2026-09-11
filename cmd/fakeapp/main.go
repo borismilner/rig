@@ -109,6 +109,27 @@ func declaration(id string) *rigv1.Declaration {
 		Coverage:     rigv1.Coverage_COVERAGE_PARTIAL,
 		CoverageNote: "the wire only: no config, no storage, no logs",
 		SemanticsGen: 1,
+		// THE PREAMBLE: section 9's "one document an agent reads first", and
+		// the reference program had none until `rig describe` existed to
+		// return it. The field has been declarable since M1 - accepted at
+		// hello, validated, stored - and no message on any path could carry
+		// it back, so nothing had a reason to fill it in.
+		//
+		// It says what a caller cannot work out from the command list, which
+		// is the only thing worth spending an agent's first read on: what
+		// this program is FOR, and the one trap in it.
+		Preamble: "fakeapp exists to be driven, not to be useful. It is the " +
+			"reference program the conformance suite runs against, so its " +
+			"commands are shaped to exercise rig rather than to do work: " +
+			"ping proves a round trip is your own, reindex takes a real " +
+			"argument schema so the CLI has flags to build, and slow exists " +
+			"to be interrupted.\n\n" +
+			"Nothing it does touches anything outside its own process. " +
+			"reindex declares that it writes files and writes none, which " +
+			"is deliberate: a declaration is what rig acts on, and the " +
+			"conformance suite needs a command whose declared effects it " +
+			"can check rig honours without a program that actually destroys " +
+			"something to check them against.",
 		Commands: []*rigv1.Command{{
 			Id:      "ping",
 			Title:   "Ping",

@@ -274,7 +274,10 @@ func TestParseDepthRefusesTheZeroAndTakesAnAbsentFlagAsAbsent(t *testing.T) {
 func TestEveryFlagThatTakesAValueIsDeclaredToThePartitioner(t *testing.T) {
 	appsFS, _, _, _ := appsFlagSet()
 	estateFS, _, _ := estateFlagSet()
-	sets := map[string]*flag.FlagSet{"apps": appsFS, "estate": estateFS}
+	describeFS, _, _ := describeFlagSet()
+	sets := map[string]*flag.FlagSet{
+		"apps": appsFS, "estate": estateFS, "describe": describeFS,
+	}
 
 	var checked int
 	for verb, fs := range sets {
