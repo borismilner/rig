@@ -192,9 +192,34 @@ export async function auditPage(browser, fileUrl, {theme = null, width = 1440, h
             const sx = (Math.max(r.left, b.left) + Math.min(r.right, b.right)) / 2;
             const sy = (Math.max(r.top, b.top) + Math.min(r.bottom, b.bottom)) / 2;
             if (sx >= 0 && sx < innerWidth && sy >= 0 && sy < innerHeight) {
-              const stack = document.elementsFromPoint(sx, sy);
-              const iEl = stack.findIndex(n => n === el || el.contains(n));
-              const iO  = stack.findIndex(n => n === o  || o.contains(n));
+              let stack = document.elementsFromPoint(sx, sy);
+              let iEl = stack.findIndex(n => n === el || el.contains(n));
+              let iO  = stack.findIndex(n => n === o  || o.contains(n));
+              // elementsFromPoint does not return an element whose
+              // pointer-events is none, so a decorative fixed overlay is
+              // simply ABSENT from the stack, iO is -1, and the sample cannot
+              // settle anything - leaving the conservative answer standing and
+              // the target skipped. That is the pre-fix rect-intersection bug
+              // wearing a different hat, and it hides in the direction that
+              // hides: not measured, not failed, and the run still prints
+              // clean. Hit-testing is not painting, so forcing it on for the
+              // length of one sample changes no pixel and no layout.
+              // selftest/occlusion.html holds all three cases.
+              //
+              // NO BACKTICKS IN THIS BLOCK. Everything from line 144 down is
+              // one template literal evaluated in the page, so a backtick in a
+              // comment ends the literal and node reports a syntax error 60
+              // lines above the real edit. Same class as a prose comment
+              // beginning with the embed directive reading as a broken
+              // compiler directive.
+              if (iO === -1 && cs.pointerEvents === 'none') {
+                const had = o.style.pointerEvents;
+                o.style.pointerEvents = 'auto';
+                stack = document.elementsFromPoint(sx, sy);
+                iEl = stack.findIndex(n => n === el || el.contains(n));
+                iO  = stack.findIndex(n => n === o  || o.contains(n));
+                o.style.pointerEvents = had;
+              }
               if (iEl !== -1 && iO !== -1 && iEl < iO) continue;
             }
             return o.id ? '#' + o.id : o.tagName.toLowerCase();

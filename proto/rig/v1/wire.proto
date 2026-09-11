@@ -44,7 +44,38 @@ enum Code {
 
 message Status {
   Code code = 1;
+
+  // The human sentence. Still the thing a terminal prints first, and still
+  // the only field a caller can rely on being set.
   string message = 2;
+
+  // Section 9: "A failed call never returns prose. It returns a structured
+  // error: what failed, which precondition, what the actual state was, and
+  // what would fix it - including, where it exists, the exact command that
+  // fixes it." Section 10 then requires --json to return exactly what the MCP
+  // tool returns, so these four fields are the shared error object for every
+  // surface rather than a CLI rendering. An agent that gets
+  //
+  //   precondition  shelf.index.path exists
+  //   actual        shelf.index.path does not exist
+  //   fix           run `rig shelf init`, or set the key
+  //   fix_command   rig shelf init
+  //
+  // does not need a human.
+  //
+  // ALL FOUR ARE OPTIONAL AND ABSENCE MEANS NOTHING, which is the opposite of
+  // a declaration's mandatory properties (section 5e). A precondition nobody
+  // can name is better left unsaid than invented: section 9's value is that
+  // the field is TRUE when set, and a filled-in guess costs more than a blank.
+  // Callers must render only what is present.
+  string precondition = 3;
+  string actual = 4;
+  string fix = 5;
+
+  // Runnable as written, or empty. Never prose - `fix` is where the sentence
+  // goes. A surface may offer this as a button or run it after a confirm, so
+  // anything here that is not a real command is a defect rather than a hint.
+  string fix_command = 6;
 }
 
 // Frame is the only thing that crosses the socket.

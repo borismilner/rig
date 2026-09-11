@@ -1,0 +1,60 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>occlusion selftest</title>
+<!--
+  Known answers for the `underOverlay` test in headless.mjs, which decides
+  whether a target's pixels belong to the target or to something painted over
+  it. Getting this wrong does not produce a wrong number, it produces NO
+  number - and a pass that measures none of its targets still prints clean, so
+  the failure is silent in the direction that hides.
+
+  Three cases, each with its own fixed overlay sized to intersect exactly one
+  button, because intersection is what the test keys on:
+
+    below     overlay is `pointer-events: none` and BEHIND the button.
+              Must be MEASURED. `elementsFromPoint` cannot see an element with
+              `pointer-events: none`, so before the fix this fell through to
+              the conservative answer and the button was skipped.
+    above     overlay is `pointer-events: none` and IN FRONT, opaque.
+              Must be SKIPPED. The control: the fix must not blanket-disable
+              the test for every unhittable overlay.
+    hittable  overlay is hit-testable and BEHIND the button.
+              Must be MEASURED. Regression guard for the scrim-versus-dialog
+              case: overlapping rects are not paint order.
+
+  Rings are #949494 on #ffffff, 3.03:1, so every button passes 1.4.11 and the
+  only thing under test is which of them got measured at all.
+-->
+<style>
+  html, body { background: #ffffff; margin: 0; padding: 0; }
+  button {
+    position: relative; z-index: 5;
+    display: block; margin: 0; width: 200px; height: 40px;
+    background: #ffffff; color: #111111; border: 1px solid #111111;
+    font: 16px/1.4 system-ui, sans-serif;
+  }
+  #below    { position: absolute; left: 40px; top: 40px; }
+  #above    { position: absolute; left: 40px; top: 140px; }
+  #hittable { position: absolute; left: 40px; top: 240px; }
+  button:focus-visible { outline: 4px solid #949494; outline-offset: 2px; }
+
+  .ov { position: fixed; left: 0; width: 400px; height: 60px; }
+  /* The two overlays BEHIND a button are #ffffff on purpose. They are opaque
+     and therefore real overlays - the test keys on visibility, display and
+     opacity, never on colour - but they leave the ground the ring is measured
+     against uniform, so 3.03:1 stays a known answer instead of becoming a
+     function of which overlay happened to be underneath. #ov-above's colour
+     is free, because a target under it is skipped before any pixel is read. */
+  /* behind the button, and invisible to a hit test */
+  #ov-below    { top: 30px;  z-index: 1; background: #ffffff; pointer-events: none; }
+  /* in front of the button, opaque, and invisible to a hit test */
+  #ov-above    { top: 130px; z-index: 9; background: #eeeeee; pointer-events: none; }
+  /* behind the button, and a hit test can see it */
+  #ov-hittable { top: 230px; z-index: 1; background: #ffffff; }
+</style>
+<div class="ov" id="ov-below"></div>
+<div class="ov" id="ov-above"></div>
+<div class="ov" id="ov-hittable"></div>
+<button id="below">behind a none</button>
+<button id="above">under a none</button>
+<button id="hittable">behind a hittable</button>

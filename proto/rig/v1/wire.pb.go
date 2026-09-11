@@ -449,9 +449,37 @@ func (Tristate) EnumDescriptor() ([]byte, []int) {
 }
 
 type Status struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Code          Code                   `protobuf:"varint,1,opt,name=code,proto3,enum=rig.v1.Code" json:"code,omitempty"`
-	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Code  Code                   `protobuf:"varint,1,opt,name=code,proto3,enum=rig.v1.Code" json:"code,omitempty"`
+	// The human sentence. Still the thing a terminal prints first, and still
+	// the only field a caller can rely on being set.
+	Message string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	// Section 9: "A failed call never returns prose. It returns a structured
+	// error: what failed, which precondition, what the actual state was, and
+	// what would fix it - including, where it exists, the exact command that
+	// fixes it." Section 10 then requires --json to return exactly what the MCP
+	// tool returns, so these four fields are the shared error object for every
+	// surface rather than a CLI rendering. An agent that gets
+	//
+	//	precondition  shelf.index.path exists
+	//	actual        shelf.index.path does not exist
+	//	fix           run `rig shelf init`, or set the key
+	//	fix_command   rig shelf init
+	//
+	// does not need a human.
+	//
+	// ALL FOUR ARE OPTIONAL AND ABSENCE MEANS NOTHING, which is the opposite of
+	// a declaration's mandatory properties (section 5e). A precondition nobody
+	// can name is better left unsaid than invented: section 9's value is that
+	// the field is TRUE when set, and a filled-in guess costs more than a blank.
+	// Callers must render only what is present.
+	Precondition string `protobuf:"bytes,3,opt,name=precondition,proto3" json:"precondition,omitempty"`
+	Actual       string `protobuf:"bytes,4,opt,name=actual,proto3" json:"actual,omitempty"`
+	Fix          string `protobuf:"bytes,5,opt,name=fix,proto3" json:"fix,omitempty"`
+	// Runnable as written, or empty. Never prose - `fix` is where the sentence
+	// goes. A surface may offer this as a button or run it after a confirm, so
+	// anything here that is not a real command is a defect rather than a hint.
+	FixCommand    string `protobuf:"bytes,6,opt,name=fix_command,json=fixCommand,proto3" json:"fix_command,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -496,6 +524,34 @@ func (x *Status) GetCode() Code {
 func (x *Status) GetMessage() string {
 	if x != nil {
 		return x.Message
+	}
+	return ""
+}
+
+func (x *Status) GetPrecondition() string {
+	if x != nil {
+		return x.Precondition
+	}
+	return ""
+}
+
+func (x *Status) GetActual() string {
+	if x != nil {
+		return x.Actual
+	}
+	return ""
+}
+
+func (x *Status) GetFix() string {
+	if x != nil {
+		return x.Fix
+	}
+	return ""
+}
+
+func (x *Status) GetFixCommand() string {
+	if x != nil {
+		return x.FixCommand
 	}
 	return ""
 }
@@ -1738,10 +1794,15 @@ var File_proto_rig_v1_wire_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\n" +
-	"\x17proto/rig/v1/wire.proto\x12\x06rig.v1\"D\n" +
+	"\x17proto/rig/v1/wire.proto\x12\x06rig.v1\"\xb3\x01\n" +
 	"\x06Status\x12 \n" +
 	"\x04code\x18\x01 \x01(\x0e2\f.rig.v1.CodeR\x04code\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\xc4\x01\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12\"\n" +
+	"\fprecondition\x18\x03 \x01(\tR\fprecondition\x12\x16\n" +
+	"\x06actual\x18\x04 \x01(\tR\x06actual\x12\x10\n" +
+	"\x03fix\x18\x05 \x01(\tR\x03fix\x12\x1f\n" +
+	"\vfix_command\x18\x06 \x01(\tR\n" +
+	"fixCommand\"\xc4\x01\n" +
 	"\x05Frame\x12\x1b\n" +
 	"\tstream_id\x18\x01 \x01(\rR\bstreamId\x12%\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x11.rig.v1.FrameKindR\x04kind\x12\x16\n" +

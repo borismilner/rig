@@ -133,6 +133,32 @@ await withChrome(async browser => {
   eq('the silenced one is #hushed', bd.silencedRows[0]?.label.includes('#hushed'), true);
   eq('two failures, no more', bd.failures, 2);
   await p3.close();
+
+  // 5. Occlusion: whether a target's pixels are its own. Getting this wrong
+  // does not give a wrong number, it gives NO number - and a pass that
+  // measures none of its targets still prints clean, which is why this is a
+  // known answer rather than a judgement call.
+  console.log('\nocclusion, known answers');
+  const p4 = await auditPage(browser, 'file://' + join(HERE, 'occlusion.html'));
+  eq('page identity', await p4.eval('document.title'), 'occlusion selftest');
+  const oc = await focusPass(p4);
+  const wasMeasured = id => oc.measured.some(m => m.label.includes('#' + id));
+  const skipKind = id => oc.skipped.find(s2 => s2.label.includes('#' + id))?.kind;
+
+  eq('three focusables found', oc.focusable, 3);
+  // THE one this fixture exists for. `elementsFromPoint` cannot see an element
+  // with `pointer-events: none`, so the overlay is absent from the stack and
+  // the conservative answer used to stand - the button skipped, silently.
+  eq('behind a pointer-events:none overlay: MEASURED', wasMeasured('below'), true);
+  eq('...and therefore not skipped', skipKind('below'), undefined);
+  // the control, so the fix cannot be "stop skipping anything unhittable"
+  eq('under an opaque pointer-events:none overlay: skipped', skipKind('above'), 'under-fixed-overlay');
+  eq('...and therefore not measured', wasMeasured('above'), false);
+  // c8bb3c1's case: overlapping rects are not paint order
+  eq('behind a hit-testable overlay: MEASURED', wasMeasured('hittable'), true);
+  eq('every measured ring is the same known 3.03', oc.measured.every(m => Math.abs(m.ratio - 3.03) <= 0.02), true);
+  eq('no failures, the fixture is about coverage', oc.failures, 0);
+  await p4.close();
 });
 
 console.log(failed ? `\n${failed} selftest assertion(s) FAILED - do not trust the gate` : '\nselftest: all assertions pass');
