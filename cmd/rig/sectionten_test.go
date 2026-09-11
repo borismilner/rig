@@ -290,7 +290,7 @@ func metaJSONOf(t *testing.T, p kernel.Program) map[string]any {
 
 func cliJSONOf(t *testing.T, p *rigv1.Program) map[string]any {
 	t.Helper()
-	rows := appsJSON([]*rigv1.Program{p})
+	rows := appsJSON([]*rigv1.Program{p}, rigv1.Depth_DEPTH_FULL)
 	if len(rows) != 1 {
 		t.Fatalf("appsJSON rendered %d rows from one program", len(rows))
 	}

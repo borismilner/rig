@@ -78,6 +78,7 @@ func takesValue(arg string) bool {
 // and shadow the package of the same name.
 var valuedFlags = map[string]bool{
 	"timeout": true,
+	"depth":   true,
 }
 
 func usage() {
@@ -377,17 +378,51 @@ func notRunning(err error) bool {
 // itself and a client of the owner's sees all of it. Coverage travels with
 // every row because section 5k forbids a surface that implies completeness -
 // "shelf declared 3 of its 20 commands" has to be visible here, not inferred.
+// appsFlagSet is `apps list`'s flags, built here rather than inline so a test
+// can WALK them.
+//
+// partition() splits flags from positionals before flag.Parse sees them, and
+// it can only know that `--depth full` consumes its next argument by asking
+// valuedFlags. Every flag on this command was a boolean until --depth, so the
+// set had one entry and nothing coupled it to anything. A non-boolean flag
+// missing from it does not fail loudly - `--depth full` reads `full` as a
+// positional and the command dies with "flag needs an argument", which points
+// at the flag rather than at the set. Found by RUNNING it against a live
+// estate; every unit test in this package passed, because they all call the
+// renderer or the parser and none of them go through argv.
+func appsFlagSet() (fs *flag.FlagSet, asJSON, verbose *bool, depth *string) {
+	fs = flag.NewFlagSet("apps", flag.ContinueOnError)
+	asJSON = fs.Bool("json", false, "emit JSON")
+	verbose = fs.Bool("commands", false, "list each program's commands")
+	depth = fs.String("depth", "", "how much to say about each program: "+
+		strings.Join(depthSpellings(), ", "))
+	return fs, asJSON, verbose, depth
+}
+
 func cmdApps(args []string) (err error) {
-	fs := flag.NewFlagSet("apps", flag.ContinueOnError)
-	asJSON := fs.Bool("json", false, "emit JSON")
-	verbose := fs.Bool("commands", false, "list each program's commands")
+	fs, asJSON, verbose, depthName := appsFlagSet()
 	flags, positional := partition(args)
 	if err := fs.Parse(flags); err != nil {
 		return err
 	}
 	defer func() { err = inMode(err, *asJSON) }()
 	if len(positional) == 0 || positional[0] != "list" {
-		return badArgumentf("usage: rig apps list [--commands] [--json]")
+		return badArgumentf("usage: rig apps list [--commands] [--depth %s] "+
+			"[--json]", strings.Join(depthSpellings(), "|"))
+	}
+
+	// asked is what goes on the wire and shown is what comes back. They differ
+	// for exactly one value: an absent --depth sends the zero, which the
+	// daemon's boundary restores to DEPTH_FULL as a compatibility rule
+	// (wire.proto, ProgramsRequest), so the renderer below has to assume a
+	// full answer even though nothing asked for one.
+	asked, err := parseDepth(*depthName)
+	if err != nil {
+		return err
+	}
+	shown := asked
+	if shown == rigv1.Depth_DEPTH_UNSPECIFIED {
+		shown = rigv1.Depth_DEPTH_FULL
 	}
 
 	c, err := client.Connect()
@@ -400,16 +435,28 @@ func cmdApps(args []string) (err error) {
 	defer cancel()
 
 	resp := &rigv1.ProgramsResponse{}
-	if err := call(ctx, c, "rig.programs", &rigv1.ProgramsRequest{}, resp); err != nil {
+	req := &rigv1.ProgramsRequest{Depth: asked}
+	if err := call(ctx, c, "rig.programs", req, resp); err != nil {
 		return err
 	}
 
 	if *asJSON {
-		return json.NewEncoder(os.Stdout).Encode(appsJSON(resp.GetPrograms()))
+		return json.NewEncoder(os.Stdout).Encode(appsJSON(resp.GetPrograms(), shown))
 	}
 	if len(resp.GetPrograms()) == 0 {
 		fmt.Println("no programs are registered")
 		return nil
+	}
+	// Section 5k: a surface may not imply completeness. At a shallow depth the
+	// daemon withheld something, so the listing says so before it is read -
+	// and says which flag chose it, because the fix is the reader's to make.
+	//
+	// Only when something WAS withheld. A full listing has nothing to
+	// disclose, so today's output is unchanged. This is deliberately NOT the
+	// rule the --json object wants: a terminal listing is read by whoever
+	// typed the flag, and the JSON object travels to a reader who did not.
+	if note := withheldNote(shown); note != "" {
+		fmt.Println(note)
 	}
 	// Column widths come from the widest cell, not from a guess. A version
 	// string is git describe output and can be thirty characters, which a
@@ -420,11 +467,11 @@ func cmdApps(args []string) (err error) {
 		wVer = max(wVer, len(p.GetIdentity().GetVersion()))
 	}
 	for _, p := range resp.GetPrograms() {
-		fmt.Printf("%-*s  %-*s  %-8s  %d command%s, semantics gen %d\n",
+		fmt.Printf("%-*s  %-*s  %-8s  %ssemantics gen %d\n",
 			wID, p.GetIdentity().GetId(),
 			wVer, p.GetIdentity().GetVersion(),
 			coverageLabel(p),
-			len(p.GetCommands()), plural(len(p.GetCommands())),
+			commandCountCell(p, shown),
 			p.GetSemanticsGen())
 		if !*verbose {
 			continue
@@ -504,7 +551,32 @@ func rawSchema(args []byte) any {
 	return json.RawMessage(args)
 }
 
-func appsJSON(ps []*rigv1.Program) []map[string]any {
+// appsJSON renders the estate AT THE DEPTH THAT WAS ANSWERED, and the depth is
+// a parameter because it decides what this object may say anything about.
+//
+// A field the depth did not fetch is OMITTED, never rendered as an empty one.
+// Every empty rendering here already means something: `sensitive: []` is
+// deliberately not null because null would read as "the program never
+// considered the question", and an absent `args` means "this command takes no
+// arguments". At a shallow depth both of those would be false, so the honest
+// object leaves them out rather than asserting a declaration nobody read.
+//
+// THE OBJECT CANNOT YET SAY WHICH DEPTH PRODUCED IT, and that is RULED and
+// SEQUENCED rather than accepted. ProgramsResponse carries no depth echo and
+// meta.Answer does not either, so a reader who did not type the flag cannot
+// tell a cheap question from an empty answer - and under section 37 rig's own
+// agents become those readers.
+//
+// The ruling is a `depth` key emitted ALWAYS, with no omitempty, in BOTH
+// renderers, on the argument answerJSON already writes down for `partial`:
+// an absent field cannot be told apart from a server too old to have it, so
+// an agent reading one has to guess, and the safe guess and the useful guess
+// point opposite ways. internal/meta gains it FIRST because the daemon-side
+// object is the contract section 10 binds this one to; this renderer follows.
+// Landing it in both now rather than with B10 is deliberate: B10 changes
+// WHERE the rendering happens and not WHAT the object says, so a converged
+// object would inherit the ambiguity instead of ending it.
+func appsJSON(ps []*rigv1.Program, d rigv1.Depth) []map[string]any {
 	out := make([]map[string]any, 0, len(ps))
 	for _, p := range ps {
 		cmds := make([]map[string]any, 0, len(p.GetCommands()))
@@ -518,13 +590,6 @@ func appsJSON(ps []*rigv1.Program) []map[string]any {
 				"needs_display": c.GetNeedsDisplay() == rigv1.Tristate_TRISTATE_YES,
 				"interactive":   c.GetInteractive() == rigv1.Tristate_TRISTATE_YES,
 				"confirms":      c.GetConfirms() == rigv1.Tristate_TRISTATE_YES,
-				// Present and empty, never null: null reads as "this program
-				// never considered the question", which is the one thing
-				// section 5e refuses to let a declaration mean by accident.
-				// The daemon always sends the wrapper, so absence cannot
-				// reach here - and if it ever does, [] is still the honest
-				// rendering of what was stored.
-				"sensitive": pointers(c.GetSensitive()),
 
 				// The declared argument schema is added below, embedded as
 				// JSON rather than as a string. Section 9 says an agent gets
@@ -532,22 +597,131 @@ func appsJSON(ps []*rigv1.Program) []map[string]any {
 				// an agent can read that reindex exists and still not be
 				// able to construct a call.
 			}
-			// Omitted rather than null when the command declares none: a
-			// command that takes no arguments has no schema, which is not
-			// the same as a schema nobody wrote down.
-			if schema := rawSchema(c.GetArgs()); schema != nil {
-				row["args"] = schema
+			// Both of these are dropped by the kernel's projection below
+			// DEPTH_FULL, so below it they are omitted here. Emitting them
+			// would report what the projection removed as what the program
+			// declared.
+			if carriesCommandDetail(d) {
+				// Present and empty, never null: null reads as "this program
+				// never considered the question", which is the one thing
+				// section 5e refuses to let a declaration mean by accident.
+				// The daemon always sends the wrapper, so absence cannot
+				// reach here - and if it ever does, [] is still the honest
+				// rendering of what was stored.
+				row["sensitive"] = pointers(c.GetSensitive())
+
+				// Omitted rather than null when the command declares none: a
+				// command that takes no arguments has no schema, which is not
+				// the same as a schema nobody wrote down.
+				if schema := rawSchema(c.GetArgs()); schema != nil {
+					row["args"] = schema
+				}
 			}
 			cmds = append(cmds, row)
 		}
-		out = append(out, map[string]any{
+		row := map[string]any{
 			"id":            p.GetIdentity().GetId(),
 			"version":       p.GetIdentity().GetVersion(),
 			"coverage":      coverageLabel(p),
 			"coverage_note": p.GetCoverageNote(),
 			"semantics_gen": p.GetSemanticsGen(),
-			"commands":      cmds,
-		})
+		}
+		// At DEPTH_PROGRAMS the daemon sent no commands at all, so an empty
+		// list here would say the program declares none.
+		if carriesCommands(d) {
+			row["commands"] = cmds
+		}
+		out = append(out, row)
 	}
 	return out
+}
+
+// depthSpellings is what --depth accepts, read off the wire's own enum rather
+// than carried as a table here.
+//
+// kernel.ParseDepth takes exactly these spellings and cmd/rig MUST NOT CALL
+// IT: the kernel links the JSON Schema validator, so importing it pays section
+// 17's 1.45 MB in the one binary the plan says must not pay it, and
+// TestTheClientLinksNeitherTheDaemonNorItsValidator fails naming
+// santhosh-tekuri rather than the kernel. The descriptor is the same contract
+// without the dependency, and it cannot drift when a depth is added.
+func depthSpellings() []string {
+	values := rigv1.Depth(0).Descriptor().Values()
+	out := make([]string, 0, values.Len())
+	for i := range values.Len() {
+		v := values.Get(i)
+		// Section 21: the zero means "nothing was said", so no surface may
+		// let a caller ask for it. It is offered nowhere and refused by name
+		// below if somebody spells it anyway.
+		if v.Number() == 0 {
+			continue
+		}
+		out = append(out, enumLabel(string(v.Name()), "DEPTH_"))
+	}
+	return out
+}
+
+// parseDepth maps the flag onto the wire enum. An empty string is not an error
+// and not a default: it is the absent flag, which sends the zero and lets the
+// daemon's boundary restore the old wire's meaning.
+func parseDepth(s string) (rigv1.Depth, error) {
+	if s == "" {
+		return rigv1.Depth_DEPTH_UNSPECIFIED, nil
+	}
+	values := rigv1.Depth(0).Descriptor().Values()
+	for i := range values.Len() {
+		v := values.Get(i)
+		if v.Number() == 0 {
+			continue
+		}
+		if enumLabel(string(v.Name()), "DEPTH_") == s {
+			return rigv1.Depth(v.Number()), nil
+		}
+	}
+	return rigv1.Depth_DEPTH_UNSPECIFIED, badArgumentf(
+		"%q is not a depth; the depths are %s",
+		s, strings.Join(depthSpellings(), ", "))
+}
+
+// carriesCommands is false only at DEPTH_PROGRAMS, where kernel.atDepth sets
+// Commands to nil.
+func carriesCommands(d rigv1.Depth) bool {
+	return d != rigv1.Depth_DEPTH_PROGRAMS
+}
+
+// carriesCommandDetail is true only at DEPTH_FULL. kernel.commandsAtDepth
+// drops Args, Examples, Preconditions, Sensitive, Description and Returns
+// below it; of those this renderer carries Args and Sensitive.
+func carriesCommandDetail(d rigv1.Depth) bool {
+	return d == rigv1.Depth_DEPTH_FULL
+}
+
+// commandCountCell is the "N commands, " run in a listing row, and it is EMPTY
+// when the depth did not fetch commands.
+//
+// "0 commands" for a program with twenty is not a cheaper answer, it is a
+// false one, and a human reading a listing has no other signal that the number
+// was never asked for. It is a function of its own so it can be tested without
+// a live daemon: cmdApps needs one and this does not.
+func commandCountCell(p *rigv1.Program, d rigv1.Depth) string {
+	if !carriesCommands(d) {
+		return ""
+	}
+	n := len(p.GetCommands())
+	return fmt.Sprintf("%d command%s, ", n, plural(n))
+}
+
+// withheldNote says what a shallow depth left out, for a human reading the
+// listing. Empty at full depth, where nothing was withheld and there is
+// nothing to disclose.
+func withheldNote(d rigv1.Depth) string {
+	switch {
+	case !carriesCommands(d):
+		return "showing the estate only: no commands were asked for. " +
+			"--depth commands or --depth full says more"
+	case !carriesCommandDetail(d):
+		return "showing each command without its arguments or sensitive " +
+			"fields: --depth full says more"
+	}
+	return ""
 }

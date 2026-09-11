@@ -101,7 +101,7 @@ func candidates(argv []string) []string {
 		return commandsOf(argv[0])
 	default:
 		if argv[0] == "apps" {
-			return []string{"--commands", "--json"}
+			return []string{"--commands", "--depth", "--json"}
 		}
 		return flagsOf(argv[0], argv[1])
 	}

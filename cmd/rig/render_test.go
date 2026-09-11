@@ -192,7 +192,7 @@ func TestAppsJSONNeverEmitsNullAndOmitsWhatWasNotDeclared(t *testing.T) {
 		},
 	}}
 
-	out, err := json.Marshal(appsJSON(ps))
+	out, err := json.Marshal(appsJSON(ps, rigv1.Depth_DEPTH_FULL))
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
@@ -224,7 +224,7 @@ func TestAppsJSONRendersAnUnsaidTristateAsFalse(t *testing.T) {
 	rows := appsJSON([]*rigv1.Program{{
 		Identity: &rigv1.Identity{Id: "fakeapp"},
 		Commands: []*rigv1.Command{{Id: "purge"}},
-	}})
+	}}, rigv1.Depth_DEPTH_FULL)
 	cmd := rows[0]["commands"].([]map[string]any)[0]
 
 	for _, key := range []string{"idempotent", "needs_display", "interactive", "confirms"} {
