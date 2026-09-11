@@ -17,16 +17,38 @@ func pane() string { return page }
 // as cmd/ledger/page.go's, and written with no space after the slashes because
 // nolintlint rejects the spaced form.
 //
+// How the paint is held, and the bug that was found by looking at the pane.
+//
+// The first version of this page hid <html> outright and released it with an
+// `html.themed` rule. Nothing in rig has ever set a `themed` class: pane.js
+// reveals either by removing `data-rig-holding` from an element the program
+// registers as opts.hold, or, on the give-up timer, by setting
+// `data-rig-unthemed` on the root. So this pane painted NOTHING, in either
+// theme, on every path, from the day it was written - and it still served
+// /pane, still registered over the wire, still appeared in `rig apps list`
+// and still passed both contrast gates, because neither gate looks at a fake
+// application's pane. It was found the first time a person opened it.
+//
+// It now gates on the ABSENCE of `data-rig-painted`, which pane.js sets
+// unconditionally in reveal(). That cannot deadlock - the timer reveals even
+// when no window is listening - and it needs no registered element, so it is
+// also the form an EMBEDDED-tier program can use. opts.hold is for holding a
+// subtree, which is what cmd/ledger wants and this page does not.
+//
+// The explanation lives here rather than in the CSS deliberately: the string
+// below is shipped to the browser on every pane load, and an essay about a
+// fixed bug cost docket 4096 bytes against its size ratchet when it was
+// written there.
+//
 //nolint:misspell // `color` is a CSS property name, which is American by
 const page = `<!doctype html>
 <meta charset="utf-8">
 <title>docket</title>
 <link rel="stylesheet" href="/kit/kit.css">
 <style>
-  /* Held until the tokens land: without this the program's own defaults show
-     for a frame in whatever theme the page was authored in. */
-  html { visibility: hidden }
-  html.themed { visibility: visible }
+  /* Held until the tokens land, on the absence of pane.js's marker. See the
+     Go comment on this const for why it is not a class. */
+  html:not([data-rig-painted]) { visibility: hidden }
   body { margin: 0; min-height: 100vh; box-sizing: border-box;
          padding: 1rem 1.15rem 1.6rem;
          background: var(--panel); color: var(--fg);
@@ -57,7 +79,9 @@ const page = `<!doctype html>
         font-family: var(--mono, monospace); color: var(--fg);
         text-decoration: none }
   .pr:hover { text-decoration: underline }
-  .pr .ext { font-size: .8em; color: var(--fg-faint) }
+  /* var(--fs--2), not .8em: the scale carries a max(12px, ...) floor and a
+     raw em walks around it. .8em of the cell size is 10.16px. */
+  .pr .ext { font-size: var(--fs--2, max(12px, .8em)); color: var(--fg-faint) }
   .asg { display: inline-block; font-family: var(--mono, monospace);
          font-size: var(--fs--2, .78rem);
          padding: .05rem .5rem; border-radius: 999px;
@@ -121,7 +145,7 @@ const TONE = { ok: "ok", clean: "ok", merged: "ok", bad: "bad", blocked: "bad",
 // which is what the kit used to offer and what a repo name or a PR title would
 // have been interpolated into.
 const COLS = [
-  { key: "number", label: "PR", type: "num", el: r => {
+  { key: "number", label: "PR", type: "num", align: "l", el: r => {
       const a = el("a", "pr");
       a.href = "https://example.invalid/" + r.repo + "/" + r.number;
       a.target = "_blank"; a.rel = "noreferrer"; a.title = r.title;

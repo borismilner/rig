@@ -29,12 +29,27 @@
  */
 const WAIT_MS = 1500;
 
-/* rigPane(opts) -> { connected: Promise<{mode, tokens}> }
+/* HOLDING THE PAINT. To hide the document until the tokens land, write
+ *
+ *   html:not([data-rig-painted]) { visibility: hidden }
+ *
+ * and nothing else. reveal() sets that attribute unconditionally, the timer
+ * above reveals even when no window ever answers, so this cannot deadlock. It
+ * needs no kit.css and no registered element, which is why it is the embedded
+ * tier's form too. Do not invent your own release hook: a class or attribute
+ * this file does not set will hold the page forever, and it will still serve,
+ * register and pass the contrast gates while painting nothing.
+ *
+ * opts.hold holds a SUBTREE instead (cmd/ledger holds #page). It needs
+ * kit.css's [data-rig-holding] rule, so it is not available to the embedded
+ * tier.
+ *
+ * rigPane(opts) -> { connected: Promise<{mode, tokens}> }
  *
  * opts.onTheme(mode, tokens)  called on the first set and on every change
  * opts.root                   where the custom properties are set, default <html>
- * opts.hold                   an element to keep hidden until the first set
- *                             arrives or the wait runs out
+ * opts.hold                   a subtree to keep hidden until the first set
+ *                             arrives or the wait runs out. Needs kit.css.
  */
 export function rigPane(opts = {}) {
   const root = opts.root || document.documentElement;
@@ -44,9 +59,15 @@ export function rigPane(opts = {}) {
   function reveal() {
     if (painted) return;
     painted = true;
+    // Unconditional, and before the hold: this is the signal a program can
+    // rely on without registering anything with us.
+    root.setAttribute("data-rig-painted", "");
     if (hold) hold.removeAttribute("data-rig-holding");
   }
 
+  // Cleared rather than assumed absent, so a second rigPane() on a page that
+  // already painted still holds until this round reveals.
+  root.removeAttribute("data-rig-painted");
   if (hold) hold.setAttribute("data-rig-holding", "");
 
   // Lost races are a result, not an error: render unstyled rather than never.

@@ -46,8 +46,19 @@ const EM_DASH = "—";
  * its first column is always the label and the rest are always counts. A report
  * that leads with a number and follows with names gets right-aligned text out
  * of the same rule, which looks like a mistake because it is one. Text reads
- * from the left; figures line up on the right. */
+ * from the left; figures line up on the right.
+ *
+ * `align: "l" | "r"` overrides it, and exists because `type` was doing two jobs
+ * that come apart as soon as a cell is a thing rather than a string. docket's
+ * PR column sorts on a number and READS as text ("shelf#7"), so the type-
+ * derived rule right-aligned a ragged column of identifiers - the mistake the
+ * paragraph above describes, arrived at from the other direction. `cls` could
+ * not fix it: .rig-r is declared after .rig-l at equal specificity, so a cell
+ * carrying both is right-aligned whatever the caller asked for, and the
+ * override was silently ignored rather than refused. */
 function alignOf(c) {
+  if (c.align === "l") return "rig-l";
+  if (c.align === "r") return "rig-r";
   return c.type === "str" ? "rig-l" : "rig-r";
 }
 
@@ -68,14 +79,16 @@ function num(n) {
  *
  * rigTable(tableEl, cols, rows, opts) -> { setFilter, rowCount }
  *
- * cols: [{ key, label, type, fmt, html, cls }]
+ * cols: [{ key, label, type, align, fmt, html, cls, el }]
  *   type "str" sorts as text and joins the default filter; anything else
  *   sorts numerically. A column is filtered on only if it is text, unless
  *   opts.searchKeys names the keys instead.
+ *   align "l" or "r" overrides the alignment type would have chosen. Use it
+ *   when a column sorts one way and reads the other - see alignOf.
+ *   fmt returns text; el returns a NODE for a cell that is not text.
+ *   cls is added to every cell and cannot change alignment; align does that.
  * opts: { sortKey, sortDir, limit, searchKeys, countEl, emptyText }
  *   emptyText may be a string or a function returning one.
- * cols: { key, label, type, cls, fmt, el }
- *   fmt returns text; el returns a NODE for a cell that is not text.
  *
  * Sort state is held by column INDEX and not by key, which is a bend the first
  * fake application forced. A report legitimately shows one field twice - a raw
