@@ -222,12 +222,14 @@ test-window: ## Test the window (needs gtk4 and webkitgtk-6.0)
 audit: ## Check dependencies for known vulnerabilities
 	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
-verify: build ## Run the conformance suite against fakeapp, then against every misbehaviour
-	./build/$(BIN) verify ./build/fakeapp
-	@for m in hang crash leak flood lie ignore-cancel garbage; do \
-	  echo "  --misbehave=$$m must fail"; \
-	  ./build/$(BIN) verify ./build/fakeapp --misbehave=$$m && { echo "  did not fail"; exit 1; } || true; \
-	done
+verify: ## NOT YET (M1, with slice 8): `rig verify` does not exist
+	@echo 'make verify: not implemented. `rig verify` is the conformance'
+	@echo '  suite, and it belongs with M1 slice 8 rather than with a'
+	@echo '  verb-filling exercise - `make ci` help already lists it as'
+	@echo '  waiting on M1. The body below is what it should run once the'
+	@echo '  verb exists: fakeapp clean, then each --misbehave must FAIL.'
+	@echo '  Misbehaviours: hang crash leak flood lie ignore-cancel garbage'
+	@exit 1
 
 contrast: contrast-selftest ## Measure WCAG contrast in a real browser, both themes
 	# Five passes, because no single instrument sees all five things: text nodes
@@ -374,29 +376,55 @@ modules-matrix: ## Build kernel-plus-one for every module in turn (PLAN.md 5i)
 	   done; \
 	 fi
 
-profile: build ## Capture a CPU profile of the daemon under load
-	./build/$(BIN) serve --pprof=127.0.0.1:6060 & \
-	 sleep 2; go tool pprof -http=: http://127.0.0.1:6060/debug/pprof/profile?seconds=30
+profile: ## NOT YET: dead twice over - no `rig serve`, and no --pprof anywhere
+	@echo 'make profile: not implemented, and it is dead in TWO ways rather'
+	@echo '  than one. `rig serve` does not exist - and unlike the other dead'
+	@echo '  verbs it is not waiting on a milestone, because nothing in the'
+	@echo '  plan specifies it: serving is rigd, and a client cannot serve.'
+	@echo '  Second, `rigd --help` has only -log-level and -version, so the'
+	@echo '  --pprof flag this named exists nowhere either. Exposing pprof is'
+	@echo '  a decision about a debug surface on the daemon, not a fix here.'
+	@exit 1
 
 ##@ Operate
 
-up: build ## Ask a RUNNING daemon to come up; it cannot start one from cold
-	./build/$(BIN) up
+# Five of the targets below name a `rig` verb that does not exist yet, and
+# they used to advertise it as working. `rig` treats an unknown verb as a
+# PROGRAM NAME, so `make doctor` answered `no program "doctor" is connected` -
+# a message about the estate, for a command nobody has written. Each now says
+# which milestone it waits on and refuses, rather than failing as if the
+# estate were at fault. The rule for adding one: a target may name an
+# unwritten verb, but it must not claim the verb works.
 
-down: ## Stop the daemon
+up: ## NOT YET (M6, control and supervision): `rig up` does not exist
+	@echo 'make up: not implemented. `rig up` is M6 (start, stop, restart,'
+	@echo '  health). It could not work from cold in any case: rig is a'
+	@echo '  client, so with no daemon there is nothing to dial. Start the'
+	@echo '  daemon directly:  XDG_RUNTIME_DIR=... rigd'
+	@exit 1
+
+down: build ## Stop the daemon serving this XDG_RUNTIME_DIR
 	./build/$(BIN) down
 
-doctor: ## Report the health of the whole installation
-	./build/$(BIN) doctor
+doctor: ## NOT YET (M5, observability): `rig doctor` does not exist
+	@echo 'make doctor: not implemented. `rig doctor` ships at M5 with its'
+	@echo '  dependency check (PLAN.md section 23, M5 row). Section 5 makes it a'
+	@echo '  GRANTED surface - an estate-wide aggregate readable with'
+	@echo '  introspect - so it is an authorisation decision, not a stub.'
+	@exit 1
 
-apps: ## List registered programs and their state
+apps: build ## List registered programs and their state
 	./build/$(BIN) apps list
 
-logs: ## Follow the merged log stream
-	./build/$(BIN) logs --follow
+logs: ## NOT YET (M5, observability): `rig logs` does not exist
+	@echo 'make logs: not implemented. `rig logs` ships at M5 with log, trace'
+	@echo '  and metric ingest and the call log (PLAN.md section 23, M5 row).'
+	@exit 1
 
-tui: build ## Open the terminal client
-	./build/$(BIN) tui
+tui: ## NOT YET (M3, terminal client): `rig tui` does not exist
+	@echo 'make tui: not implemented. The `rig tui` frame ships at M3 with'
+	@echo '  `rig shell` and huh forms (PLAN.md section 23, M3 row).'
+	@exit 1
 
 ##@ Ship
 
