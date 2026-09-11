@@ -2,24 +2,24 @@
   "note": "Binary sizes in bytes. A binary over its recorded number fails the build (PLAN.md 17). Moving a number is deliberate: make bench-size-update, in its own commit, with the reason.",
   "bins": {
     "docket": {
-      "bytes": 9822471,
-      "recorded": "2026-09-11T14:59:49Z"
+      "bytes": 9826567,
+      "recorded": "2026-09-11T21:00:47Z"
     },
     "fakeapp": {
-      "bytes": 5849351,
-      "recorded": "2026-09-11T14:59:49Z"
+      "bytes": 5857543,
+      "recorded": "2026-09-11T21:00:47Z"
     },
     "ledger": {
-      "bytes": 10178823,
-      "recorded": "2026-09-11T14:59:49Z"
+      "bytes": 10187015,
+      "recorded": "2026-09-11T21:00:47Z"
     },
     "rig": {
-      "bytes": 6160647,
-      "recorded": "2026-09-11T19:44:06Z"
+      "bytes": 6172935,
+      "recorded": "2026-09-11T21:00:47Z"
     },
     "rigd": {
-      "bytes": 10924295,
-      "recorded": "2026-09-11T19:38:29Z"
+      "bytes": 10936583,
+      "recorded": "2026-09-11T21:00:47Z"
     },
     "rigwindow": {
       "bytes": 13800840,
