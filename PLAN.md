@@ -1800,11 +1800,33 @@ something false to a user.** The wording is the tell and it is doing real work:
 *"it declares that it confirms"* is honest about the provenance and is read as a
 guarantee.
 
-**Two things have to be decided together, and neither is decided here:** whether
-`confirms` is a program's claim about itself (in which case the rendering must
-stop reading as rig's guarantee) or an input rig acts on (in which case
-something must consume it). **Shipping it as a declared-and-unconsumed field
-that a user is shown is the one option ruled out.**
+**RULED 2026-09-11: `confirms` is an INPUT rig acts on, not a program's claim
+about itself.** Delegated by Boris with the instruction to prefer robustness and
+usefulness, and both point the same way here.
+
+**A command declaring `confirms` is treated exactly as if a house rule had
+matched it at `confirm`**, and it composes with the rules table through the
+most-restrictive-wins rule already stated above. That single sentence is the
+whole mechanism, and it is why this is the robust reading rather than the
+ambitious one:
+
+- **A declaration can only ever ADD a confirmation, never remove one.**
+  Most-restrictive-wins makes `confirms: no` unable to weaken a rule, so the
+  field cannot become a second lever on the authorization floor. **The
+  weakening hole above does not reopen through this door**, and it would have
+  if the composition rule were anything else.
+- **It uses machinery that exists.** §13a already produces `confirm` as an
+  action and already routes it. Nothing new is introduced at the boundary.
+- **The alternative is strictly less useful.** Reading `confirms` as a claim
+  means changing the rendering to disown it and leaving rig with a declared
+  field nothing consumes - which is the state being repaired.
+- **It fails closed.** A program that says it confirms gets a confirmation. The
+  failure mode of getting this wrong is an extra prompt, not an unguarded
+  destructive call.
+
+**The rendering stops being false the moment this is built**, because *"it
+declares that it confirms before acting"* becomes a description of an input rig
+honours rather than a claim rig merely repeats.
 
 **The last three are not connections, and that is why they are in the enum.** §14 says every
 *connection* carries a principal, and a scheduled fire, a bus-triggered invocation and a
@@ -2587,6 +2609,39 @@ failure.**
 | **A name is registered with what it protects**, and is discoverable before use. Asking "what guards this path" is a call, not a convention in a document |
 | **An unregistered name is not silently honoured.** What the daemon does with one is stated: it is granted and **flagged as unregistered to both the holder and to `rig doctor`**, because refusing it outright breaks every ad-hoc use and honouring it silently is the bug |
 | **Overlap is tested by SCOPE INTERSECTION, not name equality** | two names over one path collide and rig says so. Name equality is precisely the test that failed |
+
+#### 6. Durability of an agent's own work
+
+**The default outcome of every agent session today is that its findings die with
+it**, and that is treated as a discipline asked of the author rather than as a
+mechanism. It is a mechanism. An agent's context IS its memory, and the estate's
+supervised sessions end by budget exhaustion far more often than by finishing.
+
+| | |
+|---|---|
+| **A durable location is assigned and SEEDED BEFORE the work begins** | not chosen by the worker when it decides it has something worth keeping. A worker that has to decide where to write has already lost the case where it dies before deciding |
+| **Checkpoints at PHASE BOUNDARIES** | not at the end, and **never in a termination handler.** A handler does not run on `kill -9`, on an out-of-budget stop, or on the container going away - which are the three ways this actually ends |
+| **Checkpoint writes are atomic** | a half-written checkpoint is worse than none, because it reads as a record |
+| **Work not recorded is UNKNOWN, never done** | the reader of a checkpoint store is told which phases have records and which do not, and an absent record is never rendered as an absent phase |
+| **Child work is persisted independently of its parent** | a spawned worker's findings must not die because the session that spawned it did. Parent closure is a supervised event with obligations, not a cascade |
+
+#### 7. At risk, and the escalation ladder
+
+**A session that knows it is nearly out of context or budget is the only actor
+that can say so.** Nothing else on the machine can see it: not the supervisor,
+not the human, not a peer. So there is no monitoring answer to this, only a
+declaration one.
+
+| | |
+|---|---|
+| **A session declares AT RISK with a reason and an estimate** | budget, context, a deadline it will not meet. The reason matters because the remedies differ |
+| **The ladder, and each rung names who decides** | **continue** (the session) → **checkpoint now** (the session) → **hand off to a successor** (the session, and it is the rung that must not need a human) → **stop** (a human, or the hard floor below) |
+| **A hard floor, below which rig acts without asking** | because the rung that needs a human is the rung a dying session cannot reach. At the floor, rig checkpoints and marks the seat `ORPHANED` itself |
+| **Announce-with-a-countdown, and it proceeds unless stopped** | the one interaction shape that costs the supervising human nothing when they agree, which is the common case. It is the ladder's escalation primitive and not a separate feature |
+
+**Why this is ranked below durability and not above it.** At-risk detection
+without durable work is a session announcing its own death and taking its
+findings with it anyway. **Durability makes the announcement worth making.**
 
 ### Continuation slots, so an agent can hand off to itself
 
@@ -3710,7 +3765,7 @@ reading, not only by term count, and the term counts are given where they are th
 | Count | |
 |---|---|
 | `foundational` mechanisms absent | **10 absent and 2 partial, of 12 examined.** Anything above zero is load-bearing. **This is a floor, not a count of 183** - the twelve were reached by triage from Part V's 22 entries and from the categories a density measurement pointed at, not by walking all 183. The earlier wording, "11 of 183", was both wrong arithmetic and a triage presented as an audit |
-| Named but not defined to the bar | **open, and being taken now** against Part V's 22 entries, which each carry an acceptance test. Seventeen are adjudicated: four confirmed present (above), twelve became the gap rows, and §13a's conflict resolution is `partial` (below). **Five remain** - V13, V15, V18, V20 and the unexamined clauses of the rest. Record: `logbook/projects/rig/count2-part-v-audit-2026-09-11.md` |
+| Named but not defined to the bar | **CLOSED 2026-09-11.** All 22 of Part V's entries are adjudicated: four confirmed present (above), twelve became the gap rows, §13a's conflict resolution is `partial`, and **V13, V15, V18 and V20 are adjudicated in §36**. Record of the first seventeen: `logbook/projects/rig/count2-part-v-audit-2026-09-11.md`. **This count was open when §34 was written and the section said so; saying so is what let it be finished rather than forgotten** |
 | Part IV confusion pairs this document conflates | **2 of 25.** #16 `confirmation` / `authorization` conflated outright, #15 `policy denial` / `precondition` / `validation` / `unconfirmed` partially. Record: `logbook/projects/rig/conflation-audit-2026-09-11.md` |
 
 **The second count is open, and saying so is the point.** A pass that reported
@@ -3792,8 +3847,8 @@ Record: `logbook/projects/rig/taxonomy-parity-cross-2026-09-11.md`.
 | 4 | Retraction of a posted item | **yes** | §16 |
 | 5 | A lease name registered with the resource it protects | no | §16 |
 | 6 | Health is evidence of progress; idle-and-not-blocked is unhealthy | **yes** | §18 |
-| 7 | Durability of an agent's own work | no | **owed** |
-| 8 | At-risk detection and the escalation ladder | partial | **owed** |
+| 7 | Durability of an agent's own work | no | §16 |
+| 8 | At-risk detection and the escalation ladder | partial | §16 |
 | 9 | The state ownership matrix | no | §18 |
 
 **§18 also gained the thing that BLOCKED something else.** The supervisor was
@@ -3827,6 +3882,27 @@ The three findings that changed what was written:
 | **The weaker-effects path is a RECONNECT, not a live re-declaration.** The daemon refuses a second handshake on a live connection, so the reachable path is close, deregister, reconnect one level weaker - an ordinary deploy | §13a. **The first statement of this hole was wrong about the path**, which mattered: the old declaration is gone by the time the new one arrives, so closing it means remembering a declaration past the connection that made it. Harder than the version that was written first |
 | **`confirms` is declared, rendered to a human, and consumed by nothing.** The reference program's `purge` declares `destructive` with `confirms` yes, its help says so, and it runs to completion with no terminal: no prompt, no refusal, no channel | §13a gained its own subsection. This is conflation #16 in its sharpest form - **rig stating something false to a user**, rather than a document misleading a reader |
 
+### A declared field that no surface can return is a DEFECT, and there are two
+
+**Found twice on one day, by two different seats, in two unrelated fields.**
+That is a class, not a coincidence.
+
+| Field | What happens today |
+|---|---|
+| `confirms` | declared, validated, **rendered to a human as a guarantee**, and consumed by nothing. Ruled above: it becomes an input rig acts on |
+| `preamble` | declared, validated, stored since M1 - and **there is no wire message on any path that can carry it back to a caller.** The daemon-to-caller message is the declaration minus the preamble, so it was accepted and dead |
+
+**The rule, because two instances is enough to state one:** a field the
+declaration accepts must be reachable by some caller on some surface, or it is
+not a field - it is a validated place to put something that goes nowhere.
+**Acceptance is not a contract; retrievability is.**
+
+**And it is a conformance item rather than a review habit** (§19): the suite
+already drives a reference program, so a declaration that sets every optional
+field and a projection that has to return them is a test a machine can run.
+**Neither of these two was going to be caught by reading**, and both were found
+only because somebody went to USE the field.
+
 ### What this pass has NOT done, and it is deliberate
 
 - **Ranks 6 to 9 are specified nowhere yet.** Rank 9's data is in hand and the
@@ -3839,3 +3915,91 @@ The three findings that changed what was written:
   about itself, or an input rig acts on - and **only the current state is ruled
   out**, because a declared-and-unconsumed field shown to a user is a false
   statement whichever way the question goes.
+
+## 36. The four remaining Part V entries, adjudicated 2026-09-11
+
+**§34's second count was open and said so.** Seventeen of Part V's 22 entries
+were adjudicated there; **V13, V15, V18 and V20 remained.** They are closed
+here, which closes count 2. Record of the method and of the first seventeen:
+`logbook/projects/rig/count2-part-v-audit-2026-09-11.md`.
+
+**Each verdict is per CLAUSE, not per entry**, because an entry answering four
+of seven clauses is `partial` and the missing clauses are the backlog - and
+recording only entry-level verdicts is how "mentions it" passes for "specifies
+it".
+
+### V13 - bounded queues and the gap signal: now `partial`, was absent
+
+**Answered by §16's message contract**: a cursor per subscriber, `gap: true`
+when the cursor has fallen behind retention, everything since the cursor in one
+batch, and a bounded payload that is **refused rather than truncated**.
+
+**Two clauses remain and they are ruled here, because leaving them open is the
+robustness hole:**
+
+- **A full queue REFUSES the post; it does not drop the oldest.** Dropping the
+  oldest is silent, and it discards precisely the message that has been waiting
+  longest - which correlates with the recipient being in trouble. A refusal is
+  loud and the poster can act on it.
+- **A slow consumer is a health signal, not a queue policy.** A subscriber
+  falling behind is reported as such, on the same surface that reports a session
+  idle-and-not-blocked (§18). **The queue does not quietly compensate for a
+  consumer that has stopped consuming**, because compensating is what makes the
+  failure invisible until the buffer is gone.
+
+### V15 - single daemon and epoch handles: now `partial`
+
+**The single-instance claim exists** and behaves correctly - an `flock` on an
+open descriptor, so a dead daemon's claim is released rather than left stale.
+
+**The epoch half is ABSENT and it is a robustness gap, not a nicety.** Measured
+2026-09-11: nothing rig holds survives a restart, and a client's declaration is
+rebuilt by re-registering. **But a client cannot currently tell a daemon restart
+from a network blip** - it reconnects, re-registers, and is not told that the
+thing it reconnected to is a different process with none of its state.
+
+**Ruled: the daemon publishes an epoch, and every handle carries it.** A handle
+presented across an epoch boundary is refused as stale, naming the epoch rather
+than failing generically. §18's matrix says what is lost; **the epoch is what
+makes a client able to ASK rather than infer.** Inference here is the same class
+of defect as a check that cannot tell "nothing is wrong" from "it did not run".
+
+### V18 - session identity is not connection identity: now specified
+
+**Measured: today they are the same thing.** Session ids are minted per
+connection by the daemon and never travel to any caller.
+
+**§16's seats make that wrong**, and the contradiction has to be resolved
+rather than left for whoever notices it: a **seat outlives every connection**,
+a **generation** is one occupancy, and a **connection** is shorter than both.
+Three lifetimes, and collapsing any two of them loses something:
+
+| Identity | Lives as long as | Addressable by a peer |
+|---|---|---|
+| Seat | the role exists | **yes - this is the address** |
+| Generation | one session's occupancy | yes, to prove who you are talking to |
+| Connection | one socket | **no.** It is transport, and no peer should ever hold one |
+
+**A peer never holds a connection identity**, which is the clause that was
+missing and the reason the byte-identical refusal was not obviously wrong: the
+one identity in that message is a connection-scoped session id that no caller
+has ever seen.
+
+### V20 - projection totality: now specified, and it lands on work in flight
+
+**A projection must be TOTAL**: every piece of state it covers is either
+represented or explicitly named as not representable. A projection that silently
+omits is a projection that lies, and it lies specifically to the introspecting
+caller who cannot check.
+
+| Clause | Ruled |
+|---|---|
+| **State not representable in the projection is NAMED as such** | never omitted. The caller is told the projection has a hole, and where |
+| **Sanitisation is declared, not incidental** | a field removed for a scoped caller is reported as withheld, not as absent. **Absent and withheld are different facts** and only one of them means "ask for more access" |
+| **The projection states its own coverage** | which is §5k's coverage principle applied to rig itself, and the same rule that refused `rig doctor` at M1 |
+
+**This is live work, not a future clause.** M2 slice 2 is the registry
+projection and it is being built now; slice 4's capability map is the same rule
+at a larger scale, where *"a scoped caller and an introspecting one read
+different maps at the same instant"* is exactly the withheld-versus-absent
+distinction above.
