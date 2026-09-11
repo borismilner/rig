@@ -1512,6 +1512,37 @@ escapes, redraws, cursor state. So the agent affordance in the terminal is not t
 An agent that only knows `rig --json list`, `rig --json describe X` and `rig --json invoke X`
 can operate the entire estate.
 
+### rig's own failures carry a code, and it cannot collide with the daemon's
+
+**`--json` on every error means EVERY error, including the ones the daemon never
+saw.** rigd unreachable, argv that did not parse, a client-side timeout: these
+returned prose while every daemon refusal returned an object, which is the
+defect §10's own rule exists to prevent. **The error most worth structuring is
+"rigd is not running", because it is the one an agent is likeliest to meet
+first.**
+
+**Two vocabularies, disjoint by construction rather than by care.** Every code
+the daemon can send is a value of the wire `Code` enum and is spelled `CODE_*`.
+rig's own are spelled `RIG_*`. **So the sets cannot collide however many codes
+either side adds later, and neither side has to check** - which is the
+difference between a convention and a mechanism.
+
+| Code | Means |
+|---|---|
+| `RIG_NO_DAEMON` | rig could not reach rigd at all. **Carries the socket path as `actual` and the best `fix_command` rig owns** |
+| `RIG_NO_SUCH_PROGRAM` | the registry rig read does not name that program. **No `fix_command`**: rig cannot start a program, and §9 would rather say nothing than print a line that does not run |
+| `RIG_NO_SUCH_COMMAND` | that program's declaration does not name that command. **Carries coverage in `actual`** (§5k), because "it declares ping, purge, reindex, and its coverage is partial" is what tells a caller whether to look again or look elsewhere |
+| `RIG_BAD_ARGUMENT` | argv did not parse, or contradicted itself, before anything left rig |
+| `RIG_TIMEOUT` | rig stopped waiting, **and the call may still be running** |
+| `RIG_BAD_RESULT` | an answer arrived that the declaration did not promise |
+
+**`RIG_TIMEOUT` is deliberately NOT the daemon's deadline code, and collapsing
+them would lose the distinction that matters.** A daemon deadline says the call
+missed the deadline the daemon supervises. `RIG_TIMEOUT` says the client ran out
+of patience **and the work may still be in flight.** For an agent deciding
+whether to retry, those are opposite facts, and a retry against the first is
+safe where a retry against the second is a duplicate execution.
+
 ### The rule that keeps the terminal first-class
 
 **A view ships in the TUI when its data lands.** Once the window exists at M1a, no view ships in
