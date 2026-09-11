@@ -288,8 +288,21 @@ proto: ## Generate Go from proto/
 	protoc --go_out=. --go_opt=module=$(MODULE) -I . proto/rig/v1/wire.proto
 	gofmt -s -w proto/
 
-schema: ## Emit JSON Schema from the Go declaration types
+schema: ## Emit the declaration JSON Schema from the proto descriptors
 	go run ./cmd/schemagen -out schema/
+
+schema-check: ## Fail if the committed schema is not what schemagen emits
+	@tmp=$$(mktemp -d); \
+	 go run ./cmd/schemagen -out $$tmp >/dev/null; \
+	 if diff -ru schema/ $$tmp/ >/dev/null 2>&1; then \
+	   rm -rf $$tmp; \
+	 else \
+	   diff -ru schema/ $$tmp/ || true; \
+	   rm -rf $$tmp; \
+	   echo; \
+	   echo "  schema/ is not what cmd/schemagen emits. Run: make schema"; \
+	   exit 1; \
+	 fi
 
 types: schema ## Generate TypeScript types from the JSON Schemas
 	cd frontend && npm run gen:types
@@ -405,7 +418,7 @@ package: build ## Build the .deb from freshly built binaries
 	@mkdir -p dist
 	go run ./cmd/pkgdeb --version $(VERSION) --out dist/
 
-ci: fmt-check vet lint-house test-race bench-size ## Everything CI runs
+ci: fmt-check vet lint-house test-race bench-size schema-check ## Everything CI runs
 	@echo
 	@echo "  M0's gate. Targets not yet in ci, each waiting on the milestone"
 	@echo "  that gives it something to check:"
@@ -416,7 +429,18 @@ ci: fmt-check vet lint-house test-race bench-size ## Everything CI runs
 	@echo "    modules    the layering analyzer      M1"
 	@echo "    test-wire  golden wire vs last tag    M1, needs a tagged release"
 	@echo "    verify     conformance vs fakeapp     M1"
-	@echo "    bench-idle idle footprint             M6, needs a supervised daemon"
+	@echo "    deps-check the build vs §22           RED on five real findings:"
+	@echo "                                          five frontend devDependencies"
+	@echo "                                          have no §22 row. Wire it in"
+	@echo "                                          the commit that adds them"
+	@echo "    bench-idle idle footprint             runs today, and stays out:"
+	@echo "               and bench-scale            64s against this gate's 3s,"
+	@echo "                                          60 of which is the observation"
+	@echo "                                          window and not shortenable"
+	@echo "                                          without making the number"
+	@echo "                                          meaningless. Wakeups and CPU"
+	@echo "                                          are also noisy on a loaded or"
+	@echo "                                          throttled machine. Schedule it"
 	@echo "    audit      govulncheck                any time, needs network"
 	@echo "    contrast   WCAG in a real browser      green, and CI runs it as"
 	@echo "               its own step - it needs a browser, which ci must not"
