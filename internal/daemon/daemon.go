@@ -28,6 +28,7 @@ import (
 
 	"github.com/boris-milner/rig/internal/instance"
 	"github.com/boris-milner/rig/internal/kernel"
+	"github.com/boris-milner/rig/internal/mcpserver"
 	"github.com/boris-milner/rig/internal/wire"
 	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )
@@ -81,6 +82,11 @@ type Daemon struct {
 
 	// ask is how a confirm reaches a person. Nil means nobody is present.
 	ask Asker
+
+	// mcps is every live MCP server, one per connected agent, so a promoted
+	// tool list tracks the estate rather than the instant an agent connected.
+	mmu  sync.Mutex
+	mcps map[*mcpserver.Server]struct{}
 
 	// programs is connections, not declarations - what the kernel knows is
 	// what a program said, and what this map knows is where to send a call.
@@ -331,6 +337,7 @@ func (d *Daemon) handle(ctx context.Context, nc net.Conn) {
 		// its own id back. The connection map forgets by name, and only if
 		// this connection is still the one holding it.
 		d.kernel.Deregister(c.principal().SessionID)
+		d.resyncMCP(ctx)
 		if n := c.name(); n != "" {
 			d.mu.Lock()
 			if d.programs[n] == c {
@@ -494,6 +501,11 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 			DaemonVersion: d.version,
 			Scoped:        true,
 		})
+
+		// The program is registered, so any agent already connected gains its
+		// promoted tools without reconnecting. After the reply, not before: a
+		// registration must not wait on a projection of itself.
+		d.resyncMCP(ctx)
 
 	case "programs":
 		// The read side of the registry, through the calling principal's own

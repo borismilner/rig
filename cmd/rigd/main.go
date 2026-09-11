@@ -61,6 +61,10 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	mcpSockPath, err := paths.MCPSocket()
+	if err != nil {
+		return err
+	}
 
 	// The lock comes BEFORE the bind, and that order is the whole point
 	// (section 5f). Two daemons over one state tree give two serialisation
@@ -98,11 +102,29 @@ func run() error {
 		return fmt.Errorf("chmod socket: %w", err)
 	}
 
+	// The MCP surface gets its own socket (PLAN.md sections 9, 14). It is
+	// bound under the same lock, with the same mode, in the same 0700 runtime
+	// directory - so it reaches exactly the processes the first socket
+	// reaches and widens nothing. What it buys is a caller row of its own,
+	// which neither stdio nor the HTTP surface could give it.
+	if err := os.Remove(mcpSockPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("removing stale mcp socket: %w", err)
+	}
+	//nolint:noctx // Binding a unix socket is a filesystem operation, as above.
+	ml, err := net.Listen("unix", mcpSockPath)
+	if err != nil {
+		return fmt.Errorf("listen %s: %w", mcpSockPath, err)
+	}
+	defer func() { _ = ml.Close(); _ = os.Remove(mcpSockPath) }()
+	if err := os.Chmod(mcpSockPath, 0o600); err != nil {
+		return fmt.Errorf("chmod mcp socket: %w", err)
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	log.Info("rigd up", "version", version, "wire", wire,
-		"socket", sockPath, "pid", os.Getpid())
+		"socket", sockPath, "mcp", mcpSockPath, "pid", os.Getpid())
 
 	// Config carries the lock, so this cannot compile without having taken it.
 	d, err := daemon.New(daemon.Config{
@@ -114,9 +136,26 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	// The MCP surface runs beside the main one, on its own context, so that
+	// whatever ends Serve - a signal or rig.down, which cancels a context
+	// only Serve holds - ends this too. Without the separate cancel, rig.down
+	// would stop answering the wire and leave agents connected.
+	//rig:allow nocontextfree: this context bounds the MCP surface's whole serving life, so being unbounded is the requirement rather than an oversight
+	mcpCtx, stopMCP := context.WithCancel(ctx)
+	defer stopMCP()
+	mcpDone := make(chan struct{})
+	go func() {
+		defer close(mcpDone)
+		if err := d.ServeMCP(mcpCtx, ml); err != nil {
+			log.Error("the mcp surface stopped", "err", err)
+		}
+	}()
+
 	if err := d.Serve(ctx, l); err != nil {
 		return err
 	}
+	stopMCP()
+	<-mcpDone
 	log.Info("rigd down")
 	return nil
 }
