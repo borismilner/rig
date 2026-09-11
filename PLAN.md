@@ -345,6 +345,34 @@ mean, how a UI is described or what commands exist. All of that is data negotiat
 time. This is the Language Server Protocol lesson: the editor holds a dumb client, every bit of
 intelligence is server-side, and servers upgrade freely.
 
+**READ "NO SEMANTICS" AS THE SENTENCE AFTER IT DEFINES IT: A BAN ON SCHEMA
+KNOWLEDGE, NOT ON TRANSPORT BEHAVIOUR.** Duties 3 and 4 above are reconnection,
+backoff, a bounded queue and a typed `unavailable`, and §5g classifies all four
+as **mechanism** and sizes them at "about fifteen lines in the stub". The line
+§5d draws is **policy versus mechanism** - the 300-line fallback §5g deleted was
+policy - and none of the five duties crosses it.
+
+**This is written down because a comment in the stub itself asserted the
+opposite and three seats acted on it.** `client/surface.go` read the ban as
+covering retry, backoff and queueing, which are duties this section assigns to
+the stub by name. A worker checked the section and found the inversion. **The
+cost of a false constraint is higher than a gap: a gap invites investigation,
+while a false constraint closes it** - here it nearly produced a specification
+for a new home for the tolerant client, which §5d and §5g already home in the
+stub.
+
+**AND ONE GENUINE TENSION INSIDE THIS SECTION, NOW RESOLVED.** Duty 2 says stamp
+every **mutating** call, while the paragraph above says the stub does not know
+**what commands exist**. Deciding mutating-ness needs declared effects, which is
+exactly the schema knowledge this section forbids it. **Ruled 2026-09-11: the
+stub stamps EVERY call.** That needs no schema knowledge, satisfies duty 2's
+intent because no mutating call is ever left unstamped, and costs one string per
+frame. A stamped read-only call is ignored by the window rather than mishandled,
+since the window keys on method. **The alternative - the caller computes
+mutating-ness and passes a flag down - makes duty 2 conditional on the caller
+and leaves every non-CLI program with no id at all**, which defeats the duty for
+precisely the callers this section exists to serve.
+
 **Its surface is enumerated, budgeted and reported.** The public symbols are listed in one file
 with a count asserted in `make ci`, and every connection reports `stub_build` alongside the wire
 version. That last part matters: a defect in the pipe is fixed in code the daemon cannot reach,
@@ -1935,7 +1963,7 @@ surface on 2026-09-11 rather than assumed.
 |---|---|
 | **No argument, flag, header or second call can satisfy a confirmation** | see the four channels below. **Three exist unreserved and one does not exist at all** |
 | **Deny when no human is reachable. Not queue, and not wait** | absent. A confirmation that queues until somebody appears is an approval with a delay on it |
-| **Approval is bound to one invocation by id and argument digest** | **there is no id on the client side.** `request_id` exists on the wire and the daemon dedups against a bounded window, but nothing in the client or the CLI ever sets it, so the window never fires from any rig surface today |
+| **Approval is bound to one invocation by id and argument digest** | **NOTHING BINDS IT, AND THE MECHANISM DOES NOT EXIST - CORRECTED 2026-09-11.** `request_id` is on the wire and the daemon copies it onto the reply. **There is no dedup anywhere in the tree**: no map, no cache, no window, no replay check. No client or CLI sets the field either. §5f specifies the window as **persisted in the WAL**, and the WAL lands at M7, so this clause cannot be satisfied before M7. **The superseded text said "the daemon dedups against a bounded window", which was asserted in six places and built in none** |
 | **The prompt is composed by the daemon from structured data**, with caller-supplied text shown only as marked, escaped, secondary content | absent. A prompt a caller can write is a prompt a caller can forge |
 
 **The four channels, measured:**
@@ -3243,7 +3271,7 @@ expensive.
 | Authorisation | Two assertions §14 and §12 both rely on and neither could test as prose. **Do Not Disturb does not suppress a gating `ask`:** with DND on, a command needing `confirm` still reaches a surface and still blocks, while a lifecycle notice in the same run goes to the centre (§12, §13a). **An elevation prompt names its caller:** the rendered question carries principal, client kind, pid, command and arguments, and an interactive caller's question arrives on that caller's own surface rather than on whichever is present (§14) |
 | Introspection | §14's **three-run battery**, and it lives here rather than in §19's program-side suite: it is a property of *rig* over several clients, and the program under test is refused `introspect` and has no peers to be complete about. Run 1 ungranted A sees nothing of B; **run 2 A sees B completely - a scoped answer where a complete one was owed fails as hard as a leak**, modulo the coverage log; run 3 no `sensitive` value surfaces at any sampling rate |
 | Fuzz | Registration parser, JSON Schema inputs, frame decoding, the postMessage bridge |
-| CLI | testscript golden transcripts for every command including failures |
+| CLI | golden transcripts for every command including failures, driven by an exec harness over the built binary. **`testscript` was named here and never adopted - retired 2026-09-11**, landed as `e03c41d` using stdlib `os/exec`, because §20 names a SHAPE and the library was plumbing |
 | Generated UI | Golden snapshot per schema shape |
 | Frontend | Vitest on the bridge and stores; Playwright driving the real window - click, Esc, Tab, Enter, tray, theme switch, crash and recovery |
 | Contrast | Measured in a real browser, **both themes** - the token set is generated (§6), so the gate asserts the generator's output, not one static page. A failing ratio fails the build. **`make contrast` is the gate and CI runs it**; until 2026-09-10 it invoked a tool that had never existed and CI never called it, so the rule was prose |
@@ -3358,7 +3386,7 @@ Versions verified 2026-09-10.
 | Frontend | Svelte 5 + TypeScript + Vite + Tailwind v4 | 5.57 / 7.0 / 8.2 / 4.3 |
 | Toast motion | motion | 13.2.0 |
 | Toast content | shiki, marked | 4.4.3 / 18.0.12 |
-| Testing | stdlib, testing/synctest, go-cmp, testscript | v0.7.0 / v1.16.0 |
+| Testing | stdlib, testing/synctest, go-cmp | v0.7.0 |
 | Frontend testing | Vitest, Playwright | 5.0.0 / 1.63.0 |
 | Frontend build plugin | `@sveltejs/vite-plugin-svelte` | 7.3.0 |
 | Schema to TypeScript | `json-schema-to-typescript`, so the window's types come from the same schema `cmd/schemagen` emits | 16.0.0 |
@@ -3373,7 +3401,7 @@ defect and the distinction is not currently drawn.**
 **Measured 2026-09-11 against `go.mod`:** of the Go rows above, only the
 protobuf runtime and the JSON Schema validator are actually present. `koanf`,
 `cobra`, `sqlite`, OpenTelemetry, `go-keyring`, `xgb`, `bubbletea`, `lipgloss`,
-`glamour`, `huh`, `go-cmp`, `testscript` and `systray` are **all named here and
+`glamour`, `huh`, `go-cmp` and `systray` are **all named here and
 absent from every manifest** - because the sections that adopt them are not
 built yet.
 
@@ -3467,7 +3495,7 @@ it closed on 2026-09-11. M7 is the other half.
 
 | From | Kept | Needed by | State today |
 |---|---|---|---|
-| **M6** | **A client-generated request id on every mutating call** | **M7, and §16 says so in as many words**: without the request id and the session token *"the claim above is false on any retry"*, because a `barrier.arrive()` that times out and is retried releases a barrier of nine with eight agents present | **HALF BUILT AND THE HALF THAT EXISTS IS THE WRONG HALF.** `request_id` is wire field 4 and the daemon dedups against a bounded window; **nothing in any client or the CLI ever sets it**, so the window has never fired from a rig surface. §14's own audit says this at `:1895` |
+| **M6** | **A client-generated request id on every mutating call** | **M7, and §16 says so in as many words**: without the request id and the session token *"the claim above is false on any retry"*, because a `barrier.arrive()` that times out and is retried releases a barrier of nine with eight agents present | **THE FIELD EXISTS, THE MECHANISM DOES NOT - CORRECTED 2026-09-11.** `request_id` is wire field 4, plumbed both directions since M0 and set by nothing. **There is no dedup in the tree at all**, so the superseded "the daemon dedups against a bounded window" was false rather than half true. §5f puts the window in the **WAL**, which lands at M7, so **M6 owes the CLIENT half only** - a client-generated id on every call - and the window arrives with the WAL. See §14's clause row on binding approval to one invocation, which carries the same correction. **Cited by behaviour rather than by line: this reference used to be a line number and rotted twice in one evening** |
 | **M6** | **A session token that survives a reconnect** | same sentence of §16, and §37 precondition 4 | **NOT ON THE WIRE AT ALL.** `grep session proto/rig/v1/wire.proto` returns nothing. A proto change, so it batches with anything else in flight there |
 | **M6** | **The tolerant client** (§5g): reconnect loop with backoff to a deadline, bounded outbound queue, one typed `unavailable` | §37 precondition 4 - *a restart is survivable and distinguishable from a blip*. An agent whose daemon restarts mid-development must reconcile rather than fail | not built |
 | **M6** | **The `systemd --user` unit with no `ExecStop`** (§5l) | **§37 precondition 5**, and nothing else. Production must still be serving after a logout or the agents cannot depend on it | not built. **The unit sets no `XDG_RUNTIME_DIR`**, which is what makes it unable to reach `development` - see §37 |
@@ -3479,7 +3507,8 @@ it closed on 2026-09-11. M7 is the other half.
 | **M3 entirely** - `rig shell`, the `rig tui` frame, `huh` forms | **agents do not use a TUI.** M7's own contention and timeline views are TUI views and defer with it; they are observability OF the coordination service, not part of it |
 | **M4's config layers, provenance, diff and the `events` service** | **M7's signals and watches are its own primitives**, not subscriptions on the config bus. §16 gives `post`/`await` and a watch with one global revision and a cursor. The rider - news appended to the result of whatever call you make next - needs no subscription at all, which is its whole point |
 | **M5 entirely** - ingest, the call log, redaction spans, `rig doctor`, `rig logs` | none of it is reachable from a coordination primitive, and §14 already gates history reading behind M5's redaction spans rather than the other way round |
-| **M6's start, stop, restart, health, budgets, quarantine, lifecycle notices, and the three supervisor event kinds** | supervision of OTHER programs. M7 coordinates agents that are already running |
+| **M6's start, stop, restart, health, budgets, quarantine and lifecycle notices** | supervision of OTHER programs. M7 coordinates agents that are already running |
+| **The three supervisor event kinds, `system.resumed` included** | **THE ROW STANDS AND ITS REASON IS REPLACED, 2026-09-11.** It used to defer as "supervision of OTHER programs", decided for all three on one sentence without checking §5h's basis for any. That is wrong for `system.resumed`: its basis is *"rig owns `boot_id` and `CLOCK_BOOTTIME`"*, and §16's resume grace epoch is a LEASE-CORRECTNESS mechanism, not supervision. **The deferral survives on other grounds** - M7 detects a suspend gap by comparing `CLOCK_BOOTTIME` against `CLOCK_MONOTONIC` and needs no event kind to do it. Only a PROGRAM being *told* about a resume needs the event, and no program needs that before M7 |
 | **M6's resolved snapshot on disk** | a config-availability mechanism. Coordination state has its own durability - see the correction below |
 
 #### THE CORRECTION THIS RULING FORCED, and it moves a §37 precondition
@@ -4068,6 +4097,48 @@ is imported because AgentBox has it.** Each mechanism below is here because an
 agent working beside another agent fails without it, and the IN/OUT judgement
 for every candidate is recorded in the cross.
 
+### THE ACCEPTANCE FLOOR, WHICH IS BORIS'S AND WAS RECORDED NOWHERE UNTIL 2026-09-11
+
+**His words, and this specification did not carry them in any form:**
+
+> *"One sanity check is that the functionality in rig must be at the absolute
+> minimum as good as in AgentBox; It should be taken to the highest level of
+> quality, robustness, usefullness and feature-completeness."*
+
+**This is an ACCEPTANCE CRITERION, not a steer.** It says when the M16 cutover
+is allowed to happen: a mechanism rig takes over from AgentBox is not done when
+it exists, it is done when it is **at least as good as the thing it replaces**.
+It bounds §29's non-goals from the other side - a feature may be ruled OUT, but
+one ruled IN may not ship weaker than AgentBox's.
+
+**Where it was found, and why that matters:** in a departed seat's handoff
+document, quoted verbatim, and in **no specification, backlog or decision log**.
+It is the second requirement of his in two days to be found living only in a
+volatile file, after the tray icon. **A handoff is notes; it is not where a
+requirement is kept.**
+
+**AND THE STEER IS QUOTED THREE DIFFERENT WAYS, ALL INSIDE QUOTE MARKS. AT MOST
+ONE IS VERBATIM.**
+
+| Source | Quoted as |
+|---|---|
+| the coordinating seat's handoff | *"Not all AgentBox are must-have in rig, **but the ones that are must be taken to the absolute highest level as I already said.**"* |
+| §16's agent-parallelism subsection | *"not all AgentBox are must-have in rig, **some of its features have no place in the rig**"* |
+| this section, above | *"we decided to not make perfect parity to AgentBox, some of its features have no place in the rig."* |
+
+**The middle one is the head of the first welded to the tail of the third.**
+
+**The dispute is recorded rather than resolved, deliberately.** Nothing in this
+repository can say which is verbatim; only a transcript can, and picking a
+winner without one would produce a fourth version.
+
+**But the damage is already legible without resolving it.** Both of the
+specification's copies keep the clause that **licenses omission** and drop the
+clause that **demands quality**. So until today this document recorded Boris
+permitting features to be left out, and recorded nowhere his requirement that
+what remains be taken to the highest level. **A misquotation is worse than a
+gap, because it reads as evidence.**
+
 ### The ranking, and what it is ranked by
 
 §34 lists twelve gaps in the order they were found and does not claim that is a
@@ -4241,6 +4312,16 @@ at a larger scale, where *"a scoped caller and an introspecting one read
 different maps at the same instant"* is exactly the withheld-versus-absent
 distinction above.
 
+**HOW V20 IS APPLIED TO THE CAPABILITY MAP: THE BASIS MARKER, AND A WITHHELD
+LIST IS REFUSED.** Annotated 2026-09-11, owed since the map shipped and never
+written down. **The map says HOW IT WAS FILTERED, not WHAT WAS REMOVED.** Read
+without this, the withheld-versus-absent clause above appears to demand an
+enumeration of what a scoped caller did not get - and a seat acting on that
+would build the very oracle the registry refuses, with §36 apparently on its
+side. **The reasoning, and the entry that owns it, is `DECISIONS.md`'s
+basis-marker entry** - it is deliberately not restated here, because two copies
+of one argument drift and the log is the durable half.
+
 
 ---
 
@@ -4305,10 +4386,10 @@ for rig's own development.** The gate in §24 fires when the last one lands.
 | # | Precondition | Where it lands | State |
 |---|---|---|---|
 | 1 | **Estate identity in the protocol.** A name and a role (`production` / `development`) an agent can READ | §14, and the wire | **DONE 2026-09-11, both halves.** On the wire as `rig.estate` (`1177f80`); reachable from a terminal as `rig estate` (`9e8b9fc`, ratchet `a3c97e1`). **Demonstrated on three live estates** - unnamed, `production` and `development` - each isolated in its own `XDG_RUNTIME_DIR`, plus the no-daemon refusal through the shared renderer and completion offering the verb. **Zero and `UNNAMED` render differently on both surfaces, asserted by a test that fails if they ever match**, and role and name are asserted to travel together or not at all |
-| 2 | **State scoped per estate.** Config, storage and the call log keyed by estate, not by uid | **M7, where the WAL lands - CORRECTED 2026-09-11.** It said M5, where storage lands; §16's coordination service carries its own write-ahead log and that is the first persistent state rig holds | **SPECIFIED 2026-09-11, builds at M5.** Estate-scoped state lives under `$XDG_STATE_HOME/rig/estates/<name>/`, extending the subtree `paths.EstateLock` already keys by name. The shared root keeps exactly one tenant, the cross-estate name claim. **An unnamed estate gets no persistent state at all**, and that is the answer rather than an omission - see below |
+| 2 | **State scoped per estate.** Config, storage and the call log keyed by estate, not by uid | **M7, where the WAL lands - CORRECTED 2026-09-11.** It said M5, where storage lands; §16's coordination service carries its own write-ahead log and that is the first persistent state rig holds | **SPECIFIED 2026-09-11, builds at M7 - CORRECTED 2026-09-11.** This cell said M5 while the cell to its left said M7, one row naming two milestones; M7 is right, because the WAL is the first persistent state rig holds. Estate-scoped state lives under `$XDG_STATE_HOME/rig/estates/<name>/`, extending the subtree `paths.EstateLock` already keys by name. The shared root keeps exactly one tenant, the cross-estate name claim. **An unnamed estate gets no persistent state at all**, and that is the answer rather than an omission - see below |
 | 3 | **Build and semantic skew is detected, not discovered.** A client built from the development tree talking to the production daemon is refused or warned | §21, and **the wire** | **RE-MEASURED 2026-09-11, and it is TWO different gaps wearing one row - see below.** For a PROGRAM the fields already exist and nothing reads them. For a TERMINAL or an AGENT there is no handshake to carry them at all. **Batched with row 1 as one wire change** |
 | 4 | **A restart is survivable and distinguishable from a blip.** Epoch handles, two-step lease expiry with witnesses, and `owner_gone` | M7, §16 | **ruled, unbuilt, and the gap in the ruling is CLOSED 2026-09-11.** V15 rules the daemon publishes an epoch and every handle carries it. The row used to end *"ruled for crashes; a deliberate self-upgrade is the SAME event and nothing says so"*. It says so now: **the epoch is bumped on every start, unconditionally, and nothing distinguishes a planned restart from a crash** - see below. The BUILD is still M7 |
-| 5 | **The `systemd --user` unit manages production ONLY.** The development estate is never under it | M6, §5l | **SPECIFIED 2026-09-11, builds at M6.** **`production` owns the DEFAULT `XDG_RUNTIME_DIR` and `development` is always placed explicitly**, so a unit that sets nothing cannot reach development by construction rather than by a flag it might omit. `ExecStop` is `rig down`, never a signal to a pid. §5l's AgentBox scar - an `ExecStop` killing the healthy daemon it managed - is what this is shaped against |
+| 5 | **The `systemd --user` unit manages production ONLY.** The development estate is never under it | M6, §5l | **SPECIFIED 2026-09-11, builds at M6.** **`production` owns the DEFAULT `XDG_RUNTIME_DIR` and `development` is always placed explicitly**, so a unit that sets nothing cannot reach development by construction rather than by a flag it might omit. **The unit carries NO `ExecStop` AT ALL - CORRECTED 2026-09-11.** This row used to say `ExecStop` is `rig down`. It is struck, 3-to-0: §5l's own heading (*"its unit must not carry an `ExecStop`"*), §5l's body (*"Do not give it an `ExecStop`, and this is not a style note"*) and §23's two M6 rows all say no. **This row was never an independent fourth vote** - its author confirmed it wrote from a quotation of §5l reproduced inside this very cell, and never opened §5l, so it had the scar and not the rule. `rig down` is the same shape as the `agentbox quit` that caused the scar: single-instance-by-flock plus auto-spawn makes the start command exit 0, systemd thinks the service finished, and `ExecStop` kills the healthy daemon already serving |
 | 6 | **A named estate refuses a name already held**, and says which name and which pid | §5f | **BUILT 2026-09-11 (`2a110c2`), and the name set closed at two (`76e2d86`).** The claim lives under `XDG_STATE_HOME`, not `XDG_RUNTIME_DIR` - two estates differ exactly in their runtime directory, so a claim beside the socket would refuse nothing. **An unnamed estate claims nothing**, which is the ephemeral-estates clause holding by construction; verified live rather than assumed, its state directory empty |
 
 ### Three preconditions specified ahead of the milestone they build at, 2026-09-11
@@ -4382,7 +4463,9 @@ construction rather than by a flag somebody might omit.** Reversing the two
 would have the unit manage development by accident, which is why which estate
 takes the default is a decision and not a convention.
 
-**`ExecStop` is `rig down`, never a signal to a pid.** `rig down` needs no
+**STRUCK 2026-09-11. The unit carries no `ExecStop` at all**, per §5l's heading and body. The superseded text read *"`ExecStop` is `rig down`, never a signal to a pid"* and is kept struck rather than deleted because the reasoning below shows how it was reached: it treated "never a signal to a pid" as §5l's lesson, when §5l's lesson is that the unit must carry no stop command whatever its form. `agentbox quit` was not a signal either, and it is what did the damage. Original text follows.
+
+**~~`ExecStop` is `rig down`, never a signal to a pid.~~** `rig down` needs no
 estate argument at all - `main.go` states the reason, that two estates are two
 runtime directories, *"so a stop needs no estate name and there is nothing to
 get wrong"* - and it is already per-estate, which is why it retired `pkill -x
