@@ -4207,11 +4207,112 @@ for rig's own development.** The gate in §24 fires when the last one lands.
 | # | Precondition | Where it lands | State |
 |---|---|---|---|
 | 1 | **Estate identity in the protocol.** A name and a role (`production` / `development`) an agent can READ | §14, and the wire | **DONE 2026-09-11, both halves.** On the wire as `rig.estate` (`1177f80`); reachable from a terminal as `rig estate` (`9e8b9fc`, ratchet `a3c97e1`). **Demonstrated on three live estates** - unnamed, `production` and `development` - each isolated in its own `XDG_RUNTIME_DIR`, plus the no-daemon refusal through the shared renderer and completion offering the verb. **Zero and `UNNAMED` render differently on both surfaces, asserted by a test that fails if they ever match**, and role and name are asserted to travel together or not at all |
-| 2 | **State scoped per estate.** Config, storage and the call log keyed by estate, not by uid | M5, where storage lands | **not specified, and it is the one that bites silently.** `internal/paths` scopes the sockets and the pidfile and nothing else, because rig holds no persistent state yet. The conventional store is `$XDG_STATE_HOME`, which is NOT scoped by `XDG_RUNTIME_DIR` - so the development estate would write into production's store |
+| 2 | **State scoped per estate.** Config, storage and the call log keyed by estate, not by uid | M5, where storage lands | **SPECIFIED 2026-09-11, builds at M5.** Estate-scoped state lives under `$XDG_STATE_HOME/rig/estates/<name>/`, extending the subtree `paths.EstateLock` already keys by name. The shared root keeps exactly one tenant, the cross-estate name claim. **An unnamed estate gets no persistent state at all**, and that is the answer rather than an omission - see below |
 | 3 | **Build and semantic skew is detected, not discovered.** A client built from the development tree talking to the production daemon is refused or warned | §21, and **the wire** | **RE-MEASURED 2026-09-11, and it is TWO different gaps wearing one row - see below.** For a PROGRAM the fields already exist and nothing reads them. For a TERMINAL or an AGENT there is no handshake to carry them at all. **Batched with row 1 as one wire change** |
-| 4 | **A restart is survivable and distinguishable from a blip.** Epoch handles, two-step lease expiry with witnesses, and `owner_gone` | M7, §16 | **ruled, unbuilt.** V15 rules the daemon publishes an epoch and every handle carries it. Ruled for crashes; a deliberate self-upgrade is the SAME event and nothing says so |
-| 5 | **The `systemd --user` unit manages production ONLY.** The development estate is never under it | M6, §5l | **not specified.** §5l already carries AgentBox's scar: an `ExecStop` killed the healthy daemon it managed, because single-instance-by-flock plus auto-spawn makes the start command exit 0. **rig has the identical shape, and a second estate is exactly the condition that fires it** |
+| 4 | **A restart is survivable and distinguishable from a blip.** Epoch handles, two-step lease expiry with witnesses, and `owner_gone` | M7, §16 | **ruled, unbuilt, and the gap in the ruling is CLOSED 2026-09-11.** V15 rules the daemon publishes an epoch and every handle carries it. The row used to end *"ruled for crashes; a deliberate self-upgrade is the SAME event and nothing says so"*. It says so now: **the epoch is bumped on every start, unconditionally, and nothing distinguishes a planned restart from a crash** - see below. The BUILD is still M7 |
+| 5 | **The `systemd --user` unit manages production ONLY.** The development estate is never under it | M6, §5l | **SPECIFIED 2026-09-11, builds at M6.** **`production` owns the DEFAULT `XDG_RUNTIME_DIR` and `development` is always placed explicitly**, so a unit that sets nothing cannot reach development by construction rather than by a flag it might omit. `ExecStop` is `rig down`, never a signal to a pid. §5l's AgentBox scar - an `ExecStop` killing the healthy daemon it managed - is what this is shaped against |
 | 6 | **A named estate refuses a name already held**, and says which name and which pid | §5f | **BUILT 2026-09-11 (`2a110c2`), and the name set closed at two (`76e2d86`).** The claim lives under `XDG_STATE_HOME`, not `XDG_RUNTIME_DIR` - two estates differ exactly in their runtime directory, so a claim beside the socket would refuse nothing. **An unnamed estate claims nothing**, which is the ephemeral-estates clause holding by construction; verified live rather than assumed, its state directory empty |
+
+### Three preconditions specified ahead of the milestone they build at, 2026-09-11
+
+**Boris, asked whether to pull this work forward:** *"If it is architecturally
+smart: do it."* **Three of the four open preconditions are decidable now and one
+is not.** The test applied to each was not whether it could be written down, but
+whether the decision is cheaper before the code exists or after. For three it is
+strictly cheaper before, because the code that would otherwise have to be
+revisited has not been written yet. **The fourth is refused below, with its
+reason**, because a list where everything qualifies is a list that was not
+applied.
+
+#### Precondition 2: `$XDG_STATE_HOME/rig/estates/<name>/`, and an unnamed estate gets none
+
+**The mechanism already exists and this extends it rather than inventing one.**
+`paths.EstateLock` is `$XDG_STATE_HOME/rig/estates/<name>.pid` today, so the
+`estates` subtree is already the idiom and the estate name is already the key.
+Config, storage and the call log go under `estates/<name>/` when M5 lands them.
+
+**The shared root keeps exactly one tenant, and that is a rule rather than an
+observation.** `StateDir`'s own comment says what the root is for: a name claim
+only refuses a duplicate if both estates can see it, and the one place the
+runtime directory does not reach is outside the runtime directory. **Anything
+placed at that root is by construction visible to both estates**, which is the
+property the claim needs and precisely the property everything else must not
+have.
+
+**An unnamed estate therefore has NO persistent state, and that is the answer
+rather than an omission.** Its name is the empty string, `ValidEstateName`
+refuses the empty string, and so there is no subtree for it to be keyed to.
+**This falls out of the ephemeral-estates clause above rather than contradicting
+it:** an ephemeral estate that persisted across runs would be a third estate
+arriving by the back door. A test that needs state gives itself a name, or does
+without.
+
+**Why it could not wait for M5.** The row said *"not specified, and it is the
+one that bites silently"*. Specified at M5 this is a rule applied to storage
+call sites that already exist; specified now it is the rule the first one is
+written against. **The failure it prevents is silent in both directions** - the
+development estate writing into production's store raises nothing at all - so
+the moment to decide it is the moment before there is anything to decide it
+about.
+
+#### Precondition 4: a deliberate restart publishes a new epoch exactly as a crash does
+
+**The epoch is bumped on every daemon start, unconditionally, and nothing may
+distinguish a planned restart from a crash.**
+
+**Why the asymmetry decides it.** A handle that trusts a restart because it was
+told about that restart in advance is a handle trusting a claim, and it breaks
+the first time the claim is wrong. **The cost of treating a planned restart as a
+crash is one re-acquisition. The cost of the reverse is a fencing token that
+outlives the thing it fences**, which is the failure leases exist to prevent.
+
+**This is the case rig's own development creates constantly and no other user
+does.** Rebuilding and restarting the development daemon is the inner loop of
+self-hosting, so the estate that walks this path most is the one running the
+work. A rule written only for crashes would have been tested by the crash case
+and used by the restart case.
+
+**The BUILD is unmoved and still M7.** Epoch handles need leases, leases need
+presence, and presence is M7's content. What closes here is the specification.
+
+#### Precondition 5: production owns the default runtime directory, so the unit cannot reach development
+
+**`production` takes the DEFAULT `XDG_RUNTIME_DIR`; `development` is always
+placed explicitly.** A `systemd --user` unit inherits the ordinary environment,
+so a unit that sets nothing reaches production and **cannot reach development by
+construction rather than by a flag somebody might omit.** Reversing the two
+would have the unit manage development by accident, which is why which estate
+takes the default is a decision and not a convention.
+
+**`ExecStop` is `rig down`, never a signal to a pid.** `rig down` needs no
+estate argument at all - `main.go` states the reason, that two estates are two
+runtime directories, *"so a stop needs no estate name and there is nothing to
+get wrong"* - and it is already per-estate, which is why it retired `pkill -x
+rigd`: that killed every estate on the machine.
+
+**§5l's scar is what this is shaped against.** An `ExecStop` killed the healthy
+daemon it managed, because single-instance-by-flock plus auto-spawn makes the
+start command exit 0. **rig has the identical shape and a second estate is
+exactly the condition that fires it**, so the unit never learns a pid and never
+signals one.
+
+#### Precondition 3 is NOT specified here, and the reason is a measurement that has not landed
+
+**It has an open measurement and new evidence from the same day, and a rule
+written now would be written about the wrong half.**
+
+§37 already leaves open **whether a daemon-level semantic generation floor is
+coherent at all**, put to backend-1 with the shape and deliberately not decided.
+And on 2026-09-11 backend-2 produced evidence that moves what *detected* has to
+mean: **`effectsLabel` and `durationLabel` in `cmd/rig` render an enum value
+outside the descriptor as a bare decimal**, so a newer daemon's fifth effect
+prints as `4` beside four words. **That is skew DISCOVERED, by a human squinting
+at output, at the CLIENT** - and this row has only ever been written about the
+wire.
+
+**So the row is two gaps in two layers and only one of them was known when it
+was written.** Specifying it now would settle the wire half and leave the client
+half to be found again later, which is the shape this section exists to prevent.
 
 ### `rig.estate`, the fourth self-method, and why items 1 and 3 are ONE change
 
