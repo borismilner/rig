@@ -2822,6 +2822,116 @@ benchmark as evidence of anything.
   way the coverage log records the gap (§15), and expiry is frozen for one TTL after resume
   (§16).
 
+
+### The supervisor as a machine, not a description
+
+**Everything above this line is prose, and that was the finding.** §34 named
+§18 as the calibration point at the wrong end: five state names that appear only
+in §5's candidate section, no state set, no transition table, no owner, no
+statement of what is illegal. **The consequence is not cosmetic** - §5's
+"declared state machines, if the supervisor can be its first client" cannot be
+tested while the supervisor is sentences, because there is nothing to express.
+
+**The states, and this is the set. There are no others.**
+
+| State | Means |
+|---|---|
+| `STARTING` | rig has launched the child and it has not completed the handshake |
+| `HEALTHY` | registered, and showing evidence of progress (below) |
+| `DEGRADED` | reachable, and failing its health definition |
+| `RESTARTING` | inside the restart budget, backing off |
+| `QUARANTINED` | out of budget, or failed registration. **Visible, with history, and it stays until a human acts** |
+
+**The transitions, with the trigger and who owns causing it.**
+
+| From | To | Trigger | Caused by |
+|---|---|---|---|
+| - | `STARTING` | launch | rig, or a program connecting unbidden |
+| `STARTING` | `HEALTHY` | handshake and declaration validated | the program |
+| `STARTING` | `QUARANTINED` | any registration step fails | rig. **Not a retry loop** |
+| `HEALTHY` | `DEGRADED` | three health failures, or a missed deadline | rig's health check |
+| `DEGRADED` | `HEALTHY` | health recovers | rig's health check |
+| `DEGRADED` | `RESTARTING` | five failures | rig's restart budget |
+| `RESTARTING` | `STARTING` | backoff elapses, budget remains | rig's restart budget |
+| `RESTARTING` | `QUARANTINED` | budget exhausted | rig's restart budget |
+| any | `QUARANTINED` | a hosted program panics twice in budget (§5j) | the invoker |
+| `QUARANTINED` | `STARTING` | **a human, and only a human** | manual restart |
+
+**The illegal transitions, and what happens on one.** Everything not in the
+table above is illegal. **An attempted illegal transition is not ignored and not
+best-guessed: it is recorded as a supervisor fault and the program is
+quarantined**, because a supervisor that cannot account for its own state is the
+one component whose confusion is not survivable. This is the row the prose could
+never have: *inferable* transitions are exactly the ones nobody checks are total.
+
+**Four actors can move a program and they are named here** because "three
+failures is degraded" hid that: the health check, the restart budget, the
+invoker's panic recovery, and a human. **A `DRAINING` notice moves leases, not
+program states** (§16) - it is not a fifth actor, and reading it as one is the
+mistake this row prevents.
+
+### Health is evidence of progress, not evidence of responsiveness
+
+**"Responding" is the wrong health definition for the actor this estate
+actually supervises.** A service that answers is working. **An agent session
+that answers may be idle, stuck, looping, or parked on a question nobody can
+see** - every agent-specific failure is responsive, so a liveness check passes
+through all of them.
+
+| | |
+|---|---|
+| **Health is evidence of PROGRESS** | a renewal carries a progress marker. **A renewal emitted by a background thread proves the process runs and nothing else**, which is the check that cannot fail and therefore cannot help |
+| **Idle-and-not-blocked is UNHEALTHY, with a threshold** | not a rest state. A session doing nothing and waiting for nothing is the characteristic failure, and it looks identical to diligence from outside |
+| **A waiting session declares WHAT it waits for** | so waiting is distinguishable from stuck. Without it the two are the same observation, and one of them is fine |
+| **Parked on a question nobody has seen is its own state** | it is neither progress nor a fault, and rendering it as either loses the only action that helps, which is showing the question to a human |
+
+**This is the same defect as the roster's `partial`, and as four measurement
+bugs this repository has already shipped:** a check that cannot distinguish
+"nothing is wrong" from "the check did not run". **Being told a program is
+responsive answers a question nobody asked.**
+
+### What survives what: the state ownership matrix
+
+**§18 promises programs "are told explicitly what was lost". That is the
+promise; this is the mechanism.** Scattered per-subsystem prose means no reader
+sees the whole thing and programs guess.
+
+**Six events reduce to three, and the reduction is a finding rather than a
+convenience.** An *upgrade* is stop-swap-start with no handover, and neither
+version number is ever compared (§21), so **an upgrade is exactly a daemon
+restart**. A *reboot* is a daemon restart in which every program restarts too. A
+*program restart* is holder death for everything that program put in. So the
+columns are: **daemon restart**, **holder death**, **seat succession**.
+
+| State class | Daemon restart | Holder death | Seat succession |
+|---|---|---|---|
+| Declaration | **lost; the PROGRAM rebuilds it** by re-registering on reconnect | lost with the connection | n/a - programs do not occupy seats |
+| Lease | **survives**, with expiry frozen one TTL past resume (§16) | **ORPHANED, not FREE**, until the witness is observed dead | held leases transfer to the successor generation |
+| Coordination claim | **survives** | **ABANDONED, inheritable by one CAS write** | transfers |
+| Seat | **survives** | **ORPHANED**, and the seat outlives every occupant | the point of the mechanism |
+| Blackboard key, durable class | **survives** | survives; ownership goes abandoned if claimed | n/a |
+| Blackboard key, session class | lost | lost | lost |
+| Subscription | **lost; the CLIENT rebuilds it** from its cursor, and `gap: true` if retention has moved past it | lost | the successor resubscribes from the seat's cursor |
+| Queued message | **survives**, queued against the seat | **survives** - this is what queueing against a seat rather than a session buys | **delivered to the successor** |
+| Pending confirmation | **DENIED, never carried across** | denied | denied. **An approval outliving the invocation that asked for it is the hole §13a closes** |
+| Detached operation | survives; output buffered | survives - it is rig's child, not the caller's | reattachable by the successor |
+| Schedule entry | **survives**; missed fires resolve by `idempotent` (above) | survives | n/a |
+| Config | **survives**; re-resolved through §6's layers | n/a | n/a |
+| Single-instance claim | released and retaken | **released by design** - the flock lives on the descriptor | n/a |
+
+**Every cell has an answer, "nothing survives" included, and the side that
+rebuilds what is not preserved is named where anything does.** That naming is
+the half that makes the table usable: a program that knows a declaration is lost
+and that rebuilding it is *its* job needs no negotiation on reconnect.
+
+**What is true TODAY is a different document and deliberately so:**
+`logbook/projects/rig/state-ownership-today-2026-09-11.md`, measured by reading
+every piece of state `internal/` holds. **The headline: nothing rig holds
+survives anything, and nine of these thirteen classes do not exist yet.** The
+two tables are meant to diverge - one is the target, the other is the distance
+to it - and **merging "does not exist" with "exists and is lost" is the thing
+that would make both useless.**
+
 ---
 
 ## 19. The conformance suite
@@ -3681,10 +3791,18 @@ Record: `logbook/projects/rig/taxonomy-parity-cross-2026-09-11.md`.
 | 3 | Seats, generations, `HANDING_OFF` as a published state | **no - see below** | §16 |
 | 4 | Retraction of a posted item | **yes** | §16 |
 | 5 | A lease name registered with the resource it protects | no | §16 |
-| 6 | Health is evidence of progress; idle-and-not-blocked is unhealthy | **yes** | §18, owed |
-| 7 | Durability of an agent's own work | no | owed |
-| 8 | At-risk detection and the escalation ladder | partial | owed |
-| 9 | The state ownership matrix | no | §18, owed, data in hand |
+| 6 | Health is evidence of progress; idle-and-not-blocked is unhealthy | **yes** | §18 |
+| 7 | Durability of an agent's own work | no | **owed** |
+| 8 | At-risk detection and the escalation ladder | partial | **owed** |
+| 9 | The state ownership matrix | no | §18 |
+
+**§18 also gained the thing that BLOCKED something else.** The supervisor was
+described entirely in prose, which is why §5's "declared state machines, if the
+supervisor can be its first client" could never be tested: there was nothing to
+express. It now has a state set, a transition table with the trigger and the
+owner of each, a statement of what is illegal and what happens on one, and the
+four actors that can move a program named. **That test is now runnable**, and it
+was costed at a design session rather than a milestone.
 
 **Rank 3 is absent from the parity pass because AgentBox has no seats either**,
 and that is the finding rather than a weakness in the pass. The estate runs
