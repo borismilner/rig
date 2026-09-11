@@ -24,8 +24,26 @@ import (
 // exits non-zero: a shell that prints "is rigd running?" into the middle of a
 // half-typed command line is worse than one that offers nothing.
 
+// verbVersion is one string in three places that MUST agree: the dispatch
+// switch in main.go, the flag set that parses it, and the completion list
+// below. If they drift, the completion list and the dispatch switch disagree
+// about which verbs exist, and nothing says so.
+//
+// Only this one verb is hoisted, and the reason is honest rather than tidy:
+// goconst fires at six occurrences and `version` is the only verb that
+// reaches six, because it is also a JSON output key in three places. The
+// other five verbs have exactly the same coupling and deserve the same
+// treatment; doing all six is a consistent change on its own rather than
+// something to smuggle into a lint fix.
+//
+// The JSON keys are deliberately NOT this constant. An output key is part of
+// a contract with whoever reads `--json`; a verb is an input this file
+// dispatches on. They share a spelling and nothing else, and giving them one
+// name would couple two things that are free to move apart.
+const verbVersion = "version"
+
 // staticVerbs are rig's own, and the only names in this file.
-var staticVerbs = []string{"apps", "ping", "down", "version", "completion", "help"}
+var staticVerbs = []string{"apps", "ping", "down", verbVersion, "completion", "help"}
 
 // cmdCompletion prints the script for one shell.
 func cmdCompletion(args []string) error {
@@ -77,7 +95,7 @@ func candidates(argv []string) []string {
 			// suggest `rig down <program>` is a thing, which is exactly the
 			// named-estate concept proposal P5 was refused for wanting.
 			return []string{"--json", "--timeout"}
-		case "version", "help":
+		case verbVersion, "help":
 			return []string{"--json"}
 		}
 		return commandsOf(argv[0])

@@ -131,6 +131,13 @@ type Daemon struct {
 func (d *Daemon) replyThenStop(c *conn, streamID uint32, stop context.CancelFunc) {
 	defer stop()
 	c.reply(streamID, &rigv1.DownResponse{
+		// A Linux pid is bounded by /proc/sys/kernel/pid_max, whose own
+		// ceiling is 2^22 (PID_MAX_LIMIT), so it cannot overflow int32 - and
+		// the proto field is int32 for that same reason rather than by
+		// accident. Kept as a directive with the bound written down rather
+		// than a runtime check, because a check here could only report an
+		// impossible state at the moment rig is shutting down.
+		//nolint:gosec // pid_max <= 2^22, so int -> int32 cannot overflow
 		Pid:     int32(os.Getpid()),
 		Version: d.version,
 	})

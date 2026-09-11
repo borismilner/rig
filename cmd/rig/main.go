@@ -106,7 +106,7 @@ func run(args []string) error {
 	}
 
 	switch args[0] {
-	case "version":
+	case verbVersion:
 		return cmdVersion(args[1:])
 	case "ping":
 		return cmdPing(args[1:])
@@ -152,7 +152,7 @@ func run(args []string) error {
 // cmdVersion prints all three versions plus the build, because they are not the
 // same number and section 28 says so.
 func cmdVersion(args []string) error {
-	fs := flag.NewFlagSet("version", flag.ContinueOnError)
+	fs := flag.NewFlagSet(verbVersion, flag.ContinueOnError)
 	asJSON := fs.Bool("json", false, "emit JSON")
 	flags, _ := partition(args)
 	if err := fs.Parse(flags); err != nil {
