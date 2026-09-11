@@ -38,17 +38,23 @@ app, and every program already has it without being touched.
 
 ## Where this is
 
-**A specification, plus the two pieces that had to be proven before writing it.**
-There is no daemon yet. `PLAN.md` is the whole design at 2300 lines, ordered
-into seventeen milestones, and it is what the rest of this repo exists to
-support.
+**A specification, and a daemon that now runs against it.** `PLAN.md` is the
+whole design, ordered into seventeen milestones, and it is what the rest of this
+repo exists to support.
 
 | Piece | State |
 |---|---|
 | `PLAN.md` | Complete. Architecture, wire protocol, capability model, isolation, the conformance suite, the milestone order |
 | `design/` | Built. A live, self-contained visual system with a theme engine that measures its own contrast |
 | `cmd/ipcbench/` | Built and measured. The transport numbers the daemon architecture rests on |
-| `cmd/rigd`, `cmd/rig` | Not started. Milestone M0 |
+| `cmd/rigd` | Built. The daemon, the kernel, the wire, house rules and the registry |
+| `cmd/rig` | Built. `rig <program> <command>`, generated help and completion, `--json` on every answer and every error |
+| `cmd/fakeapp` | Built. The reference program the conformance suite drives |
+
+**This table said "`cmd/rigd`, `cmd/rig` - not started, milestone M0" until
+2026-09-11**, by which point M0 was tagged and M1 was six slices in. **It is the
+first table a reader meets**, and it was the last thing to be updated. Corrected
+after a seat ran the repository's own claims rather than reading them.
 
 ## Measured before it was designed
 
@@ -78,6 +84,14 @@ Three decisions fell out of that table:
 
 Re-take them on your own machine with `make bench-ipc`. The absolute numbers
 move with the hardware and the load; the ratios the decisions rest on do not.
+
+**With one exception, and it is the row carrying an architectural decision: the
+gRPC number is NOT produced by `make bench-ipc`.** `cmd/ipcbench` contains no
+gRPC code at all. Every other row here reproduces within a few percent, verified
+row by row on 2026-09-11; the +9.80 MiB was measured separately and is not
+re-runnable from this repository. **Said here because "re-take them" over a
+table whose most consequential row cannot be re-taken is the kind of claim this
+project keeps catching in its own instruments.**
 
 ## The visual system
 
