@@ -5,8 +5,41 @@ import (
 	"fmt"
 
 	"github.com/boris-milner/rig/internal/kernel"
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )
+
+// caller is everything the authorization floor needs about one invocation,
+// with no connection anywhere in it.
+//
+// The floor used to take a *conn and a *rigv1.Frame. That is why an in-process
+// surface could not reach it at all: a call that never touched the socket has
+// neither, so the daemon could not implement meta.Invoker without either
+// bypassing the floor or growing a second one. Section 13a now states the rule
+// this type exists to satisfy - "every function on a path to invocation
+// carries the principal, and a signature that cannot express the caller is a
+// defect in the signature" - and the floor was never bypassed here, it was
+// made unreachable by a type.
+//
+// Holding the method and the args rather than the frame is what makes it
+// serve both: the wire path already has a frame to read them from, and the
+// in-process path has no frame to build.
+type caller struct {
+	who kernel.Principal
+
+	// method is <program>.<command>. It reaches the decision log and the
+	// gating question, both of which name the call to a person.
+	method string
+
+	// args is the payload exactly as it will be delivered. Section 14 requires
+	// a gating prompt to carry the arguments as they will be invoked, so
+	// losing them here would make the prompt forgeable by omission.
+	args []byte
+
+	// requestID is the caller's own id, stable across a retry, which rig
+	// dedups against a bounded window (section 4). It is not the floor's
+	// input - it travels with the invocation, and a surface that cannot
+	// produce one sends it empty, exactly as every rig surface does today.
+	requestID string
+}
 
 // Question is a gating ask, carrying everything section 14 says a prompt must
 // carry: the principal and its client kind, the pid, the command, and the
@@ -62,12 +95,11 @@ type Asker interface {
 // hello is the one method that does not come through here, and that is not an
 // exemption: it MINTS the principal, so there is no pair to match before it.
 func (d *Daemon) authorize(
-	ctx context.Context, from *conn, f *rigv1.Frame, program, command string,
+	ctx context.Context, from caller, program, command string,
 ) (kernel.Decision, bool, error) {
-	who := from.principal()
 	refs := []kernel.Ref{{Kind: kernel.RefCommand, Program: program, Command: command}}
 
-	dec, err := d.kernel.Authorize(who, refs)
+	dec, err := d.kernel.Authorize(from.who, refs)
 	if err != nil {
 		return dec, false, err
 	}
@@ -78,15 +110,15 @@ func (d *Daemon) authorize(
 		// that becomes an audit log at M5. Until then an allow is debug and a
 		// refusal is a warning, because a line per read-only call at info
 		// buries the ones that matter.
-		d.logDecision(from, f, dec, true)
+		d.logDecision(from, dec, true)
 		return dec, true, nil
 
 	case kernel.ActionDeny:
-		d.logDecision(from, f, dec, false)
+		d.logDecision(from, dec, false)
 		return dec, false, nil
 
 	case kernel.ActionConfirm:
-		return d.confirm(ctx, from, f, dec)
+		return d.confirm(ctx, from, dec)
 
 	default:
 		return dec, false, fmt.Errorf(
@@ -102,38 +134,36 @@ func (d *Daemon) authorize(
 // default. The disambiguating kind, which parks instead, is not this - it
 // arrives with the peers service.
 func (d *Daemon) confirm(
-	ctx context.Context, from *conn, f *rigv1.Frame, dec kernel.Decision,
+	ctx context.Context, from caller, dec kernel.Decision,
 ) (kernel.Decision, bool, error) {
-	who := from.principal()
-
 	if d.ask == nil {
 		dec.Reason = fmt.Sprintf("%s, and no surface could ask: a gating "+
 			"question nobody answers is denied", dec.Reason)
-		d.logDecision(from, f, dec, false)
+		d.logDecision(from, dec, false)
 		return dec, false, nil
 	}
 
 	answered, err := d.ask.Ask(ctx, Question{
-		Principal: who,
+		Principal: from.who,
 		Decision:  dec,
-		Method:    f.GetMethod(),
-		Args:      f.GetPayload(),
+		Method:    from.method,
+		Args:      from.args,
 	})
 	if err != nil {
 		dec.Reason = fmt.Sprintf("%s, and the question could not be put: %v",
 			dec.Reason, err)
-		d.logDecision(from, f, dec, false)
+		d.logDecision(from, dec, false)
 		return dec, false, nil
 	}
 	if !answered {
 		dec.Reason += ", and the answer was no"
-		d.logDecision(from, f, dec, false)
+		d.logDecision(from, dec, false)
 		return dec, false, nil
 	}
 
 	// The answer authorises THIS call and nothing else. Nothing is stored on
 	// the connection, so the next call asks again.
-	d.logDecision(from, f, dec, true)
+	d.logDecision(from, dec, true)
 	return dec, true, nil
 }
 
@@ -143,13 +173,13 @@ func (d *Daemon) confirm(
 // the pair, the action, the origin, the rule if one fired, and the principal
 // that arrived. Section 15's recorded call log at M5 replaces this with
 // something queryable; the vocabulary is the same either way.
-func (d *Daemon) logDecision(from *conn, f *rigv1.Frame, dec kernel.Decision, allowed bool) {
+func (d *Daemon) logDecision(from caller, dec kernel.Decision, allowed bool) {
 	args := []any{
-		"method", f.GetMethod(),
+		"method", from.method,
 		"pair", dec.Pair.String(),
 		"action", dec.Action.String(),
 		"origin", dec.Origin.String(),
-		"principal", from.principal().String(),
+		"principal", from.who.String(),
 	}
 	if dec.Rule != "" {
 		args = append(args, "rule", dec.Rule)

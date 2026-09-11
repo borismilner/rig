@@ -409,7 +409,7 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	// match before it. `caller` is what hello establishes. Authorising it
 	// would mean asking who is calling before there is an answer.
 	if command != "hello" {
-		dec, allowed, err := d.authorize(ctx, c, f, kernel.SelfID, command)
+		dec, allowed, err := d.authorize(ctx, callerOf(c, f), kernel.SelfID, command)
 		if err != nil {
 			c.fail(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err.Error())
 			return
@@ -574,8 +574,68 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	}
 }
 
-// route forwards a call to a program and relays its answer back.
-func (d *Daemon) route(ctx context.Context, from *conn, f *rigv1.Frame, program, command string) {
+// callFailure is a refusal the boundary produced, in the one form both
+// surfaces need.
+//
+// The wire path turns it into an ERROR frame; the in-process path turns it
+// into an error return. It holds the whole Status rather than a code and a
+// sentence so section 9's four fields - the failed precondition, the state
+// actually found, the fix, and the exact command that fixes it - survive to
+// either one. A refusal that reaches only one surface is section 35's defect:
+// acceptance is not a contract, retrievability is.
+type callFailure struct {
+	status *rigv1.Status
+
+	// err is the original refusal where there was one, so the in-process
+	// surface returns what the kernel actually raised rather than a sentence
+	// rebuilt out of a Status.
+	err error
+}
+
+func failure(code rigv1.Code, msg string) *callFailure {
+	return &callFailure{status: &rigv1.Status{Code: code, Message: msg}}
+}
+
+// failureErr is failure for a refusal that may know more than its sentence,
+// and it is failErr's logic with the connection taken out.
+func failureErr(code rigv1.Code, err error) *callFailure {
+	st := &rigv1.Status{Code: code, Message: err.Error()}
+	if f, ok := kernel.AsRefusal(err); ok {
+		st.Precondition = f.Precondition
+		st.Actual = f.Actual
+		st.Fix = f.Fix
+		st.FixCommand = f.FixCommand
+	}
+	return &callFailure{status: st, err: err}
+}
+
+// callerOf reads the floor's inputs off a connection and the frame it sent.
+func callerOf(c *conn, f *rigv1.Frame) caller {
+	return caller{
+		who:       c.principal(),
+		method:    f.GetMethod(),
+		args:      f.GetPayload(),
+		requestID: f.GetRequestId(),
+	}
+}
+
+// call is THE authorisation path, and every surface that invokes a declared
+// command goes down this one.
+//
+// It is synchronous and returns the program's reply, so a surface holding no
+// connection - the MCP server here at M2, the HTTP routes at slice 6 - meets
+// the same floor as the wire instead of needing one of its own. Section 13a:
+// "a new surface SPLITS the existing path and reuses its floor; it never grows
+// a second one. Two floors is how they diverge, and the one that diverges is
+// whichever was added last."
+//
+// It was extracted from route rather than written beside it, deliberately.
+// Writing it beside route would have produced the second floor that rule
+// forbids, and it would have looked correct: the same four checks in the same
+// order, drifting the first time one of them changed.
+func (d *Daemon) call(
+	ctx context.Context, from caller, program, command string,
+) (*rigv1.Frame, *callFailure) {
 	// Section 14, and this is the check routing did not have: a principal
 	// reaches only what it may see. Without it a program could invoke a
 	// program it could not list, because route looked the target up in the
@@ -591,19 +651,17 @@ func (d *Daemon) route(ctx context.Context, from *conn, f *rigv1.Frame, program,
 	// off, so the CLI and the window still reach everything; what this
 	// restricts is one PROGRAM calling another, which today means a program
 	// reaches itself and nothing else.
-	if _, visible := d.kernel.See(from.principal()).Program(program); !visible {
-		from.fail(f.GetStreamId(), rigv1.Code_CODE_NOT_FOUND,
+	if _, visible := d.kernel.See(from.who).Program(program); !visible {
+		return nil, failure(rigv1.Code_CODE_NOT_FOUND,
 			fmt.Sprintf("no program %q is connected", program))
-		return
 	}
 
 	d.mu.RLock()
 	to := d.programs[program]
 	d.mu.RUnlock()
 	if to == nil {
-		from.fail(f.GetStreamId(), rigv1.Code_CODE_NOT_FOUND,
+		return nil, failure(rigv1.Code_CODE_NOT_FOUND,
 			fmt.Sprintf("no program %q is connected", program))
-		return
 	}
 
 	// The authorization floor, and it is here rather than on any surface so
@@ -615,20 +673,18 @@ func (d *Daemon) route(ctx context.Context, from *conn, f *rigv1.Frame, program,
 	// declared rather than on the caller's view, and closing gap 1 did not
 	// make that redundant - see Kernel.pair for what it decides for a caller
 	// that can reach its target.
-	dec, allowed, err := d.authorize(ctx, from, f, program, command)
+	dec, allowed, err := d.authorize(ctx, from, program, command)
 	if err != nil {
-		from.fail(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err.Error())
-		return
+		return nil, failure(rigv1.Code_CODE_INTERNAL, err.Error())
 	}
 	if !allowed {
-		from.fail(f.GetStreamId(), rigv1.Code_CODE_DENIED, dec.Reason)
-		return
+		return nil, failure(rigv1.Code_CODE_DENIED, dec.Reason)
 	}
 
 	// And only then, what was sent. A refused caller learns nothing about the
 	// schema it would have had to satisfy.
-	if !d.validateArgs(from, f, program, command) {
-		return
+	if err := d.validateArgs(from, program, command); err != nil {
+		return nil, failureErr(rigv1.Code_CODE_INVALID, err)
 	}
 
 	// A new even stream on the program's connection, with a slot waiting for
@@ -649,15 +705,14 @@ func (d *Daemon) route(ctx context.Context, from *conn, f *rigv1.Frame, program,
 	out := &rigv1.Frame{
 		StreamId:  sid,
 		Kind:      rigv1.FrameKind_FRAME_KIND_REQUEST,
-		Method:    f.GetMethod(),
-		RequestId: f.GetRequestId(),
-		Payload:   f.GetPayload(),
+		Method:    from.method,
+		RequestId: from.requestID,
+		Payload:   from.args,
 	}
 	if err := to.w.WriteFrame(out); err != nil {
 		cleanup()
-		from.fail(f.GetStreamId(), rigv1.Code_CODE_UNAVAILABLE,
+		return nil, failure(rigv1.Code_CODE_UNAVAILABLE,
 			fmt.Sprintf("program %q: %v", program, err))
-		return
 	}
 
 	callCtx, cancel := context.WithTimeout(ctx, CallTimeout)
@@ -665,21 +720,36 @@ func (d *Daemon) route(ctx context.Context, from *conn, f *rigv1.Frame, program,
 
 	select {
 	case reply := <-ch:
-		relay := &rigv1.Frame{
-			StreamId: f.GetStreamId(),
-			Kind:     reply.GetKind(),
-			Payload:  reply.GetPayload(),
-			Status:   reply.GetStatus(),
-		}
-		if err := from.w.WriteFrame(relay); err != nil {
-			d.log.Warn("could not relay reply", "program", program, "err", err)
-		}
+		return reply, nil
 	case <-callCtx.Done():
 		cleanup()
 		// The deadline is rig's, not the program's: a hung program must never
 		// hold a rig goroutine or the caller (section 18).
-		from.fail(f.GetStreamId(), rigv1.Code_CODE_DEADLINE,
+		return nil, failure(rigv1.Code_CODE_DEADLINE,
 			fmt.Sprintf("program %q did not answer within %s", program, CallTimeout))
+	}
+}
+
+// route forwards a call to a program and relays its answer back.
+//
+// Everything it used to decide now lives in call, so this is a renderer: it
+// turns one refusal into an ERROR frame and one reply into a RESPONSE. The
+// wire cannot drift from the in-process path because there is nothing left
+// here to drift.
+func (d *Daemon) route(ctx context.Context, from *conn, f *rigv1.Frame, program, command string) {
+	reply, bad := d.call(ctx, callerOf(from, f), program, command)
+	if bad != nil {
+		from.failStatus(f.GetStreamId(), bad.status)
+		return
+	}
+	relay := &rigv1.Frame{
+		StreamId: f.GetStreamId(),
+		Kind:     reply.GetKind(),
+		Payload:  reply.GetPayload(),
+		Status:   reply.GetStatus(),
+	}
+	if err := from.w.WriteFrame(relay); err != nil {
+		d.log.Warn("could not relay reply", "program", program, "err", err)
 	}
 }
 

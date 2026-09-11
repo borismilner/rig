@@ -40,9 +40,9 @@ const ProbeCommand = "ping"
 // daemon error: the arguments come back empty and validation refuses it
 // against the declared schema, which produces a message naming the command
 // rather than a proto complaint naming a field number.
-func callArgs(f *rigv1.Frame) []byte {
+func callArgs(payload []byte) []byte {
 	var req rigv1.CallRequest
-	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+	if err := proto.Unmarshal(payload, &req); err != nil {
 		return nil
 	}
 	return req.GetArgs()
@@ -54,17 +54,19 @@ func callArgs(f *rigv1.Frame) []byte {
 // It runs AFTER authorisation, deliberately. A caller a house rule refuses
 // should not learn whether its arguments would have been accepted, and the
 // authorization floor is not conditional on the call being well-formed.
-func (d *Daemon) validateArgs(from *conn, f *rigv1.Frame, program, command string) bool {
+//
+// It RETURNS the refusal rather than writing it, because the refusal has two
+// destinations now: a frame on the wire path, and an error on the in-process
+// one. The kernel's error carries section 9's structure either way - which
+// surface renders it is the surface's business, not the boundary's.
+func (d *Daemon) validateArgs(from caller, program, command string) error {
 	if command == ProbeCommand {
-		return true
+		return nil
 	}
-	if err := d.kernel.ValidateArgs(program, command, callArgs(f)); err != nil {
-		// failErr rather than fail: the kernel's refusal carries section 9's
-		// structure and this is the boundary that puts it on the wire.
-		from.failErr(f.GetStreamId(), rigv1.Code_CODE_INVALID, err)
+	if err := d.kernel.ValidateArgs(program, command, callArgs(from.args)); err != nil {
 		d.log.Debug("arguments refused at the boundary",
-			"method", f.GetMethod(), "err", err)
-		return false
+			"method", from.method, "err", err)
+		return err
 	}
-	return true
+	return nil
 }
