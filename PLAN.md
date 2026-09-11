@@ -2704,7 +2704,7 @@ Versions verified 2026-09-10.
 |---|---|---|
 | Language | Go | 1.27.1 |
 | Wire | protobuf messages, hand-framed on a unix socket | google.golang.org/protobuf v1.36.x. **Not gRPC**: measured +9.80 MiB resident for HTTP/2 machinery a local socket does not need (§17) |
-| Schema | JSON Schema 2020-12: santhosh-tekuri/jsonschema (validate), invopop/jsonschema (emit) | v6.0.3 / v0.14.0 |
+| Schema | JSON Schema 2020-12: santhosh-tekuri/jsonschema (validate). Emission needs no library: `cmd/schemagen` walks the proto descriptors | v6.0.3 |
 | Config | knadh/koanf/v2 | v2.3.6 |
 | CLI | spf13/cobra | v1.10.2 |
 | Store | modernc.org/sqlite | v1.58.0 |
