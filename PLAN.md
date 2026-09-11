@@ -3276,12 +3276,42 @@ reading, not only by term count, and the term counts are given where they are th
 
 | Count | |
 |---|---|
-| `foundational` mechanisms absent | **11 of 183.** Anything above zero is load-bearing |
-| Named but not defined to the bar | 1 confirmed so far (§18's supervisor as prose). **Not yet counted in full, and it is expected to be the larger and more dangerous number** |
-| Part IV confusion pairs this document conflates | **not yet counted** |
+| `foundational` mechanisms absent | **10 absent and 2 partial, of 12 examined.** Anything above zero is load-bearing. **This is a floor, not a count of 183** - the twelve were reached by triage from Part V's 22 entries and from the categories a density measurement pointed at, not by walking all 183. The earlier wording, "11 of 183", was both wrong arithmetic and a triage presented as an audit |
+| Named but not defined to the bar | **open, and being taken now** against Part V's 22 entries, which each carry an acceptance test. Seventeen are adjudicated: four confirmed present (above), twelve became the gap rows, and §13a's conflict resolution is `partial` (below). **Five remain** - V13, V15, V18, V20 and the unexamined clauses of the rest. Record: `logbook/projects/rig/count2-part-v-audit-2026-09-11.md` |
+| Part IV confusion pairs this document conflates | **2 of 25.** #16 `confirmation` / `authorization` conflated outright, #15 `policy denial` / `precondition` / `validation` / `unconfirmed` partially. Record: `logbook/projects/rig/conflation-audit-2026-09-11.md` |
 
-**The second and third counts are open, and saying so is the point.** A pass that reported
+**The second count is open, and saying so is the point.** A pass that reported
 only what it finished would be the same defect it is auditing.
+
+### Added by the count-2 pass: house rules are not fully specified
+
+**§13a states the conflict-resolution rule and states it well** - *"the most restrictive
+wins: `deny` over `confirm` over `allow`"*, with first-match and most-specific both named
+and refused because *"both fail open"*. A term sweep scored this section zero on every word
+the taxonomy uses for it, and **the sweep was wrong**: the plan is ahead of the probe,
+stating `deny-overrides` in its own vocabulary. That false positive is why every row in
+this section was read before it was written.
+
+**Four clauses of the same mechanism are unanswered**, and the fourth is the one that
+matters:
+
+| Clause | State |
+|---|---|
+| Evaluated on the exact effective **arguments** that will execute, with no re-parsing between decision and dispatch | **absent.** §13a matches on the pair `(caller, effects)`; arguments are never matched |
+| Evaluation cannot error or block, and any failure is **deny** | **absent** |
+| A decision names its matching rule, its **config layer** and the **remedy** | **partial.** `origin` carries `rule`/`elevation` and the rule id; layer and remedy are not recorded |
+| **A program re-declaring a command with weaker `effects` is detected rather than trusted** | **absent** |
+
+**The last row is an authority hole, and it is the same shape as the two already queued for
+Boris.** `effects` is declared by the program, and house rules match on that declaration.
+Nothing says what happens when a program re-registers a command at a *weaker* level - so a
+rule written as `(agent, destructive) -> confirm` stops matching the moment the program
+re-declares that command as `writes-files`. **No rule is violated and no denial is logged**,
+because the pair simply stopped matching. `effects` being *"a floor, not an equality"* widens
+it: one step down the enum drops every rule written at or above the old level.
+
+**Traceable to** V17 and category AA, and it belongs beside gap 5 (authority attenuation):
+both are authority leaking because nobody stated who may change the input to the decision.
 
 ### What this pass has not done
 
