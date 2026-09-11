@@ -86,7 +86,11 @@ function num(n) {
  *   align "l" or "r" overrides the alignment type would have chosen. Use it
  *   when a column sorts one way and reads the other - see alignOf.
  *   fmt returns text; el returns a NODE for a cell that is not text.
- *   cls is added to every cell and cannot change alignment; align does that.
+ *   cls is added to every cell. Do not use it to align: it is added AFTER the
+ *   alignment class, and .rig-r is declared after .rig-l at equal specificity,
+ *   so cls can only ever push a cell right and never left. That asymmetry is
+ *   the bug `align` exists to remove - use align and ignore the fact that
+ *   cls: "rig-r" happens to work.
  * opts: { sortKey, sortDir, limit, searchKeys, countEl, emptyText }
  *   emptyText may be a string or a function returning one.
  *

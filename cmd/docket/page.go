@@ -49,6 +49,25 @@ const page = `<!doctype html>
   /* Held until the tokens land, on the absence of pane.js's marker. See the
      Go comment on this const for why it is not a class. */
   html:not([data-rig-painted]) { visibility: hidden }
+
+  /* The give-up state, which pane.js guarantees reaching and this page has to
+     survive. Measured cold: with no token set, NOTHING is defined, so
+     a background of var(--fg-faint) computes to transparent and the whole
+     Builds column disappears while its boxes keep their 8x13 space - a column of
+     silently missing information, which is worse than a wrong colour. The
+     page's own text computed to black at the same time.
+
+     One block rather than 21 per-property fallbacks, keyed on the attribute
+     pane.js sets when it gives up. Values are design/theme.js's dark output,
+     copied rather than invented so this is not a second palette. It is still a
+     copy and will drift; the engine emitting a fallback set that pane.js can
+     apply on the timeout path is the real fix and is a kit decision, not this
+     program's to take. */
+  html[data-rig-unthemed] {
+    --fg: #dae5f3; --fg-dim: #a1b1c5; --fg-faint: #8e9fb1;
+    --panel: #212a34; --border: #64778c; --hue: #dae5f3;
+    --h-sage: #92cf9a; --h-amber: #e1b673;
+  }
   body { margin: 0; min-height: 100vh; box-sizing: border-box;
          padding: 1rem 1.15rem 1.6rem;
          background: var(--panel); color: var(--fg);
