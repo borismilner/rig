@@ -157,9 +157,16 @@ func TestAFlagThatWasNotDeclaredIsRefusedWithTheOnesThatWere(t *testing.T) {
 	}
 	// The error is the whole point: whoever typed it needs the list, not a
 	// complaint.
+	//
+	// Checked against what is RENDERED rather than against err.Error(). The
+	// list moved out of the sentence and into the structured `actual` field
+	// when rig's own failures gained a Status, so err.Error() is now the
+	// sentence alone - the same shape CallError.Error() has always had. What
+	// the person sees is errorText, and that is what has to carry the list.
+	shown := errorText(err)
 	for _, want := range []string{"--untl", "--since", "--dry-run", "--workers"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Fatalf("the error does not mention %s: %v", want, err)
+		if !strings.Contains(shown, want) {
+			t.Fatalf("the rendering does not mention %s:\n%s", want, shown)
 		}
 	}
 }

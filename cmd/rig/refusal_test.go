@@ -189,15 +189,18 @@ func TestAMultiLineValueStaysUnderItsLabel(t *testing.T) {
 // parallel rendering that requirement exists to prevent.
 func TestTheJSONObjectIsTheStatusAndNothingElse(t *testing.T) {
 	var buf bytes.Buffer
-	err := writeJSONStatus(&buf, &rigv1.Status{
+	obj, _, structured := shape(refuse(&rigv1.Status{
 		Code:         rigv1.Code_CODE_INVALID,
 		Message:      "arguments do not match the declared schema",
 		Precondition: `since matches ^[0-9]+[dhm]$`,
 		Actual:       `since is "soon"`,
 		Fix:          "give a duration: a number then d, h or m",
 		FixCommand:   "rig fakeapp reindex --since 7d",
-	})
-	if err != nil {
+	}, false))
+	if !structured {
+		t.Fatal("a wire refusal did not reduce to an object")
+	}
+	if err := writeJSONStatus(&buf, obj); err != nil {
 		t.Fatalf("writeJSONStatus: %v", err)
 	}
 
@@ -229,10 +232,11 @@ func TestTheJSONObjectIsTheStatusAndNothingElse(t *testing.T) {
 // reading `"fix": ""` has been told rig looked.
 func TestAnAbsentFieldIsNotAnEmptyStringInJSON(t *testing.T) {
 	var buf bytes.Buffer
-	if err := writeJSONStatus(&buf, &rigv1.Status{
+	obj, _, _ := shape(refuse(&rigv1.Status{
 		Code:    rigv1.Code_CODE_DENIED,
 		Message: "refused by a house rule",
-	}); err != nil {
+	}, false))
+	if err := writeJSONStatus(&buf, obj); err != nil {
 		t.Fatalf("writeJSONStatus: %v", err)
 	}
 	var got map[string]any
@@ -310,24 +314,122 @@ func TestTheJSONRefusalGoesToStdoutAndTheHumanOneToStderr(t *testing.T) {
 	}
 }
 
-// A local failure has no Status behind it, so there is nothing structured to
-// render. It keeps prose on stderr in BOTH modes, and that is the known gap
-// named on jsonStatus rather than an accident - section 10 says "every error"
-// and giving rig's own failures a wire code is a separate decision.
-func TestALocalFailureIsNotDressedAsAStructuredRefusal(t *testing.T) {
+// An error nobody gave a shape to keeps prose on stderr in both modes. That
+// is the floor rather than the goal: section 10 says every error, so a bare
+// error reaching here is a call site nobody has converted yet, and it must
+// degrade to what it printed before rather than to an invented object.
+func TestAnUnshapedErrorStaysProseAndStaysOnStderr(t *testing.T) {
 	plain := os.ErrNotExist
 
-	var dressed *refusal
-	if errors.As(asRefusal(plain, true), &dressed) {
-		t.Errorf("asRefusal dressed a local error as a refusal: %#v", dressed)
+	if _, _, structured := shape(plain); structured {
+		t.Error("a bare error was given a shape it never had")
 	}
 	var out, errb bytes.Buffer
-	report(&out, &errb, plain)
+	report(&out, &errb, inMode(plain, true))
 	if out.Len() != 0 {
-		t.Errorf("a local failure wrote to stdout: %q", out.String())
+		t.Errorf("an unshaped error wrote to stdout: %q", out.String())
 	}
 	if !strings.HasPrefix(errb.String(), "rig: ") {
-		t.Errorf("a local failure lost its prefix: %q", errb.String())
+		t.Errorf("an unshaped error lost its prefix: %q", errb.String())
+	}
+}
+
+// THE HARD CONSTRAINT ON B2-4, proved rather than asserted: rig's own codes
+// cannot collide with the daemon's.
+//
+// It is true by construction - every code the daemon can send is a value of
+// the wire's Code enum and is spelled CODE_*, so a RIG_* code is disjoint
+// from all of them and from every one added later. This walks the descriptor
+// so that the guarantee survives somebody naming a rig code CODE_something
+// out of habit, and so that a daemon enum value spelled RIG_ would be caught
+// on this side the day it appeared.
+func TestRigsOwnCodesCannotCollideWithTheDaemons(t *testing.T) {
+	daemon := map[string]bool{}
+	values := rigv1.Code(0).Descriptor().Values()
+	for i := range values.Len() {
+		daemon[string(values.Get(i).Name())] = true
+	}
+	if len(daemon) == 0 {
+		t.Fatal("read no codes off the wire enum: the descriptor walk is broken")
+	}
+
+	mine := []string{
+		codeNoDaemon, codeNoSuchProgram, codeNoSuchCommand,
+		codeBadArgument, codeTimeout, codeBadResult,
+	}
+	seen := map[string]bool{}
+	for _, c := range mine {
+		if daemon[c] {
+			t.Errorf("%s is a code the daemon also sends", c)
+		}
+		if !strings.HasPrefix(c, codeLocal) {
+			t.Errorf("%s is not prefixed %s, so disjointness is no longer "+
+				"structural", c, codeLocal)
+		}
+		if seen[c] {
+			t.Errorf("%s is declared twice, so two failures render as one", c)
+		}
+		seen[c] = true
+	}
+	for name := range daemon {
+		if strings.HasPrefix(name, codeLocal) {
+			t.Errorf("the wire enum gained %s, which collides with rig's own "+
+				"prefix", name)
+		}
+	}
+}
+
+// Section 10 says --json on EVERY error. A failure with no daemon behind it
+// is the one an agent hits first, and it was the one that returned prose.
+func TestRigsOwnFailuresReturnTheSameObjectShape(t *testing.T) {
+	e := noDaemon(errors.New("client: dial /run/user/1000/rig/rigd.sock: " +
+		"connect: no such file or directory"))
+
+	var out, errb bytes.Buffer
+	report(&out, &errb, inMode(e, true))
+	if errb.Len() != 0 {
+		t.Errorf("--json wrote prose to stderr: %q", errb.String())
+	}
+	var got map[string]any
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+		t.Fatalf("--json emitted something unparseable: %v\n%s", err, out.String())
+	}
+	if got["code"] != codeNoDaemon {
+		t.Errorf("code = %v, want %s", got["code"], codeNoDaemon)
+	}
+	// The fix has to be runnable, which is the whole point of the field.
+	if got["fix_command"] != "rigd" {
+		t.Errorf("fix_command = %v, want rigd", got["fix_command"])
+	}
+	for _, k := range []string{"precondition", "actual", "fix"} {
+		if s, _ := got[k].(string); strings.TrimSpace(s) == "" {
+			t.Errorf("%q is empty on the one failure rig knows best", k)
+		}
+	}
+
+	// And the same failure in human mode renders the fields under the
+	// sentence rather than a second copy of the hint inside it.
+	out.Reset()
+	errb.Reset()
+	report(&out, &errb, inMode(e, false))
+	if out.Len() != 0 {
+		t.Errorf("human mode wrote to stdout: %q", out.String())
+	}
+	if !strings.Contains(errb.String(), "fix command   rigd") {
+		t.Errorf("human mode lost the fix command: %q", errb.String())
+	}
+	if strings.Count(errb.String(), "rigd running") != 0 {
+		t.Errorf("the old hint is still inside the sentence: %q", errb.String())
+	}
+}
+
+// The chain has to survive the shape. cmdDown decides an unreachable socket
+// is a successful stop by matching two errnos through errors.Is, and that
+// check runs on errors this package now wraps.
+func TestAShapedFailureStillUnwrapsToItsCause(t *testing.T) {
+	cause := os.ErrNotExist
+	if !errors.Is(noDaemon(cause), cause) {
+		t.Error("noDaemon broke the chain errors.Is walks")
 	}
 }
 

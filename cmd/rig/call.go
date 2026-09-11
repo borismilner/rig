@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -55,22 +54,27 @@ type callFlags struct {
 }
 
 // cmdCall runs one declared command.
-func cmdCall(program, command string, argv []string) error {
-	own, rest, err := splitOwnFlags(argv)
+func cmdCall(program, command string, argv []string) (err error) {
+	var own callFlags
+	var rest []string
+	own, rest, err = splitOwnFlags(argv)
 	if err != nil {
 		return err
 	}
+	// Everything below can fail, and all of it is rendered the way the caller
+	// asked. --json was not known until the line above.
+	defer func() { err = inMode(err, own.asJSON) }()
 
 	c, err := client.Connect()
 	if err != nil {
-		return fmt.Errorf("%w\n       is rigd running? start it with: rigd", err)
+		return noDaemon(err)
 	}
 	defer c.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), own.timeout)
 	defer cancel()
 
-	decl, err := lookup(ctx, c, program, command, own.asJSON)
+	decl, err := lookup(ctx, c, program, command)
 	if err != nil {
 		return err
 	}
@@ -82,7 +86,7 @@ func cmdCall(program, command string, argv []string) error {
 
 	var resp rigv1.CallResponse
 	if err := call(ctx, c, program+"."+command,
-		&rigv1.CallRequest{Args: args}, &resp, own.asJSON); err != nil {
+		&rigv1.CallRequest{Args: args}, &resp); err != nil {
 		return err
 	}
 	return printResult(program, command, resp.GetResult(), own.asJSON)
@@ -113,7 +117,7 @@ func splitOwnFlags(argv []string) (callFlags, []string, error) {
 		// written with an equals sign.
 		if !inline && name != "json" {
 			if i+1 >= len(argv) {
-				return own, nil, fmt.Errorf("--%s needs a value", name)
+				return own, nil, badArgumentf("--%s needs a value", name)
 			}
 			i++
 			value = argv[i]
@@ -123,7 +127,7 @@ func splitOwnFlags(argv []string) (callFlags, []string, error) {
 			if inline {
 				b, err := strconv.ParseBool(value)
 				if err != nil {
-					return own, nil, fmt.Errorf("--json takes true or false: %w", err)
+					return own, nil, badArgumentf("--json takes true or false: %s", err)
 				}
 				own.asJSON = b
 				continue
@@ -132,7 +136,7 @@ func splitOwnFlags(argv []string) (callFlags, []string, error) {
 		case "timeout":
 			d, err := time.ParseDuration(value)
 			if err != nil {
-				return own, nil, fmt.Errorf("--timeout: %w", err)
+				return own, nil, badArgumentf("--timeout: %s", err)
 			}
 			own.timeout = d
 		case "args":
@@ -149,11 +153,9 @@ func splitOwnFlags(argv []string) (callFlags, []string, error) {
 // declared is reported with the program's coverage, because "shelf declares 3
 // of its 20 commands" is the difference between a typo and a command that
 // exists but has not been adopted yet.
-func lookup(ctx context.Context, c *client.Client, program, command string,
-	asJSON bool,
-) (*rigv1.Command, error) {
+func lookup(ctx context.Context, c *client.Client, program, command string) (*rigv1.Command, error) {
 	var resp rigv1.ProgramsResponse
-	if err := call(ctx, c, "rig.programs", &rigv1.ProgramsRequest{}, &resp, asJSON); err != nil {
+	if err := call(ctx, c, "rig.programs", &rigv1.ProgramsRequest{}, &resp); err != nil {
 		return nil, err
 	}
 
@@ -168,19 +170,33 @@ func lookup(ctx context.Context, c *client.Client, program, command string,
 				return cmd, nil
 			}
 		}
-		return nil, fmt.Errorf("%s declares no command %q\n       it declares: %s\n"+
-			"       coverage is %s, so this may be a command it has not adopted yet",
-			program, command, strings.Join(commandIDs(p), ", "),
-			strings.ToLower(strings.TrimPrefix(p.GetCoverage().String(), "COVERAGE_")))
+		coverage := strings.ToLower(strings.TrimPrefix(p.GetCoverage().String(), "COVERAGE_"))
+		return nil, local(jsonStatus{
+			Code:         codeNoSuchCommand,
+			Message:      fmt.Sprintf("%s declares no command %q", program, command),
+			Precondition: fmt.Sprintf("%s declares a command named %q", program, command),
+			Actual: fmt.Sprintf("it declares: %s\ncoverage is %s, so this may be a "+
+				"command it has not adopted yet",
+				strings.Join(commandIDs(p), ", "), coverage),
+			Fix:        "run one it declares, or see what else it has",
+			FixCommand: "rig " + program + " --help",
+		})
 	}
 
 	sort.Strings(names)
-	if len(names) == 0 {
-		return nil, fmt.Errorf("no program %q is connected, and neither is any other",
-			program)
+	connected := "nothing is connected"
+	if len(names) > 0 {
+		connected = "connected: " + strings.Join(names, ", ")
 	}
-	return nil, fmt.Errorf("no program %q is connected\n       connected: %s",
-		program, strings.Join(names, ", "))
+	return nil, local(jsonStatus{
+		Code:         codeNoSuchProgram,
+		Message:      fmt.Sprintf("no program %q is connected", program),
+		Precondition: program + " is registered with rig",
+		Actual:       connected,
+		// No fix command: rig cannot start a program, and section 9 would
+		// rather say nothing than offer one that does not run.
+		Fix: "start " + program + ", or check the name",
+	})
 }
 
 func commandIDs(p *rigv1.Program) []string {
@@ -203,12 +219,12 @@ func commandIDs(p *rigv1.Program) []string {
 // rig would have to pick one silently.
 func buildArgs(decl *rigv1.Command, own callFlags, rest []string) ([]byte, error) {
 	if own.hasArgs && len(rest) > 0 {
-		return nil, fmt.Errorf("--args and the flag %s cannot both be given: "+
-			"--args is the whole argument object", rest[0])
+		return nil, badArgumentf("--args and the flag %s cannot both be "+
+			"given: --args is the whole argument object", rest[0])
 	}
 	if own.hasArgs {
 		if !json.Valid([]byte(own.args)) {
-			return nil, errors.New("--args is not valid JSON")
+			return nil, badArgumentf("--args is not valid JSON")
 		}
 		return []byte(own.args), nil
 	}
@@ -221,7 +237,8 @@ func buildArgs(decl *rigv1.Command, own callFlags, rest []string) ([]byte, error
 		return nil, err
 	}
 	if len(schema.Properties) == 0 {
-		return nil, fmt.Errorf("%s declares no arguments, so %s is not one of them",
+		return nil, badArgumentf(
+			"%s declares no arguments, so %s is not one of them",
 			decl.GetId(), rest[0])
 	}
 
@@ -229,22 +246,28 @@ func buildArgs(decl *rigv1.Command, own callFlags, rest []string) ([]byte, error
 	for i := 0; i < len(rest); i++ {
 		a := rest[i]
 		if !strings.HasPrefix(a, "-") {
-			return nil, fmt.Errorf("unexpected argument %q: every declared "+
-				"argument is a flag, and this command takes %s",
+			return nil, badArgumentf("unexpected argument %q: every "+
+				"declared argument is a flag, and this command takes %s",
 				a, strings.Join(schema.names(), ", "))
 		}
 		name, value, inline := strings.Cut(strings.TrimLeft(a, "-"), "=")
 
 		prop, ok := schema.property(name)
 		if !ok {
-			return nil, fmt.Errorf("%s takes no --%s\n       it takes: %s",
-				decl.GetId(), name, strings.Join(schema.names(), ", "))
+			return nil, local(jsonStatus{
+				Code:    codeBadArgument,
+				Message: fmt.Sprintf("%s takes no --%s", decl.GetId(), name),
+				Precondition: fmt.Sprintf("%s declares an argument named %q",
+					decl.GetId(), name),
+				Actual: "it takes: " + strings.Join(schema.names(), ", "),
+				Fix:    "see what it declares, with its types and examples",
+			})
 		}
 		// A flag given twice is a mistake, not a preference. Taking the last
 		// one silently is how `--since 1d --since 2d` in a script reindexes
 		// the wrong window and nothing says so.
 		if _, already := out[prop.name]; already {
-			return nil, fmt.Errorf("--%s was given twice", prop.flag())
+			return nil, badArgumentf("--%s was given twice", prop.flag())
 		}
 		if prop.kind() == "boolean" && !inline {
 			out[prop.name] = true
@@ -252,7 +275,7 @@ func buildArgs(decl *rigv1.Command, own callFlags, rest []string) ([]byte, error
 		}
 		if !inline {
 			if i+1 >= len(rest) {
-				return nil, fmt.Errorf("--%s needs a value", name)
+				return nil, badArgumentf("--%s needs a value", name)
 			}
 			i++
 			value = rest[i]

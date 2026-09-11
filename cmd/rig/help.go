@@ -40,7 +40,7 @@ func asksForHelp(argv []string) bool {
 func helpForProgram(program string) error {
 	c, err := client.Connect()
 	if err != nil {
-		return fmt.Errorf("%w\n       is rigd running? start it with: rigd", err)
+		return noDaemon(err)
 	}
 	defer c.Close()
 
@@ -88,14 +88,14 @@ func helpForProgram(program string) error {
 func helpForCommand(program, command string) error {
 	c, err := client.Connect()
 	if err != nil {
-		return fmt.Errorf("%w\n       is rigd running? start it with: rigd", err)
+		return noDaemon(err)
 	}
 	defer c.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	decl, err := lookup(ctx, c, program, command, false)
+	decl, err := lookup(ctx, c, program, command)
 	if err != nil {
 		return err
 	}
@@ -238,7 +238,7 @@ func enumList(vals []any) string {
 // lookupProgram finds one program, and lists the others when it is not there.
 func lookupProgram(ctx context.Context, c *client.Client, program string) (*rigv1.Program, error) {
 	var resp rigv1.ProgramsResponse
-	if err := call(ctx, c, "rig.programs", &rigv1.ProgramsRequest{}, &resp, false); err != nil {
+	if err := call(ctx, c, "rig.programs", &rigv1.ProgramsRequest{}, &resp); err != nil {
 		return nil, err
 	}
 	var names []string

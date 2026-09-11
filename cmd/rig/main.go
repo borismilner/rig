@@ -167,7 +167,7 @@ func cmdVersion(args []string) error {
 	return nil
 }
 
-func cmdPing(args []string) error {
+func cmdPing(args []string) (err error) {
 	fs := flag.NewFlagSet("ping", flag.ContinueOnError)
 	asJSON := fs.Bool("json", false, "emit JSON")
 	timeout := fs.Duration("timeout", defaultCallTimeout, "how long to wait")
@@ -175,8 +175,10 @@ func cmdPing(args []string) error {
 	if err := fs.Parse(flags); err != nil {
 		return err
 	}
+	defer func() { err = inMode(err, *asJSON) }()
 	if len(positional) != 1 {
-		return errors.New("usage: rig ping <program> [--json] [--timeout=30s]")
+		return badArgumentf(
+			"usage: rig ping <program> [--json] [--timeout=30s]")
 	}
 	program := positional[0]
 	// An empty name used to fail at the daemon, because ".ping" is not a
@@ -184,7 +186,8 @@ func cmdPing(args []string) error {
 	// daemon would read it as "probe rig itself", so `rig ping ""` would
 	// answer about rig and look like it worked. Refuse it here instead.
 	if program == "" {
-		return errors.New("usage: rig ping <program>: the program name is empty")
+		return badArgumentf(
+			"usage: rig ping <program>: the program name is empty")
 	}
 
 	sock, err := paths.Socket()
@@ -194,7 +197,7 @@ func cmdPing(args []string) error {
 	c, err := client.Dial(sock)
 	if err != nil {
 		// The one error a user hits constantly, so it says what to do.
-		return fmt.Errorf("%w\n       is rigd running? start it with: rigd", err)
+		return noDaemon(err)
 	}
 	defer c.Close()
 
@@ -213,13 +216,19 @@ func cmdPing(args []string) error {
 	// rig.ping with the program as an argument, not <program>.ping: the probe
 	// is rig's method and never was one of the program's own commands.
 	if err := call(ctx, c, "rig.ping",
-		&rigv1.PingRequest{Nonce: nonce, Program: program}, resp, *asJSON); err != nil {
+		&rigv1.PingRequest{Nonce: nonce, Program: program}, resp); err != nil {
 		return err
 	}
 	elapsed := time.Since(start)
 
 	if !bytes.Equal(resp.GetNonce(), nonce) {
-		return fmt.Errorf("%s answered with the wrong nonce: the round trip is not ours", program)
+		return local(jsonStatus{
+			Code:         codeBadResult,
+			Message:      program + " answered with the wrong nonce: the round trip is not ours",
+			Precondition: "a probe's answer carries back the nonce rig sent",
+			Actual:       "it carried a different one",
+			Fix:          "the answer is not this probe's: suspect a proxy or a stale connection",
+		})
 	}
 
 	if *asJSON {
@@ -246,7 +255,7 @@ func cmdPing(args []string) error {
 // Scoped for free: it talks to the socket in this XDG_RUNTIME_DIR, which
 // internal/paths refuses to guess. Two estates are two runtime directories,
 // so a stop needs no estate name and there is nothing to get wrong.
-func cmdDown(args []string) error {
+func cmdDown(args []string) (err error) {
 	fs := flag.NewFlagSet("down", flag.ContinueOnError)
 	asJSON := fs.Bool("json", false, "emit JSON")
 	timeout := fs.Duration("timeout", defaultCallTimeout, "how long to wait")
@@ -254,8 +263,9 @@ func cmdDown(args []string) error {
 	if err := fs.Parse(flags); err != nil {
 		return err
 	}
+	defer func() { err = inMode(err, *asJSON) }()
 	if len(positional) != 0 {
-		return errors.New("usage: rig down [--json] [--timeout=30s]")
+		return badArgumentf("usage: rig down [--json] [--timeout=30s]")
 	}
 
 	c, err := client.Connect()
@@ -279,7 +289,7 @@ func cmdDown(args []string) error {
 			fmt.Println("nothing to stop")
 			return nil
 		}
-		return fmt.Errorf("%w\n       is rigd running? start it with: rigd", err)
+		return noDaemon(err)
 	}
 	defer c.Close()
 
@@ -287,7 +297,7 @@ func cmdDown(args []string) error {
 	defer cancel()
 
 	resp := &rigv1.DownResponse{}
-	if err := call(ctx, c, "rig.down", &rigv1.DownRequest{}, resp, *asJSON); err != nil {
+	if err := call(ctx, c, "rig.down", &rigv1.DownRequest{}, resp); err != nil {
 		return err
 	}
 
@@ -317,7 +327,7 @@ func notRunning(err error) bool {
 // itself and a client of the owner's sees all of it. Coverage travels with
 // every row because section 5k forbids a surface that implies completeness -
 // "shelf declared 3 of its 20 commands" has to be visible here, not inferred.
-func cmdApps(args []string) error {
+func cmdApps(args []string) (err error) {
 	fs := flag.NewFlagSet("apps", flag.ContinueOnError)
 	asJSON := fs.Bool("json", false, "emit JSON")
 	verbose := fs.Bool("commands", false, "list each program's commands")
@@ -325,13 +335,14 @@ func cmdApps(args []string) error {
 	if err := fs.Parse(flags); err != nil {
 		return err
 	}
+	defer func() { err = inMode(err, *asJSON) }()
 	if len(positional) == 0 || positional[0] != "list" {
-		return errors.New("usage: rig apps list [--commands] [--json]")
+		return badArgumentf("usage: rig apps list [--commands] [--json]")
 	}
 
 	c, err := client.Connect()
 	if err != nil {
-		return fmt.Errorf("%w\n       is rigd running? start it with: rigd", err)
+		return noDaemon(err)
 	}
 	defer c.Close()
 
@@ -339,7 +350,7 @@ func cmdApps(args []string) error {
 	defer cancel()
 
 	resp := &rigv1.ProgramsResponse{}
-	if err := call(ctx, c, "rig.programs", &rigv1.ProgramsRequest{}, resp, *asJSON); err != nil {
+	if err := call(ctx, c, "rig.programs", &rigv1.ProgramsRequest{}, resp); err != nil {
 		return err
 	}
 

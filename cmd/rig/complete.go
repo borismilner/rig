@@ -187,7 +187,7 @@ func programsQuietly() (*rigv1.ProgramsResponse, bool) {
 	defer cancel()
 
 	var resp rigv1.ProgramsResponse
-	if err := call(ctx, c, "rig.programs", &rigv1.ProgramsRequest{}, &resp, false); err != nil {
+	if err := call(ctx, c, "rig.programs", &rigv1.ProgramsRequest{}, &resp); err != nil {
 		return nil, false
 	}
 	return &resp, true
