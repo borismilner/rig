@@ -1713,6 +1713,99 @@ that both match the same call. First-match makes the outcome depend on the order
 to sit in a file, and most-specific makes a narrow `allow` beat a broad `deny`; both fail open,
 and this is the authorization floor.
 
+**The four clauses below were unanswered until 2026-09-11**, and the fourth is
+an authority hole that was **demonstrated in this tree, not inferred from a term
+sweep.**
+
+| Clause | What it requires |
+|---|---|
+| **Evaluated on the exact effective arguments that will execute** | with no re-parsing between the decision and the dispatch. §13a matches on the pair `(caller, effects)` and arguments were never matched at all. A decision taken against one argument set and dispatched with another has authorised something nobody decided |
+| **Evaluation cannot error and cannot block, and any failure is `deny`** | a rules table that throws is a table that fails open. This is the same reasoning that refused first-match and most-specific above, applied to the evaluator rather than to the ordering |
+| **A decision names its matching rule, its config layer, and the remedy** | `origin` carries `rule`/`elevation` and the rule id today. **The layer and the remedy are not recorded**, so an operator reading a refusal cannot tell which file to edit |
+
+#### A program must not be able to weaken its own effects unobserved
+
+**`effects` is declared by the program, and house rules match on that
+declaration.** So a rule written as `(agent, destructive) -> confirm` stops
+matching the moment that command presents itself as `writes-files`. **No rule is
+violated and no denial is logged**, because the pair simply stopped matching.
+`effects` being *"a floor, not an equality"* widens it: one step down the enum
+drops every rule written at or above the old level.
+
+**The reachable path is a RECONNECT, and this was corrected on 2026-09-11 after
+being got wrong.** The first statement of this hole said a live session
+re-registers and the entry is replaced. **That is true of the kernel and not
+reachable from the daemon**, which refuses a second handshake on a live
+connection outright. The path that actually exists is ordinary: the connection
+closes, the close deregisters the program, and it reconnects declaring the same
+command one level weaker. **A deploy is enough. No hostile program and no race.**
+
+**That makes it harder to close, not easier**, and the difficulty is the
+specification: the old declaration is gone by the time the new one arrives, so
+**closing this means remembering a declaration past the connection that made
+it.** A comparison at registration time has nothing to compare against unless
+rig keeps the prior declaration deliberately.
+
+**The observability half is separate, and nothing covers it today.** rig logs
+**decisions**, not changes of declaration. There is no event class for *"the
+pair this command presents has changed"*, so an operator watching for refusals
+sees only a call that was allowed. The restart appears in the log as a
+deregistration and a fresh registration, and **neither line says that a rule
+which had been gating that command no longer reaches it.**
+
+**Both halves are required.** Detecting the weakening without emitting an event
+leaves the operator blind; emitting the event without keeping the prior
+declaration leaves nothing to emit.
+
+#### The confirmation channel is out of band from the caller
+
+**§14 and §13a route `confirm` to a window, toast or terminal and bind the
+answer to "that one call, not the connection". That is the hard half and it is
+right.** The clauses below are the rest, and each was checked against the client
+surface on 2026-09-11 rather than assumed.
+
+| Clause | State today |
+|---|---|
+| **No argument, flag, header or second call can satisfy a confirmation** | see the four channels below. **Three exist unreserved and one does not exist at all** |
+| **Deny when no human is reachable. Not queue, and not wait** | absent. A confirmation that queues until somebody appears is an approval with a delay on it |
+| **Approval is bound to one invocation by id and argument digest** | **there is no id on the client side.** `request_id` exists on the wire and the daemon dedups against a bounded window, but nothing in the client or the CLI ever sets it, so the window never fires from any rig surface today |
+| **The prompt is composed by the daemon from structured data**, with caller-supplied text shown only as marked, escaped, secondary content | absent. A prompt a caller can write is a prompt a caller can forge |
+
+**The four channels, measured:**
+
+| Channel | State |
+|---|---|
+| **Flag** | rig reserves exactly three flag names on a call - `json`, `timeout`, `args`. **The rest of the flag namespace is the PROGRAM's**: one flag is generated per declared schema property, so a program declaring a property named `confirm`, `yes`, `force` or `approve` gets that flag generated, completed and accepted, with no comment from rig. **The reservation list is the lever and no confirmation word is in it** |
+| **Argument** | **wider than the flag channel and it defeats a flag reservation on its own.** `--args '<json>'` passes the whole argument object verbatim, schema-validated but flag-free. A confirmation expressed as an argument is satisfied in one call and no reserved-name check would see it |
+| **Header** | **does not exist on either side.** The client call takes no metadata and the wire frame has no header or metadata map. **Nothing to close today**, and this clause exists to gate the day one is added rather than to repair anything |
+| **Second call** | the id that would bind an approval is unset, above |
+
+#### `confirms` is declared, rendered to a human, and consumed by nothing
+
+**rig currently tells a user that a command confirms before acting, while rig
+confirms nothing.** `Command.confirms` is a tristate the program declares about
+itself. The kernel validates only that it is not unsaid; **no other reader
+exists in the tree.** Generated `--help` prints *"it declares that it confirms
+before acting"* and `rig apps list --json` carries `"confirms": true`.
+
+**Demonstrated 2026-09-11, not read off the source:** the reference program
+declares a `purge` command `destructive` with `confirms` yes, its generated help
+says so, and invoked with no terminal it returns success and purges. **No
+prompt, no refusal, no channel.**
+
+**This is conflation #16 arriving on its own** - `confirmation` and
+`authorization` conflated outright - and it is the sharper form of it, because a
+conflation inside a document misleads a reader while **this one makes rig state
+something false to a user.** The wording is the tell and it is doing real work:
+*"it declares that it confirms"* is honest about the provenance and is read as a
+guarantee.
+
+**Two things have to be decided together, and neither is decided here:** whether
+`confirms` is a program's claim about itself (in which case the rendering must
+stop reading as rig's guarantee) or an input rig acts on (in which case
+something must consume it). **Shipping it as a declared-and-unconsumed field
+that a user is shown is the one option ruled out.**
+
 **The last three are not connections, and that is why they are in the enum.** §14 says every
 *connection* carries a principal, and a scheduled fire, a bus-triggered invocation and a
 `rig://` URL are none of them - so without these three values the rule the owner most needs,
@@ -2286,7 +2379,7 @@ structurally blind to it.
 
 | Primitive | Why it is here |
 |---|---|
-| **Versioned blackboard** | Compare-and-swap on a key, with a revision per change |
+| **Versioned blackboard** | Compare-and-swap on a key, with a revision per change. **A key may also be CLAIMED, with an owner and a liveness witness** - see "A claim has an owner and a liveness witness" below, which is the half of this primitive the estate actually uses |
 | **Multi-key transactions** | Claim three things or none. Single-key CAS cannot express "divide this work" safely |
 | **Watches with a cursor** | Subscribe from a revision. A client that reconnects gets what it missed instead of a gap it cannot detect. **One global revision, transaction-granular delivery**, so a multi-key claim is never observed half-applied |
 
@@ -2297,11 +2390,179 @@ structurally blind to it.
 | **Claimable queues, at-least-once and it says so** | Claim a task under a lease, heartbeat it, and it is requeued if you die. **Duplicates are possible**: a task carries a mandatory `idempotency_key` and the consumer contract is replay-safety, or the task runs through the witnessed path above so requeue can kill the stalled worker before re-offering it. Requeue is the same two-step machine: EXPIRED → witness dead → REQUEUEABLE; witness alive → ORPHANED. One mechanism, three findings |
 | **`duplicate_execution` is an event, not an error** | A stale `complete` is recorded on the timeline, so the post-mortem view can answer the question this primitive creates. Detecting it in the simulator is not the same as seeing it in production |
 | **Rendezvous** | Hand a result to a named successor and park until it is collected |
-| **Signals** | `post` and `await`. Park with nothing burned until a peer wakes you. Replaces every poll loop and every "check back in five minutes" |
+| **Signals** | `post` and `await`. Park with nothing burned until a peer wakes you. Replaces every poll loop and every "check back in five minutes". **This is the primitive; the contract is "The message contract, from queued to acted-on" below** - five delivery states, a cursor with `gap: true`, topic families, and what happens to a queued message when the recipient dies |
 
 **The human is a peer.** `ask` puts a question to whoever is actually present, routed to the
 window, a toast, the terminal or a phone. That is AgentBox's most valuable single idea and it
 is kept whole.
+
+### What the agent-parallelism pass added, 2026-09-11
+
+**Why this subsection exists.** Boris, 2026-09-11: the mechanisms that matter
+are the ones that let **AI agents work in parallel** on one machine, so that rig
+can run like AgentBox and the agents can then migrate off AgentBox onto rig.
+**Not at parity - above it.** And explicitly *"not all AgentBox are must-have in
+rig, some of its features have no place in the rig"*, so nothing below is here
+because AgentBox has it; each is here because an agent working beside another
+agent fails without it.
+
+**The bar is this section's own**, set by the lease above: a primitive that does
+not say what happens when the holder dies has been mentioned, not specified. The
+five below are ordered by
+`logbook/projects/rig/taxonomy-parity-cross-2026-09-11.md`, which crosses the
+blind mechanism taxonomy against the AgentBox parity pass. **Three of the five
+appear in both lists independently**, and the cross records which.
+
+#### 1. A claim has an owner and a liveness witness
+
+**The blackboard above has compare-and-swap, a revision per change, multi-key
+transactions and watches with a cursor. It has no owner**, so a session that
+dies holding `claims/chunk-3` leaves a chunk nobody will ever finish and nothing
+says so. **The estate divides work with exactly this key shape**, so the half of
+claiming that rig specified with a witness (the lease-backed queue) is not the
+half anybody uses.
+
+| | |
+|---|---|
+| **A key may be claimed, not merely written** | `own` records the claiming session **and its liveness witness** - the same witness the lease takes: a pid, a pidfd, a cgroup, or the literal `unwitnessed` |
+| **A read reports the owner's liveness, not just the value** | **The same two-step as the lease, and deliberately the same words: OWNED, then ABANDONED when the witness is observed dead. Never silently FREE.** A claim whose owner is gone is visible as abandoned rather than indistinguishable from a healthy one |
+| **Taking over an abandoned claim is one CAS write** at the version just read. No break, no human, no second mechanism |
+| **An `unwitnessed` claim needs a recorded human break**, exactly as an unwitnessed lease does |
+| **Values are NEVER trimmed** | The deliberate difference from signals. **Retention on a claim table hands one chunk to two agents**, which is the failure the whole primitive exists to prevent |
+| **The cap refuses a NEW key rather than evicting an existing claim** | Under pressure, an eviction is indistinguishable from a completion to every reader. Refusing is loud; evicting is silent and wrong |
+
+**Why this is one mechanism and not two.** rig currently splits claiming: the
+work queue claims **under a lease** with a heartbeat and a witness, and the
+blackboard claims **a key** with CAS and no liveness at all. That split is why
+the gap was invisible - the witness exists in the document, just not on the
+surface anyone uses. **The witness belongs to the act of claiming, wherever it
+happens.**
+
+#### 2. The message contract, from queued to acted-on
+
+**Signals were one sentence.** `post` and `await` is the primitive; the contract
+is below. With a recipient that can be confidently wrong and can repeat what it
+was corrected on, **the gap between "delivered" and "acted on" is where
+multi-agent coordination actually fails**, and no existing wording distinguishes
+them.
+
+**Five states, and who owns each transition:**
+
+| State | Owned by | Means |
+|---|---|---|
+| `queued` | the daemon | accepted and durable. **`delivered: 0` means nobody was parked, NOT that anything was lost** |
+| `delivered` | the daemon | handed to a recipient's open subscription |
+| `read` | the recipient | returned from an `await` into the recipient's own context |
+| `acknowledged` | the recipient, **explicitly** | the recipient states it understood. Never inferred from delivery |
+| `acted-on` | the recipient, **explicitly, and it carries the outcome** | the only state a sender may plan against |
+
+**Nothing promotes a message on the recipient's behalf.** A sender that needs
+`acted-on` asks for it and waits for it; a sender that does not, does not. The
+failure being designed out is a sender treating `delivered` as agreement.
+
+| | |
+|---|---|
+| **A cursor per subscriber, and `gap: true`** | When the cursor is older than retention the batch **cannot** be complete. **Treat what you were tracking as UNKNOWN, never as not having happened** - a silently incomplete batch is how two agents come to believe they each own one chunk. This is the lease's own best sentence applied to messages, and this section set that bar itself |
+| **Everything since the cursor arrives in ONE batch** | Three events that fired while an agent was editing are one wake-up, not three missed ones |
+| **Topic families** | a trailing `*` is a prefix, so one waiter covers a fan-out without naming its members in advance |
+| **Directed messaging** | every seat names a private topic, so "message that agent" is an ordinary post and needs no second mechanism |
+| **A bounded payload, and a named anti-pattern** | a payload where a pointer belongs. The bound is stated, and a message over it is refused rather than truncated |
+| **The rider** | when an agent's area gains or loses a peer, or a lease it holds is broken, or a claim it owns is reclaimed, **the news is appended to the result of whatever call it makes next.** It needs no subscription and no decision to listen, which is the point: **it reaches an agent that did not know to ask.** A watch and a signal both require having already decided the thing was interesting |
+
+**What happens to a queued message when the recipient dies, which is the
+question nothing answered:** it is queued against the **seat**, not the session.
+A session's death does not destroy it and a successor claiming that seat
+receives it. **A message queued to a session that has no seat dies with the
+session, and the sender is told so** rather than the message expiring silently.
+
+#### 3. Seats, generations, and `HANDING_OFF` as a published state
+
+**This is the one place rig overtakes AgentBox rather than catching up, because
+AgentBox has no seats either.** The estate runs multi-seat teams today on a
+naming convention over a blackboard key, a `state` field every seat agrees to
+honour, and a signal topic every seat must spell identically. **None of that is
+a mechanism. All of it is discipline, enforced by nothing.**
+
+| Concept | Definition |
+|---|---|
+| **Seat** | a named role, independent of who occupies it. **The addressable identity.** Senders address seats; the daemon resolves to the current occupant |
+| **Generation** | one occupancy of a seat by one session. Monotonic per seat. **A message carries the generation it was addressed to**, so a receiver can tell it is not the session the sender believes it is talking to - which is a check no amount of care can do today |
+| **Lineage** | the chain of generations. A successor can prove it is the successor; a stranger cannot claim to be |
+
+**The seat states, and the transitions:**
+
+| State | Means | Sending to it |
+|---|---|---|
+| `VACANT` | nobody holds it | refused, and the sender is told the seat exists and is empty - not that the name is unknown |
+| `LIVE` | one session holds it | delivered |
+| `HANDING_OFF(successor)` | **two sessions legitimately occupy one seat**, the predecessor briefing the successor | **queued for the successor, not delivered to the closing session.** This is the whole reason the state is published |
+| `ORPHANED` | the occupant's witness is observed dead | queued against the seat, delivered when it is next claimed. **Not discarded** |
+
+**`HANDING_OFF` is legitimate and rig must stop reading it as a fault.** §5
+refuses a second registration of one identity with `CODE_DENIED`, which is
+correct for two unrelated programs racing for a name and **wrong for a
+succession**.
+
+**Measured 2026-09-11, by building both cases and comparing the strings: the two
+refusals are BYTE-IDENTICAL.** Not similar - identical. The message carries the
+**holder's** rendered identity and nothing whatever about the newcomer: not its
+session, not its pid, not whether it declared the same commands as the holder or
+a completely unrelated set. So a client has one code and one sentence, **and
+neither varies with the case it is in.** It cannot choose between waiting for a
+predecessor to finish closing, retrying, and failing outright - and neither can
+a person reading the log.
+
+**The identity that IS in the message is not a discriminator either.** It is the
+holder's session id, minted per connection by the daemon and never sent to
+anybody, so no caller has ever seen it. It is a label, not something a newcomer
+can compare itself against.
+
+**Two further facts a specification here has to know**, both pinned by test:
+there are **two** duplicate refusals in the tree - the kernel's registration
+guard and the daemon's routing map - and only the kernel's is reachable on this
+path, so a change to one must account for the other. And **the prose half is
+separable and cheaper**: §9 says a failed call never returns prose, and this
+refusal returns exactly that, with all four structured fields empty. *"Wait for
+the holder to go"* and *"take another name"* are different fixes and the wire
+expresses neither. **That can be closed without ruling on succession at all**,
+and it should be, because it is useful under either ruling.
+
+**Death is the normal termination here, not the exception**, so `ORPHANED` is
+the state a seat spends real time in and its behaviour is load-bearing rather
+than a tidy-up path.
+
+#### 4. Retraction
+
+**An agent takes back an item it posted, before the human or the peer acts on
+it.** Absent today under every wording.
+
+**The reason it is a correctness property and not a convenience:** a warning
+waits on a supervisor's screen until it is dismissed. **A "build failed" whose
+build has since been fixed is a false statement rig is making on the agent's
+behalf**, and it is worse than no notification at all because the supervisor
+acts on it. §12's auto-dismiss is the *timer* half; the poster withdrawing a
+claim that has become false is the half that was missing.
+
+**A retraction returns what actually happened to the item** - never posted, seen
+but not acted on, or already acted on - because those are three different
+situations for the agent and only the daemon knows which.
+
+#### 5. A lease name is registered with the resource it protects
+
+**Two actors guarding one resource under two names are both unlocked and
+neither finds out.** Non-deterministic actors invent plausible names as a matter
+of course, so this is the normal case rather than the careless one.
+
+**This estate has already paid the bill**: one session took `rig-makefile` and
+another `repo:rig-shared-build` for the same file, and the file was found dirty
+mid-edit. **Nothing else in the mechanism backlog has a recorded local
+failure.**
+
+| | |
+|---|---|
+| **A name is registered with what it protects**, and is discoverable before use. Asking "what guards this path" is a call, not a convention in a document |
+| **An unregistered name is not silently honoured.** What the daemon does with one is stated: it is granted and **flagged as unregistered to both the holder and to `rig doctor`**, because refusing it outright breaks every ad-hoc use and honouring it silently is the bug |
+| **Overlap is tested by SCOPE INTERSECTION, not name equality** | two names over one path collide and rig says so. Name equality is precisely the test that failed |
 
 ### Continuation slots, so an agent can hand off to itself
 
@@ -2724,6 +2985,10 @@ Versions verified 2026-09-10.
 | Toast content | shiki, marked | 4.4.3 / 18.0.12 |
 | Testing | stdlib, testing/synctest, go-cmp, testscript | v0.7.0 / v1.16.0 |
 | Frontend testing | Vitest, Playwright | 5.0.0 / 1.63.0 |
+| Frontend build plugin | `@sveltejs/vite-plugin-svelte` | 7.3.0 |
+| Schema to TypeScript | `json-schema-to-typescript`, so the window's types come from the same schema `cmd/schemagen` emits | 16.0.0 |
+| Formatting | `prettier` with `prettier-plugin-svelte` | 3.9.6 / 4.1.1 |
+| TypeScript runtime helpers | `tslib` | 2.8.1 |
 | Lint | golangci-lint plus three house analyzers: no program id in rig code, no registry handle outside the kernel, no meaningful enum zero | |
 | Runtime tuning | `GOMEMLIMIT` and `GOGC` set explicitly in the unit file and the Makefile | neither appeared anywhere before |
 
@@ -3318,11 +3583,83 @@ both are authority leaking because nobody stated who may change the input to the
 The `important` (290) and `situational` (34) mechanisms are recorded and not consolidated.
 The AgentBox parity yardstick - a second, deliberately independent enumeration of what this
 estate already has and must not lose - is
-`logbook/projects/rig/agentbox-parity-2026-09-11.md`, and it is **not** crossed with the
-taxonomy above yet. Four of its surfaces are already ruled out (below).
+`logbook/projects/rig/agentbox-parity-2026-09-11.md`. **It has now been crossed with the
+taxonomy: `logbook/projects/rig/taxonomy-parity-cross-2026-09-11.md`, and §35 carries the
+result.** The twelve gaps above are listed in the order they were found, which is not a
+ranking; **§35 is the ranking.** Four of its surfaces are already ruled out (below).
 
 ### Ruled out, 2026-09-11, by Boris
 
 **Walkthroughs, assignments, artifacts and `request_review` are OUT** - 18 of AgentBox's
 ~40 tools. Dropped deliberately and on the record rather than discovered at the M16
 cutover. See §29.
+
+## 35. What the agent-parallelism pass changed, 2026-09-11
+
+**Boris's steer, which is a ranking instruction and not new scope:** the
+mechanisms that matter are the ones that help **AI agents work in parallel** on
+one machine, so that rig can run like AgentBox and the agents can then be moved
+off AgentBox onto rig - *"the rig takes all this functionality to the highest
+possible level of quality, robustness and utilization benefit."*
+
+**And the bound on it, stated the same day:** *"we decided to not make perfect
+parity to AgentBox, some of its features have no place in the rig."* **Nothing
+is imported because AgentBox has it.** Each mechanism below is here because an
+agent working beside another agent fails without it, and the IN/OUT judgement
+for every candidate is recorded in the cross.
+
+### The ranking, and what it is ranked by
+
+§34 lists twelve gaps in the order they were found and does not claim that is a
+ranking. **This is the ranking.** It comes from crossing the blind mechanism
+taxonomy against the AgentBox parity pass - two lists produced independently and
+deliberately so, where **a mechanism appearing in both is not arguable**.
+Record: `logbook/projects/rig/taxonomy-parity-cross-2026-09-11.md`.
+
+| Rank | Mechanism | In both lists? | Landed |
+|---|---|---|---|
+| 1 | A claim has an owner and a liveness witness | **yes** | §16 |
+| 2 | The message contract, queued to acted-on | **yes** | §16 |
+| 3 | Seats, generations, `HANDING_OFF` as a published state | **no - see below** | §16 |
+| 4 | Retraction of a posted item | **yes** | §16 |
+| 5 | A lease name registered with the resource it protects | no | §16 |
+| 6 | Health is evidence of progress; idle-and-not-blocked is unhealthy | **yes** | §18, owed |
+| 7 | Durability of an agent's own work | no | owed |
+| 8 | At-risk detection and the escalation ladder | partial | owed |
+| 9 | The state ownership matrix | no | §18, owed, data in hand |
+
+**Rank 3 is absent from the parity pass because AgentBox has no seats either**,
+and that is the finding rather than a weakness in the pass. The estate runs
+multi-seat teams today on a naming convention over a blackboard key and a signal
+topic every seat must spell identically - **discipline, enforced by nothing.**
+It is therefore the one place rig overtakes rather than catches up.
+
+**The symmetric caution, kept because the ranking is worthless without it:**
+ranks 1, 2 and 4 are things AgentBox **already does** and rig had not specified.
+Overtaking on rank 3 while losing those at the M16 cutover would be a net loss
+to every agent on the machine. **The floor comes first; rank 3 is what the floor
+is for.**
+
+### What was PROVED in code rather than argued, and by whom
+
+**Every claim in this section that describes rig's behaviour today was run.**
+The three findings that changed what was written:
+
+| Finding | What it changed |
+|---|---|
+| **A succession and a name collision are BYTE-IDENTICAL refusals.** Both cases built and the strings compared directly; the message names the holder and says nothing about the newcomer | §16's rank 3. The first draft said the two "produce the same error"; the measurement made it exact, and turned up that the holder's session id in the message is a label no caller has ever seen rather than a discriminator |
+| **The weaker-effects path is a RECONNECT, not a live re-declaration.** The daemon refuses a second handshake on a live connection, so the reachable path is close, deregister, reconnect one level weaker - an ordinary deploy | §13a. **The first statement of this hole was wrong about the path**, which mattered: the old declaration is gone by the time the new one arrives, so closing it means remembering a declaration past the connection that made it. Harder than the version that was written first |
+| **`confirms` is declared, rendered to a human, and consumed by nothing.** The reference program's `purge` declares `destructive` with `confirms` yes, its help says so, and it runs to completion with no terminal: no prompt, no refusal, no channel | §13a gained its own subsection. This is conflation #16 in its sharpest form - **rig stating something false to a user**, rather than a document misleading a reader |
+
+### What this pass has NOT done, and it is deliberate
+
+- **Ranks 6 to 9 are specified nowhere yet.** Rank 9's data is in hand and the
+  other three are not started. Listing them ranked and unbuilt is the honest
+  state; a pass that reported only what it finished would be the same defect
+  §34 exists to audit.
+- **The `important` (290) and `situational` (34) taxonomy tiers are still not
+  consolidated**, unchanged from §34.
+- **Nothing here rules on `confirms`.** Two options are live - a program's claim
+  about itself, or an input rig acts on - and **only the current state is ruled
+  out**, because a declared-and-unconsumed field shown to a user is a false
+  statement whichever way the question goes.
