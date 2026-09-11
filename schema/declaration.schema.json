@@ -1,0 +1,227 @@
+{
+  "$defs": {
+    "Command": {
+      "properties": {
+        "args": {
+          "contentEncoding": "base64",
+          "type": "string"
+        },
+        "confirms": {
+          "$ref": "#/$defs/Tristate"
+        },
+        "cost": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "dryRun": {
+          "type": "boolean"
+        },
+        "duration": {
+          "$ref": "#/$defs/Duration"
+        },
+        "effects": {
+          "$ref": "#/$defs/Effects"
+        },
+        "examples": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "id": {
+          "type": "string"
+        },
+        "idempotent": {
+          "$ref": "#/$defs/Tristate"
+        },
+        "interactive": {
+          "$ref": "#/$defs/Tristate"
+        },
+        "needsDisplay": {
+          "$ref": "#/$defs/Tristate"
+        },
+        "preconditions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "promote": {
+          "type": "boolean"
+        },
+        "returns": {
+          "type": "string"
+        },
+        "sensitive": {
+          "$ref": "#/$defs/SensitiveFields"
+        },
+        "shape": {
+          "$ref": "#/$defs/Shape"
+        },
+        "streams": {
+          "$ref": "#/$defs/Tristate"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "effects",
+        "idempotent",
+        "sensitive",
+        "interactive",
+        "streams",
+        "needsDisplay",
+        "duration",
+        "confirms",
+        "shape",
+        "summary",
+        "description",
+        "returns"
+      ],
+      "type": "object"
+    },
+    "Coverage": {
+      "description": "rig.v1.Coverage. The zero value is omitted: it means the program did not say, and registration refuses it.",
+      "enum": [
+        "COVERAGE_PARTIAL",
+        "COVERAGE_FULL"
+      ],
+      "type": "string"
+    },
+    "Duration": {
+      "description": "rig.v1.Duration. The zero value is omitted: it means the program did not say, and registration refuses it.",
+      "enum": [
+        "DURATION_INSTANT",
+        "DURATION_SECONDS",
+        "DURATION_MINUTES",
+        "DURATION_HOURS"
+      ],
+      "type": "string"
+    },
+    "Effects": {
+      "description": "rig.v1.Effects. The zero value is omitted: it means the program did not say, and registration refuses it.",
+      "enum": [
+        "EFFECTS_READ_ONLY",
+        "EFFECTS_WRITES_FILES",
+        "EFFECTS_NETWORK",
+        "EFFECTS_DESTRUCTIVE",
+        "EFFECTS_DRIVES_INPUT"
+      ],
+      "type": "string"
+    },
+    "Identity": {
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "version"
+      ],
+      "type": "object"
+    },
+    "SensitiveFields": {
+      "properties": {
+        "pointers": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "Shape": {
+      "description": "rig.v1.Shape. The zero value is omitted: it means the program did not say, and registration refuses it.",
+      "enum": [
+        "SHAPE_UNARY",
+        "SHAPE_STREAM",
+        "SHAPE_INTERACTIVE_STREAM"
+      ],
+      "type": "string"
+    },
+    "Tristate": {
+      "description": "rig.v1.Tristate. The zero value is omitted: it means the program did not say, and registration refuses it.",
+      "enum": [
+        "TRISTATE_NO",
+        "TRISTATE_YES"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://rig.local/schema/declaration.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "What a program declares to rig, once, at connect (PLAN.md section 5e). It is data: no rig code runs inside the program to produce it.\n\nThis describes the CANONICAL protojson form - the shape rigd emits and the one to write. The wire additionally accepts the proto spelling of a field name (coverage_note beside coverageNote) and the numeric form of an enum; neither is described here, and for that reason this schema does not close the property set. It is deliberately never stricter than the daemon: everything it refuses, registration refuses too.",
+  "properties": {
+    "commands": {
+      "items": {
+        "$ref": "#/$defs/Command"
+      },
+      "type": "array"
+    },
+    "coverage": {
+      "$ref": "#/$defs/Coverage"
+    },
+    "coverageNote": {
+      "type": "string"
+    },
+    "elements": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "hosted": {
+      "type": "boolean"
+    },
+    "identity": {
+      "$ref": "#/$defs/Identity"
+    },
+    "paneUrl": {
+      "type": "string"
+    },
+    "preamble": {
+      "type": "string"
+    },
+    "scope": {
+      "type": "string"
+    },
+    "semanticsGen": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "services": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "identity",
+    "coverage",
+    "semanticsGen"
+  ],
+  "title": "Declaration",
+  "type": "object"
+}
