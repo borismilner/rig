@@ -532,7 +532,7 @@ help: ## Show this help
 	  /^[a-zA-Z_-]+:.*##/ {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo
 
-.PHONY: build build-rigd build-rig build-fakeapp build-ledger deps-frontend build-frontend build-rigwindow build-all install uninstall \
+.PHONY: build build-rigd build-rig build-fakeapp build-ledger build-docket deps-frontend build-frontend build-rigwindow build-all install uninstall \
         run dev clean test test-unit test-race \
         test-chaos test-e2e test-wire fuzz cover cover-html lint lint-house fmt vet audit \
         vet-window test-window verify contrast contrast-selftest contrast-window theme-gate generate proto schema types docs bench bench-ipc profile \
