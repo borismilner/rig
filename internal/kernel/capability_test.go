@@ -368,3 +368,70 @@ func commandsOf(m kernel.CapabilityMap, id string) []string {
 	}
 	return nil
 }
+
+// versionExcludes names the CapabilityMap fields the digest deliberately does
+// not cover, with the reason, so an exclusion is something somebody wrote
+// down rather than something somebody forgot. Those two look identical from
+// inside a passing test, which is the whole reason this map exists.
+var versionExcludes = map[string]string{
+	"Version": "a digest cannot cover the field it is written into",
+}
+
+// TestEveryCapabilityMapFieldChangesTheVersion is the THIRD walk, and it
+// exists because the two above it do not cover the map itself.
+//
+// Program and Command each have one. CapabilityMap had none, so its two
+// fields were covered only incidentally - Depth by the depth test, Programs
+// by the program walk - and nothing would have noticed a THIRD field being
+// added. Today nothing is wrong; the guard is for the day something is.
+//
+// IT IS ONLY POSSIBLE BECAUSE mapVersion TAKES THE MAP. While the digest took
+// (depth, programs) a third field could not reach it even in principle, so
+// this test could not have been written to pass - the honest version of it
+// would have failed on the first field added, and the fix would not have been
+// in the test.
+//
+// It refuses to pretend, exactly as nudge does: a field this walk cannot
+// change, and has not been told to exclude, fails loudly rather than being
+// skipped. A walk that silently passes over an unknown field reports
+// "covered" for a field nobody covered.
+func TestEveryCapabilityMapFieldChangesTheVersion(t *testing.T) {
+	typ := reflect.TypeOf(kernel.CapabilityMap{})
+	for i := range typ.NumField() {
+		name := typ.Field(i).Name
+		t.Run(name, func(t *testing.T) {
+			if why, excluded := versionExcludes[name]; excluded {
+				t.Skipf("excluded on purpose: %s", why)
+			}
+
+			base := fullMap()
+			baseline := kernel.MapVersionOf(base)
+
+			one := fullMap()
+			f := reflect.ValueOf(&one).Elem().Field(i)
+			if !nudge(f) {
+				t.Fatalf("this walk does not know how to change a %s, so "+
+					"CapabilityMap.%s is NOT covered. Teach nudge about it, "+
+					"or add it to versionExcludes with a reason - skipping "+
+					"is how a field changes without the version noticing",
+					f.Kind(), name)
+			}
+
+			if got := kernel.MapVersionOf(one); got == baseline {
+				t.Errorf("changing CapabilityMap.%s did not change the "+
+					"version, so two different maps carry one version and a "+
+					"diff reports no change", name)
+			}
+		})
+	}
+}
+
+// fullMap is a map with every field populated, so changing any one of them is
+// a change from something rather than from nothing.
+func fullMap() kernel.CapabilityMap {
+	return kernel.CapabilityMap{
+		Version:  "v-fixture",
+		Depth:    kernel.DepthCommands,
+		Programs: []kernel.Program{fullProgram()},
+	}
+}

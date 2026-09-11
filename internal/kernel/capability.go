@@ -55,22 +55,43 @@ func (v View) CapabilityMap(d Depth) (CapabilityMap, error) {
 	if err != nil {
 		return CapabilityMap{}, err
 	}
-	return CapabilityMap{
-		Version:  mapVersion(d, programs),
-		Depth:    d,
-		Programs: programs,
-	}, nil
+	// Built first and digested second, because the version is a digest OF
+	// THE MAP and a map cannot carry its own version while it is being
+	// computed. The ordering is the whole of the change: what is hashed is
+	// now the thing that was produced, not the arguments that produced it.
+	m := CapabilityMap{Depth: d, Programs: programs}
+	m.Version = mapVersion(m)
+	return m, nil
 }
 
-// mapVersion digests a map's contents.
+// mapVersion digests a map.
+//
+// IT TAKES THE MAP, AND THAT IS SECTION 9'S CONTRACT RATHER THAN A CHANGE TO
+// IT. Section 9: the version is "a digest of the projection that principal was
+// given" and "must therefore be a function of the bytes this principal
+// actually received". A digest of (depth, programs) is a digest of the INPUTS
+// that happen to produce the projection. While the map had exactly two fields
+// and those two fields were its inputs, the two formulations were the same
+// function - so this was correct by coincidence, and the coincidence ends at
+// the third field rather than a new defect beginning there.
+//
+// THE VERSION FIELD ITSELF IS EXCLUDED, AND IT IS THE ONE EXCLUSION. A digest
+// cannot cover the field it is being written into. It is named here rather
+// than left to be re-derived, because an exclusion nobody wrote down is
+// indistinguishable from a field somebody forgot - which is the defect this
+// whole mechanism exists to catch. Every OTHER field must reach the walk, and
+// TestEveryCapabilityMapFieldChangesTheVersion is what makes that true rather
+// than intended.
 //
 // The depth is folded in first, so the same estate at two depths never shares
-// a version.
-func mapVersion(d Depth, programs []Program) string {
+// a version. Both of section 9's other required properties are properties of
+// the walk and are unchanged: commands are sorted by id, and every value is
+// length-prefixed.
+func mapVersion(m CapabilityMap) string {
 	h := sha256.New()
-	writeUint(h, uint64(d))
-	writeUint(h, uint64(len(programs)))
-	for _, p := range programs {
+	writeUint(h, uint64(m.Depth))
+	writeUint(h, uint64(len(m.Programs)))
+	for _, p := range m.Programs {
 		writeProgram(h, p)
 	}
 	return hex.EncodeToString(h.Sum(nil))
