@@ -239,7 +239,13 @@ func shape(err error) (obj jsonStatus, asJSON, structured bool) {
 	if errors.As(err, &r) {
 		s := r.Status
 		return jsonStatus{
-			Code: s.GetCode().String(),
+			// THE DAEMON'S CODE IS AGENT-PARSED, AND String() RETURNS THE
+			// DECIMAL FOR A CODE THIS BUILD HAS NO NAME FOR. An agent matching
+			// on a code vocabulary would be handed "9" - a token that looks
+			// like neither a code nor an error. codeWord renders it as the one
+			// skew spelling instead, so the fall-through is visibly "I am older
+			// than the daemon" rather than a malformed name (B15).
+			Code: codeWord(s.GetCode()),
 			// The daemon's own sentence, NOT r.Error(): the object is the
 			// Status, and the method and code the human line prefixes are
 			// already fields of it.
@@ -353,4 +359,21 @@ func writeJSONStatus(w io.Writer, obj jsonStatus) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(obj)
+}
+
+// codeWord is the daemon's own code, rendered for an object an agent parses.
+//
+// The zero keeps its wire spelling: CODE_UNSPECIFIED already ships as a value
+// in this field and shape(err) writes it deliberately, so it is a code like any
+// other here rather than a case to reinterpret.
+func codeWord(c rigv1.Code) string {
+	if _, known := enumWord(c, ""); known {
+		// The prefix is empty on purpose: these are the CODE_* names an agent
+		// matches on verbatim, and they are the one vocabulary in this package
+		// that is NOT lowercase kebab. Section 10's set is disjoint from rig's
+		// own RIG_* by construction, which only holds if both are spelled the
+		// way the wire spells them.
+		return c.String()
+	}
+	return skewToken(c)
 }

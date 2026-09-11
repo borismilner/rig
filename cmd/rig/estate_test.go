@@ -73,9 +73,9 @@ func TestEveryDeclaredRoleRendersAsSomethingOfItsOwn(t *testing.T) {
 				v.Name())
 			continue
 		}
-		if label == roleUnrecognised {
-			t.Errorf("%s renders as the unrecognised token, which is reserved "+
-				"for a role this build has no name for", v.Name())
+		if strings.HasPrefix(label, "unrecognised") {
+			t.Errorf("%s renders as the skew token, which is reserved for a "+
+				"role this build has no name for", v.Name())
 		}
 
 		j, _ := estateJSON(resp)["role"].(string)
@@ -117,9 +117,12 @@ func TestARoleThisBuildDoesNotKnowIsReportedAsSkewAndNotAsTheZero(t *testing.T) 
 	}
 
 	got, _ := estateJSON(future)["role"].(string)
-	if got != roleUnrecognised {
+	// ONE spelling across the whole CLI, and the number is IN it - this is
+	// skewToken, the same token effects, duration, shape, coverage and the
+	// daemon's own code render an unknown value with.
+	if want := skewToken(rigv1.EstateRole(99)); got != want {
 		t.Errorf("--json emits role %q for a role this build has no name for; "+
-			"want %q", got, roleUnrecognised)
+			"want %q, the one skew spelling this CLI uses", got, want)
 	}
 	if n := estateJSON(future)["role_number"]; n != int32(99) {
 		t.Errorf("--json emits role_number %v, so a client that could not name "+

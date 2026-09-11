@@ -98,23 +98,13 @@ func estateFlagSet() (fs *flag.FlagSet, asJSON *bool, timeout *time.Duration) {
 // The caller renders that as its own case. What it must NOT do is fall back to
 // the zero's spelling, which would report a skew as "nothing was said".
 //
-// The generated String() is deliberately not used: for a number outside the
-// descriptor it returns the DECIMAL, so enumLabel would yield "4" and a
-// renderer would print a bare digit where every other value is a word.
+// It is a thin wrapper on enumWord since B15, which is the one place in this
+// package that walks a descriptor. This function was the FIRST of the three
+// that did it and the only one that did it correctly; B15 made the other two
+// agree with it rather than the other way round.
 func roleLabel(r rigv1.EstateRole) (string, bool) {
-	v := rigv1.EstateRole(0).Descriptor().Values().ByNumber(r.Number())
-	if v == nil {
-		return "", false
-	}
-	return enumLabel(string(v.Name()), "ESTATE_ROLE_"), true
+	return enumWord(r, "ESTATE_ROLE_")
 }
-
-// roleUnrecognised is the spelling for a role number this build does not know.
-//
-// A word rather than a digit, and a word that cannot be mistaken for one of
-// the four: an agent branching on this string must fall through to "I do not
-// know what I reached" rather than onto any behaviour.
-const roleUnrecognised = "unrecognised"
 
 // estateJSON is the object --json emits. Section 10: the proto's own field
 // names are the contract, which is why they are spelled as the wire spells
@@ -137,7 +127,12 @@ const roleUnrecognised = "unrecognised"
 func estateJSON(r *rigv1.EstateResponse) map[string]any {
 	label, ok := roleLabel(r.GetRole())
 	if !ok {
-		label = roleUnrecognised
+		// ONE SPELLING FOR THIS ACROSS THE WHOLE CLI. This used to be a bare
+		// "unrecognised" beside a role_number key, which was a second way of
+		// saying what every other surface now says with skewToken. Two
+		// spellings of "I have no name for this" is the drift B15 existed to
+		// remove, and it had already started inside one session.
+		label = skewToken(r.GetRole())
 	}
 	return map[string]any{
 		"name":           r.GetName(),
@@ -194,9 +189,7 @@ func estateRoleCell(r *rigv1.EstateResponse) string {
 		// A newer daemon on this wire major. The number is printed because it
 		// is the only actionable thing here, and the sentence says which side
 		// is old so the reader does not go looking at the daemon.
-		return fmt.Sprintf("%s (%d) - this rig is older than the daemon "+
-			"it reached and has no name for that role",
-			roleUnrecognised, r.GetRole().Number())
+		return skewWord(r.GetRole()) + " and has no name for that role"
 	case r.GetRole() == rigv1.EstateRole_ESTATE_ROLE_UNSPECIFIED:
 		// SECTION 21: the zero means nothing was said, and it is never a fact
 		// about an estate. It cannot be reached through today's rigd, which

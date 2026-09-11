@@ -305,7 +305,7 @@ func tristateWord(t rigv1.Tristate) string {
 	case rigv1.Tristate_TRISTATE_UNSPECIFIED:
 		return "not said"
 	default:
-		return skewWord(t, "tristate")
+		return skewWord(t)
 	}
 }
 
@@ -319,40 +319,39 @@ func boolWord(v bool) string {
 	return "not declared"
 }
 
-func effectsWord(e rigv1.Effects) string   { return enumWord(e, "EFFECTS_", "effect") }
-func durationWord(d rigv1.Duration) string { return enumWord(d, "DURATION_", "duration") }
-func shapeWord(s rigv1.Shape) string       { return enumWord(s, "SHAPE_", "shape") }
+func effectsWord(e rigv1.Effects) string   { return declaredWord(e, "EFFECTS_") }
+func durationWord(d rigv1.Duration) string { return declaredWord(d, "DURATION_") }
+func shapeWord(s rigv1.Shape) string       { return declaredWord(s, "SHAPE_") }
 
-// enumWord renders any wire enum as a word off its own descriptor, and a
-// number this build has no word for as SKEW rather than as the zero.
+// declaredWord is describe's rendering of an enum: the label when the program
+// chose a value, "not said" for the zero, and the skew token when this build
+// has no name for what arrived.
 //
-// The generated String() is deliberately not used. For a value outside the
-// descriptor it returns the DECIMAL, so a newer daemon's fifth effect prints
-// as "4" in a column of words - skew DISCOVERED by a person squinting at
-// output, where section 37's precondition 3 requires it DETECTED. This is the
-// same form the estate verb uses for its role, and it is applied here because
-// `describe` is new; effectsLabel and durationLabel still carry the bare-digit
-// behaviour in SHIPPED surfaces and are a backlog row of their own.
-func enumWord(e protoreflect.Enum, prefix, kind string) string {
-	v := e.Descriptor().Values().ByNumber(e.Number())
-	if v == nil {
-		return skewWord(e, kind)
-	}
-	label := enumLabel(string(v.Name()), prefix)
-	// The zero is "nothing was said" for every enum section 21 covers, and it
-	// must not read as a value the program chose.
-	if e.Number() == 0 {
+// The descriptor walk and the skew token are enumWord and skewToken, shared
+// with every other surface since B15 - before it, three functions in this
+// package decided the same question three ways. What stays local is the ZERO:
+// describe renders it as "not said" because its reader is deciding whether a
+// command belongs on a surface, and "unspecified" in a column of values reads
+// as a value. The shipped surfaces keep the enum's own spelling, because
+// changing that would change output callers already parse.
+func declaredWord(e protoreflect.Enum, prefix string) string {
+	w, known := enumWord(e, prefix)
+	switch {
+	case !known:
+		return skewWord(e)
+	case e.Number() == 0:
+		// Section 21: the zero is "nothing was said" for every enum it covers,
+		// and it must never read as a value the program chose.
 		return "not said"
 	}
-	return label
+	return w
 }
 
-// skewWord is what a value this build has no name for renders as. It names the
-// number, because that is the only actionable thing in it, and says which side
-// is old so the reader does not go looking at the daemon.
-func skewWord(e protoreflect.Enum, kind string) string {
-	return fmt.Sprintf("unrecognised %s %d - this rig is older than the daemon "+
-		"it reached", kind, e.Number())
+// skewWord is the sentence form of skewToken, for the surfaces with room for
+// one. It names which side is old, so a reader does not go looking at the
+// daemon for a fault that is in their own client.
+func skewWord(e protoreflect.Enum) string {
+	return skewToken(e) + " - this rig is older than the daemon it reached"
 }
 
 // noSuchCommand is describe's refusal, and it carries the program's coverage

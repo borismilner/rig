@@ -15,9 +15,12 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
+
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/boris-milner/rig/client"
 	"github.com/boris-milner/rig/internal/paths"
@@ -504,14 +507,35 @@ func cmdApps(args []string) (err error) {
 
 // coverageLabel says how much of rig a program adopted, and says it on every
 // row. Section 5k: the honest default is the conservative one.
+// IT USED TO COLLAPSE THE ZERO AND AN UNKNOWN ONTO ONE TOKEN, and that is
+// worse than the bare digit the rest of B15 is about. `default: "coverage?"`
+// answered both "this program said nothing about its coverage" and "it said
+// something this build is too old to name" with the same four characters, so a
+// reader could not tell a program that never declared coverage from a daemon
+// newer than its client. Section 5k's whole argument is that a surface must not
+// imply completeness, and a collapse here is that argument failing inside the
+// function that carries it.
+//
+// Only the UNKNOWN half moves. The zero keeps the string it has always
+// emitted, because that case is reachable today and its rendering is shipped
+// output; the unknown half is unreachable until a daemon is newer than its
+// client, which is what makes it free to fix now.
 func coverageLabel(p *rigv1.Program) string {
-	switch p.GetCoverage() {
+	c := p.GetCoverage()
+	switch c {
 	case rigv1.Coverage_COVERAGE_FULL:
 		return "full"
 	case rigv1.Coverage_COVERAGE_PARTIAL:
 		return "partial"
-	default:
+	case rigv1.Coverage_COVERAGE_UNSPECIFIED:
+		// UNCHANGED, DELIBERATELY. "coverage?" is shipped output that callers
+		// parse and TestAnUnsaidCoverageDoesNotReadAsFull pins it, and unlike
+		// the branch below this case is REACHABLE - an absent program renders
+		// through here. Changing it is a shipped-output change and belongs
+		// with the migration, not with B15.
 		return "coverage?"
+	default:
+		return skewToken(c)
 	}
 }
 
@@ -523,12 +547,65 @@ func enumLabel(full, prefix string) string {
 		strings.ToLower(strings.TrimPrefix(full, prefix)), "_", "-")
 }
 
+// ---- SKEW: an enum value this build has no name for (PLAN.md section 37,
+// precondition 3) ----------------------------------------------------------
+
+// enumWord is the label for an enum value, and whether THIS BUILD knows it.
+//
+// IT IS THE ONE PLACE THAT DECIDES, and before it there were four of them
+// disagreeing. Every label in this package used to go through the generated
+// String(), which returns the DECIMAL for a value outside the descriptor - so a
+// newer daemon's fifth effect printed as "4" in a column of words, and an agent
+// parsing --json got "4" where it expected a name.
+//
+// Enums are extensible WITHIN a wire major, so this is not a hypothetical: the
+// major rides the proto package path and a client and daemon on different
+// majors cannot connect at all, which leaves "same major, newer daemon" as the
+// skew that can actually reach this renderer. A development client against a
+// production daemon is precisely the case section 37 exists for.
+//
+// The caller decides how to say it, because the surfaces differ: a shipped
+// --json object may not grow a key, a new verb may say it in a sentence, and a
+// twelve-wide column may not. What none of them may do is render it as a digit,
+// or fold it onto the zero - "nothing was said" and "you said something I am
+// too old to understand" send a reader in opposite directions.
+func enumWord(e protoreflect.Enum, prefix string) (word string, known bool) {
+	v := e.Descriptor().Values().ByNumber(e.Number())
+	if v == nil {
+		return "", false
+	}
+	return enumLabel(string(v.Name()), prefix), true
+}
+
+// skewToken is what an unknown value renders as EVERYWHERE, in one spelling.
+//
+// A token rather than a sentence, because it has to fit a twelve-wide column
+// and be safe inside a JSON value an agent parses. It carries the number,
+// because that is the only actionable thing in it - a client that cannot name
+// what it received must at least be able to say what it received.
+//
+// It cannot collide with a real label: every label is the lowercase kebab form
+// of an enum value's name, and no name in this wire contains a digit.
+func skewToken(e protoreflect.Enum) string {
+	return "unrecognised-" + strconv.Itoa(int(e.Number()))
+}
+
+// wordOrSkew is the shipped surfaces' form: the label when it is known, the
+// skew token when it is not. The zero keeps its own spelling, because changing
+// it would change output that callers already parse.
+func wordOrSkew(e protoreflect.Enum, prefix string) string {
+	if w, ok := enumWord(e, prefix); ok {
+		return w
+	}
+	return skewToken(e)
+}
+
 func effectsLabel(c *rigv1.Command) string {
-	return enumLabel(c.GetEffects().String(), "EFFECTS_")
+	return wordOrSkew(c.GetEffects(), "EFFECTS_")
 }
 
 func durationLabel(c *rigv1.Command) string {
-	return enumLabel(c.GetDuration().String(), "DURATION_")
+	return wordOrSkew(c.GetDuration(), "DURATION_")
 }
 
 func pointers(s *rigv1.SensitiveFields) []string {
