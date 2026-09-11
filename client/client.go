@@ -16,10 +16,10 @@ package client
 import (
 	"context"
 	"encoding/hex"
-	"math/rand/v2"
 	"errors"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -307,6 +307,14 @@ func (c *Client) Hello(ctx context.Context, decl *rigv1.Declaration) (*rigv1.Hel
 func requestID() string {
 	b := make([]byte, 8)
 	for i := range b {
+		//nolint:gosec // G404 is right that this is not crypto/rand, and that
+		// is the decision rather than an oversight. A request id is a dedup
+		// key, not an authenticator: nothing in section 4 or section 5d asks
+		// for it to be unguessable, and the one value in rig that must be
+		// unguessable - the session token - is minted with crypto/rand in the
+		// daemon and stays that way. The measured price of silencing this
+		// linter honestly is 159,744 bytes and seventeen fips140 packages in
+		// every program that links the stub.
 		b[i] = byte(rand.UintN(256))
 	}
 	return "req-" + hex.EncodeToString(b)
