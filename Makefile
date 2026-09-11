@@ -391,7 +391,7 @@ tidy: ## Tidy go.mod and npm dependencies
 	go mod tidy
 	cd frontend && npm prune
 
-deps-check: ## Fail if the build depends on anything PLAN.md section 22 does not name
+deps-check: ## Check the build against PLAN.md section 22 (NOT upstream drift: that needs the network)
 	go run ./cmd/depscheck --plan PLAN.md
 
 release: ci ## Tag, generate the changelog and build release artefacts
