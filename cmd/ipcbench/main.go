@@ -104,14 +104,34 @@ func spawn(mode, arg string) *exec.Cmd {
 	return c
 }
 func p(label string, d time.Duration, n int) {
-	per := d.Nanoseconds() / int64(n)
-	unit := fmt.Sprintf("%d ns", per)
-	if per > 10000 {
-		unit = fmt.Sprintf("%.1f µs", float64(per)/1000)
-	} else if per > 1000 {
-		unit = fmt.Sprintf("%.2f µs", float64(per)/1000)
+	per := float64(d.Nanoseconds()) / float64(n)
+	fmt.Printf("  %-46s %12s   (%s ops/s)\n", label, perOp(per),
+		human(float64(n)/d.Seconds()))
+}
+
+// perOp formats one per-operation cost, and it keeps a sub-nanosecond result
+// visible.
+//
+// This used to be an integer division, so anything under 1 ns printed as
+// "0 ns" - and the row that does that is the BASELINE, the direct Go call
+// every other row in the table is measured against. Printing the one number a
+// reader compares everything else to as zero makes an imported library read
+// as free rather than as a fraction of a nanosecond, which is the opposite of
+// what section 4's table is for. README quotes 0.6 ns for that row, so the
+// artefact and the document disagreed over nothing but a rounding.
+func perOp(ns float64) string {
+	switch {
+	case ns >= 10000:
+		return fmt.Sprintf("%.1f µs", ns/1000)
+	case ns >= 1000:
+		return fmt.Sprintf("%.2f µs", ns/1000)
+	case ns >= 100:
+		return fmt.Sprintf("%.0f ns", ns)
+	case ns >= 10:
+		return fmt.Sprintf("%.1f ns", ns)
+	default:
+		return fmt.Sprintf("%.2f ns", ns)
 	}
-	fmt.Printf("  %-46s %12s   (%s ops/s)\n", label, unit, human(float64(n)/d.Seconds()))
 }
 func human(f float64) string {
 	switch {
