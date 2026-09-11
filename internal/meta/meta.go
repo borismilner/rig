@@ -178,6 +178,23 @@ func (s *Server) Answer(ctx context.Context, who kernel.Principal, r Request) (A
 	}
 }
 
+// CapabilityMap is the whole estate as ONE principal may see it: the content
+// of the single MCP resource section 9 specifies.
+//
+// IT IS HERE RATHER THAN REACHED FOR BY THE SURFACE, and that is the same
+// rule the four tools already follow. Every decision about what a caller may
+// see belongs to this package and the kernel under it; a surface calling See
+// itself would be a second place for the scope filter to be applied - or
+// forgotten - and section 13a puts the floor in the kernel precisely so there
+// is only ever one.
+//
+// The principal is an argument for the reason Answer's is: a principal held
+// on the server is a principal that can be stale for the caller in front of
+// it.
+func (s *Server) CapabilityMap(who kernel.Principal, d kernel.Depth) (kernel.CapabilityMap, error) {
+	return s.kernel.See(who).CapabilityMap(d)
+}
+
 func (s *Server) list(who kernel.Principal, r Request) (Answer, error) {
 	m, err := s.kernel.See(who).CapabilityMap(r.Depth)
 	if err != nil {

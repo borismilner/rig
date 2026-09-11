@@ -39,6 +39,63 @@ func MarshalAnswer(a Answer) ([]byte, error) {
 	})
 }
 
+// MarshalCapabilityMap renders the capability map as the content of the one
+// MCP resource section 9 specifies ("Discovery is a resource, not a guess").
+//
+// IT SHARES THE PROGRAM AND COMMAND RENDERERS WITH MarshalAnswer RATHER THAN
+// DESCRIBING A PROGRAM A SECOND TIME. This repository already carries two
+// structural descriptions of a Program - programToWire/commandToWire in the
+// daemon, and the view structs here - and nothing ties them together, so a
+// field added to kernel.Command lands in one and not the other and presents
+// weeks later as "the CLI shows it and MCP does not". A third description
+// would be a third place for that. The top-level envelope differs because the
+// two things genuinely differ: an Answer says which tool produced it, and a
+// resource was not produced by a tool.
+func MarshalCapabilityMap(m kernel.CapabilityMap) ([]byte, error) {
+	programs := programListJSON(m.Programs)
+	if programs == nil {
+		// Never nil, for the reason Partial is never nil, and section 9 names
+		// the case: "an empty estate is every fresh daemon, so it is the
+		// first case a user meets". A null here is a third thing an agent has
+		// to interpret, and an ABSENT programs cannot be told apart from a
+		// server too old to have the field.
+		programs = []programJSON{}
+	}
+	return json.Marshal(capabilityMapJSON{
+		Version:  m.Version,
+		Depth:    m.Depth.String(),
+		Partial:  incompleteListJSON(partialOf(m.Programs...)),
+		Programs: programs,
+	})
+}
+
+// capabilityMapJSON is the resource's object. Every field is emitted always,
+// and that is the whole of its shape argument.
+type capabilityMapJSON struct {
+	// Version is the map's identity: two maps with the same version are the
+	// same map. It is a digest of the projection THIS principal was given,
+	// never a counter on the registry - section 9 - so it is meaningless to
+	// omit and always present.
+	Version string `json:"version"`
+
+	// Depth is emitted always, unspecified included, because the map must
+	// STATE its depth rather than leave it inferable from what happens to be
+	// in it. A reader inferring depth from content cannot tell "commands, and
+	// this program has none" from "programs, so no commands were asked for".
+	Depth string `json:"depth"`
+
+	// Partial is emitted always, empty included, for the reason
+	// answerJSON.Partial is: section 5k forbids a surface implying
+	// completeness, and an absent partial cannot be told apart from a server
+	// too old to have the field.
+	Partial []incompleteJSON `json:"partial"`
+
+	// Programs is emitted always, empty included. It is what the resource IS,
+	// and an empty estate is a real and common answer rather than a missing
+	// one.
+	Programs []programJSON `json:"programs"`
+}
+
 type answerJSON struct {
 	Tool string `json:"tool"`
 

@@ -18,3 +18,14 @@ var PartialForTest = partialOf
 // the key, and the absent-versus-too-old ambiguity the field exists to prevent
 // comes back silently. So the tag is asserted directly.
 var AnswerJSONShape = reflect.TypeOf(answerJSON{})
+
+// CapabilityMapJSONShape exposes the resource object's struct tags to this
+// package's external tests.
+//
+// It exists for the reason AnswerJSONShape does, and the trap is the same
+// one: `depth` renders as an enum NAME, so "unspecified" is not the empty
+// string and an `omitempty` added to it would be inert on the day it was
+// written. The four fields of this object are emitted ALWAYS - that is its
+// whole shape argument - and nothing behavioural can see an omitempty that is
+// not yet doing damage.
+var CapabilityMapJSONShape = reflect.TypeOf(capabilityMapJSON{})

@@ -126,7 +126,96 @@ func New(m *meta.Server, who kernel.Principal, version string) *Server {
 		return answer(m.Answer(ctx, who, meta.Request{Tool: meta.Query, Subject: a.Subject}))
 	})
 
+	// THE CAPABILITY MAP, AS ONE RESOURCE. Section 9, and M2 slice 4.
+	//
+	// The handler closes over `who`, which is what makes one URI serve every
+	// principal its own map with no extra mechanism: there is one Server per
+	// connection and one principal per Server, minted at accept. The scope
+	// filter is the same one every other read goes through.
+	s.AddResource(&mcp.Resource{
+		Name:     "capabilities",
+		Title:    "The estate's capability map",
+		URI:      CapabilityURI,
+		MIMEType: "application/json",
+		Description: "Everything this caller may reach, in one object: every " +
+			"program, its commands, how much of rig it has adopted, and a " +
+			"version that changes when any of that does. Read it once " +
+			"instead of describing programs one at a time.",
+	}, srv.readCapabilities)
+
 	return srv
+}
+
+// CapabilityURI is the one URI the capability map is served at.
+//
+// ONE FIXED URI WHOSE CONTENT VARIES BY THE CONNECTION'S PRINCIPAL, ruled
+// 2026-09-11, and the alternatives were live rather than impossible - the SDK
+// expresses one resource per depth and a parameterised template equally well,
+// and both were tried against a running client before the ruling.
+//
+// The reasons it is this one: section 9's purpose is "read it once and know
+// everything that exists", which a URI per program defeats by turning
+// discovery back into enumeration; and a URI per depth makes an agent choose
+// a depth before it knows what exists, which is discovery backwards.
+// capability.go's rule that one estate at two depths must never share a
+// VERSION is about identity and is satisfied by the version - depth is a
+// parameter of the request, not part of the address.
+const CapabilityURI = "rig://capabilities"
+
+// capabilityDepth is the depth the resource answers at.
+//
+// It has to be a constant rather than a choice, because a resource read
+// carries a URI and nothing else: the MCP read has no argument channel the
+// way a tool call does. DepthCommands is the same default `list` takes and
+// for the same sentence - DepthCommands carries what an agent picks a command
+// BY, DepthFull what it calls the command WITH - and picking is what
+// discovery is. An agent that has chosen then calls describe for the rest.
+const capabilityDepth = kernel.DepthCommands
+
+// readCapabilities answers one read of the capability map.
+//
+// An error here is a protocol error rather than the IsError tool result a
+// refusal gets, and the difference is real: a tool result says the call
+// happened and the answer was no, while a resource that could not be built
+// was not read at all.
+func (s *Server) readCapabilities(_ context.Context, _ *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+	m, err := s.meta.CapabilityMap(s.who, capabilityDepth)
+	if err != nil {
+		return nil, fmt.Errorf("rig could not build the capability map: %w", err)
+	}
+	b, err := meta.MarshalCapabilityMap(m)
+	if err != nil {
+		return nil, fmt.Errorf("rig could not render its own capability map: %w", err)
+	}
+
+	res := &mcp.ReadResourceResult{
+		Contents: []*mcp.ResourceContents{{
+			URI:      CapabilityURI,
+			MIMEType: "application/json",
+			Text:     string(b),
+		}},
+	}
+
+	// SET EXPLICITLY, THOUGH ZERO IS ALREADY THE VALUE. A TTL of 0 means the
+	// response should be treated as immediately stale, which is the only safe
+	// hint for an object whose contents depend on who asked. Leaving it to
+	// the zero value would make the safe behaviour an accident that survives
+	// exactly until someone sets a TTL for a reason that seems good.
+	//
+	// THE OTHER HALF OF THIS IS NOT DEFENDED, AND THAT WAS SEEN RATHER THAN
+	// MISSED. go-sdk v1.7.0 stamps cacheScope="public" on every resource
+	// result AFTER the handler returns, overwriting whatever the handler set
+	// - setDefaultCacheableValues assigns unconditionally, so its name says
+	// default and its behaviour is an override. A per-principal map announced
+	// as publicly cacheable is exactly the scope-leak-through-a-cache-key
+	// section 9's digest exists to close, arriving from outside rig. It is
+	// unreachable today because every caller on this socket introspects, so
+	// there is only one map to serve; it arms the moment a narrower principal
+	// reaches this surface. There is no supported way to opt out and a forged
+	// one would be a second surface, so it is left alone deliberately.
+	res.TTLMs = 0
+
+	return res, nil
 }
 
 // Sync brings the promoted tools into line with the estate as it is now.
