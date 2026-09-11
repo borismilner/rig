@@ -4208,7 +4208,7 @@ for rig's own development.** The gate in §24 fires when the last one lands.
 |---|---|---|---|
 | 1 | **Estate identity in the protocol.** A name and a role (`production` / `development`) minted into the principal and carried in every answer | §14, and the wire | **not specified.** Today `rig ping --json` returns a BUILD version and nothing else, and the only selector is an ambient `XDG_RUNTIME_DIR` |
 | 2 | **State scoped per estate.** Config, storage and the call log keyed by estate, not by uid | M5, where storage lands | **not specified, and it is the one that bites silently.** `internal/paths` scopes the sockets and the pidfile and nothing else, because rig holds no persistent state yet. The conventional store is `$XDG_STATE_HOME`, which is NOT scoped by `XDG_RUNTIME_DIR` - so the development estate would write into production's store |
-| 3 | **Wire skew is detected, not discovered.** A client built from the development tree talking to the production daemon is refused or warned, by comparing the wire version and `semantics_gen` | §21 | **specified and never compared.** The fields exist; nothing reads them against each other |
+| 3 | **Build and semantic skew is detected, not discovered.** A client built from the development tree talking to the production daemon is refused or warned | §21, and **the wire** | **CORRECTED 2026-09-11, and the correction made it BIGGER.** This row first said "compare the wire version and `semantics_gen`". **There is no wire version field** - `wire.proto:1` is a comment and the major is carried by the proto PATH (`rig/v1`), so major skew is structurally impossible rather than undetected. `semantics_gen` is real (`wire.proto:294`, `:359`) and is genuinely never compared between a client and a daemon. The only version crossing today is `HelloRequest.version`, whose own comment says *"reported not enforced"*. **So this needs a NEW FIELD: a proto change, a §14 walk and a §22 question, not a contained fix** |
 | 4 | **A restart is survivable and distinguishable from a blip.** Epoch handles, two-step lease expiry with witnesses, and `owner_gone` | M7, §16 | **ruled, unbuilt.** V15 rules the daemon publishes an epoch and every handle carries it. Ruled for crashes; a deliberate self-upgrade is the SAME event and nothing says so |
 | 5 | **The `systemd --user` unit manages production ONLY.** The development estate is never under it | M6, §5l | **not specified.** §5l already carries AgentBox's scar: an `ExecStop` killed the healthy daemon it managed, because single-instance-by-flock plus auto-spawn makes the start command exit 0. **rig has the identical shape, and a second estate is exactly the condition that fires it** |
 | 6 | **A named estate refuses a name already held**, and says which name and which pid | §5f | **not built.** The `flock` is per directory; nothing keys it to a name |
@@ -4224,6 +4224,43 @@ something it *reads*. **Routing deliberately requires the estate to answer for
 itself**, which makes this a wire and §14 change rather than a convention. A
 convention over two directory paths is what we have now, and it is exactly what
 fails the first time an agent is launched from the wrong shell.
+
+### Using rig to develop rig is an INSTRUMENT, and every seat is the instrument
+
+**Boris, 2026-09-11:** *"all peers are to be instructed to be on the lookout for
+the way using rig benefits them or making their life harder and propose
+features, bugs and improvements to be added to the rig backlog."*
+
+**This is the reason self-hosting is worth its cost, and it is not a side
+effect.** rig exists so that sessions like the ones building it can do a good
+job. **They are therefore its best requirements source, and the only one that
+meets it under load** - a seat that has just lost an hour to a missing mechanism
+knows something no design review produces.
+
+**The obligation, on every seat, from the moment the gate is crossed:**
+
+| | |
+|---|---|
+| **Report what rig DID for you, and what it did TO you** | both directions. A mechanism that saved an hour is evidence as much as one that cost an hour |
+| **Evidence, not wishes** | *"I derived this by hand three times today"* is a proposal. *"It would be nice if"* is not. This bar is §36's and it does not relax because the reporter is inside the project |
+| **To the team-lead, never straight to the backlog** | the lead ATTACKS a proposal rather than collecting it: is it already specified, who adopts it, is it domain logic, what is the evidence, what does it cost |
+| **The lead does not review its own** | it puts its proposals to a worker, or to Boris |
+
+**Only what survives the argument enters the backlog, with its evidence and its
+adopter recorded beside it**, so the argument is not had twice.
+
+**THE BACKLOG IS `logbook/projects/rig/BACKLOG.md`, and it did not exist until
+2026-09-11.** §36 and the team charter both said *"only what survives goes in the
+backlog"* and **neither ever said where that was** - proposals went into dated
+one-off files and were then folded into this document or dropped, with no
+standing list and no state per item. **A continuous feedback stream from every
+seat cannot land in a dated file**, which is why the address is named here rather
+than left to a convention.
+
+**The failure mode this is written against:** a menu of features nobody adopts.
+**Nothing enters the backlog without a named adopter**, and under self-hosting
+the adopter is usually the seat that proposed it, which is the strongest form
+that has ever been available here.
 
 ### The notification obligation, written as a mechanism because a promise cannot survive a session
 
