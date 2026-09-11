@@ -436,7 +436,12 @@ path: a socket named after a program turns the runtime directory into a second c
 registry that `ls` enumerates and `stat` polls for presence, and a mode bit is a uid instrument
 being asked to enforce a client boundary (§14).
 
-**Exactly one `rigd` per user, and it is enforced rather than assumed.** `rigd` takes an
+**Exactly one `rigd` per ESTATE, and it is enforced rather than assumed.** **The boundary is the
+runtime directory, not the uid, and §37 is where that is specified** - one user runs at most two
+named estates, production and development, and the sentence that used to stand here said "per
+user" while the mechanism below has always been per directory. **Do not "fix" the mechanism to
+match the old sentence:** every test in this repository starts an estate of its own, and a
+genuinely per-uid lock makes rig undevelopable. `rigd` takes an
 exclusive `flock` on `$XDG_RUNTIME_DIR/rig/rigd.pid` before it binds, and a second instance
 exits with the incumbent's pid rather than unlinking the socket and taking over. **This is the
 mechanism §16's entire argument rests on** - "every coordination operation passes through a
@@ -2036,7 +2041,7 @@ declare, and it has not.
 
 | Boundary | Between | How |
 |---|---|---|
-| **Instance** | Unix users | One daemon per uid. One socket at `$XDG_RUNTIME_DIR/rig/rigd.sock`, mode 0600, separate config, state and storage trees. Nothing is shared, including the tray, the window and the notification centre |
+| **Instance** | Unix users, **and the two named estates of one user (§37)** | One daemon per estate, keyed by runtime directory. One socket at `$XDG_RUNTIME_DIR/rig/rigd.sock`, mode 0600, separate config, state and storage trees. Nothing is shared, including the tray, the window and the notification centre |
 | **Session** | Clients of one daemon: agents, terminals, the window, scripts | Every connection carries a principal - uid, client kind, client id, session id - and belongs to one or more **scopes**. Every kernel view is filtered by scope set, **unless the principal holds `introspect`** (below - and it is not presented, it is decided
 when the connection is made). Enforced against accident and against a merely buggy client; see the floor stated below for what it is not enforced against |
 | **Program** | Programs | Capabilities (§13): secrets namespaced, storage pathed, events by grant, no cross-program read of anything |
@@ -3444,6 +3449,7 @@ the shell is M1a's and does not depend on it.
 |---|---|---|
 | **M3** | the day M3 lands. **M4 does not start until the answer is written** | `DECISIONS.md`, in writing |
 | **M8** | the day M8 lands. **M9 does not start until the answer is written** | `DECISIONS.md`, in writing |
+| **Self-hosting (§37)** | the day the LAST precondition in §37 lands. **The estate does not move onto rig for rig's own development until the answer is written** | `DECISIONS.md`, in writing, **and Boris is notified before it is crossed** |
 
 The M3 answer is one of three, and it names what it cuts: *continue*, *stop at M3*, or
 *continue with a cut list*. **This project carries no dates.** A gate fires when the milestone
@@ -4136,3 +4142,100 @@ projection and it is being built now; slice 4's capability map is the same rule
 at a larger scale, where *"a scoped caller and an introspecting one read
 different maps at the same instant"* is exactly the withheld-versus-absent
 distinction above.
+
+
+---
+
+## 37. Two estates, and the gate before rig develops rig
+
+**Boris, 2026-09-11:** *"Once all agent-facing mechanisms will be ready in their
+full glory, we'll want to deploy rig and use it in the development process of
+rig, which may cause a problem since I defined there can be a single rig
+instance at all times."* And, ruling the shape: *"I don't think we should allow
+more than one production and one development."*
+
+**This section exists so that moment is prepared for rather than discovered.**
+
+### The rule
+
+**A user runs AT MOST TWO NAMED ESTATES: `production` and `development`.** Not
+one, and not an open namespace of N.
+
+| | |
+|---|---|
+| **production** | what the estate's agents coordinate through. Long-lived. Upgraded deliberately |
+| **development** | where rig is built, restarted, broken and tested. Disposable by design |
+
+**Why two rather than N.** §16's entire argument is that every coordination
+operation passes through a single serialisation point *per estate*, which makes
+them linearizable by construction. Two estates that share no state tree do not
+weaken that; an open namespace invites a third that somebody forgets, and the
+question "which estate is authoritative" stops having an answer.
+
+### Ephemeral estates are NOT a third estate, and this is the clause that keeps the tests alive
+
+**The rule binds NAMED estates.** Every test in this repository and every
+reproduction recipe in the handoff starts an anonymous estate in a temporary
+`XDG_RUNTIME_DIR` and tears it down. **Those are not deployments and the rule
+does not reach them.** Stated explicitly because "at most two" read literally
+would forbid `make ci`.
+
+**So the enforceable form is: a NAMED estate refuses to start when its name is
+already held**, which is the existing `flock` keyed by name rather than a new
+mechanism. An unnamed estate claims no name and collides with nothing.
+
+### What is already true, demonstrated rather than argued
+
+**Measured 2026-09-11 on this machine, two `rigd` from one binary as one user:**
+
+| Checked | Result |
+|---|---|
+| Two estates in two runtime directories | **both serve.** Sockets `srw-------` |
+| A second `rigd` in an estate's own directory | **refused, naming the incumbent pid** |
+| A program registered in one | the other answers `no programs are registered` |
+| **`rig down` on one** | **the other is untouched and still answering** |
+
+**`rig down` already targets one estate**, which is why it retired `pkill -x
+rigd` - that killed every estate on the machine, and it is the reason the verb
+was pulled forward from M6.
+
+### The preconditions, and NONE of them may be skipped
+
+**These are the backlog items that must land before the estate moves onto rig
+for rig's own development.** The gate in §24 fires when the last one lands.
+
+| # | Precondition | Where it lands | State |
+|---|---|---|---|
+| 1 | **Estate identity in the protocol.** A name and a role (`production` / `development`) minted into the principal and carried in every answer | §14, and the wire | **not specified.** Today `rig ping --json` returns a BUILD version and nothing else, and the only selector is an ambient `XDG_RUNTIME_DIR` |
+| 2 | **State scoped per estate.** Config, storage and the call log keyed by estate, not by uid | M5, where storage lands | **not specified, and it is the one that bites silently.** `internal/paths` scopes the sockets and the pidfile and nothing else, because rig holds no persistent state yet. The conventional store is `$XDG_STATE_HOME`, which is NOT scoped by `XDG_RUNTIME_DIR` - so the development estate would write into production's store |
+| 3 | **Wire skew is detected, not discovered.** A client built from the development tree talking to the production daemon is refused or warned, by comparing the wire version and `semantics_gen` | §21 | **specified and never compared.** The fields exist; nothing reads them against each other |
+| 4 | **A restart is survivable and distinguishable from a blip.** Epoch handles, two-step lease expiry with witnesses, and `owner_gone` | M7, §16 | **ruled, unbuilt.** V15 rules the daemon publishes an epoch and every handle carries it. Ruled for crashes; a deliberate self-upgrade is the SAME event and nothing says so |
+| 5 | **The `systemd --user` unit manages production ONLY.** The development estate is never under it | M6, §5l | **not specified.** §5l already carries AgentBox's scar: an `ExecStop` killed the healthy daemon it managed, because single-instance-by-flock plus auto-spawn makes the start command exit 0. **rig has the identical shape, and a second estate is exactly the condition that fires it** |
+| 6 | **A named estate refuses a name already held**, and says which name and which pid | §5f | **not built.** The `flock` is per directory; nothing keys it to a name |
+
+### Why item 1 is the one Boris asked for by name
+
+**Boris, 2026-09-11:** *"The peers (all agents) will know which rig instance is
+which and will know when to be talking to which and for what purposes."*
+
+**An agent cannot know that today.** `XDG_RUNTIME_DIR` is inherited from whatever
+launched the agent, so the estate is something an agent *is placed in*, never
+something it *reads*. **Routing deliberately requires the estate to answer for
+itself**, which makes this a wire and §14 change rather than a convention. A
+convention over two directory paths is what we have now, and it is exactly what
+fails the first time an agent is launched from the wrong shell.
+
+### The notification obligation, written as a mechanism because a promise cannot survive a session
+
+**Boris asked to be notified specifically when that time comes.** No session
+alive today will be alive then, so the obligation is placed on whichever seat
+crosses the line rather than on a memory:
+
+> **The seat that lands the LAST precondition in the table above MUST notify
+> Boris before anything is repointed, and MUST NOT proceed on its own
+> judgement.** The best-judgement delegation does not reach this gate. The
+> answer goes in `DECISIONS.md` in writing, per §24.
+
+**This is the same shape as the M3 and M8 gates and for the same reason:** what
+stops a gate being passed rather than taken is the block on the next thing, not
+a calendar. **This project carries no dates and this gate introduces none.**
