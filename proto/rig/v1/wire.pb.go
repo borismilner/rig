@@ -517,6 +517,68 @@ func (Depth) EnumDescriptor() ([]byte, []int) {
 	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{7}
 }
 
+// EstateRole is what an estate is FOR.
+//
+// UNNAMED HAS A NUMBER OF ITS OWN AND THE ZERO IS NOT IT. proto3 cannot tell
+// an unset scalar from a zero one, so a daemon that carries this field and
+// fails to set it - a bug, or a build where the field landed and the setter
+// did not - would render as "this is an unnamed estate" and an agent would
+// branch on it. An unnamed estate reads as ephemeral and disposable and
+// production does not, so the safe guess and the useful guess point opposite
+// ways. Zero therefore keeps section 21's meaning, "nothing was said", and the
+// identity fact gets a value of its own.
+type EstateRole int32
+
+const (
+	EstateRole_ESTATE_ROLE_UNSPECIFIED EstateRole = 0 // nothing was said. Never a fact about an estate
+	EstateRole_ESTATE_ROLE_UNNAMED     EstateRole = 1 // deliberately unnamed: a test, a build, an ephemeral run
+	EstateRole_ESTATE_ROLE_PRODUCTION  EstateRole = 2
+	EstateRole_ESTATE_ROLE_DEVELOPMENT EstateRole = 3
+)
+
+// Enum value maps for EstateRole.
+var (
+	EstateRole_name = map[int32]string{
+		0: "ESTATE_ROLE_UNSPECIFIED",
+		1: "ESTATE_ROLE_UNNAMED",
+		2: "ESTATE_ROLE_PRODUCTION",
+		3: "ESTATE_ROLE_DEVELOPMENT",
+	}
+	EstateRole_value = map[string]int32{
+		"ESTATE_ROLE_UNSPECIFIED": 0,
+		"ESTATE_ROLE_UNNAMED":     1,
+		"ESTATE_ROLE_PRODUCTION":  2,
+		"ESTATE_ROLE_DEVELOPMENT": 3,
+	}
+)
+
+func (x EstateRole) Enum() *EstateRole {
+	p := new(EstateRole)
+	*p = x
+	return p
+}
+
+func (x EstateRole) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (EstateRole) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_rig_v1_wire_proto_enumTypes[8].Descriptor()
+}
+
+func (EstateRole) Type() protoreflect.EnumType {
+	return &file_proto_rig_v1_wire_proto_enumTypes[8]
+}
+
+func (x EstateRole) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use EstateRole.Descriptor instead.
+func (EstateRole) EnumDescriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{8}
+}
+
 type Status struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Code  Code                   `protobuf:"varint,1,opt,name=code,proto3,enum=rig.v1.Code" json:"code,omitempty"`
@@ -1802,6 +1864,145 @@ func (x *DownResponse) GetVersion() string {
 	return ""
 }
 
+type EstateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EstateRequest) Reset() {
+	*x = EstateRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EstateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EstateRequest) ProtoMessage() {}
+
+func (x *EstateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EstateRequest.ProtoReflect.Descriptor instead.
+func (*EstateRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{15}
+}
+
+type EstateResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The name this estate claimed, empty when it claimed none. Section 37's
+	// precondition 6 makes it unique across the machine while it is held.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// ROLE IS DERIVED FROM name BY THE DAEMON, AT REPLY TIME, AND IS NEVER
+	// STORED AND NEVER ACCEPTED AS INPUT. A client must never send one and must
+	// never infer the other.
+	//
+	// Both are carried on purpose even though the name set is closed at two
+	// today and role is therefore derivable. With only the name, the derivation
+	// `name == "production"` would live in every consumer - every agent, every
+	// script, outside this repository and uncountable - and reopening the set
+	// would break all of them silently. Here it lives in the daemon, once, and
+	// reopening the set breaks nothing. The two cannot disagree because there is
+	// no second place to write one.
+	Role EstateRole `protobuf:"varint,2,opt,name=role,proto3,enum=rig.v1.EstateRole" json:"role,omitempty"`
+	// The daemon's own build. The same value `rig.ping` returns when it is
+	// addressed to rig itself, consolidated here so one call answers "who did I
+	// reach" rather than requiring a caller to know to probe "rig".
+	DaemonVersion string `protobuf:"bytes,3,opt,name=daemon_version,json=daemonVersion,proto3" json:"daemon_version,omitempty"`
+	// The wire contract's major. Carried for completeness rather than for skew
+	// detection: the major rides the proto package path, so a client and a
+	// daemon on different majors cannot connect at all and major skew is
+	// structurally impossible rather than undetected.
+	Wire string `protobuf:"bytes,4,opt,name=wire,proto3" json:"wire,omitempty"`
+	// RIG'S OWN SEMANTIC GENERATION, FROM ITS SELF-DECLARATION, AND IT IS NOT A
+	// PER-PROGRAM SKEW DETECTOR. Do not read this as "have the programs I use
+	// changed meaning". That question is per-program, its answer is already on
+	// the wire in Program.semantics_gen and already readable, and what it needs
+	// is a consumer on the capability map. This field answers only "what
+	// semantics does the daemon itself implement", which is what a client built
+	// from the development tree needs when it reaches the production daemon.
+	SemanticsGen  int32 `protobuf:"varint,5,opt,name=semantics_gen,json=semanticsGen,proto3" json:"semantics_gen,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EstateResponse) Reset() {
+	*x = EstateResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EstateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EstateResponse) ProtoMessage() {}
+
+func (x *EstateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EstateResponse.ProtoReflect.Descriptor instead.
+func (*EstateResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *EstateResponse) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *EstateResponse) GetRole() EstateRole {
+	if x != nil {
+		return x.Role
+	}
+	return EstateRole_ESTATE_ROLE_UNSPECIFIED
+}
+
+func (x *EstateResponse) GetDaemonVersion() string {
+	if x != nil {
+		return x.DaemonVersion
+	}
+	return ""
+}
+
+func (x *EstateResponse) GetWire() string {
+	if x != nil {
+		return x.Wire
+	}
+	return ""
+}
+
+func (x *EstateResponse) GetSemanticsGen() int32 {
+	if x != nil {
+		return x.SemanticsGen
+	}
+	return 0
+}
+
 type CallRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// A JSON object. Empty means no arguments, and is distinct from `{}` only
@@ -1813,7 +2014,7 @@ type CallRequest struct {
 
 func (x *CallRequest) Reset() {
 	*x = CallRequest{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[15]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1825,7 +2026,7 @@ func (x *CallRequest) String() string {
 func (*CallRequest) ProtoMessage() {}
 
 func (x *CallRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[15]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1838,7 +2039,7 @@ func (x *CallRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CallRequest.ProtoReflect.Descriptor instead.
 func (*CallRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{15}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CallRequest) GetArgs() []byte {
@@ -1860,7 +2061,7 @@ type CallResponse struct {
 
 func (x *CallResponse) Reset() {
 	*x = CallResponse{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[16]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1872,7 +2073,7 @@ func (x *CallResponse) String() string {
 func (*CallResponse) ProtoMessage() {}
 
 func (x *CallResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[16]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1885,7 +2086,7 @@ func (x *CallResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CallResponse.ProtoReflect.Descriptor instead.
 func (*CallResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{16}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *CallResponse) GetResult() []byte {
@@ -1995,7 +2196,14 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\vDownRequest\":\n" +
 	"\fDownResponse\x12\x10\n" +
 	"\x03pid\x18\x01 \x01(\x05R\x03pid\x12\x18\n" +
-	"\aversion\x18\x02 \x01(\tR\aversion\"!\n" +
+	"\aversion\x18\x02 \x01(\tR\aversion\"\x0f\n" +
+	"\rEstateRequest\"\xac\x01\n" +
+	"\x0eEstateResponse\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12&\n" +
+	"\x04role\x18\x02 \x01(\x0e2\x12.rig.v1.EstateRoleR\x04role\x12%\n" +
+	"\x0edaemon_version\x18\x03 \x01(\tR\rdaemonVersion\x12\x12\n" +
+	"\x04wire\x18\x04 \x01(\tR\x04wire\x12#\n" +
+	"\rsemantics_gen\x18\x05 \x01(\x05R\fsemanticsGen\"!\n" +
 	"\vCallRequest\x12\x12\n" +
 	"\x04args\x18\x01 \x01(\fR\x04args\"&\n" +
 	"\fCallResponse\x12\x16\n" +
@@ -2048,7 +2256,13 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x0eDEPTH_PROGRAMS\x10\x01\x12\x12\n" +
 	"\x0eDEPTH_COMMANDS\x10\x02\x12\x0e\n" +
 	"\n" +
-	"DEPTH_FULL\x10\x03B0Z.github.com/boris-milner/rig/proto/rig/v1;rigv1b\x06proto3"
+	"DEPTH_FULL\x10\x03*{\n" +
+	"\n" +
+	"EstateRole\x12\x1b\n" +
+	"\x17ESTATE_ROLE_UNSPECIFIED\x10\x00\x12\x17\n" +
+	"\x13ESTATE_ROLE_UNNAMED\x10\x01\x12\x1a\n" +
+	"\x16ESTATE_ROLE_PRODUCTION\x10\x02\x12\x1b\n" +
+	"\x17ESTATE_ROLE_DEVELOPMENT\x10\x03B0Z.github.com/boris-milner/rig/proto/rig/v1;rigv1b\x06proto3"
 
 var (
 	file_proto_rig_v1_wire_proto_rawDescOnce sync.Once
@@ -2062,8 +2276,8 @@ func file_proto_rig_v1_wire_proto_rawDescGZIP() []byte {
 	return file_proto_rig_v1_wire_proto_rawDescData
 }
 
-var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
-var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
+var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(FrameKind)(0),           // 0: rig.v1.FrameKind
 	(Code)(0),                // 1: rig.v1.Code
@@ -2073,51 +2287,55 @@ var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(Shape)(0),               // 5: rig.v1.Shape
 	(Tristate)(0),            // 6: rig.v1.Tristate
 	(Depth)(0),               // 7: rig.v1.Depth
-	(*Status)(nil),           // 8: rig.v1.Status
-	(*Frame)(nil),            // 9: rig.v1.Frame
-	(*HelloRequest)(nil),     // 10: rig.v1.HelloRequest
-	(*HelloResponse)(nil),    // 11: rig.v1.HelloResponse
-	(*PingRequest)(nil),      // 12: rig.v1.PingRequest
-	(*PingResponse)(nil),     // 13: rig.v1.PingResponse
-	(*Identity)(nil),         // 14: rig.v1.Identity
-	(*SensitiveFields)(nil),  // 15: rig.v1.SensitiveFields
-	(*Command)(nil),          // 16: rig.v1.Command
-	(*Declaration)(nil),      // 17: rig.v1.Declaration
-	(*Program)(nil),          // 18: rig.v1.Program
-	(*ProgramsRequest)(nil),  // 19: rig.v1.ProgramsRequest
-	(*ProgramsResponse)(nil), // 20: rig.v1.ProgramsResponse
-	(*DownRequest)(nil),      // 21: rig.v1.DownRequest
-	(*DownResponse)(nil),     // 22: rig.v1.DownResponse
-	(*CallRequest)(nil),      // 23: rig.v1.CallRequest
-	(*CallResponse)(nil),     // 24: rig.v1.CallResponse
+	(EstateRole)(0),          // 8: rig.v1.EstateRole
+	(*Status)(nil),           // 9: rig.v1.Status
+	(*Frame)(nil),            // 10: rig.v1.Frame
+	(*HelloRequest)(nil),     // 11: rig.v1.HelloRequest
+	(*HelloResponse)(nil),    // 12: rig.v1.HelloResponse
+	(*PingRequest)(nil),      // 13: rig.v1.PingRequest
+	(*PingResponse)(nil),     // 14: rig.v1.PingResponse
+	(*Identity)(nil),         // 15: rig.v1.Identity
+	(*SensitiveFields)(nil),  // 16: rig.v1.SensitiveFields
+	(*Command)(nil),          // 17: rig.v1.Command
+	(*Declaration)(nil),      // 18: rig.v1.Declaration
+	(*Program)(nil),          // 19: rig.v1.Program
+	(*ProgramsRequest)(nil),  // 20: rig.v1.ProgramsRequest
+	(*ProgramsResponse)(nil), // 21: rig.v1.ProgramsResponse
+	(*DownRequest)(nil),      // 22: rig.v1.DownRequest
+	(*DownResponse)(nil),     // 23: rig.v1.DownResponse
+	(*EstateRequest)(nil),    // 24: rig.v1.EstateRequest
+	(*EstateResponse)(nil),   // 25: rig.v1.EstateResponse
+	(*CallRequest)(nil),      // 26: rig.v1.CallRequest
+	(*CallResponse)(nil),     // 27: rig.v1.CallResponse
 }
 var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	1,  // 0: rig.v1.Status.code:type_name -> rig.v1.Code
 	0,  // 1: rig.v1.Frame.kind:type_name -> rig.v1.FrameKind
-	8,  // 2: rig.v1.Frame.status:type_name -> rig.v1.Status
-	17, // 3: rig.v1.HelloRequest.declaration:type_name -> rig.v1.Declaration
+	9,  // 2: rig.v1.Frame.status:type_name -> rig.v1.Status
+	18, // 3: rig.v1.HelloRequest.declaration:type_name -> rig.v1.Declaration
 	3,  // 4: rig.v1.Command.effects:type_name -> rig.v1.Effects
 	6,  // 5: rig.v1.Command.idempotent:type_name -> rig.v1.Tristate
-	15, // 6: rig.v1.Command.sensitive:type_name -> rig.v1.SensitiveFields
+	16, // 6: rig.v1.Command.sensitive:type_name -> rig.v1.SensitiveFields
 	6,  // 7: rig.v1.Command.interactive:type_name -> rig.v1.Tristate
 	6,  // 8: rig.v1.Command.streams:type_name -> rig.v1.Tristate
 	6,  // 9: rig.v1.Command.needs_display:type_name -> rig.v1.Tristate
 	4,  // 10: rig.v1.Command.duration:type_name -> rig.v1.Duration
 	6,  // 11: rig.v1.Command.confirms:type_name -> rig.v1.Tristate
 	5,  // 12: rig.v1.Command.shape:type_name -> rig.v1.Shape
-	14, // 13: rig.v1.Declaration.identity:type_name -> rig.v1.Identity
+	15, // 13: rig.v1.Declaration.identity:type_name -> rig.v1.Identity
 	2,  // 14: rig.v1.Declaration.coverage:type_name -> rig.v1.Coverage
-	16, // 15: rig.v1.Declaration.commands:type_name -> rig.v1.Command
-	14, // 16: rig.v1.Program.identity:type_name -> rig.v1.Identity
+	17, // 15: rig.v1.Declaration.commands:type_name -> rig.v1.Command
+	15, // 16: rig.v1.Program.identity:type_name -> rig.v1.Identity
 	2,  // 17: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
-	16, // 18: rig.v1.Program.commands:type_name -> rig.v1.Command
+	17, // 18: rig.v1.Program.commands:type_name -> rig.v1.Command
 	7,  // 19: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
-	18, // 20: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
-	21, // [21:21] is the sub-list for method output_type
-	21, // [21:21] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	19, // 20: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
+	8,  // 21: rig.v1.EstateResponse.role:type_name -> rig.v1.EstateRole
+	22, // [22:22] is the sub-list for method output_type
+	22, // [22:22] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_wire_proto_init() }
@@ -2130,8 +2348,8 @@ func file_proto_rig_v1_wire_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_wire_proto_rawDesc), len(file_proto_rig_v1_wire_proto_rawDesc)),
-			NumEnums:      8,
-			NumMessages:   17,
+			NumEnums:      9,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

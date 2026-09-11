@@ -168,6 +168,7 @@ func run() error {
 	d, err := daemon.New(daemon.Config{
 		Version: version,
 		Wire:    wire,
+		Estate:  *estate,
 		Log:     log,
 		Lock:    lock,
 	})

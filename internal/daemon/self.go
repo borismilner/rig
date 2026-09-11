@@ -1,6 +1,9 @@
 package daemon
 
-import "github.com/boris-milner/rig/internal/kernel"
+import (
+	"github.com/boris-milner/rig/internal/kernel"
+	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+)
 
 // selfDeclaration is rig declaring its own commands the way every program
 // does, so the invoker has declared effects to match on instead of treating
@@ -37,6 +40,10 @@ func selfDeclaration() kernel.Declaration {
 				"Round-trip a nonce",
 				"Echoes the nonce it was given, and probes a named program.",
 				"The nonce, the program id and its version."),
+			readOnly("estate", "Estate",
+				"Say which estate this is",
+				"Answers the estate's name and role, this daemon's build, the wire major and rig's own semantic generation. The one rig method whose answer does not depend on who is asking.",
+				"The estate name and role, the daemon build, the wire major and rig's own semantic generation."),
 			readOnly("programs", "Programs",
 				"List what this principal may reach",
 				"Reads the registry through the calling principal's own view.",
@@ -94,3 +101,32 @@ func selfDeclaration() kernel.Declaration {
 // invoker resolves rig.ping and rig.programs to declared effects instead of
 // leaving them unresolvable.
 func declareSelf(k *kernel.Kernel) error { return k.DeclareSelf(selfDeclaration()) }
+
+// estateRole derives an estate's role from its name, AT REPLY TIME, and it is
+// the only place that derivation exists (PLAN.md section 37).
+//
+// THE DERIVATION LIVES HERE RATHER THAN IN THE CALLER, and that is the whole
+// argument for carrying both fields on the wire. With only a name, every
+// consumer would compute `name == "production"` for itself - every agent, every
+// script, outside this repository and uncountable - and reopening the name set
+// would break all of them silently. Here it is computed once and reopening the
+// set breaks nothing. Because the role is never stored and never accepted as
+// input, there is no second place for the two to disagree from.
+//
+// An unrecognised non-empty name cannot happen today: cmd/rigd refuses anything
+// outside the closed set before the daemon is built. It is answered UNSPECIFIED
+// rather than guessed at, because "nothing was said" is the honest answer to a
+// name this function does not understand, and inventing a role for it would be
+// the guess that section 21's zero exists to prevent.
+func estateRole(name string) rigv1.EstateRole {
+	switch name {
+	case "":
+		return rigv1.EstateRole_ESTATE_ROLE_UNNAMED
+	case "production":
+		return rigv1.EstateRole_ESTATE_ROLE_PRODUCTION
+	case "development":
+		return rigv1.EstateRole_ESTATE_ROLE_DEVELOPMENT
+	default:
+		return rigv1.EstateRole_ESTATE_ROLE_UNSPECIFIED
+	}
+}

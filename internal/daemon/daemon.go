@@ -55,6 +55,13 @@ type Config struct {
 	// behind it without a surface existing.
 	Ask Asker
 
+	// Estate is the name this estate claimed, empty when it claimed none
+	// (PLAN.md section 37).
+	//
+	// It is the NAME only. The role is derived from it at reply time and is
+	// never stored, so there is no second place for the two to disagree from.
+	Estate string
+
 	// Lock is the single-instance claim, and it is REQUIRED.
 	//
 	// Section 5f says rigd takes the flock "before it binds". Stating an
@@ -71,6 +78,7 @@ type Config struct {
 type Daemon struct {
 	version string
 	wire    string
+	estate  string
 	log     *slog.Logger
 	lock    *instance.Lock
 
@@ -185,6 +193,7 @@ func New(cfg Config) (*Daemon, error) {
 	return &Daemon{
 		version:  cfg.Version,
 		wire:     cfg.Wire,
+		estate:   cfg.Estate,
 		log:      log,
 		lock:     cfg.Lock,
 		kernel:   k,
@@ -563,6 +572,21 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 			Nonce:   req.GetNonce(),
 			Program: kernel.SelfID,
 			Version: d.version,
+		})
+
+	case "estate":
+		// UNSCOPED, and it is the only rig method whose answer does not depend
+		// on who is asking (section 14, walked against all six caller rows).
+		// Every field here is a fact about this daemon; none is data belonging
+		// to another principal, so there is nothing to filter. A later field
+		// could quietly destroy that, which is why adding one means walking
+		// the table again.
+		c.reply(f.GetStreamId(), &rigv1.EstateResponse{
+			Name:          d.estate,
+			Role:          estateRole(d.estate),
+			DaemonVersion: d.version,
+			Wire:          d.wire,
+			SemanticsGen:  selfDeclaration().SemanticsGen,
 		})
 
 	case "down":

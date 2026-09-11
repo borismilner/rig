@@ -449,6 +449,95 @@ message DownResponse {
   string version = 2;
 }
 
+// ---- rig.estate, which estate did I just reach (PLAN.md section 37) -------
+//
+// Section 37 runs at most two named estates, production and development, and
+// Boris's requirement is that "the peers (all agents) will know which rig
+// instance is which and will know when to be talking to which and for what
+// purposes". An agent could not know that: XDG_RUNTIME_DIR is INHERITED from
+// whatever launched it, so the estate was something an agent is PLACED IN and
+// never something it reads.
+//
+// A METHOD RATHER THAN A FIELD ON SOMETHING EXISTING, and the alternatives
+// were ruled out on mechanism. Not HelloResponse: a terminal never says hello,
+// and an agent connects as an ordinary unregistered client, so the callers who
+// need this most are exactly the ones that never handshake. Not PingResponse:
+// that is a probe with a nonce which answers FROM THE PROGRAM ADDRESSED, and
+// estate identity is a fact about the daemon - hanging it off a per-program
+// probe is the conflation section 21 keeps catching. Giving terminals a hello
+// instead was rejected on section 14's own terms, because `scoped` is the whole
+// authorisation state a connection carries and making it ambiguous breaks a
+// load-bearing boolean.
+//
+// IT IS UNSCOPED, AND IT IS THE FIRST RIG METHOD WHOSE ANSWER DOES NOT DEPEND
+// ON WHO IS ASKING. Section 14 makes any surface whose product is an
+// estate-wide AGGREGATE a granted surface - the capability map, config export,
+// doctor, the palette, the tray, the notification centre, the schedule. This
+// aggregates nothing: every field below is a fact about the daemon itself and
+// none is data belonging to another principal. Scoping restricts which
+// PROGRAMS a caller sees, and the estate is not a program. Walked against
+// section 14's six rows and every kind gets the full answer, a registered
+// program included. A LATER FIELD COULD QUIETLY DESTROY THAT PROPERTY, so
+// anything added here is walked again.
+
+message EstateRequest {}
+
+// EstateRole is what an estate is FOR.
+//
+// UNNAMED HAS A NUMBER OF ITS OWN AND THE ZERO IS NOT IT. proto3 cannot tell
+// an unset scalar from a zero one, so a daemon that carries this field and
+// fails to set it - a bug, or a build where the field landed and the setter
+// did not - would render as "this is an unnamed estate" and an agent would
+// branch on it. An unnamed estate reads as ephemeral and disposable and
+// production does not, so the safe guess and the useful guess point opposite
+// ways. Zero therefore keeps section 21's meaning, "nothing was said", and the
+// identity fact gets a value of its own.
+enum EstateRole {
+  ESTATE_ROLE_UNSPECIFIED = 0;  // nothing was said. Never a fact about an estate
+  ESTATE_ROLE_UNNAMED = 1;      // deliberately unnamed: a test, a build, an ephemeral run
+  ESTATE_ROLE_PRODUCTION = 2;
+  ESTATE_ROLE_DEVELOPMENT = 3;
+}
+
+message EstateResponse {
+  // The name this estate claimed, empty when it claimed none. Section 37's
+  // precondition 6 makes it unique across the machine while it is held.
+  string name = 1;
+
+  // ROLE IS DERIVED FROM name BY THE DAEMON, AT REPLY TIME, AND IS NEVER
+  // STORED AND NEVER ACCEPTED AS INPUT. A client must never send one and must
+  // never infer the other.
+  //
+  // Both are carried on purpose even though the name set is closed at two
+  // today and role is therefore derivable. With only the name, the derivation
+  // `name == "production"` would live in every consumer - every agent, every
+  // script, outside this repository and uncountable - and reopening the set
+  // would break all of them silently. Here it lives in the daemon, once, and
+  // reopening the set breaks nothing. The two cannot disagree because there is
+  // no second place to write one.
+  EstateRole role = 2;
+
+  // The daemon's own build. The same value `rig.ping` returns when it is
+  // addressed to rig itself, consolidated here so one call answers "who did I
+  // reach" rather than requiring a caller to know to probe "rig".
+  string daemon_version = 3;
+
+  // The wire contract's major. Carried for completeness rather than for skew
+  // detection: the major rides the proto package path, so a client and a
+  // daemon on different majors cannot connect at all and major skew is
+  // structurally impossible rather than undetected.
+  string wire = 4;
+
+  // RIG'S OWN SEMANTIC GENERATION, FROM ITS SELF-DECLARATION, AND IT IS NOT A
+  // PER-PROGRAM SKEW DETECTOR. Do not read this as "have the programs I use
+  // changed meaning". That question is per-program, its answer is already on
+  // the wire in Program.semantics_gen and already readable, and what it needs
+  // is a consumer on the capability map. This field answers only "what
+  // semantics does the daemon itself implement", which is what a client built
+  // from the development tree needs when it reaches the production daemon.
+  int32 semantics_gen = 5;
+}
+
 // ---- Invoking a declared command (PLAN.md section 5e, M1 slice 5) ----------
 //
 // One message pair for EVERY declared command, of every program, forever.
