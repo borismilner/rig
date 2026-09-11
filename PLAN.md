@@ -1453,6 +1453,33 @@ grant gets the map of what it may reach, **and an agent Boris runs holds `intros
 all of it** (§2, §14). The earlier version of this line made the map an operator surface and
 left §9 telling agents to read a document §14 would not serve them.
 
+**The version is a DIGEST OF THE PROJECTION THAT PRINCIPAL WAS GIVEN, never a
+counter on the registry. This is a scope property, not a performance one.**
+
+**The demo above puts a scoped caller and an introspecting one side by side
+reading DIFFERENT maps at the SAME INSTANT. A registry counter gives both the
+SAME version**, so anything caching on that version serves one caller the
+other's estate - **a scope leak arriving through a cache key rather than through
+the filter**, which is the one route the scope filter itself cannot defend. The
+version must therefore be a function of the bytes this principal actually
+received.
+
+**And a digest survives what a counter does not.** Nothing rig holds survives a
+daemon restart (§18), so a counter restarts at zero while the estate it
+describes is unchanged - and two daemons serving identical estates would
+disagree. A digest is a function of content alone, so it is stable across a
+restart and comparable between daemons.
+
+**Three properties the digest must have, each easy to omit and each with a
+failure that looks like nothing:**
+
+| Property | Without it |
+|---|---|
+| **The depth is folded in** | one estate at two depths shares a version. **Only visible on an EMPTY estate**, because with programs registered the depths differ in content anyway - and an empty estate is every fresh daemon, so it is the first case a user meets |
+| **Commands are sorted by id** | declaration order is what a program happened to write, not something it declared, so the version changes when nothing did |
+| **Every value is length-prefixed** | a digest over concatenated fields cannot tell `ab` + `c` from `a` + `bc`. **Only reachable between ADJACENT fields**, so a test of this property that picks two fields with others between them cannot fail |
+
+
 ---
 
 ## 10. The terminal client
