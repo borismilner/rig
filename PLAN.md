@@ -2431,6 +2431,30 @@ half anybody uses.
 | **Values are NEVER trimmed** | The deliberate difference from signals. **Retention on a claim table hands one chunk to two agents**, which is the failure the whole primitive exists to prevent |
 | **The cap refuses a NEW key rather than evicting an existing claim** | Under pressure, an eviction is indistinguishable from a completion to every reader. Refusing is loud; evicting is silent and wrong |
 
+**Two opposite policies over the same event already exist in one daemon, and
+nothing states which is intended where.** Measured 2026-09-11 by reading every
+piece of state `internal/` holds:
+
+- **The single-instance claim is engineered to VANISH on holder death.** It is
+  an `flock` living on an open descriptor, so `kill -9` releases it and leaves
+  no stale claim behind. Death frees it, deliberately.
+- **The registry's name claims are engineered to be REFUSED to a successor.**
+  A second registration of one identity is denied while the holder lives, and
+  the holder's liveness is the connection.
+
+**Both are defensible and they are opposites.** One says a dead holder's claim
+should evaporate; the other says a claim should outlive the moment and be
+defended. **This is gap 3 meeting gap 6**: the disposition of a claim on holder
+death is the single most consequential decision in this design, and rig has made
+it twice, differently, without writing either down.
+
+**The rule this section adopts:** a claim that exists to prevent two actors
+doing one thing at once (the single instance) may evaporate on death, because a
+dead actor is not doing the thing. **A claim that carries identity a successor
+needs (a registered name, a seat, a chunk of divided work) goes ORPHANED and is
+inheritable, never silently free and never permanently refused.** The
+distinction is whether anything downstream has to find the claim again.
+
 **Why this is one mechanism and not two.** rig currently splits claiming: the
 work queue claims **under a lease** with a heartbeat and a witness, and the
 blackboard claims **a key** with CAS and no liveness at all. That split is why
@@ -2939,6 +2963,25 @@ schemas. rig carries a generation table instead of pretending meanings are immut
 cheapest option available, and the only version number that can ever be *retired* - once no
 registration claims a generation, its row goes.
 
+**Measured 2026-09-11: neither version number is ever COMPARED, so "upgrade"
+is today exactly "daemon restart".** Two findings, from reading every use:
+
+- **The wire version is announced and never compared.** It is read in one place
+  and written into the handshake response. An old program and a new daemon
+  transact regardless.
+- **`semantics_gen` is validated and never compared against a previous
+  registration.** Validation refuses a non-positive value, registration logs it,
+  and the projection carries it - but nothing compares one registration's
+  generation to the last one's, **which is the comparison the field's name
+  implies.**
+
+**So the generation table above is specified and unbuilt**, and the state
+ownership matrix has two cells it cannot fill for that reason: "what does an
+upgrade do that a restart does not" is undecidable from the code because today
+the answer is "nothing". **Whether it should stay nothing is an open question
+and it is Boris's**, because it decides whether a program can be running against
+a meaning that has moved underneath it.
+
 ### The escape hatch, which costs nothing now and everything later
 
 Serving every wire version forever, with no stated end, quietly grows the test matrix without
@@ -2991,6 +3034,21 @@ Versions verified 2026-09-10.
 | TypeScript runtime helpers | `tslib` | 2.8.1 |
 | Lint | golangci-lint plus three house analyzers: no program id in rig code, no registry handle outside the kernel, no meaningful enum zero | |
 | Runtime tuning | `GOMEMLIMIT` and `GOGC` set explicitly in the unit file and the Makefile | neither appeared anywhere before |
+
+**`make deps-check` gates ONE DIRECTION ONLY, and the gap is named here because
+a green gate is exactly where nobody looks.** It compares every pinned
+dependency in `go.mod` and `package.json` **against this table**, so a
+dependency that ships without a row is caught. **It does not check the reverse**:
+a row naming something no manifest contains passes silently.
+
+**That is not hypothetical. `koanf` is named above at `v2.3.6` and is not in
+`go.mod` at all** - the config loader is specified and unbuilt, and the gate is
+green. Measured 2026-09-11.
+
+**This is the repository's own recurring defect and its fourth recorded
+instance**, after coverage measuring the wrong scope, the contrast target
+invoking a file that never existed, and `go vet` loading a package CI cannot
+compile. **A green number here gets asked how many things it looked at.**
 
 **Two binaries** (§17): `cmd/rigd` links none of the terminal stack; `cmd/rig` links
 bubbletea, huh, glamour and lipgloss and never the daemon's internals. `make bench-size`
