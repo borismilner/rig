@@ -44,6 +44,10 @@ func run() error {
 		"unnamed estates claim no name and collide with nothing")
 	flag.Parse()
 
+	if err := checkEstateName(*estate); err != nil {
+		return err
+	}
+
 	if *showVersion {
 		fmt.Printf("product %s\nwire    %s\ncommit  %s\nbuilt   %s\n", version, wire, sha, date)
 		return nil
