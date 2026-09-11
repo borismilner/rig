@@ -77,9 +77,26 @@ type Client struct {
 	mu  sync.Mutex
 	cur *conn
 
+	// queue is section 5g's BOUNDED outbound queue, as a semaphore rather
+	// than a buffer of frames. What has to be bounded is the number of calls
+	// waiting for an absent rig, and each of those is already a caller
+	// holding its own request; a second copy of it in a slice would be the
+	// same work stored twice.
+	queue chan struct{}
+
 	closeOnce sync.Once
 	closed    chan struct{}
 }
+
+// outbound is how many calls may be waiting for rig to come back at once.
+//
+// The number is a guess and the BOUND is not. Without one, a program calling
+// in a loop while rig is down accumulates a goroutine and a request body per
+// call for as long as its deadlines allow, which is the unbounded growth
+// section 5g asks to be prevented. 64 is generous for one program's
+// in-flight work and small enough that the ceiling is reached long before
+// memory is.
+const outbound = 64
 
 // Connect dials rig at its well-known socket.
 //
@@ -106,7 +123,11 @@ func Dial(socket string) (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("client: dial %s: %w", socket, err)
 	}
-	c := &Client{socket: socket, closed: make(chan struct{})}
+	c := &Client{
+		socket: socket,
+		closed: make(chan struct{}),
+		queue:  make(chan struct{}, outbound),
+	}
 	c.next.Store(1) // +2, so client streams stay odd
 	c.cur = c.adopt(nc)
 	return c, nil
@@ -289,12 +310,44 @@ func (c *Client) Call(ctx context.Context, method string, in, out proto.Message)
 	// mint is above this line, and it is now a property a test can fail rather
 	// than a comment asking to be trusted.
 	var last error
+	queued := false
+	defer func() {
+		if queued {
+			<-c.queue
+		}
+	}()
+
 	for attempt := 0; ; attempt++ {
 		retry, err := c.attempt(ctx, method, rid, body, out)
 		if !retry {
 			return err
 		}
 		last = err
+
+		// THE BOUND IS TAKEN HERE, ON THE FIRST FAILURE, NOT ON ENTRY.
+		//
+		// A call that rig answers never queues, so a healthy client has no
+		// ceiling on concurrency at all. Only calls WAITING for an absent rig
+		// are what section 5g asks to be bounded, and this is the moment a
+		// call becomes one.
+		if !queued {
+			select {
+			case c.queue <- struct{}{}:
+				queued = true
+			default:
+				// FULL, so this one is refused NOW rather than made to wait.
+				//
+				// The alternative shapes were both worse. Dropping the oldest
+				// is wrong on its face: a caller is blocked on it and would
+				// never be told. Blocking until a slot frees is the unbounded
+				// wait the bound exists to prevent, wearing a different coat.
+				// Refusing immediately hands the caller the same typed error
+				// it would have got at its deadline, only sooner and with the
+				// reason attached.
+				return unavailable(method, errors.New(
+					"too many calls are already waiting for rig to come back"))
+			}
+		}
 
 		// Backoff to the DEADLINE, which is the caller's, not a fixed count.
 		// Section 5g says "backoff to a deadline"; a retry budget in attempts
