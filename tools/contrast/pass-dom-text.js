@@ -1,7 +1,7 @@
 // Text contrast for a rendered page, run inside the page over CDP.
 //
-// From ~/.claude/skills/readable-output/references/contrast-audit.js, with one
-// hole closed. That script skips an element only when `+cs.opacity === 0`, so
+// Vendored from the author's own contrast-audit reference script, with one
+// hole closed. That original skips an element only when `+cs.opacity === 0`, so
 // `opacity: .5` is measured as if it were fully opaque, and it reports the
 // DECLARED colour's ratio. On rig's own page that is the difference between a
 // clean report and a marker painting at 2.89:1.

@@ -5,7 +5,7 @@
 // nodes for a 453-node page. Every result carries the page identity so a number
 // can be proved to come from the page it claims.
 //
-// Adapted from ~/.claude/skills/readable-output/references/headless-audit.mjs.
+// Adapted from the author's own headless-audit reference script.
 // It lives in the repository because CI has no home directory to reach into,
 // and a gate that only runs on one laptop is not a gate.
 import {spawn} from 'node:child_process';

@@ -16,8 +16,9 @@ drag.
 
 ```
 python3 design/build.py          # rebuild after changing any source
-node ~/.claude/skills/readable-output/references/audit-pages.mjs \
-     design/visual-system.html   # measure both themes; must print "clean"
+make contrast                    # both themes; must print "clean".
+                                 # Runs contrast-selftest first, which a bare
+                                 # script invocation skips
 ```
 
 ## What is on the page

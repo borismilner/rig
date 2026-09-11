@@ -1,6 +1,6 @@
-// Vendored verbatim from
-// ~/.claude/skills/readable-output/references/contrast-audit-svg.js, because CI
-// has no home directory to reach into. It already composites fill-opacity and
+// Vendored verbatim from the author's own contrast-audit-svg reference
+// script, because CI has no home directory to reach into.
+// This copy is the authoritative one; the original is not on any build machine. It already composites fill-opacity and
 // every ancestor opacity, which is the hole the DOM half had.
 //
 // Companion to pass-dom-text.js for SVG diagrams, where a label sits on a
