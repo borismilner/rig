@@ -177,7 +177,14 @@ type Program struct {
 	Elements     []string
 	Hosted       bool
 	PaneURL      string
-	Commands     []Command
+
+	// Preamble is the one document an agent reads before touching this
+	// program (section 9). It is carried at DepthFull only: it is prose, it
+	// can be long, and a list of fifteen of them is the context cost section
+	// 9's whole tiering argument exists to avoid.
+	Preamble string
+
+	Commands []Command
 }
 
 // Programs lists what this principal may reach, by id.
@@ -289,6 +296,7 @@ func program(e entry) Program {
 		Elements:     slices.Clone(e.decl.Elements),
 		Hosted:       e.decl.Hosted,
 		PaneURL:      e.decl.PaneURL,
+		Preamble:     e.decl.Preamble,
 		Commands:     cloneCommands(e.decl.Commands),
 	}
 }
