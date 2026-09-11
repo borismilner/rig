@@ -31,14 +31,29 @@ const (
 	Query    Tool = "query"
 )
 
-// Invoker runs one declared command. The daemon implements it; this package
-// never holds a connection.
+// Invoker runs one declared command as one principal. The daemon implements
+// it; this package never holds a connection.
 //
 // It is an interface rather than a function value so an implementation can
 // say what it is in a stack trace, and so a test double is a named type
 // rather than an anonymous closure nobody can find again.
+//
+// THE PRINCIPAL IS AN ARGUMENT BECAUSE IT ONCE WAS NOT, and the gap that left
+// is the case section 13a was rewritten for. This interface used to take
+// (program, command, args). The layer above it had the caller, used it for the
+// visibility check below, and then dropped it - so the daemon's implementation
+// arrived at the authorization floor with nothing to authorise. The floor was
+// not bypassed; it was made UNREACHABLE by a type signature, which is why it
+// looked wrong from neither side: the caller believed it had authorised, the
+// implementer had nothing to authorise with, and no rule was violated because
+// none was consulted.
+//
+// Section 13a now states it as a rule: every function on a path to invocation
+// carries the principal, and a signature that cannot express the caller is a
+// defect in the signature.
 type Invoker interface {
-	Invoke(ctx context.Context, program, command string, args []byte) ([]byte, error)
+	Invoke(ctx context.Context, who kernel.Principal,
+		program, command string, args []byte) ([]byte, error)
 }
 
 // Request is one call to one meta tool.
@@ -208,7 +223,10 @@ func (s *Server) invoke(ctx context.Context, who kernel.Principal, r Request) (A
 	// and is told in the same answer that its picture is partial.
 	partial := partialOf(p)
 
-	res, err := s.invoker.Invoke(ctx, r.Program, r.Command, r.Args)
+	// The principal travels WITH the call. Visibility was decided above, and
+	// it is a different mechanism from authorisation: the two were conflated
+	// once here and that is exactly what left the floor unreachable.
+	res, err := s.invoker.Invoke(ctx, who, r.Program, r.Command, r.Args)
 	if err != nil {
 		return Answer{}, err
 	}

@@ -17,9 +17,17 @@ type ranIt struct {
 	args             []byte
 	result           []byte
 	err              error
+
+	// who is what the floor would authorise on. It is recorded because the
+	// interface once did not carry it at all, and a test that does not look
+	// at it cannot tell a principal that arrived from one that was dropped.
+	who kernel.Principal
 }
 
-func (r *ranIt) Invoke(_ context.Context, program, command string, args []byte) ([]byte, error) {
+func (r *ranIt) Invoke(_ context.Context, who kernel.Principal,
+	program, command string, args []byte,
+) ([]byte, error) {
+	r.who = who
 	r.program, r.command, r.args = program, command, args
 	return r.result, r.err
 }

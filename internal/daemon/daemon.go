@@ -592,6 +592,14 @@ type callFailure struct {
 	err error
 }
 
+// error renders the refusal for a caller that has no frame to receive one.
+func (f *callFailure) error() error {
+	if f.err != nil {
+		return f.err
+	}
+	return errors.New(f.status.GetMessage())
+}
+
 func failure(code rigv1.Code, msg string) *callFailure {
 	return &callFailure{status: &rigv1.Status{Code: code, Message: msg}}
 }
