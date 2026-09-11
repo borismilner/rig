@@ -332,12 +332,12 @@ bench-size-window: build-rigwindow ## Check the window against its ratchet row
 bench-size-window-update: build-rigwindow ## Accept the window's current size
 	go run ./cmd/sizeratchet --ratchet $(RATCHET) --update --bin build/rigwindow
 
-bench-idle: build ## Measure idle footprint against the budget in PLAN.md section 13
-	go run ./cmd/footprint --binary build/$(BIN) --quiet-for 60s \
+bench-idle: build ## Measure idle footprint against the budget in PLAN.md section 17
+	go run ./cmd/footprint --binary build/$(BIND) --quiet-for 60s \
 	  --max-rss 20MiB --max-cpu 0.1 --max-wakeups 1
 
 bench-scale: build ## Measure the per-program overhead with 1, 10 and 50 programs registered
-	go run ./cmd/footprint --binary build/$(BIN) --programs 1,10,50 --max-delta 500KiB
+	go run ./cmd/footprint --binary build/$(BIND) --programs 1,10,50 --max-delta 500KiB
 
 build-minimal: ## Build the kernel-only daemon, no services, no surfaces
 	@mkdir -p build
@@ -367,7 +367,7 @@ profile: build ## Capture a CPU profile of the daemon under load
 
 ##@ Operate
 
-up: build ## Start the daemon in the background
+up: build ## Ask a RUNNING daemon to come up; it cannot start one from cold
 	./build/$(BIN) up
 
 down: ## Stop the daemon
@@ -391,7 +391,7 @@ tidy: ## Tidy go.mod and npm dependencies
 	go mod tidy
 	cd frontend && npm prune
 
-deps-check: ## Fail if any pinned dependency has drifted from upstream
+deps-check: ## Fail if the build depends on anything PLAN.md section 22 does not name
 	go run ./cmd/depscheck --plan PLAN.md
 
 release: ci ## Tag, generate the changelog and build release artefacts
