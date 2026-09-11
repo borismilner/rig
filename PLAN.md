@@ -1652,6 +1652,30 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
     arbitrary user shell theme in both light and dark. `readable-output`'s rule
     binds it - "hard to read" is a measurement, not taste - so whatever is drawn
     is measured at its real size on real panel backgrounds, not admired at 512px.
+  - **BORIS, 2026-09-11, verbatim and also his own:** *"Production and
+    development icons should be different if possible."* **This is a SECOND
+    requirement, not a restatement of the first**, and it is the one that
+    interacts with §37.
+  - **IT QUALIFIES THIS SECTION'S OWN HEADLINE, which nobody had noticed.**
+    "One tray icon for the whole estate" was written when there was one estate.
+    **§37 allows TWO named estates running at once - that is the entire point of
+    self-hosting - so there are two trays on one panel, and the sentence above
+    means one icon PER ESTATE rather than one icon.** Until this requirement
+    landed, the two would have been byte-identical and Boris would have had two
+    indistinguishable icons in his own panel, which is the exact condition
+    §37 exists to make legible on every other surface.
+  - **What it costs, stated because it is the hard part:** the icon already owes
+    per-program status, a badge and the **detached** state (§5g). Estate identity
+    is a **fourth dimension on a 22px glyph**, and the three that were already
+    there are not negotiable. So this is a design constraint on the whole mark
+    rather than a decoration added to it, and it is why §37's `rig.estate`
+    matters here: **the window learns `production` / `development` from the wire
+    (`EstateResponse.role`), never by guessing from a name**, so the icon's
+    variant is derived from the same source every other surface reads.
+  - **An UNNAMED estate gets no tray at all.** Every test and every reproduction
+    recipe starts one, they are not deployments (§37's ephemeral clause), and a
+    third icon appearing during `make ci` would be the failure this requirement
+    is trying to prevent.
 - **Three pane tiers**, and the middle one exists because the outer two leave a gap.
   *Generated*: the program declared a schema and rig renders forms, tables, actions, progress,
   detail and status - and the program never names a widget (§5h). *Kit*: the program serves its
