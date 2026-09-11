@@ -4206,12 +4206,73 @@ for rig's own development.** The gate in §24 fires when the last one lands.
 
 | # | Precondition | Where it lands | State |
 |---|---|---|---|
-| 1 | **Estate identity in the protocol.** A name and a role (`production` / `development`) minted into the principal and carried in every answer | §14, and the wire | **not specified.** Today `rig ping --json` returns a BUILD version and nothing else, and the only selector is an ambient `XDG_RUNTIME_DIR` |
+| 1 | **Estate identity in the protocol.** A name and a role (`production` / `development`) an agent can READ | §14, and the wire | **SPECIFIED 2026-09-11 as `rig.estate`, below. Batched with row 3, which has the same gap for the same callers.** Today the only selector is an ambient `XDG_RUNTIME_DIR` |
 | 2 | **State scoped per estate.** Config, storage and the call log keyed by estate, not by uid | M5, where storage lands | **not specified, and it is the one that bites silently.** `internal/paths` scopes the sockets and the pidfile and nothing else, because rig holds no persistent state yet. The conventional store is `$XDG_STATE_HOME`, which is NOT scoped by `XDG_RUNTIME_DIR` - so the development estate would write into production's store |
-| 3 | **Build and semantic skew is detected, not discovered.** A client built from the development tree talking to the production daemon is refused or warned | §21, and **the wire** | **CORRECTED 2026-09-11, and the correction made it BIGGER.** This row first said "compare the wire version and `semantics_gen`". **There is no wire version field** - `wire.proto:1` is a comment and the major is carried by the proto PATH (`rig/v1`), so major skew is structurally impossible rather than undetected. `semantics_gen` is real (`wire.proto:294`, `:359`) and is genuinely never compared between a client and a daemon. The only version crossing today is `HelloRequest.version`, whose own comment says *"reported not enforced"*. **So this needs a NEW FIELD: a proto change, a §14 walk and a §22 question, not a contained fix** |
+| 3 | **Build and semantic skew is detected, not discovered.** A client built from the development tree talking to the production daemon is refused or warned | §21, and **the wire** | **RE-MEASURED 2026-09-11, and it is TWO different gaps wearing one row - see below.** For a PROGRAM the fields already exist and nothing reads them. For a TERMINAL or an AGENT there is no handshake to carry them at all. **Batched with row 1 as one wire change** |
 | 4 | **A restart is survivable and distinguishable from a blip.** Epoch handles, two-step lease expiry with witnesses, and `owner_gone` | M7, §16 | **ruled, unbuilt.** V15 rules the daemon publishes an epoch and every handle carries it. Ruled for crashes; a deliberate self-upgrade is the SAME event and nothing says so |
 | 5 | **The `systemd --user` unit manages production ONLY.** The development estate is never under it | M6, §5l | **not specified.** §5l already carries AgentBox's scar: an `ExecStop` killed the healthy daemon it managed, because single-instance-by-flock plus auto-spawn makes the start command exit 0. **rig has the identical shape, and a second estate is exactly the condition that fires it** |
 | 6 | **A named estate refuses a name already held**, and says which name and which pid | §5f | **not built.** The `flock` is per directory; nothing keys it to a name |
+
+### `rig.estate`, the fourth self-method, and why items 1 and 3 are ONE change
+
+**Specified 2026-09-11 by the team-lead seat, after walking §14 rather than
+reasoning from the rows.** Preconditions 1 and 3 were written as separate items
+and they are the same gap reached from two directions.
+
+#### The walk, which is what produced this
+
+| Caller | Says hello? | What it can learn about the DAEMON |
+|---|---|---|
+| a **program** | yes | `HelloResponse` carries `wire` and `daemon_version`. **Both are populated and NEITHER IS EVER READ** - `grep GetWire()/GetDaemonVersion()` over `client/`, `cmd/rig/` and `internal/` finds only the daemon's own config plumbing |
+| a **terminal** | **no, and it must not start** | **nothing.** It never receives a `HelloResponse`. All it sees is `PingResponse{nonce, program, version}`, and that `version` is *the answering program's* - `rig ping fakeapp` reports fakeapp |
+| an **agent** on the MCP socket | no | **identical to a terminal**, because it connects as an ordinary unregistered client. That is what the socket is for |
+
+**So precondition 3 is two gaps, not one.** For programs it needs a
+**consumer**, not a field. For terminals and agents there is **nowhere to put
+one**, because the carrier the section assumed is a handshake they never
+perform. The row previously said "this needs a NEW FIELD"; that is true of one
+caller kind and false of the other, and the distinction is the whole design.
+
+**And precondition 1 has the identical shape.** Boris's *"peers will know which
+rig instance is which"* requires an AGENT to read the estate, and an agent is
+terminal-shaped. Same callers, same missing carrier. **One change.**
+
+#### The shape
+
+**A fourth method on rig's own surface**, beside the three that exist:
+
+| Method | Answers |
+|---|---|
+| `rig.hello` | the program handshake |
+| `rig.ping` | liveness, with the program as an argument |
+| `rig.programs` | the caller's scoped view |
+| **`rig.estate`** | **who you just reached** - the estate NAME, its ROLE (`production` / `development` / unnamed), the daemon BUILD, the wire major, and the semantic generation floor |
+
+#### The two alternatives, and why each is refused
+
+- **A field on `PingResponse`. No.** It is a liveness probe with a nonce and it
+  answers **from the program addressed**. Estate identity and daemon build are
+  facts about the DAEMON. Hanging them off a per-program probe is exactly the
+  conflation §21 exists to catch, and it would make `rig ping fakeapp` report
+  two things about two different subjects in one message.
+- **Make terminals handshake. No, and this one is refused on §14's own terms.**
+  §14 says `scoped` is *"the whole authorisation state a connection carries: one
+  boolean, set here, with no other way to become either kind of caller"*. Giving
+  a terminal a hello makes that boolean ambiguous, and it is load-bearing for
+  every authorisation decision in the estate. **A precondition must not weaken
+  the model it is a precondition for.**
+
+**A method is readable by every caller kind without changing what any of them
+IS**, which is the property both alternatives destroy.
+
+#### What is still open, and it is a worker's measurement rather than a ruling
+
+**Whether a DAEMON-level semantic generation floor is coherent at all.**
+`semantics_gen` is validated per declaration and hashed into the capability
+digest, which is per PROGRAM. If generation is only ever per-program then
+precondition 3's semantic half belongs on the **capability map** and not on
+`rig.estate` - which moves it into slice 4 rather than into this change. Put to
+backend-1 with the shape; not decided here.
 
 ### Why item 1 is the one Boris asked for by name
 
