@@ -22,4 +22,25 @@ node_modules/
 .air.toml
 frontend/.svelte-kit/
 ipcbench/bench
+
+# A binary built WITHOUT -o lands in the repo root under its package name, and
+# the Makefile's own targets all write to build/ - so anything here is an ad-hoc
+# `go build ./cmd/<x>/`. It cost real attention on 2026-09-11: a stray `rig` sat
+# untracked beside three seats' working files, visible to every peer's
+# git status, in a tree where the hazard of record is a mis-staged commit.
+#
+# Listed one per adopter rather than as a glob, for the same reason the kit
+# directories above are: a glob would silently cover a root file somebody added
+# for another reason. Anchored, so only the repo root is affected.
+/rig
+/rigd
+/fakeapp
+/ledger
+/docket
+/ipcbench
+/sizeratchet
+/depscheck
+/footprint
+/pkgdeb
+/schemagen
 HANDOFF.md
