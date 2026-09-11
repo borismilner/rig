@@ -467,7 +467,7 @@ package: build ## Build the .deb from freshly built binaries
 	@mkdir -p dist
 	go run ./cmd/pkgdeb --version $(VERSION) --out dist/
 
-ci: fmt-check vet lint-house test-race bench-size schema-check theme-gate ## Everything CI runs
+ci: fmt-check vet lint-house test-race bench-size schema-check deps-check theme-gate ## Everything CI runs
 	@echo
 	@echo "  M0's gate. Targets not yet in ci, each waiting on the milestone"
 	@echo "  that gives it something to check:"
@@ -478,10 +478,6 @@ ci: fmt-check vet lint-house test-race bench-size schema-check theme-gate ## Eve
 	@echo "    modules    the layering analyzer      M1"
 	@echo "    test-wire  golden wire vs last tag    M1, needs a tagged release"
 	@echo "    verify     conformance vs fakeapp     M1"
-	@echo "    deps-check the build vs §22           RED on five real findings:"
-	@echo "                                          five frontend devDependencies"
-	@echo "                                          have no §22 row. Wire it in"
-	@echo "                                          the commit that adds them"
 	@echo "    bench-idle idle footprint             runs today, and stays out:"
 	@echo "               and bench-scale            64s against this gate's 3s,"
 	@echo "                                          60 of which is the observation"
