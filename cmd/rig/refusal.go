@@ -119,15 +119,34 @@ func (r *refusal) detail() string {
 		{"fix", r.Status.GetFix()},
 		{"fix command", r.Status.GetFixCommand()},
 	} {
-		if f.value == "" {
+		// Whitespace counts as absent. A field holding a space is not a fact
+		// the daemon measured, and a label with blanks after it makes the
+		// same claim an empty one would.
+		value := strings.TrimSpace(f.value)
+		if value == "" {
 			continue
 		}
 		// The seven-space continuation is this package's existing shape for a
 		// second line under `rig: ` - see lookup's "it declares:" and the
 		// "is rigd running?" hint.
-		fmt.Fprintf(&b, "\n       %-13s %s", f.label, f.value)
+		fmt.Fprintf(&b, "\n       %-13s %s", f.label, wrapUnder(value))
 	}
 	return b.String()
+}
+
+// fieldColumn is the column a field's value starts in: seven spaces of
+// continuation, the thirteen-wide label, and the space after it.
+const fieldColumn = 7 + 13 + 1
+
+// wrapUnder keeps a value that arrived with a newline in it under its own
+// label.
+//
+// Nothing stops a daemon putting one there - the schema validator's own text
+// already carries newlines in `message` - and a second line at the left
+// margin reads as a field of its own with a missing label, which is worse
+// than a long line.
+func wrapUnder(value string) string {
+	return strings.ReplaceAll(value, "\n", "\n"+strings.Repeat(" ", fieldColumn))
 }
 
 // jsonStatus is the object --json returns for a failed call.

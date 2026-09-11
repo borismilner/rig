@@ -109,6 +109,80 @@ func TestAnAbsentFieldGetsNoLineAtAll(t *testing.T) {
 	}
 }
 
+// A daemon may send an ERROR frame with no Status at all - client.Call builds
+// the CallError from f.GetStatus(), which is nil when the frame carried none.
+// Proto getters make that safe from panicking; what it must also be is honest,
+// in both modes.
+func TestARefusalWithNoStatusAtAllStillRenders(t *testing.T) {
+	naked := &refusal{CallError: &client.CallError{Method: "rig.ping"}}
+
+	got := errorText(naked)
+	if strings.Contains(got, "\n") {
+		t.Errorf("a refusal with no status invented a field line:\n%s", got)
+	}
+
+	var out, errb bytes.Buffer
+	naked.asJSON = true
+	report(&out, &errb, naked)
+	var obj map[string]any
+	if err := json.Unmarshal(out.Bytes(), &obj); err != nil {
+		t.Fatalf("--json emitted something unparseable for a nil status: %v\n%s",
+			err, out.String())
+	}
+	if len(obj) != 1 || obj["code"] != "CODE_UNSPECIFIED" {
+		t.Errorf("want exactly {code: CODE_UNSPECIFIED}, got %#v", obj)
+	}
+}
+
+// A field the daemon set to whitespace is not a fact it measured, and a label
+// with blanks after it makes the same claim an empty one would.
+func TestAWhitespaceFieldIsTreatedAsAbsent(t *testing.T) {
+	got := errorText(refuse(&rigv1.Status{
+		Code:         rigv1.Code_CODE_INVALID,
+		Message:      "refused",
+		Precondition: "   ",
+		Fix:          "\n",
+		FixCommand:   "rig fakeapp reindex --since 7d",
+	}, false))
+	if strings.Contains(got, "precondition") {
+		t.Errorf("a blank precondition rendered a label:\n%s", got)
+	}
+	if strings.Count(got, "\n") != 1 {
+		t.Errorf("want one continuation line for the one real field:\n%s", got)
+	}
+}
+
+// A value that arrives with a newline in it must stay under its own label. A
+// second line at the left margin reads as a field whose label went missing.
+func TestAMultiLineValueStaysUnderItsLabel(t *testing.T) {
+	got := errorText(refuse(&rigv1.Status{
+		Code:    rigv1.Code_CODE_INVALID,
+		Message: "refused",
+		Actual:  "at '/since': 'soon' does not match\nat '/depth': -1 is below the minimum",
+	}, false))
+
+	lines := strings.Split(got, "\n")
+	if len(lines) != 3 {
+		t.Fatalf("want the sentence and two value lines, got %d:\n%s", len(lines), got)
+	}
+	// The column is read off the rendered first line rather than taken from
+	// fieldColumn. A test that computes its expectation from the constant it
+	// is checking cannot see that constant drift away from the format string
+	// beside it - which is exactly the mutation that survived the first pass.
+	column := strings.Index(lines[1], "at '/since'")
+	if column <= 0 {
+		t.Fatalf("no value on the first field line:\n%q", lines[1])
+	}
+	if !strings.HasPrefix(lines[2], strings.Repeat(" ", column)+"at '/depth'") {
+		t.Errorf("the wrapped line does not start in the value column %d:\n%q",
+			column, lines[2])
+	}
+	// And it must not have acquired a label of its own.
+	if strings.Contains(strings.TrimSpace(lines[2]), "  ") {
+		t.Errorf("the wrapped line looks like a labelled field:\n%q", lines[2])
+	}
+}
+
 // Section 10: --json returns exactly what the MCP tool returns. So the object
 // is the Status, with no CLI envelope and nothing added to it - slice 3 hands
 // this same shape to MCP, and a field only one of them carries is the
