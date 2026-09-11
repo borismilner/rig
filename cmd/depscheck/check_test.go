@@ -37,11 +37,15 @@ func write(t *testing.T, path, body string) {
 const oneRequire = "module example.com/x\n\ngo 1.27.1\n\nrequire (\n" +
 	"\tgithub.com/santhosh-tekuri/jsonschema/v6 v6.0.3\n)\n"
 
+// noRequires isolates a test to the npm manifest: a Go requirement the row
+// under test does not name would be reported and drown the thing being tested.
+const noRequires = "module example.com/x\n\ngo 1.27.1\n"
+
 func TestADependencyTheTableNamesPasses(t *testing.T) {
 	plan, mod, _ := fixture(t,
 		"| Schema | santhosh-tekuri/jsonschema (validate) | v6.0.3 |",
 		oneRequire, "")
-	problems, err := check(plan, mod, "")
+	problems, _, err := check(plan, mod, "")
 	if err != nil {
 		t.Fatalf("check: %v", err)
 	}
@@ -54,7 +58,7 @@ func TestADependencyTheTableDoesNotNameIsReported(t *testing.T) {
 	plan, mod, _ := fixture(t,
 		"| Config | knadh/koanf/v2 | v2.3.6 |",
 		oneRequire, "")
-	problems, err := check(plan, mod, "")
+	problems, _, err := check(plan, mod, "")
 	if err != nil {
 		t.Fatalf("check: %v", err)
 	}
@@ -71,7 +75,7 @@ func TestATableRowWithNothingInTheBuildIsNotAProblem(t *testing.T) {
 			"| Store | modernc.org/sqlite | v1.58.0 |\n"+
 			"| CLI | spf13/cobra | v1.10.2 |",
 		oneRequire, "")
-	problems, err := check(plan, mod, "")
+	problems, _, err := check(plan, mod, "")
 	if err != nil {
 		t.Fatalf("check: %v", err)
 	}
@@ -85,7 +89,7 @@ func TestAVersionThatDisagreesWithTheTableIsReported(t *testing.T) {
 	plan, mod, _ := fixture(t,
 		"| Schema | santhosh-tekuri/jsonschema | v6.0.1 |",
 		oneRequire, "")
-	problems, err := check(plan, mod, "")
+	problems, _, err := check(plan, mod, "")
 	if err != nil {
 		t.Fatalf("check: %v", err)
 	}
@@ -108,7 +112,7 @@ func TestTheTablesAbbreviationsAreAccepted(t *testing.T) {
 			plan, mod, _ := fixture(t,
 				"| Wire | google.golang.org/protobuf "+c.table+" | |",
 				gomod, "")
-			problems, err := check(plan, mod, "")
+			problems, _, err := check(plan, mod, "")
 			if err != nil {
 				t.Fatalf("check: %v", err)
 			}
@@ -131,7 +135,7 @@ func TestANeighbouringMatchDoesNotGetItsNeighboursVersion(t *testing.T) {
 	plan, mod, npm := fixture(t,
 		"| Frontend | Svelte 5 + TypeScript + Vite | 5.57 / 7.0 / 8.2 |",
 		oneRequire, pkg)
-	problems, err := check(plan, mod, npm)
+	problems, _, err := check(plan, mod, npm)
 	if err != nil {
 		t.Fatalf("check: %v", err)
 	}
@@ -150,7 +154,7 @@ func TestAProductNameInTheTableMatchesItsPackageName(t *testing.T) {
 	plan, mod, npm := fixture(t,
 		"| Frontend | Svelte 5 + TypeScript + Vite + Tailwind v4 | 5.57 / 7.0 / 8.2 / 4.3 |",
 		oneRequire, pkg)
-	problems, err := check(plan, mod, npm)
+	problems, _, err := check(plan, mod, npm)
 	if err != nil {
 		t.Fatalf("check: %v", err)
 	}
@@ -168,7 +172,7 @@ func TestAShorterNameDoesNotMatchInsideALongerOne(t *testing.T) {
 	plan, mod, npm := fixture(t,
 		"| Schema | santhosh-tekuri/jsonschema (validate) | v6.0.3 |",
 		oneRequire, npmOrEmpty(pkg))
-	problems, err := check(plan, mod, npm)
+	problems, _, err := check(plan, mod, npm)
 	if err != nil {
 		t.Fatalf("check: %v", err)
 	}
@@ -198,7 +202,7 @@ func TestATokenDoesNotMatchInsideALongerWord(t *testing.T) {
 	plan, mod, npm := fixture(t,
 		"| Frontend | vite-plugin-svelte | 7.3.0 |",
 		oneRequire, pkg)
-	problems, err := check(plan, mod, npm)
+	problems, _, err := check(plan, mod, npm)
 	if err != nil {
 		t.Fatalf("check: %v", err)
 	}
@@ -229,7 +233,7 @@ func TestIndirectRequirementsAreNotChecked(t *testing.T) {
 		"require (\n\tgithub.com/nobody/chose-this v1.0.0 // indirect\n)\n"
 	plan, mod, _ := fixture(t,
 		"| Schema | santhosh-tekuri/jsonschema | v6.0.3 |", gomod, "")
-	problems, err := check(plan, mod, "")
+	problems, _, err := check(plan, mod, "")
 	if err != nil {
 		t.Fatalf("check: %v", err)
 	}
@@ -247,7 +251,109 @@ func TestARenumberedPlanFailsLoudlyInsteadOfPassing(t *testing.T) {
 	mod := filepath.Join(dir, "go.mod")
 	write(t, mod, oneRequire)
 
-	if _, err := check(plan, mod, ""); err == nil {
+	if _, _, err := check(plan, mod, ""); err == nil {
 		t.Fatal("the stack table was gone and the checker reported no problems")
 	}
+}
+
+// The tests below cover what the checker does NOT compare. They exist because
+// a clean run used to be indistinguishable from a comparison that never
+// happened, which is the defect this repository keeps finding in its own
+// instruments rather than in its product.
+
+// A row naming two dependencies carries two numbers and cannot say which is
+// whose, so it accepts either - and swapping the two real pins passes.
+func TestARowNamingTwoDependenciesPinsNeitherVersion(t *testing.T) {
+	const row = "| Formatting | `prettier` with `prettier-plugin-svelte` | 3.9.6 / 4.1.1 |"
+	swapped := `{"devDependencies":{"prettier":"4.1.1","prettier-plugin-svelte":"3.9.6"}}`
+
+	plan, mod, npm := fixture(t, row, noRequires, swapped)
+	problems, unenforced, err := check(plan, mod, npm)
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	// Both pins hold the other's version and the checker cannot tell.
+	if len(problems) != 0 {
+		t.Fatalf("the swap was expected to pass unnoticed, got: %v", problems)
+	}
+	// So it must SAY it did not compare them. That is the whole point.
+	for _, want := range []string{"prettier ", "prettier-plugin-svelte "} {
+		if !mentions(unenforced, want) {
+			t.Errorf("%q is not reported as unenforced:\n%s",
+				want, strings.Join(unenforced, "\n"))
+		}
+	}
+}
+
+// A number in a row's prose is not a version, and the checker cannot tell.
+// PLAN.md's wire row carries "+9.80 MiB resident" as the argument against
+// gRPC, which makes v9.80.0 a permitted protobuf version.
+func TestAMeasurementInARowsProseIsOfferedAsAVersion(t *testing.T) {
+	const row = "| Wire | protobuf, hand-framed | google.golang.org/protobuf " +
+		"v1.36.x. Not gRPC: measured +9.80 MiB resident |"
+	const mod = "module example.com/x\n\ngo 1.27.1\n\nrequire (\n" +
+		"\tgoogle.golang.org/protobuf v9.80.0\n)\n"
+
+	plan, gomod, _ := fixture(t, row, mod, "")
+	problems, unenforced, err := check(plan, gomod, "")
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if len(problems) != 0 {
+		t.Fatalf("a memory measurement was expected to pass as a version, got: %v", problems)
+	}
+	if !mentions(unenforced, "google.golang.org/protobuf") {
+		t.Errorf("the row's second number is not reported as unenforced:\n%s",
+			strings.Join(unenforced, "\n"))
+	}
+}
+
+// A name matched only through a neighbour never has its version compared, and
+// that has always been true - it was just silent.
+func TestANeighbourMatchReportsThatNoVersionWasCompared(t *testing.T) {
+	plan, mod, npm := fixture(t,
+		"| Desktop | Wails v3, and its JS runtime | v3.0.0-beta.19 |",
+		noRequires, `{"devDependencies":{"@wailsio/runtime":"9.9.9"}}`)
+	problems, unenforced, err := check(plan, mod, npm)
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if len(problems) != 0 {
+		t.Fatalf("a neighbour match was expected to pass, got: %v", problems)
+	}
+	if !mentions(unenforced, "@wailsio/runtime") {
+		t.Errorf("a neighbour match is not reported as unenforced:\n%s",
+			strings.Join(unenforced, "\n"))
+	}
+}
+
+// The negative, so the list cannot pass by naming everything: a row with one
+// name and one version really is enforced, and must NOT appear.
+func TestADependencyPinnedByItsOwnRowIsNotReportedAsUnenforced(t *testing.T) {
+	plan, mod, _ := fixture(t,
+		"| Schema | santhosh-tekuri/jsonschema (validate) | v6.0.3 |",
+		oneRequire, "")
+	problems, unenforced, err := check(plan, mod, "")
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if len(problems) != 0 {
+		t.Fatalf("a correctly pinned dependency was reported: %v", problems)
+	}
+	if len(unenforced) != 0 {
+		t.Fatalf("a row with one name and one version IS enforced, "+
+			"but was listed as unenforced:\n%s", strings.Join(unenforced, "\n"))
+	}
+}
+
+// mentions reports whether any line names this dependency. It reads the
+// rendered lines rather than rebuilding the message from the format string,
+// so a change to the wording that drops the name is visible here.
+func mentions(lines []string, name string) bool {
+	for _, l := range lines {
+		if strings.HasPrefix(l, name) {
+			return true
+		}
+	}
+	return false
 }

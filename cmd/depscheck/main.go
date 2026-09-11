@@ -25,13 +25,36 @@ func main() {
 	npm := flag.String("npm", "frontend/package.json", "the frontend manifest, or empty to skip")
 	flag.Parse()
 
-	problems, err := check(*plan, *mod, *npm)
+	problems, unenforced, err := check(*plan, *mod, *npm)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "depscheck: %v\n", err)
 		os.Exit(2)
 	}
+
+	// Printed on every run, pass or fail, and deliberately BEFORE the verdict.
+	// A gate that cannot say what it did not check reports a comparison that
+	// never happened exactly the way it reports one that succeeded, and this
+	// repository has now caught that shape four times in its own instruments.
+	// This does not fail the build: restructuring the rows is a decision about
+	// PLAN.md and reddening a shared gate over it would stop every seat for
+	// something none of them broke.
+	if len(unenforced) > 0 {
+		fmt.Printf("depscheck: %d dependencies have a version this check "+
+			"did NOT compare\n\n", len(unenforced))
+		for _, u := range unenforced {
+			fmt.Printf("  %s\n", u)
+		}
+		fmt.Printf("\nA row that names several dependencies cannot say which " +
+			"version belongs to\nwhich, so any number on it is accepted. " +
+			"One dependency per row is what fixes\nit, and section 22 is " +
+			"the plan role's file.\n\n")
+	}
+
 	if len(problems) == 0 {
-		fmt.Println("depscheck: every pinned dependency is named in the stack table")
+		// "nothing disagreed" rather than "everything is pinned". The two are
+		// not the same sentence and the old one was the second.
+		fmt.Println("depscheck: every dependency is named in the stack table, " +
+			"and nothing that\nwas compared disagrees with it")
 		return
 	}
 

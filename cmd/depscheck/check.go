@@ -218,25 +218,38 @@ func wordByte(b byte) bool {
 }
 
 // check compares every pinned dependency against the stack table.
-func check(plan, gomod, npm string) ([]string, error) {
+//
+// It returns two lists, and the second one exists because the first cannot be
+// read without it. `problems` is what disagrees with the table. `unenforced`
+// is every dependency whose VERSION this checker did not actually compare -
+// because the row names several dependencies and cannot say which version
+// belongs to which, because the name only matched a neighbour, or because the
+// row deliberately pins nothing.
+//
+// Without that second list a clean run reads as "every version is pinned",
+// and it never meant that: it means nothing DISAGREED, which is also what a
+// comparison that never happened looks like. Measured on this repository on
+// 2026-09-11, before the list existed: of seventeen direct dependencies, this
+// checker compared FOUR versions and never compared the other thirteen - and
+// it printed one line saying everything was named.
+func check(plan, gomod, npm string) (problems, unenforced []string, err error) {
 	stack, err := section(plan, "## 22. Tech stack")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	deps, err := goDeps(gomod)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if npm != "" {
 		more, err := npmDeps(npm)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		deps = append(deps, more...)
 	}
 
-	var problems []string
 	for _, d := range deps {
 		var hit token
 		for _, t := range tokens(d) {
@@ -254,6 +267,10 @@ func check(plan, gomod, npm string) ([]string, error) {
 		if !hit.exact {
 			// Named through a neighbour. Enough to say the area is a decision
 			// somebody made; not enough to pin a version on.
+			unenforced = append(unenforced, fmt.Sprintf(
+				"%s %s (%s): the table names it only through %q, which is a "+
+					"neighbouring name, so no version was compared",
+				d.Name, d.Version, d.Where, hit.value))
 			continue
 		}
 
@@ -262,7 +279,22 @@ func check(plan, gomod, npm string) ([]string, error) {
 		if len(want) == 0 {
 			// A row that pins no version is a decision about the choice and
 			// not about the version. Nothing to disagree with.
+			unenforced = append(unenforced, fmt.Sprintf(
+				"%s %s (%s): its row pins no version, which is a decision "+
+					"about the choice rather than the version - by design",
+				d.Name, d.Version, d.Where))
 			continue
+		}
+		if len(want) > 1 {
+			// The row carries more than one number and nothing says which is
+			// this dependency's, so ANY of them is accepted. That is not a
+			// pin. It happens when one row names several dependencies, and
+			// also when a row's prose carries a number that is not a version
+			// at all - the wire row's "+9.80 MiB" measurement is read as a
+			// permitted version, so protobuf at v9.80.0 passes.
+			unenforced = append(unenforced, fmt.Sprintf(
+				"%s %s (%s): its row offers %s, and any of them is accepted",
+				d.Name, d.Version, d.Where, strings.Join(want, " / ")))
 		}
 		if !agrees(d.Version, want) {
 			problems = append(problems, fmt.Sprintf(
@@ -270,7 +302,7 @@ func check(plan, gomod, npm string) ([]string, error) {
 				d.Name, d.Version, d.Where, strings.Join(want, " / ")))
 		}
 	}
-	return problems, nil
+	return problems, unenforced, nil
 }
 
 // agrees accepts a pin the table covers, including the abbreviations it uses:
