@@ -3231,20 +3231,34 @@ Versions verified 2026-09-10.
 | Lint | golangci-lint plus three house analyzers: no program id in rig code, no registry handle outside the kernel, no meaningful enum zero | |
 | Runtime tuning | `GOMEMLIMIT` and `GOGC` set explicitly in the unit file and the Makefile | neither appeared anywhere before |
 
-**`make deps-check` gates ONE DIRECTION ONLY, and the gap is named here because
-a green gate is exactly where nobody looks.** It compares every pinned
-dependency in `go.mod` and `package.json` **against this table**, so a
-dependency that ships without a row is caught. **It does not check the reverse**:
-a row naming something no manifest contains passes silently.
+**This table is the INTENDED stack, and most of it is unbuilt. That is not a
+defect and the distinction is not currently drawn.**
 
-**That is not hypothetical. `koanf` is named above at `v2.3.6` and is not in
-`go.mod` at all** - the config loader is specified and unbuilt, and the gate is
-green. Measured 2026-09-11.
+**Measured 2026-09-11 against `go.mod`:** of the Go rows above, only the
+protobuf runtime and the JSON Schema validator are actually present. `koanf`,
+`cobra`, `sqlite`, OpenTelemetry, `go-keyring`, `xgb`, `bubbletea`, `lipgloss`,
+`glamour`, `huh`, `go-cmp`, `testscript` and `systray` are **all named here and
+absent from every manifest** - because the sections that adopt them are not
+built yet.
 
-**This is the repository's own recurring defect and its fourth recorded
-instance**, after coverage measuring the wrong scope, the contrast target
-invoking a file that never existed, and `go vet` loading a package CI cannot
-compile. **A green number here gets asked how many things it looked at.**
+**So `make deps-check` gates ONE DIRECTION, and that direction is the correct
+one.** It compares every pinned dependency in `go.mod` and `package.json`
+**against this table**, catching a dependency that ships without a row. **The
+reverse check would be wrong rather than merely strict**: it would redden on
+every row this plan has not reached, which is most of them.
+
+**This paragraph originally claimed the one-directionality was a defect and the
+`koanf` row was its fourth instance. That was written from one row, and
+measuring the other fifteen overturned it** - one absent row is a finding, and
+fifteen is a document doing its job. The correction is kept rather than
+silently replaced, because the reasoning that produced it is the estate's own
+recurring bug pattern pointed at the wrong target, and that is worth seeing.
+
+**What IS missing is cheaper and more useful than a reverse gate: this table
+does not say which rows are ADOPTED and which are INTENDED.** A reader cannot
+tell "rig depends on this" from "rig will depend on this", and neither can a
+tool. **Marking the adopted rows is what would let a reverse check exist at
+all**, and it is owed before anyone builds one.
 
 **Two binaries** (§17): `cmd/rigd` links none of the terminal stack; `cmd/rig` links
 bubbletea, huh, glamour and lipgloss and never the daemon's internals. `make bench-size`
