@@ -1840,6 +1840,42 @@ which had been gating that command no longer reaches it.**
 leaves the operator blind; emitting the event without keeping the prior
 declaration leaves nothing to emit.
 
+#### No path to invocation may drop the caller, and a signature that omits it is the defect
+
+**§13a's floor lives in the kernel's invoker for one stated reason: "no surface
+can forget it, and a surface added in 2028 is covered by rules written in
+2026."** That guarantee is structural, and it holds only while every path to an
+invocation still carries a principal when it arrives.
+
+**Found 2026-09-11 while building M2's meta layer: an internal interface between
+the meta tools and the daemon took the program, the command and the arguments -
+and no principal.** The layer above it had one and used it for a visibility
+check, then dropped it. **So whatever implemented that interface was handed
+nothing to authorise with.** The floor was not bypassed; it was made
+*unreachable* by a type signature.
+
+**This is the sharpest form of the defect §13a exists to prevent**, and it is
+worth stating as its own rule because it does not look like a security bug from
+either side: the caller believed it had authorised, the implementer had nothing
+to authorise with, and no rule was violated because no rule was consulted.
+
+| The rule | |
+|---|---|
+| **Every function on a path to invocation carries the principal.** A signature that cannot express the caller is a defect in the signature | An interface whose shape makes forgetting compulsory defeats a floor that exists so nobody has to remember |
+| **One authorisation path, not one per surface.** A new surface SPLITS the existing path and reuses its floor; it never grows a second one | Two floors is how they diverge, and the one that diverges is whichever was added last |
+| **A surface that mints a principal is walked against §14's caller table as part of the change** | already §14's rule, and this is the case it was written for |
+
+**Why it was not exploitable when it was found, stated so the fix is not
+mis-timed:** at M2 the only caller through that layer connects over the socket
+as an ordinary unregistered client and gets everything §14's table grants such a
+client. **One principal, no scoping, no gap.**
+
+**The fuse is the HTTP surface.** §14 specifies an HTTP client as *"its bearer
+principal's scopes, never `introspect`"* - a genuinely narrower principal, and
+the first one that would reach an invocation with its scope dropped. **So this
+is settled BEFORE that surface is built, not during it**, which is what §14's
+walk-the-table rule already requires.
+
 #### The confirmation channel is out of band from the caller
 
 **§14 and §13a route `confirm` to a window, toast or terminal and bind the
