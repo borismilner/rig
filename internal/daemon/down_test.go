@@ -161,6 +161,53 @@ func TestARuleDenyingOnlyDrivesInputDoesNotCatchRigDown(t *testing.T) {
 	}
 }
 
+// TestAProgramCanStopTheEstateToday records a consequence of this feature that
+// nobody has ruled on, so that it is a decision next time rather than a
+// discovery.
+//
+// A registered program calling rig.down matches (program, destructive) and is
+// ALLOWED, because section 13a's default rule set allows what it does not
+// match and that default is the compatibility promise. So any adopted program
+// can stop the whole estate, and until a rule says otherwise that is the
+// specified behaviour rather than a hole.
+//
+// The mechanism to change it already exists and needs no code: one rule
+// denying (program, destructive), which the assertion below writes to prove
+// the lever works. If someone decides programs must not stop rig, that rule is
+// the whole change - which is the argument for having built this on the wire.
+func TestAProgramCanStopTheEstateToday(t *testing.T) {
+	sock, _ := upDaemon(t, nil)
+	p := program(t, sock, "shelf")
+
+	// The default rule set: nothing written, so a program's destructive call
+	// to rig is allowed.
+	resp := &rigv1.DownResponse{}
+	if err := p.Call(ctx5(t), "rig.down", &rigv1.DownRequest{}, resp); err != nil {
+		t.Fatalf("a program calling rig.down was refused under the default rules: %v", err)
+	}
+	if !stopped(sock) {
+		t.Fatal("a program called rig.down and the daemon kept serving")
+	}
+
+	// And the lever that changes it, on a fresh daemon.
+	sock2, d2 := upDaemon(t, nil)
+	if err := d2.kernel.SetRules([]kernel.Rule{{
+		ID:      "programs-may-not-stop-rig",
+		Caller:  kernel.CallerKind(kernel.KindProgram),
+		Effects: kernel.EffectsDestructive,
+		Action:  kernel.ActionDeny,
+	}}); err != nil {
+		t.Fatalf("set rules: %v", err)
+	}
+	p2 := program(t, sock2, "shelf")
+	if err := p2.Call(ctx5(t), "rig.down", &rigv1.DownRequest{}, &rigv1.DownResponse{}); err == nil {
+		t.Fatal("a rule denying programs destructive calls did not stop rig.down")
+	}
+	if !keptServing(sock2) {
+		t.Fatal("the rule refused rig.down and the daemon stopped regardless")
+	}
+}
+
 // TestRigDeclaresDownAsDestructive checks the declaration itself, because the
 // declaration is what a house rule matches on. Every property in it is load
 // bearing in a way a summary string is not.
