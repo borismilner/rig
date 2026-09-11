@@ -34,10 +34,25 @@ type caller struct {
 	// losing them here would make the prompt forgeable by omission.
 	args []byte
 
-	// requestID is the caller's own id, stable across a retry, which rig
-	// dedups against a bounded window (section 4). It is not the floor's
-	// input - it travels with the invocation, and a surface that cannot
-	// produce one sends it empty, exactly as every rig surface does today.
+	// requestID is the caller's own id, stable across a retry. It is not the
+	// floor's input - it travels with the invocation, and a surface that
+	// cannot produce one sends it empty, exactly as every rig surface does
+	// today.
+	//
+	// NOTHING DEDUPS IT. This comment used to say "which rig dedups against a
+	// bounded window (section 4)", in the present indicative, and BOTH HALVES
+	// WERE WRONG. There is no dedup anywhere in this tree - no map, no cache,
+	// no window - and the daemon only copies the id back onto the outbound
+	// frame. AND SECTION 4 IS NOT THE SECTION: it is "Measured: what the wire
+	// actually costs" and contains no dedup, no request id and no replay, so a
+	// reader following the citation could never have reached the mechanism.
+	//
+	// SECTION 5f IS THE SECTION, and only it carries the qualifier that
+	// explains the absence: rig dedups "against a bounded window PERSISTED IN
+	// THE WAL". The WAL is M7. So the window is not missing work at M6 - it is
+	// M7 work that section 23's M6 row and PLAN.md:1895 both describe as
+	// already done. What M6 owes is the CLIENT half: an id actually set by the
+	// surfaces.
 	requestID string
 }
 

@@ -23,6 +23,20 @@ import (
 // because Boris should be kept out of his own machine". The population the
 // isolation argument is stated over is programs and unprivileged clients, and
 // a program is exactly what stops holding this.
+//
+// THE SESSION TOKEN IS MINTED HERE, AT ACCEPT, FOR EVERY CONNECTION, AND THAT
+// PLACEMENT IS THE POINT RATHER THAN CONVENIENCE. Section 5f says "every
+// connection carries a session token". Minting it on demand - when a caller
+// gets round to asking - makes that sentence a thing clients opt into, and
+// this repository already has that failure shipped: `request_id` is wire
+// field 4, plumbed both directions since M0, never once set by any rig
+// surface, and asserted as working in two places in PLAN.md. Minting at
+// accept makes the sentence true AT THE DAEMON whatever any client does, so
+// the only thing adoption can still get wrong is reading it.
+//
+// Both accept paths reach here - the main socket and the MCP socket - so no
+// caller kind can be given a connection without one by someone adding a third
+// listener and forgetting.
 func newPrincipal(nc net.Conn) kernel.Principal {
 	return kernel.Principal{
 		UID:        os.Getuid(),
@@ -31,6 +45,7 @@ func newPrincipal(nc net.Conn) kernel.Principal {
 		SessionID:  randomID("s"),
 		PID:        peerPID(nc),
 		Introspect: true,
+		Token:      randomID("sess"),
 	}
 }
 

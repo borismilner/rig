@@ -43,11 +43,19 @@ func (d *Daemon) Invoke(
 		who:    who,
 		method: program + "." + command,
 		args:   payload,
-		// requestID is deliberately empty. Section 4's dedup window keys on a
-		// CLIENT-generated id that is stable across a retry, and an in-process
-		// caller has none to offer. Minting one here would produce an id that
-		// is unique per attempt, which is the opposite of what the window
-		// needs: it would make every retry look like a new call.
+		// requestID is deliberately empty, and the reason survives the
+		// correction below: dedup keys on a CLIENT-generated id that is
+		// stable across a retry, and an in-process caller has none to offer.
+		// Minting one here would produce an id unique per attempt, which is
+		// the opposite of what a window needs - it would make every retry
+		// look like a new call.
+		//
+		// THE CITATION WAS WRONG AND THE TENSE WAS WRONG. This said "Section
+		// 4's dedup window", which asserts a live mechanism: there is no
+		// dedup anywhere in this tree. And section 4 is "Measured: what the
+		// wire actually costs" - it contains no dedup, no request id and no
+		// replay. Section 5f is the section, and it puts the window
+		// "persisted in the WAL", which lands at M7.
 	}, program, command)
 	if bad != nil {
 		return nil, bad.error()

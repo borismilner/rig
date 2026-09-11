@@ -106,6 +106,27 @@ type Principal struct {
 	ClientID  string
 	SessionID string
 
+	// Token is section 5f's SESSION TOKEN, and it is NOT SessionID.
+	//
+	// READ THE TWO NAMES CAREFULLY, BECAUSE THEY LOOK LIKE SYNONYMS AND ARE
+	// OPPOSITES. SessionID names ONE CONNECTION - its own comment above says
+	// so - which is section 36's V18 CONNECTION row, the one lifetime V18
+	// rules "no peer should ever hold". It is minted per connection and has
+	// never travelled to a caller, which is exactly what V18 measured. Token
+	// is the GENERATION row: it outlives one socket, because section 5f says
+	// it survives a reconnect, and dies with one occupancy.
+	//
+	// SO THE FIELD CALLED SessionID IS A CONNECTION ID AND THIS IS THE REAL
+	// SESSION IDENTITY. That misnomer is recorded rather than repaired here:
+	// renaming SessionID reaches the registry's succession rule
+	// (registry.go's prev.owner.SessionID != p.SessionID) which its own tests
+	// pin, and V18's full separation - seat, generation, connection - is M7's
+	// work. Naming it now would be doing M7 in the middle of M6.
+	//
+	// It restores COORDINATION state and never authorisation. Scoped below
+	// stays the whole authorisation state a connection carries.
+	Token string
+
 	// PID is the caller's process, carried because an elevation prompt has to
 	// name it (section 14) - a question that says only "stop shelf?" is
 	// answered by whoever is looking at the screen.

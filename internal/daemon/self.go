@@ -49,6 +49,25 @@ func selfDeclaration() kernel.Declaration {
 				"Reads the registry through the calling principal's own view.",
 				"Every program this principal may see."),
 
+			// READ-ONLY, AND THE WORD IS DOING WORK RATHER THAN BEING
+			// GENEROUS. The effects ladder is about what a call does OUTSIDE
+			// rig - files, network, destruction, driving input - and minting
+			// is none of them. It is also read-only in the literal sense
+			// here: the token is minted at ACCEPT, for every connection, so
+			// this method reads the one the caller already has rather than
+			// creating anything.
+			//
+			// IDEMPOTENT FOR THE SAME REASON, and the house argument for it
+			// is already in this file: `down` is idempotent because
+			// "idempotence is about the state left behind, not about whether
+			// the reply is identical". Asking twice returns the same token
+			// and leaves the same state; a resume that succeeds leaves the
+			// same state as the resume before it.
+			readOnly("session", "Session",
+				"Say which session this connection carries",
+				"Answers this connection's session token, or resumes a session named by one. Section 5f says every connection carries a token that survives reconnect; a terminal, an agent and a script never handshake, so this is the message on which they receive it.",
+				"The session token, and whether a resume was honoured."),
+
 			// The first thing rig declares about itself that is not read-only,
 			// and the properties are the point rather than paperwork: this is
 			// the declaration a house rule matches on, so getting `effects`

@@ -413,6 +413,96 @@ func (d *Daemon) dispatch(ctx context.Context, c *conn, f *rigv1.Frame) {
 	d.route(ctx, c, f, program, command)
 }
 
+// serveSession answers rig.session.
+//
+// IT IS ITS OWN METHOD BECAUSE serveSelf CROSSED gocyclo's CEILING WHEN THIS
+// CASE WAS INLINE, and that ceiling is doing its job rather than obstructing:
+// a dispatch switch that grows a branch per method is exactly the function
+// that becomes unreadable one method at a time. Extracting the body is the
+// cheap half of the fix and it is the whole fix here.
+func (d *Daemon) serveSession(c *conn, f *rigv1.Frame) {
+	// SECTION 5f's SESSION TOKEN, AND THE WALK OF SECTION 14's SIX CALLER
+	// ROWS IS PART OF THIS CHANGE RATHER THAN A REVIEW COMMENT.
+	//
+	//   1-3. An agent, a terminal, a script. Connected, unregistered, and
+	//        none of them receives a HelloResponse. THIS METHOD IS FOR
+	//        THESE THREE ROWS - it is the only message they have on which
+	//        to receive a token, which is why a field on HelloResponse
+	//        could not have been the only carrier.
+	//   4.   A registered program. Already given its token by hello, and
+	//        may still call this to resume one. Calling it does not
+	//        change `scoped`, so registration remains the only way to
+	//        become a scoped caller.
+	//   5.   An HTTP client. It has no unix peer and cannot reach this
+	//        socket at all today. THE HAZARD IS A BRIDGE, and it is named
+	//        here so slice 6 meets it as a constraint rather than
+	//        rediscovering it: a token minted for a unix caller must
+	//        never be honoured for a bearer principal, or the deliberately
+	//        narrower HTTP scopes are laundered onto this socket.
+	//   6.   A scheduled fire, a house rule, an internal timer. IT HAS NO
+	//        CONNECTION, so it has no token - `Token` is empty for rig's
+	//        own principal by construction, not by exemption. An empty
+	//        resume from it therefore mints nothing and it can present
+	//        nothing. That is why the empty check below is explicit: a
+	//        caller with no token must be refused rather than handed a
+	//        session it could never have owned.
+	var req rigv1.SessionRequest
+	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID,
+			"rig.session: "+err.Error())
+		return
+	}
+
+	if req.GetResume() != "" {
+		// EVERY RESUME ANSWERS SESSION_DEAD AT M6, AND THAT IS CORRECT
+		// RATHER THAN UNIMPLEMENTED. A session holds nothing until M7:
+		// leases, claims and subscriptions are M7's content, and section
+		// 5f puts the dedup window "persisted in the WAL", which is M7
+		// too. So there is genuinely nothing this daemon could restore,
+		// and SESSION_DEAD is the true answer to "did you keep my state".
+		//
+		// THE ALTERNATIVE WAS BUILT AND DELETED, AND THE REASON IS THE
+		// WHOLE ARGUMENT. A table of minted tokens would let this reply
+		// `resumed: true` - which would be rig claiming it restored a
+		// session when it restored nothing, because there was nothing to
+		// restore. A false claim the caller then plans against is worse
+		// than a refusal it can act on, and this estate has spent the day
+		// finding present-tense comments describing machinery that does
+		// not exist. A `resumed: true` here would have become the next
+		// one.
+		//
+		// A resume that cannot be honoured is also never a quiet fresh
+		// mint: a caller that asked to resume and got a NEW session would
+		// believe it kept state it had lost, which is what section 5f's
+		// "Silence is not an answer either way" is about.
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_SESSION_DEAD,
+			"rig.session: this daemon holds no resumable session state "+
+				"yet, so nothing can be resumed. Coordination state - "+
+				"leases, claims, subscriptions - arrives with the peers "+
+				"service, and its durability with the write-ahead log. "+
+				"Your token is still valid to carry; there is simply "+
+				"nothing behind it to restore")
+		return
+	}
+
+	me := c.principal()
+	if me.Token == "" {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_DENIED,
+			"rig.session: this caller has no connection, so it has no "+
+				"session to name (section 14, row 6)")
+		return
+	}
+
+	// READING THE TOKEN THIS CONNECTION ALREADY HAS, WHICH IS WHY THIS IS
+	// DECLARED read-only AND idempotent. It is minted at accept for every
+	// connection, so asking twice is the same answer and never a second
+	// session.
+	c.reply(f.GetStreamId(), &rigv1.SessionResponse{
+		Session: me.Token,
+		Resumed: false,
+	})
+}
+
 // serveSelf answers the methods rig implements itself.
 func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command string) {
 	// rig's own methods meet the same floor as everything else, because
@@ -509,6 +599,15 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 			Wire:          d.wire,
 			DaemonVersion: d.version,
 			Scoped:        true,
+
+			// Section 14 row 4 - a registered program - is the one caller
+			// kind with a handshake, so it is the one that never has to ask
+			// for its token. The other three connected rows have no
+			// HelloResponse to receive one on, which is what rig.session is
+			// for. Delivering it here is not a second way to become a caller
+			// kind: `Scoped` above is still the whole authorisation state,
+			// and this restores coordination state only.
+			Session: who.Token,
 		})
 
 		// The program is registered, so any agent already connected gains its
@@ -588,6 +687,9 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 			Wire:          d.wire,
 			SemanticsGen:  selfDeclaration().SemanticsGen,
 		})
+
+	case "session":
+		d.serveSession(c, f)
 
 	case "down":
 		// Authorised above like everything else, and it is declared

@@ -111,6 +111,15 @@ const (
 	Code_CODE_DENIED      Code = 5 // refused by capabilities or house rules
 	Code_CODE_DEADLINE    Code = 6 // the call's deadline passed
 	Code_CODE_INTERNAL    Code = 7
+	// The session token presented is not one this daemon is holding: it
+	// expired, it was never minted here, or the daemon restarted. Section 5f
+	// requires this answer BY NAME - "rig either resumes the session, with
+	// leases and subscriptions intact, or answers SESSION_DEAD" - and the
+	// sentence after it says why it is a code of its own rather than a flavour
+	// of NOT_FOUND: "Silence is not an answer either way." The caller has to
+	// learn it lost its coordination state, because what it does next differs
+	// from what it does when a method name was wrong.
+	Code_CODE_SESSION_DEAD Code = 8
 )
 
 // Enum value maps for Code.
@@ -124,16 +133,18 @@ var (
 		5: "CODE_DENIED",
 		6: "CODE_DEADLINE",
 		7: "CODE_INTERNAL",
+		8: "CODE_SESSION_DEAD",
 	}
 	Code_value = map[string]int32{
-		"CODE_UNSPECIFIED": 0,
-		"CODE_OK":          1,
-		"CODE_UNAVAILABLE": 2,
-		"CODE_NOT_FOUND":   3,
-		"CODE_INVALID":     4,
-		"CODE_DENIED":      5,
-		"CODE_DEADLINE":    6,
-		"CODE_INTERNAL":    7,
+		"CODE_UNSPECIFIED":  0,
+		"CODE_OK":           1,
+		"CODE_UNAVAILABLE":  2,
+		"CODE_NOT_FOUND":    3,
+		"CODE_INVALID":      4,
+		"CODE_DENIED":       5,
+		"CODE_DEADLINE":     6,
+		"CODE_INTERNAL":     7,
+		"CODE_SESSION_DEAD": 8,
 	}
 )
 
@@ -862,7 +873,33 @@ type HelloResponse struct {
 	// True once this connection has said hello as a program. It is the whole
 	// authorisation state a connection carries: one boolean, set here, with no
 	// other way to become either kind of caller (section 14).
-	Scoped        bool `protobuf:"varint,3,opt,name=scoped,proto3" json:"scoped,omitempty"`
+	Scoped bool `protobuf:"varint,3,opt,name=scoped,proto3" json:"scoped,omitempty"`
+	// THE SESSION TOKEN, DELIVERED HERE SO A REGISTERED PROGRAM NEVER HAS TO
+	// ASK FOR ONE. Section 5f says "every connection carries a session token",
+	// and a method is opt-in: a caller that never calls rig.session has no
+	// token and nothing anywhere fails. THAT FAILURE IS ALREADY IN THIS FILE -
+	// `request_id` is field 4 on Frame, plumbed both directions since M0, and
+	// never once set by any rig surface, while two places in PLAN.md assert a
+	// dedup that does not exist. This field is what stops the token becoming
+	// the second one.
+	//
+	// Only the program row gets it free, because only the program handshakes.
+	// A terminal, an agent and a script never receive a HelloResponse at all
+	// (section 14's caller table), which is why rig.session exists for them
+	// and why it could not have been the only carrier.
+	//
+	// IT IS NOT AUTHORISATION AND IT NEVER BECOMES AUTHORISATION. `scoped`
+	// above stays the whole authorisation state a connection carries; this
+	// restores COORDINATION state only - leases, claims, subscriptions, the
+	// cursor. A token that restored authorisation would be the second way to
+	// become a caller kind, which the comment above forbids in as many words.
+	//
+	// It is a GENERATION identity, not a connection one (section 36, V18): it
+	// outlives one socket, because it survives a reconnect, and dies with one
+	// occupancy. That is why it is here rather than on Frame - a field beside
+	// request_id would file it under the one lifetime V18 says no peer may
+	// ever hold.
+	Session       string `protobuf:"bytes,4,opt,name=session,proto3" json:"session,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -916,6 +953,13 @@ func (x *HelloResponse) GetScoped() bool {
 		return x.Scoped
 	}
 	return false
+}
+
+func (x *HelloResponse) GetSession() string {
+	if x != nil {
+		return x.Session
+	}
+	return ""
 }
 
 type PingRequest struct {
@@ -2003,6 +2047,122 @@ func (x *EstateResponse) GetSemanticsGen() int32 {
 	return 0
 }
 
+type SessionRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Empty MINTS a token; non-empty RESUMES the one named.
+	//
+	// One field for both, rather than two methods, because they are one
+	// question - "what is my session" - and the answer differs only in whether
+	// the caller already had one. A resume that cannot be honoured is
+	// CODE_SESSION_DEAD and never a quietly-minted new token: a caller that
+	// asked to resume and got a fresh session would believe it kept state it
+	// lost, which is the failure this whole field exists to make visible.
+	Resume        string `protobuf:"bytes,1,opt,name=resume,proto3" json:"resume,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SessionRequest) Reset() {
+	*x = SessionRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SessionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SessionRequest) ProtoMessage() {}
+
+func (x *SessionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SessionRequest.ProtoReflect.Descriptor instead.
+func (*SessionRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *SessionRequest) GetResume() string {
+	if x != nil {
+		return x.Resume
+	}
+	return ""
+}
+
+type SessionResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The token. Opaque to every caller: it is an identifier rig hands back,
+	// never a structure a client parses. Nothing about the estate, the
+	// principal or the connection is recoverable from it.
+	Session string `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
+	// True when `resume` named a session this daemon still holds. False on a
+	// fresh mint.
+	//
+	// IT IS CARRIED EVEN THOUGH A FRESH MINT AND A RESUMED SESSION LOOK
+	// IDENTICAL AT M6, because they stop looking identical the moment M7 gives
+	// a session something to hold, and a client written against a reply that
+	// could not tell them apart would be written wrong. The alternative -
+	// adding it at M7 - makes it a wire change on a message every caller
+	// already uses.
+	Resumed       bool `protobuf:"varint,2,opt,name=resumed,proto3" json:"resumed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SessionResponse) Reset() {
+	*x = SessionResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SessionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SessionResponse) ProtoMessage() {}
+
+func (x *SessionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SessionResponse.ProtoReflect.Descriptor instead.
+func (*SessionResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *SessionResponse) GetSession() string {
+	if x != nil {
+		return x.Session
+	}
+	return ""
+}
+
+func (x *SessionResponse) GetResumed() bool {
+	if x != nil {
+		return x.Resumed
+	}
+	return false
+}
+
 type CallRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// A JSON object. Empty means no arguments, and is distinct from `{}` only
@@ -2014,7 +2174,7 @@ type CallRequest struct {
 
 func (x *CallRequest) Reset() {
 	*x = CallRequest{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[17]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2026,7 +2186,7 @@ func (x *CallRequest) String() string {
 func (*CallRequest) ProtoMessage() {}
 
 func (x *CallRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[17]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2039,7 +2199,7 @@ func (x *CallRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CallRequest.ProtoReflect.Descriptor instead.
 func (*CallRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{17}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *CallRequest) GetArgs() []byte {
@@ -2061,7 +2221,7 @@ type CallResponse struct {
 
 func (x *CallResponse) Reset() {
 	*x = CallResponse{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[18]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2073,7 +2233,7 @@ func (x *CallResponse) String() string {
 func (*CallResponse) ProtoMessage() {}
 
 func (x *CallResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[18]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2086,7 +2246,7 @@ func (x *CallResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CallResponse.ProtoReflect.Descriptor instead.
 func (*CallResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{18}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *CallResponse) GetResult() []byte {
@@ -2120,11 +2280,12 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\fHelloRequest\x12\x18\n" +
 	"\aprogram\x18\x01 \x01(\tR\aprogram\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x125\n" +
-	"\vdeclaration\x18\x03 \x01(\v2\x13.rig.v1.DeclarationR\vdeclaration\"b\n" +
+	"\vdeclaration\x18\x03 \x01(\v2\x13.rig.v1.DeclarationR\vdeclaration\"|\n" +
 	"\rHelloResponse\x12\x12\n" +
 	"\x04wire\x18\x01 \x01(\tR\x04wire\x12%\n" +
 	"\x0edaemon_version\x18\x02 \x01(\tR\rdaemonVersion\x12\x16\n" +
-	"\x06scoped\x18\x03 \x01(\bR\x06scoped\"=\n" +
+	"\x06scoped\x18\x03 \x01(\bR\x06scoped\x12\x18\n" +
+	"\asession\x18\x04 \x01(\tR\asession\"=\n" +
 	"\vPingRequest\x12\x14\n" +
 	"\x05nonce\x18\x01 \x01(\fR\x05nonce\x12\x18\n" +
 	"\aprogram\x18\x02 \x01(\tR\aprogram\"X\n" +
@@ -2203,7 +2364,12 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x04role\x18\x02 \x01(\x0e2\x12.rig.v1.EstateRoleR\x04role\x12%\n" +
 	"\x0edaemon_version\x18\x03 \x01(\tR\rdaemonVersion\x12\x12\n" +
 	"\x04wire\x18\x04 \x01(\tR\x04wire\x12#\n" +
-	"\rsemantics_gen\x18\x05 \x01(\x05R\fsemanticsGen\"!\n" +
+	"\rsemantics_gen\x18\x05 \x01(\x05R\fsemanticsGen\"(\n" +
+	"\x0eSessionRequest\x12\x16\n" +
+	"\x06resume\x18\x01 \x01(\tR\x06resume\"E\n" +
+	"\x0fSessionResponse\x12\x18\n" +
+	"\asession\x18\x01 \x01(\tR\asession\x12\x18\n" +
+	"\aresumed\x18\x02 \x01(\bR\aresumed\"!\n" +
 	"\vCallRequest\x12\x12\n" +
 	"\x04args\x18\x01 \x01(\fR\x04args\"&\n" +
 	"\fCallResponse\x12\x16\n" +
@@ -2215,7 +2381,7 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x16FRAME_KIND_STREAM_DATA\x10\x03\x12\x19\n" +
 	"\x15FRAME_KIND_STREAM_END\x10\x04\x12\x14\n" +
 	"\x10FRAME_KIND_ERROR\x10\x05\x12\x15\n" +
-	"\x11FRAME_KIND_CANCEL\x10\x06*\x9c\x01\n" +
+	"\x11FRAME_KIND_CANCEL\x10\x06*\xb3\x01\n" +
 	"\x04Code\x12\x14\n" +
 	"\x10CODE_UNSPECIFIED\x10\x00\x12\v\n" +
 	"\aCODE_OK\x10\x01\x12\x14\n" +
@@ -2224,7 +2390,8 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\fCODE_INVALID\x10\x04\x12\x0f\n" +
 	"\vCODE_DENIED\x10\x05\x12\x11\n" +
 	"\rCODE_DEADLINE\x10\x06\x12\x11\n" +
-	"\rCODE_INTERNAL\x10\a*M\n" +
+	"\rCODE_INTERNAL\x10\a\x12\x15\n" +
+	"\x11CODE_SESSION_DEAD\x10\b*M\n" +
 	"\bCoverage\x12\x18\n" +
 	"\x14COVERAGE_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10COVERAGE_PARTIAL\x10\x01\x12\x11\n" +
@@ -2277,7 +2444,7 @@ func file_proto_rig_v1_wire_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
-var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(FrameKind)(0),           // 0: rig.v1.FrameKind
 	(Code)(0),                // 1: rig.v1.Code
@@ -2305,8 +2472,10 @@ var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(*DownResponse)(nil),     // 23: rig.v1.DownResponse
 	(*EstateRequest)(nil),    // 24: rig.v1.EstateRequest
 	(*EstateResponse)(nil),   // 25: rig.v1.EstateResponse
-	(*CallRequest)(nil),      // 26: rig.v1.CallRequest
-	(*CallResponse)(nil),     // 27: rig.v1.CallResponse
+	(*SessionRequest)(nil),   // 26: rig.v1.SessionRequest
+	(*SessionResponse)(nil),  // 27: rig.v1.SessionResponse
+	(*CallRequest)(nil),      // 28: rig.v1.CallRequest
+	(*CallResponse)(nil),     // 29: rig.v1.CallResponse
 }
 var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	1,  // 0: rig.v1.Status.code:type_name -> rig.v1.Code
@@ -2349,7 +2518,7 @@ func file_proto_rig_v1_wire_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_wire_proto_rawDesc), len(file_proto_rig_v1_wire_proto_rawDesc)),
 			NumEnums:      9,
-			NumMessages:   19,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

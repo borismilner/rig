@@ -40,6 +40,16 @@ enum Code {
   CODE_DENIED = 5;             // refused by capabilities or house rules
   CODE_DEADLINE = 6;           // the call's deadline passed
   CODE_INTERNAL = 7;
+
+  // The session token presented is not one this daemon is holding: it
+  // expired, it was never minted here, or the daemon restarted. Section 5f
+  // requires this answer BY NAME - "rig either resumes the session, with
+  // leases and subscriptions intact, or answers SESSION_DEAD" - and the
+  // sentence after it says why it is a code of its own rather than a flavour
+  // of NOT_FOUND: "Silence is not an answer either way." The caller has to
+  // learn it lost its coordination state, because what it does next differs
+  // from what it does when a method name was wrong.
+  CODE_SESSION_DEAD = 8;
 }
 
 message Status {
@@ -132,6 +142,33 @@ message HelloResponse {
   // authorisation state a connection carries: one boolean, set here, with no
   // other way to become either kind of caller (section 14).
   bool scoped = 3;
+
+  // THE SESSION TOKEN, DELIVERED HERE SO A REGISTERED PROGRAM NEVER HAS TO
+  // ASK FOR ONE. Section 5f says "every connection carries a session token",
+  // and a method is opt-in: a caller that never calls rig.session has no
+  // token and nothing anywhere fails. THAT FAILURE IS ALREADY IN THIS FILE -
+  // `request_id` is field 4 on Frame, plumbed both directions since M0, and
+  // never once set by any rig surface, while two places in PLAN.md assert a
+  // dedup that does not exist. This field is what stops the token becoming
+  // the second one.
+  //
+  // Only the program row gets it free, because only the program handshakes.
+  // A terminal, an agent and a script never receive a HelloResponse at all
+  // (section 14's caller table), which is why rig.session exists for them
+  // and why it could not have been the only carrier.
+  //
+  // IT IS NOT AUTHORISATION AND IT NEVER BECOMES AUTHORISATION. `scoped`
+  // above stays the whole authorisation state a connection carries; this
+  // restores COORDINATION state only - leases, claims, subscriptions, the
+  // cursor. A token that restored authorisation would be the second way to
+  // become a caller kind, which the comment above forbids in as many words.
+  //
+  // It is a GENERATION identity, not a connection one (section 36, V18): it
+  // outlives one socket, because it survives a reconnect, and dies with one
+  // occupancy. That is why it is here rather than on Frame - a field beside
+  // request_id would file it under the one lifetime V18 says no peer may
+  // ever hold.
+  string session = 4;
 }
 
 // ---- rig.ping, the one method M0 ships -------------------------------------
@@ -536,6 +573,67 @@ message EstateResponse {
   // semantics does the daemon itself implement", which is what a client built
   // from the development tree needs when it reaches the production daemon.
   int32 semantics_gen = 5;
+}
+
+// ---- rig.session, the fifth self-method (PLAN.md section 5f, M6) ----------
+//
+// THE CARRIER FOR EVERY CALLER THAT HAS NO HANDSHAKE. Section 14's caller
+// table has six rows and three of them - an agent, a terminal, a script - hold
+// an unregistered connection and never receive a HelloResponse. Section 5f
+// says every connection carries a session token, so those three rows needed a
+// message to receive one on and there was none: `hello` is the only handshake
+// and it REFUSES a request with no declaration.
+//
+// THE TWO ALTERNATIVES, BOTH REFUSED, RECORDED SO NEITHER IS REBUILT:
+//
+//   - A field on Frame, stamped by the daemon on every response. Refused on
+//     section 36's V18: a Frame field is transport, and V18 rules a connection
+//     identity is the one lifetime "no peer should ever hold". The token
+//     outlives a socket and dies with an occupancy, which is V18's GENERATION
+//     row, so filing it under transport is a specification contradiction
+//     rather than a style objection.
+//   - Making terminals handshake. Refused already, by section 37, on section
+//     14's own terms: `scoped` is "the whole authorisation state a connection
+//     carries", and giving a terminal a hello makes that boolean ambiguous.
+//     Section 37 met this exact problem for estate identity and answered it
+//     with a self-method; rig.estate is that answer shipped, and this is the
+//     same shape rather than a new one.
+//
+// WHAT IT RESTORES AT M6 IS NOTHING, AND THAT IS THE HONEST STATE RATHER THAN
+// AN OMISSION. Leases, claims and subscriptions are M7, and section 5f puts
+// the dedup window "persisted in the WAL", which is M7 as well. So what ships
+// here is the identity and its lifecycle: minted, delivered, presented back,
+// and refused with CODE_SESSION_DEAD when it is not held. The state it will
+// carry arrives with the thing that has state.
+
+message SessionRequest {
+  // Empty MINTS a token; non-empty RESUMES the one named.
+  //
+  // One field for both, rather than two methods, because they are one
+  // question - "what is my session" - and the answer differs only in whether
+  // the caller already had one. A resume that cannot be honoured is
+  // CODE_SESSION_DEAD and never a quietly-minted new token: a caller that
+  // asked to resume and got a fresh session would believe it kept state it
+  // lost, which is the failure this whole field exists to make visible.
+  string resume = 1;
+}
+
+message SessionResponse {
+  // The token. Opaque to every caller: it is an identifier rig hands back,
+  // never a structure a client parses. Nothing about the estate, the
+  // principal or the connection is recoverable from it.
+  string session = 1;
+
+  // True when `resume` named a session this daemon still holds. False on a
+  // fresh mint.
+  //
+  // IT IS CARRIED EVEN THOUGH A FRESH MINT AND A RESUMED SESSION LOOK
+  // IDENTICAL AT M6, because they stop looking identical the moment M7 gives
+  // a session something to hold, and a client written against a reply that
+  // could not tell them apart would be written wrong. The alternative -
+  // adding it at M7 - makes it a wire change on a message every caller
+  // already uses.
+  bool resumed = 2;
 }
 
 // ---- Invoking a declared command (PLAN.md section 5e, M1 slice 5) ----------
