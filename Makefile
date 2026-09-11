@@ -58,7 +58,11 @@ SHELL := bash
 
 ##@ Build
 
-build: build-rigd build-rig build-fakeapp build-ledger ## Build every binary into build/
+# Every binary bench-size measures must be built here, or `make ci` fails on a
+# cold checkout while passing on a warm one. build-docket was missing and
+# bench-size measured build/docket anyway, so ci depended on a binary it never
+# built - invisible locally because the file was left over from an earlier run.
+build: build-rigd build-rig build-fakeapp build-ledger build-docket ## Build every binary into build/
 
 build-rigd: ## Build the daemon (links none of the terminal stack)
 	@mkdir -p build
