@@ -1,0 +1,5 @@
+$ rig down
+exit 0
+--- stdout (16 bytes)
+nothing to stop
+--- stderr (0 bytes)

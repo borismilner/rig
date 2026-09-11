@@ -1,0 +1,5 @@
+$ rig version --json
+exit 0
+--- stdout (64 bytes)
+{"built":"unknown","commit":"none","product":"dev","wire":"v1"}
+--- stderr (0 bytes)

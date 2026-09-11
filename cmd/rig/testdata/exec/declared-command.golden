@@ -1,0 +1,9 @@
+$ rig fakeapp reindex --since 7d
+exit 1
+--- stdout (0 bytes)
+--- stderr (305 bytes)
+rig: client: dial $RUNTIME/rig/rigd.sock: dial unix $RUNTIME/rig/rigd.sock: connect: no such file or directory
+       precondition  the rig daemon is running
+       actual        nothing is listening on $RUNTIME/rig/rigd.sock
+       fix           start rigd, then run this again
+       fix command   rigd

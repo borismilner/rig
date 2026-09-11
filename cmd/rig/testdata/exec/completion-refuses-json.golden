@@ -1,0 +1,6 @@
+$ rig completion bash --json
+exit 1
+--- stdout (0 bytes)
+--- stderr (104 bytes)
+rig: usage: rig completion <bash|zsh|fish>
+       eval "$(rig completion zsh)"  to try it in this shell

@@ -1,0 +1,13 @@
+$ rig completion bash
+exit 0
+--- stdout (356 bytes)
+# rig completion for bash. eval "$(rig completion bash)"
+_rig_complete() {
+  local before out
+  # Everything after "rig" and before the word being completed.
+  before=("${COMP_WORDS[@]:1:COMP_CWORD-1}")
+  out="$(rig __complete "${before[@]}" 2>/dev/null)"
+  COMPREPLY=($(compgen -W "${out}" -- "${COMP_WORDS[COMP_CWORD]}"))
+}
+complete -F _rig_complete rig
+--- stderr (0 bytes)

@@ -1,0 +1,8 @@
+$ rig version
+exit 0
+--- stdout (52 bytes)
+product dev
+wire    v1
+commit  none
+built   unknown
+--- stderr (0 bytes)

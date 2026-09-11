@@ -1,0 +1,5 @@
+$ rig apps list --depth wat
+exit 1
+--- stdout (0 bytes)
+--- stderr (67 bytes)
+rig: "wat" is not a depth; the depths are programs, commands, full

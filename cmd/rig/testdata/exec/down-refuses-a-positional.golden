@@ -1,0 +1,5 @@
+$ rig down somewhere
+exit 1
+--- stdout (0 bytes)
+--- stderr (46 bytes)
+rig: usage: rig down [--json] [--timeout=30s]

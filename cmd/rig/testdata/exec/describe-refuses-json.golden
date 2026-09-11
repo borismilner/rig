@@ -1,0 +1,12 @@
+$ rig describe fakeapp --json
+exit 1
+--- stdout (426 bytes)
+{
+  "code": "RIG_BAD_ARGUMENT",
+  "message": "rig describe has no --json yet: its object is the one the MCP tool returns, and that object is rendered by the daemon rather than by this client",
+  "precondition": "the verb being asked for --json emits one",
+  "actual": "describe emits the human rendering only",
+  "fix": "read it as text, or use the MCP describe tool for the object",
+  "fix_command": "rig describe fakeapp"
+}
+--- stderr (0 bytes)

@@ -1,0 +1,12 @@
+$ rig estate --json
+exit 1
+--- stdout (330 bytes)
+{
+  "code": "RIG_NO_DAEMON",
+  "message": "client: dial $RUNTIME/rig/rigd.sock: dial unix $RUNTIME/rig/rigd.sock: connect: no such file or directory",
+  "precondition": "the rig daemon is running",
+  "actual": "nothing is listening on $RUNTIME/rig/rigd.sock",
+  "fix": "start rigd, then run this again",
+  "fix_command": "rigd"
+}
+--- stderr (0 bytes)

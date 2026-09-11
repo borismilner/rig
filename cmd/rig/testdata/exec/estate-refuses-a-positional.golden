@@ -1,0 +1,5 @@
+$ rig estate somewhere
+exit 1
+--- stdout (0 bytes)
+--- stderr (48 bytes)
+rig: usage: rig estate [--json] [--timeout=30s]

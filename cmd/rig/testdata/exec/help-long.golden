@@ -1,0 +1,28 @@
+$ rig --help
+exit 0
+--- stdout (0 bytes)
+--- stderr (1271 bytes)
+usage: rig <command> [flags]
+
+  <app> <cmd>      run a command a program declared, with its declared flags
+  apps list        what every program declared, as this client may see it
+  describe <app> [<cmd>]
+                   one thing in full: a program's preamble, or a command's
+                   whole declaration
+  ping <program>   round-trip a program through rigd ("rig" pings the daemon)
+  estate           which estate this shell reached, and what it is for
+  down             stop the daemon serving this XDG_RUNTIME_DIR
+  version          print every version this build carries
+  completion <sh>  a completion script for bash, zsh or fish
+
+Every command that answers takes --json, with two exceptions. completion
+writes a shell script for eval, which is not an answer to put in an object.
+describe does not have it YET: section 10 binds its object to the one the
+MCP tool returns, and that object is rendered by the daemon rather than
+here, so the flag arrives with the renderer rather than ahead of it.
+
+A declared command also takes --timeout and --args '<json>', the second
+being the exact argument object when a flag will not do.
+
+rig <app> --help and rig <app> <cmd> --help are generated from what the
+program declared, so they list what it actually has.

@@ -1,0 +1,13 @@
+$ rig completion zsh
+exit 0
+--- stdout (247 bytes)
+# rig completion for zsh. eval "$(rig completion zsh)"
+_rig() {
+  local -a candidates
+  local -a before
+  before=(${words[2,$((CURRENT-1))]})
+  candidates=(${(f)"$(rig __complete $before 2>/dev/null)"})
+  compadd -- $candidates
+}
+compdef _rig rig
+--- stderr (0 bytes)

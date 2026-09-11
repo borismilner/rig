@@ -1,0 +1,7 @@
+$ rig __complete apps list
+exit 0
+--- stdout (26 bytes)
+--commands
+--depth
+--json
+--- stderr (0 bytes)
