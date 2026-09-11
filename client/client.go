@@ -23,6 +23,7 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -34,22 +35,50 @@ import (
 // Handler answers a request rigd routed to this program.
 type Handler func(method string, payload []byte) (proto.Message, error)
 
-// Client is one connection to rigd.
-type Client struct {
+// conn is ONE physical connection, and it is separate from Client because a
+// Client now outlives its connections.
+//
+// Section 5d duty 3 says the stub reconnects when rig restarts. That is only
+// expressible if the things that die with a socket are separable from the
+// things that do not: the framer, the streams waiting on it and the reason it
+// ended die here, while the socket path, the stream counter and the handler
+// live on Client and survive.
+type conn struct {
 	w *wire.Conn
+
+	pmu     sync.Mutex
+	pending map[uint32]chan *rigv1.Frame
+
+	// gone closes when this connection's read loop ends. It is per-connection
+	// on purpose: Client.Done is a different question and a coarser one.
+	gone    chan struct{}
+	readErr atomic.Value // error
+}
+
+func (cn *conn) err() error {
+	if e, ok := cn.readErr.Load().(error); ok {
+		return e
+	}
+	return nil
+}
+
+// Client is a connection to rigd that survives rig restarting.
+type Client struct {
+	// socket is remembered so a reconnect can re-dial it. Dial used to throw
+	// the path away, which made duty 3 unimplementable without an API change.
+	socket string
 
 	// Client-opened streams are odd; the daemon's are even (section 5f's
 	// multiplexing), so neither side needs to negotiate a range.
 	next atomic.Uint32
 
-	pmu     sync.Mutex
-	pending map[uint32]chan *rigv1.Frame
-
 	handler Handler
 
+	mu  sync.Mutex
+	cur *conn
+
 	closeOnce sync.Once
-	readErr   atomic.Value // error
-	done      chan struct{}
+	closed    chan struct{}
 }
 
 // Connect dials rig at its well-known socket.
@@ -77,74 +106,128 @@ func Dial(socket string) (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("client: dial %s: %w", socket, err)
 	}
-	c := &Client{
+	c := &Client{socket: socket, closed: make(chan struct{})}
+	c.next.Store(1) // +2, so client streams stay odd
+	c.cur = c.adopt(nc)
+	return c, nil
+}
+
+// adopt wraps a live socket in a conn and starts its read loop.
+func (c *Client) adopt(nc net.Conn) *conn {
+	cn := &conn{
 		w:       wire.NewConn(nc),
 		pending: make(map[uint32]chan *rigv1.Frame),
-		done:    make(chan struct{}),
+		gone:    make(chan struct{}),
 	}
-	c.next.Store(1) // +2, so client streams stay odd
-	go c.read()
-	return c, nil
+	go c.read(cn)
+	return cn
+}
+
+// connection returns a live connection, re-dialling if the last one ended.
+//
+// This is duty 3. It is deliberately lazy rather than a background loop: a
+// program that is not calling anything does not need a socket, and a
+// reconnection nobody asked for is a wakeup on an idle machine.
+func (c *Client) connection() (*conn, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.cur != nil {
+		select {
+		case <-c.cur.gone:
+		default:
+			return c.cur, nil
+		}
+	}
+	//nolint:noctx // Same reason as Dial above: a unix socket connect has no
+	// network to bound. The call's deadline is what bounds the retry loop.
+	nc, err := net.Dial("unix", c.socket)
+	if err != nil {
+		return nil, fmt.Errorf("client: dial %s: %w", c.socket, err)
+	}
+	c.cur = c.adopt(nc)
+	return c.cur, nil
 }
 
 // Handle sets the handler for requests rigd routes to this program. Set it
 // before Hello, or a request can arrive with nothing to answer it.
 func (c *Client) Handle(h Handler) { c.handler = h }
 
-// Done closes when the connection ends. Err says why.
-func (c *Client) Done() <-chan struct{} { return c.done }
+// Done closes when this CLIENT is finished, which now means Close was called.
+//
+// ITS MEANING CHANGED WITH DUTY 3, AND THE CHANGE IS THE FEATURE. It used to
+// close when the connection ended, because a dropped socket was the end of the
+// client. Under section 5g it is not: the client tolerates rig's absence and
+// re-dials, so a program that exited on this signal would have been exiting on
+// a rig restart - the exact thing section 5g exists to stop.
+//
+// A caller that wants to know rig is unreachable reads it off a CALL, as the
+// typed unavailable error section 5g asks for. That is the one place it can be
+// answered with a deadline attached.
+func (c *Client) Done() <-chan struct{} { return c.closed }
 
-// Err returns the read loop's error, or nil if it ended cleanly.
+// Err returns why the last connection ended, or nil. It is informational: a
+// connection ending is no longer terminal, so this reports rather than decides.
 func (c *Client) Err() error {
-	if e, ok := c.readErr.Load().(error); ok {
-		return e
+	c.mu.Lock()
+	cn := c.cur
+	c.mu.Unlock()
+	if cn == nil {
+		return nil
 	}
-	return nil
+	return cn.err()
 }
 
 func (c *Client) Close() error {
 	var err error
-	c.closeOnce.Do(func() { err = c.w.Close() })
+	c.closeOnce.Do(func() {
+		close(c.closed)
+		c.mu.Lock()
+		cn := c.cur
+		c.mu.Unlock()
+		if cn != nil {
+			err = cn.w.Close()
+		}
+	})
 	return err
 }
 
-func (c *Client) read() {
-	defer close(c.done)
+func (c *Client) read(cn *conn) {
+	defer close(cn.gone)
 	for {
-		f, err := c.w.ReadFrame()
+		f, err := cn.w.ReadFrame()
 		if err != nil {
 			if !errors.Is(err, io.EOF) && !errors.Is(err, net.ErrClosed) {
-				c.readErr.Store(err)
+				cn.readErr.Store(err)
 			}
 			// Wake everything waiting, or a caller blocks until its deadline
 			// on a connection that is already gone.
-			c.pmu.Lock()
-			for id, ch := range c.pending {
+			cn.pmu.Lock()
+			for id, ch := range cn.pending {
 				close(ch)
-				delete(c.pending, id)
+				delete(cn.pending, id)
 			}
-			c.pmu.Unlock()
+			cn.pmu.Unlock()
 			return
 		}
 
-		c.pmu.Lock()
-		ch, waiting := c.pending[f.GetStreamId()]
+		cn.pmu.Lock()
+		ch, waiting := cn.pending[f.GetStreamId()]
 		if waiting {
-			delete(c.pending, f.GetStreamId())
+			delete(cn.pending, f.GetStreamId())
 		}
-		c.pmu.Unlock()
+		cn.pmu.Unlock()
 		if waiting {
 			ch <- f
 			continue
 		}
 		// Not a reply: rigd is asking this program for something.
-		go c.answer(f)
+		go c.answer(cn, f)
 	}
 }
 
-func (c *Client) answer(f *rigv1.Frame) {
+func (c *Client) answer(cn *conn, f *rigv1.Frame) {
 	if c.handler == nil || f.GetKind() != rigv1.FrameKind_FRAME_KIND_REQUEST {
-		_ = c.w.WriteFrame(&rigv1.Frame{
+		_ = cn.w.WriteFrame(&rigv1.Frame{
 			StreamId: f.GetStreamId(),
 			Kind:     rigv1.FrameKind_FRAME_KIND_ERROR,
 			Status: &rigv1.Status{
@@ -156,7 +239,7 @@ func (c *Client) answer(f *rigv1.Frame) {
 	}
 	msg, err := c.handler(f.GetMethod(), f.GetPayload())
 	if err != nil {
-		_ = c.w.WriteFrame(&rigv1.Frame{
+		_ = cn.w.WriteFrame(&rigv1.Frame{
 			StreamId: f.GetStreamId(),
 			Kind:     rigv1.FrameKind_FRAME_KIND_ERROR,
 			Status:   &rigv1.Status{Code: rigv1.Code_CODE_INTERNAL, Message: err.Error()},
@@ -165,14 +248,14 @@ func (c *Client) answer(f *rigv1.Frame) {
 	}
 	body, err := proto.Marshal(msg)
 	if err != nil {
-		_ = c.w.WriteFrame(&rigv1.Frame{
+		_ = cn.w.WriteFrame(&rigv1.Frame{
 			StreamId: f.GetStreamId(),
 			Kind:     rigv1.FrameKind_FRAME_KIND_ERROR,
 			Status:   &rigv1.Status{Code: rigv1.Code_CODE_INTERNAL, Message: err.Error()},
 		})
 		return
 	}
-	_ = c.w.WriteFrame(&rigv1.Frame{
+	_ = cn.w.WriteFrame(&rigv1.Frame{
 		StreamId: f.GetStreamId(),
 		Kind:     rigv1.FrameKind_FRAME_KIND_RESPONSE,
 		Payload:  body,
@@ -200,44 +283,131 @@ func (c *Client) Call(ctx context.Context, method string, in, out proto.Message)
 	// window meant to consume it.
 	rid := requestID()
 
+	// DUTY 4's RETRY LOOP, AND IT SITS BELOW THE MINT ON PURPOSE.
+	//
+	// Every attempt below re-sends the SAME rid. That is the whole reason the
+	// mint is above this line, and it is now a property a test can fail rather
+	// than a comment asking to be trusted.
+	var last error
+	for attempt := 0; ; attempt++ {
+		retry, err := c.attempt(ctx, method, rid, body, out)
+		if !retry {
+			return err
+		}
+		last = err
+
+		// Backoff to the DEADLINE, which is the caller's, not a fixed count.
+		// Section 5g says "backoff to a deadline"; a retry budget in attempts
+		// would give a caller with ten seconds the same patience as one with
+		// one, and neither of them what they asked for.
+		wait := time.NewTimer(backoff(attempt))
+		select {
+		case <-wait.C:
+		case <-ctx.Done():
+			wait.Stop()
+			return unavailable(method, last)
+		case <-c.closed:
+			wait.Stop()
+			return unavailable(method, last)
+		}
+	}
+}
+
+// attempt makes ONE try. It returns whether the failure is worth another.
+//
+// The split exists so the retry decision is in one readable place: rig
+// ANSWERING, with a refusal or a bad payload, is a result and never retried -
+// re-sending would turn one refusal into several. Only a connection that was
+// not there, or died mid-call, earns another attempt.
+func (c *Client) attempt(
+	ctx context.Context, method, rid string, body []byte, out proto.Message,
+) (retry bool, err error) {
+	select {
+	case <-c.closed:
+		return false, unavailable(method, errors.New("the client is closed"))
+	case <-ctx.Done():
+		return false, unavailable(method, ctx.Err())
+	default:
+	}
+
+	cn, err := c.connection()
+	if err != nil {
+		return true, err
+	}
+
 	sid := c.next.Add(2)
 	ch := make(chan *rigv1.Frame, 1)
-	c.pmu.Lock()
-	c.pending[sid] = ch
-	c.pmu.Unlock()
+	cn.pmu.Lock()
+	cn.pending[sid] = ch
+	cn.pmu.Unlock()
 	defer func() {
-		c.pmu.Lock()
-		delete(c.pending, sid)
-		c.pmu.Unlock()
+		cn.pmu.Lock()
+		delete(cn.pending, sid)
+		cn.pmu.Unlock()
 	}()
 
-	if err := c.w.WriteFrame(&rigv1.Frame{
+	if err := cn.w.WriteFrame(&rigv1.Frame{
 		StreamId:  sid,
 		Kind:      rigv1.FrameKind_FRAME_KIND_REQUEST,
 		Method:    method,
 		RequestId: rid,
 		Payload:   body,
 	}); err != nil {
-		return fmt.Errorf("client: %s: %w", method, err)
+		return true, fmt.Errorf("client: %s: %w", method, err)
 	}
 
 	select {
 	case f, open := <-ch:
 		if !open {
-			if e := c.Err(); e != nil {
-				return fmt.Errorf("client: %s: connection ended: %w", method, e)
+			// The read loop closed this stream, so the connection ended
+			// before an answer arrived. Worth another attempt: the id is
+			// stable, so a daemon with the window of section 4 can recognise
+			// the re-send rather than applying it twice.
+			if e := cn.err(); e != nil {
+				return true, fmt.Errorf("client: %s: connection ended: %w", method, e)
 			}
-			return fmt.Errorf("client: %s: connection closed before a reply", method)
+			return true, fmt.Errorf("client: %s: connection closed before a reply", method)
 		}
 		if f.GetKind() == rigv1.FrameKind_FRAME_KIND_ERROR {
-			return &CallError{Method: method, Status: f.GetStatus()}
+			return false, &CallError{Method: method, Status: f.GetStatus()}
 		}
 		if err := proto.Unmarshal(f.GetPayload(), out); err != nil {
-			return fmt.Errorf("client: %s: unmarshal: %w", method, err)
+			return false, fmt.Errorf("client: %s: unmarshal: %w", method, err)
 		}
-		return nil
+		return false, nil
 	case <-ctx.Done():
-		return fmt.Errorf("client: %s: %w", method, ctx.Err())
+		return false, fmt.Errorf("client: %s: %w", method, ctx.Err())
+	}
+}
+
+// backoff is the delay before attempt n+1: 10ms doubling to a 1s ceiling.
+//
+// The ceiling matters more than the curve. Without one, a long deadline turns
+// the last gap into most of the wait, so a rig that came back early is not
+// noticed until well after it did.
+func backoff(attempt int) time.Duration {
+	const base, ceiling = 10 * time.Millisecond, time.Second
+	d := base << min(attempt, 10)
+	return min(d, ceiling)
+}
+
+// unavailable is section 5g's ONE typed error for "rig is not there".
+//
+// It is a *CallError carrying CODE_UNAVAILABLE rather than a new exported
+// type, and that is deliberate on two counts. Section 3 budgets this package's
+// exported symbols, so a new one costs a decision in the plan; and CODE_
+// UNAVAILABLE is already the wire's word for "rig is not there, or is shutting
+// down", so inventing a second vocabulary for the same fact is the collapse
+// this repository keeps finding. A caller tests it the way it tests any
+// refusal: errors.As for *CallError, then Code.
+func unavailable(method string, cause error) error {
+	return &CallError{
+		Method: method,
+		Status: &rigv1.Status{
+			Code:    rigv1.Code_CODE_UNAVAILABLE,
+			Message: "rig is not reachable: " + cause.Error(),
+			Fix:     "start rigd, then run this again",
+		},
 	}
 }
 
