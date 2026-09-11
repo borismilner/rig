@@ -95,7 +95,7 @@ func helpForCommand(program, command string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	decl, err := lookup(ctx, c, program, command)
+	decl, err := lookup(ctx, c, program, command, false)
 	if err != nil {
 		return err
 	}
@@ -238,7 +238,7 @@ func enumList(vals []any) string {
 // lookupProgram finds one program, and lists the others when it is not there.
 func lookupProgram(ctx context.Context, c *client.Client, program string) (*rigv1.Program, error) {
 	var resp rigv1.ProgramsResponse
-	if err := c.Call(ctx, "rig.programs", &rigv1.ProgramsRequest{}, &resp); err != nil {
+	if err := call(ctx, c, "rig.programs", &rigv1.ProgramsRequest{}, &resp, false); err != nil {
 		return nil, err
 	}
 	var names []string

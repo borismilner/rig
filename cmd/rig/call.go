@@ -70,7 +70,7 @@ func cmdCall(program, command string, argv []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), own.timeout)
 	defer cancel()
 
-	decl, err := lookup(ctx, c, program, command)
+	decl, err := lookup(ctx, c, program, command, own.asJSON)
 	if err != nil {
 		return err
 	}
@@ -81,8 +81,8 @@ func cmdCall(program, command string, argv []string) error {
 	}
 
 	var resp rigv1.CallResponse
-	if err := c.Call(ctx, program+"."+command,
-		&rigv1.CallRequest{Args: args}, &resp); err != nil {
+	if err := call(ctx, c, program+"."+command,
+		&rigv1.CallRequest{Args: args}, &resp, own.asJSON); err != nil {
 		return err
 	}
 	return printResult(program, command, resp.GetResult(), own.asJSON)
@@ -149,9 +149,11 @@ func splitOwnFlags(argv []string) (callFlags, []string, error) {
 // declared is reported with the program's coverage, because "shelf declares 3
 // of its 20 commands" is the difference between a typo and a command that
 // exists but has not been adopted yet.
-func lookup(ctx context.Context, c *client.Client, program, command string) (*rigv1.Command, error) {
+func lookup(ctx context.Context, c *client.Client, program, command string,
+	asJSON bool,
+) (*rigv1.Command, error) {
 	var resp rigv1.ProgramsResponse
-	if err := c.Call(ctx, "rig.programs", &rigv1.ProgramsRequest{}, &resp); err != nil {
+	if err := call(ctx, c, "rig.programs", &rigv1.ProgramsRequest{}, &resp, asJSON); err != nil {
 		return nil, err
 	}
 

@@ -33,7 +33,7 @@ var (
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, "rig: "+err.Error())
+		report(os.Stdout, os.Stderr, err)
 		os.Exit(1)
 	}
 }
@@ -212,8 +212,8 @@ func cmdPing(args []string) error {
 	resp := &rigv1.PingResponse{}
 	// rig.ping with the program as an argument, not <program>.ping: the probe
 	// is rig's method and never was one of the program's own commands.
-	if err := c.Call(ctx, "rig.ping",
-		&rigv1.PingRequest{Nonce: nonce, Program: program}, resp); err != nil {
+	if err := call(ctx, c, "rig.ping",
+		&rigv1.PingRequest{Nonce: nonce, Program: program}, resp, *asJSON); err != nil {
 		return err
 	}
 	elapsed := time.Since(start)
@@ -287,7 +287,7 @@ func cmdDown(args []string) error {
 	defer cancel()
 
 	resp := &rigv1.DownResponse{}
-	if err := c.Call(ctx, "rig.down", &rigv1.DownRequest{}, resp); err != nil {
+	if err := call(ctx, c, "rig.down", &rigv1.DownRequest{}, resp, *asJSON); err != nil {
 		return err
 	}
 
@@ -339,7 +339,7 @@ func cmdApps(args []string) error {
 	defer cancel()
 
 	resp := &rigv1.ProgramsResponse{}
-	if err := c.Call(ctx, "rig.programs", &rigv1.ProgramsRequest{}, resp); err != nil {
+	if err := call(ctx, c, "rig.programs", &rigv1.ProgramsRequest{}, resp, *asJSON); err != nil {
 		return err
 	}
 
