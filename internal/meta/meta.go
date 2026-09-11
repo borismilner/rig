@@ -100,6 +100,20 @@ type Answer struct {
 	Estate  []kernel.Program
 	Version string
 
+	// Depth is how much of the estate this answer actually carries.
+	//
+	// IT IS WHAT WAS USED, NOT WHAT WAS ASKED FOR, and the two can differ.
+	// list takes its depth from the capability map rather than from the
+	// Request, because the map is what normalised it and a map's identity
+	// includes its depth - "the same estate at two depths is two different
+	// maps and must never share a version". Reporting the request would let
+	// an answer claim a depth its own version does not correspond to.
+	//
+	// A tool that projects nothing leaves it unspecified, which is section
+	// 21's zero meaning "nothing was said" and is the honest answer for
+	// invoke: no depth was involved in returning a program's own result.
+	Depth kernel.Depth
+
 	// Program and Command are describe's, depending on what was addressed.
 	Program *kernel.Program
 	Command *kernel.Command
@@ -173,6 +187,7 @@ func (s *Server) list(who kernel.Principal, r Request) (Answer, error) {
 		Tool:    List,
 		Estate:  m.Programs,
 		Version: m.Version,
+		Depth:   m.Depth,
 		Partial: partialOf(m.Programs...),
 	}, nil
 }
@@ -186,7 +201,10 @@ func (s *Server) describe(who kernel.Principal, r Request) (Answer, error) {
 	if !ok {
 		return Answer{}, notFound(r.Program, "")
 	}
-	out := Answer{Tool: Describe, Partial: partialOf(p)}
+	// describe "returns one thing in full" (section 9), so it reports the
+	// depth it actually carries rather than leaving an agent to infer it from
+	// which fields happen to be populated.
+	out := Answer{Tool: Describe, Depth: kernel.DepthFull, Partial: partialOf(p)}
 
 	if r.Command == "" {
 		out.Program = &p
@@ -254,6 +272,7 @@ func (s *Server) query(who kernel.Principal, r Request) (Answer, error) {
 	out := Answer{
 		Tool:        Query,
 		Version:     m.Version,
+		Depth:       m.Depth,
 		Unavailable: append([]string(nil), unavailableAtM2...),
 		Partial:     partialOf(m.Programs...),
 	}

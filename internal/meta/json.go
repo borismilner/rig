@@ -29,6 +29,7 @@ func MarshalAnswer(a Answer) ([]byte, error) {
 	return json.Marshal(answerJSON{
 		Tool:        string(a.Tool),
 		Partial:     incompleteListJSON(a.Partial),
+		Depth:       a.Depth.String(),
 		Version:     a.Version,
 		Estate:      programListJSON(a.Estate),
 		Program:     programPtrJSON(a.Program),
@@ -50,6 +51,17 @@ type answerJSON struct {
 	// useful guess point opposite ways. Emitted always, `[]` means "nothing
 	// here is incomplete" and says so.
 	Partial []incompleteJSON `json:"partial"`
+
+	// Depth is ALWAYS emitted, unspecified included, for the same reason
+	// Partial is.
+	//
+	// Section 10 binds --json to exactly what the MCP tool returns, and
+	// --depth is a knob an agent turns to control its own context budget. An
+	// object that cannot say how much was asked for leaves the agent to infer
+	// it from which fields happen to be populated, and an ABSENT depth cannot
+	// be told apart from a server too old to have the field. Emitted always,
+	// "unspecified" says "no depth was involved" and says it out loud.
+	Depth string `json:"depth"`
 
 	Version     string          `json:"version,omitempty"`
 	Estate      []programJSON   `json:"estate,omitempty"`
