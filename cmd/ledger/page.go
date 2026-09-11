@@ -103,7 +103,7 @@ func pane() string {
      when it gives up waiting for the window. */
   [data-rig-unthemed] .rig-lead::after {
     content: " (no token set arrived: this page is drawing its own fallbacks)";
-    color: var(--fg-faint, #7c879b);
+    color: var(--fg-faint, #8e9fb1);
   }
 </style>
 
