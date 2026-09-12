@@ -63,6 +63,34 @@ func selfDeclaration() kernel.Declaration {
 			// the reply is identical". Asking twice returns the same token
 			// and leaves the same state; a resume that succeeds leaves the
 			// same state as the resume before it.
+			// PRESENCE, AND ALL THREE ARE READ-ONLY BY THE LADDER'S OWN
+			// DEFINITION rather than by generosity. The effects ladder is
+			// about what a call does OUTSIDE rig - files, network,
+			// destruction, driving input - and a roster entry is none of
+			// them: it touches no file, opens no socket and dies with the
+			// connection that made it. This is the identical argument
+			// `session` writes down two entries below, and the two must not
+			// drift: if a level for "mutates rig's own state" is ever added,
+			// both move together or the ladder has two meanings.
+			//
+			// IDEMPOTENT ON THE HOUSE DEFINITION - "about the state left
+			// behind, not about whether the reply is identical". Announcing
+			// twice with the same purpose leaves one row saying that purpose,
+			// and re-announcing into a seat this connection already holds
+			// deliberately does not move the generation.
+			readOnly("announce", "Announce",
+				"Say what this session is for, and see who else is here",
+				"Records this connection's purpose and activity on the estate's roster, optionally taking a named SEAT, and returns the crew as it stands. A seat is a role that outlives its occupants; each occupancy gets a generation, so a peer can tell whether the session it is addressing is still the one it meant. Refused if the seat is held by a live peer.",
+				"This peer's own row including its generation, the whole crew, and whether the roster is known to be incomplete."),
+			readOnly("activity", "Activity",
+				"Say what this session is doing right now",
+				"Replaces this connection's activity line, and optionally moves its seat to HANDING_OFF. Cheap and non-blocking. Requires an earlier announce: an activity with no purpose above it is the unsupervisable row the seat mechanism exists to prevent.",
+				"This peer's updated row."),
+			readOnly("peers", "Peers",
+				"Read the estate's roster",
+				"Who is here, what each is for, what each is doing, which seat each holds and at which generation. Presence is connection state, so a peer that is listed is a peer whose connection is open.",
+				"The crew, and whether the roster is known to be incomplete."),
+
 			readOnly("session", "Session",
 				"Say which session this connection carries",
 				"Answers this connection's session token, or resumes a session named by one. Section 5f says every connection carries a token that survives reconnect; a terminal, an agent and a script never handshake, so this is the message on which they receive it.",

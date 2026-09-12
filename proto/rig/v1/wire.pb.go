@@ -590,6 +590,63 @@ func (EstateRole) EnumDescriptor() ([]byte, []int) {
 	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{8}
 }
 
+// SeatState is what an occupant is DOING with its seat, which is not the same
+// question as whether it is alive - liveness is the connection.
+//
+// HANDING_OFF EXISTS BECAUSE IT IS THE STATE THAT WAS OBSERVED MISSING. Two
+// rows on that roster read "successor in a warm handoff" as their PURPOSE,
+// because purpose was the only field there was to say it in, and a purpose is
+// then stale for as long as the next occupant forgets to rewrite it. A state
+// is cleared by the transition rather than by remembering to.
+type SeatState int32
+
+const (
+	SeatState_SEAT_STATE_UNSPECIFIED SeatState = 0 // nothing was said. Never a fact about a seat
+	SeatState_SEAT_STATE_ACTIVE      SeatState = 1
+	SeatState_SEAT_STATE_HANDING_OFF SeatState = 2 // still working, and its successor is being briefed
+)
+
+// Enum value maps for SeatState.
+var (
+	SeatState_name = map[int32]string{
+		0: "SEAT_STATE_UNSPECIFIED",
+		1: "SEAT_STATE_ACTIVE",
+		2: "SEAT_STATE_HANDING_OFF",
+	}
+	SeatState_value = map[string]int32{
+		"SEAT_STATE_UNSPECIFIED": 0,
+		"SEAT_STATE_ACTIVE":      1,
+		"SEAT_STATE_HANDING_OFF": 2,
+	}
+)
+
+func (x SeatState) Enum() *SeatState {
+	p := new(SeatState)
+	*p = x
+	return p
+}
+
+func (x SeatState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SeatState) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_rig_v1_wire_proto_enumTypes[9].Descriptor()
+}
+
+func (SeatState) Type() protoreflect.EnumType {
+	return &file_proto_rig_v1_wire_proto_enumTypes[9]
+}
+
+func (x SeatState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SeatState.Descriptor instead.
+func (SeatState) EnumDescriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{9}
+}
+
 type Status struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Code  Code                   `protobuf:"varint,1,opt,name=code,proto3,enum=rig.v1.Code" json:"code,omitempty"`
@@ -2256,6 +2313,437 @@ func (x *CallResponse) GetResult() []byte {
 	return nil
 }
 
+type Seat struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The ROLE, stable across every occupant. Empty for a peer that announced
+	// without claiming one, which is allowed: a one-off session is present and
+	// addressable as a peer without pretending to be a seat somebody inherits.
+	Seat string `protobuf:"bytes,1,opt,name=seat,proto3" json:"seat,omitempty"`
+	// Which occupancy this is, counted from 1 and bumped every time the seat is
+	// TAKEN. Zero means the peer holds no seat, and that is a distinct fact from
+	// generation 1 rather than a missing value.
+	//
+	// IT IS MONOTONIC PER SEAT NAME AND PER DAEMON, and it does not survive a
+	// daemon restart. That is honest rather than a limitation to fix later:
+	// section 37 precondition 4 gives every daemon start a new EPOCH precisely
+	// so a client can tell "generation 3 of this run" from "generation 3 of a
+	// previous one", and duplicating that guarantee here would be a second
+	// source of truth for the same fact.
+	Generation uint64 `protobuf:"varint,2,opt,name=generation,proto3" json:"generation,omitempty"`
+	// What this occupant is FOR, in the human's terms. Set at announce.
+	Purpose string `protobuf:"bytes,3,opt,name=purpose,proto3" json:"purpose,omitempty"`
+	// What it is doing right now. Set at announce, replaced by rig.activity.
+	Activity string    `protobuf:"bytes,4,opt,name=activity,proto3" json:"activity,omitempty"`
+	State    SeatState `protobuf:"varint,5,opt,name=state,proto3,enum=rig.v1.SeatState" json:"state,omitempty"`
+	// When this occupancy began and when its activity last changed, as unix
+	// nanoseconds. BOTH are carried because their difference is the signal: a
+	// fresh purpose beside an activity that has not moved in an hour is what a
+	// supervisor reads as a hung session, and one timestamp cannot express it.
+	AnnouncedUnixNano int64 `protobuf:"varint,6,opt,name=announced_unix_nano,json=announcedUnixNano,proto3" json:"announced_unix_nano,omitempty"`
+	ActivityUnixNano  int64 `protobuf:"varint,7,opt,name=activity_unix_nano,json=activityUnixNano,proto3" json:"activity_unix_nano,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *Seat) Reset() {
+	*x = Seat{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Seat) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Seat) ProtoMessage() {}
+
+func (x *Seat) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Seat.ProtoReflect.Descriptor instead.
+func (*Seat) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *Seat) GetSeat() string {
+	if x != nil {
+		return x.Seat
+	}
+	return ""
+}
+
+func (x *Seat) GetGeneration() uint64 {
+	if x != nil {
+		return x.Generation
+	}
+	return 0
+}
+
+func (x *Seat) GetPurpose() string {
+	if x != nil {
+		return x.Purpose
+	}
+	return ""
+}
+
+func (x *Seat) GetActivity() string {
+	if x != nil {
+		return x.Activity
+	}
+	return ""
+}
+
+func (x *Seat) GetState() SeatState {
+	if x != nil {
+		return x.State
+	}
+	return SeatState_SEAT_STATE_UNSPECIFIED
+}
+
+func (x *Seat) GetAnnouncedUnixNano() int64 {
+	if x != nil {
+		return x.AnnouncedUnixNano
+	}
+	return 0
+}
+
+func (x *Seat) GetActivityUnixNano() int64 {
+	if x != nil {
+		return x.ActivityUnixNano
+	}
+	return 0
+}
+
+type AnnounceRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The seat to take, or empty to be present without one. Taking a seat that
+	// another live connection holds is REFUSED rather than granted, because the
+	// opposite - letting the newcomer win - is how two sessions come to believe
+	// they are the same seat, which is the failure this whole message exists to
+	// make visible.
+	Seat          string `protobuf:"bytes,1,opt,name=seat,proto3" json:"seat,omitempty"`
+	Purpose       string `protobuf:"bytes,2,opt,name=purpose,proto3" json:"purpose,omitempty"`
+	Activity      string `protobuf:"bytes,3,opt,name=activity,proto3" json:"activity,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AnnounceRequest) Reset() {
+	*x = AnnounceRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnnounceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnnounceRequest) ProtoMessage() {}
+
+func (x *AnnounceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnnounceRequest.ProtoReflect.Descriptor instead.
+func (*AnnounceRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *AnnounceRequest) GetSeat() string {
+	if x != nil {
+		return x.Seat
+	}
+	return ""
+}
+
+func (x *AnnounceRequest) GetPurpose() string {
+	if x != nil {
+		return x.Purpose
+	}
+	return ""
+}
+
+func (x *AnnounceRequest) GetActivity() string {
+	if x != nil {
+		return x.Activity
+	}
+	return ""
+}
+
+type AnnounceResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// This connection's own row, including the generation it was granted.
+	You *Seat `protobuf:"bytes,1,opt,name=you,proto3" json:"you,omitempty"`
+	// Everyone present, this caller included, so a peer never has to merge two
+	// answers to learn the crew.
+	Crew []*Seat `protobuf:"bytes,2,rep,name=crew,proto3" json:"crew,omitempty"`
+	// TRUE WHEN THIS ROSTER CANNOT SEE EVERYBODY, and rig can say exactly when
+	// that is, which AgentBox cannot. A daemon sees every connection to ITSELF
+	// and nothing on the other estate (section 37: two estates, two runtime
+	// directories, no shared state by construction). So `partial` here means
+	// "another estate is running on this machine and its peers are not in this
+	// list" - a specific, checkable claim rather than a general disclaimer.
+	Partial       bool `protobuf:"varint,3,opt,name=partial,proto3" json:"partial,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AnnounceResponse) Reset() {
+	*x = AnnounceResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnnounceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnnounceResponse) ProtoMessage() {}
+
+func (x *AnnounceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnnounceResponse.ProtoReflect.Descriptor instead.
+func (*AnnounceResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *AnnounceResponse) GetYou() *Seat {
+	if x != nil {
+		return x.You
+	}
+	return nil
+}
+
+func (x *AnnounceResponse) GetCrew() []*Seat {
+	if x != nil {
+		return x.Crew
+	}
+	return nil
+}
+
+func (x *AnnounceResponse) GetPartial() bool {
+	if x != nil {
+		return x.Partial
+	}
+	return false
+}
+
+type ActivityRequest struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Activity string                 `protobuf:"bytes,1,opt,name=activity,proto3" json:"activity,omitempty"`
+	// Optional transition. UNSPECIFIED leaves the state alone, so the common
+	// call - "I am doing something else now" - does not have to restate it.
+	State         SeatState `protobuf:"varint,2,opt,name=state,proto3,enum=rig.v1.SeatState" json:"state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityRequest) Reset() {
+	*x = ActivityRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityRequest) ProtoMessage() {}
+
+func (x *ActivityRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityRequest.ProtoReflect.Descriptor instead.
+func (*ActivityRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *ActivityRequest) GetActivity() string {
+	if x != nil {
+		return x.Activity
+	}
+	return ""
+}
+
+func (x *ActivityRequest) GetState() SeatState {
+	if x != nil {
+		return x.State
+	}
+	return SeatState_SEAT_STATE_UNSPECIFIED
+}
+
+type ActivityResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	You           *Seat                  `protobuf:"bytes,1,opt,name=you,proto3" json:"you,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityResponse) Reset() {
+	*x = ActivityResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityResponse) ProtoMessage() {}
+
+func (x *ActivityResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityResponse.ProtoReflect.Descriptor instead.
+func (*ActivityResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *ActivityResponse) GetYou() *Seat {
+	if x != nil {
+		return x.You
+	}
+	return nil
+}
+
+type PeersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PeersRequest) Reset() {
+	*x = PeersRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PeersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PeersRequest) ProtoMessage() {}
+
+func (x *PeersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PeersRequest.ProtoReflect.Descriptor instead.
+func (*PeersRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{26}
+}
+
+type PeersResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Crew          []*Seat                `protobuf:"bytes,1,rep,name=crew,proto3" json:"crew,omitempty"`
+	Partial       bool                   `protobuf:"varint,2,opt,name=partial,proto3" json:"partial,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PeersResponse) Reset() {
+	*x = PeersResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PeersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PeersResponse) ProtoMessage() {}
+
+func (x *PeersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PeersResponse.ProtoReflect.Descriptor instead.
+func (*PeersResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *PeersResponse) GetCrew() []*Seat {
+	if x != nil {
+		return x.Crew
+	}
+	return nil
+}
+
+func (x *PeersResponse) GetPartial() bool {
+	if x != nil {
+		return x.Partial
+	}
+	return false
+}
+
 var File_proto_rig_v1_wire_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_wire_proto_rawDesc = "" +
@@ -2373,7 +2861,34 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\vCallRequest\x12\x12\n" +
 	"\x04args\x18\x01 \x01(\fR\x04args\"&\n" +
 	"\fCallResponse\x12\x16\n" +
-	"\x06result\x18\x01 \x01(\fR\x06result*\xbc\x01\n" +
+	"\x06result\x18\x01 \x01(\fR\x06result\"\xf7\x01\n" +
+	"\x04Seat\x12\x12\n" +
+	"\x04seat\x18\x01 \x01(\tR\x04seat\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x02 \x01(\x04R\n" +
+	"generation\x12\x18\n" +
+	"\apurpose\x18\x03 \x01(\tR\apurpose\x12\x1a\n" +
+	"\bactivity\x18\x04 \x01(\tR\bactivity\x12'\n" +
+	"\x05state\x18\x05 \x01(\x0e2\x11.rig.v1.SeatStateR\x05state\x12.\n" +
+	"\x13announced_unix_nano\x18\x06 \x01(\x03R\x11announcedUnixNano\x12,\n" +
+	"\x12activity_unix_nano\x18\a \x01(\x03R\x10activityUnixNano\"[\n" +
+	"\x0fAnnounceRequest\x12\x12\n" +
+	"\x04seat\x18\x01 \x01(\tR\x04seat\x12\x18\n" +
+	"\apurpose\x18\x02 \x01(\tR\apurpose\x12\x1a\n" +
+	"\bactivity\x18\x03 \x01(\tR\bactivity\"n\n" +
+	"\x10AnnounceResponse\x12\x1e\n" +
+	"\x03you\x18\x01 \x01(\v2\f.rig.v1.SeatR\x03you\x12 \n" +
+	"\x04crew\x18\x02 \x03(\v2\f.rig.v1.SeatR\x04crew\x12\x18\n" +
+	"\apartial\x18\x03 \x01(\bR\apartial\"V\n" +
+	"\x0fActivityRequest\x12\x1a\n" +
+	"\bactivity\x18\x01 \x01(\tR\bactivity\x12'\n" +
+	"\x05state\x18\x02 \x01(\x0e2\x11.rig.v1.SeatStateR\x05state\"2\n" +
+	"\x10ActivityResponse\x12\x1e\n" +
+	"\x03you\x18\x01 \x01(\v2\f.rig.v1.SeatR\x03you\"\x0e\n" +
+	"\fPeersRequest\"K\n" +
+	"\rPeersResponse\x12 \n" +
+	"\x04crew\x18\x01 \x03(\v2\f.rig.v1.SeatR\x04crew\x12\x18\n" +
+	"\apartial\x18\x02 \x01(\bR\apartial*\xbc\x01\n" +
 	"\tFrameKind\x12\x1a\n" +
 	"\x16FRAME_KIND_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12FRAME_KIND_REQUEST\x10\x01\x12\x17\n" +
@@ -2429,7 +2944,11 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x17ESTATE_ROLE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13ESTATE_ROLE_UNNAMED\x10\x01\x12\x1a\n" +
 	"\x16ESTATE_ROLE_PRODUCTION\x10\x02\x12\x1b\n" +
-	"\x17ESTATE_ROLE_DEVELOPMENT\x10\x03B0Z.github.com/boris-milner/rig/proto/rig/v1;rigv1b\x06proto3"
+	"\x17ESTATE_ROLE_DEVELOPMENT\x10\x03*Z\n" +
+	"\tSeatState\x12\x1a\n" +
+	"\x16SEAT_STATE_UNSPECIFIED\x10\x00\x12\x15\n" +
+	"\x11SEAT_STATE_ACTIVE\x10\x01\x12\x1a\n" +
+	"\x16SEAT_STATE_HANDING_OFF\x10\x02B0Z.github.com/boris-milner/rig/proto/rig/v1;rigv1b\x06proto3"
 
 var (
 	file_proto_rig_v1_wire_proto_rawDescOnce sync.Once
@@ -2443,8 +2962,8 @@ func file_proto_rig_v1_wire_proto_rawDescGZIP() []byte {
 	return file_proto_rig_v1_wire_proto_rawDescData
 }
 
-var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
-var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 10)
+var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(FrameKind)(0),           // 0: rig.v1.FrameKind
 	(Code)(0),                // 1: rig.v1.Code
@@ -2455,56 +2974,70 @@ var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(Tristate)(0),            // 6: rig.v1.Tristate
 	(Depth)(0),               // 7: rig.v1.Depth
 	(EstateRole)(0),          // 8: rig.v1.EstateRole
-	(*Status)(nil),           // 9: rig.v1.Status
-	(*Frame)(nil),            // 10: rig.v1.Frame
-	(*HelloRequest)(nil),     // 11: rig.v1.HelloRequest
-	(*HelloResponse)(nil),    // 12: rig.v1.HelloResponse
-	(*PingRequest)(nil),      // 13: rig.v1.PingRequest
-	(*PingResponse)(nil),     // 14: rig.v1.PingResponse
-	(*Identity)(nil),         // 15: rig.v1.Identity
-	(*SensitiveFields)(nil),  // 16: rig.v1.SensitiveFields
-	(*Command)(nil),          // 17: rig.v1.Command
-	(*Declaration)(nil),      // 18: rig.v1.Declaration
-	(*Program)(nil),          // 19: rig.v1.Program
-	(*ProgramsRequest)(nil),  // 20: rig.v1.ProgramsRequest
-	(*ProgramsResponse)(nil), // 21: rig.v1.ProgramsResponse
-	(*DownRequest)(nil),      // 22: rig.v1.DownRequest
-	(*DownResponse)(nil),     // 23: rig.v1.DownResponse
-	(*EstateRequest)(nil),    // 24: rig.v1.EstateRequest
-	(*EstateResponse)(nil),   // 25: rig.v1.EstateResponse
-	(*SessionRequest)(nil),   // 26: rig.v1.SessionRequest
-	(*SessionResponse)(nil),  // 27: rig.v1.SessionResponse
-	(*CallRequest)(nil),      // 28: rig.v1.CallRequest
-	(*CallResponse)(nil),     // 29: rig.v1.CallResponse
+	(SeatState)(0),           // 9: rig.v1.SeatState
+	(*Status)(nil),           // 10: rig.v1.Status
+	(*Frame)(nil),            // 11: rig.v1.Frame
+	(*HelloRequest)(nil),     // 12: rig.v1.HelloRequest
+	(*HelloResponse)(nil),    // 13: rig.v1.HelloResponse
+	(*PingRequest)(nil),      // 14: rig.v1.PingRequest
+	(*PingResponse)(nil),     // 15: rig.v1.PingResponse
+	(*Identity)(nil),         // 16: rig.v1.Identity
+	(*SensitiveFields)(nil),  // 17: rig.v1.SensitiveFields
+	(*Command)(nil),          // 18: rig.v1.Command
+	(*Declaration)(nil),      // 19: rig.v1.Declaration
+	(*Program)(nil),          // 20: rig.v1.Program
+	(*ProgramsRequest)(nil),  // 21: rig.v1.ProgramsRequest
+	(*ProgramsResponse)(nil), // 22: rig.v1.ProgramsResponse
+	(*DownRequest)(nil),      // 23: rig.v1.DownRequest
+	(*DownResponse)(nil),     // 24: rig.v1.DownResponse
+	(*EstateRequest)(nil),    // 25: rig.v1.EstateRequest
+	(*EstateResponse)(nil),   // 26: rig.v1.EstateResponse
+	(*SessionRequest)(nil),   // 27: rig.v1.SessionRequest
+	(*SessionResponse)(nil),  // 28: rig.v1.SessionResponse
+	(*CallRequest)(nil),      // 29: rig.v1.CallRequest
+	(*CallResponse)(nil),     // 30: rig.v1.CallResponse
+	(*Seat)(nil),             // 31: rig.v1.Seat
+	(*AnnounceRequest)(nil),  // 32: rig.v1.AnnounceRequest
+	(*AnnounceResponse)(nil), // 33: rig.v1.AnnounceResponse
+	(*ActivityRequest)(nil),  // 34: rig.v1.ActivityRequest
+	(*ActivityResponse)(nil), // 35: rig.v1.ActivityResponse
+	(*PeersRequest)(nil),     // 36: rig.v1.PeersRequest
+	(*PeersResponse)(nil),    // 37: rig.v1.PeersResponse
 }
 var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	1,  // 0: rig.v1.Status.code:type_name -> rig.v1.Code
 	0,  // 1: rig.v1.Frame.kind:type_name -> rig.v1.FrameKind
-	9,  // 2: rig.v1.Frame.status:type_name -> rig.v1.Status
-	18, // 3: rig.v1.HelloRequest.declaration:type_name -> rig.v1.Declaration
+	10, // 2: rig.v1.Frame.status:type_name -> rig.v1.Status
+	19, // 3: rig.v1.HelloRequest.declaration:type_name -> rig.v1.Declaration
 	3,  // 4: rig.v1.Command.effects:type_name -> rig.v1.Effects
 	6,  // 5: rig.v1.Command.idempotent:type_name -> rig.v1.Tristate
-	16, // 6: rig.v1.Command.sensitive:type_name -> rig.v1.SensitiveFields
+	17, // 6: rig.v1.Command.sensitive:type_name -> rig.v1.SensitiveFields
 	6,  // 7: rig.v1.Command.interactive:type_name -> rig.v1.Tristate
 	6,  // 8: rig.v1.Command.streams:type_name -> rig.v1.Tristate
 	6,  // 9: rig.v1.Command.needs_display:type_name -> rig.v1.Tristate
 	4,  // 10: rig.v1.Command.duration:type_name -> rig.v1.Duration
 	6,  // 11: rig.v1.Command.confirms:type_name -> rig.v1.Tristate
 	5,  // 12: rig.v1.Command.shape:type_name -> rig.v1.Shape
-	15, // 13: rig.v1.Declaration.identity:type_name -> rig.v1.Identity
+	16, // 13: rig.v1.Declaration.identity:type_name -> rig.v1.Identity
 	2,  // 14: rig.v1.Declaration.coverage:type_name -> rig.v1.Coverage
-	17, // 15: rig.v1.Declaration.commands:type_name -> rig.v1.Command
-	15, // 16: rig.v1.Program.identity:type_name -> rig.v1.Identity
+	18, // 15: rig.v1.Declaration.commands:type_name -> rig.v1.Command
+	16, // 16: rig.v1.Program.identity:type_name -> rig.v1.Identity
 	2,  // 17: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
-	17, // 18: rig.v1.Program.commands:type_name -> rig.v1.Command
+	18, // 18: rig.v1.Program.commands:type_name -> rig.v1.Command
 	7,  // 19: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
-	19, // 20: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
+	20, // 20: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
 	8,  // 21: rig.v1.EstateResponse.role:type_name -> rig.v1.EstateRole
-	22, // [22:22] is the sub-list for method output_type
-	22, // [22:22] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	9,  // 22: rig.v1.Seat.state:type_name -> rig.v1.SeatState
+	31, // 23: rig.v1.AnnounceResponse.you:type_name -> rig.v1.Seat
+	31, // 24: rig.v1.AnnounceResponse.crew:type_name -> rig.v1.Seat
+	9,  // 25: rig.v1.ActivityRequest.state:type_name -> rig.v1.SeatState
+	31, // 26: rig.v1.ActivityResponse.you:type_name -> rig.v1.Seat
+	31, // 27: rig.v1.PeersResponse.crew:type_name -> rig.v1.Seat
+	28, // [28:28] is the sub-list for method output_type
+	28, // [28:28] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_wire_proto_init() }
@@ -2517,8 +3050,8 @@ func file_proto_rig_v1_wire_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_wire_proto_rawDesc), len(file_proto_rig_v1_wire_proto_rawDesc)),
-			NumEnums:      9,
-			NumMessages:   21,
+			NumEnums:      10,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

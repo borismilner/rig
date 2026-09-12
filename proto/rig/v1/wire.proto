@@ -661,3 +661,127 @@ message CallResponse {
   // that reshaped a program's own result would be the opposite.
   bytes result = 1;
 }
+
+// ---- rig.announce / rig.activity / rig.peers: presence and seats ----------
+//                        (PLAN.md section 16 "Presence", section 37 PART B row 1)
+//
+// Section 16 keeps AgentBox's three presence calls unchanged because they
+// work. What section 37 row 1 adds is the SEAT, and the seat is the one place
+// this list overtakes AgentBox rather than catching up with it.
+//
+// THE DEFECT IT CLOSES IS BORIS'S OWN, OBSERVED BEFORE IT WAS BUILT. He looked
+// at a live roster and saw THREE rows for one job - `rig-backend-2`,
+// `rig-client`, `rig-client-b` - which are one lineage across three sessions,
+// two of them still describing themselves as mid-handoff because no successor
+// re-announced. A roster of SESSIONS cannot express that, because a session is
+// the wrong noun: it is born and dies with a process, and the thing a peer
+// wants to address outlives both.
+//
+// A SEAT IS A ROLE, AND A GENERATION IS ONE OCCUPANCY OF IT. `backend-1` is
+// the address; generation 4 is who is sitting there now. That split is also
+// the fix for the second felt absence, "no lineage a receiver can check": a
+// briefing addressed to `backend-1` at generation 3 is addressed to a seat
+// that has since turned over, and rig can say so. Today that check is social -
+// the receiving session reads a name in a prompt and believes it.
+//
+// PRESENCE IS CONNECTION STATE AND IS DELIBERATELY NOT PERSISTED. An occupant
+// exists exactly as long as its connection does; a dropped connection empties
+// the seat with no timeout to tune and no reaper to write. This is why row 1
+// needs neither the write-ahead log nor a storage dependency, and it is why
+// row 1 could start before either existed. The GENERATION is the only thing
+// that must outlive a connection, and it is a counter per seat name.
+
+// SeatState is what an occupant is DOING with its seat, which is not the same
+// question as whether it is alive - liveness is the connection.
+//
+// HANDING_OFF EXISTS BECAUSE IT IS THE STATE THAT WAS OBSERVED MISSING. Two
+// rows on that roster read "successor in a warm handoff" as their PURPOSE,
+// because purpose was the only field there was to say it in, and a purpose is
+// then stale for as long as the next occupant forgets to rewrite it. A state
+// is cleared by the transition rather than by remembering to.
+enum SeatState {
+  SEAT_STATE_UNSPECIFIED = 0;  // nothing was said. Never a fact about a seat
+  SEAT_STATE_ACTIVE = 1;
+  SEAT_STATE_HANDING_OFF = 2;  // still working, and its successor is being briefed
+}
+
+message Seat {
+  // The ROLE, stable across every occupant. Empty for a peer that announced
+  // without claiming one, which is allowed: a one-off session is present and
+  // addressable as a peer without pretending to be a seat somebody inherits.
+  string seat = 1;
+
+  // Which occupancy this is, counted from 1 and bumped every time the seat is
+  // TAKEN. Zero means the peer holds no seat, and that is a distinct fact from
+  // generation 1 rather than a missing value.
+  //
+  // IT IS MONOTONIC PER SEAT NAME AND PER DAEMON, and it does not survive a
+  // daemon restart. That is honest rather than a limitation to fix later:
+  // section 37 precondition 4 gives every daemon start a new EPOCH precisely
+  // so a client can tell "generation 3 of this run" from "generation 3 of a
+  // previous one", and duplicating that guarantee here would be a second
+  // source of truth for the same fact.
+  uint64 generation = 2;
+
+  // What this occupant is FOR, in the human's terms. Set at announce.
+  string purpose = 3;
+
+  // What it is doing right now. Set at announce, replaced by rig.activity.
+  string activity = 4;
+
+  SeatState state = 5;
+
+  // When this occupancy began and when its activity last changed, as unix
+  // nanoseconds. BOTH are carried because their difference is the signal: a
+  // fresh purpose beside an activity that has not moved in an hour is what a
+  // supervisor reads as a hung session, and one timestamp cannot express it.
+  int64 announced_unix_nano = 6;
+  int64 activity_unix_nano = 7;
+}
+
+message AnnounceRequest {
+  // The seat to take, or empty to be present without one. Taking a seat that
+  // another live connection holds is REFUSED rather than granted, because the
+  // opposite - letting the newcomer win - is how two sessions come to believe
+  // they are the same seat, which is the failure this whole message exists to
+  // make visible.
+  string seat = 1;
+  string purpose = 2;
+  string activity = 3;
+}
+
+message AnnounceResponse {
+  // This connection's own row, including the generation it was granted.
+  Seat you = 1;
+
+  // Everyone present, this caller included, so a peer never has to merge two
+  // answers to learn the crew.
+  repeated Seat crew = 2;
+
+  // TRUE WHEN THIS ROSTER CANNOT SEE EVERYBODY, and rig can say exactly when
+  // that is, which AgentBox cannot. A daemon sees every connection to ITSELF
+  // and nothing on the other estate (section 37: two estates, two runtime
+  // directories, no shared state by construction). So `partial` here means
+  // "another estate is running on this machine and its peers are not in this
+  // list" - a specific, checkable claim rather than a general disclaimer.
+  bool partial = 3;
+}
+
+message ActivityRequest {
+  string activity = 1;
+
+  // Optional transition. UNSPECIFIED leaves the state alone, so the common
+  // call - "I am doing something else now" - does not have to restate it.
+  SeatState state = 2;
+}
+
+message ActivityResponse {
+  Seat you = 1;
+}
+
+message PeersRequest {}
+
+message PeersResponse {
+  repeated Seat crew = 1;
+  bool partial = 2;
+}

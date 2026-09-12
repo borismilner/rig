@@ -101,6 +101,11 @@ type Daemon struct {
 	mu       sync.RWMutex
 	programs map[string]*conn
 
+	// presence is the estate's roster (section 16, section 37 PART B row 1).
+	// It is connection state and holds nothing durable, which is why it could
+	// be built before the write-ahead log exists.
+	presence *presence
+
 	// live is every accepted connection, so shutdown can close them.
 	//
 	// It exists because a HEALTHY program used to block shutdown: Serve waits
@@ -200,6 +205,7 @@ func New(cfg Config) (*Daemon, error) {
 		ask:      cfg.Ask,
 		live:     make(map[net.Conn]struct{}),
 		programs: make(map[string]*conn),
+		presence: newPresence(cfg.Estate),
 	}, nil
 }
 
@@ -346,6 +352,9 @@ func (d *Daemon) handle(ctx context.Context, nc net.Conn) {
 		// its own id back. The connection map forgets by name, and only if
 		// this connection is still the one holding it.
 		d.kernel.Deregister(c.principal().SessionID)
+		// The seat empties with the connection. This is the whole expiry
+		// mechanism for presence: no TTL, no reaper, no orphan state.
+		d.presence.leave(c)
 		d.resyncMCP(ctx)
 		if n := c.name(); n != "" {
 			d.mu.Lock()
@@ -687,6 +696,15 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 			Wire:          d.wire,
 			SemanticsGen:  selfDeclaration().SemanticsGen,
 		})
+
+	case "announce":
+		d.serveAnnounce(c, f)
+
+	case "activity":
+		d.serveActivity(c, f)
+
+	case "peers":
+		d.servePeers(c, f)
 
 	case "session":
 		d.serveSession(c, f)
