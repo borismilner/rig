@@ -492,8 +492,11 @@ tidy: ## Tidy go.mod and npm dependencies
 	go mod tidy
 	cd frontend && npm prune
 
-deps-check: ## Check the build against PLAN.md section 22 (NOT upstream drift: that needs the network)
-	go run ./cmd/depscheck --plan PLAN.md
+deps-check: ## Check the build against the stack table, plan section 22 (NOT upstream drift: that needs the network)
+# PLAN.md became an index on 2026-09-12 and the sections live in plan/. depscheck
+# needed no code change: it finds the "## 22. Tech stack" heading and reads to the
+# next "## " or to EOF, which is what that section's own file gives it.
+	go run ./cmd/depscheck --plan plan/22-tech-stack.md
 
 release: ci ## Tag, generate the changelog and build release artefacts
 	@test -n "$(V)" || { echo "usage: make release V=1.2.3"; exit 1; }
