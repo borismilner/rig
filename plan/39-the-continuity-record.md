@@ -401,6 +401,13 @@ what §38b forbids.
 | **bbolt plus `bleve`** for the text index | keeps the KV store, buys a real search engine, adds a second dependency and its footprint |
 | **SQLite, pure-Go** | query, full-text (FTS5) and relational joins in ONE dependency, which is the shape §38b rewards. Costs a second storage engine inside one daemon |
 
+**HIS LEAN, 2026-09-12: *"Should probably use SQLite for something."*** That is
+a lean rather than a ruling, and it lands on the candidate that already looked
+strongest: **one dependency covering query, full-text and joins, with the
+best-understood migration story of the three** - which the release-durability
+requirement below makes weigh more than it did an hour ago. **So B28's job is to
+confirm or beat SQLite, not to start from nothing.**
+
 **NO SEARCH HAS BEEN RUN AND THIS SECTION DOES NOT PRETEND OTHERWISE.** §38b's
 rule is that *"I did not find one" is only an answer after a search that is
 described*, and the same honesty applies to a recommendation: **these are the
@@ -578,6 +585,41 @@ dependency is a fact about the build order and is true under both answers.
 
 **This one is his, and it is the last thing in this section that is.**
 
+### The store survives the release, and it is a requirement rather than a hope
+
+**Boris, 2026-09-12:** *"Storage should not reset with each new release
+(obviously)."* **It is written down BECAUSE it is obvious** - an obvious
+requirement that nobody states is the kind this project has lost four times.
+
+| | |
+|---|---|
+| **the store carries a SCHEMA VERSION**, stamped in it | separate from §21's wire version. A daemon and a store version independently, because they move for different reasons |
+| **migrations are forward-only and run at START** | which §18 already made the natural moment: **rig does not hot-upgrade itself - notice, restart, resume.** A migration is one of the things the restart is for |
+| **a migration runs once and is idempotent** | a half-applied migration that reruns must converge, because the way this actually fails is a crash partway |
+| **an UNKNOWN (newer) schema version REFUSES TO START** | it does not guess and it does not repair. **A downgrade that silently opens a newer store is how data is destroyed by a rollback**, which is the one failure a rollback exists to avoid |
+| **the pre-migration backup is free and already specified** | the projection is a committed, pushed git repository. **Migrate, and if it fails, rebuild the store from the export.** The recovery path pays for itself a second time |
+
+**THE DEMONSTRATION, and it is one of §37's four clauses rather than a test:**
+a store is filled with records, the daemon is upgraded across a release that
+changes the schema, and **every record, link, version and provenance field is
+read back.** Then the same store is opened by the OLD binary and refuses.
+
+#### AND THIS RE-ARMS TWO OF §37'S DEFERRED PRECONDITIONS
+
+**Part A items 2 and 4 were deferred on 2026-09-12, not cancelled, with a stated
+trigger: *"they re-arm at the first capability that persists anything."*** **§39
+is that capability.**
+
+| Precondition | Why it fires now |
+|---|---|
+| **2 - state keyed per estate, not per uid** | the record is per project and per estate. **Two estates sharing one uid must not see one another's records**, and presence never needed this because it holds nothing |
+| **4 - epoch bumped on every daemon start** | a record carries provenance stamped by the daemon. **An epoch is what makes a stamp from before a restart distinguishable from one after it** |
+
+**SO THE GATE'S NARROWING WAS CORRECT AND IS NOW SPENT.** It was narrowed
+because presence holds no state; **the record holds all of it, and the two
+deferred items are preconditions of §39 rather than of the cutover.**
+`READINESS.txt` carries the 1-2 seat-days they were always owed.
+
 ### Failure semantics, because §37's four-clause pass demands them demonstrated
 
 **Every one of these is a demonstration owed before promotion, not a paragraph.**
@@ -688,7 +730,7 @@ does.
 | 9 | **what the window renders** | **CLOSED - `project.brief`, the same call an arriving agent makes.** One derivation, two consumers, which is the two-consumer requirement met by construction |
 | 10 | **how a standards check is scheduled** | **CLOSED - a standard carries `recheck_after`; due checks surface in `project.brief` and the window. rig surfaces, never runs, never judges** |
 | 11 | **binary and bulky artefacts** | **CLOSED - `kind: artefact` holds metadata and provenance; the bytes are files in the projection, where git already versions them.** rig does not become a blob store |
-| 13 | **which store backs the record** | **OPEN, NEW 2026-09-12.** B25's search covered the coordination primitives and chose bbolt; the record store additionally wants query-by-field, full-text and graph traversal. Candidates to measure: bbolt with hand-built indexes, bbolt with `bleve`, or pure-Go SQLite. **No search has been run** |
+| 13 | **which store backs the record** | **OPEN, NEW 2026-09-12.** B25's search covered the coordination primitives and chose bbolt; the record store additionally wants query-by-field, full-text and graph traversal. **His lean is pure-Go SQLite** and B28's job is to confirm or beat it. Other candidates: bbolt with hand-built indexes, bbolt with `bleve`. **No search has been run** |
 | 12 | **what replaces "commit both repos"** | **CLOSED - nothing does, because the second commit stops being a session's job.** rig owns the record repository and commits it |
 
 **THIS TABLE IS ITSELF THE MAINTENANCE PROPERTY THE RECORD IS SUPPOSED TO HAVE,
