@@ -249,3 +249,47 @@ of it relates to the continuation slot above - which is the ninety-second versio
 the same idea and must not become a second mechanism by accident. **This
 subsection is the requirement and the ruling. The design is owed.**
 
+## THE OPEN TENSIONS, AND NONE OF THEM MAY BE CLOSED AS AN ACCEPTED COST
+
+**Boris, 2026-09-12, and it is a rule about the design rather than a wish about
+it:**
+
+> *"We obvously must resolve all failures within my requirements to make it as I
+> asked it to be - maximally superior and the absolute best for the purpose."*
+
+**SO EVERY TENSION THIS SECTION RECORDS IS A REGISTER ENTRY, NOT A CAVEAT.**
+The failure mode this closes is the one the rest of this specification is full
+of: a hard problem written down honestly, called a known cost, and then shipped
+around. **A design with an unresolved tension in it is not "the absolute best
+for the purpose", so none of these is optional and none closes by being
+tolerated.**
+
+**HOW AN ENTRY CLOSES, and there is exactly one way:** a written answer in this
+section, **demonstrated against the document approach doing the same task**.
+That is his acceptance bar applied per entry rather than once at the end. *"It
+is nicer"* does not close anything; *"the documents cannot do this at all"*
+does.
+
+| # | Tension | Why it is not optional | State |
+|---|---|---|---|
+| 1 | **what a session sees with rig down** | §29: *"rig is not required. Every program works without it, at reduced service."* The record holding the only copy breaks a non-goal | OPEN |
+| 2 | **how the record leaves the machine** | the logbook has a private remote; a local database file has none. **The four lost requirements get worse, not better, if the store cannot go offsite** | OPEN |
+| 3 | **history of a requirement** | git answers *who changed this, when, and what it said before*. Parity is failure, so the record must answer it better and queryably | OPEN |
+| 4 | **which documents materialise as files** | a `README` must read in a clone with no rig. The record is the source and files are projections - **which ones, and how they stay current** | OPEN |
+| 5 | **the word "conformance" is taken** | §19 is a PROGRAM against rig's wire contract; the standards register is a PROJECT against a standard. One of them is renamed | OPEN |
+| 6 | **continuation slots versus the record** | §16's slot is the ninety-second note; this is the durable one. **Two mechanisms for one idea is the outcome to avoid**, and the boundary is unwritten | OPEN |
+| 7 | **does the record JOIN §37's minimum set** | it changes what the gate means and what "rig develops rig" is measured against. Nobody has priced either answer | OPEN |
+| 8 | **how a project extends the schema** | without becoming N copies of a schema, which is the §38c defect wearing a different hat | OPEN |
+| 9 | **what the window renders** | the human view is DERIVED at *"very small agent effort"*. That ceiling has to be met by a design, not asserted | OPEN |
+| 10 | **how a standards check is scheduled** | *"checked from time to time"* - what triggers it, what "last checked" means once the standard has moved, and who is told | OPEN |
+| 11 | **binary and bulky artefacts** | screenshots, briefs, audits and agent work are in the logbook today. **Held, referenced, or refused** - and refused is an answer only if it is stated | OPEN |
+| 12 | **what replaces "commit both repos"** | during the staged per-project cutover, a project is half in each. The rule that replaces it has to work in the half-migrated state, not only after | OPEN |
+
+**THIS TABLE IS ITSELF THE MAINTENANCE PROPERTY THE RECORD IS SUPPOSED TO HAVE,
+applied to its own design.** A tension found later is added here rather than
+mentioned in a session, and **an entry that closes says where its answer lives**
+- which is the reverse-direction link §39 exists to provide.
+
+**NOTHING HERE IS STARTED YET, DELIBERATELY.** He ruled on 2026-09-12 that row
+1 cuts over first; this register is what the design begins from once it does.
+
