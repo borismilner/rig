@@ -408,6 +408,41 @@ shapes**, so the record extends a precedent rather than crossing a line. What
 §29 still forbids, and this does not ask for, is rig having an opinion about
 whether a plan is any *good*.
 
+**THE ACCEPTANCE BAR, AND IT IS HIS. PARITY IS FAILURE.** Boris, verbatim,
+2026-09-12:
+
+> *"For it to be perfect, it must be significantly superior on our current
+> approach to managing development projects as described with the documents.
+> Super robust and super beneficial; Unlocking exceptional functionality and
+> usability for the project."*
+
+**THE COMPARATOR IS NAMED BY HIM AND IT IS THIS PROJECT'S OWN DOCUMENT SET** -
+`PLAN.md` and `plan/`, `BACKLOG.md`, `DECISIONS.md`, `COORDINATION.md`, the
+`HANDOFF*.md` files, and the per-project `CLAUDE.md` that tells a session how to
+use them. **This is 38a's operational form with the comparator supplied: name
+the best existing implementation and say how rig's compares.** Here the best
+existing implementation is what the project runs on today, and it works.
+
+**So "the same documents, typed and in a database" FAILS this bar.** A typed
+record that a session reads and writes the same way, for the same reasons, at
+the same moments, is parity with extra machinery. **The bar asks for things the
+documents structurally cannot do**, and the honest list of those is short enough
+to hold a design to:
+
+| What documents cannot do, structurally | Why the record can |
+|---|---|
+| **refuse a write until what must be read has been read** | a document can only ASK. `COORDINATION.md` says *"read in full before your first write"* and nothing checks. **rig mediates the write**, so the precondition is a mechanism |
+| **know that a claim has gone stale** | a document records a fact that WAS true and cannot announce it stopped being. **rig sees the sessions**, so a claim tied to a live seat expires with it. Four measured instances in one night, `BACKLOG.md` B23 |
+| **route a requirement at the moment it is stated** | today a seat has to decide where it goes and then do it. **Four of his requirements were found living only in a volatile document**, which is the same failure four times |
+| **derive the human view** | a report over documents is composed by a seat. **A record written during the work renders without one**, which is the second consumer above |
+| **answer a query instead of being read** | 5,218 lines that *"nobody reads whole"* - `PLAN.md`'s own Map says so. A requirement can hide in a document. **It cannot hide in a queryable record** |
+| **be the same in every project** | a `CLAUDE.md` per project is N copies to perfect. §38c |
+
+**SO THE BAR IS TESTABLE, which is the only reason it is worth writing down:
+before this capability is promoted, each row above is demonstrated against the
+document approach doing the same task.** If the demonstration is *"it is nicer"*
+rather than *"the document cannot do this at all"*, the bar is not met.
+
 **WHAT IS NOT SPECIFIED YET, AND IT IS MOST OF IT.** The record's shape, its
 verbs, how a project extends the schema, what the window renders, and how it
 relates to the continuation slot above - which is the ninety-second version of
