@@ -509,7 +509,7 @@ package: build ## Build the .deb from freshly built binaries
 	@mkdir -p dist
 	go run ./cmd/pkgdeb --version $(VERSION) --out dist/
 
-ci: fmt-check vet lint-house test-race bench-size schema-check deps-check theme-gate ## Everything CI runs
+ci: fmt-check vet lint-house test-race schema-check deps-check theme-gate ## Everything CI runs
 	@echo
 	@echo "  M0's gate. Targets not yet in ci, each waiting on the milestone"
 	@echo "  that gives it something to check:"
@@ -529,6 +529,12 @@ ci: fmt-check vet lint-house test-race bench-size schema-check deps-check theme-
 	@echo "                                          are also noisy on a loaded or"
 	@echo "                                          throttled machine. Schedule it"
 	@echo "    audit      govulncheck                any time, needs network"
+	@echo "    bench-size the binary-size ratchet     REMOVED FROM ci 2026-09-12"
+	@echo "               by Boris. It compared strictly-greater against the"
+	@echo "               previous build, so it had no headroom and fired on"
+	@echo "               any growth at all - every firing was answered by"
+	@echo "               re-recording the number. The target still works and"
+	@echo "               is now run deliberately. PLAN.md section 17"
 	@echo "    contrast   WCAG in a real browser      green, and CI runs it as"
 	@echo "               its own step - it needs a browser, which ci must not"
 	@echo "               assume a machine has"

@@ -36,6 +36,30 @@ and rodata pages are resident - so an RSS budget without a **binary-size budget*
 budget with no cause. And a single 1 Hz ticker in Go floors at **5.60 wakeups/second**, so
 "< 1 per second" was never reachable by any amount of care.
 
+### THE FOOTPRINT GATE IS OFF, 2026-09-12, BY BORIS
+
+**`make ci` no longer runs `bench-size`.** The budget below stands as a design
+target and nothing enforces it automatically any more.
+
+**Why, and the measurement is the argument.** `cmd/sizeratchet` compared
+`now > was` against a number recorded at the previous build, so it had **zero
+headroom by construction** and fired on any growth at all. Presence (§16 row 1)
+grew five binaries by one or two 4,096-byte pages each - entirely generated
+wire types that every binary links whether it calls them or not - and the gate
+fired exactly as it would have for a twenty-megabyte dependency. **The only
+available response was to re-record the number, so every firing was answered by
+an override and the control refused nothing.** Boris raised it directly:
+*"Do you really need to manage size-ratchet.json?"*
+
+**WHAT THIS COSTS, said plainly rather than buried.** Nothing now catches a
+dependency that quietly adds megabytes to `rigd`. **`make bench-size` still
+works and still prints the table**; it is a thing a seat runs deliberately, not
+a thing the build runs for it. §22's dependency bar and §38b's search
+obligation are what remain, and both are judgement rather than a gate.
+
+**A ceiling with headroom was offered and NOT chosen**, so a seat must not
+reintroduce one as a gate without asking again.
+
 ### The budget
 
 | What | Budget | Measured by |

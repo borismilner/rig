@@ -216,10 +216,37 @@ NOT the capability bar**, which is the minimum beneficial set above and which
 moves one capability at a time. Welding the two is what made the wait
 open-ended; see "THE GATE MOVED" at the head of this section.
 
-**These must ALL land before the FIRST capability is cut over.** Five of six are
-done. The gate in §24 fires when the last one lands **and the first capability
-of the minimum set has cleared its four clauses** - both halves, because an
-isolation boundary with nothing running through it proves nothing.
+**NARROWED 2026-09-12, BY BORIS, AND THE CONTRADICTION IT FIXES WAS REAL.**
+This block used to say all six must land before the first cutover. **Items 2
+and 4 build at M7, alongside the WAL and leases** - which are rows 2 and 3 of
+the minimum beneficial set. So "the gate needs all six preconditions plus rows
+0 and 1" could not be satisfied without also building rows 2 and 3, and the two
+halves of the gate contradicted each other. `READINESS.txt` reported the first
+cutover as 1-2 weeks on the basis of the reading that was wrong.
+
+**THE RULING: the gate fires on preconditions 1, 3, 5 and 6.** Items 2 and 4
+are deferred to the cutover of the first capability that HOLDS PERSISTENT
+STATE, which is where they become load-bearing and not before.
+
+**The mechanism argument, so this is not merely convenient.** Precondition 2
+keys persistent state per estate and precondition 4 publishes an epoch so a
+restart is distinguishable from a blip. **Presence - row 1, and the first
+candidate for cutover - holds no persistent state and survives no restart by
+design**: an occupant lives exactly as long as its connection. There is no
+state for item 2 to key and no handle for item 4's epoch to stamp. **A
+precondition that cannot be violated by the capability being cut over is not
+protecting that cutover.**
+
+**WHAT THIS DOES NOT SAY.** Items 2 and 4 are NOT cancelled and NOT weakened.
+They gate the WAL, leases and the blackboard, and any capability holding state
+across a restart needs both before it moves. **The first capability that
+persists anything re-arms them**, and a seat proposing such a cutover checks
+this list again rather than citing this paragraph.
+
+The gate in §24 fires when preconditions 1, 3, 5 and 6 have landed **and the
+first capability of the minimum set has cleared its four clauses** - both
+halves, because an isolation boundary with nothing running through it proves
+nothing.
 
 | # | Precondition | Where it lands | State |
 |---|---|---|---|
