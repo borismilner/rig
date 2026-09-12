@@ -279,7 +279,7 @@ by rebuilding it:
 
 | Tension | How the spine answers it |
 |---|---|
-| **1. rig is down** | the materialised files are complete and readable by a human or an agent with no rig at all. **Reduced service, which is precisely what §29 asks for**: read-only, no live progress, no cross-project query |
+| **1. rig is down** | the materialised files are complete and readable by a human or an agent with no rig at all, **and a write still lands** - `rig record put` falls back to `records/_pending/` in the same repository and the daemon ingests it on start. **Reduced service as §29 asks**: no live progress, no cross-project query, no links until ingest. **Not read-only - the attack's finding 1 killed that** |
 | **2. offsite** | the files are in a git repository that already has a remote. **No backup mechanism is invented**, and the one that exists is the one that has been holding this project's notes all along |
 | **3. history** | rig's own store is append-only and answers *"what did this say before"* as a query. **The projection is versioned by git on top of it**, so the weaker answer is still there if the stronger one is ever wrong |
 
@@ -319,9 +319,13 @@ section: `PLAN.md` is generated from `plan/`, hand-editing it is forbidden, and
 `tools/plansplit.py` becomes redundant rather than being ported**, which is one
 of the things §39 promised must disappear.
 
-**LOSSLESS IS A REQUIREMENT, NOT AN AMBITION.** The store rebuilds from the
-per-record layer, so a field the projection cannot represent is a field that
-does not survive a corrupt store. **The demonstration is the same round trip
+**LOSSLESS IS A REQUIREMENT, AND IT HAS EXACTLY ONE EXCEPTION.** The store
+rebuilds from the per-record layer, so a field the projection cannot represent is
+a field that does not survive a corrupt store. **The exception is a `sensitive`
+payload, which is NEVER projected and is NOT recoverable** - it would otherwise be
+committed and pushed to a remote, which destroys the guarantee it exists for.
+The kinds that carry one expire in minutes, so a rebuild losing them costs
+nothing. **Attack finding 2: lossless and sensitive cannot both be absolute.** **The demonstration is the same round trip
 `plansplit.py` already proves: export, rebuild, and compare - and nothing is
 written until it matches.**
 
@@ -505,10 +509,16 @@ discretion; that is the whole defect §38c names.
 | **ONE CALL SATISFIES IT** | `project.brief` returns the must-read set. **Complying is cheaper than arguing with it**, which is the only reason a gate like this survives contact with a working agent |
 | **a must-read record that CHANGES re-arms the gate** | for every session that read the old version. This is drift detection pointed at the project's own rules, and it is free once drift exists for standards |
 
-**THIS IS THE ENTRY THAT PROVES THE BAR.** A document can only ask. **rig
-mediates the write, so the precondition is a mechanism** - and that is the
-demonstration §39's acceptance bar requires, not an opinion that it feels
-better.
+**WHAT THE GATE ACTUALLY GUARANTEES, stated narrowly after the attack.** **rig
+guarantees the material was DELIVERED to this session and that the session
+acknowledged it. Comprehension is not enforceable and this section must not
+imply it.** That is still strictly more than a document, which guarantees
+neither - and it is the demonstration the acceptance bar requires.
+
+**AND THE GATE NEVER BLOCKS `progress.step`.** Its own failure mode is silence,
+which is the thing the record exists to prevent: a refused write can simply
+become no write. **Progress is always accepted; only substantive records are
+gated.** Attack finding 7.
 
 ### Progress is a stream, and nothing composes a report
 
@@ -528,6 +538,8 @@ better.
 | **drift is `standard.version > link.checked_version`** | `standard.drift` lists every project behind. **A document cannot know who is reading it; this is a query** |
 | **a standard may carry a `recheck_after` interval** | *"checked from time to time"*. Due checks surface in `project.brief` and on the window |
 | **rig SURFACES a due check. It never runs one, and it never judges the work** | §29 non-goal 1 exactly where §39 left it. `standard.stamp` records **who** checked and **when**; the judging belongs to them |
+| **A STAMP CARRIES A WITNESS OR IT IS NOT A STAMP** | a link to the artefact, the command output, or the record showing the check ran. One without is recorded as **asserted** and renders differently from **evidenced**. **Attack finding 4:** `BACKLOG.md` B26 measured what happens otherwise - *a control whose every firing is answered by overriding it is measuring nothing* - and that gate was dropped for it |
+| **and the redaction invariant is §15's, inherited rather than re-argued** | what `secrets.get` returned is never recorded, only the key name. **Attack finding 6: auto-push makes an unredacted record a PUBLISHED mistake, not a local one** |
 
 ### Extending the schema without becoming N copies again
 
@@ -551,7 +563,11 @@ so the schema is versioned and improved in one place like everything else.
 | standards drift, and any check now due | |
 | the must-read set and whether this session has cleared it | |
 
-**ONE DERIVATION, TWO CONSUMERS.** That is the two-consumer requirement met by
+**ONE DERIVATION, TWO VIEWS, AND THE CALLER SAYS WHICH.** The derivation is
+shared - that is what makes the human view free - but **he wants *is this going
+well and what must I decide* and an arriving agent wants *what must I read, what
+is claimed, what is decided*.** Attack finding 9: one rendering for both is
+mediocre for each. That is the two-consumer requirement met by
 construction rather than by discipline, and it is what makes *"the human-report
 can be derived automatically or with very small agent effort"* true: the effort
 is one call, and no agent writes prose over it.
@@ -678,14 +694,14 @@ passes, it is done when it has been exercised for real.
 
 | # | Slice | What proves it, and it is a demonstration rather than a test |
 |---|---|---|
-| 1 | **the store and the three nouns.** `record.put/get/query/history` on bbolt | a requirement is written, superseded twice, and **its first wording is read back with the session that wrote it** |
-| 2 | **links and `record.refs`** | *"what cites this requirement"* answers with a copy that a grep for the obvious phrase misses. **The struck-quotation residue of 2026-09-12 is the fixture** - three unswept files, found by the reverse link |
-| 3 | **the projection: files, commits, push** | `rigd` is killed and the whole project is read from the repository alone. **Then the remote is checked and the work is there** |
-| 4 | **the read-before-write gate** | a fresh session's `record.put` is refused **by name**, one `project.brief` clears it, and a change to a must-read record re-arms it for a session that had cleared it |
-| 5 | **progress streams and `project.brief`** | a work item is driven start to finish, and **the human report is read off the brief with no seat having written a sentence of prose** |
-| 6 | **the window renders the brief** | Boris watches a live session's progress without asking for a report. **This is the second consumer, demonstrated rather than asserted** |
-| 7 | **the standards register and drift** | a standard's version is raised and **every project behind it is listed**, including one that was compliant an hour earlier |
-| 8 | **migrate one project, and it is rig** | below |
+| 1 | **the store and the three nouns.** `record.put/get/query/history` | a requirement is written, superseded twice, and **its first wording is read back with the session that wrote it** |
+| 2 | **progress streams and `project.brief`** | **value lands HERE, and that is the attack's finding 8.** A work item is driven start to finish and **the report is read off the brief with no seat having written a sentence of prose** |
+| 3 | **the window renders the brief** | Boris watches a live session without asking for a report. **Two slices to the thing he asked for first** |
+| 4 | **links and `record.refs`** | *"what cites this requirement"* answers with a copy that a grep for the obvious phrase misses. **The struck-quotation residue of 2026-09-12 is the fixture** |
+| 5 | **the projection: files, commits, push, and the pending path** | `rigd` is killed; the project is read from the repository alone, **a record is written while it is still down**, and the daemon ingests it on start. Then the remote is checked |
+| 6 | **the read-before-write gate** | a `record.put` is refused **by name**, one `project.brief` clears it, a change to a must-read record re-arms it - **and `progress.step` is never refused** |
+| 7 | **the standards register and drift** | a standard's version is raised and every project behind it is listed, **with asserted stamps rendering differently from evidenced ones** |
+| 8 | **migrate one project, and it is rig** | below. **It cannot start while any register entry is merely ANSWERED** |
 
 ### The migration, which is also the design's hardest test
 
@@ -697,6 +713,7 @@ record is live.**
 |---|---|
 | **import structure mechanically** | `plan/` sections become `requirement` records, `DECISIONS.md` entries become `decision` records, `BACKLOG.md` rows become `work-item` records, `COORDINATION.md` rows become ownership records. **The structure is already there** - this project has been writing tables with stable shapes for three days |
 | **derive the links from the citations** | ~370 of them, all of the form *"PLAN.md section 37"*. **This is the first real test of "correlated"**: if the import cannot turn an existing citation into a link, the model is wrong and it is better to find that out on an import than on a year of use |
+| **and the import's unit is the REQUIREMENT, never the section** | **Attack finding 5, which is the one that would have let this pass while delivering nothing.** §37 is 738 lines; a link to it is the same coarse pointer in a new format. **A citation resolvable only to a section is a FAILED row, counted and reported**, and the migration's success number is the share resolving to ONE record |
 | **run both systems in parallel until the projection is comparable to the logbook** | and **this is a pattern this project has already proved**: `tools/plansplit.py` refuses to write anything until it has shown the parts reassemble into the original byte for byte. **The migration owes the same proof before the logbook stops being authoritative** |
 | **cut over per project, never estate-wide** | §37 again. A second project follows only after rig's own has run long enough to have been wrong once |
 
@@ -783,7 +800,7 @@ review** - which is the shape of every self-graded gate this project has already
 had to take back.
 
 **THE FIX: a state between open and closed.** An entry is **ANSWERED** when the
-design settles it and **CLOSED** only when its demonstration has run. **The
+design settles it and **ANSWERED** only when its demonstration has run. **The
 eleven are ANSWERED.** Slice 8 cannot start while any entry is merely answered.
 
 #### FINDING 4: a stamp with no evidence makes drift decorative, and this project has the precedent
@@ -878,6 +895,13 @@ around. **A design with an unresolved tension in it is not "the absolute best
 for the purpose", so none of these is optional and none closes by being
 tolerated.**
 
+**THREE STATES, AND THE MIDDLE ONE EXISTS BECAUSE OF THE ATTACK.** An entry is
+**OPEN** until the design settles it, **ANSWERED** once it does, and **CLOSED
+only when its demonstration has RUN**. **Eleven entries were marked closed by the
+seat that wrote the answers, in the session that wrote them** - the shape of
+every self-graded gate this project has had to take back. They are ANSWERED.
+**Slice 8 cannot start while any entry is merely ANSWERED.**
+
 **HOW AN ENTRY CLOSES, and there is exactly one way:** a written answer in this
 section, **demonstrated against the document approach doing the same task**.
 That is his acceptance bar applied per entry rather than once at the end. *"It
@@ -886,27 +910,27 @@ does.
 
 | # | Tension | State, and where the answer lives |
 |---|---|---|
-| 1 | **what a session sees with rig down** | **CLOSED - the spine.** The projection is a complete, committed, pushed git repository read exactly as the logbook is read today. §29's *"reduced service"* is read-only, no live progress, no cross-project query |
-| 2 | **how the record leaves the machine** | **CLOSED - rig commits and pushes the record repository itself.** A push that fails is retried and surfaced in `project.brief`, never swallowed |
-| 3 | **history of a requirement** | **CLOSED - records are append-only and `record.history` answers it with provenance.** Git versions the projection underneath, so the weaker answer survives if the stronger one is ever wrong |
-| 4 | **which documents materialise as files** | **CLOSED - two targets with opposite commit rules.** The record repository is rig's and rig commits it; documentation in the project repository is written by rig and committed by the human with their code, as `PLAN.md` is today |
-| 5 | **the word "conformance" is taken** | **CLOSED - §19 keeps it.** The register says `upholds`, `standard.stamp`, `standard.drift`. "Conformance" is reserved and the register may not borrow it |
-| 6 | **continuation slots versus the record** | **CLOSED by removing a mechanism.** A slot is `kind: continuation` with a TTL and a `sensitive` payload. Anything that survives its TTL should have been a record |
+| 1 | **what a session sees with rig down** | **ANSWERED - the spine.** The projection is a complete, committed, pushed git repository read exactly as the logbook is read today. §29's *"reduced service"* is read-only, no live progress, no cross-project query |
+| 2 | **how the record leaves the machine** | **ANSWERED - rig commits and pushes the record repository itself.** A push that fails is retried and surfaced in `project.brief`, never swallowed |
+| 3 | **history of a requirement** | **ANSWERED - records are append-only and `record.history` answers it with provenance.** Git versions the projection underneath, so the weaker answer survives if the stronger one is ever wrong |
+| 4 | **which documents materialise as files** | **ANSWERED - two targets with opposite commit rules.** The record repository is rig's and rig commits it; documentation in the project repository is written by rig and committed by the human with their code, as `PLAN.md` is today |
+| 5 | **the word "conformance" is taken** | **ANSWERED - §19 keeps it.** The register says `upholds`, `standard.stamp`, `standard.drift`. "Conformance" is reserved and the register may not borrow it |
+| 6 | **continuation slots versus the record** | **ANSWERED by removing a mechanism.** A slot is `kind: continuation` with a TTL and a `sensitive` payload. Anything that survives its TTL should have been a record |
 | 7 | **does the record JOIN §37's minimum set** | **OPEN, AND IT IS BORIS'S.** Recommended: it sits beside the set, which has a different bar. Row 3 keeps its position either way and the record follows it |
-| 8 | **how a project extends the schema** | **CLOSED - add fields, never redefine; local kinds are namespaced and unlinkable across projects.** A local kind two projects want is a proposal to the estate register |
-| 9 | **what the window renders** | **CLOSED - `project.brief`, the same call an arriving agent makes.** One derivation, two consumers, which is the two-consumer requirement met by construction |
-| 10 | **how a standards check is scheduled** | **CLOSED - a standard carries `recheck_after`; due checks surface in `project.brief` and the window. rig surfaces, never runs, never judges** |
-| 11 | **binary and bulky artefacts** | **CLOSED - `kind: artefact` holds metadata and provenance; the bytes are files in the projection, where git already versions them.** rig does not become a blob store |
+| 8 | **how a project extends the schema** | **ANSWERED - add fields, never redefine; local kinds are namespaced and unlinkable across projects.** A local kind two projects want is a proposal to the estate register |
+| 9 | **what the window renders** | **ANSWERED - `project.brief`, the same call an arriving agent makes.** One derivation, two consumers, which is the two-consumer requirement met by construction |
+| 10 | **how a standards check is scheduled** | **ANSWERED - a standard carries `recheck_after`; due checks surface in `project.brief` and the window. rig surfaces, never runs, never judges** |
+| 11 | **binary and bulky artefacts** | **ANSWERED - `kind: artefact` holds metadata and provenance; the bytes are files in the projection, where git already versions them.** rig does not become a blob store |
 | 13 | **which store backs the record** | **OPEN, NEW 2026-09-12.** B25's search covered the coordination primitives and chose bbolt; the record store additionally wants query-by-field, full-text and graph traversal. **His lean is pure-Go SQLite, widened the same hour to *"other/additional great technologies allowing to be state of the art"*** - so the search is per AXIS (store, query, links, full text, semantic) and prices combinations. Other candidates: bbolt with hand-built indexes, bbolt with `bleve`. **No search has been run** |
-| 12 | **what replaces "commit both repos"** | **CLOSED - nothing does, because the second commit stops being a session's job.** rig owns the record repository and commits it |
+| 12 | **what replaces "commit both repos"** | **ANSWERED - nothing does, because the second commit stops being a session's job.** rig owns the record repository and commits it |
 
 **THIS TABLE IS ITSELF THE MAINTENANCE PROPERTY THE RECORD IS SUPPOSED TO HAVE,
 applied to its own design.** A tension found later is added here rather than
 mentioned in a session, and **an entry that closes says where its answer lives**
 - which is the reverse-direction link §39 exists to provide.
 
-**ELEVEN OF THE FIRST TWELVE CLOSED IN THE SESSION THAT OPENED THEM,
-2026-09-12**, the twelfth is a ruling rather than a problem, **and a thirteenth
+**ELEVEN OF THE FIRST TWELVE ARE ANSWERED, NONE IS CLOSED, AND NOTHING HAS BEEN
+DEMONSTRATED.** The twelfth is a ruling rather than a problem, **and a thirteenth
 was added the same day by the mechanism this register describes** - a tension
 found later is added here rather than raised in a session. **Each closure names where its
 answer lives, which is the reverse-direction link this section exists to
