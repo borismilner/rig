@@ -444,6 +444,63 @@ construction rather than by discipline, and it is what makes *"the human-report
 can be derived automatically or with very small agent effort"* true: the effort
 is one call, and no agent writes prose over it.
 
+### The four that were not answered by the spine
+
+**Each is one of the register's entries below, answered here so the entry can
+close rather than be tolerated.**
+
+#### Tension 5 - the word "conformance" stays with §19, and the register never uses it
+
+**§19 is shipped vocabulary**: `rig verify ./program`, `pkg/rigtest`, a program
+against rig's wire contract. **It keeps the word.** A project measured against a
+standard is *upholding* it: `upholds` is the link, `standard.stamp` and
+`standard.drift` are the verbs, `rig standard` is the command. **"Conformance"
+is a reserved word in this specification and the standards register may not
+borrow it**, which costs nothing now and prevents two subsystems answering to
+one noun later.
+
+#### Tension 6 - a continuation slot is a KIND OF RECORD, not a second mechanism
+
+**The boundary was the open question and the answer removes a mechanism instead
+of drawing a line through one.** §16's slot is *"the versioned blackboard with a
+scope of one"*; the record is a versioned store with links and provenance.
+**They are the same thing at different lifetimes.**
+
+| A slot becomes | |
+|---|---|
+| **`kind: continuation`** | one more kind in the same register, so `rig continue` lists records and nothing new is stored |
+| **with a TTL** | which is the only property that made it a separate idea. Two-step expiry, visible before it fires, exactly as §16 specifies |
+| **with a `sensitive` payload** | §16's isolation answer is unchanged: existence is estate-readable, contents are not, and the listing is scoped to the uid so a respawned agent can still find its own |
+| **and the rule that follows for free** | **anything in a slot that survives its TTL should have been a record.** A slot carries what a successor needs to CONTINUE; a record carries what the project needs to KNOW. Claiming a slot returns `project.brief` beside it, so the successor gets both without being told to ask |
+
+#### Tension 11 - artefacts are records with their bytes in the projection
+
+**Screenshots, briefs, audits and agent work are in the logbook today and they
+are files.** A record of `kind: artefact` carries the metadata, the provenance
+and the links; **the bytes live in the record repository as ordinary files**,
+where git already versions them and the remote already carries them offsite.
+
+**rig does not become a blob store**, and that is a refusal with a reason rather
+than a gap: the projection is already a git repository, git is already good at
+this, and §38b says do not rebuild what exists. **Anything too large for git was
+never going in the logbook either**, so the honest boundary is unchanged by this
+design.
+
+#### Tension 7 - it sits BESIDE §37's minimum set. Recommended, not ruled
+
+**The recommendation is that the record does NOT join the minimum beneficial
+set**, and the reason is that the set has a different bar. §37's rows are
+coordination primitives measured as *"the best inter-agent coordination
+substrate we can build"*; **§39 has its own bar - significantly superior to the
+documents - and its own twelve-entry register.** Folding it in would move a gate
+Boris narrowed on 2026-09-12 and blur two acceptance tests into one.
+
+**What does NOT change either way:** the record depends on durable storage, so
+**row 3 keeps its position in the set and the record follows it.** That
+dependency is a fact about the build order and is true under both answers.
+
+**This one is his, and it is the last thing in this section that is.**
+
 ## THE OPEN TENSIONS, AND NONE OF THEM MAY BE CLOSED AS AN ACCEPTED COST
 
 **Boris, 2026-09-12, and it is a rule about the design rather than a wish about
