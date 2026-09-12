@@ -241,13 +241,87 @@ from `plan/` and hand-editing it is forbidden. **The record generalises what
 this project already proved works**, which is a better position to design from
 than a blank page, and it is the same answer the degraded path above needs.
 
-**WHAT IS NOT SPECIFIED YET, AND IT IS MOST OF IT.** The record's shape, its
-verbs, how a project extends the schema, what the window renders, **how the
-standards register is versioned and how a project is checked against it**, **what
-a session sees with rig down and how the record leaves the machine**, and how all
-of it relates to the continuation slot above - which is the ninety-second version of
-the same idea and must not become a second mechanism by accident. **This
-subsection is the requirement and the ruling. The design is owed.**
+## THE VERDICT OF THE SEAT THAT SPECIFIED IT
+
+**Recorded because a specification full of open problems reads as doubt, and
+this is not doubt.** Asked directly on 2026-09-12 whether this feature was weak
+or worse than the documents, the answer was no, and the reasoning belongs here
+rather than in a terminal:
+
+| Why it is rated the strongest item in the backlog | |
+|---|---|
+| **it is the mechanism fix for the failure that has cost this project four times** | requirements living only in a volatile document. Every other capability makes rig better; this one stops rig's own development from losing what Boris says |
+| **two unprompted raises by the adopter, on consecutive days** | the strongest evidence class `BACKLOG.md` admits, and **no other row has it** |
+| **its failure mode is a gap, not corruption** | cheap to get wrong and cheap to iterate, which is exactly what the coordination primitives are not |
+| **§38b is the case against us, written by us** | an estate-wide rule sitting inside one project's specification because there has never been anywhere else to put it |
+
+**AND THE REGISTER BELOW IS NOT A RISK LIST.** Its twelve entries are the things
+that would make this WORSE than the logbook if left unanswered. **None of them
+is a research problem**; the three that could genuinely lose to git today - rig
+down, offsite, history - are answered by one mechanism, and it is the first
+thing the design specifies.
+
+**THE ONE REAL CONCERN IS DELIVERY, NOT THE IDEA.** The scope widened four times
+in a single sitting. The ordering ruled the same day handles it: **cut row 1
+over first, then design this while it is no longer moving.**
+
+## THE DESIGN
+
+### The spine: rig is the writer, git is the reader of last resort
+
+**One sentence.** The record lives in rig; **rig continuously materialises it
+into files inside a git repository**; those files are what a session reads when
+rig is down and what leaves the machine.
+
+**THIS ONE MECHANISM CLOSES THE THREE TENSIONS THAT COULD OTHERWISE LOSE TO THE
+LOGBOOK**, and it closes them by keeping what git is already good at rather than
+by rebuilding it:
+
+| Tension | How the spine answers it |
+|---|---|
+| **1. rig is down** | the materialised files are complete and readable by a human or an agent with no rig at all. **Reduced service, which is precisely what §29 asks for**: read-only, no live progress, no cross-project query |
+| **2. offsite** | the files are in a git repository that already has a remote. **No backup mechanism is invented**, and the one that exists is the one that has been holding this project's notes all along |
+| **3. history** | rig's own store is append-only and answers *"what did this say before"* as a query. **The projection is versioned by git on top of it**, so the weaker answer is still there if the stronger one is ever wrong |
+
+**WHY THIS IS NOT A RETREAT TO FILES.** The files are an OUTPUT. Nothing writes
+them by hand, exactly as `PLAN.md` is generated from `plan/` today and
+hand-editing it is forbidden. **rig is the only writer**, so the read-before-write
+gate, the typed links, the drift detection and the derived human view all work
+against the record - and the files are what survives rig being unavailable.
+
+**THE PROJECTION TARGET IS CONFIGURED PER DOCUMENT CLASS, and that is what makes
+the cutover reversible.** A project says where each class of document
+materialises: product documentation to its normal path in the repo, working
+notes to `.rig/` or to a separate repository. **Today's logbook layout - notes
+in a second repo, reached by symlinks - is expressible as one configuration**,
+which means the migration can be run and un-run without a rewrite, and a project
+that wants its notes out of the product repo still gets that.
+
+### The model: records, kinds, links
+
+**Three nouns and no more.** The whole of the indexing, linking and correlating
+he asked for falls out of them.
+
+| Noun | What it is |
+|---|---|
+| **a RECORD** | the atomic unit. An id, a kind, the project it belongs to, a body, typed fields, and provenance - **which session wrote it, when, under which seat**. Append-only: a change writes a new version and the previous one is retained |
+| **a KIND** | what the record is, and it carries the schema for the fields. `requirement`, `decision`, `work-item`, `standard`, `note`, `artefact`, `progress` |
+| **a LINK** | a typed, directed edge between two records. `rules-on`, `cites`, `supersedes`, `implements`, `checked-against`, `produced-by`, `blocks` |
+
+**THE THREE PROPERTIES HE ASKED FOR ARE EACH ONE OF THOSE, and none needs a
+fourth mechanism:**
+
+- **indexed** is querying records by kind and field. A requirement cannot hide in 5,218 lines because it is not in 5,218 lines; it is a record with a kind
+- **linked** is the edge. A decision `rules-on` a requirement; a work item `implements` one; a commit is `produced-by` a session that was working a record
+- **correlated** is traversing the edge BACKWARDS, which is the direction files cannot go. *"What cites this requirement"* is the query that would have caught a struck quotation still sitting in three unswept files
+
+**PROVENANCE IS NOT OPTIONAL AND IT IS WHY THE QUOTATION RULE EXISTS.** This
+project found two invented quotations and one misattributed requirement in a
+single day, and the rule that came out of it - **a quotation attributed to Boris
+that cannot be traced to a transcript is a paraphrase until proved otherwise** -
+is a provenance check performed by hand. **A record carries its source, so the
+check is a field rather than an investigation.**
+
 
 ## THE OPEN TENSIONS, AND NONE OF THEM MAY BE CLOSED AS AN ACCEPTED COST
 
