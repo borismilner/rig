@@ -561,6 +561,45 @@ stop shop" that can be checked:** the logbook's convention document, its setup
 script, the symlinks, the two-repo commit rule, and the section of the global
 instruction file that explains all of it. **If those survive, it is not one.**
 
+**AND IT HOLDS THE PROJECT'S DOCUMENTATION, NOT ONLY ITS STATE. Boris,
+2026-09-12:**
+
+> *"It holds in the best way possible all the documentation belonging to the
+> project. Structured in a very efficient and beneficial way so that documents
+> can be indexed, linked and correlated for future reference and maintenance."*
+
+**THIS PROJECT HAS ALREADY HAND-BUILT ALL THREE, AND EACH ONE HAS A MEASURED
+FAILURE BEHIND IT.** That is the evidence for specifying them rather than
+leaving them to convention:
+
+| | The hand-built version here | What it cost |
+|---|---|---|
+| **indexed** | `PLAN.md`'s Map | **the first one was hand-written and its line numbers were wrong inside the same session that wrote them.** It is generated now, by a tool, with a `--check` that exits 1 when stale |
+| **linked** | ~370 citations of the form *"PLAN.md section 37"* | **they address sections by NUMBER, never by line, because a line address rots.** The convention exists precisely because there are no real links, and it is why splitting 5,218 lines into 38 files needed no citation edited |
+| **correlated** | **nothing** | and the failures are counted: **four requirements of his found living only in a volatile document**, and **a struck quotation still sitting verbatim in three unswept files** after the fact it rested on was withdrawn |
+
+**THE MAINTENANCE HALF IS THE PART DOCUMENTS CANNOT DO AT ALL.** When a
+requirement changes, nothing today finds the documents that cited it - a seat
+greps, and the residue is whatever it did not think to grep for. **"Future
+reference and maintenance" is asking for the reverse direction of every link**,
+which is free in a record and impossible in a tree of files.
+
+**WHAT "ALL THE DOCUMENTATION" INCLUDES, and it is more than the logbook:** the
+specification itself, the decision log, the backlog, coordination, briefs,
+audits, screenshots, and the generated index over them. **`tools/plansplit.py`
+is another thing that must disappear** - it exists only because a specification
+in flat files needs a generated index, and a record does not.
+
+**THE TENSION THIS CREATES, AND THE PATTERN THAT RESOLVES IT.** Some documents
+must be readable with no rig at all: a `README` in a clone, a doc a user of the
+project needs. **So the record is the SOURCE and files in the repository are
+PROJECTIONS of it** - generated, and regenerated when the record changes.
+
+**That pattern is not new here; it is already running.** `PLAN.md` is generated
+from `plan/` and hand-editing it is forbidden. **The record generalises what
+this project already proved works**, which is a better position to design from
+than a blank page, and it is the same answer the degraded path above needs.
+
 **WHAT IS NOT SPECIFIED YET, AND IT IS MOST OF IT.** The record's shape, its
 verbs, how a project extends the schema, what the window renders, **how the
 standards register is versioned and how a project is checked against it**, **what
