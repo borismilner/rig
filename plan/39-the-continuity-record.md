@@ -501,6 +501,60 @@ dependency is a fact about the build order and is true under both answers.
 
 **This one is his, and it is the last thing in this section that is.**
 
+### The build order, in eight slices, each one demonstrable on its own
+
+**Ordered so that the entries which could lose to the logbook are answered
+first, not last.** §20's rule holds throughout: a slice is not done because it
+passes, it is done when it has been exercised for real.
+
+| # | Slice | What proves it, and it is a demonstration rather than a test |
+|---|---|---|
+| 1 | **the store and the three nouns.** `record.put/get/query/history` on bbolt | a requirement is written, superseded twice, and **its first wording is read back with the session that wrote it** |
+| 2 | **links and `record.refs`** | *"what cites this requirement"* answers with a copy that a grep for the obvious phrase misses. **The struck-quotation residue of 2026-09-12 is the fixture** - three unswept files, found by the reverse link |
+| 3 | **the projection: files, commits, push** | `rigd` is killed and the whole project is read from the repository alone. **Then the remote is checked and the work is there** |
+| 4 | **the read-before-write gate** | a fresh session's `record.put` is refused **by name**, one `project.brief` clears it, and a change to a must-read record re-arms it for a session that had cleared it |
+| 5 | **progress streams and `project.brief`** | a work item is driven start to finish, and **the human report is read off the brief with no seat having written a sentence of prose** |
+| 6 | **the window renders the brief** | Boris watches a live session's progress without asking for a report. **This is the second consumer, demonstrated rather than asserted** |
+| 7 | **the standards register and drift** | a standard's version is raised and **every project behind it is listed**, including one that was compliant an hour earlier |
+| 8 | **migrate one project, and it is rig** | below |
+
+### The migration, which is also the design's hardest test
+
+**rig is the first project migrated, under §37's staged rule: a capability lives
+in exactly one system at a time, so the logbook stays authoritative until rig's
+record is live.**
+
+| Step | |
+|---|---|
+| **import structure mechanically** | `plan/` sections become `requirement` records, `DECISIONS.md` entries become `decision` records, `BACKLOG.md` rows become `work-item` records, `COORDINATION.md` rows become ownership records. **The structure is already there** - this project has been writing tables with stable shapes for three days |
+| **derive the links from the citations** | ~370 of them, all of the form *"PLAN.md section 37"*. **This is the first real test of "correlated"**: if the import cannot turn an existing citation into a link, the model is wrong and it is better to find that out on an import than on a year of use |
+| **run both systems in parallel until the projection is comparable to the logbook** | and **this is a pattern this project has already proved**: `tools/plansplit.py` refuses to write anything until it has shown the parts reassemble into the original byte for byte. **The migration owes the same proof before the logbook stops being authoritative** |
+| **cut over per project, never estate-wide** | §37 again. A second project follows only after rig's own has run long enough to have been wrong once |
+
+**AND THE MIGRATION IS THE FIRST REPORT THE ARMED SEATS OWE.** §37's obligation
+is that a seat says what a mechanism cost it or saved it. **Importing three days
+of this project's own documents is the cheapest measurement of whether the
+record is significantly superior, and it happens before anything depends on it.**
+
+### The acceptance demonstrations, one per claim
+
+**The bar is that parity is failure and each claim is demonstrated against the
+documents doing the same task.** These are the demonstrations, named now so the
+build cannot finish by declaring itself superior.
+
+| The claim | The demonstration, and the document's answer beside it |
+|---|---|
+| **refuse a write until what must be read has been read** | a session writes without reading and is refused by name. **`COORDINATION.md` says *"read in full before your first write"* and cannot refuse anything** |
+| **know a claim has gone stale** | a seat's claim is tied to its lease and expires with the seat. **The document keeps four claims that were true at the time**, which is the measured 2026-09-11 failure |
+| **route a requirement at the moment it is stated** | a requirement is stated, recorded, and found by query in the same minute. **Four of his requirements were found living only in a volatile document**, days later |
+| **derive the human view** | the brief is rendered with no seat writing prose. **Today a seat composes a report, and he named that cost himself** |
+| **answer a query instead of being read** | a requirement is found without reading 5,218 lines. **`PLAN.md`'s own Map says nobody reads it whole** |
+| **be the same in every project** | a second project adopts the record and adds no routing prose of its own. **Today each project carries a per-project instruction file that must be perfected separately** |
+
+**AND THE CHEAPEST ONE OF ALL, which is the whole capability in a number:** this
+project's per-session instruction file is measured before the cutover and after.
+**If it has not shrunk to a pointer, none of the above mattered.**
+
 ## THE OPEN TENSIONS, AND NONE OF THEM MAY BE CLOSED AS AN ACCEPTED COST
 
 **Boris, 2026-09-12, and it is a rule about the design rather than a wish about
