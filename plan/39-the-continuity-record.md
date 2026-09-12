@@ -331,6 +331,55 @@ files, in the same shapes, with the same history commands. **That is §29's
 "reduced service" satisfied by something that already exists rather than by a
 fallback nobody exercises.**
 
+#### The internal representation is not text, and that is the point
+
+**Boris, 2026-09-12:**
+
+> *"since rig is a binary software, it can make use of more optimized structures
+> and systems for indexing and linking and other things that can be done with
+> the contenst currently managed inside the logbook; it is not restricted to
+> text files; results can be exported into text files and pushed into git."*
+
+**THE PROJECTION IS AN EXPORT, NEVER THE STORE.** Everything above already
+depends on this - `record.refs`, drift detection and the brief are all cheap
+against a real index and all quadratic against a directory of markdown. **What
+the binary buys, stated concretely rather than as "it is faster":**
+
+| | What text files force today | What a store gives |
+|---|---|---|
+| **finding a requirement** | grep across 5,218 lines, and the answer depends on guessing the phrase | a secondary index on kind and field. **Exact, and it cannot miss a file nobody thought to grep** |
+| **the reverse link** | there is none. A seat greps for citations and the residue is what it did not think of | **adjacency held in both directions.** `record.refs` is a lookup, not a scan |
+| **searching the prose** | grep again, with no ranking and no stemming | a real inverted index, so *"what did he say about the tray icon"* is a query |
+| **history** | `git log -S` over a file that has been split, renamed and regenerated | versions of one record, keyed, with provenance |
+| **the same fact in three places** | three copies that drift, which is the measured 2026-09-12 residue | one record, and everything else links to it |
+
+**AND THE TEXT SIDE LOSES NOTHING**, which is why this is not a trade: the
+export still lands in git, still has a remote, still reads the same when rig is
+down. **The optimised structures are how the record beats the documents; the
+export is how it never falls below them.**
+
+#### Tension 13, NEW: bbolt was chosen for coordination and does not answer this
+
+**`BACKLOG.md` B25's library search resolved the COORDINATION primitives - leases,
+CAS, a WAL, cursored subscriptions - and `go.etcd.io/bbolt` won it at +355 KB.
+That search did not cover the record store**, and the record store wants three
+things bbolt has none of natively: **query by field, full-text search, and graph
+traversal.** Hand-building all three on top of a key-value store is precisely
+what §38b forbids.
+
+| Candidate to weigh, and this list is what to SEARCH rather than a finding | |
+|---|---|
+| **bbolt plus hand-built indexes** | one engine for the whole daemon, and **§38b's objection applies to the hand-built half** |
+| **bbolt plus `bleve`** for the text index | keeps the KV store, buys a real search engine, adds a second dependency and its footprint |
+| **SQLite, pure-Go** | query, full-text (FTS5) and relational joins in ONE dependency, which is the shape §38b rewards. Costs a second storage engine inside one daemon |
+
+**NO SEARCH HAS BEEN RUN AND THIS SECTION DOES NOT PRETEND OTHERWISE.** §38b's
+rule is that *"I did not find one" is only an answer after a search that is
+described*, and the same honesty applies to a recommendation: **these are the
+candidates to measure, in the manner B25 measured its seven - resolved live,
+built, and sized against an empty-main baseline.** The footprint gate is gone,
+so the number goes in the commit rather than into a gate.
+
 ### The model: records, kinds, links
 
 **Three nouns and no more.** The whole of the indexing, linking and correlating
@@ -589,6 +638,7 @@ does.
 | 9 | **what the window renders** | **CLOSED - `project.brief`, the same call an arriving agent makes.** One derivation, two consumers, which is the two-consumer requirement met by construction |
 | 10 | **how a standards check is scheduled** | **CLOSED - a standard carries `recheck_after`; due checks surface in `project.brief` and the window. rig surfaces, never runs, never judges** |
 | 11 | **binary and bulky artefacts** | **CLOSED - `kind: artefact` holds metadata and provenance; the bytes are files in the projection, where git already versions them.** rig does not become a blob store |
+| 13 | **which store backs the record** | **OPEN, NEW 2026-09-12.** B25's search covered the coordination primitives and chose bbolt; the record store additionally wants query-by-field, full-text and graph traversal. Candidates to measure: bbolt with hand-built indexes, bbolt with , or pure-Go SQLite. **No search has been run** |
 | 12 | **what replaces "commit both repos"** | **CLOSED - nothing does, because the second commit stops being a session's job.** rig owns the record repository and commits it |
 
 **THIS TABLE IS ITSELF THE MAINTENANCE PROPERTY THE RECORD IS SUPPOSED TO HAVE,
@@ -596,8 +646,10 @@ applied to its own design.** A tension found later is added here rather than
 mentioned in a session, and **an entry that closes says where its answer lives**
 - which is the reverse-direction link §39 exists to provide.
 
-**ELEVEN OF THE TWELVE CLOSED IN THE SESSION THAT OPENED THEM, 2026-09-12**,
-and the twelfth is a ruling rather than a problem. **Each closure names where its
+**ELEVEN OF THE FIRST TWELVE CLOSED IN THE SESSION THAT OPENED THEM,
+2026-09-12**, the twelfth is a ruling rather than a problem, **and a thirteenth
+was added the same day by the mechanism this register describes** - a tension
+found later is added here rather than raised in a session. **Each closure names where its
 answer lives, which is the reverse-direction link this section exists to
 provide.** A tension found later is added here rather than raised in a session.
 
