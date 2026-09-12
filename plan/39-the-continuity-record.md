@@ -323,6 +323,93 @@ is a provenance check performed by hand. **A record carries its source, so the
 check is a field rather than an investigation.**
 
 
+### The verbs, and there are eleven
+
+**Each is a call on `rigd`, and §5's single declaration projects every one of
+them to the CLI, to MCP and to the window without being written three times.**
+
+| Verb | What it does |
+|---|---|
+| `record.put` | create, or supersede an existing record. Returns the new version |
+| `record.get` | one record, at head or at a named version |
+| `record.query` | by kind, field and project. **This is "indexed"** |
+| `record.link` / `unlink` | a typed edge between two records. **This is "linked"** |
+| `record.refs` | **what points AT this record.** The reverse direction, and **this is "correlated"** |
+| `record.history` | every version of one record with its provenance |
+| `progress.step` | append one step to a work item's stream |
+| `standard.stamp` | record that a project was checked against a standard, by whom, when |
+| `standard.drift` | every project behind the standard it claims to uphold |
+| `project.brief` | **the derived answer to "what is going on here"** |
+| `project.gate` | what this session must read before it may write, and whether it has |
+
+**ON THE CLI: `rig record`, `rig progress`, `rig standard`, `rig brief`.** Four
+commands, because a surface an agent has to learn is a surface it gets wrong.
+
+### The read-before-write gate, which is where the prose layer actually dies
+
+**Today the instruction is *"read `COORDINATION.md` in full before your first
+write"*, and nothing checks.** An instruction is obeyed at the reader's
+discretion; that is the whole defect §38c names.
+
+| The gate | |
+|---|---|
+| **a project declares a must-read set** | records of any kind, marked. It is data, not a document listing documents |
+| **rig tracks which of them THIS SESSION has fetched** | per session, never per uid. **A fresh context is a fresh session and reads again** - which is correct, because the context that read it is gone |
+| **`record.put` REFUSES until it has, and names what is missing** | never *"you must read the docs"*. The refusal is a list |
+| **ONE CALL SATISFIES IT** | `project.brief` returns the must-read set. **Complying is cheaper than arguing with it**, which is the only reason a gate like this survives contact with a working agent |
+| **a must-read record that CHANGES re-arms the gate** | for every session that read the old version. This is drift detection pointed at the project's own rules, and it is free once drift exists for standards |
+
+**THIS IS THE ENTRY THAT PROVES THE BAR.** A document can only ask. **rig
+mediates the write, so the precondition is a mechanism** - and that is the
+demonstration §39's acceptance bar requires, not an opinion that it feels
+better.
+
+### Progress is a stream, and nothing composes a report
+
+| | |
+|---|---|
+| **a step is** | the work item, one line of what, a state (`started`, `blocked`, `done`), and optionally a link to evidence |
+| **written at a boundary DURING the work** | never at the end, and **never in a termination handler** - §16.6 already establishes why: the handler does not run on `kill -9`, on an out-of-budget stop, or on the container going away |
+| **the human view is DERIVED from the stream** | this is the second consumer, and it is satisfied structurally rather than by asking a seat to also write a summary |
+| **an absent stream reads as UNKNOWN** | never as *"nothing happened"*. §16.6's rule, reused rather than restated |
+
+### The standards register, and what rig refuses to do with it
+
+| | |
+|---|---|
+| **a standard is a record**, estate-scoped rather than project-scoped, carrying a version | so *"perfected over time"* is a number |
+| **a project `upholds` a standard**, and the link carries `checked_version` and `checked_at` | the stamp is on the relationship, which is why it can go stale without either end changing |
+| **drift is `standard.version > link.checked_version`** | `standard.drift` lists every project behind. **A document cannot know who is reading it; this is a query** |
+| **a standard may carry a `recheck_after` interval** | *"checked from time to time"*. Due checks surface in `project.brief` and on the window |
+| **rig SURFACES a due check. It never runs one, and it never judges the work** | §29 non-goal 1 exactly where §39 left it. `standard.stamp` records **who** checked and **when**; the judging belongs to them |
+
+### Extending the schema without becoming N copies again
+
+**Kinds and their field schemas are themselves records in the estate register**,
+so the schema is versioned and improved in one place like everything else.
+
+| | |
+|---|---|
+| **a project may ADD fields to a kind** | never redefine or remove one. An addition cannot break another project's query |
+| **a project may define a LOCAL kind, namespaced to it** | because refusing outright is how a project ends up keeping a private document instead - the exact failure being fixed |
+| **a local kind cannot be linked to from another project** | which contains the divergence and makes it visible. **A local kind that two projects want is a proposal to the estate register**, and that promotion is the mechanism §38c asks for |
+
+### What the window renders, and why it needs no separate design
+
+**It renders `project.brief`.** The same call an arriving agent makes.
+
+| The brief carries | |
+|---|---|
+| open work items, each with its last progress step and its age | a stale step beside a live session is the signal that a seat is stuck |
+| what is blocked, and on whom | including what is waiting on Boris |
+| standards drift, and any check now due | |
+| the must-read set and whether this session has cleared it | |
+
+**ONE DERIVATION, TWO CONSUMERS.** That is the two-consumer requirement met by
+construction rather than by discipline, and it is what makes *"the human-report
+can be derived automatically or with very small agent effort"* true: the effort
+is one call, and no agent writes prose over it.
+
 ## THE OPEN TENSIONS, AND NONE OF THEM MAY BE CLOSED AS AN ACCEPTED COST
 
 **Boris, 2026-09-12, and it is a rule about the design rather than a wish about
