@@ -47,3 +47,5 @@ ipcbench/bench
 # fresh clone remakes them with logbook/SETUP.md. See logbook/CONVENTION.md.
 HANDOFF.md
 READINESS.txt
+BACKLOG.md
+DECISIONS.md
