@@ -237,6 +237,13 @@ state for item 2 to key and no handle for item 4's epoch to stamp. **A
 precondition that cannot be violated by the capability being cut over is not
 protecting that cutover.**
 
+**AND THEY HAVE FIRED. THE CAPABILITY IS §39, NAMED 2026-09-12.** The continuity
+record holds a project's documentation, state and standards across daemon
+restarts and across releases, so **item 2 keys it per estate and item 4 stamps
+its provenance with an epoch.** They are §39's preconditions now rather than the
+cutover's, and the 1-2 seat-days they were always owed sit there.
+`READINESS.txt` carries it.
+
 **WHAT THIS DOES NOT SAY.** Items 2 and 4 are NOT cancelled and NOT weakened.
 They gate the WAL, leases and the blackboard, and any capability holding state
 across a restart needs both before it moves. **The first capability that

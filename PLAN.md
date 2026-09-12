@@ -22,7 +22,7 @@ laptop, see section 4).
 
 ## Map - this file is the INDEX. The sections live in `plan/`.
 
-**The specification is 6221 lines across 39 files and nobody reads it
+**The specification is 6228 lines across 39 files and nobody reads it
 whole.** It is a reference to query, and it is queried with two questions:
 *"what is rig supposed to do"* and *"what did he already rule on this"*.
 **This index exists so a requirement cannot hide**, which is the failure this
@@ -92,7 +92,7 @@ the original byte for byte before writing anything.
 | 34 | What the mechanism pass changed, 2026-09-11 | 122 | [`plan/34-what-the-mechanism-pass-changed-2026-09.md`](plan/34-what-the-mechanism-pass-changed-2026-09.md) |
 | 35 | What the agent-parallelism pass changed, 2026-09-11 | 191 | [`plan/35-what-the-agent-parallelism-pass-changed.md`](plan/35-what-the-agent-parallelism-pass-changed.md) |
 | 36 | The four remaining Part V entries, adjudicated 2026-09-11 | 101 | [`plan/36-the-four-remaining-part-v-entries.md`](plan/36-the-four-remaining-part-v-entries.md) |
-| 37 | Two estates, and the gate before rig develops rig | 738 | [`plan/37-two-estates-and-the-gate-before-rig.md`](plan/37-two-estates-and-the-gate-before-rig.md) |
+| 37 | Two estates, and the gate before rig develops rig | 745 | [`plan/37-two-estates-and-the-gate-before-rig.md`](plan/37-two-estates-and-the-gate-before-rig.md) |
 | 38 | Three standing rules, and none of them is a preference | 115 | [`plan/38-three-standing-rules-and-none-of-them-is.md`](plan/38-three-standing-rules-and-none-of-them-is.md) |
 
 ### ADDED SINCE THE SPLIT - specification, not changelog
@@ -110,8 +110,8 @@ the original byte for byte before writing anything.
 | **what do agents get, and when?** | §16 for the coordination primitives, **§39 for the continuity record**, §37 for the minimum set and the staged migration |
 | **has he already ruled on this?** | `logbook/projects/rig/DECISIONS.md` first, then §31-38. **Grep before proposing** - proposing what already exists is this project's named failure mode |
 
-**§31-38 ARE A CHANGELOG INSIDE A SPECIFICATION** - 2394 of 6221 lines,
-38%. Splitting the file did not fix that; it made it visible and
+**§31-38 ARE A CHANGELOG INSIDE A SPECIFICATION** - 2401 of 6228 lines,
+39%. Splitting the file did not fix that; it made it visible and
 cheap to act on, since those eight sections are now eight files that can move to
 the logbook in one commit. `BACKLOG.md` B24. **Until they do, a reader after the
 current rule prefers the numbered section over the pass that changed it.**
