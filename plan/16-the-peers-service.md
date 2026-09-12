@@ -467,9 +467,62 @@ claimed. **Discoverability is part of the capability**, not documentation
 wrapped around it, and a design that needs a second document to explain itself
 has failed this line rather than deferred it.
 
+**IT IS NOT ONLY THIS PROJECT'S OWN STATE. WIDENED BY BORIS, 2026-09-12**,
+verbatim:
+
+> *"one of the goals of this is that rig will be the single source of truth for
+> many of the common development requirements and expectations we can perfect
+> with time instead of spreading and repeating it accross many different
+> documents... it's also to contain the must requirements for projects that can
+> be changed and improved with time and since they are managed in a single place
+> we can always know when a project should be raised up to those standard and
+> checked from time to time it still upholds all the requirements."*
+
+**TWO REGISTERS, ONE MECHANISM. The scope is what separates them:**
+
+| Register | Scope | What it holds |
+|---|---|---|
+| **the project's own record** | one project | what is decided, what is claimed, what must be read, progress as it happens |
+| **the standards register** | **the whole estate, one copy** | the requirements EVERY project must uphold, versioned, with each project's last-checked stamp |
+
+**HIS TWO EXAMPLES ARE BOTH REAL AND BOTH CURRENTLY MISFILED**, which is why
+they are worth naming rather than paraphrasing:
+
+| Standard | Where it lives today | The defect |
+|---|---|---|
+| **visual legibility** - measured contrast, the palette method, the defect classes a clean audit still misses | a personal skill, plus the library's admission bar | it binds every project that ships a page, and **no project knows whether it is being applied**, because nothing connects the standard to the work |
+| **reuse before building** - search first, name the candidates, reuse unless a stated reason blocks it | **§38b of THIS specification** | **it is an estate-wide rule written inside one project's plan.** §38b is itself an instance of the bug he is describing, and that is the clearest evidence this register needs to exist |
+
+**WHAT THE REGISTER ADDS, and this half is what documents cannot do at all:**
+
+| | |
+|---|---|
+| **a standard carries a VERSION** | so *"perfected with time"* is a fact a project can be measured against, rather than a hope. A project records which version it was built to |
+| **rig knows which projects are BEHIND** | *"we can always know when a project should be raised up to those standard"*. **A document cannot know who is reading it**, and a skill cannot know which project ignored it |
+| **re-checking is scheduled, not remembered** | *"checked from time to time it still upholds all the requirements"*. **Drift is the normal case**: the standard moves and the project does not, and nothing today notices |
+| **one copy improves; N copies diverge** | §38c. This is its second and larger application, and the first one it was not stated for |
+
+**WHERE THE NON-GOAL LINE FALLS, AND IT IS STATED BEFORE THE DESIGN RATHER THAN
+DURING IT.** **rig holds the standard, its version, and when each project was
+last checked against it. rig does NOT decide whether the work meets it.** The
+judging belongs to the project or to the agent doing the work. That leaves §29
+non-goal 1 exactly where the continuity record left it: **rig records and
+reminds; it has no opinion about whether the work is any good.**
+
+**NOT §19, AND THE NAMES WILL COLLIDE IF NOBODY SAYS SO NOW.** §19 is the
+PROTOCOL conformance suite - `rig verify ./program`, a program against rig's
+wire contract. **This is a project against a standard.** The two share the word
+and nothing else, so whichever keeps "conformance", it must not be both.
+
+**AND THIS MAY OUTGROW §16.** The peers service is coordination between live
+sessions, and a standards register is not that. **The subsection stays here
+while the capability is one undesigned thing**; the design decides whether it
+earns a section of its own.
+
 **WHAT IS NOT SPECIFIED YET, AND IT IS MOST OF IT.** The record's shape, its
-verbs, how a project extends the schema, what the window renders, and how it
-relates to the continuation slot above - which is the ninety-second version of
+verbs, how a project extends the schema, what the window renders, **how the
+standards register is versioned and how a project is checked against it**, and
+how all of it relates to the continuation slot above - which is the ninety-second version of
 the same idea and must not become a second mechanism by accident. **This
 subsection is the requirement and the ruling. The design is owed.**
 

@@ -62,6 +62,14 @@ mature Go implementations and none of them has been searched for.** That search
 is the first application of this rule and it is a backlog item rather than a
 sentence here.
 
+**AND THIS RULE IS ITSELF AN ESTATE-WIDE STANDARD SITTING INSIDE ONE PROJECT'S
+SPECIFICATION.** It binds every project Boris runs, not rig alone, and it lives
+here because there has never been anywhere else to put it. **He named it as an
+example when widening §16's record to a standards register on 2026-09-12**, and
+under that design this rule lives once, versioned, with each project's
+last-checked stamp against it. **Until that exists, 38b's home is this section
+and the duplication is the known cost.**
+
 **AND THE RULE HAS A LIMIT THAT MUST BE SAID, or it will be quoted against the
 project's own reason for existing.** rig's product is the *composition* - one
 declaration reaching a CLI, an MCP tool, a window, a tray and a schedule (§5).
@@ -99,5 +107,8 @@ not rescued by 38c. A capability that passes 38a, and whose only alternative is
 an instruction every agent must read and obey, belongs in rig.
 
 **The first application is the continuity record in §16**, which is what he was
-ruling on when he stated it.
+ruling on when he stated it. **Its larger application is the standards register
+in the same section**, stated the same day: the requirements every project must
+uphold, held once and improved over time instead of copied into each project and
+diverging. **38b above is the worked example of the divergence.**
 
