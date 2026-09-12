@@ -519,10 +519,53 @@ sessions, and a standards register is not that. **The subsection stays here
 while the capability is one undesigned thing**; the design decides whether it
 earns a section of its own.
 
+**AND IT REPLACES THE LOGBOOK. Boris, 2026-09-12:**
+
+> *"This part we were talking about should also replace logbook - perhaps I
+> didn't mention it. It's a one stop shop for the project."*
+
+**WHAT IS BEING REPLACED, NAMED RATHER THAN GESTURED AT.** The logbook is a
+separate git repository, one tree per project, holding handoffs, the decision
+log, the backlog, coordination, dated history, agent work, screenshots and
+briefs. A project reaches it through gitignored symlinks. **Every session
+commits twice - the project for code, the logbook for the notes - and a session
+that commits one has silently lost the other half.**
+
+| What it costs today | |
+|---|---|
+| **two repositories, every session** | plus the rule that both are committed, which is itself an instruction nothing enforces |
+| **a convention document to explain it** | its `CONVENTION.md`, its setup script, and a section of the global instruction file. **All of it is routing prose**, which is the defect §38c names |
+| **symlinks a fresh clone does not have** | remade by a script, and invisible until the moment they are missing |
+
+**THREE THINGS GIT GIVES THE LOGBOOK FOR FREE, AND THE RECORD MUST BEAT THEM
+RATHER THAN MATCH THEM.** His own bar: parity is failure.
+
+| What git supplies today | What the record owes |
+|---|---|
+| **history - who changed a requirement, when, and what it said before** | the same answer from an append-only record, and **queryable rather than `git log`-able**, or this is a downgrade |
+| **an offsite remote** | the logbook has a private remote and a local database file has none. **The four lost requirements get WORSE, not better, if the store cannot leave the machine** |
+| **it works when rig does not** | **§29: *"rig is not required. Every program works without it, at reduced service."*** A session that cannot reach rig must still see the project's record. **This is the hardest of the three and it is not optional** |
+
+**SO THE DESIGN OWES A DEGRADED PATH AND AN EXPORT, and both are requirements
+rather than refinements.** What a session sees with rig down, and how the record
+leaves the machine, are answered before this replaces anything. **Until they
+are, nothing deletes the logbook.**
+
+**THE CUTOVER IS PER PROJECT, NEVER ESTATE-WIDE AT ONCE.** §37's staged
+migration rule already governs it: a capability lives in exactly one system at a
+time, estate-wide, and **the logbook stays authoritative for a project until
+that project's record is live.**
+
+**WHAT MUST DISAPPEAR WHEN IT LANDS, because that is the only measure of "one
+stop shop" that can be checked:** the logbook's convention document, its setup
+script, the symlinks, the two-repo commit rule, and the section of the global
+instruction file that explains all of it. **If those survive, it is not one.**
+
 **WHAT IS NOT SPECIFIED YET, AND IT IS MOST OF IT.** The record's shape, its
 verbs, how a project extends the schema, what the window renders, **how the
-standards register is versioned and how a project is checked against it**, and
-how all of it relates to the continuation slot above - which is the ninety-second version of
+standards register is versioned and how a project is checked against it**, **what
+a session sees with rig down and how the record leaves the machine**, and how all
+of it relates to the continuation slot above - which is the ninety-second version of
 the same idea and must not become a second mechanism by accident. **This
 subsection is the requirement and the ruling. The design is owed.**
 
