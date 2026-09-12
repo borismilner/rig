@@ -43,4 +43,7 @@ ipcbench/bench
 /footprint
 /pkgdeb
 /schemagen
+# Gitignored symlinks into the logbook. Either path opens the same file; a
+# fresh clone remakes them with logbook/SETUP.md. See logbook/CONVENTION.md.
 HANDOFF.md
+READINESS.txt

@@ -18,6 +18,93 @@ laptop, see section 4).
 
 ---
 
+## Map - what is in this document, and what to read for what
+
+**This document is 5256 lines and nobody reads it whole.** It is a reference to
+query, and it is queried with two questions: *"what is rig supposed to do"* and
+*"what did he already rule on this"*. **The Map exists so a requirement cannot hide
+in it**, which is the failure this project has now had four times - the tray icon,
+the acceptance floor, the readiness bar, and the successor clause.
+
+**GENERATED. Do not hand-edit** - run `python3 tools/planmap.py` after adding or
+renaming a section. Hand-keeping it was tried and the numbers were wrong within the
+hour, and a Map with wrong line numbers hides things better than no Map at all.
+
+### WHAT IT IS - read before proposing anything
+
+| § | Section | Line |
+|---|---|---|
+| 1 | The idea, in one line | `108` |
+| 2 | Decisions locked | `139` |
+| 3 | The maximals, made measurable | `242` |
+| 4 | Measured: what the wire actually costs | `317` |
+
+### HOW IT IS BUILT - the specification proper
+
+| § | Section | Line |
+|---|---|---|
+| 5 | Architecture | `349` |
+| 6 | Configuration | `1183` |
+| 7 | Storage | `1290` |
+| 8 | Observability | `1335` |
+| 9 | Built for agents | `1432` |
+| 10 | The terminal client | `1616` |
+| 11 | The window | `1751` |
+| 12 | Toasts | `1831` |
+| 13 | Capabilities and trust | `1919` |
+| 14 | Isolation | `2207` |
+| 15 | Who is using rig, and what they did | `2446` |
+| 16 | The peers service | `2624` |
+| 17 | Footprint | `3031` |
+| 18 | Supervision and failure | `3114` |
+| 19 | The conformance suite | `3285` |
+| 20 | Testing strategy | `3360` |
+| 21 | Versioning | `3382` |
+| 22 | Tech stack | `3461` |
+
+### THE ROUTE - order, gates, and what is refused
+
+| § | Section | Line |
+|---|---|---|
+| 23 | Milestone build order | `3545` |
+| 24 | The gates | `3645` |
+| 25 | Migration order | `3686` |
+| 26 | Open questions | `3718` |
+| 27 | Assumptions made without asking | `3778` |
+| 28 | Repository, versioning and the Makefile | `3792` |
+| 29 | Non-goals | `3834` |
+| 30 | Name | `3866` |
+
+### THE RECORD - what changed and why. **CHANGELOG, not specification**
+
+| § | Section | Line |
+|---|---|---|
+| 31 | What the attack changed | `3877` |
+| 32 | What full introspection changed, 2026-09-10 | `3928` |
+| 33 | What the blind-spot sweep changed, 2026-09-10 | `3985` |
+| 34 | What the mechanism pass changed, 2026-09-11 | `4062` |
+| 35 | What the agent-parallelism pass changed, 2026-09-11 | `4184` |
+| 36 | The four remaining Part V entries, adjudicated 2026-09-11 | `4375` |
+| 37 | Two estates, and the gate before rig develops rig | `4476` |
+| 38 | Two standing rules, and neither is a preference | `5187` |
+
+### The four questions a seat actually arrives with
+
+| Asking | Go to |
+|---|---|
+| **what should I build next?** | **NOT this file.** `logbook/projects/rig/BACKLOG.md` answers WHAT NEXT; this answers WHAT IS IT |
+| **how much longer until rig develops rig?** | `logbook/projects/rig/READINESS.txt`, and nothing else may answer it |
+| **what do agents get, and when?** | §16 for the primitives, §37 for the minimum set and the staged migration |
+| **has he already ruled on this?** | `logbook/projects/rig/DECISIONS.md` first, then §31-38 here. **Grep before proposing** - proposing what already exists is this project's named failure mode |
+
+**§31-38 ARE A CHANGELOG SITTING INSIDE A SPECIFICATION** - 1380 of these
+5256 lines, 26%. Recorded here rather than quietly tolerated: it is a known
+structural defect with a backlog item (`BACKLOG.md` B24), and until that item lands
+**a reader looking for the current rule prefers the numbered section over the pass
+that changed it.**
+
+---
+
 ## 1. The idea, in one line
 
 **An app declares what it can do, once. rig projects that onto every way anyone might reach it.**
@@ -3587,7 +3674,7 @@ the shell is M1a's and does not depend on it.
 |---|---|---|
 | **M3** | the day M3 lands. **M4 does not start until the answer is written** | `DECISIONS.md`, in writing |
 | **M8** | the day M8 lands. **M9 does not start until the answer is written** | `DECISIONS.md`, in writing |
-| **Self-hosting (§37)** | the day the LAST precondition in §37 lands. **The estate does not move onto rig for rig's own development until the answer is written** | `DECISIONS.md`, in writing, **and Boris is notified before it is crossed** |
+| **Self-hosting (§37)** | **AMENDED 2026-09-12.** The day §37's last ISOLATION precondition lands **AND the first capability of the minimum beneficial set clears its four clauses** - both halves. It used to read *"the day the LAST precondition lands"*, which would have fired while production still carried nothing. **The estate does not move onto rig until the answer is written**, and **only this FIRST cutover is gated**: every later capability move is recorded in `DECISIONS.md` and announced to live seats, with no seat waiting | `DECISIONS.md`, in writing, **and Boris is notified before it is crossed** |
 
 The M3 answer is one of three, and it names what it cuts: *continue*, *stop at M3*, or
 *continue with a cut list*. **This project carries no dates.** A gate fires when the milestone
@@ -4108,13 +4195,43 @@ is imported because AgentBox has it.** Each mechanism below is here because an
 agent working beside another agent fails without it, and the IN/OUT judgement
 for every candidate is recorded in the cross.
 
-### THE ACCEPTANCE FLOOR, WHICH IS BORIS'S AND WAS RECORDED NOWHERE UNTIL 2026-09-11
+### THE ACCEPTANCE FLOOR - **ITS ATTRIBUTION IS CORRECTED 2026-09-12 AND THE REQUIREMENT SURVIVES**
 
-**His words, and this specification did not carry them in any form:**
+**THE QUOTATION BELOW IS NOT HIS, AND THE TRANSCRIPT SWEEP OF 2026-09-12 IS WHAT
+ESTABLISHED THAT.** It is kept, struck, because the section's whole lesson is how
+a misquotation reads as evidence - and this section was itself carrying one.
 
-> *"One sanity check is that the functionality in rig must be at the absolute
+> ~~*"One sanity check is that the functionality in rig must be at the absolute
 > minimum as good as in AgentBox; It should be taken to the highest level of
-> quality, robustness, usefullness and feature-completeness."*
+> quality, robustness, usefullness and feature-completeness."*~~
+
+**What the sweep ran and what it found.** The whole session transcript store was
+searched for the distinctive fragments of that sentence - *"as good as in
+AgentBox"*, *"sanity check"*, *"feature-completeness"*, *"highest level of
+quality"* - restricted to messages Boris actually typed. **Zero hits, in every
+project, on every date.** Its first appearance anywhere is in a SEAT's own
+message on 2026-09-11 at 09:28:37, **two minutes before** he typed the sentence
+below. **The exact method, the instrument and the yield are recorded in
+`logbook/projects/rig/salvaged-2026-09-12.md`**, so the finding is re-runnable
+rather than taken on this document's word.
+
+**WHAT HE ACTUALLY TYPED, 2026-09-11 at 09:30:48, and it is the floor:**
+
+> *"Not all AgentBox are must-have in rig, but the ones that are must be taken
+> to the absolute highest level as I already said"*
+
+**THE REQUIREMENT IS UNCHANGED AND IS IF ANYTHING SHARPER.** *"The ones that are
+must be taken to the absolute highest level"* says the same thing the invented
+sentence said, in his own words, and adds the half the inventions kept dropping:
+**the bar attaches to the subset rig adopts, not to parity with AgentBox.** That
+is exactly §37's minimum beneficial set, written eighteen hours before anyone
+proposed it.
+
+**WHAT THE SWEEP CANNOT SAY.** Transcripts are not a complete record - a
+compacted session can lose its original user text, and a message sent from
+another client would not be here. **"Not found in the store" is the finding;
+"he never said it" is not.** But the ordering is hard evidence: the seat wrote
+the sentence first.
 
 **This is an ACCEPTANCE CRITERION, not a steer.** It says when the M16 cutover
 is allowed to happen: a mechanism rig takes over from AgentBox is not done when
@@ -4128,8 +4245,8 @@ It is the second requirement of his in two days to be found living only in a
 volatile file, after the tray icon. **A handoff is notes; it is not where a
 requirement is kept.**
 
-**AND THE STEER IS QUOTED THREE DIFFERENT WAYS, ALL INSIDE QUOTE MARKS. AT MOST
-ONE IS VERBATIM.**
+**THE THREE-WAY QUOTATION DISPUTE IS RESOLVED, 2026-09-12. THE FIRST ROW IS
+VERBATIM AND THE OTHER TWO WERE NEVER SAID.**
 
 | Source | Quoted as |
 |---|---|
@@ -4139,9 +4256,29 @@ ONE IS VERBATIM.**
 
 **The middle one is the head of the first welded to the tail of the third.**
 
-**The dispute is recorded rather than resolved, deliberately.** Nothing in this
-repository can say which is verbatim; only a transcript can, and picking a
-winner without one would produce a fourth version.
+**RESOLVED BY THE TRANSCRIPTS, 2026-09-12.** The previous text read *"the dispute
+is recorded rather than resolved, deliberately. Nothing in this repository can
+say which is verbatim; only a transcript can"* - and it was right about the
+method. **The transcript was read and the answer is row 1**, at 2026-09-11
+09:30:48, quoted above in full.
+
+| Row | Verdict |
+|---|---|
+| **the coordinating seat's handoff** | **VERBATIM.** The only form he ever typed |
+| §16's agent-parallelism subsection | **INVENTED.** *"some of its features have no place in the rig"* appears in no message of his, in any project |
+| this section, above | **INVENTED.** *"we decided to not make perfect parity to AgentBox"* likewise |
+
+**THE OPEN LOOP THIS CLOSES** was recorded as *"needs a transcript"* in
+`HANDOFF.md` and in the outgoing lead's open-loops table. **It is closed and it
+cost one search**, which is the argument for the standing rule below.
+
+**AND IT GENERALISES INTO A RULE, because the same defect produced the floor
+above and both inventions here:** **a quotation attributed to Boris that cannot
+be traced to a transcript is a SEAT'S PARAPHRASE until proved otherwise.** The
+two failures were not carelessness - each seat was quoting what it had been
+handed. **The carrier of a quotation is never its evidence**, which is the rule
+`DECISIONS.md` already states for claims and which is hereby extended to his
+words specifically.
 
 **But the damage is already legible without resolving it.** Both of the
 specification's copies keep the clause that **licenses omission** and drop the
@@ -4346,6 +4483,162 @@ more than one production and one development."*
 
 **This section exists so that moment is prepared for rather than discovered.**
 
+### THE GATE MOVED, 2026-09-12, AND IT IS HIS OWN CORRECTION OF HIMSELF
+
+**Boris, 2026-09-12, verbatim, overturning the bar quoted at the head of this
+section:**
+
+> *"We also must redefine the definition of our readiness of starting
+> 'developing rig by using rig'. I originally asked for all the capabilities to
+> be iron-clad ready and perfectly tested before we do it and I think it was a
+> mistake. We can bring only a few of these to perfection before starting using
+> them - and we can keep perfecting things as we go. Find among the capabilities
+> we are planning to get in the ones that are the absolute minimum required to
+> being benefit and only plan to bring them to the absolute perfection as I asked
+> you."*
+
+**What is superseded, exactly.** The opening quotation's *"Once all agent-facing
+mechanisms will be ready in their full glory"* is **no longer the condition**.
+Nothing else in this section is withdrawn by it.
+
+#### THE GATE HAD TWO HALVES WELDED TOGETHER AND ONLY ONE WAS EVER LOAD-BEARING
+
+**This is the diagnosis, and it is what made the wait open-ended.** The
+preconditions below and the capability bar were written as one gate. They answer
+two different questions and only the first has a floor under it:
+
+| | Question | Can it be partial? |
+|---|---|---|
+| **The preconditions** (the table below) | **can two estates coexist without corrupting each other?** | **NO.** A half-built isolation boundary is not a smaller boundary, it is an absent one. Five of six are DONE |
+| **The capability set** | **how much of a seat's day runs through rig rather than AgentBox?** | **YES, and it always could.** Every capability is independently useful and independently cut over |
+
+**Welding them made the second inherit the first's all-or-nothing.** Separated,
+the first is nearly finished and the second starts paying the day its first
+capability lands.
+
+#### THE MINIMUM BENEFICIAL SET, and the test that produced it
+
+**The test applied, stated so it can be disagreed with:** *what must exist for a
+seat to run one complete workflow through rig without falling back to AgentBox
+part-way?* **Not "what would be nice", and not "what is cheapest".**
+
+**Why that test and not "most valuable first".** The failure mode of a partial
+migration is **split-brain**: if one seat takes a lock in rig while another takes
+the same lock in AgentBox, the lock protects nothing and neither seat finds out.
+So the migration unit is a **whole capability moved by every seat at once**, and
+a capability that cannot carry a seat end-to-end cannot be moved at all.
+
+**THE EVIDENCE IS MEASURED, NOT REASONED.** `BACKLOG.md`'s table *"M7, ordered by
+what this team ACTUALLY uses today"* records what three seats reached for across
+one full day on AgentBox, plus the three absences a seat actually felt. **That is
+the ranking below**, with the front door added because nothing is reachable
+without it.
+
+| # | Capability | Why it is in the MINIMUM | Where specified |
+|---|---|---|---|
+| **0** | **The front door** - the MCP surface, plus `rig.estate` so an agent can read WHICH estate it reached | **an agent cannot call rig at all without it, and cannot tell production from development.** Precondition to every row below rather than a peer of them | M2, §37.1 |
+| **1** | **Presence and seats** - announce, roster, seat as the addressable identity, `partial` honestly reported | **nothing below is addressable without it.** Every seat announced; `partial: true` is what stopped a seat concluding it was alone | §16, seats |
+| **2** | **Named leases with a REGISTERED scope** - witness, two-step expiry, overlap by intersection | **highest measured pain.** One Makefile under two lock names, both unlocked, neither seat found out. Registration and intersection are not polish here: they are the defect | §16, leases + ¶5 |
+| **3** | **The versioned blackboard: CAS, claims, owner liveness** | **the seat registry itself runs on it.** Three seat handoffs resolved through `if_version` in one day | §16, blackboard + ¶1 |
+| **4** | **Signals, with `await` and a cursor** | every handoff used one. **The alternative is a poll loop**, which is the thing this replaces | §16, signals |
+| **5** | **Directed messaging to a SEAT, carrying the GENERATION** | every ruling crossed a seat boundary as a message. The generation closes a defect **Boris raised himself** - *"peers should be aware they may be contacted wrongly thinking they are the successor"* (2026-09-11) | §16, ¶2 + ¶3 |
+
+**Rows 2 and 5 each absorb one of the three absences a seat reported feeling.**
+That is deliberate: an absence a seat felt under load is stronger evidence than a
+usage count, because the seat was trying to do the work when it found the hole.
+
+#### WHAT IS DELIBERATELY OUT OF THE MINIMUM, with the reason
+
+**A list where nothing is excluded is a list that was not applied.** These are
+planned, specified and NOT in the first cutover:
+
+| Excluded | Why it can wait |
+|---|---|
+| **Durability of an agent's own work** (§16 ¶6) - the third felt absence | **a working substitute already exists and is load-bearing today**: the logbook, the handoff documents, and `agent_persistence.py`. Painful, not blocking. **The strongest candidate for the second cutover** |
+| Claimable queues, rendezvous, barriers, semaphores, leader election, deadlock detection | **no seat reached for one in the measured day.** Real capabilities with no evidence behind them yet |
+| Continuation slots, retraction, the at-risk ladder | valuable, and each needs presence and leases underneath it. **They are cheaper after the minimum lands, not before** |
+| `rig peers run --lease` | the only real fence for a resource rig does not own, **and the minimum set guards documents rather than deploys.** It arrives with the first resource that needs fencing |
+
+**THIS SET IS PROVISIONAL AND ITS SUCCESSOR IS ALREADY COMMISSIONED.** Boris has
+ordered an expert study - see the backlog's dated item - to derive the
+minimal-but-optimal set from the typical needs of the seats working on rig.
+**This table is the working answer until that study lands, not a ruling it must
+respect.** It exists so work can proceed now; the study exists so the answer is
+right.
+
+#### "PERFECTED" IS NOT A FEELING, AND THIS IS THE FLOOR IT MEANS
+
+**Only the rows above are taken to the bar Boris set. Everything else ships to
+the ordinary standard of this repository.** The bar, applied per capability:
+
+| Clause | Test |
+|---|---|
+| **At least as good as AgentBox's equivalent** | the equivalent named, and the comparison RUN, not argued. A lease without a witness is weaker than AgentBox's and therefore not done |
+| **Its failure semantics are demonstrated, not specified** | the holder dies, the daemon restarts, the cursor falls off retention - each shown happening, with what a reader was told |
+| **A conformance case that BITES** | a mutation proves the test fails when the mechanism does |
+| **Two estates, live, exercised** | the capability used across production and development without either seeing the other |
+
+**A capability that has not cleared all four is not cut over**, and the seats
+keep using AgentBox for it. That is the whole discipline and it needs no other
+enforcement.
+
+### THE MIGRATION IS STAGED, PER CAPABILITY, AND BOTH SYSTEMS RUN AT ONCE
+
+**Boris, 2026-09-12, verbatim:**
+
+> *"In doing so, we'll gradually move from using AgentBox to using only rig in
+> developing rig. We'll have the agents use AgentBox for features not yet
+> implemented in rig and use the production instance of rig for all capabilities
+> that we bring to the required perfection."*
+
+**So there is no cutover day.** There is a per-capability move, and the estate is
+mixed until the last one lands. Stated as rules because a mixed estate is exactly
+where split-brain lives:
+
+| Rule | Why |
+|---|---|
+| **A capability lives in exactly ONE system at a time, estate-wide** | the lock taken in two places is no lock. **This is the rule that makes a mixed estate safe** and it has no exceptions |
+| **A capability moves when it clears the four clauses above, and not before** | otherwise "perfected" decays into "shipped" |
+| **The move is announced to every live seat and recorded in `DECISIONS.md`** | a seat that did not hear is a seat still holding the old mechanism |
+| **AgentBox stays authoritative for everything not yet moved** | it is not deprecated, it is the incumbent. **No seat improvises a replacement** |
+| **A capability may move BACK** | if a moved capability is found weaker than the AgentBox one under real load, it returns and the finding goes to the backlog. **Recorded, never quiet** |
+
+**The migration order is the table above**, and each move updates
+`READINESS.txt` - see below.
+
+### THE TWO FLAVOURS, AND WHO MAY DO WHAT TO EACH
+
+**Boris, 2026-09-12, verbatim, and it settles the lifecycle question this section
+left to convention:**
+
+> *"rig comes with two flavours: production and development (each with its own
+> system-tray icon) the production is to be loaded with the system start and to
+> be upgraded in convenient times when it's not used and new capabilities are
+> ready to be deployed. And the development flavours the peers can start, stop
+> and experiment on as much as they need to in any way they like."*
+
+| | **production** | **development** |
+|---|---|---|
+| **Starts** | **at login, by the `systemd --user` unit** (§5l, `packaging/rigd.service`). Nobody starts it by hand | **by a seat, whenever it wants** |
+| **Stopped by** | **nobody, in the ordinary case.** Only inside a deliberate upgrade window | **any seat, freely, without asking and without announcing** |
+| **Upgraded** | **only when idle AND a capability has cleared the four clauses.** A deliberate act with a window, never a side effect of a build | **continuously. That is what it is for** |
+| **Broken** | never knowingly | **expected.** Breaking it is the work |
+| **Tray icon** | **its own, distinguishable at 22px from development's** (§11) | **its own** |
+| **Runtime dir** | **the DEFAULT `XDG_RUNTIME_DIR`**, so the unit cannot reach development by construction | **always placed explicitly** |
+| **Carries** | only capabilities that cleared the bar | anything, including half-built work |
+
+**THE UPGRADE WINDOW IS A MECHANISM, NOT A COURTESY.** *"Upgraded in convenient
+times when it's not used"* is his wording and it has a testable form: **an
+upgrade is refused while any seat holds a lease, a claim, or an unread directed
+message in that estate.** The estate knows all three, so this is a check rather
+than a convention, and it is the first real consumer of presence.
+
+**WHY PRODUCTION MUST NOT BE STOPPED CASUALLY, said here because the reason is
+not obvious:** by the time production carries the minimum set, **stopping it
+breaks every seat's coordination at once** - their leases, their seat registry,
+their parked `await`s. Development exists precisely so that nobody ever has a
+reason to.
+
 ### The rule
 
 **A user runs AT MOST TWO NAMED ESTATES: `production` and `development`.** Not
@@ -4389,10 +4682,19 @@ mechanism. An unnamed estate claims no name and collides with nothing.
 rigd` - that killed every estate on the machine, and it is the reason the verb
 was pulled forward from M6.
 
-### The preconditions, and NONE of them may be skipped
+### The ISOLATION preconditions, and NONE of them may be skipped
 
-**These are the backlog items that must land before the estate moves onto rig
-for rig's own development.** The gate in §24 fires when the last one lands.
+**RENAMED 2026-09-12, and the word added is the whole correction.** These six
+answer one question - *can two estates coexist without corrupting each other?* -
+and that is the half of the gate that genuinely cannot be partial. **They are
+NOT the capability bar**, which is the minimum beneficial set above and which
+moves one capability at a time. Welding the two is what made the wait
+open-ended; see "THE GATE MOVED" at the head of this section.
+
+**These must ALL land before the FIRST capability is cut over.** Five of six are
+done. The gate in §24 fires when the last one lands **and the first capability
+of the minimum set has cleared its four clauses** - both halves, because an
+isolation boundary with nothing running through it proves nothing.
 
 | # | Precondition | Where it lands | State |
 |---|---|---|---|
@@ -4754,6 +5056,61 @@ his wording and it widens the lead's half.** The five attack questions in the
 subsection above are how; this says what the proposal is weighed against, and
 that the lead states what else it consulted.
 
+#### WHAT A SEAT'S REPORT DOES, 2026-09-12: it CHOOSES the next capability
+
+**Boris, 2026-09-12, extending the loop again and giving it teeth it did not
+have:**
+
+> *"Throughout the whole development of rig, the peers and the agents must be
+> encouraged to raise their difficulties or things that took time/tokens/effort
+> and so on that could be greatly improved had we had the right mechanism
+> implemented in rig for that usecase; these are to affect the next features
+> we'll choose to promote to be worked on and perfected for deployment; they can
+> choose among the planned capabilities and if none is perfect for the need then
+> they can suggest what mechanism would be perfect for it and we'll consider
+> adding it to the plan."*
+
+**THE NEW PART IS THAT A REPORT IS AN ORDERING INPUT, NOT AN INBOX ITEM.** The
+subsections above obliged a seat to report and obliged the lead to attack. **This
+says what the surviving report then DOES: it moves the promotion order** - which
+capability is taken to the four-clause bar next and cut over to production.
+
+**The two shapes a report may take, and a seat picks between them rather than
+being handed one:**
+
+| Shape | When | What the lead does with it |
+|---|---|---|
+| **"This planned capability would have solved it"** | the need maps onto something already in §16 or the milestone table | **weighs it into the promotion order.** No plan change, no new specification. The cheapest and the expected case |
+| **"None of the planned ones fits, and here is the mechanism that would"** | the need has no home in the plan | **attacked as a specification proposal**, and if it survives it enters the plan. Rarer, and deliberately harder |
+
+**A seat that reaches for the second shape without having checked the first is
+answered with the grep.** Proposing what already exists is this project's named
+failure mode and the admission bar already says so.
+
+**AND THE LOOP RUNS DOWN THE LINEAGE TOO, not only up to the lead.**
+
+**Boris, 2026-09-11, immediately after the instruction above, and RECORDED
+NOWHERE UNTIL THE TRANSCRIPT SWEEP OF 2026-09-12:** *"You as well can and should
+be making suggestions to your successors."*
+
+**Said to a LEAD**, which is what makes it more than a restatement: the
+obligation does not stop at the seat that collects proposals, and it does not
+only travel sideways. **A seat hands its successor what it learned about rig's
+own gaps**, in the handoff, the same way it hands over live state.
+
+**Why it needs saying at all:** a seat's sharpest observations about a missing
+mechanism arrive in its last hour, which is exactly when it is handing over and
+has the least room to argue a proposal through the lead. **Those observations
+die with the session unless the handoff carries them.** The route to the lead is
+unchanged; this is the second copy, and a duplicate here is cheap where a loss is
+not.
+
+**THE PROMOTION ORDER IS THE LIVE ARTEFACT, and it has an address:**
+`logbook/projects/rig/READINESS.txt` carries what is being waited for, what each
+costs, and how much is left - see the next subsection. **A report that changes
+the order changes that file in the same commit**, or the ordering input did not
+land.
+
 **THE BRIEFING HALF IS NOT HERE AND MUST NOT BE DUPLICATED.**
 `~/.claude/skills/team-up/references/ROLES.md` carries it, with this same
 verbatim and the three triggers, so every seat is armed at spawn. **Cited rather
@@ -4768,17 +5125,132 @@ against the basis-marker entry.
   wish, and a named adopter, both unchanged.
 - **It does not let a seat file straight to the backlog.** To the lead, always.
 
+### `READINESS.txt`, the one artefact that answers "how much longer"
+
+**Boris, 2026-09-12, verbatim:**
+
+> *"I want a dedicated simple txt file that the team-lead must always maintain -
+> it must clearly depict concisely what are the features we are waiting until we
+> start developing using rig and for each a rough estimate of the effort it takes
+> to finish it and a summary of how much longer to the launch of my mentioned
+> vision."*
+
+**`logbook/projects/rig/READINESS.txt`. Plain text, deliberately.** It is the one
+file he opens to answer *"how much longer"*, and it is the file a lead must not
+let rot.
+
+| | |
+|---|---|
+| **Owner** | **the team-lead seat, always.** Not a worker, not a successor's good intention |
+| **Format** | plain text, no markup, short enough to read in one screen. **Not a fifth markdown document** |
+| **Contains** | every capability still being waited on, its rough effort, its state, and one summary line of what is left |
+| **Updated** | **whenever a capability changes state, in the same commit as the change.** A report that reorders the promotion queue updates it too |
+| **Does NOT contain** | specification (that is here), ordering rationale (`BACKLOG.md`) or decisions (`DECISIONS.md`). **It carries numbers and state, nothing else** |
+
+**Effort is in SEAT-DAYS, never in calendar dates.** This project carries no
+dates and this file introduces none: a seat-day is one seat working one day, and
+the summary line converts it at the observed rate with the rate stated. **A
+calendar date would be the only unfalsifiable number in the file.**
+
+**Every estimate carries its basis**, because an estimate with no basis cannot be
+corrected when it is wrong - only replaced by another guess.
+
 ### The notification obligation, written as a mechanism because a promise cannot survive a session
 
 **Boris asked to be notified specifically when that time comes.** No session
 alive today will be alive then, so the obligation is placed on whichever seat
 crosses the line rather than on a memory:
 
-> **The seat that lands the LAST precondition in the table above MUST notify
+> **The seat that moves the FIRST capability onto production rig MUST notify
 > Boris before anything is repointed, and MUST NOT proceed on its own
 > judgement.** The best-judgement delegation does not reach this gate. The
 > answer goes in `DECISIONS.md` in writing, per §24.
 
+**AMENDED 2026-09-12 and the trigger changed.** It used to read *"the seat that
+lands the LAST precondition"*. With the gate split, landing the last isolation
+precondition is no longer the moment anything is repointed - **the first
+capability cutover is.** The superseded trigger would have fired the notice while
+production still carried nothing.
+
+**EVERY SUBSEQUENT MOVE IS RECORDED, NOT GATED.** Only the first needs his
+answer. Each later capability move goes to `DECISIONS.md` with its four-clause
+evidence and is announced to live seats, and no seat waits for him. **A gate on
+every move is a gate nobody takes**, and the staged migration would stall on the
+second one.
+
 **This is the same shape as the M3 and M8 gates and for the same reason:** what
 stops a gate being passed rather than taken is the block on the next thing, not
 a calendar. **This project carries no dates and this gate introduces none.**
+
+---
+
+## 38. Two standing rules, and neither is a preference
+
+**Both are Boris's, stated 2026-09-12, and they bind every milestone rather than
+any one of them.** They are here rather than folded into §22 or §29 because a
+rule that applies to all future work needs an address a seat can be pointed at.
+
+### 38a. rig is the world-best swiss knife of the capabilities it carries
+
+**Boris, verbatim:** *"rig must always and forever remain world-best swiss-knife
+of the capabilities we worked so hard to define."*
+
+**READ IT AS A SCOPE RULE, WHICH IS THE HALF THAT IS EASY TO MISS.** A swiss
+knife is defined as much by what it refuses to carry as by what it carries.
+**"The capabilities we worked so hard to define" is a closed set** - §16's
+primitives, §5's surfaces, the mechanism pass's additions - and §29's non-goals
+are what keep it closed.
+
+| The rule says | The rule does NOT say |
+|---|---|
+| **every capability in the set is the best version of that capability that exists** | that rig should acquire more capabilities |
+| a mechanism rig carries is not "done" at merely working - §37's four clauses are the floor | that breadth is the goal |
+| **a capability found weaker than its best-in-class equivalent is a defect**, filed like any other | that rig competes with anything on feature count |
+
+**The operational form, so it is testable rather than inspiring:** **when a
+capability is proposed for promotion, the seat names the best existing
+implementation of that capability and says how rig's compares.** If the honest
+answer is "worse", it does not get promoted. That is the same shape as the
+AgentBox acceptance floor, widened from one comparator to the best one available.
+
+### 38b. Never reinvent what a good Go library already does
+
+**Boris, verbatim:**
+
+> *"I don't want us to implement ANYTHING that can be achieved by using already
+> best go libraries; we must never reinvent the wheel; we must have our feature
+> best of the best but while making optimal reuse of existing code! So effort
+> must be spent on this as well."*
+
+**"SO EFFORT MUST BE SPENT ON THIS AS WELL" IS THE OPERATIVE CLAUSE.** The search
+is work that is budgeted, not a courtesy check before writing the code anyway.
+
+**The obligation, on whoever is about to write a mechanism:**
+
+| Step | What it means |
+|---|---|
+| **1. Search before building** | name what exists. `context7` and the module proxy are in this session's tools; **"I did not find one" is only an answer after a search that is described** |
+| **2. Report the candidates in the assignment or the commit** | at least the ones considered and why each was kept or dropped. **A build with no candidates listed did not do step 1** |
+| **3. Reuse unless a stated reason blocks it** | and the reasons that count are listed below. Taste is not one |
+| **4. If nothing fits, say what the nearest thing was and what it could not do** | so the next seat does not redo the search |
+
+**The reasons that DO justify writing it here**, and they are the only ones:
+
+- **§17's footprint.** A dependency that moves the ratchet materially is measured, not assumed - `make bench-size` answers it, and the answer goes in the commit.
+- **§22's dependency bar**, which the stack already applies: maintenance, licence, transitive weight, whether it is still alive.
+- **§13/§14's trust model.** A library that wants to own a process boundary, a socket, or an authorisation decision is doing rig's own job.
+- **§29's non-goals.** A library that brings domain logic with it brings the thing rig refuses to have.
+
+**WHERE THIS ALREADY APPLIES AND NOBODY HAS RUN IT.** The minimum beneficial set
+in §37 is mostly coordination primitives - leases with witnesses, CAS on a
+versioned key, a write-ahead log, cursored subscriptions. **Each of those has
+mature Go implementations and none of them has been searched for.** That search
+is the first application of this rule and it is a backlog item rather than a
+sentence here.
+
+**AND THE RULE HAS A LIMIT THAT MUST BE SAID, or it will be quoted against the
+project's own reason for existing.** rig's product is the *composition* - one
+declaration reaching a CLI, an MCP tool, a window, a tray and a schedule (§5).
+**Reuse the parts; the composition is the thing being built and there is nothing
+to reuse for it.** The rule is about not writing a WAL by hand, not about not
+writing rig.
