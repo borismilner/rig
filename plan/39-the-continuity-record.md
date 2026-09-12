@@ -297,6 +297,40 @@ in a second repo, reached by symlinks - is expressible as one configuration**,
 which means the migration can be run and un-run without a rewrite, and a project
 that wants its notes out of the product repo still gets that.
 
+#### rig commits and pushes the projection itself
+
+**Boris, 2026-09-12:** *"things can be managed in git too, we can architect so
+that certain things can be exported into git managed repository and committed
+and pushed"*. **A materialised file that nobody commits is not offsite**, so the
+projection is not finished at `write()`.
+
+**TWO PROJECTION TARGETS, AND THEY HAVE OPPOSITE COMMIT RULES. The split is who
+owns the repository:**
+
+| Target | Who commits | Why |
+|---|---|---|
+| **the RECORD repository** - the project's notes, decisions, backlog, progress, briefs | **rig, every time**, with a message derived from what changed, and pushed on a policy | **nobody hand-edits it**, so there is no human commit to interleave with and no conflict to resolve. This is today's logbook with its writer replaced |
+| **the PROJECT repository** - documentation a reader of the project needs | **the human, with their code** | exactly how `PLAN.md` works today: rig writes the file, the commit belongs to whoever changed the thing it describes. **A daemon committing into a source repository beside a half-finished feature is a defect, not a service** |
+
+**THIS IS WHAT KILLS "COMMIT BOTH REPOSITORIES", tension 12.** The rule exists
+because a session has to remember the second commit and a session that forgets
+loses the notes half. **rig does not forget, and the notes half stops being a
+session's job at all.**
+
+| The policy, and each line is a knob rather than a decision taken here | |
+|---|---|
+| **commit granularity** | per change, or coalesced on a timer. Coalescing is the default: one commit per record version turns a busy hour into three hundred commits |
+| **push trigger** | on commit, on a timer, or on demand. **A push is outward-facing and can fail**, so it is retried and its failure is surfaced - never silently swallowed, which is how a laptop ends up holding the only copy |
+| **credentials** | pushing needs one, and §13's capability model already governs what `rigd` may reach. **A record repository rig cannot push to degrades to local-only and SAYS so** in `project.brief`, rather than looking healthy |
+
+**AND THE DEGRADED PATH IS NOW SYMMETRIC, which is the part worth noticing.**
+With rig up, the record is the source and git is the durable projection. **With
+rig down, the projection is a complete, committed, pushed git repository that a
+human or an agent reads exactly as they read the logbook today** - the same
+files, in the same shapes, with the same history commands. **That is §29's
+"reduced service" satisfied by something that already exists rather than by a
+fallback nobody exercises.**
+
 ### The model: records, kinds, links
 
 **Three nouns and no more.** The whole of the indexing, linking and correlating
