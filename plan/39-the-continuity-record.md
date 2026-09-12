@@ -297,6 +297,34 @@ in a second repo, reached by symlinks - is expressible as one configuration**,
 which means the migration can be run and un-run without a rewrite, and a project
 that wants its notes out of the product repo still gets that.
 
+#### What the projected files actually look like, because that IS the degraded path
+
+**A projection nobody specified is a degraded path nobody can judge.** Two
+layers, and they exist for different readers:
+
+| Layer | Shape | Who it is for |
+|---|---|---|
+| **the lossless layer** | **one file per record**, `records/<kind>/<id>.md`, with the fields, the links and the provenance in front matter and the body below | **rig, and git.** One record changing touches one file, so a diff is readable and a merge is never needed. **This layer is what the store rebuilds from**, so it must lose nothing |
+| **the roll-up layer** | **generated documents per kind** - the backlog as one file, the decisions as one file, the specification as its sections | **a human, and an agent with no rig.** They are the documents that exist today, in the shapes they exist in today |
+
+**THE ROLL-UPS ARE WHY THE DEGRADED PATH IS NOT A DOWNGRADE.** With rig down,
+what a session opens is `BACKLOG.md`, `DECISIONS.md` and the specification -
+**the same files, in the same shapes, with the same git history behind them.**
+Nothing new has to be learned at the worst possible moment, which is the moment
+rig is unavailable.
+
+**AND THIS IS THE PATTERN THE PROJECT ALREADY RUNS**, for the third time in this
+section: `PLAN.md` is generated from `plan/`, hand-editing it is forbidden, and
+`--check` exits 1 when it is stale. **The roll-ups are that, generalised - and
+`tools/plansplit.py` becomes redundant rather than being ported**, which is one
+of the things §39 promised must disappear.
+
+**LOSSLESS IS A REQUIREMENT, NOT AN AMBITION.** The store rebuilds from the
+per-record layer, so a field the projection cannot represent is a field that
+does not survive a corrupt store. **The demonstration is the same round trip
+`plansplit.py` already proves: export, rebuild, and compare - and nothing is
+written until it matches.**
+
 #### rig commits and pushes the projection itself
 
 **Boris, 2026-09-12:** *"things can be managed in git too, we can architect so
