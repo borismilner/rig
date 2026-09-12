@@ -443,6 +443,30 @@ before this capability is promoted, each row above is demonstrated against the
 document approach doing the same task.** If the demonstration is *"it is nicer"*
 rather than *"the document cannot do this at all"*, the bar is not met.
 
+**AND THE PROJECT'S PER-SESSION INSTRUCTION FILE SHRINKS TO A POINTER. This is
+the capability's cheapest falsification test.** Boris, verbatim, 2026-09-12:
+
+> *"In such a setup, the CLAUDE.md would just make claude aware of this feature
+> and all the rest should follow from it."*
+
+**Today that file is routing prose**: where a requirement goes, where a decision
+goes, which file is generated, what must be read before a first write, which
+names the locks use. **If it is still that after the record ships, the record
+did not replace it. It joined it.**
+
+| The test | |
+|---|---|
+| **What the file may keep** | one line making the agent aware rig holds the project's record, plus anything genuinely project-specific that is not routing |
+| **What it must lose** | the routing table, the read-before-write instruction, the never-hand-edit warnings, the lock names. **Each of those becomes a mechanism or it was not replaced** |
+| **Why it is the right test** | it is measured in lines, before and after, and **it cannot be satisfied by an agent trying harder** - which is the failure mode of every instruction ever added to that file |
+
+***"AND ALL THE REST SHOULD FOLLOW FROM IT"* IS A DESIGN CONSTRAINT, not a
+hope.** An agent told only that rig holds the record must be able to find out
+from rig what it may write, what it must read first, and what is already
+claimed. **Discoverability is part of the capability**, not documentation
+wrapped around it, and a design that needs a second document to explain itself
+has failed this line rather than deferred it.
+
 **WHAT IS NOT SPECIFIED YET, AND IT IS MOST OF IT.** The record's shape, its
 verbs, how a project extends the schema, what the window renders, and how it
 relates to the continuation slot above - which is the ninety-second version of
