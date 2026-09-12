@@ -550,6 +550,28 @@ dependency is a fact about the build order and is true under both answers.
 
 **This one is his, and it is the last thing in this section that is.**
 
+### Failure semantics, because §37's four-clause pass demands them demonstrated
+
+**Every one of these is a demonstration owed before promotion, not a paragraph.**
+§16.6's rule governs the whole set: **a half-written record is worse than no
+record, because it reads as a record.**
+
+| What fails | What happens, and what the caller is told |
+|---|---|
+| **two sessions write the same record** | **compare-and-swap on the version**, exactly as the blackboard does. A `put` naming a stale version fails and **returns the current one** so the caller can merge rather than guess. **One concurrency model in the daemon, not two** - a second model is how §16's lease and claim policies ended up opposite |
+| **`rigd` dies mid-write** | the store's transaction is the guarantee: the record is committed whole or not at all. **Tension 13 is partly this** - whichever store is chosen must give atomic commit, and both candidates do |
+| **the projection write fails** | **the record is already committed; the store is authoritative.** The projection retries, and `project.brief` reports it as BEHIND with how far. **A stale projection is visible, never silent** |
+| **the push fails** | same shape. The repository is local-only, and that is a reported state rather than a healthy-looking one. **This is how a laptop ends up holding the only copy**, and it is the failure the whole offsite answer exists to prevent |
+| **the store is corrupt or lost** | **rebuild it from the projection.** The export is a complete git repository with history, so recovery is the degraded path run backwards. **The backup costs nothing extra because it is the same mechanism** |
+| **the clock moved** | provenance timestamps are the daemon's, never the client's. §16's resume grace epoch already handles a suspended laptop and the record inherits it rather than inventing a second answer |
+| **a projection and the store disagree** | **the store wins and the projection is regenerated.** Nothing hand-edits the record repository, so a disagreement is a bug in rig rather than a merge to resolve - and it is detectable, since the projection is deterministic from the records |
+
+**THE ONE THAT IS NOT A MECHANISM AND MUST BE SAID: a record nobody wrote is
+still nothing.** The gate refuses a write without a read; it cannot force a
+session to record what it learned. **`project.brief` reporting a work item whose
+progress stream has been silent for an hour is the closest rig gets**, and that
+is a signal to Boris rather than a guarantee.
+
 ### The build order, in eight slices, each one demonstrable on its own
 
 **Ordered so that the entries which could lose to the logbook are answered
