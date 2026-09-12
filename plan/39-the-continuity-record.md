@@ -408,6 +408,34 @@ best-understood migration story of the three** - which the release-durability
 requirement below makes weigh more than it did an hour ago. **So B28's job is to
 confirm or beat SQLite, not to start from nothing.**
 
+#### "State of the art" is the bar for this choice, and it has axes rather than one answer
+
+**Boris, 2026-09-12:** *"Either SQLite or other/additional great technologies
+allowing to be state of the art."* **"Additional" is the operative word: a
+combination is permitted, so the search prices combinations and not only single
+picks.** This is 38a applied to a dependency - **name the best existing thing
+and say how what we would build compares** - and it is why the brief below is
+per axis.
+
+| Axis | What it has to do | Candidates to MEASURE, not findings |
+|---|---|---|
+| **the store** | atomic commit, a schema version, forward migration, and survive a release | pure-Go SQLite; `bbolt`; `badger`. **SQLite's migration story is the best understood of the three**, which the release-durability requirement above makes weigh more |
+| **query by field** | find a requirement without reading 5,218 lines | SQL directly; or hand-built secondary indexes over a KV store, **which is the half §38b objects to** |
+| **links and traversal** | the reverse edge, and multi-hop *"what does this touch"* | SQL with recursive CTEs at this scale; a graph engine is almost certainly oversized and the search should say so with a number rather than an opinion |
+| **full text** | ranked, stemmed search over the prose, not grep | SQLite FTS5; `bleve` |
+| **semantic search** | *"what did he say about the tray icon"* answered without the word "tray" | **A SEPARATE DECISION, NOT A LIBRARY.** It brings an embedding model, a runtime and a model-versioning problem. Named here so it is chosen deliberately or refused deliberately |
+
+**WHAT THE SEARCH MUST PRICE, because a combination is not free:** each added
+dependency costs footprint, a §22 bar to clear, and a §13 trust surface. **Two
+libraries that each win their axis can still lose to one that wins three of
+them**, and that comparison is the actual output of B28 rather than a ranked
+list per axis.
+
+**AND THE ONE THING THE SEARCH MAY NOT CONCLUDE: "we will write our own."** §38b
+allows that only for footprint, the dependency bar, the trust model or a
+non-goal - **and taste is not one of them.** If every candidate is refused, the
+refusal names which of the four reasons applied, per axis.
+
 **NO SEARCH HAS BEEN RUN AND THIS SECTION DOES NOT PRETEND OTHERWISE.** §38b's
 rule is that *"I did not find one" is only an answer after a search that is
 described*, and the same honesty applies to a recommendation: **these are the
@@ -730,7 +758,7 @@ does.
 | 9 | **what the window renders** | **CLOSED - `project.brief`, the same call an arriving agent makes.** One derivation, two consumers, which is the two-consumer requirement met by construction |
 | 10 | **how a standards check is scheduled** | **CLOSED - a standard carries `recheck_after`; due checks surface in `project.brief` and the window. rig surfaces, never runs, never judges** |
 | 11 | **binary and bulky artefacts** | **CLOSED - `kind: artefact` holds metadata and provenance; the bytes are files in the projection, where git already versions them.** rig does not become a blob store |
-| 13 | **which store backs the record** | **OPEN, NEW 2026-09-12.** B25's search covered the coordination primitives and chose bbolt; the record store additionally wants query-by-field, full-text and graph traversal. **His lean is pure-Go SQLite** and B28's job is to confirm or beat it. Other candidates: bbolt with hand-built indexes, bbolt with `bleve`. **No search has been run** |
+| 13 | **which store backs the record** | **OPEN, NEW 2026-09-12.** B25's search covered the coordination primitives and chose bbolt; the record store additionally wants query-by-field, full-text and graph traversal. **His lean is pure-Go SQLite, widened the same hour to *"other/additional great technologies allowing to be state of the art"*** - so the search is per AXIS (store, query, links, full text, semantic) and prices combinations. Other candidates: bbolt with hand-built indexes, bbolt with `bleve`. **No search has been run** |
 | 12 | **what replaces "commit both repos"** | **CLOSED - nothing does, because the second commit stops being a session's job.** rig owns the record repository and commits it |
 
 **THIS TABLE IS ITSELF THE MAINTENANCE PROPERTY THE RECORD IS SUPPOSED TO HAVE,
