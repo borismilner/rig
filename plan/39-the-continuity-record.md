@@ -724,6 +724,145 @@ build cannot finish by declaring itself superior.
 project's per-session instruction file is measured before the cutover and after.
 **If it has not shrunk to a pointer, none of the above mattered.**
 
+## WHAT THE ATTACK CHANGED, 2026-09-12
+
+**Boris typed `/attack` on this section the hour it was written.** Run
+single-seat rather than fanned out, because the weekly budget was at 93% against
+his own 95% cap and a fan-out is what that cap names. **Nine findings survived;
+six of them change the design rather than its wording, and two contradict claims
+this section made about itself.**
+
+**READ THIS BEFORE BUILDING ANY SLICE.** The fixes are applied in the text above
+where they belong; this part records what was wrong so the argument is not had
+again.
+
+#### FINDING 1, and it is the worst one: read-only when rig is down means capture STOPS
+
+**The spine above says rig is the only writer.** So during an outage a session
+**cannot record anything at all** - not a decision, not a progress step, not a
+requirement Boris states while it is down. **The logbook can always be written
+to, because it is a file.**
+
+**THAT IS STRICTLY WORSE THAN THE DOCUMENTS, and §29 asks for *reduced* service,
+not none.** It also fails on the exact axis this capability exists for: **the
+requirement stated during an outage is the requirement that gets lost**, which
+is the failure being fixed.
+
+**THE FIX: a pending path that never needs the daemon.**
+
+| | |
+|---|---|
+| **`rig record put` with no daemon writes to `records/_pending/`** in the projection repository | a file, in a git repository, exactly as today. **The one thing that must keep working uses the one mechanism that cannot be down** |
+| **rigd ingests pending entries on start**, assigns versions, and resolves order by timestamp | an ingest that conflicts with a record written meanwhile **fails that entry and leaves it in `_pending/` with the reason**. It is never silently dropped and never silently overwritten |
+| **a pending entry is VISIBLE as pending**, in `project.brief` and in the window | so a run of them is a signal that rig has been down, rather than the appearance of a quiet project |
+| **the store stays authoritative** | a pending entry is not a record until it is ingested, which keeps one writer and one version line. **The fallback adds a queue, not a second source of truth** |
+
+#### FINDING 2: `sensitive` payloads and a lossless projection cannot both hold
+
+**A continuation slot is `kind: continuation` with a `sensitive` payload, and the
+projection is claimed lossless so the store can be rebuilt from it.** If
+sensitive payloads are projected they land in git and are **pushed to a
+remote**, which destroys the guarantee §16 gives them. If they are not, the
+projection is not lossless and the rebuild is not complete.
+
+**THE FIX, and it is the honest half rather than the clever one:** **sensitive
+payloads are NEVER projected and are NOT recoverable.** A rebuild restores every
+record, link, version and provenance field **except the bodies of sensitive,
+expiring kinds** - which is correct, because a continuation slot's whole lifetime
+is minutes and a slot that outlives a daemon restart had already failed its own
+purpose. **"Lossless" is now stated with its exception rather than as an
+absolute.**
+
+#### FINDING 3: eleven tensions were marked CLOSED against the register's own rule
+
+**The register says an entry closes with *"a written answer, demonstrated
+against the document approach doing the same task"*.** Nothing is built, so
+nothing has been demonstrated. **Eleven entries were marked CLOSED by the seat
+that wrote the answers, in the session that wrote them, with no adversarial
+review** - which is the shape of every self-graded gate this project has already
+had to take back.
+
+**THE FIX: a state between open and closed.** An entry is **ANSWERED** when the
+design settles it and **CLOSED** only when its demonstration has run. **The
+eleven are ANSWERED.** Slice 8 cannot start while any entry is merely answered.
+
+#### FINDING 4: a stamp with no evidence makes drift decorative, and this project has the precedent
+
+**`standard.stamp` records that a project was checked, by whom and when. Nothing
+requires that a check happened.** Within weeks every project is stamped and the
+drift number measures nothing.
+
+**THE PRECEDENT IS IN THIS PROJECT'S OWN BACKLOG, B26:** the size ratchet fired
+on every build and the only available response was to override it, so **a
+control whose every firing is answered by overriding it is measuring nothing.**
+The gate was dropped for exactly that.
+
+**THE FIX, and it is the same shape §16 already uses for claims:** **a stamp
+carries a witness or it is not a stamp** - a link to the artefact, the command
+output, or the record that shows the check ran. A stamp without one is recorded
+as **asserted** and renders differently from **evidenced** in drift. **rig still
+does not judge the work; it distinguishes a check from a claim about a check.**
+
+#### FINDING 5: the migration test would PASS while delivering nothing
+
+**The ~370 citations are of the form *"PLAN.md section 37"* - a pointer to a
+SECTION, and §37 is 738 lines.** Turning that into a link produces a link to 738
+lines. **That is the same coarse pointer wearing a new format**, and the test as
+written would report success.
+
+**THE FIX: the import's unit is the REQUIREMENT, not the section.** A section
+becomes many records. **A citation that can only be resolved to a section is a
+FAILED import row, counted and reported**, not a passed one - and the migration's
+success number is the share of citations that resolve to a single record.
+
+#### FINDING 6: auto-push publishes whatever was recorded, including a secret
+
+**rig committing and pushing means anything written to a record reaches a remote
+without a human seeing it.** Today a person commits and can look. **§15 already
+carries the invariant for history** - what `secrets.get` returned is never
+recorded, only the key name - and **the record has no such rule written.**
+
+**THE FIX: the record inherits §15's redaction invariant, stated here rather
+than assumed**, and a field declared `sensitive` never projects (finding 2 makes
+that mechanism exist anyway). **The push makes this urgent rather than tidy: an
+unredacted record is not a local mistake, it is a published one.**
+
+#### FINDING 7: the gate guarantees delivery, not attention, and the text overclaims
+
+**`project.brief` returning the must-read set is not the same as the set having
+been read.** The design claims *"a document can only ask; rig mediates the write,
+so the precondition is a mechanism"*. **The honest claim is narrower: rig
+guarantees the material was delivered to this session and that the session
+acknowledged it. Comprehension is not enforceable and must not be implied.**
+
+**AND THE GATE'S OWN FAILURE MODE IS SILENCE**, which is what the record exists
+to prevent: a refused write can simply become no write. **So the gate never
+blocks `progress.step`** - progress is always accepted - and it blocks only
+substantive records. **Losing a progress step to a gate would be the mechanism
+defeating its own purpose.**
+
+#### FINDING 8: nothing delivers standalone value until slice 5
+
+**Slices 1-4 build a store, links, a projection and a gate. Boris sees nothing
+until slice 5.** A capability that needs five slices before anyone benefits is
+the shape that gets half-built and abandoned - **which is what §37's minimum-set
+narrowing exists to prevent, and this design walked back into it.**
+
+**THE FIX: reorder so value lands at slice 2.** **1 - the store and the three
+nouns. 2 - progress streams and `project.brief`**, which gives him live
+oversight of a running session with no links, no gate, no standards and no
+migration. Links, the projection, the gate and the rest follow. **The first
+thing built is the thing he asked for first.**
+
+#### FINDING 9: one derivation is right, one rendering is not
+
+**The human and the agent want different answers from the same data.** He wants
+*is this going well and what must I decide*; an arriving agent wants *what must I
+read, what is claimed, what is decided*. **`project.brief` stays one derivation
+- that part is correct and is what makes the human view free - but it carries
+both views and the caller says which.** Claiming one rendering serves both
+produces something mediocre for each.
+
 ## THE OPEN TENSIONS, AND NONE OF THEM MAY BE CLOSED AS AN ACCEPTED COST
 
 **Boris, 2026-09-12, and it is a rule about the design rather than a wish about
