@@ -1,11 +1,18 @@
 ## 29. Non-goals
 
 - rig does not run business logic. Ever. A program id appearing in rig's code is a bug.
+  **NARROWED 2026-09-12 BY THE RULING IN §16**, and the narrowing is written here so it is
+  not bent silently later. The continuity record is sessions, records, claims and steps; it
+  names no program, so it passes this non-goal's OWN test. What stays forbidden is rig having
+  an opinion about whether a plan is any *good*.
 - rig is not required. Every program works without it, at reduced service.
 - rig does not host third-party or untrusted programs. The trust model is real; the threat model
   is a mistake in our own code, not an adversary.
 - rig does not replace any program's own CLI. `shelf` still works as `shelf`.
-- rig does not own data. Programs own their data; rig owns the plumbing around it.
+- rig does not own a PROGRAM's data. Programs own their data; rig owns the plumbing around it.
+  **Agent-coordination state is rig's own and always was** - seats, leases, messages, slots and
+  now the continuity record (§16). The word "program" in this line is load-bearing and used to
+  be read as "anything".
 - **rig does not hot-upgrade itself.** Measured at 1.9 ms of marginal benefit per upgrade
   against four defect classes (§18). Notice, restart, resume.
 - **rig does not host anything we did not write.** A hosted program (§5j) is compiled into

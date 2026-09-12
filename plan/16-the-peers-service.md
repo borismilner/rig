@@ -357,6 +357,63 @@ note it expects to consume in ninety seconds. That is the whole benefit and it i
 claim one. Not `rig loose-ends`, which is taken and means declarations that stopped pointing at
 anything (§8).
 
+### The continuity record, and it has two consumers
+
+**RULED BY BORIS, 2026-09-12**, after he raised the problem unprompted on two
+consecutive days. Put to him as four options; he took rig carrying the
+mechanism and then widened it in the same breath:
+
+> *"I think rig should contain as much as possible since this is a single
+> source of truth we can perfect, instead of perfecting general instructions
+> across many different CLAUDE.md"*
+
+**WHAT THE RECORD IS FOR.** A session arriving cold has to learn what the
+project is, what was already decided, what is in flight, and what it is allowed
+to write. Today that lives in prose: a `CLAUDE.md` per project telling a session
+how to handle a `PLAN.md`, a `HANDOFF.md` and a `STATUS`. **The prose is the
+defect he named** - *"we rely on information detailed in `CLAUDE.md` to know how
+to handle `PLAN.md`"*. It is N copies, none of them enforced, and a session that
+misread one is indistinguishable from a session that read it.
+
+**TWO CONSUMERS, CO-EQUAL. This is a constraint on the schema, not a choice
+about rendering.**
+
+| Consumer | What it needs from the same record |
+|---|---|
+| **the agent** | resume with no re-learning: what is decided, what is claimed, what must be read before it may write |
+| **the human** | oversee at any step, in the window, **without a seat composing a report for him** |
+
+**Boris, verbatim on the second consumer:** *"...I won't really need the agents
+to prepare me beautiful progress reports ad-hoc because as they work they will
+report progress as they go and the human-report can be derived automatically or
+with very small agent effort; so there are two consumers of this information,
+both the human and the AI agents."*
+
+**THE REQUIREMENTS THAT FOLLOW, and each one is falsifiable:**
+
+| | |
+|---|---|
+| **Progress is written DURING the work** | a call at a step boundary, not a report composed at the end. The composed report is the cost he named, and every seat on this project has paid it |
+| **The human view is DERIVED, not authored** | the record carries enough structure to render without prose written over it. *"Very small agent effort"* is the ceiling; "an agent writes the summary" is not it |
+| **EVERY session writes it, not the ones that opted in** | rig sees every session; a program sees only its adopters. **A board with holes is worst exactly where a session is in trouble** - the failure this estate already has when a seat forgets to announce |
+| **rig ships the schema; a project extends it** | his ruling. A schema supplied per project is still N copies of something to get right, which is the thing he is trying to stop |
+| **It is NOT §15** | §15 is the wire history: which calls a client made, coalesced and redacted. It answers *"what did this client do to rigd"* and never *"how far along is this work, and is it going well"* |
+
+**WHY THIS IS NOT A BREACH OF §29 NON-GOAL 1, and the test used is the
+non-goal's own.** It reads *"rig does not run business logic. Ever. A program id
+appearing in rig's code is a bug."* **A continuity record names no program.** It
+is sessions, records, claims and steps - the same family as the seats, leases,
+messages and slots above. **§16 already holds agent-owned data in rig-defined
+shapes**, so the record extends a precedent rather than crossing a line. What
+§29 still forbids, and this does not ask for, is rig having an opinion about
+whether a plan is any *good*.
+
+**WHAT IS NOT SPECIFIED YET, AND IT IS MOST OF IT.** The record's shape, its
+verbs, how a project extends the schema, what the window renders, and how it
+relates to the continuation slot above - which is the ninety-second version of
+the same idea and must not become a second mechanism by accident. **This
+subsection is the requirement and the ruling. The design is owed.**
+
 ### Safety defaults, because agents get killed mid-operation
 
 - Every lease has a TTL, and an absolute one on `CLOCK_BOOTTIME`. There is no infinite hold.

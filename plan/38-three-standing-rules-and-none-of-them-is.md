@@ -1,7 +1,7 @@
-## 38. Two standing rules, and neither is a preference
+## 38. Three standing rules, and none of them is a preference
 
-**Both are Boris's, stated 2026-09-12, and they bind every milestone rather than
-any one of them.** They are here rather than folded into §22 or §29 because a
+**All three are Boris's, stated 2026-09-12, and they bind every milestone rather
+than any one of them.** They are here rather than folded into §22 or §29 because a
 rule that applies to all future work needs an address a seat can be pointed at.
 
 ### 38a. rig is the world-best swiss knife of the capabilities it carries
@@ -68,3 +68,36 @@ declaration reaching a CLI, an MCP tool, a window, a tray and a schedule (§5).
 **Reuse the parts; the composition is the thing being built and there is nothing
 to reuse for it.** The rule is about not writing a WAL by hand, not about not
 writing rig.
+
+### 38c. rig is the single source of truth, so prefer rig carrying it
+
+**Boris, verbatim, 2026-09-12**, stated while ruling on the continuity record
+(§16):
+
+> *"I think rig should contain as much as possible since this is a single source
+> of truth we can perfect, instead of perfecting general instructions across
+> many different CLAUDE.md"*
+
+**THE ARGUMENT IS ABOUT WHERE A THING LIVES, not about how much rig does.**
+Something that has to exist somewhere can live in one place that is built,
+tested and improved, or in N copies of prose that every session has to read and
+then comply with correctly. **One of those can be perfected. N cannot.** The
+compliance half is the part that is easy to miss: an instruction is obeyed at
+the reader's discretion, and a mechanism is not.
+
+**AND IT PULLS AGAINST 38a, WHICH SAYS A SWISS KNIFE REFUSES THINGS. Both are
+his and neither is withdrawn**, so the reconciliation is written here rather
+than left for a seat to find the hard way:
+
+| 38a asks | 38c asks |
+|---|---|
+| **should rig acquire this capability at all?** | **given it must exist somewhere, where does it live?** |
+| defaults to NO. Breadth is never the goal | defaults to RIG, when the alternative is prose repeated per project |
+
+**So they apply in order: 38a first, then 38c.** A capability that fails 38a is
+not rescued by 38c. A capability that passes 38a, and whose only alternative is
+an instruction every agent must read and obey, belongs in rig.
+
+**The first application is the continuity record in §16**, which is what he was
+ruling on when he stated it.
+
