@@ -1,10 +1,13 @@
 package daemon
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/boris-milner/rig/client"
+	"github.com/boris-milner/rig/internal/instance"
 	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )
 
@@ -238,4 +241,52 @@ func TestADroppedConnectionLeavesTheRoster(t *testing.T) {
 	}
 	t.Fatal("a dropped peer is still on the roster; presence is supposed to " +
 		"expire with the connection and nothing else")
+}
+
+// A STALE CLAIM IS NOT A PEER, and this test exists because the first version
+// of otherEstates counted files. It reported partial=true against two estates
+// whose daemons had died the previous evening, which is a specific false claim
+// rather than a cautious one: `instance.Close` never unlinks a pidfile, so
+// every estate that has ever run leaves one behind for good.
+//
+// FOUND BY DEMONSTRATING, NOT BY TESTING. The unit tests all run against a
+// temporary state directory that no daemon has ever claimed, so nothing here
+// could have caught it. That is the gap this case closes.
+func TestAStaleEstateClaimIsNotCountedAsAPeer(t *testing.T) {
+	state := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", state)
+	claims := filepath.Join(state, "rig", "estates")
+	if err := os.MkdirAll(claims, 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	// A claim whose daemon is gone: the file is left behind by design.
+	stale := filepath.Join(claims, "production.pid")
+	if err := os.WriteFile(stale, []byte("999999\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := otherEstates(""); len(got) != 0 {
+		t.Fatalf("otherEstates = %v against a stale claim; a file that "+
+			"outlives its daemon is the designed behaviour and must not read "+
+			"as a live peer", got)
+	}
+
+	// The same file, now genuinely held. instance.Acquire is the authority
+	// section 37 precondition 6 already uses, so the test drives that rather
+	// than a second mechanism.
+	lock, err := instance.Acquire(stale)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = lock.Close() }()
+
+	got := otherEstates("")
+	if len(got) != 1 || got[0] != "production" {
+		t.Fatalf("otherEstates = %v while production is held; want "+
+			"[production]", got)
+	}
+	// And an estate never reports itself.
+	if own := otherEstates("production"); len(own) != 0 {
+		t.Fatalf("otherEstates = %v from production's own daemon", own)
+	}
 }

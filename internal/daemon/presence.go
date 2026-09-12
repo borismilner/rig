@@ -1,11 +1,13 @@
 package daemon
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/boris-milner/rig/internal/paths"
@@ -215,29 +217,71 @@ func (o *occupant) proto() *rigv1.Seat {
 	}
 }
 
-// otherEstates lists named estate claims that are not this daemon's own.
+// otherEstates lists named estate claims held by a LIVE daemon, other than
+// this one's own.
 //
-// It reads the claim directory section 37 precondition 6 already maintains
-// rather than introducing a second registry, because a second place to write
-// the same fact is how the two come to disagree. A missing directory means no
-// named estate has ever run on this machine, which is the common case in every
-// test in this repository and is not an error.
+// THE LIVENESS TEST IS THE FLOCK AND NOT THE FILE'S EXISTENCE, and that is not
+// a refinement - reading the directory is wrong. `instance.Close` says so in
+// as many words: the pidfile is DELIBERATELY never unlinked, because unlinking
+// races a second daemon, and "the file is cheap to leave and its contents are
+// never trusted". So a claim file outliving its daemon is the designed
+// behaviour, and a reader that counts files reports every estate that has ever
+// run on this machine as though it were running now.
+//
+// MEASURED, and it is why this function looks like this: the first version
+// read directory entries, and a live demonstration reported `partial: true`
+// against two claims whose daemons had been dead since the previous evening.
+// The unit tests could not see it because they never touch the real state
+// directory. Section 37 precondition 6 already owns this question, so the
+// answer is taken from its mechanism rather than from a second one.
+//
+// The pid inside is still never read. Trying the lock asks the kernel the
+// question the pid could only guess at.
 func otherEstates(mine string) []string {
 	dir, err := paths.StateDir()
 	if err != nil {
 		return nil
 	}
-	entries, err := os.ReadDir(filepath.Join(dir, "estates"))
+	claims := filepath.Join(dir, "estates")
+	entries, err := os.ReadDir(claims)
 	if err != nil {
+		// No named estate has ever run here. The common case in every test in
+		// this repository, and not an error.
 		return nil
 	}
 	var out []string
 	for _, e := range entries {
 		name := strings.TrimSuffix(e.Name(), ".pid")
-		if name != e.Name() && name != "" && name != mine {
+		if name == e.Name() || name == "" || name == mine {
+			continue
+		}
+		if claimHeld(filepath.Join(claims, e.Name())) {
 			out = append(out, name)
 		}
 	}
 	sort.Strings(out)
 	return out
+}
+
+// claimHeld reports whether a live process holds this claim's lock.
+//
+// A SHARED lock is enough to answer it and is the weakest thing that can:
+// the holder takes LOCK_EX, so LOCK_SH fails with EWOULDBLOCK exactly while
+// somebody is there. Taking LOCK_EX to test would be indistinguishable from
+// trying to STEAL the claim, and on a file this process has no business
+// writing.
+func claimHeld(path string) bool {
+	f, err := os.OpenFile(path, os.O_RDONLY, 0)
+	if err != nil {
+		return false
+	}
+	defer func() { _ = f.Close() }()
+
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_SH|syscall.LOCK_NB); err != nil {
+		// EWOULDBLOCK means held. Any other error means the question could not
+		// be asked, and an unanswerable question is not evidence of a peer.
+		return errors.Is(err, syscall.EWOULDBLOCK) || errors.Is(err, syscall.EAGAIN)
+	}
+	_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	return false
 }
