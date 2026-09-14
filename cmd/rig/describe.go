@@ -10,7 +10,6 @@ import (
 
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	"github.com/boris-milner/rig/client"
 	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )
 
@@ -77,7 +76,7 @@ func cmdDescribe(args []string) (err error) {
 			"usage: rig describe <program> [<command>] [--timeout=30s]")
 	}
 
-	c, err := client.Connect()
+	c, err := connect()
 	if err != nil {
 		return noDaemon(err)
 	}

@@ -65,7 +65,7 @@ func cmdCall(program, command string, argv []string) (err error) {
 	// asked. --json was not known until the line above.
 	defer func() { err = inMode(err, own.asJSON) }()
 
-	c, err := client.Connect()
+	c, err := connect()
 	if err != nil {
 		return noDaemon(err)
 	}

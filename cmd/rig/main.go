@@ -334,7 +334,7 @@ func cmdDown(args []string) (err error) {
 		return badArgumentf("usage: rig down [--json] [--timeout=30s]")
 	}
 
-	c, err := client.Connect()
+	c, err := connect()
 	if err != nil {
 		// STOPPING A STOPPED DAEMON SUCCEEDS, and this is where that is
 		// decided. Every other verb treats an unreachable socket as the
@@ -440,7 +440,7 @@ func cmdApps(args []string) (err error) {
 		shown = rigv1.Depth_DEPTH_FULL
 	}
 
-	c, err := client.Connect()
+	c, err := connect()
 	if err != nil {
 		return noDaemon(err)
 	}

@@ -38,7 +38,7 @@ func asksForHelp(argv []string) bool {
 
 // helpForProgram lists what one program declared.
 func helpForProgram(program string) error {
-	c, err := client.Connect()
+	c, err := connect()
 	if err != nil {
 		return noDaemon(err)
 	}
@@ -86,7 +86,7 @@ func helpForProgram(program string) error {
 
 // helpForCommand prints one command's declared arguments.
 func helpForCommand(program, command string) error {
-	c, err := client.Connect()
+	c, err := connect()
 	if err != nil {
 		return noDaemon(err)
 	}

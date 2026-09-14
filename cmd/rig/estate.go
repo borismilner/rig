@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/boris-milner/rig/client"
 	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )
 
@@ -37,7 +36,7 @@ func cmdEstate(args []string) (err error) {
 		return badArgumentf("usage: rig estate [--json] [--timeout=30s]")
 	}
 
-	c, err := client.Connect()
+	c, err := connect()
 	if err != nil {
 		// Unlike `rig down`, an unreachable socket is not a form of the
 		// answer. "Which estate did I reach" has no true answer when nothing
