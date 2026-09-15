@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"errors"
 	"strconv"
 
 	"google.golang.org/protobuf/proto"
@@ -97,12 +98,9 @@ func (d *Daemon) servePeers(c *conn, f *rigv1.Frame) {
 	})
 }
 
-// asSeatHeld is errors.As spelled out, because the daemon package deliberately
-// carries no error-wrapping helpers and one call site does not justify one.
+// asSeatHeld is errors.As for the one error type announce refuses with. A bare
+// type assertion was here and errorlint refused it: it misses the error the
+// moment anything between presence and this handler wraps it.
 func asSeatHeld(err error, target **seatHeldError) bool {
-	if e, ok := err.(*seatHeldError); ok {
-		*target = e
-		return true
-	}
-	return false
+	return errors.As(err, target)
 }

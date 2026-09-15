@@ -512,6 +512,113 @@ func (d *Daemon) serveSession(c *conn, f *rigv1.Frame) {
 	})
 }
 
+// authorizeSelf runs one of rig's own methods past the rules table and answers
+// the refusal itself, so serveSelf's switch reads as the methods and nothing
+// else. It reports whether the call may proceed.
+func (d *Daemon) authorizeSelf(ctx context.Context, c *conn, f *rigv1.Frame, command string) bool {
+	dec, allowed, err := d.authorize(ctx, callerOf(c, f), kernel.SelfID, command)
+	if err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err.Error())
+		return false
+	}
+	if !allowed {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_DENIED, dec.Reason)
+		return false
+	}
+	return true
+}
+
+// serveHello is the program handshake: it registers the connection as one
+// program and mints that principal. Split out of serveSelf only for length.
+func (d *Daemon) serveHello(ctx context.Context, c *conn, f *rigv1.Frame) {
+	var req rigv1.HelloRequest
+	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "hello: "+err.Error())
+		return
+	}
+	if req.GetProgram() == "" {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "hello: empty program id")
+		return
+	}
+	if req.GetProgram() == kernel.SelfID {
+		// Otherwise a program shadows the daemon's own namespace and
+		// rig.ping stops reaching rig.
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, `hello: "rig" is reserved`)
+		return
+	}
+
+	// One handshake per connection.
+	//
+	// Section 14 makes registration a property of the connection, and a
+	// second hello was worse than merely odd: with a different id it
+	// registered a second program on the same session, and only the last
+	// id was removed from the routing map on close - leaving a name that
+	// pointed at a dead connection and answered every call with a
+	// timeout.
+	if c.scoped.Load() {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID,
+			fmt.Sprintf("this connection is already registered as %q: "+
+				"registration is the handshake and happens once, so a "+
+				"changed declaration is a reconnect", c.name()))
+		return
+	}
+
+	// The declaration is refused before anything is recorded, and the
+	// refusal names every missing property at once - a program author
+	// fixing a generated declaration one error per run is a program
+	// author who stops generating it.
+	decl, err := declarationFromWire(&req)
+	if err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, err.Error())
+		return
+	}
+
+	who, err := d.kernel.Register(asProgram(c.principal(), decl.Identity.ID), decl)
+	if err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_DENIED, err.Error())
+		return
+	}
+
+	d.mu.Lock()
+	if existing, taken := d.programs[req.GetProgram()]; taken && existing != c {
+		d.mu.Unlock()
+		d.kernel.Deregister(who.SessionID)
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_DENIED,
+			fmt.Sprintf("program %q is already connected", req.GetProgram()))
+		return
+	}
+	d.programs[req.GetProgram()] = c
+	d.mu.Unlock()
+
+	c.who.Store(who)
+	c.program.Store(req.GetProgram())
+	c.scoped.Store(true)
+	d.log.Info("program registered",
+		"program", decl.Identity.ID, "version", decl.Identity.Version,
+		"coverage", decl.Coverage.String(), "commands", len(decl.Commands),
+		"semantics_gen", decl.SemanticsGen, "session", who.SessionID)
+
+	c.reply(f.GetStreamId(), &rigv1.HelloResponse{
+		Wire:          d.wire,
+		DaemonVersion: d.version,
+		Scoped:        true,
+
+		// Section 14 row 4 - a registered program - is the one caller
+		// kind with a handshake, so it is the one that never has to ask
+		// for its token. The other three connected rows have no
+		// HelloResponse to receive one on, which is what rig.session is
+		// for. Delivering it here is not a second way to become a caller
+		// kind: `Scoped` above is still the whole authorisation state,
+		// and this restores coordination state only.
+		Session: who.Token,
+	})
+
+	// The program is registered, so any agent already connected gains its
+	// promoted tools without reconnecting. After the reply, not before: a
+	// registration must not wait on a projection of itself.
+	d.resyncMCP(ctx)
+}
+
 // serveSelf answers the methods rig implements itself.
 func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command string) {
 	// rig's own methods meet the same floor as everything else, because
@@ -523,106 +630,13 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	// that MINTS the principal, so there is no (caller, effects) pair to
 	// match before it. `caller` is what hello establishes. Authorising it
 	// would mean asking who is calling before there is an answer.
-	if command != "hello" {
-		dec, allowed, err := d.authorize(ctx, callerOf(c, f), kernel.SelfID, command)
-		if err != nil {
-			c.fail(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err.Error())
-			return
-		}
-		if !allowed {
-			c.fail(f.GetStreamId(), rigv1.Code_CODE_DENIED, dec.Reason)
-			return
-		}
+	if command != "hello" && !d.authorizeSelf(ctx, c, f, command) {
+		return
 	}
 
 	switch command {
 	case "hello":
-		var req rigv1.HelloRequest
-		if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
-			c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "hello: "+err.Error())
-			return
-		}
-		if req.GetProgram() == "" {
-			c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "hello: empty program id")
-			return
-		}
-		if req.GetProgram() == kernel.SelfID {
-			// Otherwise a program shadows the daemon's own namespace and
-			// rig.ping stops reaching rig.
-			c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, `hello: "rig" is reserved`)
-			return
-		}
-
-		// One handshake per connection.
-		//
-		// Section 14 makes registration a property of the connection, and a
-		// second hello was worse than merely odd: with a different id it
-		// registered a second program on the same session, and only the last
-		// id was removed from the routing map on close - leaving a name that
-		// pointed at a dead connection and answered every call with a
-		// timeout.
-		if c.scoped.Load() {
-			c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID,
-				fmt.Sprintf("this connection is already registered as %q: "+
-					"registration is the handshake and happens once, so a "+
-					"changed declaration is a reconnect", c.name()))
-			return
-		}
-
-		// The declaration is refused before anything is recorded, and the
-		// refusal names every missing property at once - a program author
-		// fixing a generated declaration one error per run is a program
-		// author who stops generating it.
-		decl, err := declarationFromWire(&req)
-		if err != nil {
-			c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, err.Error())
-			return
-		}
-
-		who, err := d.kernel.Register(asProgram(c.principal(), decl.Identity.ID), decl)
-		if err != nil {
-			c.fail(f.GetStreamId(), rigv1.Code_CODE_DENIED, err.Error())
-			return
-		}
-
-		d.mu.Lock()
-		if existing, taken := d.programs[req.GetProgram()]; taken && existing != c {
-			d.mu.Unlock()
-			d.kernel.Deregister(who.SessionID)
-			c.fail(f.GetStreamId(), rigv1.Code_CODE_DENIED,
-				fmt.Sprintf("program %q is already connected", req.GetProgram()))
-			return
-		}
-		d.programs[req.GetProgram()] = c
-		d.mu.Unlock()
-
-		c.who.Store(who)
-		c.program.Store(req.GetProgram())
-		c.scoped.Store(true)
-		d.log.Info("program registered",
-			"program", decl.Identity.ID, "version", decl.Identity.Version,
-			"coverage", decl.Coverage.String(), "commands", len(decl.Commands),
-			"semantics_gen", decl.SemanticsGen, "session", who.SessionID)
-
-		c.reply(f.GetStreamId(), &rigv1.HelloResponse{
-			Wire:          d.wire,
-			DaemonVersion: d.version,
-			Scoped:        true,
-
-			// Section 14 row 4 - a registered program - is the one caller
-			// kind with a handshake, so it is the one that never has to ask
-			// for its token. The other three connected rows have no
-			// HelloResponse to receive one on, which is what rig.session is
-			// for. Delivering it here is not a second way to become a caller
-			// kind: `Scoped` above is still the whole authorisation state,
-			// and this restores coordination state only.
-			Session: who.Token,
-		})
-
-		// The program is registered, so any agent already connected gains its
-		// promoted tools without reconnecting. After the reply, not before: a
-		// registration must not wait on a projection of itself.
-		d.resyncMCP(ctx)
+		d.serveHello(ctx, c, f)
 
 	case "programs":
 		// The read side of the registry, through the calling principal's own
