@@ -26,10 +26,14 @@ func TestSkewLineCoversEveryRowOfTheRuling(t *testing.T) {
 	prod := func(v string) *rigv1.EstateResponse {
 		return &rigv1.EstateResponse{Name: "production", DaemonVersion: v}
 	}
-	notFound := &client.CallError{Method: "rig.estate",
-		Status: &rigv1.Status{Code: rigv1.Code_CODE_NOT_FOUND, Message: "no such method rig.estate"}}
-	denied := &client.CallError{Method: "rig.estate",
-		Status: &rigv1.Status{Code: rigv1.Code_CODE_DENIED, Message: "a house rule said no"}}
+	notFound := &client.CallError{
+		Method: "rig.estate",
+		Status: &rigv1.Status{Code: rigv1.Code_CODE_NOT_FOUND, Message: "no such method rig.estate"},
+	}
+	denied := &client.CallError{
+		Method: "rig.estate",
+		Status: &rigv1.Status{Code: rigv1.Code_CODE_DENIED, Message: "a house rule said no"},
+	}
 
 	for _, tc := range []struct {
 		name  string
@@ -39,29 +43,49 @@ func TestSkewLineCoversEveryRowOfTheRuling(t *testing.T) {
 		want  []string // every one must appear; nil means the line must be empty
 	}{
 		{"stamped and equal is silent", "v0.4.0", prod("v0.4.0"), nil, nil},
-		{"stamped and different names both builds and the estate",
+		{
+			"stamped and different names both builds and the estate",
 			"v0.4.0-3-gabc1234-dirty", prod("v0.4.0"), nil,
-			[]string{"build skew:", "v0.4.0-3-gabc1234-dirty", "is v0.4.0", `estate "production"`, "XDG_RUNTIME_DIR"}},
-		{"an unnamed estate says so rather than printing an empty name",
+			[]string{"build skew:", "v0.4.0-3-gabc1234-dirty", "is v0.4.0", `estate "production"`, "XDG_RUNTIME_DIR"},
+		},
+		{
+			"an unnamed estate says so rather than printing an empty name",
 			"v2", &rigv1.EstateResponse{DaemonVersion: "v1"}, nil,
-			[]string{"build skew:", "no name claimed"}},
-		{"an unstamped rig is not a match", unstamped, prod("v0.4.0"), nil,
-			[]string{"not checked", "unstamped build", "v0.4.0"}},
-		{"two unstamped builds are not a match either", unstamped, prod(unstamped), nil,
-			[]string{"not checked", "unstamped"}},
-		{"an empty daemon_version is nothing said, not a build", "v0.4.0", prod(""), nil,
-			[]string{"not checked", "reporting no build"}},
-		{"a daemon without rig.estate is the older half", "v0.4.0", nil, notFound,
-			[]string{"build skew:", "no rig.estate", "older", "v0.4.0"}},
-		{"a daemon without rig.estate, as call() wraps it", "v0.4.0", nil,
+			[]string{"build skew:", "no name claimed"},
+		},
+		{
+			"an unstamped rig is not a match", unstamped, prod("v0.4.0"), nil,
+			[]string{"not checked", "unstamped build", "v0.4.0"},
+		},
+		{
+			"two unstamped builds are not a match either", unstamped, prod(unstamped), nil,
+			[]string{"not checked", "unstamped"},
+		},
+		{
+			"an empty daemon_version is nothing said, not a build", "v0.4.0", prod(""), nil,
+			[]string{"not checked", "reporting no build"},
+		},
+		{
+			"a daemon without rig.estate is the older half", "v0.4.0", nil, notFound,
+			[]string{"build skew:", "no rig.estate", "older", "v0.4.0"},
+		},
+		{
+			"a daemon without rig.estate, as call() wraps it", "v0.4.0", nil,
 			&refusal{CallError: notFound},
-			[]string{"build skew:", "no rig.estate", "older"}},
-		{"a refused check says refused", "v0.4.0", nil, &refusal{CallError: denied},
-			[]string{"not checked", "refused", "a house rule said no"}},
-		{"a refused check says refused, unwrapped", "v0.4.0", nil, denied,
-			[]string{"not checked", "refused", "a house rule said no"}},
-		{"an unanswered check says so", "v0.4.0", nil, context.DeadlineExceeded,
-			[]string{"not checked", "did not answer"}},
+			[]string{"build skew:", "no rig.estate", "older"},
+		},
+		{
+			"a refused check says refused", "v0.4.0", nil, &refusal{CallError: denied},
+			[]string{"not checked", "refused", "a house rule said no"},
+		},
+		{
+			"a refused check says refused, unwrapped", "v0.4.0", nil, denied,
+			[]string{"not checked", "refused", "a house rule said no"},
+		},
+		{
+			"an unanswered check says so", "v0.4.0", nil, context.DeadlineExceeded,
+			[]string{"not checked", "did not answer"},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := skewLine(tc.build, tc.resp, tc.err)
