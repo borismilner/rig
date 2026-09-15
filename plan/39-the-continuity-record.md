@@ -494,7 +494,7 @@ he asked for falls out of them.
 | Noun | What it is |
 |---|---|
 | **a RECORD** | the atomic unit. An id, a kind, the project it belongs to, a body, typed fields, and provenance - **which session wrote it, when, under which seat**. Append-only: a change writes a new version and the previous one is retained |
-| **a KIND** | what the record is, and it carries the schema for the fields. `requirement`, `decision`, `work-item`, `standard`, `note`, `artefact`, `progress`, `feature`, `project` |
+| **a KIND** | what the record is, and it carries the schema for the fields. `requirement`, `decision`, `work-item`, `standard`, `note`, `artefact`, `progress`, `feature`, `project`, `case` |
 | **a LINK** | a typed, directed edge between two records. `rules-on`, `cites`, `supersedes`, `implements`, `checked-against`, `produced-by`, `blocks`, `part-of` |
 
 **THE THREE PROPERTIES HE ASKED FOR ARE EACH ONE OF THOSE, and none needs a
@@ -570,6 +570,32 @@ work-items, unresolved dependencies excluded, ties broken by
 B28 exists for** - a real ordering query, not a hypothetical one -
 and it is why the axis is priced rather than skipped even though the
 store itself could be decided without it.
+
+### Cases, for what is ongoing and never ships
+
+**Boris, 2026-09-15: *"we have projects but we have also things
+that are ongoing things... the way we track my health case or my
+mother case or my financial issues, so not everything is a
+project."*** A new KIND, `case` - the name he settled on after
+`watch`, `situation`, `thread` and `aspect` were weighed and set
+aside. A `case` is the same container shape as `project` minus the
+two fields that assume shipping.
+
+| Field | Same as `project`? |
+|---|---|
+| `title`, `description_short`, `description_long`, `tags` | yes |
+| `owner`, `source` | yes |
+| `next_up_n`, the "next up" derivation | yes - reuses the same topological-sort-over-`blocks`-among-active-items derivation |
+| `status` | **NO** - `open` / `resolved`, not `idea` / `active`. A case is not picked up, it already exists; it does not ship, it gets resolved |
+| `semver` | **NO** - a case does not ship, so it has no version to advance |
+| `feature` / `implements` | **NO** - `FEATURES.md` is a project artefact; a case has no features |
+
+**A `case`'s id is its SLUG, the same exception `project` already
+has** - it is a path component and a human types it. This is the
+concrete first tenant of tension 14's `me` scope: `~/.rig/me/<name>/`
+holds exactly the things his examples name, health and family and
+finances, kept out of `~/.rig/work` by the same scope split already
+ruled there.
 
 ### Features, and the FEATURES.md roll-up
 
