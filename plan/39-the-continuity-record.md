@@ -467,7 +467,7 @@ he asked for falls out of them.
 |---|---|
 | **a RECORD** | the atomic unit. An id, a kind, the project it belongs to, a body, typed fields, and provenance - **which session wrote it, when, under which seat**. Append-only: a change writes a new version and the previous one is retained |
 | **a KIND** | what the record is, and it carries the schema for the fields. `requirement`, `decision`, `work-item`, `standard`, `note`, `artefact`, `progress` |
-| **a LINK** | a typed, directed edge between two records. `rules-on`, `cites`, `supersedes`, `implements`, `checked-against`, `produced-by`, `blocks` |
+| **a LINK** | a typed, directed edge between two records. `rules-on`, `cites`, `supersedes`, `implements`, `checked-against`, `produced-by`, `blocks`, `part-of` |
 
 **THE THREE PROPERTIES HE ASKED FOR ARE EACH ONE OF THOSE, and none needs a
 fourth mechanism:**
@@ -483,6 +483,43 @@ that cannot be traced to a transcript is a paraphrase until proved otherwise** -
 is a provenance check performed by hand. **A record carries its source, so the
 check is a field rather than an investigation.**
 
+### Work-item and project metadata, exhaustive
+
+**Boris, 2026-09-15: *"Lets also decide what metadata we keep up to
+date for every work-item; be exhaustive, it will be maanged by AI
+agents."*** Named exhaustively so an agent never has to guess which
+field to fill.
+
+| Field | Kind | What it is |
+|---|---|---|
+| `title` | project, work-item | one line |
+| `description_short` | project, work-item | one line, for lists and briefs |
+| `description_long` | project, work-item | the prose `body` was going to carry - typed and separate rather than one blob |
+| `tags` | project, work-item | free-form grouping, queryable like any typed field |
+| `status` | project, work-item | `idea` or `active`. `idea` means no progress stream is expected yet - it has not been picked up. Once active, the live state (started/blocked/done) is the latest `progress.step`, not a second field to keep in sync |
+| `priority` | work-item | as before |
+| `principles` | project, work-item | optional list; **a parent's principles bind its children** rather than being restated per item |
+| `owner` | project, work-item | which seat is currently driving it |
+| `target_date` | work-item | optional |
+| `source` | project, work-item | which document or session it originated from - distinct from `cites`, which is for rules-on |
+
+**Sub-task nesting uses the LINK, not a new kind.** A sub-task IS a
+work-item, `part-of` its parent.
+
+**Auto-completion is DERIVED, never stamped.** *"When all sub-tasks
+are complete, the parent is complete"* is computed at read time from
+the children's latest progress state - it is never written as a
+`progress.step` on the parent. **Attack finding 4 is the reason:** a
+stamp with no witness is asserted, not evidenced, and a system that
+writes "done" on itself the moment its own precondition is met is
+exactly that stamp. A derivation has no such gap - it is recomputed
+every time, never stored, and cannot go stale.
+
+**`blocks` covers ordering; no separate `precedes` link.** A hard
+dependency is `blocks`; relative importance within a backlog is
+`priority`. A second link for pure sequencing would duplicate one of
+the two without covering a case neither already does - it gets added
+if that case ever shows up.
 
 ### The verbs, and there are eleven
 
