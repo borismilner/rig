@@ -412,6 +412,17 @@ best-understood migration story of the three** - which the release-durability
 requirement below makes weigh more than it did an hour ago. **So B28's job is to
 confirm or beat SQLite, not to start from nothing.**
 
+**WIDENED, 2026-09-15: SQLite + `bleve` named as a good-looking combination,
+best-of-breed additions welcome.** Boris, reading the axis table below:
+*"bleve seems cool... SQLite + bleve seems like a good fit; if you have
+additional best-of-breed additions you can add them in."* This is a stronger
+steer toward the table's own second candidate row, not a ruling that skips the
+search - **B28 still runs per axis and prices combinations exactly as
+specified below**, but the search now has two concrete named leads (SQLite
+alone, and SQLite + `bleve`) rather than one, and an open invitation to name a
+third best-of-breed piece per axis (links/traversal in particular has none
+named yet beyond SQL recursive CTEs).
+
 #### "State of the art" is the bar for this choice, and it has axes rather than one answer
 
 **Boris, 2026-09-12:** *"Either SQLite or other/additional great technologies
@@ -614,20 +625,55 @@ this, and §38b says do not rebuild what exists. **Anything too large for git wa
 never going in the logbook either**, so the honest boundary is unchanged by this
 design.
 
-#### Tension 7 - it sits BESIDE §37's minimum set. Recommended, not ruled
+#### Tension 14, NEW 2026-09-15: where the record lives on disk, and how it is organized
 
-**The recommendation is that the record does NOT join the minimum beneficial
-set**, and the reason is that the set has a different bar. §37's rows are
-coordination primitives measured as *"the best inter-agent coordination
-substrate we can build"*; **§39 has its own bar - significantly superior to the
-documents - and its own twelve-entry register.** Folding it in would move a gate
-Boris narrowed on 2026-09-12 and blur two acceptance tests into one.
+**Boris, 2026-09-15:** *"The textual representation should probably be under
+the home folder of rig, probably under `~/.rig` right? ... I want the
+filesystem structure to be top of the art, best organized per scope, per
+subject, remember that like with logbook it will manage a lot of different
+project/works."* And, on the same artefact question tension 11 already
+answers the WHAT of: *"The rig will also hold artifacts from the different
+stages of the different projects/works so the filesystem structure must also
+support these and the rig system should also know how to index them for easy
+access."*
+
+**RULED: the root is `~/.rig`.** One home, many projects - **this mirrors the
+logbook's own shape** (see "WHAT IS BEING REPLACED" above: *"a separate git
+repository, one tree per project"*) rather than one record repository per
+project. That is the answer to "does the record repository live inside each
+project's own repo, or centrally": centrally, under `~/.rig`, the same way
+`logbook/projects/<name>/` already is.
+
+**OPEN, for the design slice: the exact per-scope/per-subject tree under
+`~/.rig`.** Tension 11 already answers WHAT an artefact is (`kind: artefact`,
+bytes as ordinary files in the projection, git-versioned); this tension is
+about WHERE those files sit relative to a project's other records so
+artefacts from every stage of every project stay indexed and reachable, not
+about reopening what an artefact is. **"Top of the art, best organized" is a
+design bar, not a design** - it lands in the slice that designs the
+lossless-layer file tree (`records/<kind>/<id>.md`, laid out under
+`~/.rig/projects/<name>/`), and it must show its structure against the
+logbook's own layout, demonstrated rather than argued, exactly as his
+acceptance bar already asks everywhere else in this document.
+
+#### Tension 7 - it sits BESIDE §37's minimum set. RULED 2026-09-15
+
+**Boris, 2026-09-15, choosing the recommendation put to him: "do as
+recommended."** The record does NOT join the minimum beneficial set. §37's
+rows are coordination primitives measured as *"the best inter-agent
+coordination substrate we can build"*; **§39 has its own bar - significantly
+superior to the documents - and its own twelve-entry register.** Folding it in
+would have moved a gate Boris narrowed on 2026-09-12 and blurred two
+acceptance tests into one.
 
 **What does NOT change either way:** the record depends on durable storage, so
 **row 3 keeps its position in the set and the record follows it.** That
-dependency is a fact about the build order and is true under both answers.
+dependency is a fact about the build order and was true under both answers.
 
-**This one is his, and it is the last thing in this section that is.**
+**This closes the "row C" ordering question `00-rig-kickoff.md`'s Step 0 put
+to §37 too**: with the record beside the set rather than in it, there is no
+row-C cutover-order slot to argue about. §37's own minimum-set ordering is
+unaffected by this ruling.
 
 ### The store survives the release, and it is a requirement rather than a hope
 
@@ -916,13 +962,14 @@ does.
 | 4 | **which documents materialise as files** | **ANSWERED - two targets with opposite commit rules.** The record repository is rig's and rig commits it; documentation in the project repository is written by rig and committed by the human with their code, as `PLAN.md` is today |
 | 5 | **the word "conformance" is taken** | **ANSWERED - §19 keeps it.** The register says `upholds`, `standard.stamp`, `standard.drift`. "Conformance" is reserved and the register may not borrow it |
 | 6 | **continuation slots versus the record** | **ANSWERED by removing a mechanism.** A slot is `kind: continuation` with a TTL and a `sensitive` payload. Anything that survives its TTL should have been a record |
-| 7 | **does the record JOIN §37's minimum set** | **OPEN, AND IT IS BORIS'S.** Recommended: it sits beside the set, which has a different bar. Row 3 keeps its position either way and the record follows it |
+| 7 | **does the record JOIN §37's minimum set** | **ANSWERED 2026-09-15 - it sits BESIDE the set**, which has a different bar. Row 3 keeps its position and the record follows it. Also closes `00-rig-kickoff.md` Step 0's "row C" ordering question - there is no row C once the record is not in the set |
 | 8 | **how a project extends the schema** | **ANSWERED - add fields, never redefine; local kinds are namespaced and unlinkable across projects.** A local kind two projects want is a proposal to the estate register |
 | 9 | **what the window renders** | **ANSWERED - `project.brief`, the same call an arriving agent makes.** One derivation, two consumers, which is the two-consumer requirement met by construction |
 | 10 | **how a standards check is scheduled** | **ANSWERED - a standard carries `recheck_after`; due checks surface in `project.brief` and the window. rig surfaces, never runs, never judges** |
 | 11 | **binary and bulky artefacts** | **ANSWERED - `kind: artefact` holds metadata and provenance; the bytes are files in the projection, where git already versions them.** rig does not become a blob store |
-| 13 | **which store backs the record** | **OPEN, NEW 2026-09-12.** B25's search covered the coordination primitives and chose bbolt; the record store additionally wants query-by-field, full-text and graph traversal. **His lean is pure-Go SQLite, widened the same hour to *"other/additional great technologies allowing to be state of the art"*** - so the search is per AXIS (store, query, links, full text, semantic) and prices combinations. Other candidates: bbolt with hand-built indexes, bbolt with `bleve`. **No search has been run** |
+| 13 | **which store backs the record** | **OPEN, direction sharpened 2026-09-15.** B25's search covered the coordination primitives and chose bbolt; the record store additionally wants query-by-field, full-text and graph traversal. **His lean is pure-Go SQLite, widened to *"other/additional great technologies allowing to be state of the art"*, and on 2026-09-15 named SQLite + `bleve` as a good-looking combination** with best-of-breed additions welcome per axis. Search still runs per AXIS (store, query, links, full text, semantic) and prices combinations. **No search has been run** |
 | 12 | **what replaces "commit both repos"** | **ANSWERED - nothing does, because the second commit stops being a session's job.** rig owns the record repository and commits it |
+| 14 | **where the record lives on disk, and how it is organized** | **RULED 2026-09-15 (location): root is `~/.rig`, one home for many projects, mirroring the logbook's own shape.** OPEN (structure): the per-scope/per-subject tree, including where staged artefacts sit so they stay indexed, is a design-slice job measured against the logbook's own layout |
 
 **THIS TABLE IS ITSELF THE MAINTENANCE PROPERTY THE RECORD IS SUPPOSED TO HAVE,
 applied to its own design.** A tension found later is added here rather than
