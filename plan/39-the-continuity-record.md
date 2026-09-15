@@ -637,22 +637,43 @@ stages of the different projects/works so the filesystem structure must also
 support these and the rig system should also know how to index them for easy
 access."*
 
-**RULED: the root is `~/.rig`.** One home, many projects - **this mirrors the
-logbook's own shape** (see "WHAT IS BEING REPLACED" above: *"a separate git
-repository, one tree per project"*) rather than one record repository per
-project. That is the answer to "does the record repository live inside each
-project's own repo, or centrally": centrally, under `~/.rig`, the same way
-`logbook/projects/<name>/` already is.
+**RULED: the root is `~/.rig`.** One home, many projects - centrally rather
+than one record repository per project, the same way `logbook/projects/<name>/`
+already gives every project one home under one tree.
 
-**OPEN, for the design slice: the exact per-scope/per-subject tree under
-`~/.rig`.** Tension 11 already answers WHAT an artefact is (`kind: artefact`,
-bytes as ordinary files in the projection, git-versioned); this tension is
-about WHERE those files sit relative to a project's other records so
-artefacts from every stage of every project stay indexed and reachable, not
-about reopening what an artefact is. **"Top of the art, best organized" is a
-design bar, not a design** - it lands in the slice that designs the
-lossless-layer file tree (`records/<kind>/<id>.md`, laid out under
-`~/.rig/projects/<name>/`), and it must show its structure against the
+**RULED 2026-09-15: `~/.rig` is NOT one repository - it is split by SCOPE, and
+each scope is its OWN git repository.** Boris: *"`~/.rig/projects/<scope>/<name>/`
+... sounds like a good direction. The two must be kept under different git
+repositories so that my personal life is not mixed with my work life; in fact,
+we may want to add additional categories so it's not a closed group of only
+{work, me} - there could be others in the future."* This CORRECTS the
+"mirrors the logbook's own shape" framing above: the logbook itself is one
+repository for every project, but `~/.rig` cannot be, because a single history
+would put personal and professional material in one place Boris has
+explicitly refused elsewhere - `~/me/d2d` is already carved out of the logbook
+migration for exactly this reason ("its own private remote... do not migrate
+it"). `~/.rig` generalizes that precedent rather than breaking new ground.
+
+**The scope set is OPEN, not `{work, me}` closed.** Two scopes are named so
+far - `work` and `me` - but the set is extensible; the design must not bake in
+an enum of two. **RULED, same message: rig is to support both logbook
+functionality and d2d functionality**, with what that means left for further
+discussion - *"we shall discuss further what that means"* - so this is a
+direction, not yet a specification of what a `me`-scope repository must do
+beyond hosting personal records the way the logbook hosts project records.
+
+**OPEN, for the design slice: the exact per-scope/per-subject tree inside each
+scope's repository, and how a per-scope repository set is discovered,
+addressed and indexed as one whole from the outside** (a link or a query that
+crosses scopes has to resolve two - eventually more - repositories rather than
+one). Tension 11 already answers WHAT an artefact is (`kind: artefact`, bytes
+as ordinary files in the projection, git-versioned); this tension is about
+WHERE those files sit relative to a project's other records so artefacts from
+every stage of every project stay indexed and reachable, not about reopening
+what an artefact is. **"Top of the art, best organized" is a design bar, not a
+design** - it lands in the slice that designs the lossless-layer file tree
+(`records/<kind>/<id>.md`, laid out under
+`~/.rig/projects/<scope>/<name>/`), and it must show its structure against the
 logbook's own layout, demonstrated rather than argued, exactly as his
 acceptance bar already asks everywhere else in this document.
 
@@ -969,7 +990,7 @@ does.
 | 11 | **binary and bulky artefacts** | **ANSWERED - `kind: artefact` holds metadata and provenance; the bytes are files in the projection, where git already versions them.** rig does not become a blob store |
 | 13 | **which store backs the record** | **OPEN, direction sharpened 2026-09-15.** B25's search covered the coordination primitives and chose bbolt; the record store additionally wants query-by-field, full-text and graph traversal. **His lean is pure-Go SQLite, widened to *"other/additional great technologies allowing to be state of the art"*, and on 2026-09-15 named SQLite + `bleve` as a good-looking combination** with best-of-breed additions welcome per axis. Search still runs per AXIS (store, query, links, full text, semantic) and prices combinations. **No search has been run** |
 | 12 | **what replaces "commit both repos"** | **ANSWERED - nothing does, because the second commit stops being a session's job.** rig owns the record repository and commits it |
-| 14 | **where the record lives on disk, and how it is organized** | **RULED 2026-09-15 (location): root is `~/.rig`, one home for many projects, mirroring the logbook's own shape.** OPEN (structure): the per-scope/per-subject tree, including where staged artefacts sit so they stay indexed, is a design-slice job measured against the logbook's own layout |
+| 14 | **where the record lives on disk, and how it is organized** | **RULED (root): `~/.rig`, `<scope>/<name>/` under it, one home for many projects.** **RULED (repos): split by SCOPE, each scope its own git repository** so personal (`me`) and professional (`work`) never share a history - scope set is OPEN, not closed to two. **RULED: rig is to support both logbook and d2d functionality**, what that means is still to be discussed. OPEN (structure): the per-scope/per-subject tree and cross-scope indexing is a design-slice job measured against the logbook's own layout |
 
 **THIS TABLE IS ITSELF THE MAINTENANCE PROPERTY THE RECORD IS SUPPOSED TO HAVE,
 applied to its own design.** A tension found later is added here rather than
