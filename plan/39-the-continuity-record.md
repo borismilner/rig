@@ -488,7 +488,11 @@ check is a field rather than an investigation.**
 **Boris, 2026-09-15: *"Lets also decide what metadata we keep up to
 date for every work-item; be exhaustive, it will be maanged by AI
 agents."*** Named exhaustively so an agent never has to guess which
-field to fill.
+field to fill. **Every one of them is a typed field an agent queries with
+`record.query`, never prose buried in a body an agent has to parse** - the
+same reason the short/long description split exists and `tags` is its own
+field rather than a line in `description_long`. Optimal access for an agent
+IS the design constraint, not a nice property of it.
 
 | Field | Kind | What it is |
 |---|---|---|
@@ -588,6 +592,7 @@ gated.** Attack finding 7.
 | **rig SURFACES a due check. It never runs one, and it never judges the work** | §29 non-goal 1 exactly where §39 left it. `standard.stamp` records **who** checked and **when**; the judging belongs to them |
 | **A STAMP CARRIES A WITNESS OR IT IS NOT A STAMP** | a link to the artefact, the command output, or the record showing the check ran. One without is recorded as **asserted** and renders differently from **evidenced**. **Attack finding 4:** `BACKLOG.md` B26 measured what happens otherwise - *a control whose every firing is answered by overriding it is measuring nothing* - and that gate was dropped for it |
 | **and the redaction invariant is §15's, inherited rather than re-argued** | what `secrets.get` returned is never recorded, only the key name. **Attack finding 6: auto-push makes an unredacted record a PUBLISHED mistake, not a local one** |
+| **a shared default guideline set is a standard, not a new mechanism** | *"a shared default guideline/rule/resource collection every project points to"* is exactly what `upholds` already models. A project's default set is simply the standards it upholds; nothing new is built for this |
 
 ### Extending the schema without becoming N copies again
 
@@ -1025,7 +1030,7 @@ does.
 | 9 | **what the window renders** | **ANSWERED - `project.brief`, the same call an arriving agent makes.** One derivation, two consumers, which is the two-consumer requirement met by construction |
 | 10 | **how a standards check is scheduled** | **ANSWERED - a standard carries `recheck_after`; due checks surface in `project.brief` and the window. rig surfaces, never runs, never judges** |
 | 11 | **binary and bulky artefacts** | **ANSWERED - `kind: artefact` holds metadata and provenance; the bytes are files in the projection, where git already versions them.** rig does not become a blob store |
-| 13 | **which store backs the record** | **OPEN, direction sharpened 2026-09-15.** B25's search covered the coordination primitives and chose bbolt; the record store additionally wants query-by-field, full-text and graph traversal. **His lean is pure-Go SQLite, widened to *"other/additional great technologies allowing to be state of the art"*, and on 2026-09-15 named SQLite + `bleve` as a good-looking combination** with best-of-breed additions welcome per axis. Search still runs per AXIS (store, query, links, full text, semantic) and prices combinations. **No search has been run** |
+| 13 | **which store backs the record** | **OPEN, direction sharpened 2026-09-15.** B25's search covered the coordination primitives and chose bbolt; the record store additionally wants query-by-field, full-text and graph traversal. **His lean is pure-Go SQLite, widened to *"other/additional great technologies allowing to be state of the art"*, and on 2026-09-15 named SQLite + `bleve` as a good-looking combination** with best-of-breed additions welcome per axis. **The graph-traversal axis now has a named lead too: `github.com/dominikbraun/graph`** - generics, zero dependencies, ~90% coverage, mature and widely used, found by search rather than asserted (`sixafter/graph` and `graphium` are newer alternates, the latter needing Go 1.26+). Search still runs per AXIS (store, query, links, full text, semantic, graph) and prices combinations, **including against SQLite's own recursive CTEs per §38b - a library is not owed the win** |
 | 12 | **what replaces "commit both repos"** | **ANSWERED - nothing does, because the second commit stops being a session's job.** rig owns the record repository and commits it |
 | 14 | **where the record lives on disk, and how it is organized** | **RULED (root): `~/.rig`, `<scope>/<name>/` under it, one home for many projects.** **RULED (repos): split by SCOPE, each scope its own git repository** so personal (`me`) and professional (`work`) never share a history - scope set is OPEN, not closed to two. **RULED: rig is to support both logbook and d2d functionality**, what that means is still to be discussed. OPEN (structure): the per-scope/per-subject tree and cross-scope indexing is a design-slice job measured against the logbook's own layout |
 
