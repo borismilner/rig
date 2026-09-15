@@ -620,6 +620,31 @@ case-shaped brief surfaces it exactly as `project.brief` already
 surfaces next-up work-items - the same derivation aimed at a
 different container.
 
+### Comments, and anything else Boris attaches to a record
+
+**Boris, 2026-09-15: *"The user can assign a comment/question or
+basically anything he wants to any work-item or project. It is for
+the agents to read and act accordingly; remember everything in `rig`
+is to be optimally accessible to AI agents."*** Reuses **`note`
+`part-of` the record** - the same two names doing this job for the
+third time in this section. No new KIND, no new LINK.
+
+- **Not limited to work-item and project.** `part-of` already links a
+  note to any record kind, so a comment on a `case` or a `feature`
+  costs nothing extra to support - his two examples are the common
+  case, not a restriction written into the schema.
+- **Surfaced wherever the target record is, not on request.** A work
+  item's or project's notes render alongside it, in full, in
+  `project.brief` - the same derivation `case`'s `attention_n` above
+  already draws on. **A case caps and orders what it surfaces; every
+  other kind just shows all of them**, since only the case's stream
+  is unbounded enough to need a cap.
+- **No status field, no resolution workflow.** "Act accordingly" is
+  left to the agent reading it - inventing an open/answered state
+  here would be a mechanism nobody asked for. Provenance already
+  says who wrote it (Boris's session, distinct from an agent's),
+  which is enough to tell a directive from routine progress narration.
+
 ### Features, and the FEATURES.md roll-up
 
 **Boris, 2026-09-15: *"a dedicated list of features that lists
@@ -749,6 +774,7 @@ so the schema is versioned and improved in one place like everything else.
 |---|---|
 | open work items, each with its last progress step and its age | a stale step beside a live session is the signal that a seat is stuck |
 | **the next up to `next_up_n` work-items, in execution order** | title, `description_short`, `priority`, `status`, `owner`, `tags`, `target_date` - **the compact card, never `description_long`.** A list meant to be scanned in one pass fails its own readability requirement the moment it carries a paragraph per row; the long form is one `record.get` away |
+| **any notes `part-of` the project itself, or `part-of` a work-item it lists** | rendered in full, never summarised - **this is Boris's comment/question mechanism above**, and an agent that skips it has not read the item. The next-up-N compact card carries only whether one is attached; the note's own text is one `record.refs` away, same rule as `description_long` |
 | what is blocked, and on whom | including what is waiting on Boris |
 | standards drift, and any check now due | |
 | the must-read set and whether this session has cleared it | |
