@@ -538,7 +538,7 @@ other record's "project it belongs to" field is this same slug.
 | `description_long` | project, work-item | the prose `body` was going to carry - typed and separate rather than one blob |
 | `tags` | project, work-item | free-form grouping, queryable like any typed field |
 | `status` | project, work-item | `idea` or `active`. `idea` means no progress stream is expected yet - it has not been picked up. Once active, the live state (started/blocked/done) is the latest `progress.step`, not a second field to keep in sync |
-| `priority` | work-item | as before |
+| `priority` | work-item, note | as before. Extended to `note` 2026-09-15 - the ordering signal a case's `attention_n` derivation sorts on, below |
 | `principles` | project, work-item | optional list; **a parent's principles bind its children** rather than being restated per item |
 | `owner` | project, work-item | which seat is currently driving it |
 | `target_date` | work-item | optional |
@@ -596,6 +596,29 @@ concrete first tenant of tension 14's `me` scope: `~/.rig/me/<name>/`
 holds exactly the things his examples name, health and family and
 finances, kept out of `~/.rig/work` by the same scope split already
 ruled there.
+
+**Boris, 2026-09-15, extending the ruling: *"Each case should keep
+the latest N important messages to the user (in this case me).
+Those are the last N things I was notified about or the N most
+important things I must attend to, default of 10... up to N in all
+cases, no need to force creation of N items."*** Reuses the existing
+`note` KIND rather than adding one - a note `part-of` a case IS the
+message.
+
+| Field | What changes |
+|---|---|
+| `attention_n` | new field, `case` only. How many notes surface. **Default 10**, override per case |
+| `priority` | now applies to `note` too, not only `work-item` - the "most important" half of his requirement, same field, nothing invented |
+
+**The derivation:** up to `attention_n` notes `part-of` this case,
+ordered by `priority` descending, tie-broken by `created_at`
+descending - reads both halves of his requirement in one sort:
+importance leads, recency is the tie-break. **Never padded to N**,
+same phrasing as `next_up_n` above. **No new verb** - a note is
+written with the same `record.put` every kind uses, and a
+case-shaped brief surfaces it exactly as `project.brief` already
+surfaces next-up work-items - the same derivation aimed at a
+different container.
 
 ### Features, and the FEATURES.md roll-up
 
