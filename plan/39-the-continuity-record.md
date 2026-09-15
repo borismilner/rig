@@ -305,7 +305,7 @@ layers, and they exist for different readers:
 | Layer | Shape | Who it is for |
 |---|---|---|
 | **the lossless layer** | **one file per record**, `records/<kind>/<id>.md`, with the fields, the links and the provenance in front matter and the body below | **rig, and git.** One record changing touches one file, so a diff is readable and a merge is never needed. **This layer is what the store rebuilds from**, so it must lose nothing |
-| **the roll-up layer** | **generated documents per kind** - the backlog as one file, the decisions as one file, the specification as its sections | **a human, and an agent with no rig.** They are the documents that exist today, in the shapes they exist in today |
+| **the roll-up layer** | **generated documents per kind** - the backlog as one file, the decisions as one file, the specification as its sections, `FEATURES.md` as one file per project | **a human, and an agent with no rig.** They are the documents that exist today, in the shapes they exist in today |
 
 **THE ROLL-UPS ARE WHY THE DEGRADED PATH IS NOT A DOWNGRADE.** With rig down,
 what a session opens is `BACKLOG.md`, `DECISIONS.md` and the specification -
@@ -466,7 +466,7 @@ he asked for falls out of them.
 | Noun | What it is |
 |---|---|
 | **a RECORD** | the atomic unit. An id, a kind, the project it belongs to, a body, typed fields, and provenance - **which session wrote it, when, under which seat**. Append-only: a change writes a new version and the previous one is retained |
-| **a KIND** | what the record is, and it carries the schema for the fields. `requirement`, `decision`, `work-item`, `standard`, `note`, `artefact`, `progress` |
+| **a KIND** | what the record is, and it carries the schema for the fields. `requirement`, `decision`, `work-item`, `standard`, `note`, `artefact`, `progress`, `feature` |
 | **a LINK** | a typed, directed edge between two records. `rules-on`, `cites`, `supersedes`, `implements`, `checked-against`, `produced-by`, `blocks`, `part-of` |
 
 **THE THREE PROPERTIES HE ASKED FOR ARE EACH ONE OF THOSE, and none needs a
@@ -524,6 +524,47 @@ dependency is `blocks`; relative importance within a backlog is
 `priority`. A second link for pure sequencing would duplicate one of
 the two without covering a case neither already does - it gets added
 if that case ever shows up.
+
+### Features, and the FEATURES.md roll-up
+
+**Boris, 2026-09-15: *"a dedicated list of features that lists
+everything the project contains in highlights with some
+description; each feature can also be in different stages of
+development."*** A new KIND, `feature`, rather than a repurposed
+`work-item` - a feature is a capability the project HAS, at a
+coarser grain than any single work-item, and it outlives the items
+that built it.
+
+| Field | What it is |
+|---|---|
+| `title`, `description_short`, `description_long`, `tags` | same shape as project/work-item, for the same reason - typed, queryable, no prose to parse |
+| `stage` | `planned`, `building`, `shipped`, `deprecated` |
+
+**A work-item `implements` a feature.** The existing link, reused -
+today it points a work-item at a requirement; a feature is the same
+relationship, "what this work is FOR," one level coarser.
+
+**`FEATURES.md` is a roll-up, generated, never hand-edited** - the
+same pattern as `BACKLOG.md` and `DECISIONS.md`: one row per
+feature, its stage, its description, what implements it. **This IS
+the "everything the project contains in highlights" list** - a
+human or an agent with no rig reads it exactly as they read the
+backlog today.
+
+### The version every project and work-item carries
+
+**Boris, 2026-09-15: *"All projects and work-items have a version
+like x.y.z and it should be advanced a major, minor, patch according
+to the development progress."*** A `semver` field, string
+`MAJOR.MINOR.PATCH`, on `project` and `work-item` - named `semver`
+rather than reusing "version," which already means the record's own
+revision number in `record.history`. A new record starts at `0.1.0`.
+
+| Bump | Fires on | Judgment? |
+|---|---|---|
+| **PATCH** | any `progress.step` recorded against the item | none - mechanical, "development happened" |
+| **MINOR** | the item's own completion: a work-item's terminal `progress.step: done`, or - for a project - one of its `feature`s reaching `stage: shipped` | none - a derived fact about state, not a quality call. **Reuses the auto-completion derivation already defined above rather than a second mechanism** |
+| **MAJOR** | never mechanical | **requires a witness** - a link to the `decision` record that names it as the reason, the same rule `standard.stamp` already has. Attack finding 4 applies here exactly as it does there: a bump with no witness is asserted, not evidenced, and self-certifying "this was major" is the decorative stamp the project has already had to take back once |
 
 ### The verbs, and there are eleven
 
