@@ -400,6 +400,28 @@ the way `schedule` and the candidate below do.
 `make ci`; an arming is data negotiated at connect, which is what the pipe already does with
 every other declaration.
 
+**Boris, 2026-09-15: *"I'm not sure about it but I think we should have some
+kind of an in-process message bus to coordinate the different components of
+`rig` without and avoiding them being tightly coupled and allowing it to be
+truly modular."*** **This is not a new mechanism - it is `events`, used by a
+kernel-owned module the same way a program uses it.** §5i already says the
+out-of-tree case "uses the same wire a program uses, pointed the other way";
+a projection writer or a drift checker is that case with nothing out-of-tree
+about it. **The decoupling Boris is asking for is what 5i's "no module
+imports another module" already enforces structurally** - `events` is the
+mechanism for the subset of that coordination which is naturally
+asynchronous (something happened, zero or more modules care), as opposed to
+a direct call through a kernel-owned interface for the subset that is not.
+
+**Searched rather than assumed, per §38's standing rule, and set aside:**
+`asaskevich/EventBus` is the established, widely-used option for exactly
+this - in-process pub-sub, sync and async. **It is not adopted.** The
+kernel's own budget rule (5i: "growth costs a recorded decision, not a nod")
+is the reason - `events` is already built for the cross-program case and
+costs nothing extra to reuse internally, so a second library for the same
+job inside the same process is the thing 5i's symbol budget exists to
+catch, not a gap it missed.
+
 ### The file-watcher is a source on `events`, not a service of its own
 
 §26's question 10 asks which program adopts each `← open` service. For the file-watcher the

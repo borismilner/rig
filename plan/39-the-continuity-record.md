@@ -343,6 +343,20 @@ store search to settle.
 | **provenance fields** | `session`, `seat`, `created_at`, `epoch` - the epoch is not new, precondition 4 above already requires one on every stamp; provenance carries it rather than inventing a second place for it |
 | **roll-up display id** | `BACKLOG.md`'s `B28`-style short codes are DERIVED at render time - the Nth work-item created in the project - never a stored field. **Same reason auto-completion is derived above**: a counter kept in sync by hand is a field that can go stale |
 
+#### `record.changed` is the one internal event, and it is what triggers the other two
+
+**Two mechanisms this section already names have never had a stated
+trigger.** The projection ("rig continuously materialises it into files",
+above) and the gate's re-arm ("a must-read record that CHANGES re-arms the
+gate", below) both fire on the same thing - a record was written - and
+neither says how. **`record.changed`, on the internal `events` bus §5
+already specifies** (id, kind, project, what changed): `record.put`,
+`record.link` and `record.unlink` are its only publisher. **The
+projection writer and the gate's re-arm check are both subscribers, not
+callers `record.put` reaches into directly** - which is the decoupling
+§5's new note is about, applied to the first two internal consumers that
+actually need it.
+
 #### rig commits and pushes the projection itself
 
 **Boris, 2026-09-12:** *"things can be managed in git too, we can architect so
@@ -632,7 +646,7 @@ discretion; that is the whole defect §38c names.
 | **rig tracks which of them THIS SESSION has fetched** | per session, never per uid. **A fresh context is a fresh session and reads again** - which is correct, because the context that read it is gone |
 | **`record.put` REFUSES until it has, and names what is missing** | never *"you must read the docs"*. The refusal is a list |
 | **ONE CALL SATISFIES IT** | `project.brief` returns the must-read set. **Complying is cheaper than arguing with it**, which is the only reason a gate like this survives contact with a working agent |
-| **a must-read record that CHANGES re-arms the gate** | for every session that read the old version. This is drift detection pointed at the project's own rules, and it is free once drift exists for standards |
+| **a must-read record that CHANGES re-arms the gate** | for every session that read the old version. This is drift detection pointed at the project's own rules, and it is free once drift exists for standards. **Triggered by `record.changed` on the internal bus, above** - the gate does not poll |
 
 **WHAT THE GATE ACTUALLY GUARANTEES, stated narrowly after the attack.** **rig
 guarantees the material was DELIVERED to this session and that the session
