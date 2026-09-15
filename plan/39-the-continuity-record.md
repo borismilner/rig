@@ -480,7 +480,7 @@ he asked for falls out of them.
 | Noun | What it is |
 |---|---|
 | **a RECORD** | the atomic unit. An id, a kind, the project it belongs to, a body, typed fields, and provenance - **which session wrote it, when, under which seat**. Append-only: a change writes a new version and the previous one is retained |
-| **a KIND** | what the record is, and it carries the schema for the fields. `requirement`, `decision`, `work-item`, `standard`, `note`, `artefact`, `progress`, `feature` |
+| **a KIND** | what the record is, and it carries the schema for the fields. `requirement`, `decision`, `work-item`, `standard`, `note`, `artefact`, `progress`, `feature`, `project` |
 | **a LINK** | a typed, directed edge between two records. `rules-on`, `cites`, `supersedes`, `implements`, `checked-against`, `produced-by`, `blocks`, `part-of` |
 
 **THE THREE PROPERTIES HE ASKED FOR ARE EACH ONE OF THOSE, and none needs a
@@ -508,6 +508,15 @@ same reason the short/long description split exists and `tags` is its own
 field rather than a line in `description_long`. Optimal access for an agent
 IS the design constraint, not a nice property of it.
 
+**CORRECTION: `project` is its own KIND, one record per project.** The
+fields below were marked "applies to: project" from the day they were
+written, which already implied a record to hold them; the KIND list simply
+had not caught up. **One exception to the id-scheme table above: a
+project's id is its SLUG** (tension 14's `<name>` in
+`~/.rig/<scope>/<name>/`), never a UUIDv7 - it is already a path
+component and a human types it, so it stays stable and readable. Every
+other record's "project it belongs to" field is this same slug.
+
 | Field | Kind | What it is |
 |---|---|---|
 | `title` | project, work-item | one line |
@@ -520,6 +529,7 @@ IS the design constraint, not a nice property of it.
 | `owner` | project, work-item | which seat is currently driving it |
 | `target_date` | work-item | optional |
 | `source` | project, work-item | which document or session it originated from - distinct from `cites`, which is for rules-on |
+| `next_up_n` | project | how many work-items `project.brief` surfaces as "next up." **Default 5**, override per project |
 
 **Sub-task nesting uses the LINK, not a new kind.** A sub-task IS a
 work-item, `part-of` its parent.
@@ -538,6 +548,14 @@ dependency is `blocks`; relative importance within a backlog is
 `priority`. A second link for pure sequencing would duplicate one of
 the two without covering a case neither already does - it gets added
 if that case ever shows up.
+
+**"Next up to `next_up_n`, in expected execution order"** is a
+topological sort over the `blocks` graph among `status: active`
+work-items, unresolved dependencies excluded, ties broken by
+`priority`. **This is the concrete case the graph-traversal axis of
+B28 exists for** - a real ordering query, not a hypothetical one -
+and it is why the axis is priced rather than skipped even though the
+store itself could be decided without it.
 
 ### Features, and the FEATURES.md roll-up
 
@@ -667,6 +685,7 @@ so the schema is versioned and improved in one place like everything else.
 | The brief carries | |
 |---|---|
 | open work items, each with its last progress step and its age | a stale step beside a live session is the signal that a seat is stuck |
+| **the next up to `next_up_n` work-items, in execution order** | title, `description_short`, `priority`, `status`, `owner`, `tags`, `target_date` - **the compact card, never `description_long`.** A list meant to be scanned in one pass fails its own readability requirement the moment it carries a paragraph per row; the long form is one `record.get` away |
 | what is blocked, and on whom | including what is waiting on Boris |
 | standards drift, and any check now due | |
 | the must-read set and whether this session has cleared it | |
@@ -679,6 +698,17 @@ mediocre for each. That is the two-consumer requirement met by
 construction rather than by discipline, and it is what makes *"the human-report
 can be derived automatically or with very small agent effort"* true: the effort
 is one call, and no agent writes prose over it.
+
+**Boris, 2026-09-15: *"rig is to expose in the GUI a section that
+overviews all managed projects that exposes all of the different
+relevant sections in a beautiful and handy way."*** **No new verb.**
+The roster is `record.query(kind: project)`; the content per project
+is the same `project.brief` this section already specifies -
+next-up work-items, features, drift, gate status. The GUI composes
+one call per project into an overview pane; §39 supplies the data,
+§11 renders it through the Generated pane tier (a schema, not a
+hand-drawn widget) since rig is a program in its own window like any
+other.
 
 ### The four that were not answered by the spine
 

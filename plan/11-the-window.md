@@ -57,6 +57,9 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
   detail and status - and the program never names a widget (§5h). *Kit*: the program serves its
   own HTML and composes it from rig's own elements. *Embedded*: the program serves its own HTML
   and brings its own components, getting the token set and nothing more.
+- **The all-managed-projects overview is a Generated pane**, rig registered as a program in its
+  own window. §39 supplies the schema and the data (`record.query(kind: project)` for the roster,
+  `project.brief` per project for the content) - this section owes only the rendering.
 - **The gap the kit closes, and the version of this claim that was measured and found false.**
   The tier exists because a program serving its own HTML gets tokens and stops there, so one
   visual system cannot reach it. What this section used to say - that `archi`, `dispatch` and
