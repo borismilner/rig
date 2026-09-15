@@ -329,6 +329,20 @@ nothing. **Attack finding 2: lossless and sensitive cannot both be absolute.** *
 `plansplit.py` already proves: export, rebuild, and compare - and nothing is
 written until it matches.**
 
+#### The id scheme and the front matter format, a first pass
+
+**Cheap to decide now and cheap to change before any code exists** - slice 1
+cannot start without SOME answer here, and neither of these needs B28's
+store search to settle.
+
+| Decision | What, and why |
+|---|---|
+| **id** | **UUIDv7** (RFC 9562), via `google/uuid` - the most-used UUID library in Go, top-shelf per §38. Time-ordered, so `ls records/<kind>/` sorts chronologically for free, which is exactly the diff-readability goal this section already states. ULID does the same job; UUIDv7 wins for being the standard rather than a de-facto one |
+| **filename** | `records/<kind>/<id>.md`, id in canonical lowercase hyphenated form |
+| **front matter** | **YAML**, delimited by `---`, block style throughout - `links:` is a block list of `{type, to}` pairs, never `[a, b]` inline. **A one-line array is a diff that hides which entry changed**, the same instinct already behind reformatting `buildskew_test.go`'s table literals |
+| **provenance fields** | `session`, `seat`, `created_at`, `epoch` - the epoch is not new, precondition 4 above already requires one on every stamp; provenance carries it rather than inventing a second place for it |
+| **roll-up display id** | `BACKLOG.md`'s `B28`-style short codes are DERIVED at render time - the Nth work-item created in the project - never a stored field. **Same reason auto-completion is derived above**: a counter kept in sync by hand is a field that can go stale |
+
 #### rig commits and pushes the projection itself
 
 **Boris, 2026-09-12:** *"things can be managed in git too, we can architect so
