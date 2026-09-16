@@ -16,6 +16,7 @@ import (
 	"os"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 // The built frontend, not its sources. Vite writes into dist/ beside this
@@ -93,6 +94,18 @@ func run() error {
 		// never fire. setZoom also clamps at 1.0, so webkit cannot zoom out
 		// below 100% either. Zoom belongs in the frontend against the theme's
 		// type scale (section 6), which is where step 2 puts it.
+	})
+
+	// The tray is the access point (section 11), the window a toggle on it -
+	// so closing the window must hide it, not tear it down. Wails' own
+	// default WindowClosing listener destroys the window and, once none
+	// remain, quits the whole process (application_linux_gtk3.go's
+	// unregisterWindow calling a.destroy()) - taking the tray down with it.
+	// Cancelling here runs before that listener and skips it entirely; it
+	// is skipped rather than overridden, so Hide is this handler's job too.
+	win.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
+		e.Cancel()
+		win.Hide()
 	})
 
 	// The tray (section 11) is a separate goroutine because both it and

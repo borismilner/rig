@@ -153,6 +153,47 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
         `fyne.io/systray`'s own menu items are the mechanism for tray-native
         commands now (Wails' `SetMenu` no longer applies, the tray no longer
         being Wails'), and it is unused so far.
+  - **BORIS, 2026-09-16, verbatim, found closing the window: "I see that closing
+    the window of the development flavour removes the icon from the
+    system-tray maybe even closes the instance as far as I can tell; This is
+    not the intent."** Confirmed: Wails' own default `WindowClosing` listener
+    destroys the window and `application_linux_gtk3.go`'s `unregisterWindow`
+    quits the whole process once no window remains (Linux and Windows both
+    default `DisableQuitOnLastWindowClosed` to false; only macOS's polarity
+    happens to already do the right thing). **FIXED, the same session:**
+    `cmd/rigwindow/main.go` now calls
+    `win.RegisterHook(events.Common.WindowClosing, ...)` and cancels the
+    event, calling `win.Hide()` instead - the hook runs before Wails' own
+    listener and, being cancelled, that listener never runs, so neither the
+    window nor the process is destroyed. This is the standard Wails v3
+    "minimise to tray" pattern, not a rig-specific workaround.
+    - ⛔ **A SEPARATE, DEEPER BUG WAS FOUND WHILE VERIFYING THIS FIX AND IS
+      STILL OPEN.** Closing the window on this machine (GTK3 + WebKitGTK,
+      X11, Mesa/Intel) SIGABRTs the whole `rigwindow` process regardless of
+      the fix above: `Gdk-WARNING: GdkSurface ... unexpectedly destroyed`
+      followed by `Gdk:ERROR:gdksurface.c:978:_gdk_surface_destroy_hierarchy:
+      assertion failed: (priv->egl_native_window == NULL)`, `SIGABRT`.
+      **Reproduced identically on the UNPATCHED baseline** (`git stash` the
+      hook, rebuild, close - same crash), so the hook above did not cause it
+      and does not fix it: the crash happens before Go's close handling ever
+      runs, deep in GTK/WebKitGTK's native reaction to the window-close
+      request itself. **Four env-var mitigations were tried and NONE stopped
+      it** - `WEBKIT_DISABLE_DMABUF_RENDERER=1`,
+      `WEBKIT_DISABLE_COMPOSITING_MODE=1`, `GDK_GL=disable`,
+      `LIBGL_ALWAYS_SOFTWARE=1` - so this is not a GPU-backend selection
+      problem. **Repro:** build `rigwindow`, run it against a named estate,
+      find its `rig`-titled window with `xdotool search --name rig`, close it
+      with `xdotool windowclose <id>` (a synthetic `_NET_CLOSE_WINDOW`, which
+      GDK's X11 backend turns into the same `delete-event` a real titlebar
+      click sends) - the process aborts within ~1-2s, taking rigd's own comfort
+      (development-estate `rigd` stays up fine) but the tray and window both
+      vanish with it. **Not chased further into Wails' or WebKitGTK's own
+      source** - this needs either an upstream fix, a WebKitGTK/GTK version
+      change, or an architecture change (e.g. `Frameless: true` with an
+      in-webview close button that calls `Hide()` over the RPC bridge instead
+      of ever letting the native delete-event fire) - a real scope decision,
+      not a one-line patch. **The next session should treat this as the
+      actual open item**, not the hook fix above, which is done.
   - **An UNNAMED estate gets no tray at all.** Every test and every reproduction
     recipe starts one, they are not deployments (§37's ephemeral clause), and a
     third icon appearing during `make ci` would be the failure this requirement
