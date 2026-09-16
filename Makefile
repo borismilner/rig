@@ -11,9 +11,28 @@ PREFIX     ?= $(HOME)/.local
 # Where the systemd --user unit lands. systemd reads XDG_CONFIG_HOME
 # and falls back to ~/.config, so this follows it rather than guessing.
 UNITDIR    ?= $(or $(XDG_CONFIG_HOME),$(HOME)/.config)/systemd/user
-VERSION    := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+# A BUILD FROM A DIRTY TREE HAS TO SAY SO IN EVERY STAMP IT CARRIES, and this
+# repository is the case that makes it matter rather than a hypothetical: three
+# seats share one working tree with no branches, so uncommitted work is the
+# normal state and not the exception.
+#
+# `git describe --dirty` marked VERSION and `git rev-parse` cannot mark SHA, so
+# one binary carried a true answer and a false one. `make version` would print a
+# product string ending in -dirty beside a commit that was never built, and the
+# commit is the field anybody actually quotes when a build misbehaves.
+#
+# UNTRACKED FILES COUNT HERE, WHICH `git describe --dirty` DOES NOT DO. Go
+# compiles every .go file in a package directory whether git knows about it or
+# not, so a whole new package arrives untracked, changes the binary, and leaves
+# describe calling the tree clean. internal/coord arrived exactly that way.
+# `git status --porcelain` honours .gitignore, so build/ does not trip it.
+#
+# One definition, applied to both stamps, because two definitions of dirty is
+# the bug this is fixing.
+DIRTY      := $(shell test -z "$$(git status --porcelain 2>/dev/null)" || printf -- -dirty)
+VERSION    := $(shell git describe --tags --always 2>/dev/null || echo dev)$(DIRTY)
 WIRE       := v1
-SHA        := $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
+SHA        := $(shell git rev-parse --short HEAD 2>/dev/null || echo none)$(DIRTY)
 DATE       := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS    := -s -w \
               -X main.version=$(VERSION) -X main.wire=$(WIRE) \
