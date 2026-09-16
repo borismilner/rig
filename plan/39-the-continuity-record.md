@@ -8,6 +8,77 @@ mechanism and then widened it in the same breath:
 > source of truth we can perfect, instead of perfecting general instructions
 > across many different CLAUDE.md"*
 
+### ⛔ THE MVP, DEFINED BY BORIS 2026-09-16 LATE, IN HIS OWN WORDS
+
+> *"MVP is being able to use `rig` to work on `rig` with respect to the
+> project/case management."*
+
+**THIS SECTION IS THE MVP. Nothing else is.** Recorded the turn he said it,
+because the word had two live meanings by then and the other one was about to
+be built toward.
+
+⛔ **IT IS NOT THE AgentBox GUI PORT.** `READINESS.txt` carries a standing
+report answering *"is rig ready to replace the GUI of AgentBox"*, asked for by
+him on the same day, and **that is a DIFFERENT question with a different
+answer.** M8 and its embedded pane tier are the destination he confirmed for
+the TRAY; they are not this. **A seat told to "converge to the MVP" and pointed
+at §11 or §23 is building the wrong thing**, and the lead nearly reported it
+that way before he said this sentence.
+
+**WHAT IT MEANS FOR THE BUILD ORDER**, and it is the first thing §39 has ever
+had that ranks its own slices:
+
+| | |
+|---|---|
+| **slice 1** - the store and the three nouns | **on the MVP path.** Nothing works without it |
+| **slice 2** - progress streams and `project.brief` | **THE MVP LANDS HERE.** "Work on rig with respect to project management" IS a work item driven start to finish and a brief read back |
+| slice 4 - links and `record.refs` | on the path: a case that cannot say what it touches is not case management |
+| slice 3 - the window renders the brief | **NOT the MVP.** He said *use* rig, and the CLI and the MCP door are both uses |
+| slices 5 to 8 | **NOT the MVP.** The projection, the gate, standards and the migration all follow it |
+
+**THE TEST OF THE MVP IS THE ONE HE NAMED: rig's own project and cases are
+managed IN rig.** Not demonstrated on a fixture, not on a synthetic second
+project - on rig itself, which is the only project there is.
+
+**AND IT SETTLES THE PRIORITY QUESTION §39 COULD NOT ANSWER ABOUT ITSELF.**
+This section was sized at 48-59 seat-days across eight slices on 2026-09-16 and
+that number was read as the cost of the whole thing. **The MVP is slices 1, 2
+and 4** - and a number for that subset is owed rather than assumed, because
+the sizing was never cut that way.
+
+### ⛔ A `blocks` CYCLE IS DETECTED AND REPORTED, NEVER RESOLVED
+
+**RULED BY THE LEAD 2026-09-16, on `backend-record`'s finding, because it
+reaches slice 1's LINK SCHEMA and slice 1 is on the MVP path.**
+
+**The defect it closes:** the brief's next-up list is specified as *"in
+execution order"* and the only definition of that order is a back-reference
+inside the CASE section - *"the same topological-sort-over-`blocks`-among-active-
+items derivation"*. **A topological sort needs a DAG and §39 specified no cycle
+detection anywhere, for any purpose.** So the ordering had no defined answer on
+a cyclic backlog, and the failure is not a wrong order: it is a derivation that
+does not terminate, or that silently drops the items in the cycle. **Every
+arriving session calls this.**
+
+| On a cycle | |
+|---|---|
+| **detected** | the derivation terminates, always. A cycle is found rather than run into |
+| **reported** | it appears in the brief as a BLOCKED CONDITION, naming the items in it |
+| **ordered around** | every item not in the cycle keeps its place in the list |
+| ⛔ **never resolved** | rig does not pick an edge to break |
+
+**WHY REPORTING RATHER THAN BREAKING, and it is §29 non-goal 1 rather than
+caution:** choosing which `blocks` edge is the wrong one is a judgement about
+the work, which is domain logic, which is *"the thing rig refuses to have"*. **A
+cyclic backlog is a real state of a real project and it is one Boris would want
+SURFACED.** Swallowing it silently is the failure; so is refusing to answer.
+
+**ONE RULING CLOSES TWO GAPS.** `STORE-REQUIREMENTS.md` R3.3 raises the same
+need for bounded traversal from the other end. **A cycle guard costs almost
+nothing in the link schema and is expensive bolted onto two derivations
+afterwards** - if slice 1 defines links without it, slice 2 and slice 4 both pay.
+**That is why this is ruled now rather than at slice 2, where it was found.**
+
 **WHAT THE RECORD IS FOR.** A session arriving cold has to learn what the
 project is, what was already decided, what is in flight, and what it is allowed
 to write. Today that lives in prose: a `CLAUDE.md` per project telling a session
