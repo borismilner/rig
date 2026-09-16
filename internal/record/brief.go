@@ -32,6 +32,12 @@ type Brief struct {
 	NextUp []ItemState
 
 	// Blocked is what cannot start, and on whom.
+	//
+	// ⛔ A BLOCKER IN HERE MAY BE IN NEITHER Open NOR NextUp. Ruled rig
+	// fee7580: an item is blocked when a `blocks` edge points at it from any
+	// item whose latest step is not `done`, active or not - so a blocker whose
+	// status is `idea` is named here and appears in no other list. A renderer
+	// must not assume it can resolve a blocker id against the other two.
 	Blocked []Blockage
 
 	// Cycles are the blocks cycles, each naming its items.
@@ -136,29 +142,53 @@ func (s *Store) Brief(project string) (Brief, error) {
 	order, cycles := topoSort(active, edges)
 	b.Cycles = cycles
 
-	n := s.nextUpN(project)
-	for i, id := range order {
-		if i < n {
-			b.NextUp = append(b.NextUp, active[id])
-		} else {
-			b.Open = append(b.Open, active[id])
+	// ⛔ WHAT IS BLOCKED, AND ON WHOM - AND THE BLOCKERS COME FROM OUTSIDE THE
+	// ACTIVE SET ON PURPOSE. Ruled by the team-lead, rig fee7580, section 39.
+	//
+	// The ordering above runs over the active set and must: a topological sort
+	// has to be over the nodes being ordered. THE BLOCKED DETERMINATION IS A
+	// DIFFERENT QUESTION and had silently inherited the same filter, because
+	// `edges` is blocksAmong(active) with BOTH ends filtered.
+	//
+	// The defect that hid inside it: the filter is right for a blocker whose
+	// latest step is `done` - finished work is not a live dependency - and
+	// WRONG for every other kind. An item whose status is `idea` is also
+	// outside the active set, `idea` being section 39's word for "has not been
+	// picked up", so the brief called an item ready while the thing it waits on
+	// had not been started. That is the mirror of the never-empties defect
+	// section 39 already corrected, and the code comment here could not see it
+	// because it only ever reasoned about `done`.
+	blockedBy := map[string][]string{}
+	for _, it := range items {
+		if step, ok := latest[it.ID]; ok && step.Fields["state"] == "done" {
+			continue
+		}
+		dsts, err := s.LinksFrom(it.ID, LinkBlocks)
+		if err != nil {
+			return Brief{}, err
+		}
+		for _, d := range dsts {
+			if _, ok := active[d]; ok {
+				blockedBy[d] = append(blockedBy[d], it.ID)
+			}
 		}
 	}
 
-	// WHAT IS BLOCKED, AND ON WHOM.
-	for id, st := range active {
-		var on []string
-		for src, dsts := range edges {
-			for _, d := range dsts {
-				if d == id {
-					on = append(on, src)
-				}
-			}
+	// NEXT UP IS WHAT CAN BE STARTED NOW, so a blocked item is never in it -
+	// including one whose blocker is in neither list. The lists stay disjoint
+	// and together still carry every active item.
+	n := s.nextUpN(project)
+	for _, id := range order {
+		if len(b.NextUp) < n && len(blockedBy[id]) == 0 {
+			b.NextUp = append(b.NextUp, active[id])
+			continue
 		}
-		if len(on) > 0 {
-			sort.Strings(on)
-			b.Blocked = append(b.Blocked, Blockage{Item: id, Title: st.Title, BlockedBy: on})
-		}
+		b.Open = append(b.Open, active[id])
+	}
+
+	for id, on := range blockedBy {
+		sort.Strings(on)
+		b.Blocked = append(b.Blocked, Blockage{Item: id, Title: active[id].Title, BlockedBy: on})
 	}
 	sort.Slice(b.Blocked, func(i, j int) bool { return b.Blocked[i].Item < b.Blocked[j].Item })
 

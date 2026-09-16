@@ -3,6 +3,7 @@ package record
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -11,10 +12,19 @@ import (
 
 // backlogPath is rig's REAL development plan. Not a fixture and not a copy.
 //
-// Section 39's MVP, Boris: "rig's own project and cases are managed IN rig.
-// Not demonstrated on a fixture, not on a synthetic second project - on rig
-// itself, which is the only project there is." A test that seeds invented rows
-// demonstrates the code runs. Only the real document demonstrates the MVP.
+// Section 39's MVP test, in section 39's own words: rig's own project and
+// cases are managed IN rig - not on a fixture, not on a synthetic second
+// project, but on rig itself, which is the only project there is. A test that
+// seeds invented rows demonstrates the code runs. Only the real document
+// demonstrates the MVP.
+//
+// ⛔ THAT SENTENCE IS SECTION 39's PROSE AND IS NOT A QUOTATION FROM BORIS.
+// It stood here as `Boris: "..."` in quote marks until 2026-09-16, relayed into
+// this comment from a message asserting a verbatim. Every one of his verbatims
+// in section 39 is a blockquote and this is not one of them. The project's rule
+// is in records.go: a quotation attributed to him that cannot be traced is a
+// paraphrase until proved otherwise, and a code comment is the same surface as
+// a document.
 //
 // ⛔ IT REACHES THE FILE THROUGH THE REPO-ROOT SYMLINK, WHICH IS GITIGNORED, SO
 // THIS TEST SKIPS WHEREVER THE LOGBOOK IS NOT CHECKED OUT BESIDE rig - a fresh
@@ -25,24 +35,115 @@ import (
 // only requirement this test exists to meet.
 const backlogPath = "../../BACKLOG.md"
 
-// A row is "| B<n> | **<title>** | ...". The title is taken up to its closing
-// bold or the next cell, whichever comes first - the rows are handwritten and
-// not all of them close the bold before the pipe.
-var backlogRow = regexp.MustCompile(`^\| (B\d+) \| \*\*(.+)$`)
+// backlogRow matches any table row whose first cell is a backlog id.
+//
+// ⛔ IT MUST NOT REQUIRE THE TITLE CELL TO OPEN WITH `**`. The pattern here was
+// `^\| (B\d+) \| \*\*(.+)$` until 2026-09-16, and a CLOSED row opens `~~**`
+// because strikethrough is how this document marks one. So it dropped eight
+// rows - B7, B9, B11, B19, B20, B22, B31, B33 - every one of them closed, and
+// seeded 36 of 44 while three documents reported 44. The demonstration ran
+// against rig's backlog with its history removed, which is the one distortion
+// most likely to flatter a next-up list.
+var backlogRow = regexp.MustCompile(`^\|\s*(B\d+)\b`)
 
-func titleOf(rest string) string {
-	for _, cut := range []string{"**", " | "} {
-		if i := strings.Index(rest, cut); i > 0 {
-			rest = rest[:i]
+// backlogRowAnywhere is the SECOND instrument, and it exists to disagree.
+//
+// It is a multiline match over the whole file rather than a line scan, so it
+// shares no code path with the scanner above - not the buffer bound, not the
+// loop, not the split. The guard asserts the two agree as SETS.
+//
+// ⛔ IT EARNED ITS KEEP ON ITS FIRST RUN. It found B21, which FOUR separate
+// hand-counts had missed - the old regex, two python cross-checks, and the
+// `grep -cE '^\| B[0-9]+ \|'` that produced the 44 reported to the lead and
+// into READINESS.txt. Every one of them required a pipe after the id, and B21's
+// row does not have one. THE TRUE ROW COUNT IS 45, NOT 44.
+var backlogRowAnywhere = regexp.MustCompile(`(?m)^\|\s*(B\d+)\b`)
+
+// cells splits a markdown table row and trims every cell. The table is
+// | # | Item | Evidence | Adopter | State |, so cells[1] is the id, cells[2]
+// the item and cells[5] the state.
+func cells(line string) []string {
+	parts := strings.Split(line, "|")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		out = append(out, strings.TrimSpace(p))
+	}
+	return out
+}
+
+// titleOf takes the item cell's title, past any strikethrough and bold, and
+// stops at whichever marker closes it. The rows are handwritten and not all of
+// them close the bold before the pipe.
+func titleOf(cell string) string {
+	s := strings.TrimPrefix(cell, "~~")
+	s = strings.TrimPrefix(s, "**")
+	for _, cut := range []string{"**", "~~"} {
+		if i := strings.Index(s, cut); i > 0 {
+			s = s[:i]
 		}
 	}
-	return strings.TrimSpace(rest)
+	return strings.TrimSpace(s)
+}
+
+// boldLead returns a cell's first bolded run, which is how every row in this
+// table states its disposition.
+func boldLead(cell string) string {
+	i := strings.Index(cell, "**")
+	if i < 0 {
+		return ""
+	}
+	rest := cell[i+2:]
+	if j := strings.Index(rest, "**"); j >= 0 {
+		rest = rest[:j]
+	}
+	return rest
+}
+
+// terminalDispositions are the bold leads that mean the work is over.
+var terminalDispositions = map[string]bool{
+	"DONE": true, "CLOSED": true, "REJECTED": true, "RETRACTED": true,
+}
+
+// firstWord returns a cell's first word, upper-cased and stripped of the
+// punctuation these rows attach to it - "DONE," and "DONE." both mean DONE.
+func firstWord(s string) string {
+	s = strings.TrimSpace(s)
+	if i := strings.IndexAny(s, " ,.;:"); i > 0 {
+		s = s[:i]
+	}
+	return strings.ToUpper(s)
 }
 
 type backlogItem struct {
 	ID    string
 	Title string
-	Done  bool
+
+	// Done is the DOCUMENT'S OWN closure mark: the title struck through.
+	//
+	// ⛔ THIS IS EVIDENCE RATHER THAN INFERENCE. B7's State cell says it in as
+	// many words - "done, struck not deleted" - so the file states its own
+	// convention. Striking a title is a deliberate act somebody performed;
+	// scanning the row's prose for the word "done" is a lottery, and the
+	// pattern this replaced lost B44 to a comma, B15 to the word CLOSED and
+	// B26 to a full stop.
+	Done bool
+
+	// ClaimsDone is a row whose STATE cell leads with a terminal disposition
+	// while its title is NOT struck.
+	//
+	// ⛔ COUNTED AND REPORTED, NEVER FOLDED INTO Done. cells[2] and cells[5]
+	// are different axes: the item cell carries whether the WORK is closed,
+	// the state cell carries how the FINDING was disposed of. B9 is struck and
+	// done while its state says "argued", and that is not a contradiction.
+	// Whether a row that claims done in prose without being struck is closed
+	// is a question about the document, and this test does not own the
+	// document - so it hands the count up rather than deciding.
+	ClaimsDone bool
+
+	// Malformed is a row whose markdown is irregular enough that the id cell
+	// and the item cell ran together. Counted and named in the report so the
+	// document's owner can fix it; never a reason to drop the row.
+	Malformed bool
 }
 
 // readBacklog pulls the real rows out of the real file.
@@ -54,9 +155,14 @@ func readBacklog(t *testing.T) []backlogItem {
 	}
 	defer func() { _ = f.Close() }()
 
+	raw, err := io.ReadAll(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	var out []backlogItem
 	seen := map[string]bool{}
-	sc := bufio.NewScanner(f)
+	sc := bufio.NewScanner(strings.NewReader(string(raw)))
 	sc.Buffer(make([]byte, 1<<20), 1<<20)
 	for sc.Scan() {
 		line := sc.Text()
@@ -65,19 +171,69 @@ func readBacklog(t *testing.T) []backlogItem {
 			continue
 		}
 		seen[m[1]] = true
-		low := strings.ToLower(line)
+		c := cells(line)
+		if len(c) < 6 {
+			t.Fatalf("%s has %d cells, want at least 6 (| # | Item | Evidence | Adopter | State |): %.120s",
+				m[1], len(c), line)
+		}
+
+		// ⛔ ONE ROW IS MISSING THE PIPE AFTER ITS ID, SO ITS ID CELL ABSORBED
+		// THE FRONT OF ITS ITEM CELL - INCLUDING THE CLOSURE MARKER.
+		//
+		// B21, and it is why the second instrument exists. Reconstructing the
+		// item cell is the honest repair: the row is real, it is closed, and
+		// every count anyone ran missed it because every one required the pipe.
+		// It is FLAGGED rather than silently normalised - section 39's ruling
+		// on the migration is import everything and report what is irregular,
+		// and a row this test quietly tidied would be a row nobody ever fixes.
+		item, malformed := c[2], false
+		if rest := strings.TrimSpace(strings.TrimPrefix(c[1], m[1])); rest != "" {
+			item, malformed = rest+" "+item, true
+		}
+
 		out = append(out, backlogItem{
 			ID:    m[1],
-			Title: titleOf(m[2]),
-			// A row whose state cell says done, or whose evidence says BUILT or
-			// DONE with a sha, is finished work. A seeded backlog that shows
-			// today's closed items as open is a lie on its first read.
-			Done: strings.Contains(low, "| **done") || strings.Contains(low, "**done ") ||
-				strings.Contains(low, "**built,") || strings.Contains(low, "**rejected"),
+			Title: titleOf(c[2]),
+			// The document's own closure mark, in the item cell: a struck
+			// title, or a terminal bold lead where the strikethrough would be.
+			Done:      strings.HasPrefix(item, "~~") || terminalDispositions[firstWord(boldLead(item))],
+			Malformed: malformed,
 		})
+		out[len(out)-1].ClaimsDone = !out[len(out)-1].Done &&
+			terminalDispositions[firstWord(boldLead(c[5]))]
 	}
 	if err := sc.Err(); err != nil {
 		t.Fatal(err)
+	}
+
+	// ⛔ THE GUARD IS AN EQUALITY BETWEEN TWO INSTRUMENTS, NOT A BOUND.
+	//
+	// This was `if len(items) < 30 { t.Fatalf("... expected the real file's
+	// ~44", len(items)) }`. Over a 44-row file it read 36, and 36 >= 30, so it
+	// passed and the message naming 44 never printed. A BOUND CANNOT NOTICE
+	// ITSELF GOING STALE - it is the same defect as a check that cannot tell
+	// "nothing is wrong" from "the check did not run", and this repo has now
+	// recorded seven of those.
+	//
+	// So the file is scanned a second time by a pattern that shares no code
+	// path with the scanner above - a multiline match over the whole contents,
+	// no bufio, no buffer bound, no per-line loop - and the two must agree AS
+	// SETS. A count equality would still hide a swap; the set difference names
+	// the rows that went missing, which is the failure that actually happened.
+	byScan := map[string]bool{}
+	for _, it := range out {
+		byScan[it.ID] = true
+	}
+	var missing []string
+	for _, m := range backlogRowAnywhere.FindAllStringSubmatch(string(raw), -1) {
+		if !byScan[m[1]] {
+			missing = append(missing, m[1])
+			delete(byScan, m[1])
+		}
+	}
+	if len(missing) > 0 {
+		t.Fatalf("the row scanner read %d rows and the whole-file scan finds %d; it never saw %v",
+			len(out), len(out)+len(missing), missing)
 	}
 	return out
 }
@@ -91,9 +247,8 @@ func readBacklog(t *testing.T) []backlogItem {
 // rather than any single function.
 func TestRigsOwnBacklogIsManagedInRigAndTheBriefAnswersIt(t *testing.T) {
 	items := readBacklog(t)
-	if len(items) < 30 {
-		t.Fatalf("read %d rows from rig's backlog, expected the real file's ~44", len(items))
-	}
+
+	classify(t, items)
 
 	name := estate(t, "development")
 	s := openStore(t, name)
@@ -168,7 +323,7 @@ func TestRigsOwnBacklogIsManagedInRigAndTheBriefAnswersIt(t *testing.T) {
 		t.Fatalf("B28 does not precede B29: %v", all)
 	}
 
-	report(t, "rig's own backlog, as rig answers it", b, open)
+	report(t, "rig's own backlog, as rig answers it", b, open, len(items))
 
 	// ⛔ NOW THE CYCLE, ASSERTED ON TWO REAL ITEMS, AND WATCHED FIRING.
 	//
@@ -207,7 +362,7 @@ func TestRigsOwnBacklogIsManagedInRigAndTheBriefAnswersIt(t *testing.T) {
 			t.Fatalf("rig broke %s -> %s to resolve the cycle", e[0], e[1])
 		}
 	}
-	report(t, "the same backlog with one asserted edge closing a loop", cyc, open)
+	report(t, "the same backlog with one asserted edge closing a loop", cyc, open, len(items))
 
 	// ⛔ AND THE HALF NOBODY RUNS: WATCH THE REPORT CLEAR.
 	//
@@ -230,11 +385,45 @@ func TestRigsOwnBacklogIsManagedInRigAndTheBriefAnswersIt(t *testing.T) {
 	}
 }
 
-func report(t *testing.T, headline string, b Brief, open int) {
+// classify prints how every row was read, and NAMES the rows this test
+// deliberately declines to decide about.
+//
+// ⛔ THE SPLIT IS THE POINT. A row struck through is closed - the document says
+// so itself, in B7's own state cell: "done, struck not deleted". A row whose
+// STATE cell leads with a terminal disposition while its title is NOT struck is
+// a different thing, and whether it is closed is a question about the document
+// rather than about this code. So it is counted and named, never folded in.
+// Deciding it here would be this test writing the backlog's semantics into Go,
+// where nobody reviews it as a decision.
+func classify(t *testing.T, items []backlogItem) {
+	t.Helper()
+	var done, claims, malformed []string
+	for _, it := range items {
+		switch {
+		case it.Done:
+			done = append(done, it.ID)
+		case it.ClaimsDone:
+			claims = append(claims, it.ID)
+		}
+		if it.Malformed {
+			malformed = append(malformed, it.ID)
+		}
+	}
+	fmt.Printf("\n  === how rig's backlog was read ===\n")
+	fmt.Printf("  %d rows   %d closed (title struck)   %d open\n",
+		len(items), len(done), len(items)-len(done))
+	fmt.Printf("  closed: %v\n", done)
+	fmt.Printf("  ⚠ %d claim a terminal state without being struck, SEEDED OPEN: %v\n",
+		len(claims), claims)
+	fmt.Printf("  ⚠ %d malformed row(s), parsed and seeded anyway: %v\n\n",
+		len(malformed), malformed)
+}
+
+func report(t *testing.T, headline string, b Brief, open, seeded int) {
 	t.Helper()
 	fmt.Printf("\n  === %s ===\n", headline)
 	fmt.Printf("  project %s   %d open of %d seeded   next_up_n=%d\n",
-		b.Project, open, open, len(b.NextUp))
+		b.Project, open, seeded, len(b.NextUp))
 	fmt.Printf("  NEXT UP (execution order)\n")
 	for i, it := range b.NextUp {
 		fmt.Printf("    %d. %-5s %-8s %s\n", i+1, it.ID, "["+it.State+"]", trunc(it.Title, 58))
