@@ -7,19 +7,21 @@ package client
 // program that ever links it. So the set is written down, asserted by
 // surface_test.go, and does not grow without a decision recorded in the plan.
 //
-//	Connect() (*Client, error)          dial rig at its well-known socket
-//	Dial(socket string) (*Client, error)  dial a known path
-//	Client                              one connection
-//	  Call(ctx, method, in, out) error  one request, one answer
-//	  Hello(ctx, program, version)      the program handshake
-//	  Handle(Handler)                   answer what rig routes here
-//	  Done() <-chan struct{}            closed when the connection ends
-//	  Err() error                       why it ended
-//	  Close() error
-//	Handler                             the callback Handle takes
-//	CallError                           a wire-level failure
-//	  Error() string
-//	  Code() rigv1.Code
+// SHAPES, NOT NAMES, since 2026-09-16. The list below carried bare names
+// until then, which locked the NAME Client.Call while leaving its signature
+// free: changing what it takes or returns broke every program that links the
+// stub AND passed the gate, because the name was still there. It also listed
+// no struct fields at all, while cmd/rig builds a CallError by naming Method
+// and Status, so retyping either was a breaking change nothing checked. Both
+// are enumerated with their shape now. PARAMETER NAMES ARE NOT PART OF IT:
+// Go has no named arguments, so renaming a parameter breaks nobody, and
+// locking one would spend a recorded decision on an edit that costs nothing.
+//
+// THE LIST BELOW IS THE ONLY COPY. This comment used to carry a prose version
+// beside it, and the prose rotted: it described Hello as taking a program and
+// a version long after Hello took a declaration and returned a response. Two
+// copies of a contract means one of them is wrong with nothing to say which,
+// and the copy a test can check is the one that survives.
 //
 // What is deliberately NOT here: no schema knowledge, and no interpretation
 // of what a method means. The stub frames bytes; it does not know what a
@@ -52,17 +54,19 @@ package client
 // Ordered, so a diff on this slice is the decision section 3 asks to be
 // recorded rather than a set that quietly re-sorts.
 var Surface = []string{
-	"CallError",
-	"CallError.Code",
-	"CallError.Error",
-	"Client",
-	"Client.Call",
-	"Client.Close",
-	"Client.Done",
-	"Client.Err",
-	"Client.Handle",
-	"Client.Hello",
-	"Connect",
-	"Dial",
-	"Handler",
+	"CallError struct",
+	"CallError.Code() rigv1.Code",
+	"CallError.Error() string",
+	"CallError.Method string",
+	"CallError.Status *rigv1.Status",
+	"Client struct",
+	"Client.Call(context.Context, string, proto.Message, proto.Message) error",
+	"Client.Close() error",
+	"Client.Done() <-chan struct{}",
+	"Client.Err() error",
+	"Client.Handle(Handler)",
+	"Client.Hello(context.Context, *rigv1.Declaration) (*rigv1.HelloResponse, error)",
+	"Connect() (*Client, error)",
+	"Dial(string) (*Client, error)",
+	"Handler func(string, []byte) (proto.Message, error)",
 }
