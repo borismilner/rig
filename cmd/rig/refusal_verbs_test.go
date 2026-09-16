@@ -138,10 +138,35 @@ func TestTheDeadVerbGuardStillBitesTheStringItWasBuiltFor(t *testing.T) {
 		t.Fatalf("the extractor read %v out of the refusal deleted at 7ee7233, "+
 			"want [peers]: it can no longer see the string it exists for", got)
 	}
-	if dispatched["peers"] {
-		t.Fatal("`peers` is dispatched now, so this self-check proves nothing. " +
-			"Re-point it at a verb rig really does not have, or delete it and say " +
-			"so in the commit - do not leave it passing.")
+
+	// ⛔ `peers` IS DISPATCHED NOW, AND THAT IS WHY THE RED INPUT BELOW IS A
+	// SENTINEL RATHER THAN A PLAUSIBLE VERB.
+	//
+	// This self-check used to assert !dispatched["peers"], which was the exact
+	// defect 7ee7233 deleted. B41 landed the verb and the assertion inverted:
+	// the check went red and told its reader it could no longer prove anything.
+	// That is the check working, and it is also the lesson - a known-red input
+	// chosen from the real world expires the day the real world fixes it, and a
+	// self-check that expires silently is the thing this whole file exists to
+	// prevent.
+	//
+	// So the dispatch arm is pointed at a word that CANNOT become a verb. The
+	// extractor arm above keeps the historical bytes, because what it proves -
+	// that the scanner still reads a citation split across two operands - is a
+	// fact about the scanner and does not rot when a verb lands.
+	if !dispatched["peers"] {
+		t.Error("`peers` is not dispatched, so the refusal deleted at 7ee7233 " +
+			"would be a live defect again. B41 landed this verb; if it has been " +
+			"removed, the citation it justified has to go with it.")
+	}
+	const neverAVerb = "verb-that-rig-will-never-have"
+	if got := backtickedIn("run `rig " + neverAVerb + "` to fix it"); !slices.Equal(got, []string{neverAVerb}) {
+		t.Fatalf("the extractor read %v out of a citation of a dead verb, want [%s]", got, neverAVerb)
+	}
+	if dispatched[neverAVerb] {
+		t.Fatalf("%q is dispatched, which was supposed to be impossible. Pick "+
+			"another sentinel - this arm is the only thing proving the guard "+
+			"can still go red.", neverAVerb)
 	}
 
 	// THE COMMAND CARRIER, self-checked the same way. `rig peers` as a

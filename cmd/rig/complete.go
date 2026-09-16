@@ -44,8 +44,23 @@ const verbVersion = "version"
 
 // staticVerbs are rig's own, and the only names in this file.
 var staticVerbs = []string{
-	"apps", "ping", "down", "estate", "describe", "mcp",
+	"apps", "ping", "down", "estate", "peers", "describe", "mcp",
 	verbVersion, "completion", "help",
+}
+
+// answersNothingElse is what a verb that takes NO positional argument offers.
+//
+// Three verbs share it - down, estate and peers - and each has its own reason
+// written at its own case, because the reasons are not the same fact: down and
+// estate name no estate because the runtime dir already does, and peers names
+// no seat because it does not filter. The ANSWER is identical and the
+// arguments for it are not, so the list is shared here and the reasoning stays
+// where a reader of that case will find it.
+//
+// It returns a FRESH slice every call, because callers of complete() append to
+// what they are given.
+func answersNothingElse() []string {
+	return []string{"--json", "--timeout"}
 }
 
 // cmdCompletion prints the script for one shell.
@@ -97,14 +112,21 @@ func candidates(argv []string) []string {
 			// there is nothing to name. Offering a program id here would
 			// suggest `rig down <program>` is a thing, which is exactly the
 			// named-estate concept proposal P5 was refused for wanting.
-			return []string{"--json", "--timeout"}
+			return answersNothingElse()
 		case "estate":
 			// Same shape as down and for the same reason: the estate is the
 			// runtime dir, so there is nothing to name. Offering a name here
 			// would suggest `rig estate <name>` selects one, when the whole
 			// point of the verb is that it reports the one you already
 			// reached.
-			return []string{"--json", "--timeout"}
+			return answersNothingElse()
+		case "peers":
+			// Same shape again. The roster belongs to the daemon this shell
+			// reached, so there is no name to pass - and offering a SEAT name
+			// here would be worse than offering a program id, because a seat
+			// name is a real thing a reader would expect to filter on and
+			// `rig peers` does not filter.
+			return answersNothingElse()
 		case verbVersion, "help":
 			return []string{"--json"}
 		}

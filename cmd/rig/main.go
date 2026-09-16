@@ -94,6 +94,7 @@ func usage() {
                    whole declaration
   ping <program>   round-trip a program through rigd ("rig" pings the daemon)
   estate           which estate this shell reached, and what it is for
+  peers            who else is here, what each is for and what each is doing
   down             stop the daemon serving this XDG_RUNTIME_DIR
   version          print every version this build carries
   completion <sh>  a completion script for bash, zsh or fish
@@ -182,6 +183,8 @@ func run(args []string) error {
 		return cmdDown(with(args[1:], lead))
 	case "estate":
 		return cmdEstate(with(args[1:], lead))
+	case "peers":
+		return cmdPeers(with(args[1:], lead))
 	case "describe":
 		return cmdDescribe(with(args[1:], lead))
 	case "mcp":

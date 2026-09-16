@@ -275,8 +275,10 @@ func TestEveryFlagThatTakesAValueIsDeclaredToThePartitioner(t *testing.T) {
 	appsFS, _, _, _ := appsFlagSet()
 	estateFS, _, _ := estateFlagSet()
 	describeFS, _, _ := describeFlagSet()
+	peersFS, _, _ := peersFlagSet()
 	sets := map[string]*flag.FlagSet{
 		"apps": appsFS, "estate": estateFS, "describe": describeFS,
+		"peers": peersFS,
 	}
 
 	var checked int
