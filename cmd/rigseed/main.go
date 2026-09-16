@@ -36,6 +36,10 @@ import (
 // and exists to turn a hung daemon into a failure rather than a wait.
 const callTimeout = 30 * time.Second
 
+// fieldFlag is the CLI's repeatable typed-field flag, named once because a
+// seeder is mostly a pile of them.
+const fieldFlag = "--field"
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "rigseed: %v\n", err)
@@ -46,6 +50,7 @@ func main() {
 type options struct {
 	backlog string
 	project string
+	title   string
 	estate  string
 	rigBin  string
 	dryRun  bool
@@ -55,6 +60,7 @@ func run() error {
 	var o options
 	flag.StringVar(&o.backlog, "backlog", "BACKLOG.md", "the backlog document to read")
 	flag.StringVar(&o.project, "project", "rig", "the project every record belongs to")
+	flag.StringVar(&o.title, "title", "rig", "the project record's title")
 	flag.StringVar(&o.estate, "estate", "production", "the estate this MUST be pointed at")
 	flag.StringVar(&o.rigBin, "rig", "rig", "the rig binary to drive")
 	flag.BoolVar(&o.dryRun, "dry-run", false, "print what would be written and write nothing")
@@ -91,6 +97,18 @@ func run() error {
 	fmt.Printf("%s -> %d work items, into the %s estate as project %q\n\n",
 		o.backlog, len(items), name, o.project)
 
+	// ⛔ THE PROJECT IS ITS OWN RECORD AND WITHOUT IT THE BRIEF HAS NO HEADER.
+	//
+	// Section 39: "CORRECTION: project is its own KIND, one record per project",
+	// and "a project's id is its SLUG... never a UUIDv7 - it is already a path
+	// component and a human types it". Seeding only the work items produced a
+	// brief whose first two lines read "rig (not said) (no status)" and
+	// "(no title)" - every row correct underneath a header that knew nothing.
+	// Measured on the first real seeding rather than reasoned about.
+	if err := seedProject(o); err != nil {
+		return fmt.Errorf("the project record: %w", err)
+	}
+
 	r := &result{}
 	for _, it := range items {
 		if err := seedOne(o, it, r); err != nil {
@@ -117,6 +135,31 @@ func dialEstate(o options) (string, error) {
 		return "", errors.New("rig estate --json answered with no name")
 	}
 	return e.Name, nil
+}
+
+// seedProject writes the one record that gives the brief its header.
+//
+// The metadata is section 39's exhaustive list for a project, and the fields it
+// leaves out are left out deliberately: principles, owner and target_date are
+// not facts this document states, and inventing them here would put a claim in
+// the store that nothing outside it supports.
+func seedProject(o options) error {
+	version, _, err := currentVersion(o, o.project)
+	if err != nil {
+		return err
+	}
+	return o.write([]string{
+		"record", "put",
+		"--kind", "project",
+		"--project", o.project,
+		"--id", o.project,
+		"--body", o.title,
+		fieldFlag, "title=" + o.title,
+		fieldFlag, "description_short=" + o.title,
+		fieldFlag, "status=active",
+		fieldFlag, "source=" + o.backlog,
+		"--if-version", strconv.FormatUint(version, 10),
+	})
 }
 
 func readBacklog(path string) ([]record.BacklogItem, error) {
@@ -148,13 +191,13 @@ func seedOne(o options, it record.BacklogItem, r *result) error {
 		"--project", o.project,
 		"--id", it.ID,
 		"--body", it.Title,
-		"--field", "title=" + it.Title,
-		"--field", "description_short=" + it.Title,
-		"--field", "status=active",
-		"--field", "source=" + o.backlog,
+		fieldFlag, "title=" + it.Title,
+		fieldFlag, "description_short=" + it.Title,
+		fieldFlag, "status=active",
+		fieldFlag, "source=" + o.backlog,
 	}
 	if tags := tagsFor(it); tags != "" {
-		args = append(args, "--field", "tags="+tags)
+		args = append(args, fieldFlag, "tags="+tags)
 	}
 	args = append(args, "--if-version", strconv.FormatUint(version, 10))
 
