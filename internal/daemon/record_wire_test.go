@@ -495,3 +495,141 @@ func TestTheBriefNeverAnswersWithoutItsSectionStates(t *testing.T) {
 		}
 	}
 }
+
+// TestTheBriefCarriesTheNotesAndFeaturesTheDerivationComputes is the guard for
+// the half of this seam that has now failed in BOTH directions.
+//
+// ⛔ THE DEFECT IT CATCHES: internal/record grew Notes, Features and Stages, and
+// serveProjectBrief mapped none of the three. `project.brief` answered, it was
+// well-formed, and it was short - while briefSections() went on reporting NOTES
+// and FEATURES as NOT_COMPUTED with a reason blaming a derivation that had
+// already landed. A caller could not tell a project with no notes from a daemon
+// that never looked.
+//
+// ⛔ AND IT IS THE MIRROR OF THE `must_read` DEFECT, WHICH IS WHY BOTH HALVES
+// ARE ASSERTED HERE RATHER THAN IN TWO TESTS. That one was a WIRE FIELD NOTHING
+// WROTE - read it, always empty. This is a DAEMON THAT DID NOT READ THREE
+// PACKAGE FIELDS THAT EXIST. Same seam, opposite direction, and ownership in
+// this repository is by FILE - so the join between two files belongs to nobody
+// and only a reader holding both sides at once finds either.
+//
+// THE SECTION STATE IS ASSERTED BESIDE THE PAYLOAD DELIBERATELY. A section that
+// carries rows while reporting NOT_COMPUTED, or reports COMPUTED while carrying
+// nothing it was given, is the same lie told from either end.
+func TestTheBriefCarriesTheNotesAndFeaturesTheDerivationComputes(t *testing.T) {
+	sock := upRecordDaemon(t)
+	c := seated(t, sock, "team-lead")
+	ctx := recordCtx(t)
+
+	put := func(what string, req *rigv1.RecordPutRequest) string {
+		t.Helper()
+		var resp rigv1.RecordPutResponse
+		if err := c.Call(ctx, "rig.record.put", req, &resp); err != nil {
+			t.Fatalf("rig.record.put(%s): %v", what, err)
+		}
+		return resp.GetRecord().GetId()
+	}
+
+	put("project", &rigv1.RecordPutRequest{
+		Id: "rig", Kind: "project", Project: "rig", Body: "rig itself",
+	})
+
+	// Section 3: a note, attached to the project by a `part-of` edge. The
+	// derivation scopes this list on the edge's DESTINATION, so the link is not
+	// decoration - without it the note is not in the section at all.
+	note := put("note", &rigv1.RecordPutRequest{
+		Kind: "note", Project: "rig", Body: "the close path panics on a real WM_DELETE_WINDOW",
+		Fields: map[string]string{"priority": "high"},
+	})
+	if err := c.Call(ctx, "rig.record.link", &rigv1.RecordLinkRequest{
+		Src: note, Type: "part-of", Dst: "rig",
+	}, &rigv1.RecordLinkResponse{}); err != nil {
+		t.Fatalf("rig.record.link(note -> project): %v", err)
+	}
+
+	// Section 10: features, and the STAGE is what the section is about. Two
+	// stages so the counts cannot pass by carrying a single row.
+	put("feature building", &rigv1.RecordPutRequest{
+		Kind: "feature", Project: "rig", Body: "the continuity record",
+		Fields: map[string]string{"title": "record", "stage": "building"},
+	})
+	put("feature shipped", &rigv1.RecordPutRequest{
+		Kind: "feature", Project: "rig", Body: "the estate verb",
+		Fields: map[string]string{"title": "estate", "stage": "shipped"},
+	})
+
+	var brief rigv1.ProjectBriefResponse
+	if err := c.Call(ctx, "rig.project.brief",
+		&rigv1.ProjectBriefRequest{Project: "rig"}, &brief); err != nil {
+		t.Fatalf("rig.project.brief: %v", err)
+	}
+
+	// ---- section 3 -----------------------------------------------------
+	if len(brief.GetNotes()) != 1 {
+		t.Fatalf("the brief carries %d notes and the derivation computed 1: "+
+			"the daemon is not reading record.Brief.Notes, so the section "+
+			"answers short rather than refusing", len(brief.GetNotes()))
+	}
+	got := brief.GetNotes()[0]
+	if got.GetId() != note {
+		t.Errorf("the note carries id %q, not %q", got.GetId(), note)
+	}
+	if got.GetPriority() != "high" {
+		t.Errorf("the note's priority is %q, not \"high\" - it is the ordering "+
+			"signal section 11 sorts on, so a dropped one is a wrong list later",
+			got.GetPriority())
+	}
+	// ⛔ `about` IS WHAT MAKES THE LIST READABLE. The section is scoped on the
+	// link's destination, so a note on the project and a note on a work item
+	// arrive in ONE slice and nothing else separates them.
+	if got.GetAbout() != "rig" {
+		t.Errorf("the note says it is about %q, not \"rig\": without it a caller "+
+			"cannot tell a note on the project from a note on an item", got.GetAbout())
+	}
+	if got.GetProv().GetSeat() != "team-lead" {
+		t.Errorf("the note's provenance names %q, not the announcing seat",
+			got.GetProv().GetSeat())
+	}
+
+	// ---- section 10 ----------------------------------------------------
+	// Only `building` features are listed; every stage is COUNTED. Asserting
+	// both is what stops a mutation that returns all features from passing.
+	if len(brief.GetFeatures()) != 1 {
+		t.Fatalf("the brief lists %d features and one is at stage `building`: "+
+			"section 39 lists the building ones and counts them all",
+			len(brief.GetFeatures()))
+	}
+	if s := brief.GetFeatures()[0].GetStage(); s != "building" {
+		t.Errorf("the listed feature is at stage %q, not \"building\"", s)
+	}
+	counts := map[string]uint64{}
+	for _, sc := range brief.GetFeatureStages() {
+		counts[sc.GetStage()] = sc.GetCount()
+	}
+	if counts["building"] != 1 || counts["shipped"] != 1 {
+		t.Errorf("the stage counts are %v and two features were written, one "+
+			"per stage: a short count reads as a smaller project", counts)
+	}
+
+	// ---- the section states, which must agree with the payload ----------
+	state := map[rigv1.BriefSection]*rigv1.BriefSectionStatus{}
+	for _, st := range brief.GetSections() {
+		state[st.GetSection()] = st
+	}
+	for _, s := range []rigv1.BriefSection{
+		rigv1.BriefSection_BRIEF_SECTION_NOTES,
+		rigv1.BriefSection_BRIEF_SECTION_FEATURES,
+	} {
+		st, ok := state[s]
+		if !ok {
+			t.Errorf("%v is absent from the section states entirely", s)
+			continue
+		}
+		if st.GetState() != rigv1.SectionState_SECTION_STATE_COMPUTED {
+			t.Errorf("%v reports %v with reason %q, and this brief just carried "+
+				"its rows: a section that answers while reporting NOT_COMPUTED "+
+				"sends a reader to build what already exists",
+				s, st.GetState(), st.GetReason())
+		}
+	}
+}

@@ -137,6 +137,26 @@ func recordToWire(r record.Record) *rigv1.Record {
 	}
 }
 
+// noteToWire carries one note, and `about` is the field that makes it readable.
+//
+// A note on the project itself and a note on a work item render differently and
+// are not otherwise separable - section 39 scopes this list on the link's
+// DESTINATION, so both arrive in one slice and only `about` tells them apart.
+func noteToWire(n record.Note) *rigv1.BriefNote {
+	return &rigv1.BriefNote{
+		Id:       n.ID,
+		Body:     n.Body,
+		Priority: n.Priority,
+		About:    n.About,
+		Prov: &rigv1.Provenance{
+			Session:    n.Prov.Session,
+			Seat:       n.Prov.Seat,
+			Epoch:      n.Prov.Epoch,
+			AtUnixNano: n.Prov.CreatedAt.UnixNano(),
+		},
+	}
+}
+
 func (d *Daemon) serveRecordPut(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
 	var req rigv1.RecordPutRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
@@ -363,9 +383,25 @@ func itemToWire(i record.ItemState) *rigv1.ItemState {
 // catch: a served field nothing writes. When the store grows its own section
 // states, this function passes them through and stops deciding.
 //
-// THE ANSWER IS DERIVED FROM THE STORE'S OWN STRUCT, not from a list of
-// booleans kept in step by hand: whatever record.Brief carries is COMPUTED,
-// and the rest names what it waits on.
+// ⛔ THIS COMMENT USED TO CLAIM THE ANSWER WAS "DERIVED FROM THE STORE'S OWN
+// STRUCT, not from a list of booleans kept in step by hand". IT IS NOT, AND IT
+// NEVER WAS. The list below is hand-kept, this function takes no arguments, and
+// nothing here reads record.Brief at all. The claim was false when it was
+// written and it is what let two rows go stale within a day: internal/record
+// grew Notes, Features and Stages, and these rows went on reporting
+// NOT_COMPUTED with a reason blaming a derivation that had landed.
+//
+// ⛔ AND THE CLAIM CANNOT BE MADE TRUE HERE, which is the argument for B46g
+// rather than for a cleverer function. Whether a section is computable is a
+// property of the CODE; whether a slice is populated is a property of the DATA.
+// A project with no notes returns an empty Notes, and a rule of "non-empty means
+// computed" would report that project's notes as NOT_COMPUTED - the
+// empty-reads-as-missing defect, arriving in the very mechanism built to
+// separate the two. Only the derivation knows which it is, which is exactly why
+// the states move into internal/record and this function stops deciding.
+//
+// KEEP THIS LIST IN STEP BY HAND UNTIL IT DOES, and treat every row as a claim
+// that expires.
 func briefSections() []*rigv1.BriefSectionStatus {
 	computed := func(s rigv1.BriefSection) *rigv1.BriefSectionStatus {
 		return &rigv1.BriefSectionStatus{
@@ -391,7 +427,7 @@ func briefSections() []*rigv1.BriefSectionStatus {
 	return []*rigv1.BriefSectionStatus{
 		computed(rigv1.BriefSection_BRIEF_SECTION_OPEN),
 		computed(rigv1.BriefSection_BRIEF_SECTION_NEXT_UP),
-		waiting(rigv1.BriefSection_BRIEF_SECTION_NOTES, derivation),
+		computed(rigv1.BriefSection_BRIEF_SECTION_NOTES),
 		computed(rigv1.BriefSection_BRIEF_SECTION_BLOCKED),
 		waiting(rigv1.BriefSection_BRIEF_SECTION_DRIFT,
 			"the standards register does not exist. standard.stamp and "+
@@ -412,7 +448,7 @@ func briefSections() []*rigv1.BriefSectionStatus {
 		waiting(rigv1.BriefSection_BRIEF_SECTION_PROJECTION_BEHIND, projection),
 		waiting(rigv1.BriefSection_BRIEF_SECTION_PENDING, projection),
 		waiting(rigv1.BriefSection_BRIEF_SECTION_LOCAL_ONLY, projection),
-		waiting(rigv1.BriefSection_BRIEF_SECTION_FEATURES, derivation),
+		computed(rigv1.BriefSection_BRIEF_SECTION_FEATURES),
 		waiting(rigv1.BriefSection_BRIEF_SECTION_CASE_NOTES, derivation),
 	}
 }
@@ -480,6 +516,36 @@ func (d *Daemon) serveProjectBrief(ctx context.Context, c *conn, f *rigv1.Frame,
 	for _, cy := range b.Cycles {
 		resp.Cycles = append(resp.Cycles, &rigv1.Cycle{Items: cy})
 	}
+
+	// SECTIONS 3 AND 10, AND THE DAEMON WAS THE HALF THAT WAS MISSING. The
+	// derivation landed them at 08ce632 and nothing here read the fields, so
+	// project.brief answered without them while briefSections() reported them
+	// NOT_COMPUTED with a reason blaming the derivation. A response that is
+	// well-formed and short is the shape this file keeps having to catch:
+	// the caller cannot tell a project with no notes from a daemon that never
+	// looked.
+	//
+	// THE JOIN BETWEEN TWO FILES IS WHERE BOTH OF THIS SEAM'S DEFECTS HAVE
+	// BEEN - the other direction was a wire field nothing wrote. Ownership
+	// here is by file, so the join belongs to nobody, and only a seat reading
+	// both sides at once finds either.
+	for _, n := range b.Notes {
+		resp.Notes = append(resp.Notes, noteToWire(n))
+	}
+	for _, ft := range b.Features {
+		resp.Features = append(resp.Features, &rigv1.Feature{
+			Id: ft.ID, Title: ft.Title, Stage: ft.Stage,
+		})
+	}
+	// REPEATED, NOT A MAP, and the reason is a golden test: map iteration
+	// order is unspecified in Go, so a map here would reorder the same answer
+	// between runs. Raised by the record seat before the shape was chosen.
+	for _, sc := range b.Stages {
+		resp.FeatureStages = append(resp.FeatureStages, &rigv1.StageCount{
+			Stage: sc.Stage, Count: sc.Count,
+		})
+	}
+
 	c.reply(f.GetStreamId(), resp)
 }
 
