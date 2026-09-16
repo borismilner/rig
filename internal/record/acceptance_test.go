@@ -145,6 +145,17 @@ type backlogItem struct {
 	// document - so it hands the count up rather than deciding.
 	ClaimsDone bool
 
+	// Struck records WHICH of Done's two clauses closed this row: the
+	// strikethrough, or a terminal lead in the item cell.
+	//
+	// ⛔ IT EXISTS BECAUSE THE LABEL LIED. classify printed "%d closed (title
+	// struck)" over a set that is not all struck - 8 of 9 - so two seats
+	// measured honestly and got different numbers. The label asserted a
+	// one-clause test the code does not run, which is the same family as a
+	// bound that cannot notice itself going stale: a caption is a claim, and an
+	// unchecked one goes wrong exactly where nobody looks.
+	Struck bool
+
 	// Malformed is a row whose markdown is irregular enough that the id cell
 	// and the item cell ran together. Counted and named in the report so the
 	// document's owner can fix it; never a reason to drop the row.
@@ -223,6 +234,7 @@ func readBacklog(t *testing.T) []backlogItem {
 			Title: titleOf(c[2]),
 			// The document's own closure mark, in the item cell: a struck
 			// title, or a terminal bold lead where the strikethrough would be.
+			Struck:    strings.HasPrefix(item, "~~"),
 			Done:      strings.HasPrefix(item, "~~") || terminalDispositions[firstWord(boldLead(item))],
 			Malformed: malformed,
 		})
@@ -424,11 +436,16 @@ func TestRigsOwnBacklogIsManagedInRigAndTheBriefAnswersIt(t *testing.T) {
 // where nobody reviews it as a decision.
 func classify(t *testing.T, items []backlogItem) {
 	t.Helper()
-	var done, claims, malformed []string
+	var done, struck, byLead, claims, malformed []string
 	for _, it := range items {
 		switch {
 		case it.Done:
 			done = append(done, it.ID)
+			if it.Struck {
+				struck = append(struck, it.ID)
+			} else {
+				byLead = append(byLead, it.ID)
+			}
 		case it.ClaimsDone:
 			claims = append(claims, it.ID)
 		}
@@ -437,9 +454,14 @@ func classify(t *testing.T, items []backlogItem) {
 		}
 	}
 	fmt.Printf("\n  === how rig's backlog was read ===\n")
-	fmt.Printf("  %d rows   %d closed (title struck)   %d open\n",
-		len(items), len(done), len(items)-len(done))
-	fmt.Printf("  closed: %v\n", done)
+	// ⛔ THE CAPTION NAMES THE RULE IT ACTUALLY RAN. Done has TWO clauses and
+	// this line said "title struck", which is one of them - so a reader
+	// checking it by hand counts 8 where the program says 9, and both are
+	// right. A label is a claim and it gets the same treatment as any other.
+	fmt.Printf("  %d rows   %d closed (%d struck, %d by a terminal lead in the item cell)   %d open\n",
+		len(items), len(done), len(struck), len(byLead), len(items)-len(done))
+	fmt.Printf("  closed, struck:          %v\n", struck)
+	fmt.Printf("  closed, terminal lead:   %v\n", byLead)
 	fmt.Printf("  ⚠ %d claim a terminal state without being struck, SEEDED OPEN: %v\n",
 		len(claims), claims)
 	fmt.Printf("  ⚠ %d malformed row(s), parsed and seeded anyway: %v\n\n",

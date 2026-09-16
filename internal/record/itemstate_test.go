@@ -192,8 +192,10 @@ func TestANegativeColumnIsReportedAsCorruptionRatherThanAHugeNumber(t *testing.T
 func TestTheStreamIsOrderedByIdEvenWhenTheClockGoesBackwards(t *testing.T) {
 	base := time.Date(2026, 9, 16, 21, 0, 0, 0, time.UTC)
 	// Each step is stamped EARLIER than the one before it.
-	offsets := []time.Duration{50 * time.Second, 40 * time.Second, 30 * time.Second,
-		20 * time.Second, 10 * time.Second}
+	offsets := []time.Duration{
+		50 * time.Second, 40 * time.Second, 30 * time.Second,
+		20 * time.Second, 10 * time.Second,
+	}
 	var n int
 	old := now
 	now = func() time.Time {
