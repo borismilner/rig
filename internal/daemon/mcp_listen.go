@@ -94,7 +94,27 @@ func (d *Daemon) serveMCPConn(ctx context.Context, nc net.Conn) {
 	d.log.Debug("mcp session opened", "client", who.ClientID, "peer_pid", who.PID)
 	defer d.log.Debug("mcp session closed", "client", who.ClientID)
 
-	server := mcpserver.New(meta.New(d.kernel, d), who, d.version)
+	// THE SEAT EMPTIES WITH THE CONNECTION, AND THE DEFER IS THE WHOLE EXPIRY
+	// MECHANISM ON THIS DOOR AS IT IS ON THE OTHER ONE. No TTL, no reaper, no
+	// orphan to detect: the operating system already says when a peer is gone.
+	//
+	// ⛔ IT MUST BE A DEFER AND NOT A STATEMENT AFTER Run. Measured: server.Run
+	// returns a NON-NIL error on both endings a connection has - a session
+	// closed politely and a connection dropped under it produce the identical
+	// "use of closed network connection" - so a release written as
+	// `if err := server.Run(...); err == nil { leave() }` never runs at all and
+	// the roster only grows. Seats are never released, every existing
+	// holder-dies test stays green because all three are about the WIRE door,
+	// and nothing goes red. Two doors, one roster, one leaking.
+	//
+	// The token is created here rather than reached for later because presence
+	// keys on its identity, and a zero-sized type would give every connection
+	// the same address - which is why occupancy carries a byte of padding.
+	occ := &occupancy{}
+	defer d.presence.leave(occ)
+
+	server := mcpserver.New(meta.New(d.kernel, &mcpCaller{Daemon: d, occ: occ}),
+		who, d.version)
 	d.addMCP(server)
 	defer d.removeMCP(server)
 

@@ -38,6 +38,7 @@ func MarshalAnswer(a Answer) ([]byte, error) {
 		Unavailable: a.Unavailable,
 
 		EstateIdentity: estatePtrJSON(a.Identity),
+		Crew:           crewPtrJSON(a.Crew),
 	})
 }
 
@@ -159,6 +160,17 @@ type answerJSON struct {
 	// names move together in one change or not at all; until then the long
 	// name is the honest one, because the short one is taken and lying.
 	EstateIdentity *estateJSON `json:"estateIdentity,omitempty"`
+
+	// Crew is the roster, and it is omitempty because only the three roster
+	// tools produce one.
+	//
+	// A POINTER SO AN EMPTY ESTATE AND AN UNREACHABLE ONE ARE DIFFERENT BYTES.
+	// An estate with nobody in it answers `{"you":null,"everyone":[],
+	// "otherEstates":[]}` - a complete answer that happens to be empty - while
+	// a surface with no daemon under it omits the object entirely and names
+	// the roster in `unavailable`. Rendering both as an empty object would
+	// make an unreachable roster indistinguishable from a quiet one.
+	Crew *crewJSON `json:"crew,omitempty"`
 }
 
 // estateJSON is which rig this is. Every field is emitted, empty included:
@@ -354,4 +366,96 @@ func rawOrNil(b []byte) json.RawMessage {
 		return nil
 	}
 	return json.RawMessage(b)
+}
+
+// crewJSON is the roster as an agent reads it.
+//
+// ⛔ THERE IS NO `partial` ON THIS OBJECT AND THERE MUST NEVER BE ONE. The name
+// already carries three meanings across the two coordinators a seat holds at
+// once - AgentBox's bool, rig presence's bool, and this very answer's
+// `partial` LIST one level up - and two of the three have different TYPES, so
+// `if (partial)` on the wrong one is truthy in JavaScript and falsy in Python.
+// A fourth meaning on a nested object of the same family is how a port goes
+// wrong silently. `otherEstates` says the same thing better, because it NAMES
+// them.
+type crewJSON struct {
+	// You is null for a caller that has not announced, which is a case rather
+	// than an error - list_agents serves an unseated reader deliberately.
+	// Not omitempty: an absent `you` cannot be told apart from a server too
+	// old to have the field, and null says "you have no row" out loud.
+	You *occupantJSON `json:"you"`
+
+	// Everyone is never nil, for the reason Partial is never nil: `[]` means
+	// "nobody is here" and an absent key means nothing at all.
+	Everyone []occupantJSON `json:"everyone"`
+
+	// OtherEstates is never nil either, and this one owes its emptiness to
+	// DECISION 6 rather than to style. protojson omits an empty repeated field
+	// exactly as it omits an empty string, so absent and unserved would be the
+	// same bytes - and a reader could not tell "this daemon sees no other
+	// estate" from "this daemon does not answer that question".
+	OtherEstates []string `json:"otherEstates"`
+}
+
+// occupantJSON is one roster row.
+//
+// EVERY FIELD IS EMITTED, NONE IS omitempty, and that is the supervision
+// contract rather than a style preference. A row missing `state` reads as a
+// server too old to have it; a row missing `activityUnixNano` takes the age
+// with it, and an age is the only thing that tells a working session from a
+// hung one. An empty purpose and a zero timestamp are facts and they say so.
+type occupantJSON struct {
+	Seat       string `json:"seat"`
+	Generation uint64 `json:"generation"`
+	Epoch      uint64 `json:"epoch"`
+	Estate     string `json:"estate"`
+	Purpose    string `json:"purpose"`
+	Activity   string `json:"activity"`
+	State      string `json:"state"`
+
+	AnnouncedUnixNano int64 `json:"announcedUnixNano"`
+	ActivityUnixNano  int64 `json:"activityUnixNano"`
+}
+
+func crewPtrJSON(c *Crew) *crewJSON {
+	if c == nil {
+		return nil
+	}
+	out := &crewJSON{
+		You:          occupantPtrJSON(c.You),
+		Everyone:     make([]occupantJSON, 0, len(c.Everyone)),
+		OtherEstates: c.OtherEstates,
+	}
+	for _, o := range c.Everyone {
+		out.Everyone = append(out.Everyone, occupantToJSON(o))
+	}
+	if out.OtherEstates == nil {
+		out.OtherEstates = []string{}
+	}
+	return out
+}
+
+func occupantPtrJSON(o *Occupant) *occupantJSON {
+	if o == nil {
+		return nil
+	}
+	j := occupantToJSON(*o)
+	return &j
+}
+
+// occupantToJSON renders one row.
+//
+// A CONVERSION RATHER THAN A FIELD-BY-FIELD LITERAL, AND THAT IS THE STRONGER
+// FORM RATHER THAN THE SHORTER ONE. A literal compiles happily when a field is
+// added to Occupant and forgotten here, and the row simply arrives thinner -
+// which is the exact failure this row's own comment is about, since every
+// field on it is part of what a supervisor reads. The conversion makes the two
+// structs' field names, types and order a COMPILE-TIME contract: add a field to
+// one and the build stops until it is added to the other.
+//
+// So the coupling is deliberate. If these two ever need to diverge in shape,
+// the answer is an explicit mapping plus a test that counts the fields - not a
+// literal that looks careful and silently drops one.
+func occupantToJSON(o Occupant) occupantJSON {
+	return occupantJSON(o)
 }

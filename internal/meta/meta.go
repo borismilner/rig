@@ -30,6 +30,24 @@ const (
 	Describe Tool = "describe"
 	Invoke   Tool = "invoke"
 	Query    Tool = "query"
+
+	// THE THREE ROSTER TOOLS, AND THEY CARRY AgentBox'S NAMES RATHER THAN
+	// rig's OWN.
+	//
+	// The wire calls these announce, activity and peers, and it keeps doing
+	// so. Here they are announce, set_activity and list_agents, because the
+	// caller this surface exists for is an agent moving its CALLS off another
+	// coordinator that names them exactly this - and a 1:1 map is the thing
+	// that stops a silent porting error. Two renames on the one surface the
+	// 1:1 rule was written to keep rename-free would be self-defeating.
+	//
+	// Two surfaces disagreeing on a stated reason is already this project's
+	// rule rather than an exception made here. The reason is the audience: the
+	// wire's is a Go program, this one's is an agent holding two tools with
+	// the same name and a briefing saying which to call.
+	Announce    Tool = "announce"
+	SetActivity Tool = "set_activity"
+	ListAgents  Tool = "list_agents"
 )
 
 // Invoker runs one declared command as one principal. The daemon implements
@@ -134,6 +152,13 @@ type Request struct {
 
 	// Subject is what query is asking about.
 	Subject string
+
+	// Seat, Purpose and Activity are the roster tools'. Seat and Purpose are
+	// announce's and both are required; Activity is announce's optional
+	// opening line and set_activity's only argument.
+	Seat     string
+	Purpose  string
+	Activity string
 }
 
 // Answer is what every meta tool returns, and what both --json and the MCP
@@ -192,6 +217,16 @@ type Answer struct {
 	// side and this comment is what keeps the next reader from swapping them.
 	Identity *Estate
 
+	// Crew is the roster tools' answer: who is in this estate.
+	//
+	// A POINTER SO THAT "NO ROSTER" AND "AN EMPTY ROSTER" ARE DIFFERENT
+	// BYTES. An estate with nobody in it is a real and ordinary answer; a
+	// surface with no daemon under it is not, and it says so through
+	// Unavailable. Collapsing the two would make an unreachable roster look
+	// like a quiet one, which is the failure the whole Unavailable field
+	// exists to prevent.
+	Crew *Crew
+
 	// Unavailable is query's honesty, and it is not an error.
 	//
 	// query reaches "logs, traces, the call log, config provenance, schedule
@@ -243,9 +278,17 @@ func (s *Server) Answer(ctx context.Context, who kernel.Principal, r Request) (A
 		return s.invoke(ctx, who, r)
 	case Query:
 		return s.query(who, r)
+	case Announce:
+		return s.announce(who, r)
+	case SetActivity:
+		return s.setActivity(who, r)
+	case ListAgents:
+		return s.listAgents(who, r)
 	default:
-		return Answer{}, fmt.Errorf("%w: %q; the four are %s, %s, %s and %s",
-			ErrNoSuchTool, r.Tool, List, Describe, Invoke, Query)
+		return Answer{}, fmt.Errorf(
+			"%w: %q; the seven are %s, %s, %s, %s, %s, %s and %s",
+			ErrNoSuchTool, r.Tool, List, Describe, Invoke, Query,
+			Announce, SetActivity, ListAgents)
 	}
 }
 

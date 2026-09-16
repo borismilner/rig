@@ -90,45 +90,46 @@ func (s *Server) Run(ctx context.Context, t mcp.Transport) error {
 // If it grows past roughly forty lines it has become the specification and
 // should be cut back to the orientation.
 const preamble = `rig is a coordination daemon. These tools read and drive the programs
-registered with it.
+registered with it, and carry rig's own roster.
 
-THE FOUR TOOLS ARE A SHAPE, NOT FOUR FEATURES.
-  list, describe  the map. list is every program you may reach, at a depth.
+THE SEVEN TOOLS ARE TWO SHAPES, NOT SEVEN FEATURES.
+  list, describe  the map. list is every program you may reach, at a depth;
                   describe is one program in full.
-  invoke          the only one that ACTS. The other three read.
+  invoke          the only one of the four that ACTS on a program.
   query           how you ask rig ABOUT RIG rather than about a program.
+  announce        take a seat on the roster and say what you are FOR. A SEAT
+                  NAME IS REQUIRED. Do this first; the next two need it.
+  set_activity    say what you are doing now, and keep it current.
+  list_agents     read the roster: who else is here, and doing what.
 
 rig itself is not in the program map, so invoke and describe cannot reach it.
 Asking invoke for program "rig" is the common first mistake; ask query with
-subject "estate" instead. Any tool beyond these four is a promoted command of
-a real program, and it acts.
+subject "estate". Any tool beyond these seven is a promoted program command.
+
+IF set_activity SAYS YOU HAVE NO ROW, YOU ARE NOT WHERE YOU THINK YOU ARE. A
+row lives exactly as long as the connection that took it, so if you announced
+earlier and this call says otherwise, that daemon is gone and something
+re-dialled you without saying so. Announce again; do not retry.
 
 DEPTH COSTS. ASK FOR THE ONE YOU NEED.
   programs  who is registered, and how much of rig each has adopted.
-  commands  adds what you PICK a command by: its effects, whether it is
-            idempotent, whether it confirms, one line of summary. Usually the
-            right answer.
-  full      adds what you CALL a command with: argument schemas, and the
-            program's own preamble. That is prose and it is long. Ask for it
-            per program through describe, not across the whole estate.
+  commands  adds what you PICK a command by: effects, idempotency, whether it
+            confirms, one line of summary. Usually the right answer.
+  full      adds what you CALL it with: argument schemas and the program's
+            own preamble. Long - ask it per program through describe.
 
 ABSENT CAN MEAN WITHHELD. What you cannot see may have been filtered rather
 than missing, and the basis field says which: "complete" is the whole estate,
-"scoped" means something may have been filtered away for you and rig will not
-say what. Reasoning from a scoped map as if it were total is the failure that
-field exists to prevent.
+"scoped" means something may have been filtered away and rig will not say what.
 
 READ partial AND coverageNote BEFORE CONCLUDING ANYTHING. A program reporting
-partial coverage has adopted only some of rig, and the note names which part.
-"The wire only: no config, no storage" means that program's config is not
-absent, it is unreadable from here.
+partial coverage has adopted only some of rig and the note names which part:
+"the wire only" means its config is unreadable from here, not absent.
 
 QUERY UNDERSTANDS registry, programs AND estate. The first two return the
-estate's programs; estate returns which rig this is - its name, its role, the
-daemon's version, the wire it speaks. Any other subject is accepted rather
-than refused and answered with the list of what query cannot reach, so an
-answer that is mostly "unavailable" means the subject was not understood, not
-that the thing does not exist.
+estate's programs; estate returns which rig this is. Any other subject is
+accepted, not refused, and answered with what query cannot reach - so an
+answer that is mostly "unavailable" means the subject was not understood.
 
 ONE WORD, TWO MEANINGS, AND IT WILL CATCH YOU. In list's answer the key
 "estate" holds the PROGRAMS. Which estate you are connected to is
@@ -191,6 +192,64 @@ func New(m *meta.Server, who kernel.Principal, version string) *Server {
 			"yet rather than omitting them.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, a queryArgs) (*mcp.CallToolResult, any, error) {
 		return answer(m.Answer(ctx, who, meta.Request{Tool: meta.Query, Subject: a.Subject}))
+	})
+
+	// THE THREE ROSTER TOOLS, AND THEY ARE FIRST-CLASS RATHER THAN PROMOTED.
+	//
+	// announce, activity and peers are fully declared commands of program
+	// `rig` and have been for as long as self.go has existed. Promotion looks
+	// like the obvious route to them and is closed at four independent points,
+	// the decisive one being that it would put rig.down - EffectsDestructive
+	// with Confirms:No, whose protection IS unreachability - onto the agent
+	// invoke surface. So these are declared here, and the route under them is
+	// meta's Roster rather than Invoke.
+	//
+	// THE NAMES ARE THE OTHER COORDINATOR'S, NOT rig'S OWN, and that is the
+	// point rather than a slip. The caller this surface exists for is an agent
+	// moving its calls off a coordinator that names them announce,
+	// set_activity and list_agents. A 1:1 map is what stops a silent porting
+	// error, and two renames on the one surface the 1:1 rule was written to
+	// keep rename-free would be self-defeating. The wire keeps its own names.
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "announce",
+		Description: "Take a seat on this estate's roster and say what this " +
+			"session is FOR. Returns the whole roster, so one call both " +
+			"registers you and tells you who else is here. A SEAT NAME IS " +
+			"REQUIRED: it is the address a supervisor and your peers use for " +
+			"you, and announcing into a seat a live peer already holds is " +
+			"refused with the holder named rather than silently taking it.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a announceArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.Announce, Seat: a.Seat, Purpose: a.Purpose,
+			Activity: a.Activity,
+		}))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "set_activity",
+		Description: "Say what you are doing RIGHT NOW, in one line, and keep " +
+			"it current as the work changes. Cheap - call it whenever you " +
+			"move on to something else. Re-sending an unchanged line " +
+			"deliberately does NOT reset its age, because repeating yourself " +
+			"is not progress. It refuses if this connection has no row, which " +
+			"is how you find out you are talking to a different daemon than " +
+			"the one you announced to.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a activityArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.SetActivity, Activity: a.Activity,
+		}))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "list_agents",
+		Description: "Read this estate's roster: every seat, what each one is " +
+			"for, what it is doing now, and how long its line has been " +
+			"standing. Takes no arguments - rig scopes by estate and nothing " +
+			"finer. It also names any other estate this daemon knows of and " +
+			"cannot see into, so an incomplete picture says which part is " +
+			"missing instead of implying there is none.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ noArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{Tool: meta.ListAgents}))
 	})
 
 	// THE CAPABILITY MAP, AS ONE RESOURCE. Section 9, and M2 slice 4.
@@ -430,6 +489,29 @@ type invokeArgs struct {
 	Program string         `json:"program" jsonschema:"the program id"`
 	Command string         `json:"command" jsonschema:"the command id"`
 	Args    map[string]any `json:"args,omitempty" jsonschema:"the command's arguments, shaped by the schema describe returns"`
+}
+
+// announceArgs is announce's, and it is 1:1 with the other coordinator's
+// EXCEPT for seat, which rig requires and that one has no concept of.
+//
+// area AND tags ARE DELIBERATELY ABSENT rather than accepted and ignored. The
+// other coordinator scopes a roster by them; rig scopes by ESTATE and nothing
+// finer, so there is nothing here for them to mean. Undeclared, a caller that
+// passes them gets a schema error it can read; accepted, it would get silence
+// and believe it had scoped something.
+type announceArgs struct {
+	Seat     string `json:"seat" jsonschema:"the seat you are taking - the address a supervisor and your peers use for you, such as backend-1. Required."`
+	Purpose  string `json:"purpose" jsonschema:"one line saying what this session is FOR, in terms the person supervising would recognise. Required."`
+	Activity string `json:"activity,omitempty" jsonschema:"optional: what you are doing right now. set_activity carries this from then on."`
+}
+
+// noArgs is list_agents', and it is a named empty struct rather than an
+// anonymous one so the generated schema says "this tool takes nothing" in a
+// place a reader can find.
+type noArgs struct{}
+
+type activityArgs struct {
+	Activity string `json:"activity" jsonschema:"one short line saying what is happening right now. It replaces the previous line and resets its age - unless it is identical, which deliberately does not."`
 }
 
 type queryArgs struct {
