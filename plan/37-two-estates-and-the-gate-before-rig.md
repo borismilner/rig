@@ -61,10 +61,10 @@ without it.
 
 | # | Capability | Why it is in the MINIMUM | Where specified |
 |---|---|---|---|
-| **0** | **The front door** - the MCP surface, plus `rig.estate` so an agent can read WHICH estate it reached | **an agent cannot call rig at all without it, and cannot tell production from development.** Precondition to every row below rather than a peer of them | M2, §37.1 |
+| **0** | **The front door** - the MCP surface, plus `rig.estate` so an agent can read WHICH estate it reached | **an agent cannot call rig at all without it, and cannot tell production from development.** Precondition to every row below rather than a peer of them | M2, and **§37 precondition 1** |
 | **1** | **Presence and seats** - announce, roster, seat as the addressable identity, `partial` honestly reported | **nothing below is addressable without it.** Every seat announced; `partial: true` is what stopped a seat concluding it was alone | §16, seats |
 | **2** | **Named leases with a REGISTERED scope** - witness, two-step expiry, overlap by intersection | **highest measured pain.** One Makefile under two lock names, both unlocked, neither seat found out. Registration and intersection are not polish here: they are the defect | §16, leases + ¶5 |
-| **3** | **The versioned blackboard: CAS, claims, owner liveness** | **the seat registry itself runs on it.** Three seat handoffs resolved through `if_version` in one day | §16, blackboard + ¶1 |
+| **3** | **The SEAT CLAIM. The generic blackboard waits for first demand - NARROWED BY BORIS, 2026-09-16** | **the seat registry itself runs on it**, and three seat handoffs resolved through `if_version` in one day - **that consumer is real and it is exactly what gets built.** What is deferred is the mechanism generalised beyond its one measured consumer: CAS and claims over arbitrary keys arrive the first time a seat REPORTS needing one, with evidence, through the ARMED path above. **~2 seat-days saved, and the door is not closed** | §16, blackboard + ¶1 |
 | **4** | **Signals, with `await` and a cursor** | every handoff used one. **The alternative is a poll loop**, which is the thing this replaces | §16, signals |
 | **5** | **Directed messaging to a SEAT, carrying the GENERATION** | every ruling crossed a seat boundary as a message. The generation closes a defect **Boris raised himself** - *"peers should be aware they may be contacted wrongly thinking they are the successor"* (2026-09-11) | §16, ¶2 + ¶3 |
 
@@ -83,13 +83,28 @@ planned, specified and NOT in the first cutover:
 | Claimable queues, rendezvous, barriers, semaphores, leader election, deadlock detection | **no seat reached for one in the measured day.** Real capabilities with no evidence behind them yet |
 | Continuation slots, retraction, the at-risk ladder | valuable, and each needs presence and leases underneath it. **They are cheaper after the minimum lands, not before** |
 | `rig peers run --lease` | the only real fence for a resource rig does not own, **and the minimum set guards documents rather than deploys.** It arrives with the first resource that needs fencing |
+| **A crew / idle-visibility view** (`rig crew`, one row per seat, health states) | **REFUSED BY BORIS 2026-09-16, and REFUSED rather than deferred.** The capability study proposed it at ~1-1.5 seat-days on OWNER-AUTHORED evidence twice in one window - his own *"I think you both are idle now - WTF"*, and a seat's key reading BLOCKED while its diff showed it building. **He declined it over his own evidence**, on the ground that AgentBox's board already covers it and the staged-migration rule keeps AgentBox authoritative for everything not yet moved. **Evidence establishes that a need is REAL; it does not establish that the need must be met by building something** - and that is the general lesson, not a detail of this row. A seat proposing it again needs evidence that the board CANNOT be made to answer it, not a second instance of the same complaint |
 
-**THIS SET IS PROVISIONAL AND ITS SUCCESSOR IS ALREADY COMMISSIONED.** Boris has
-ordered an expert study - see the backlog's dated item - to derive the
-minimal-but-optimal set from the typical needs of the seats working on rig.
-**This table is the working answer until that study lands, not a ruling it must
-respect.** It exists so work can proceed now; the study exists so the answer is
-right.
+**THE STUDY LANDED, AND THIS TABLE HAS NOW BEEN ADJUDICATED AGAINST IT.** Boris
+ordered an expert study - the backlog's dated item D1 - to derive the
+minimal-but-optimal set from the typical needs of the seats working on rig, kept
+blind to this section. It ran 2026-09-14 and was written up 2026-09-15.
+
+**It agreed with this table on four rows independently derived** - front door,
+seats, leases and messaging - **and disagreed on three.** All three are now
+settled and none of them is open:
+
+| Disagreement | Outcome |
+|---|---|
+| continuity belongs in the FIRST cutover | **§39 tension 7, 2026-09-15:** the record sits BESIDE this set, not in it. The ordering question dissolves |
+| the blackboard should demote to a later add-on | **BORIS, 2026-09-16: SPLIT.** Row 3 above is narrowed to the seat claim; the generic mechanism waits for first demand |
+| a crew / idle-visibility view is missing entirely | **BORIS, 2026-09-16: REFUSED.** See the exclusions table below |
+
+**So this table is no longer provisional.** It is the working answer, checked
+against an independently derived one, with every difference ruled by the owner.
+**The study's fourth and smaller difference - it builds leases sixth where this
+ranks them second - was named by the study as an order dispute rather than a
+scope one and is not treated as a disagreement here.**
 
 #### "PERFECTED" IS NOT A FEELING, AND THIS IS THE FLOOR IT MEANS
 
@@ -106,6 +121,61 @@ the ordinary standard of this repository.** The bar, applied per capability:
 **A capability that has not cleared all four is not cut over**, and the seats
 keep using AgentBox for it. That is the whole discipline and it needs no other
 enforcement.
+
+#### THE FIRST PASS AGAINST THIS BAR FOUND IT BITING, 2026-09-16
+
+**Recorded here because a bar nobody has ever failed is a bar nobody has
+tested.** The first capability taken to the four clauses was row 0, and **it
+does not clear clause 4.**
+
+**MEASURED by `backend-frontdoor` with real processes** - two `rigd` at
+`5b32de5` in two runtime directories, one `production` and one `development`,
+each with a really registered program, and a real MCP client process dialling
+each socket. Not the in-memory transport the demo test uses.
+
+| What the agent tries | What it is told |
+|---|---|
+| the MCP `initialize` handshake | the daemon BUILD arrives; the estate does not |
+| `tools/list`, then `rig://capabilities` | `describe invoke list query`; no estate key |
+| `invoke` / `describe` program=`rig` | **REFUSED** - *"no program \"rig\" is visible to this caller"* |
+| `query` subject=`estate` | **answered, and the subject silently ignored** - it returns the registry |
+
+**The negative control is what makes it a gap rather than a route somebody
+missed:** the two probes differ in exactly two things, the capability map's
+version digest and the program names inside it. **Both are facts about what is
+REGISTERED.** An agent that reached the wrong estate and found a program it
+expected would have nothing left to tell them apart.
+
+**CLAUSE 4 SPLITS IN TWO AND ONLY ONE HALF FAILS.** The ISOLATION half is
+demonstrated - two estates live, neither seeing the other, `rig estate` naming
+each correctly from a terminal. **The IDENTITY half fails, and only on the agent
+surface.** Row 0's own wording is what makes identity part of it: *"plus
+`rig.estate` so an agent can read WHICH estate it reached"*.
+
+**IT IS AN INVERSION, NOT A MISSING FEATURE, AND THAT IS THE RULING.**
+`rig.estate` is specified as precondition 1, built, and reachable from a
+terminal. **This section says the unregistered agent Boris runs is "the
+motivating caller" and gets FULL access** - so a terminal holding a method that
+caller cannot reach is this specification upside down.
+
+**THE CAUSE, in one line:** the agent path resolves through a view over the
+program map, and rig is deliberately held BESIDE that map so a program cannot
+shadow its namespace. The invoker's own read already resolves rig before the
+map lookup; **the agent-facing read does not, and that is the whole defect.**
+
+**SO NOTHING NEW IS BUILT. §9 carries the requirement** - the agent surface
+resolves rig the way the invoker already does, which preserves the
+non-shadowing reservation by construction, moves no tool count, adds no
+resource, leaves the capability digest meaning *"what is registered"*, and
+does not touch the wire.
+
+**A SECOND MCP RESOURCE WAS PROPOSED AND REFUSED, and the reason generalises.**
+`rig://estate` looked like the cheapest shape. **`BACKLOG.md` B16 measured that
+the MCP SDK stamps every resource read publicly cacheable and a handler cannot
+opt out.** A cacheable answer is survivable for a capability map. **It is the
+worst possible property for "which estate am I in"** - an agent that dialled
+development can be served a cached production answer, and the one question the
+resource would exist to answer is the one a cache makes unsafe.
 
 ### THE MIGRATION IS STAGED, PER CAPABILITY, AND BOTH SYSTEMS RUN AT ONCE
 

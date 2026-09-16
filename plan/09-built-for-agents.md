@@ -140,6 +140,50 @@ measured, and no per-record byte is spent on saying what the declaration already
 - **Complete does not mean instant.** §15's history query budget governs; a thirty-day sweep is
   bounded by that section's numbers, not by this one's promise.
 
+### rig itself is reachable FROM the agent surface, and this had to be said
+
+**ADDED 2026-09-16, after the first four-clause pass against §37's bar measured
+that it was not true.** An agent dialling the MCP socket could not reach a single
+one of rig's own commands: `invoke` and `describe` both refused `rig` as *"no
+program \"rig\" is visible to this caller"*, while the same command answered
+normally from a terminal.
+
+**THE REQUIREMENT: every command rig declares of itself is reachable by an agent
+through the ordinary meta tools, on the same terms a terminal reaches it.** It is
+not a new tool, not a new resource, and not a special case in the tool list - it
+is the existing route resolving rig where it already resolves programs.
+
+**WHY IT WAS BROKEN, AND WHY THE FIX IS NARROW.** rig is held BESIDE the program
+map rather than in it, on purpose: `SelfID` is refused to every registration in
+two independent places, and putting rig in the map would weaken the one
+reservation that stops a program shadowing rig's namespace. **The invoker's own
+read already resolves rig before the map lookup** - so the mechanism exists and
+the agent-facing read simply did not use it. **Resolving `SelfID` first preserves
+the non-shadowing reservation by construction**: rig wins, and a program named
+`rig` still cannot exist.
+
+**AND THE REFUSAL MUST NAME THE RIGHT CAUSE.** *"is not visible to this caller"*
+is visibility-shaped, and the caller in the measured case was an introspecting
+principal that sees everything there is. **An agent acting on that text goes
+looking for a grant it already holds.** Where the truth is structural, the
+refusal says so - which is §9's own "errors an agent can act on" applied to the
+one error an agent was most likely to act on wrongly.
+
+**`query` MAY NOT ANSWER A SUBJECT IT DID NOT UNDERSTAND.** The same measurement
+found `query` with an unrecognised subject falling through to the registry and
+returning it, with the subject silently ignored. **§9's rule is that query NAMES
+what it cannot reach rather than omitting it**, and the surface built to say
+*"I cannot reach that yet"* was the one surface that did not say it. An
+unrecognised subject is named as unrecognised; a recognised-but-unavailable one
+joins the unavailable list.
+
+**THE MOTIVATING CALLER IS THE ONE THAT WAS BROKEN, which is why this is in §9
+rather than in a defect list.** §37 calls the unregistered agent Boris runs "the
+motivating caller" and gives it full access. **A terminal holding a method that
+caller cannot reach is this specification upside down**, and nothing in §9 said
+out loud that it must not be - so it happened, was shipped, and was found by a
+demonstration rather than by a reader.
+
 ### Discovery is a resource, not a guess
 
 rig serves one MCP resource that is the whole capability map of the estate, versioned and
