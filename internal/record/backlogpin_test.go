@@ -92,17 +92,21 @@ func TestTheBacklogParserReadsEveryRowShapeTheSameWay(t *testing.T) {
 		t.Errorf("read %d rows, want 10 - a repeated id must be kept once, not twice", n)
 	}
 
-	// ⛔ A DEFECT PINNED AS IT IS, NOT AS IT SHOULD BE. On a row missing the
-	// pipe after its id, the title is taken from cells[2] - which for that row
-	// is the EVIDENCE cell, because every cell has shifted left. So B7's title
-	// reads "evidence" rather than its own words, and B21 in the real document
-	// has the same defect. It is REPORTED to the lead rather than repaired
-	// here: the promotion must move this parser without changing its answers,
-	// and a fix smuggled into a refactor is a change nobody reviewed.
+	// ⛔ A DEFECT THIS PIN CAUGHT BEING FIXED, WHICH IS WHAT IT IS FOR. On a row
+	// missing the pipe after its id every cell shifts left, so the title used to
+	// be read from cells[2] - the EVIDENCE cell - and B7 here, like B21 in rig's
+	// own backlog, reported its title as the word "evidence". The parser now
+	// takes the title from the RECONSTRUCTED cell.
+	//
+	// The pin went RED on that change and was updated in the same commit as the
+	// fix, which is the opposite of the thing it exists to prevent: a refactor
+	// claiming to move code while quietly moving an answer. A deliberate change
+	// updates its pin and says so; a silent one is caught.
 	for _, it := range items {
-		if it.ID == "B7" && it.Title != "evidence" {
-			t.Errorf("B7's title is %q; the malformed-row title defect was pinned as %q "+
-				"and a promotion must not quietly repair it", it.Title, "evidence")
+		if it.ID == "B7" && it.Title != "A row missing the pipe after its id, so the id cell absorbs the title" {
+			t.Errorf("B7 is the malformed row and its title must come from the "+
+				"RECONSTRUCTED cell, not from cells[2] which is the evidence "+
+				"cell on a shifted row; got %q", it.Title)
 		}
 	}
 }

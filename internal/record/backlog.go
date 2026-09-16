@@ -93,13 +93,16 @@ type BacklogItem struct {
 	// ⛔ SECTION 39'S MIGRATION RULING IS IMPORT EVERYTHING AND FLAG WHAT IS
 	// IRREGULAR. A row a parser quietly tidies is a row nobody ever fixes.
 	//
-	// ⛔ AND IT CARRIES A SECOND FACT THE PROMOTION DECLINED TO REPAIR: on a
-	// shifted row every cell moves left, so Title is read from what is really
-	// the EVIDENCE cell. B21 in rig's own backlog has a title that is not its
-	// own words. Malformed is therefore also "do not trust this row's Title".
-	// Pinned as it is rather than as it should be, because a promotion that
-	// changes an answer while claiming to move code is a change nobody
-	// reviewed.
+	// ⛔ IT NO LONGER MEANS "DO NOT TRUST THIS ROW'S TITLE". It did: the title
+	// was read from cells[2], which on a shifted row is the EVIDENCE cell, so
+	// B21's title in rig's own backlog was the word "evidence". That is fixed -
+	// the title is taken from the reconstructed cell - and the fix is its own
+	// commit rather than smuggled into the promotion, because it CHANGES AN
+	// ANSWER and the pin existed precisely to make that visible.
+	//
+	// The flag still means the DOCUMENT is irregular and somebody should mend
+	// the row. rig imports it either way: section 39's migration ruling is
+	// import everything and flag what is irregular.
 	Malformed bool
 }
 
@@ -115,18 +118,22 @@ func cells(line string) []string {
 	return out
 }
 
-// titleOf takes the item cell's title, past any strikethrough and bold, and
-// stops at whichever marker closes it. The rows are handwritten and not all of
-// them close the bold before the pipe.
+// titleOf takes the item cell's title: its FIRST BOLDED RUN, which is how every
+// row in this table writes one, struck or not.
+//
+// ⛔ IT USED TO TRIM THE MARKERS OFF THE FRONT AND CUT AT THE NEXT ONE, WHICH
+// ASSUMED THE CELL STARTS WITH THEM. B21 in rig's own backlog starts with a
+// tick, so trimming matched nothing and the cut landed at the tick: its title
+// read "✅". The rows are handwritten and a decoration before the bold is
+// ordinary, so the title is located rather than trimmed to.
+//
+// The fallback matters for the same reason: a cell with no bold at all still
+// has to yield something, and the whole trimmed cell is the honest answer.
 func titleOf(cell string) string {
-	s := strings.TrimPrefix(cell, "~~")
-	s = strings.TrimPrefix(s, "**")
-	for _, cut := range []string{"**", "~~"} {
-		if i := strings.Index(s, cut); i > 0 {
-			s = s[:i]
-		}
+	if b := strings.TrimSpace(boldLead(cell)); b != "" {
+		return b
 	}
-	return strings.TrimSpace(s)
+	return strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(cell, "~~"), "**"))
 }
 
 // boldLead returns a cell's first bolded run, which is how every row in this
@@ -205,8 +212,15 @@ func ParseBacklog(r io.Reader) ([]BacklogItem, error) {
 		}
 
 		it := BacklogItem{
-			ID:    m[1],
-			Title: titleOf(c[2]),
+			ID: m[1],
+			// ⛔ THE TITLE COMES FROM THE RECONSTRUCTED ITEM CELL, NOT FROM
+			// cells[2]. On a row missing the pipe after its id every cell has
+			// shifted left, so cells[2] is the EVIDENCE cell - B21 in rig's own
+			// backlog read its title as the word "evidence" for as long as this
+			// parser has existed. `item` is already the repaired cell three
+			// lines above, and for a well-formed row it IS cells[2], so the
+			// normal path is untouched.
+			Title: titleOf(item),
 			// The document's own closure mark, in the item cell: a struck
 			// title, or a terminal bold lead where the strikethrough would be.
 			Struck:    strings.HasPrefix(item, "~~"),
