@@ -40,7 +40,7 @@
 # loop rather than only this one.
 #
 # THE REFUSAL IS NOT A FAULT, so it must not be retried. rigd exits
-# exitAlreadyRunning (3, in cmd/rigd/main.go) when an incumbent holds the
+# exitAlreadyRunning (8, in cmd/rigd/main.go) when an incumbent holds the
 # runtime directory or the estate name, and RestartPreventExitStatus tells
 # systemd that status means "do not come back". A real crash still exits 1 and
 # is still restarted, which is what Restart=on-failure is here for.
@@ -77,8 +77,10 @@ ExecStart=%h/.local/bin/rigd
 Restart=on-failure
 RestartSec=2
 
-# 3 is exitAlreadyRunning in cmd/rigd/main.go. Keep the two in step.
-RestartPreventExitStatus=3
+# 8 is exitAlreadyRunning in cmd/rigd/main.go. Keep the two in step. The
+# number is above the LSB range on purpose: systemd names lower ones from
+# that table and would print NOTIMPLEMENTED beside a refusal that is neither.
+RestartPreventExitStatus=8
 
 [Install]
 WantedBy=graphical-session.target

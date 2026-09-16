@@ -52,7 +52,17 @@ var (
 //
 // packaging/rigd.service names this number in RestartPreventExitStatus, and
 // TestTheUnitDoesNotRetryARefusal ties the two together so they cannot drift.
-const exitAlreadyRunning = 3
+//
+// WHY 8 AND NOT 3, WHICH IS WHAT THIS WAS FIRST: systemd prints a NAME beside
+// the status, and it takes that name from the LSB table. Measured on this
+// machine - 3 prints as `status=3/NOTIMPLEMENTED`, sitting one line under
+// "another rigd is running", which invites a reader to conclude a feature is
+// missing. 8 is the first code above the LSB range and prints as
+// `status=8/n/a`, which invents nothing and leaves rigd's own message as the
+// only explanation. 69 and 75 were also measured and both carry a name that
+// is wrong here: UNAVAILABLE says the service is not there when it is, and
+// TEMPFAIL invites the retry this constant exists to prevent.
+const exitAlreadyRunning = 8
 
 func main() {
 	if err := run(); err != nil {
