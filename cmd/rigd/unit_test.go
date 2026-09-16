@@ -102,23 +102,64 @@ func TestTheUnitCarriesNoExecStop(t *testing.T) {
 
 // TestTheUnitManagesProductionOnly pins section 37's precondition 5.
 //
-// production takes the DEFAULT XDG_RUNTIME_DIR and development is always
-// placed explicitly, so a unit that sets neither reaches production and cannot
-// reach development BY CONSTRUCTION rather than by a flag somebody might omit.
-// Setting either here would hand the unit the development estate by accident,
-// which is the one outcome precondition 5 is shaped to prevent.
+// THE SECOND ASSERTION WAS INVERTED 2026-09-16, BY MEASUREMENT. It used to
+// refuse --estate on the unit, on the premise that "production is the DEFAULT
+// estate". There is no default estate, so the test was pinning a name nothing
+// assigns.
+//
+// Measured through the MCP door against the installed binary, unnamed and
+// named daemons each started twice, every read confirmed against the serving
+// pid's own accept log rather than against the socket file:
+//
+//	no --estate          name:"" role:"unnamed"       epoch:0 -> 0
+//	--estate=production  name:"production"            epoch:1 -> 2
+//
+// cmd/rigd/main.go:165 gates the entire named branch on `*estate != ""`, so an
+// unnamed daemon claims no name, opens no coord.db, and carries a constant
+// epoch. internal/paths.RuntimeDir never reads an estate name. The default
+// runtime directory is therefore a PATH fact and "production" is a NAME fact,
+// and nothing in the tree connects them.
+//
+// SO PRECONDITION 5 HAS TWO HALVES AND ONLY ONE WAS EVER ENFORCED HERE.
+//
+//	the PATH half   development is always placed in its own XDG_RUNTIME_DIR, so
+//	                a unit that sets none cannot reach it. TRUE, load-bearing,
+//	                and the first assertion below is unchanged.
+//	the NAME half   the unit has to SAY production, because nothing else will.
+//	                That is the assertion that flipped.
+//
+// Naming it does not weaken the by-construction argument, it pins precondition
+// 5 twice over: the unit cannot reach development by path, and says which
+// estate it is by flag. What it prevents is the unit silently managing an
+// estate that persists nothing.
 func TestTheUnitManagesProductionOnly(t *testing.T) {
+	var sawExecStart bool
 	for _, d := range directives(t, unitText(t)) {
 		if strings.HasPrefix(d, "Environment") && strings.Contains(d, "XDG_RUNTIME_DIR") {
 			t.Errorf("the unit sets XDG_RUNTIME_DIR (%q). Precondition 5 wants it "+
-				"to inherit the ordinary environment, so that it reaches "+
-				"production and cannot reach development", d)
+				"to inherit the ordinary environment, so that development, which "+
+				"is always placed explicitly, is unreachable from here", d)
 		}
-		if strings.HasPrefix(d, "ExecStart") && strings.Contains(d, "--estate") {
-			t.Errorf("the unit passes --estate (%q). production is the DEFAULT "+
-				"estate; naming one here is the flag precondition 5 exists to "+
-				"avoid depending on", d)
+		if !strings.HasPrefix(d, "ExecStart") {
+			continue
 		}
+		sawExecStart = true
+		if !strings.Contains(d, "--estate=production") {
+			t.Errorf("ExecStart does not pass --estate=production (%q). Without it "+
+				"rigd runs the UNNAMED estate: it claims no name, opens no "+
+				"coord.db and reports epoch 0 forever, so the daemon this unit "+
+				"manages persists nothing and cannot be told apart from the one "+
+				"that replaces it. There is no default estate to fall back on", d)
+		}
+		for _, other := range estateNames {
+			if other != "production" && strings.Contains(d, "--estate="+other) {
+				t.Errorf("ExecStart names the %s estate (%q). This unit manages "+
+					"production only", other, d)
+			}
+		}
+	}
+	if !sawExecStart {
+		t.Fatal("the unit has no ExecStart directive, so this test asserted nothing")
 	}
 }
 

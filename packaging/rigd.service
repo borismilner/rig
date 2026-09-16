@@ -36,12 +36,40 @@
 # `rig down` too: the lesson is not "no signal to a pid", it is no stop
 # command in any form. `agentbox quit` was not a signal either.
 #
-# IT MANAGES production ONLY, and by construction rather than by a flag
-# somebody might omit (section 37, precondition 5). It sets no
-# XDG_RUNTIME_DIR and passes no --estate, so it inherits the ordinary
-# environment and reaches the default runtime directory, which is
-# production's. development is always placed explicitly, so this unit cannot
-# reach it.
+# IT MANAGES production ONLY, and it now says so IN THE FLAG. CORRECTED
+# 2026-09-16, by measurement. This is the THIRD unsupported claim in this
+# header; two were corrected at bbd56cf and this one survived both passes.
+#
+# THE SUPERSEDED TEXT CONFLATED A PATH FACT WITH A NAME FACT. It read: "it
+# sets no XDG_RUNTIME_DIR and passes no --estate, so it inherits the ordinary
+# environment and reaches the default runtime directory, WHICH IS
+# PRODUCTION'S." The two halves are independent in the code and only the
+# first one was true.
+#
+# MEASURED through the MCP door against this exact binary, unnamed arm vs
+# named arm, both restarted once:
+#
+#	no --estate    name:"" role:"unnamed"    epoch:0 -> 0
+#	--estate=production  name:"production"   epoch:1 -> 2
+#
+# So a unit passing no --estate does not start production. It starts the
+# UNNAMED estate, which claims no name, opens no coord.db, and carries a
+# constant epoch 0 (cmd/rigd/main.go:165 gates the whole named branch on
+# `*estate != ""`, and :156 says zero is the honest value for that case).
+# internal/paths/RuntimeDir never reads an estate name, so nothing anywhere
+# makes the default runtime directory "production".
+#
+# WHAT THAT COST, and it is why the flag is here rather than a comment: an
+# unnamed estate's epoch cannot distinguish one daemon from the next, so a
+# seat silently reattached to a restarted daemon could not have detected it
+# from the epoch under this unit. The detector could not have gone red.
+#
+# THE OTHER HALF OF PRECONDITION 5 SURVIVES UNCHANGED AND IS STILL THE
+# REASON THIS UNIT SETS NO XDG_RUNTIME_DIR: development is always placed
+# explicitly in its own runtime directory, so a unit that sets none cannot
+# reach it. That half was always about the path, and the path argument is
+# sound. Naming the estate does not weaken it - it pins precondition 5 twice,
+# by construction AND by flag, instead of resting on a name nothing assigns.
 #
 # STARTING IT WHILE A DAEMON IS ALREADY UP USED TO LOOP FOREVER, and the
 # paragraph that stood here was wrong on both of its claims. It called this
@@ -90,7 +118,7 @@ StartLimitBurst=5
 
 [Service]
 Type=simple
-ExecStart=%h/.local/bin/rigd
+ExecStart=%h/.local/bin/rigd --estate=production
 Restart=on-failure
 RestartSec=2
 
