@@ -228,10 +228,15 @@ enough.
 - Data plane, one-way: 561ns. Logs, traces, metrics, progress events.
 - Large payloads: 64KB frames at 19µs is 3.4 GB/s effective. Fine for a table of 100k rows.
 - Every frame carries a trace context so a span crosses the process boundary.
-- **Every mutating call carries a client-generated request id.** rig dedups against a bounded
-  window persisted in the WAL and returns *the original response*, never a fresh application.
+- **Every mutating call carries a client-generated request id.** ⛔ **THE FIELD IS THERE AND
+  NOTHING READS IT.** The design is that rig dedups against a bounded window persisted in the
+  WAL and returns *the original response*, never a fresh application - **and the WAL lands at
+  M7, so none of it is built.** No rig surface sets the field, and §13a's clause row and §23's
+  M6 keep-row both say so. **Written in the present indicative until 2026-09-16**, which is what
+  made it read as shipped.
   Without it, one retried call after a timeout is enough to make §16's linearizability claim
   false, and the retry cannot live in the stub because the stub is forbidden semantics (§5d).
+  **So §16's claim is false on any retry TODAY**, which is the fact this bullet used to hide.
 - **Every connection carries a session token that survives reconnect.** On reconnect rig either
   resumes the session, with leases and subscriptions intact, or answers `SESSION_DEAD`, at which
   point the client knows exactly what it lost. Silence is not an answer either way.
