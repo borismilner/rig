@@ -233,6 +233,21 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
     listener and, being cancelled, that listener never runs, so neither the
     window nor the process is destroyed. This is the standard Wails v3
     "minimise to tray" pattern, not a rig-specific workaround.
+    - ✅ **CLOSED 2026-09-17 - IT WAS NEVER rig's DEFECT, AND THE CRASH WAS THE
+      INSTRUMENT.** `man xdotool`: *"windowclose - Close a window. This action
+      will destroy the window"*. **That is `XDestroyWindow`, not
+      `WM_DELETE_WINDOW` and not the X button** - and against an X server with no
+      window manager it kills ANY GTK application. ⛔ **`zenity --info`, a plain
+      GTK dialog with no Wails, no webview and not one line of rig, DIED
+      BYTE-IDENTICALLY on the same display** - the positive control that settled
+      it. Requirement 4 is about the X button, which is a thing only a window
+      manager has. **Boris then confirmed it by hand:** *"The icon survives
+      closing the window."* / *"I can see the icon."* Ruled at logbook
+      `a9854f8`, `BACKLOG.md` B52. ⛔ **THE PARENTHESIS BELOW IS THE FALSE
+      PREMISE THAT PRODUCED ALL OF THIS, AND THIS SECTION HAD ALREADY FLAGGED IT
+      AS ITS OWN ASSERTION RATHER THAN THE RUN'S** - kept, struck, because the
+      lesson is that the document argued with itself for five days and won.
+      **The original statement follows.**
     - ⛔ **A SEPARATE, DEEPER BUG WAS FOUND WHILE VERIFYING THIS FIX AND IS
       STILL OPEN.** Closing the window on this machine (GTK3 + WebKitGTK,
       X11, Mesa/Intel) SIGABRTs the whole `rigwindow` process regardless of
@@ -249,9 +264,10 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
       `LIBGL_ALWAYS_SOFTWARE=1` - so this is not a GPU-backend selection
       problem. **Repro:** build `rigwindow`, run it against a named estate,
       find its `rig`-titled window with `xdotool search --name rig`, close it
-      with `xdotool windowclose <id>` (a synthetic `_NET_CLOSE_WINDOW`, which
+      with `xdotool windowclose <id>` (⛔ ~~a synthetic `_NET_CLOSE_WINDOW`, which
       GDK's X11 backend turns into the same `delete-event` a real titlebar
-      click sends) - the process aborts within ~1-2s, taking rigd's own comfort
+      click sends~~ **FALSE, AND IT IS THE ORIGIN OF B52.** `xdotool windowclose`
+      is `XDestroyWindow`; nothing turns it into a `delete-event`.) - the process aborts within ~1-2s, taking rigd's own comfort
       (development-estate `rigd` stays up fine) but the tray and window both
       vanish with it. **Not chased further into Wails' or WebKitGTK's own
       source** - this needs either an upstream fix, a WebKitGTK/GTK version
@@ -276,9 +292,10 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
       hide-instead-of-quit holds with zero windows mapped.
       **DOWNGRADED FROM BLOCKER TO UNVERIFIED, NOT CLOSED**, and the limits are
       the point: the window was **never closed by a pointer click on the
-      titlebar X**, only by a synthetic `_NET_CLOSE_WINDOW` (this section
-      asserts those are the same `delete-event`; that assertion is this
-      document's, not the run's); **the tray menu's Quit item was never
+      titlebar X**, only by a synthetic `_NET_CLOSE_WINDOW` (⛔ **this section
+      asserted those are the same `delete-event`, flagged its own assertion as
+      the document's rather than the run's, AND WAS RIGHT TO DOUBT IT: the
+      assertion is FALSE and it is what produced B52**); **the tray menu's Quit item was never
       exercised**; and the window was **never re-shown from the tray and closed
       a second time.** *"Did not reproduce three times"* is not *"fixed"* and
       must not be cited as if it were. Full record, including an instrument bug

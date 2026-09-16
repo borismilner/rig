@@ -193,6 +193,63 @@ passes to be a cadence over. **A later lead may overturn this - it is one
 paragraph - but it must say what changed, because "nobody asked yet" is no
 longer the state.**
 
+#### ✅ "SUPER-ROBUST" DOES NOT INCLUDE POWER LOSS. RULED BY BORIS 2026-09-16, AND THE PREMISE IS THE HARDWARE.
+
+**Traced to the transcript rather than to the seat that carried it, because a
+quotation's carrier is never its evidence:**
+
+> *"I allow you to spawn whatever is necessary and we can start without including
+> a power loss if it makes things simpler and we can add this later because power
+> loss is not a great risk in a laptop"*
+
+⛔ **DEFERRED, NOT REFUSED - *"we can add this later"*. AND THE RULING CARRIES
+ITS OWN REOPEN CONDITION, BECAUSE THE PREMISE IS ABOUT THE HARDWARE:** *"not a
+great risk in a laptop"*. **If rig ever runs somewhere without a battery the
+premise is gone and this reopens on those grounds** - which is a different thing
+from a decision that merely might be revisited.
+
+| | |
+|---|---|
+| `synchronous` | **stays at its WAL default.** `FULL` and its measured write cost are NOT taken |
+| the crash test | ⛔ **ITS BOUNDED CLAIM IS NOW THE ACCEPTED SCOPE, NOT A PLACEHOLDER.** SIGKILL-mid-write is survivable and demonstrated; plug-pull is explicitly out. **Finished at the bound he chose - it must not be left reading as unfinished, and it must not be widened** |
+| §11's graceful termination | **untouched.** That is a process choosing to exit; this is the platter |
+
+**The seat that declined to decide this was right to decline, and it still cost
+four lead generations of carrying it.** `BACKLOG.md` B56.
+
+#### ⛔ `session` ANTI-IDENTIFIES THE ACT THAT WROTE A RECORD, AND THE HUMAN SURFACES STOP PRINTING IT
+
+**Measured on a live daemon at rig `3d1c05c`, 60 rows at rig's own backlog
+scale**, which is the shape the seeding will actually have:
+
+| Field | Across 60 rows | |
+|---|---|---|
+| `session` | ⛔ **60 DISTINCT** | **anti-identifies the act** |
+| `seat` | constant | identifies it |
+| `epoch` | constant | groups it correctly |
+
+**A session IS a connection today** - *"serveSession answers `SESSION_DEAD` to
+every resume"* - **so one `rig record put` per row is one session per row.**
+⛔ **A "WHAT DID THIS SESSION DO" QUERY OVER A SEEDED BACKLOG RETURNS EXACTLY
+ONE RECORD, ALWAYS. That is not a degraded answer, it is a confidently wrong
+one** - and `record history` prints it **in a column beside the seat**, so the
+truthful field and the lying one sit side by side on the first screen anybody
+reads.
+
+**RULED: the human-facing surfaces stop printing `session`; `--json` keeps it.**
+For a human it asserts a grouping that does not exist; for a parser it is raw
+data with no claim attached. ⛔ **REOPEN CONDITION, NAMED AND NOT A DATE: when
+a session outlives its connection at M7** - *"when a resumed session starts
+carrying anything at all"* - **the field means what the column already implies
+and it goes back.** The condition belongs in the code comment at each site, so
+the next reader cannot "fix" this by restoring the column.
+
+**§39's provenance requirement is untouched by this.** What is dropped is a
+RENDERING, never a stored field: the daemon still mints `seat`, `session` and
+`epoch` off the kernel's principal and a caller still cannot set any of them.
+⛔ **HOW THE SEAT IS SPELLED ON A HUMAN SURFACE IS A SEPARATE OPEN QUESTION**
+and is deliberately not answered here.
+
 #### ⛔ REDEPLOYMENT IS BATCHED, AND EVERY PEER WAITS THROUGH IT. RULED BY BORIS 2026-09-16.
 
 > *"Once in a while when there are enough new features, changes and capabilities
