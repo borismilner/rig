@@ -644,11 +644,36 @@ func (d *Daemon) serveProjectBrief(ctx context.Context, c *conn, f *rigv1.Frame,
 		// ON THE WIRE AND ON NEITHER SIDE OF IT - the field was reserved, the
 		// package filled it, and the mapping between them was never written.
 		//
-		// title, status and semver are the OTHER HALF and are NOT set here on
-		// purpose: `record.Brief` has no field for any of them yet, so setting
-		// them would mean this function reading the store a second time and
-		// becoming a second derivation. backend-record carries that half.
-		Kind: b.Kind,
+		// ⛔ THAT DEFERRAL'S PRECONDITION IS GONE, AND THE SENTENCE THAT
+		// STATED IT OUTLIVED IT. Until rig bb0c60f this comment read: "title,
+		// status and semver are the OTHER HALF and are NOT set here on purpose:
+		// `record.Brief` has no field for any of them yet, so setting them would
+		// mean this function reading the store a second time and becoming a
+		// second derivation." ⛔ EVERY CLAUSE OF THAT WAS TRUE WHEN WRITTEN
+		// AND THE FIRST ONE WENT FALSE THE SAME DAY: `record.Brief` now carries
+		// Title, Status and Semver, filled from the container record the
+		// derivation already reads. There is no second read and no second
+		// derivation - the values are on the brief in hand.
+		//
+		// ⛔ IT IS THE FOURTH INSTANCE THIS DAY OF A LABEL OUTLIVING WHAT IT
+		// DESCRIBES, and the only one in the file of the seat collecting the
+		// pattern. The others: a comment naming `B60-2` as the shape its guard
+		// catches, which the guard silently accepts; `briefFromWire`'s comment
+		// predicting its own rot and having already rotted; and a table caption
+		// reading "in expected execution order" over a lexical id sort. ⛔ NO
+		// GATE IN THIS REPOSITORY CHECKS A CAPTION, so each was found by a
+		// person reading, and this one was found by two seats independently.
+		//
+		// ⛔ AND NO GUARD COULD HAVE CAUGHT IT FROM THE OTHER END. The CLI's
+		// descriptor-coverage test proves the client RENDERS every wire field;
+		// it cannot prove the daemon SETS one, because a field the daemon never
+		// populates is byte-identical to a project that genuinely has no title.
+		// That asymmetry is why these four fields are mapped together here,
+		// beside the Kind whose absence was the visible half.
+		Kind:   b.Kind,
+		Title:  b.Title,
+		Status: b.Status,
+		Semver: b.Semver,
 	}
 
 	// A NEGATIVE COUNT IS A BUG, AND ZERO IS THE HONEST ANSWER TO ONE. The

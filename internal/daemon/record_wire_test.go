@@ -892,3 +892,68 @@ func TestRecordRefsCarriesEveryFieldTheStoreComputes(t *testing.T) {
 			"to crossing widens the walk, it does not move it")
 	}
 }
+
+// TestTheBriefCarriesItsContainersOwnHeaderFields pins the four header fields
+// against the defect that produced them: the derivation read the container
+// record, kept its metadata, and this function sent none of it, so the first
+// brief rig ever gave of itself said "(not said) (no status)" over "(no title)"
+// while every row beneath it was correct.
+//
+// WHY IT IS A SEPARATE TEST FROM THE CLI'S DESCRIPTOR GUARD, WHICH ALREADY
+// EXISTS AND CANNOT COVER THIS. cmd/rig's briefWireFieldsNotRendered proves the
+// client RENDERS every field the wire declares. It cannot prove the daemon SETS
+// one, because a field the daemon never populates arrives byte-identical to a
+// project that genuinely has no title. The two guards are on opposite sides of
+// the same join and neither implies the other - which is exactly how this field
+// spent one wire revision declared, filled by the package, and mapped by
+// nobody.
+//
+// AND IT IS WRITTEN TO GO RED FIELD BY FIELD. Four distinct assertions naming
+// four distinct values, rather than one comparison of a whole struct: deleting
+// any single mapping line in briefResponse must fail this test and name the
+// field that went missing. A struct-equality assertion would have gone red too
+// and would have said only "the header differs".
+func TestTheBriefCarriesItsContainersOwnHeaderFields(t *testing.T) {
+	sock := upRecordDaemon(t)
+	c := seated(t, sock, "team-lead")
+	ctx := recordCtx(t)
+
+	// The container carries all four. `semver` is read rather than suppressed
+	// by kind: section 39 rules a case has no semver, and no case record writes
+	// one, so reading the field satisfies the rule without a second rule.
+	var proj rigv1.RecordPutResponse
+	if err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
+		Id: "rig", Kind: "project", Project: "rig", Body: "rig itself",
+		Fields: map[string]string{
+			"title":  "rig",
+			"status": "active",
+			"semver": "0.1.0",
+		},
+	}, &proj); err != nil {
+		t.Fatalf("rig.record.put(project): %v", err)
+	}
+
+	var brief rigv1.ProjectBriefResponse
+	if err := c.Call(ctx, "rig.project.brief", &rigv1.ProjectBriefRequest{
+		Project: "rig",
+	}, &brief); err != nil {
+		t.Fatalf("rig.project.brief: %v", err)
+	}
+
+	for _, tc := range []struct {
+		field string
+		got   string
+		want  string
+	}{
+		{"kind", brief.GetKind(), "project"},
+		{"title", brief.GetTitle(), "rig"},
+		{"status", brief.GetStatus(), "active"},
+		{"semver", brief.GetSemver(), "0.1.0"},
+	} {
+		if tc.got != tc.want {
+			t.Errorf("the brief's %s came back %q, want %q - the store holds it "+
+				"and this response dropped it, which is the defect this test pins",
+				tc.field, tc.got, tc.want)
+		}
+	}
+}
