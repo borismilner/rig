@@ -302,6 +302,66 @@ type StageCount struct {
 // so an unrecognised value is visible rather than dropped.
 var featureStages = []string{"planned", "building", "shipped", "deprecated"}
 
+// priorities is section 39's priority vocabulary, MOST IMPORTANT FIRST.
+//
+// RULED BY THE LEAD 2026-09-16, not by Boris, and cheap to overturn: it is one
+// table in one file. Section 39 had used priority as an ordering signal since
+// 2026-09-15 in two places and had never anywhere said what its values are.
+// This seat held section 11 rather than guessing a rank, which is why there is
+// a ruling here instead of a reading.
+//
+// ⛔ ONE DEFINITION, USED BY BOTH SORTS. That is the ruling rather than a
+// preference - two rank tables drift, and the lead argued it from this
+// package's own EncodeTags comment six hundred lines up. The two sites section
+// 39 binds are next-up's tie-break and a case's attention_n notes.
+//
+// ⛔ AND THE SORT THAT SLIPS THROUGH IS NOT THE ONE SECTION 39 NAMES. Over raw
+// strings h < l < m, so ASCENDING is high, low, medium - which agrees with this
+// rank on any two values and disagrees only once medium is present. Descending
+// is medium, low, high, which any two-value test catches. Section 39's word is
+// "descending", so the direction a literal implementation reaches for is the
+// safe one, and the dangerous one is a leftover sort.Strings that nobody would
+// think to write down. That is why priority_test.go seeds three values and an
+// empty one rather than two.
+var priorities = []string{"high", "medium", "low"}
+
+// priorityRank is where a priority sorts. Lower comes first.
+//
+// ⛔ AN UNRECOGNISED OR EMPTY VALUE RANKS AFTER ALL THREE AND IS NEVER DROPPED.
+// Dropping is how a work item disappears from the one list that exists to
+// surface it. This is deliberately the same shape as an unrecognised feature
+// stage above - the lead ruled the two together so they cannot disagree about
+// the unknown case, because two rules in one package that disagree about it is
+// how the next reader learns the wrong one.
+func priorityRank(p string) int {
+	for i, known := range priorities {
+		if p == known {
+			return i
+		}
+	}
+	return len(priorities)
+}
+
+// sortByPriority orders a set of ready work-item ids: priority first, then id.
+//
+// ⛔ IT REPLACES A sort.Strings THAT READ AS A CHOICE AND WAS NOT ONE. Section
+// 39 binds this: "a topological sort over the blocks graph among status: active
+// work-items, unresolved dependencies excluded, TIES BROKEN BY priority." The
+// spec has said so since the section was written; the code ordered by id alone
+// and ItemState.Priority was filled and read by nothing.
+//
+// id remains the FINAL tie-break, so the same store still answers the same way
+// twice - which is what makes a golden test over the brief possible at all.
+func sortByPriority(ids []string, active map[string]ItemState) {
+	sort.SliceStable(ids, func(i, j int) bool {
+		ri, rj := priorityRank(active[ids[i]].Priority), priorityRank(active[ids[j]].Priority)
+		if ri != rj {
+			return ri < rj
+		}
+		return ids[i] < ids[j]
+	})
+}
+
 // Brief derives the answer to "what is going on here" for one project.
 func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 	if project == "" {
@@ -488,7 +548,7 @@ func topoSort(active map[string]ItemState, edges map[string][]string) ([]string,
 			ready = append(ready, id)
 		}
 	}
-	sort.Strings(ready)
+	sortByPriority(ready, active)
 
 	var order []string
 	for len(ready) > 0 {
@@ -503,9 +563,9 @@ func topoSort(active map[string]ItemState, edges map[string][]string) ([]string,
 				freed = append(freed, d)
 			}
 		}
-		sort.Strings(freed)
+		sortByPriority(freed, active)
 		ready = append(ready, freed...)
-		sort.Strings(ready)
+		sortByPriority(ready, active)
 	}
 
 	if len(order) == len(active) {
@@ -522,11 +582,15 @@ func topoSort(active map[string]ItemState, edges map[string][]string) ([]string,
 	}
 	cycles := stronglyConnected(remaining, edges)
 
+	// The cyclic remainder is ordered the same way, deliberately. It is still
+	// next-up's list and section 39's tie-break does not stop applying because
+	// the graph has a cycle - a reader looking at stuck work wants the
+	// important stuck work first, exactly as above.
 	rest := make([]string, 0, len(remaining))
 	for id := range remaining {
 		rest = append(rest, id)
 	}
-	sort.Strings(rest)
+	sortByPriority(rest, active)
 	return append(order, rest...), cycles
 }
 
@@ -613,9 +677,26 @@ func stronglyConnected(nodes map[string]bool, edges map[string][]string) [][]str
 // that links MAY cross a project boundary. A note written elsewhere and attached
 // here is exactly the question this section exists to surface.
 //
-// Ordered by priority then id so the answer is stable: the same store produces
-// the same brief twice, which is what makes a golden test over it possible at
-// all.
+// ⛔ ORDERED BY PRIORITY, THEN created_at DESCENDING, THEN id - AND THIS
+// COMMENT USED TO NAME A MECHANISM THE QUERY DID NOT HAVE. It read "ordered by
+// priority then id" above an ORDER BY n.id, wrong from the first draft rather
+// than drifted, and no test ever watched it: ordering by id alone IS
+// deterministic, so every assertion here passed against a caption describing a
+// sort that was not happening.
+//
+// Section 39 binds neither order here - row 3 says a note is rendered in full
+// and says nothing about sequence - so this one is the seat's, taken with the
+// lead. It is deliberately the SAME sort a case's attention_n notes get eleven
+// rows later in section 39, because two adjacent note lists ordering
+// differently is precisely the drift the one-definition rule exists to stop.
+//
+// ⛔ AND THE SORT RUNS HERE RATHER THAN IN THE ORDER BY, WHICH IS THE ONE THING
+// THE RANK CANNOT DELEGATE. SQLite can only reach the raw string out of the
+// fields blob, so a SQL ordering is alphabetical whichever way it is pointed.
+// The only SQL form that honours the rank is a CASE WHEN, and that puts a
+// second copy of the vocabulary in a string literal no Go test can reach -
+// which is the drift the ruling names, arriving through the door opened to
+// implement it. The query keeps ORDER BY n.id for a stable read.
 func (s *Store) notesAbout(ctx context.Context, project string, subjects map[string]bool) ([]Note, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT n.id, n.body, n.fields, l.dst,
@@ -656,7 +737,27 @@ func (s *Store) notesAbout(ctx context.Context, project string, subjects map[str
 		}
 		out = append(out, n)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	sort.SliceStable(out, func(i, j int) bool {
+		a, b := out[i], out[j]
+		if ra, rb := priorityRank(a.Priority), priorityRank(b.Priority); ra != rb {
+			return ra < rb
+		}
+		// Recency second: the same two halves section 39 states for a case's
+		// notes, "importance leads, recency is the tie-break".
+		if !a.Prov.CreatedAt.Equal(b.Prov.CreatedAt) {
+			return a.Prov.CreatedAt.After(b.Prov.CreatedAt)
+		}
+		// id last so two notes written in the same millisecond still order the
+		// same way twice. The clock here is millisecond-resolution and tests
+		// freeze it, so this tie is real rather than theoretical - the argument
+		// lateststeps.go makes at length about MAX(id).
+		return a.ID < b.ID
+	})
+	return out, nil
 }
 
 // features answers section 10: the features at stage `building`, and the count
