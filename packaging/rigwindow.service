@@ -1,0 +1,54 @@
+# rig's window and system tray, as a systemd --user unit (PLAN.md sections 11,
+# 39).
+#
+# WHY THIS UNIT EXISTS AT ALL, and it is an ACCEPTANCE TEST rather than a
+# convenience. Boris, 2026-09-16, defining how the MVP is judged:
+#
+#   "I'll know we reached MVP when I'll see the production icon on my
+#    system-tray both during this session and after I reboot the machine so I
+#    know it is properly deployed."
+#
+# The reboot is the measurement and the icon is only its readout. Nothing put
+# the window back after a login before this file: `make install` installed
+# `rig` and `rigd` and never the window, and `packaging/` held one unit. So the
+# second half of that sentence could not have passed, however many times the
+# first half did.
+#
+# ⛔ IT IS A SECOND UNIT AND NOT A LINE IN rigd.service, DELIBERATELY. They fail
+# differently and a reader must be able to tell which is down: rigd serving with
+# no tray is a working estate nobody can see, and a tray with no rigd is an icon
+# that cannot say which estate it is. Folding them into one unit makes those two
+# states report as one.
+#
+# THE UNIT DELIBERATELY HAS NO ExecStop, for the reason rigd.service spends
+# thirty lines on. Do not add one.
+
+[Unit]
+Description=rig's window and system tray
+Documentation=file:%h/me/projects/rig/PLAN.md
+
+# WANTS RATHER THAN REQUIRES, AND THE DIFFERENCE IS THE POINT. The window
+# survives a daemon restart by design (section 11): its tray polls rigd for
+# which estate it is rather than being told once, precisely so a restarted
+# daemon does not take the icon with it. Requires= would stop the window when
+# rigd stops, which is the behaviour that design exists to avoid.
+Wants=rigd.service
+After=rigd.service graphical-session.target
+
+# A TRAY WITHOUT A GRAPHICAL SESSION IS NOT A DEGRADED TRAY, IT IS A CRASH LOOP.
+# rigd narrows to the same target for a weaker reason (it merely has no one to
+# talk to); here there is no system tray to attach to at all.
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/rigwindow
+
+# RESTART ON FAILURE ONLY. A window the user CLOSED is not a failure and must
+# stay closed - restarting it would make the close button do nothing, which is
+# the tray equivalent of the ExecStop scar rigd.service records.
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target

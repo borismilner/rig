@@ -179,6 +179,35 @@ install: build ## Install rig and rigd to $(PREFIX)/bin and register the user se
 	@echo "NOT ENABLED. Enabling changes when your session starts a daemon, so"
 	@echo "it is your call rather than this target's:"
 	@echo "    systemctl --user enable --now $(BIND).service"
+	@echo
+	@echo "THE WINDOW AND TRAY ARE NOT INSTALLED BY THIS TARGET: make install-window"
+
+# install-window installs the window and its tray, and it is SEPARATE FROM
+# `install` on purpose.
+#
+# ⛔ NOT FOLDED IN, for the same reason `ci` excludes cmd/rigwindow: it is the
+# only cgo binary and needs gtk3 and webkit2gtk, which `install` must not
+# assume a machine has. A single target would make installing the daemon fail
+# on a box that only ever wanted the daemon.
+#
+# WHY IT EXISTS AT ALL is an acceptance test rather than a convenience. Boris,
+# 2026-09-16: "I'll know we reached MVP when I'll see the production icon on my
+# system-tray both during this session and after I reboot the machine so I know
+# it is properly deployed." Nothing installed the window before this target and
+# nothing started it after a login, so the second half of that sentence could
+# not have passed however many times the first half did.
+install-window: build-rigwindow ## Install the window and tray, and register its user service
+	install -Dm755 build/rigwindow $(PREFIX)/bin/rigwindow
+	install -Dm644 packaging/rigwindow.service $(UNITDIR)/rigwindow.service
+	@systemctl --user daemon-reload 2>/dev/null || \
+	  echo "no user systemd here; the unit is installed but not registered"
+	@echo "installed $(PREFIX)/bin/rigwindow ($(VERSION))"
+	@echo "installed $(UNITDIR)/rigwindow.service"
+	@echo
+	@echo "NOT ENABLED, the same call as the daemon's and for the same reason."
+	@echo "The tray shows which estate rigd is, so BOTH are needed for an icon:"
+	@echo "    systemctl --user enable --now $(BIND).service"
+	@echo "    systemctl --user enable --now rigwindow.service"
 
 uninstall: ## Remove the installed binaries and the user service
 	-@systemctl --user disable --now $(BIND).service 2>/dev/null || true
