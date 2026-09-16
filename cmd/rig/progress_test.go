@@ -208,9 +208,17 @@ func TestAStepWithNoNoteSaysSoRatherThanPrintingABlank(t *testing.T) {
 func TestTheStepConfirmationSaysWhoWroteIt(t *testing.T) {
 	got := stepText(step(), now)
 
-	if !strings.Contains(got, "cli") || !strings.Contains(got, "s-4f2") {
-		t.Errorf("the confirmation does not say which seat and session wrote "+
-			"the step:\n%s", got)
+	if !strings.Contains(got, "cli") {
+		t.Errorf("the confirmation does not say which seat wrote the step:\n%s", got)
+	}
+	// ⛔ AND IT MUST NOT SAY THE SESSION. Ruled 2026-09-17 off a live
+	// measurement: sixty puts at one terminal in one act wrote sixty distinct
+	// sessions, because a session IS a connection today. To a human the field
+	// asserts a grouping that does not exist. See provenanceLine in record.go
+	// for the reopen condition - this is not a field that was forgotten.
+	if strings.Contains(got, "s-4f2") {
+		t.Errorf("the confirmation prints the session, which is minted per "+
+			"INVOCATION and groups nothing a reader would mean:\n%s", got)
 	}
 }
 

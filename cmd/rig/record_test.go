@@ -647,11 +647,22 @@ func TestTheHistoryCarriesWhoWroteEachVersion(t *testing.T) {
 		record(func(r *Record) { r.Version = 2; r.Prov.Seat = "record" }),
 	}, now)
 
-	for _, want := range []string{"backend-1", "record", "s-4f2"} {
+	for _, want := range []string{"backend-1", "record"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the history does not carry %q, so it cannot answer who "+
 				"wrote a version:\n%s", want, got)
 		}
+	}
+
+	// ⛔ THE SESSION COLUMN IS GONE AND THIS TABLE IS WHERE IT DID THE DAMAGE.
+	// One person editing one record twice, forty-four seconds apart, rendered
+	// as two sessions in a column standing beside the truthful SEAT one - a
+	// lying column and an honest one side by side, with nothing saying which
+	// was which. Measured live at 3d1c05c before the ruling.
+	if strings.Contains(got, "s-4f2") || strings.Contains(got, "SESSION") {
+		t.Errorf("the history still carries the session: it is minted per "+
+			"invocation, so the column reads as \"which sitting\" and answers "+
+			"with one row per write:\n%s", got)
 	}
 }
 
@@ -1558,11 +1569,39 @@ func TestRecordGetDialsARealSocketAndRendersWhatCameBack(t *testing.T) {
 		// ⛔ THE PROVENANCE IS THE HALF A FAKE SEAM CANNOT EXERCISE. It comes
 		// off `Provenance.at_unix_nano`, an int64 that has to become a
 		// time.Time without passing through the Unix epoch on the way.
-		"terminal:someone", "sess-4f2", "2026-09-16T21:00:00Z",
+		//
+		// The SESSION is deliberately absent from this list and asserted
+		// absent below: the timestamp is what exercises the conversion, and
+		// the session was never what this test was about.
+		//
+		// ⛔ `someone`, NOT `terminal:someone`, AND THE PREFIX GOING MISSING
+		// HERE IS THE POINT. This runs from argv through a real socket, so it
+		// is the end-to-end proof that displaySeat is on the rendering path
+		// rather than only on a formatter a unit test can reach. The STORED
+		// value still has its prefix - the object below is where that is
+		// asserted.
+		"someone", "2026-09-16T21:00:00Z",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the rendered record does not carry %q:\n%s", want, out)
 		}
+	}
+
+	// ⛔ AND THE SESSION IS NOT RENDERED TO A HUMAN. This runs from argv
+	// through a real socket, so it is the end-to-end proof of the ruling
+	// rather than a unit check on one formatter: whatever the daemon sent,
+	// the reader does not see a session id. `--json` keeps it, and
+	// TestTheRecordObjectStillCarriesTheSessionForAParser is that half.
+	if strings.Contains(out, "sess-4f2") {
+		t.Errorf("the human rendering carries the session, which is minted "+
+			"per invocation and groups nothing:\n%s", out)
+	}
+	// And the kind prefix is not shown either. Asserted as an absence beside
+	// the presence above, because "someone" is a substring of
+	// "terminal:someone" - a Contains check alone would pass on the old
+	// output and prove nothing.
+	if strings.Contains(out, "terminal:someone") {
+		t.Errorf("the human rendering still carries the kind prefix:\n%s", out)
 	}
 
 	// AND THE VERB ASKED FOR WHAT IT WAS TOLD TO. The skew check dials first,
@@ -1813,4 +1852,158 @@ func tableRows(out string) []string {
 		rows = append(rows, line)
 	}
 	return rows
+}
+
+// ⛔ `--json` KEEPS THE SESSION, AND THIS IS THE HALF THAT STOPS THE RULING
+// BEING OVER-APPLIED.
+//
+// Ruled 2026-09-17: the human surfaces stop printing `prov.session` because to
+// a reader it asserts a grouping that does not exist - sixty puts at one
+// terminal in one act wrote sixty distinct sessions, measured. **The object
+// does not stop carrying it**, and the split is deliberate rather than an
+// oversight in either direction: a parser wants raw identity with no claim
+// attached, and it is the only surface from which the invocation id is still
+// recoverable.
+//
+// Without this test the ruling reads as "the session is noise" and the next
+// seat tidying the object removes it too - which would delete the field from
+// the last place it survives, in the name of a decision that was only ever
+// about prose.
+func TestTheRecordObjectStillCarriesTheSessionForAParser(t *testing.T) {
+	obj := recordJSON(Record{
+		ID: "01927-abc", Version: 3, Kind: "requirement", Project: "rig",
+		Prov: Provenance{
+			Session: "sess-4f2", Seat: "terminal:someone", Epoch: 7,
+		},
+	}, now)
+
+	prov, ok := obj["provenance"].(map[string]any)
+	if !ok {
+		t.Fatalf("the object has no provenance block, so this test is "+
+			"measuring the wrong thing: %#v", obj)
+	}
+	if prov["session"] != "sess-4f2" {
+		t.Errorf("--json dropped the session (got %#v). A human is told less "+
+			"than a parser here ON PURPOSE: the prose made a claim the field "+
+			"cannot support, and the object makes no claim at all", prov["session"])
+	}
+	// The seat and epoch are the two that DO identify an act, so an object
+	// that lost either would be worse than one that lost the session.
+	if prov["seat"] != "terminal:someone" || prov["epoch"] != uint64(7) {
+		t.Errorf("--json dropped a field that actually identifies the writer: %#v", prov)
+	}
+}
+
+// ⛔ THE UNSET PATH IS THE ONE EVERY MACHINE BUT THIS ONE TAKES, SO IT IS
+// TESTED FIRST AND HARDEST.
+//
+// `RIG_DISPLAY_NAME` is a name a person sets. The machine this was built on is
+// the only machine in the world where it is set, so a test suite that only
+// covered the set case would pass here forever and ship a broken default
+// everywhere else.
+func TestASeatWithNoDisplayNameSetRendersWithItsKindPrefixStripped(t *testing.T) {
+	t.Setenv("RIG_DISPLAY_NAME", "")
+
+	for _, tc := range []struct{ seat, want, why string }{
+		{
+			"terminal:boris-milner", "boris-milner",
+			"the unix username, whole - NOT cut at a hyphen, which is a rule " +
+				"inferred from one name and wrong about names in general",
+		},
+		{
+			"terminal:mary-jane", "mary-jane",
+			"the name that would have exposed a first-hyphen cut, kept here " +
+				"deliberately so the rejected rule cannot come back unnoticed",
+		},
+		{"agent:some-worker", "some-worker", "any kind prefix, not just terminal:"},
+		{
+			"backend-1", "backend-1",
+			"a seat with NO prefix is left whole: cutting on a colon that is " +
+				"not there must not invent an empty string",
+		},
+		{
+			"terminal:", "terminal:",
+			"a prefix with nothing after it is not a name, so the raw value " +
+				"is the honest answer rather than an empty cell",
+		},
+	} {
+		if got := displaySeat(tc.seat); got != tc.want {
+			t.Errorf("displaySeat(%q) = %q, want %q - %s", tc.seat, got, tc.want, tc.why)
+		}
+	}
+}
+
+// ⛔ THE DISPLAY NAME SUBSTITUTES FOR THIS CALLER'S OWN SEAT AND FOR NOTHING
+// ELSE. THIS IS THE MISATTRIBUTION GUARD AND IT IS THE MOST IMPORTANT TEST IN
+// THIS FILE.
+//
+// `record history` renders other seats in the same column - `backend-1`,
+// `record`, another person's terminal. A display name applied to all of them
+// would print this user's name over another writer's work, on the one surface
+// whose entire job is saying who wrote something. **It would also be invisible
+// on a single-user machine, which is the only kind this was developed on.**
+func TestADisplayNameNeverRendersOverAnotherSeatsWork(t *testing.T) {
+	saved := selfSeat
+	t.Cleanup(func() { selfSeat = saved })
+	selfSeat = func() string { return "terminal:boris-milner" }
+	t.Setenv("RIG_DISPLAY_NAME", "boris")
+
+	if got := displaySeat("terminal:boris-milner"); got != "boris" {
+		t.Errorf("displaySeat on THIS caller's own seat = %q, want the display "+
+			"name %q", got, "boris")
+	}
+
+	// Everything below is somebody else's work.
+	for _, other := range []string{
+		"terminal:mary-jane", // another person at another terminal
+		"backend-1",          // an agent seat
+		"record",             // another agent seat
+		"terminal:root",      // the same kind, a different user
+	} {
+		got := displaySeat(other)
+		if got == "boris" {
+			t.Errorf("displaySeat(%q) rendered THIS user's display name over "+
+				"another writer's work: provenance that misattributes is "+
+				"worse than provenance that is ugly", other)
+		}
+		if got == "" {
+			t.Errorf("displaySeat(%q) rendered empty", other)
+		}
+	}
+}
+
+// An unset variable and a variable set to the empty string are the same
+// intention, and only one of them is what `os.Getenv` returns for both.
+func TestAnEmptyDisplayNameIsTreatedAsUnsetRatherThanAsAName(t *testing.T) {
+	saved := selfSeat
+	t.Cleanup(func() { selfSeat = saved })
+	selfSeat = func() string { return "terminal:boris-milner" }
+
+	t.Setenv("RIG_DISPLAY_NAME", "")
+	if got := displaySeat("terminal:boris-milner"); got != "boris-milner" {
+		t.Errorf("an empty RIG_DISPLAY_NAME rendered %q; it must fall back to "+
+			"the stripped seat, never to an empty author", got)
+	}
+}
+
+// ⛔ `--json` NEVER SEES displaySeat. A parser wants the derived, unforgeable
+// identity; a display name is a preference of the person reading. Rendering it
+// into the object would put an unverifiable string where the only verifiable
+// one belongs.
+func TestTheObjectCarriesTheStoredSeatAndNeverTheDisplayName(t *testing.T) {
+	saved := selfSeat
+	t.Cleanup(func() { selfSeat = saved })
+	selfSeat = func() string { return "terminal:boris-milner" }
+	t.Setenv("RIG_DISPLAY_NAME", "boris")
+
+	obj := recordJSON(Record{
+		ID: "01927-abc", Kind: "requirement", Project: "rig",
+		Prov: Provenance{Session: "s-1", Seat: "terminal:boris-milner", Epoch: 7},
+	}, now)
+	prov := obj["provenance"].(map[string]any)
+	if prov["seat"] != "terminal:boris-milner" {
+		t.Errorf("--json rendered %q, want the STORED seat: the object is the "+
+			"only surface from which the derived identity is still "+
+			"recoverable", prov["seat"])
+	}
 }

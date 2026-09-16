@@ -670,3 +670,37 @@ func TestTheFeaturesSectionCarriesBothTheListAndTheCounts(t *testing.T) {
 		t.Errorf("an empty features section printed no sentence:\n%s", empty)
 	}
 }
+
+// ⛔ THE BRIEF IS THE THIRD HUMAN SURFACE AND IT HAD NO GUARD AT ALL.
+//
+// Found by mutation: swapping `displaySeat` back to `provWord` in
+// `briefNotesSection` SURVIVED the whole suite. The reason is the fixture -
+// its seat is the bare string `boris`, with no kind prefix, so the two
+// functions return the same bytes for it and no assertion over that fixture
+// can tell them apart. **A test whose input cannot exhibit the property is
+// not a weak test, it is not a test of that property at all.**
+//
+// This one uses a seat shaped the way the daemon actually mints them:
+// `internal/daemon/record.go` writes `"terminal:" + u.Username`.
+func TestANotesAuthorIsRenderedForAHumanRatherThanAsAStoredSeat(t *testing.T) {
+	t.Setenv("RIG_DISPLAY_NAME", "")
+
+	got := briefNotesSection([]BriefNote{{
+		ID: "n1", Body: "the note's own words",
+		Prov: Provenance{
+			Session: "s-1", Seat: "terminal:boris-milner", CreatedAt: now.Add(-time.Hour),
+		},
+	}}, now)
+
+	if !strings.Contains(got, "boris-milner") {
+		t.Errorf("the note does not say who wrote it:\n%s", got)
+	}
+	// The absence is the half that bites. "boris-milner" is a substring of
+	// "terminal:boris-milner", so the presence check above passes on the
+	// UNSTRIPPED rendering too and proves nothing on its own.
+	if strings.Contains(got, "terminal:boris-milner") {
+		t.Errorf("the brief renders the stored seat with its kind prefix. A "+
+			"human reading their own project's notes is shown a name; the "+
+			"namespaced value is what --json carries:\n%s", got)
+	}
+}

@@ -635,7 +635,7 @@ func briefNotesSection(notes []BriefNote, now time.Time) string {
 			// an agent tells a directive from an agent's own narration, and a
 			// column a reader has to scan back to is a column they read after
 			// deciding.
-			provWord(n.Prov.Seat),
+			displaySeat(n.Prov.Seat),
 			briefCell(n.Priority, "-"),
 			peersAgeCell(provUnix(n.Prov.CreatedAt), now),
 			firstLine(strings.TrimSpace(n.Body)),

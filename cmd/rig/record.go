@@ -8,6 +8,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"os/user"
 	"slices"
 	"sort"
 	"strconv"
@@ -1010,16 +1011,112 @@ func recordText(r Record, now time.Time) string {
 
 // provenanceLine is who wrote a version and when.
 //
-// ⛔ AN EMPTY SESSION OR SEAT IS A DEFECT AND RENDERS AS ONE. internal/record
-// refuses a put without both - "a put needs its provenance: session and seat"
-// - so a blank cell here cannot mean "nobody claimed it". It means something
-// between the store and this renderer dropped it, and section 21's rule about
-// the zero applies exactly: nothing was said is never a fact about anything.
+// ⛔ AN EMPTY SEAT IS A DEFECT AND RENDERS AS ONE. internal/record refuses a
+// put without session and seat both - "a put needs its provenance: session and
+// seat" - so a blank cell here cannot mean "nobody claimed it". It means
+// something between the store and this renderer dropped it, and section 21's
+// rule about the zero applies exactly: nothing was said is never a fact about
+// anything.
+//
+// ⛔ THE SESSION IS DELIBERATELY NOT PRINTED, AND RESTORING IT WOULD BE A
+// REGRESSION RATHER THAN A FIX. MEASURED 2026-09-17, sixty `rig record put`
+// invocations at one terminal by one person in one act: SIXTY DISTINCT
+// SESSIONS, one constant seat, one constant epoch. A session IS a connection
+// today - `wire.proto` says so, "because serveSession answers SESSION_DEAD to
+// every resume" - so the id is minted per INVOCATION, not per sitting.
+//
+// Printing it to a human asserts a grouping that does not exist: it sits in a
+// sentence beside the seat, reads as the narrower "which sitting", and answers
+// a "what did this session do" question with exactly one record every time.
+// **That is a confidently wrong answer, not a coarse one.** `--json` keeps the
+// field, because a parser wants raw identity with no claim attached and a
+// human is the one being told something.
+//
+// ⛔ THE REOPEN CONDITION IS NAMED AND IT IS NOT A DATE: WHEN A SESSION
+// OUTLIVES ITS CONNECTION - `wire.proto` puts that at M7, "when a resumed
+// session starts carrying anything at all" - the field starts meaning what
+// this sentence would imply and it comes back. Until then, seat and epoch are
+// the two fields that identify an act and they are both here.
 func provenanceLine(p Provenance, now time.Time) string {
-	return fmt.Sprintf("written by %s in session %s, epoch %d, %s\n",
-		provWord(p.Seat), provWord(p.Session), p.Epoch,
-		provWhen(p.CreatedAt, now))
+	return fmt.Sprintf("written by %s, epoch %d, %s\n",
+		displaySeat(p.Seat), p.Epoch, provWhen(p.CreatedAt, now))
 }
+
+// displaySeat renders a seat FOR A HUMAN. The stored value is never changed
+// and `--json` never sees this function.
+//
+// ⛔ RULED BY BORIS 2026-09-17 OFF A LIVE TRANSCRIPT. `terminal:boris-milner`
+// is derived from the socket's peer credentials and is therefore unforgeable -
+// `internal/daemon/record.go` mints it as `"terminal:" + u.Username` from
+// `user.LookupId(p.UID)` - and that derivation is the whole value of the
+// field. So the STORE keeps it and only the rendering changes.
+//
+// ⛔ A DISPLAY NAME IS SET, NOT COMPUTED, AND THAT IS THE POINT. The first
+// shape proposed was "cut at the first hyphen", which renders `boris-milner`
+// as `boris` and is a rule inferred from one example: `mary-jane` becomes
+// `mary`, and a name with no hyphen renders whole, so the rule is INVISIBLE
+// until it meets a name shaped like the one it was written for. That is the
+// same defect as a backlog parser that trims markers off the front of a cell
+// because the cell it was written for began with them.
+//
+// ⛔ `RIG_DISPLAY_NAME` IS §6's FIRST KEY ARRIVING AHEAD OF §6. That section
+// specifies a seven-layer resolution - /etc, ~/.config, declared defaults,
+// per-app toml, `RIG_*`, flags, runtime override - with schema-declared keys
+// and `rig config origin`. NONE OF IT IS BUILT: there is not one `RIG_*` key
+// anywhere in `cmd/` or `internal/` today. This sits exactly on the declared
+// `environment (RIG_*)` layer, so it is that system's first key rather than a
+// contradiction of it, and it must not grow into a config system here.
+//
+// ⛔ IT SUBSTITUTES ONLY FOR THIS CALLER'S OWN SEAT, AND THAT BOUND IS LOAD
+// BEARING RATHER THAN CAUTIOUS. `record history` renders OTHER seats in the
+// same column - `backend-1`, `record`, another person's terminal - and a
+// display name applied to all of them would print this user's name over
+// another writer's work. **On a provenance surface, misattribution is the
+// worst available failure**, and it would be invisible on a single-user
+// machine, which is the only kind this was tested on.
+//
+// UNSET OR EMPTY FALLS BACK TO STRIPPING THE KIND PREFIX, never to the raw
+// seat: an unset reader sees `boris-milner`, which is always correct. That
+// fallback is the path every machine but this one takes, so it is the half
+// that is tested hardest.
+func displaySeat(seat string) string {
+	if seat == "" {
+		return provWord(seat)
+	}
+	if name := os.Getenv("RIG_DISPLAY_NAME"); name != "" && seat == selfSeat() {
+		return name
+	}
+	// A seat with no kind prefix is left whole. `backend-1` is a seat name,
+	// not a namespaced one, and cutting on a colon that is not there must not
+	// invent an empty string.
+	if _, rest, found := strings.Cut(seat, ":"); found && rest != "" {
+		return rest
+	}
+	return seat
+}
+
+// selfSeat is how THIS caller's own writes are stamped by the daemon, so
+// displaySeat can tell "my record" from "somebody else's".
+//
+// It is a package var rather than a call so a test can state which seat it is
+// pretending to be - the same reason `skewOut` is one. Computed lazily,
+// because a CLI that never renders a seat should not pay for a user lookup.
+var selfSeat = func() string {
+	if cachedSelfSeat == "" {
+		u, err := user.Current()
+		if err != nil || u.Username == "" {
+			// ⛔ NO SEAT RATHER THAN A GUESS. If this lookup fails, nothing
+			// matches and every seat renders stripped - which is the correct
+			// answer, not a degraded one.
+			cachedSelfSeat = "\x00none"
+		} else {
+			cachedSelfSeat = "terminal:" + u.Username
+		}
+	}
+	return cachedSelfSeat
+}
+
+var cachedSelfSeat string
 
 // provWord renders a provenance string, in a shape no real value can take when
 // it is missing.
@@ -1134,14 +1231,19 @@ func historyText(id string, rs []Record, now time.Time) string {
 	for _, r := range rs {
 		rows = append(rows, []string{
 			"v" + strconv.FormatUint(r.Version, 10),
-			provWord(r.Prov.Seat),
-			provWord(r.Prov.Session),
+			displaySeat(r.Prov.Seat),
+			// ⛔ NO SESSION COLUMN. See provenanceLine for the measurement and
+			// the reopen condition. THIS TABLE IS WHERE THE DEFECT WAS
+			// VISIBLE: one person editing one record twice, forty-four seconds
+			// apart, rendered as two sessions in a column standing beside the
+			// truthful SEAT one - so the reader had a lying column and an
+			// honest column side by side and nothing said which was which.
 			strconv.FormatUint(r.Prov.Epoch, 10),
 			peersAgeCell(provUnix(r.Prov.CreatedAt), now),
 			recordSummary(r),
 		})
 	}
-	writeTable(&b, []string{"VERSION", "SEAT", "SESSION", "EPOCH", "AGE", "SUMMARY"}, rows)
+	writeTable(&b, []string{"VERSION", "SEAT", "EPOCH", "AGE", "SUMMARY"}, rows)
 	fmt.Fprintf(&b, "\n%s, %d version%s, oldest first.\n", id, len(rs),
 		plural(len(rs)))
 	return b.String()
