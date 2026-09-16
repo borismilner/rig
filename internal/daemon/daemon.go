@@ -812,7 +812,7 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	// it needs is not built. record.go says why.
 	case "record.put", "record.get", "record.query", "record.history",
 		"record.link", "record.unlink", "progress.step", "project.brief":
-		d.serveRecord(c, f, command)
+		d.serveRecord(ctx, c, f, command)
 
 	case "down":
 		// Authorised above like everything else, and it is declared

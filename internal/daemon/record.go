@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"errors"
 
 	"github.com/boris-milner/rig/internal/record"
@@ -25,28 +26,28 @@ import (
 // IT IS ITS OWN FILE FOR THE REASON serveSession IS ITS OWN METHOD: serveSelf
 // crossed gocyclo's ceiling at ONE inline case, and eight would bury the
 // dispatch switch it lives in.
-func (d *Daemon) serveRecord(c *conn, f *rigv1.Frame, command string) {
+func (d *Daemon) serveRecord(ctx context.Context, c *conn, f *rigv1.Frame, command string) {
 	st, ok := d.recordStore(c, f, command)
 	if !ok {
 		return
 	}
 	switch command {
 	case "record.put":
-		d.serveRecordPut(c, f, st)
+		d.serveRecordPut(ctx, c, f, st)
 	case "record.get":
-		d.serveRecordGet(c, f, st)
+		d.serveRecordGet(ctx, c, f, st)
 	case "record.query":
-		d.serveRecordQuery(c, f, st)
+		d.serveRecordQuery(ctx, c, f, st)
 	case "record.history":
-		d.serveRecordHistory(c, f, st)
+		d.serveRecordHistory(ctx, c, f, st)
 	case "record.link":
-		d.serveRecordLink(c, f, st)
+		d.serveRecordLink(ctx, c, f, st)
 	case "record.unlink":
-		d.serveRecordUnlink(c, f, st)
+		d.serveRecordUnlink(ctx, c, f, st)
 	case "progress.step":
-		d.serveProgressStep(c, f, st)
+		d.serveProgressStep(ctx, c, f, st)
 	case "project.brief":
-		d.serveProjectBrief(c, f, st)
+		d.serveProjectBrief(ctx, c, f, st)
 	}
 }
 
@@ -136,7 +137,7 @@ func recordToWire(r record.Record) *rigv1.Record {
 	}
 }
 
-func (d *Daemon) serveRecordPut(c *conn, f *rigv1.Frame, st *record.Store) {
+func (d *Daemon) serveRecordPut(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
 	var req rigv1.RecordPutRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.put: "+err.Error())
@@ -147,7 +148,7 @@ func (d *Daemon) serveRecordPut(c *conn, f *rigv1.Frame, st *record.Store) {
 		d.refuseUnattributed(c, f, "record.put")
 		return
 	}
-	rec, err := st.Put(record.PutRequest{
+	rec, err := st.Put(ctx, record.PutRequest{
 		ID:        req.GetId(),
 		IfVersion: req.GetIfVersion(),
 		Kind:      req.GetKind(),
@@ -165,7 +166,7 @@ func (d *Daemon) serveRecordPut(c *conn, f *rigv1.Frame, st *record.Store) {
 	c.reply(f.GetStreamId(), &rigv1.RecordPutResponse{Record: recordToWire(rec)})
 }
 
-func (d *Daemon) serveRecordGet(c *conn, f *rigv1.Frame, st *record.Store) {
+func (d *Daemon) serveRecordGet(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
 	var req rigv1.RecordGetRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.get: "+err.Error())
@@ -178,9 +179,9 @@ func (d *Daemon) serveRecordGet(c *conn, f *rigv1.Frame, st *record.Store) {
 		err error
 	)
 	if v := req.GetVersion(); v == 0 {
-		rec, err = st.Get(req.GetId())
+		rec, err = st.Get(ctx, req.GetId())
 	} else {
-		rec, err = st.GetVersion(req.GetId(), v)
+		rec, err = st.GetVersion(ctx, req.GetId(), v)
 	}
 	if err != nil {
 		c.failErr(f.GetStreamId(), recordCode(err), err)
@@ -189,13 +190,13 @@ func (d *Daemon) serveRecordGet(c *conn, f *rigv1.Frame, st *record.Store) {
 	c.reply(f.GetStreamId(), &rigv1.RecordGetResponse{Record: recordToWire(rec)})
 }
 
-func (d *Daemon) serveRecordQuery(c *conn, f *rigv1.Frame, st *record.Store) {
+func (d *Daemon) serveRecordQuery(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
 	var req rigv1.RecordQueryRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.query: "+err.Error())
 		return
 	}
-	recs, err := st.Query(req.GetProject(), req.GetKind())
+	recs, err := st.Query(ctx, req.GetProject(), req.GetKind())
 	if err != nil {
 		c.failErr(f.GetStreamId(), recordCode(err), err)
 		return
@@ -207,13 +208,13 @@ func (d *Daemon) serveRecordQuery(c *conn, f *rigv1.Frame, st *record.Store) {
 	c.reply(f.GetStreamId(), resp)
 }
 
-func (d *Daemon) serveRecordHistory(c *conn, f *rigv1.Frame, st *record.Store) {
+func (d *Daemon) serveRecordHistory(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
 	var req rigv1.RecordHistoryRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.history: "+err.Error())
 		return
 	}
-	recs, err := st.History(req.GetId())
+	recs, err := st.History(ctx, req.GetId())
 	if err != nil {
 		c.failErr(f.GetStreamId(), recordCode(err), err)
 		return
@@ -231,7 +232,7 @@ func (d *Daemon) serveRecordHistory(c *conn, f *rigv1.Frame, st *record.Store) {
 // the value back and listing the valid ones. A second copy of that set here is
 // a second thing to keep in step with section 39: two validators drift, one
 // does not.
-func (d *Daemon) serveRecordLink(c *conn, f *rigv1.Frame, st *record.Store) {
+func (d *Daemon) serveRecordLink(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
 	var req rigv1.RecordLinkRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.link: "+err.Error())
@@ -241,14 +242,14 @@ func (d *Daemon) serveRecordLink(c *conn, f *rigv1.Frame, st *record.Store) {
 		d.refuseUnattributed(c, f, "record.link")
 		return
 	}
-	if err := st.Link(req.GetSrc(), req.GetType(), req.GetDst()); err != nil {
+	if err := st.Link(ctx, req.GetSrc(), req.GetType(), req.GetDst()); err != nil {
 		c.failErr(f.GetStreamId(), recordCode(err), err)
 		return
 	}
 	c.reply(f.GetStreamId(), &rigv1.RecordLinkResponse{})
 }
 
-func (d *Daemon) serveRecordUnlink(c *conn, f *rigv1.Frame, st *record.Store) {
+func (d *Daemon) serveRecordUnlink(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
 	var req rigv1.RecordUnlinkRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.unlink: "+err.Error())
@@ -258,7 +259,7 @@ func (d *Daemon) serveRecordUnlink(c *conn, f *rigv1.Frame, st *record.Store) {
 		d.refuseUnattributed(c, f, "record.unlink")
 		return
 	}
-	if err := st.Unlink(req.GetSrc(), req.GetType(), req.GetDst()); err != nil {
+	if err := st.Unlink(ctx, req.GetSrc(), req.GetType(), req.GetDst()); err != nil {
 		c.failErr(f.GetStreamId(), recordCode(err), err)
 		return
 	}
@@ -282,7 +283,7 @@ var stepStateWire = map[string]rigv1.StepState{
 	"done":    rigv1.StepState_STEP_STATE_DONE,
 }
 
-func (d *Daemon) serveProgressStep(c *conn, f *rigv1.Frame, st *record.Store) {
+func (d *Daemon) serveProgressStep(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
 	var req rigv1.ProgressStepRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "progress.step: "+err.Error())
@@ -304,7 +305,7 @@ func (d *Daemon) serveProgressStep(c *conn, f *rigv1.Frame, st *record.Store) {
 	// It also buys a better refusal. Stepping an id that does not exist now
 	// answers "no such record" instead of "a step needs a project", which is
 	// the store complaining about a field the caller was never asked for.
-	item, err := st.Get(req.GetItem())
+	item, err := st.Get(ctx, req.GetItem())
 	if err != nil {
 		c.failErr(f.GetStreamId(), recordCode(err), err)
 		return
@@ -312,7 +313,7 @@ func (d *Daemon) serveProgressStep(c *conn, f *rigv1.Frame, st *record.Store) {
 
 	// An unknown enum value arrives as the empty string and the store refuses
 	// it by name, which is the one refusal a caller should see.
-	rec, err := st.Step(record.StepRequest{
+	rec, err := st.Step(ctx, record.StepRequest{
 		Item:    req.GetItem(),
 		State:   stepStateNames[req.GetState()],
 		Note:    req.GetNote(),
@@ -416,13 +417,13 @@ func briefSections() []*rigv1.BriefSectionStatus {
 	}
 }
 
-func (d *Daemon) serveProjectBrief(c *conn, f *rigv1.Frame, st *record.Store) {
+func (d *Daemon) serveProjectBrief(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
 	var req rigv1.ProjectBriefRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "project.brief: "+err.Error())
 		return
 	}
-	b, err := st.Brief(req.GetProject())
+	b, err := st.Brief(ctx, req.GetProject())
 	if err != nil {
 		c.failErr(f.GetStreamId(), recordCode(err), err)
 		return
