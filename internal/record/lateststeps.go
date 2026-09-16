@@ -190,3 +190,45 @@ func (s *Store) coarseCitations(ctx context.Context, project string) (int, error
 	}
 	return n, nil
 }
+
+// itemsWithANote is every record in a project that has a `note` record attached.
+//
+// SECTION 39 ROW 2's "a flag for whether a note is attached", answered as a SET
+// in one query rather than as a boolean per item. The brief already knows every
+// item it is about; what it does not know is which of them a caller has left a
+// comment on, and that is one join.
+//
+// ⛔ IT SCOPES ON THE DESTINATION'S PROJECT, NOT THE NOTE'S, AND THAT IS THE
+// CORRECT SIDE. Section 39 rules that links MAY cross a project boundary, so a
+// note written while working on something else can be attached to an item here.
+// Scoping on the note would drop exactly those - the ones most likely to carry
+// something the item's own project has not noticed - and the flag would read
+// false for an item that has a comment waiting on it.
+//
+// The heads join on both ends is the same head-only reading every other
+// derivation uses: a superseded note is not a note that is attached.
+func (s *Store) itemsWithANote(ctx context.Context, project string) (map[string]bool, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT DISTINCT l.dst
+		FROM links l
+		JOIN records n ON n.id = l.src
+		JOIN heads hn ON hn.id = n.id AND hn.version = n.version
+		JOIN records d ON d.id = l.dst
+		JOIN heads hd ON hd.id = d.id AND hd.version = d.version
+		WHERE l.type = ? AND n.kind = ? AND d.project = ?`,
+		LinkPartOf, KindNote, project)
+	if err != nil {
+		return nil, fmt.Errorf("record: reading which items in %s carry a note: %w", project, err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	out := map[string]bool{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out[id] = true
+	}
+	return out, rows.Err()
+}

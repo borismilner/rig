@@ -109,6 +109,15 @@ func (e *NotFoundError) Error() string {
 	return fmt.Sprintf("no version %d of record %s", e.Version, e.ID)
 }
 
+// KindNote is Boris's comment and question mechanism, section 39 row 3: a note
+// is a RECORD attached to a project or a work-item, never a field on either.
+//
+// It is named here rather than written as a literal because the brief's
+// compact-card flag and the notes-in-full section are two derivations asking
+// the same question, and a typo in one of them is an edge nothing looks for -
+// the same silent-failure argument that closed the link-type set.
+const KindNote = "note"
+
 // slugIDKinds are the kinds whose id is a caller-supplied SLUG rather than a
 // generated UUIDv7.
 //

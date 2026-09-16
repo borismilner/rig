@@ -2,6 +2,7 @@ package record
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -63,9 +64,88 @@ type Brief struct {
 }
 
 // ItemState is a work item and the last thing that happened to it.
+//
+// ⛔ IT CARRIES SECTION 39 ROW 2's COMPACT CARD, AND ROW 2 SPECIFIES NINE
+// FIELDS. Until 2026-09-16 this struct held five, so the brief's headline list -
+// the one thing a reader looks at first - answered five of nine and the CLI
+// renderer had Owner and Priority fields it could never fill.
+//
+// THE CARD IS NEVER description_long, and that is row 2 in as many words: "a
+// list meant to be scanned in one pass fails its own readability requirement
+// the moment it carries a paragraph per row; the long form is one record.get
+// away." The same rule governs Note, below.
 type ItemState struct {
 	ID    string
 	Title string
+
+	// DescriptionShort is row 2's one line for lists and briefs.
+	DescriptionShort string
+
+	// Priority is the item's own ordering signal, distinct from the topological
+	// order: section 39 breaks ties in next-up BY priority, and a blocks edge is
+	// a hard dependency where priority is relative importance.
+	Priority string
+
+	// Status is the RECORD's status - `idea` or `active` - and it is NOT State.
+	//
+	// ⛔ THE TWO ARE DIFFERENT FIELDS ANSWERING DIFFERENT QUESTIONS AND SECTION
+	// 39 IS EXPLICIT ABOUT IT. Status says whether the item has been picked up;
+	// `idea` means no progress stream is expected yet. State is the latest
+	// step's own state - started, blocked, done - and section 39 refuses to keep
+	// a second completion field in sync with it. Collapsing them is defect D5
+	// arriving from the other direction: an item with status `active` and a
+	// `done` latest step is finished, and an item with status `idea` and no
+	// steps has not begun. One field cannot say both.
+	Status string
+
+	// Owner is which seat is currently driving it.
+	Owner string
+
+	// Tags are row 2's free-form grouping.
+	//
+	// STORED AS A JSON ARRAY IN THE FIELDS BLOB, and that is a decision of this
+	// seat's rather than a reading of section 39, which specifies tags as
+	// "free-form grouping, QUERYABLE like any typed field" and never says how a
+	// list lives in a map[string]string. It was taken on measurement rather than
+	// taste, against the real driver:
+	//
+	//	json_each(json(fields ->> 'tags')) WHERE value = 'ops'   -> 1
+	//	                                   WHERE value = 'op'    -> 0
+	//	fields ->> 'flat' LIKE '%ops%'                           -> 1
+	//	fields ->> 'flat' LIKE '%dev%'                           -> 1  ⛔
+	//
+	// The last row is why. A comma-joined string cannot be queried without
+	// matching inside another tag - searching `dev` finds `devops` - so the flat
+	// form satisfies rendering and silently fails the requirement that makes
+	// tags worth having. The fields blob is already JSON in SQLite and
+	// coarseCitations already reads it with ->>, so this costs no schema change.
+	//
+	// A VALUE THAT IS NOT A JSON ARRAY YIELDS NO TAGS RATHER THAN AN ERROR. A
+	// brief is a read of whatever is in the store, and one malformed field on
+	// one record must not refuse the whole answer.
+	Tags []string
+
+	// TargetDate is row 2's optional date, carried as the string that was
+	// stored. Section 39 names the field and no format; parsing it here would
+	// invent one and refuse every record that disagreed.
+	TargetDate string
+
+	// Semver is on the card because Boris's word for the metadata was
+	// "exhaustive" and the brief is where metadata is seen - one short string
+	// answering "how far along is this".
+	Semver string
+
+	// HasNote is whether a NOTE-kinded record is attached to this item.
+	//
+	// ⛔ IT IS NOT "Note != \"\"", AND THE TWO ARE DIFFERENT THINGS. Note below
+	// is the latest PROGRESS STEP's own words, which every item with a stream
+	// has. This flag is row 2's "whether a note is attached" - a `note` record
+	// linked part-of the item, which is Boris's comment and question mechanism.
+	// An item can have a busy progress stream and no note at all, and a note
+	// with no steps since it was written. Row 3 renders those notes in full for
+	// the OPEN list; the compact card carries only the flag, and the text is one
+	// record.refs away.
+	HasNote bool
 
 	// State is the latest step's state, or "" when the stream is empty.
 	// An active item with no steps has been picked up and not yet reported on.
@@ -76,6 +156,64 @@ type ItemState struct {
 
 	// Note is the latest step's own words.
 	Note string
+}
+
+// card fills section 39 row 2's compact card from the item record itself.
+//
+// Every field is read through the same Fields map the store already carries, so
+// a record written without one of them produces an empty string rather than a
+// refusal: the brief answers for the store as it is, and a migration that has
+// not filled target_date yet is not an error condition.
+func card(it Record) ItemState {
+	return ItemState{
+		ID:               it.ID,
+		Title:            it.Fields["title"],
+		DescriptionShort: it.Fields["description_short"],
+		Priority:         it.Fields["priority"],
+		Status:           it.Fields["status"],
+		Owner:            it.Fields["owner"],
+		Tags:             decodeTags(it.Fields["tags"]),
+		TargetDate:       it.Fields["target_date"],
+		Semver:           it.Fields["semver"],
+	}
+}
+
+// decodeTags reads the JSON array a tags field holds.
+//
+// ⛔ A MALFORMED VALUE IS NO TAGS, NEVER AN ERROR, and that is deliberate
+// rather than lazy. The alternative is a brief that refuses to answer because
+// one record out of forty-five has a hand-written tags field - which would make
+// the whole derivation hostage to the worst row in the store, in a system whose
+// entire argument is that it answers from what is actually there.
+func decodeTags(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+	var out []string
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		return nil
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// EncodeTags renders a tag list for a record's tags field.
+//
+// IT EXISTS SO THE ENCODING HAS ONE DEFINITION. A caller that joins tags with a
+// comma and a caller that writes JSON produce a store where half the tags are
+// queryable, and nothing would report it - the flat rows simply return no
+// matches and read as items with no tags. Pairs with decodeTags.
+func EncodeTags(tags []string) string {
+	if len(tags) == 0 {
+		return ""
+	}
+	b, err := json.Marshal(tags)
+	if err != nil {
+		return ""
+	}
+	return string(b)
 }
 
 // Age is how long the item has been sitting at its latest step.
@@ -119,12 +257,22 @@ func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 	// NOT in `status`, so `status == active` on its own keeps a finished item
 	// in next-up forever and ships a list that never empties. That was defect
 	// D5 and this is the corrected reading.
+	// ONE QUERY FOR THE WHOLE PROJECT, NOT ONE PER ITEM. The flag is a set
+	// membership test, and asking it per item would be forty-five round trips
+	// to answer forty-five booleans - the shape section 39's own traversal
+	// numbers exist to keep out of the brief.
+	noted, err := s.itemsWithANote(ctx, project)
+	if err != nil {
+		return Brief{}, err
+	}
+
 	active := map[string]ItemState{}
 	for _, it := range items {
 		if it.Fields["status"] != "active" {
 			continue
 		}
-		st := ItemState{ID: it.ID, Title: it.Fields["title"]}
+		st := card(it)
+		st.HasNote = noted[it.ID]
 		if step, ok := latest[it.ID]; ok {
 			st.State = step.Fields["state"]
 			st.Since = step.Prov.CreatedAt
