@@ -98,11 +98,107 @@ the work, which is domain logic, which is *"the thing rig refuses to have"*. **A
 cyclic backlog is a real state of a real project and it is one Boris would want
 SURFACED.** Swallowing it silently is the failure; so is refusing to answer.
 
+⛔ **AND IT IS NOW DEMONSTRATED RATHER THAN REASONED.** Measured 2026-09-16
+by `backend-record` at the lead's instruction, after the ruling was taken on
+its reasoning alone. A `0->1->2->0` cycle with the depth bound dropped **DOES
+NOT TERMINATE IN 20 SECONDS** - exit 124.
+
+**The mechanism is worth carrying, because it defeats the obvious defence:**
+a recursive `UNION` dedups on `(node, depth)`, and **depth keeps incrementing,
+so the dedup NEVER FIRES on a cycle.** A reader who assumes `UNION` is already
+a visited set will not write a guard. **What the guard prevents is a HANG, not
+a wrong answer**, which is the worse of the two failures and the one a test
+with a timeout reports as an infrastructure problem.
+
 **ONE RULING CLOSES TWO GAPS.** `STORE-REQUIREMENTS.md` R3.3 raises the same
 need for bounded traversal from the other end. **A cycle guard costs almost
 nothing in the link schema and is expensive bolted onto two derivations
 afterwards** - if slice 1 defines links without it, slice 2 and slice 4 both pay.
 **That is why this is ruled now rather than at slice 2, where it was found.**
+
+### ⛔ A LINK MAY CROSS A PROJECT BOUNDARY. A TRAVERSAL IS PROJECT-SCOPED.
+
+**RULED BY THE LEAD 2026-09-16 late, on `backend-record`'s finding, because it
+reaches the LINK SCHEMA committed at `88bdc44` and slice 1 is on the MVP path.**
+The store was opened with `links (src, type, dst)` and a reverse index on
+`(dst, type)`, carrying **no project column**, and §39 had never stated whether
+an edge may leave its project. The seat asked before building on either answer.
+
+⛔ **CROSSING IS NOT PERMITTED - IT IS REQUIRED.** §39 names two verbs that
+cannot exist without a crossing edge:
+
+| Verb | Why it crosses |
+|---|---|
+| `standard.stamp` | *"record that a project was checked against a standard"* - a `checked-against` edge from a project's record to a register record, and the register is **the whole estate, ONE COPY** |
+| `standard.drift` | *"every project behind the standard it claims to uphold"* - a reverse query across every project at once |
+
+**And §39 twice names *"no cross-project query"* as a capability LOST when rig
+is DOWN.** A thing listed as degraded is a thing that exists when the daemon is
+up. The register is not an extension to this design; it is half of it.
+
+**THE TWO NEARBY RULINGS DO NOT SAY OTHERWISE, and both were read too widely
+before this was settled.** *"A local kind cannot be linked to from another
+project"* is a containment rule about **local kinds**, not about links -
+it is narrow and it stays. **Tension 14's separate repositories are about the
+PROJECTION on disk**, not about the link schema.
+
+| | |
+|---|---|
+| **a link MAY cross a project boundary** | it must, or the standards register has no mechanism at all |
+| **a traversal is PROJECT-SCOPED BY DEFAULT** | `record.refs` and every `project.brief` derivation stay inside one project |
+| **crossing is EXPLICIT** | a cross-project answer is ASKED FOR, never arrived at. `standard.drift` is the named caller |
+
+⛔ **THE DEFAULT IS A PERFORMANCE REQUIREMENT, NOT A PREFERENCE. MEASURED.**
+The scoping predicate prunes the frontier at **every hop**, so scoping does not
+add a filter to the same work - **it removes the work**:
+
+| At 100x, reverse CTE, median of 12 | unscoped | scoped |
+|---|---|---|
+| depth 4 | **307.3 ms** | 5.79 ms |
+| depth 5 | **990.0 ms** | 16.33 ms |
+| distinct nodes visited | 62,007 | 706 |
+
+**Unscoped traversal at 100x is 15x over R2.3's budget. Scoped-by-default is
+what makes that budget reachable at all**, which is a stronger reason than the
+semantic one this ruling was taken for.
+
+⛔ **THE REGISTER IS A HUB, AND THAT IS NOT A PATHOLOGICAL READING.** Every
+project in the estate stamps the SAME standard record, so a heavy-tailed graph
+is the register's REAL shape - measured at **1.752s**, 87x over budget, against
+13.3ms for the same corpus read as separate projects. **What saves it is that
+`standard.drift` is depth 1 by definition.** So: **drift is served by a bounded
+reverse lookup and MUST NEVER be served by the general traversal.** If it ever
+is, the register is 87x over budget on the one query it exists to answer.
+
+**THE SCHEMA STAYS AS COMMITTED: no project column on the edge.** A crossing
+edge has TWO projects - the source's and the destination's - so a single column
+means something different on a crossing edge than on a local one, and every
+query would have to know which kind of edge it was reading before it could
+trust the column. A denormalised project is also a copy of a fact that lives on
+the record, which is the drift class this project already counts instances of.
+Scoped traversal joins `links.dst` to `records.id`, the leading column of the
+primary key. **Measured, not assumed:** the join is the optimisation, not the
+cost.
+
+### ⛔ `project.brief` MUST RUN ALL FOUR SQL FORMULATIONS BEFORE IT PICKS ONE
+
+**RULED 2026-09-16 on a measurement that nearly shipped backwards.** The
+per-group-maximum question - which every `project.brief` derivation asks - has
+four reasonable SQL formulations in SQLite, and **the spread between them is
+117x at 44,000 rows and 8,200x at 4.4 million.** `GROUP BY MAX` is 327ms at
+100x where the window-over-scan formulation is **5.02 SECONDS**, and the
+correlated subquery is 613us.
+
+⛔ **SO THE BRIEF'S SQL IS A CORRECTNESS SURFACE, NOT A TUNING EXERCISE.** A
+seat that writes whichever formulation it thought of first has a 50ms budget
+and may be four orders of magnitude outside it, with a query that returns the
+right rows. **Whoever writes it runs all four and records which was taken and
+what the other three measured**, in the commit body.
+
+**This is the same instrument failure the store search paid for twice:** the
+first benchmark measured the seat's own SQL and reported it as the database's,
+a 414x win that did not exist. **The formulation is part of the measurement,
+never a detail below it.**
 
 **WHAT THE RECORD IS FOR.** A session arriving cold has to learn what the
 project is, what was already decided, what is in flight, and what it is allowed
@@ -796,8 +892,24 @@ revision number in `record.history`. A new record starts at `0.1.0`.
 
 ### The verbs, and there are eleven
 
-**Each is a call on `rigd`, and §5's single declaration projects every one of
-them to the CLI, to MCP and to the window without being written three times.**
+**Each is a call on `rigd`.**
+
+⛔ **THIS PARAGRAPH USED TO SAY §5's SINGLE DECLARATION PROJECTS EVERY ONE OF
+THEM TO THE CLI, MCP AND THE WINDOW "WITHOUT BEING WRITTEN THREE TIMES". THAT
+IS FALSE FOR rig's OWN VERBS AND IT SIZED THIS SECTION WRONG.** Measured
+2026-09-16 by the lead, `[ran it]`:
+
+| Surface | What it actually does |
+|---|---|
+| the CLI | `cmd/rig/main.go` is a **hand-written switch** - ping, apps, down, estate, peers, describe, mcp |
+| the MCP door | **eight hand-written `AddTool` calls**, including announce, set_activity and list_agents |
+| the projected path | `toolFor` over **PROMOTIONS**, and a promotion is a **PROGRAM's** command |
+
+**The projection is real and it serves PROGRAMS. rig's own verbs are outside
+it by design** - `registry.self` is deliberately not an entry in `programs`,
+and holding it beside the registry is the mechanism that keeps `rig.down`,
+declared destructive, off every invoke surface. **So the eleven verbs are
+written more than once, and any estimate that assumed otherwise is low.**
 
 | Verb | What it does |
 |---|---|
