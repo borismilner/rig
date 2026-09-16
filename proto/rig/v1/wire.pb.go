@@ -2402,8 +2402,36 @@ type Seat struct {
 	// the argument for putting the epoch on the ROW rather than on the
 	// response was that a Seat lifted out of its envelope must stay
 	// identifiable. Lifted out of its ESTATE it is not, and the same argument
-	// applies. UNRESOLVED - see BACKLOG.md and the 2026-09-16 attack findings.
+	// applies. RESOLVED the same day by the field below: the estate travels on
+	// the row too, and the identity is (estate, seat, epoch, generation).
 	Epoch uint64 `protobuf:"varint,8,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	// WHICH ESTATE THIS SEAT IS IN, by name, and it is the outermost component
+	// of a seat's identity: (estate, seat, epoch, generation). Without it the
+	// other three are not unique, because the epoch store is PER ESTATE - it
+	// lives under $XDG_STATE_HOME/rig/estates/<name>/ - so every estate counts
+	// its own epoch from 1 and two estates that have each restarted once are
+	// both at epoch 2.
+	//
+	// WHY IT IS HERE RATHER THAN LEFT TO THE SOCKET THE CALLER DIALLED. A
+	// reader on one connection does not need it: it reached exactly one estate
+	// and the estate is implied. A reader POOLING two estates' rosters does,
+	// and section 11 requires exactly that reader - two named estates run at
+	// once, so there are two trays on one panel and the window holds both
+	// rosters at the same time. An identity that is only unique per connection
+	// is not an identity for the surface this project is built to serve.
+	//
+	// FOUND BY ATTACKING THE CLAIM RATHER THAN THE CODE, 2026-09-16, hours
+	// after the epoch landed. The epoch was added on the argument that a Seat
+	// lifted out of its RESPONSE must stay identifiable. The same argument
+	// applied one level up says a Seat lifted out of its ESTATE must too, and
+	// it did not. The fix is the argument carried to where it stops.
+	//
+	// EMPTY IS A CASE AND NOT A MISSING VALUE. An unnamed estate has no
+	// persistent store, so it reports epoch 0, and section 11 gives it no tray
+	// at all - every test and every reproduction recipe starts one and they are
+	// not deployments. Empty beside epoch 0 is the coherent pair. EMPTY BESIDE
+	// A NON-ZERO EPOCH CANNOT HAPPEN and means something upstream is wrong.
+	Estate string `protobuf:"bytes,9,opt,name=estate,proto3" json:"estate,omitempty"`
 	// What this occupant is FOR, in the human's terms. Set at announce.
 	Purpose string `protobuf:"bytes,3,opt,name=purpose,proto3" json:"purpose,omitempty"`
 	// What it is doing right now. Set at announce, replaced by rig.activity.
@@ -2468,6 +2496,13 @@ func (x *Seat) GetEpoch() uint64 {
 		return x.Epoch
 	}
 	return 0
+}
+
+func (x *Seat) GetEstate() string {
+	if x != nil {
+		return x.Estate
+	}
+	return ""
 }
 
 func (x *Seat) GetPurpose() string {
@@ -2943,13 +2978,14 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\vCallRequest\x12\x12\n" +
 	"\x04args\x18\x01 \x01(\fR\x04args\"&\n" +
 	"\fCallResponse\x12\x16\n" +
-	"\x06result\x18\x01 \x01(\fR\x06result\"\x8d\x02\n" +
+	"\x06result\x18\x01 \x01(\fR\x06result\"\xa5\x02\n" +
 	"\x04Seat\x12\x12\n" +
 	"\x04seat\x18\x01 \x01(\tR\x04seat\x12\x1e\n" +
 	"\n" +
 	"generation\x18\x02 \x01(\x04R\n" +
 	"generation\x12\x14\n" +
-	"\x05epoch\x18\b \x01(\x04R\x05epoch\x12\x18\n" +
+	"\x05epoch\x18\b \x01(\x04R\x05epoch\x12\x16\n" +
+	"\x06estate\x18\t \x01(\tR\x06estate\x12\x18\n" +
 	"\apurpose\x18\x03 \x01(\tR\apurpose\x12\x1a\n" +
 	"\bactivity\x18\x04 \x01(\tR\bactivity\x12'\n" +
 	"\x05state\x18\x05 \x01(\x0e2\x11.rig.v1.SeatStateR\x05state\x12.\n" +
