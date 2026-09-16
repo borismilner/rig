@@ -120,6 +120,14 @@ const (
 	// learn it lost its coordination state, because what it does next differs
 	// from what it does when a method name was wrong.
 	Code_CODE_SESSION_DEAD Code = 8
+	// A COMPARE-AND-SWAP LOST: the version the caller believed was current is
+	// not the version that is. Added for section 39's record.put, and it is a
+	// code of its own for the same reason SESSION_DEAD is - what the caller
+	// does next differs. A conflict is RETRYABLE after a re-read; INVALID,
+	// which is where this would otherwise land, means "do not send that again".
+	// A caller that cannot tell them apart retries the one that never succeeds,
+	// or gives up on the one that would have worked second time.
+	Code_CODE_CONFLICT Code = 9
 )
 
 // Enum value maps for Code.
@@ -134,6 +142,7 @@ var (
 		6: "CODE_DEADLINE",
 		7: "CODE_INTERNAL",
 		8: "CODE_SESSION_DEAD",
+		9: "CODE_CONFLICT",
 	}
 	Code_value = map[string]int32{
 		"CODE_UNSPECIFIED":  0,
@@ -145,6 +154,7 @@ var (
 		"CODE_DEADLINE":     6,
 		"CODE_INTERNAL":     7,
 		"CODE_SESSION_DEAD": 8,
+		"CODE_CONFLICT":     9,
 	}
 )
 
@@ -4020,6 +4030,12 @@ func (x *Cycle) GetItems() []string {
 type ProgressStepRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The record id of the work item this step is about.
+	//
+	// ⛔ THERE IS NO `project` FIELD HERE AND THAT IS DELIBERATE. The store needs
+	// a project and the daemon DERIVES it from this item, because a step's
+	// project is a fact about the item rather than a choice the caller makes. A
+	// field would let a caller file a step under a project the item is not in -
+	// a second source of truth, for the same reason provenance is absent.
 	Item  string    `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
 	State StepState `protobuf:"varint,2,opt,name=state,proto3,enum=rig.v1.StepState" json:"state,omitempty"`
 	// What happened, in the seat's own words. Optional.
@@ -4219,18 +4235,94 @@ func (x *ItemState) GetNote() string {
 }
 
 // Blockage is one item and what it waits on.
+// Blocker is one item standing in the way, named well enough to act on.
+//
+// ⛔ IT CARRIES A TITLE AND A STATE BECAUSE A BARE ID STOPPED BEING
+// RESOLVABLE. Until the blocked-set ruling below, every id in a blockage was
+// guaranteed to appear in `open` or `next_up` as well, so a renderer could
+// look its title up in the same response. That guarantee was implicit and
+// nothing stated it. Once an item whose status is `idea` can block, a blocker
+// can be in NEITHER list - so the old shape would have a renderer either drop
+// it silently or print a raw UUIDv7 at a human, which is not a thing anybody
+// can act on. Raised by the seat holding the package before it shipped the
+// change, which is the only reason this was caught before the first renderer.
+type Blocker struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	// UNSPECIFIED here is LOAD-BEARING and is the `idea` case: nobody has picked
+	// this blocker up. That is a materially different instruction from a blocker
+	// somebody is working on - it means the way forward is for someone to START
+	// it - and collapsing the two is what made the bare-id shape lossy twice
+	// over.
+	State         StepState `protobuf:"varint,3,opt,name=state,proto3,enum=rig.v1.StepState" json:"state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Blocker) Reset() {
+	*x = Blocker{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Blocker) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Blocker) ProtoMessage() {}
+
+func (x *Blocker) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Blocker.ProtoReflect.Descriptor instead.
+func (*Blocker) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *Blocker) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Blocker) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *Blocker) GetState() StepState {
+	if x != nil {
+		return x.State
+	}
+	return StepState_STEP_STATE_UNSPECIFIED
+}
+
 type Blockage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Item          string                 `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
 	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	BlockedBy     []string               `protobuf:"bytes,3,rep,name=blocked_by,json=blockedBy,proto3" json:"blocked_by,omitempty"`
+	Blockers      []*Blocker             `protobuf:"bytes,4,rep,name=blockers,proto3" json:"blockers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Blockage) Reset() {
 	*x = Blockage{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[49]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4242,7 +4334,7 @@ func (x *Blockage) String() string {
 func (*Blockage) ProtoMessage() {}
 
 func (x *Blockage) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[49]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4255,7 +4347,7 @@ func (x *Blockage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Blockage.ProtoReflect.Descriptor instead.
 func (*Blockage) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{49}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *Blockage) GetItem() string {
@@ -4272,9 +4364,9 @@ func (x *Blockage) GetTitle() string {
 	return ""
 }
 
-func (x *Blockage) GetBlockedBy() []string {
+func (x *Blockage) GetBlockers() []*Blocker {
 	if x != nil {
-		return x.BlockedBy
+		return x.Blockers
 	}
 	return nil
 }
@@ -4293,7 +4385,7 @@ type ProjectBriefRequest struct {
 
 func (x *ProjectBriefRequest) Reset() {
 	*x = ProjectBriefRequest{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[50]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4305,7 +4397,7 @@ func (x *ProjectBriefRequest) String() string {
 func (*ProjectBriefRequest) ProtoMessage() {}
 
 func (x *ProjectBriefRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[50]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4318,7 +4410,7 @@ func (x *ProjectBriefRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectBriefRequest.ProtoReflect.Descriptor instead.
 func (*ProjectBriefRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{50}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *ProjectBriefRequest) GetProject() string {
@@ -4378,7 +4470,7 @@ type ProjectBriefResponse struct {
 
 func (x *ProjectBriefResponse) Reset() {
 	*x = ProjectBriefResponse{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[51]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4390,7 +4482,7 @@ func (x *ProjectBriefResponse) String() string {
 func (*ProjectBriefResponse) ProtoMessage() {}
 
 func (x *ProjectBriefResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[51]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4403,7 +4495,7 @@ func (x *ProjectBriefResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectBriefResponse.ProtoReflect.Descriptor instead.
 func (*ProjectBriefResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{51}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *ProjectBriefResponse) GetProject() string {
@@ -4692,12 +4784,16 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12'\n" +
 	"\x05state\x18\x03 \x01(\x0e2\x11.rig.v1.StepStateR\x05state\x12&\n" +
 	"\x0fsince_unix_nano\x18\x04 \x01(\x03R\rsinceUnixNano\x12\x12\n" +
-	"\x04note\x18\x05 \x01(\tR\x04note\"S\n" +
+	"\x04note\x18\x05 \x01(\tR\x04note\"X\n" +
+	"\aBlocker\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12'\n" +
+	"\x05state\x18\x03 \x01(\x0e2\x11.rig.v1.StepStateR\x05state\"s\n" +
 	"\bBlockage\x12\x12\n" +
 	"\x04item\x18\x01 \x01(\tR\x04item\x12\x14\n" +
-	"\x05title\x18\x02 \x01(\tR\x05title\x12\x1d\n" +
-	"\n" +
-	"blocked_by\x18\x03 \x03(\tR\tblockedBy\"V\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12+\n" +
+	"\bblockers\x18\x04 \x03(\v2\x0f.rig.v1.BlockerR\bblockersJ\x04\b\x03\x10\x04R\n" +
+	"blocked_by\"V\n" +
 	"\x13ProjectBriefRequest\x12\x18\n" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x12%\n" +
 	"\x04view\x18\x02 \x01(\x0e2\x11.rig.v1.BriefViewR\x04view\"\xca\x02\n" +
@@ -4717,7 +4813,7 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x16FRAME_KIND_STREAM_DATA\x10\x03\x12\x19\n" +
 	"\x15FRAME_KIND_STREAM_END\x10\x04\x12\x14\n" +
 	"\x10FRAME_KIND_ERROR\x10\x05\x12\x15\n" +
-	"\x11FRAME_KIND_CANCEL\x10\x06*\xb3\x01\n" +
+	"\x11FRAME_KIND_CANCEL\x10\x06*\xc6\x01\n" +
 	"\x04Code\x12\x14\n" +
 	"\x10CODE_UNSPECIFIED\x10\x00\x12\v\n" +
 	"\aCODE_OK\x10\x01\x12\x14\n" +
@@ -4727,7 +4823,8 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\vCODE_DENIED\x10\x05\x12\x11\n" +
 	"\rCODE_DEADLINE\x10\x06\x12\x11\n" +
 	"\rCODE_INTERNAL\x10\a\x12\x15\n" +
-	"\x11CODE_SESSION_DEAD\x10\b*M\n" +
+	"\x11CODE_SESSION_DEAD\x10\b\x12\x11\n" +
+	"\rCODE_CONFLICT\x10\t*M\n" +
 	"\bCoverage\x12\x18\n" +
 	"\x14COVERAGE_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10COVERAGE_PARTIAL\x10\x01\x12\x11\n" +
@@ -4793,7 +4890,7 @@ func file_proto_rig_v1_wire_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 12)
-var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 54)
+var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 55)
 var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(FrameKind)(0),                // 0: rig.v1.FrameKind
 	(Code)(0),                     // 1: rig.v1.Code
@@ -4856,11 +4953,12 @@ var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(*ProgressStepRequest)(nil),   // 58: rig.v1.ProgressStepRequest
 	(*ProgressStepResponse)(nil),  // 59: rig.v1.ProgressStepResponse
 	(*ItemState)(nil),             // 60: rig.v1.ItemState
-	(*Blockage)(nil),              // 61: rig.v1.Blockage
-	(*ProjectBriefRequest)(nil),   // 62: rig.v1.ProjectBriefRequest
-	(*ProjectBriefResponse)(nil),  // 63: rig.v1.ProjectBriefResponse
-	nil,                           // 64: rig.v1.Record.FieldsEntry
-	nil,                           // 65: rig.v1.RecordPutRequest.FieldsEntry
+	(*Blocker)(nil),               // 61: rig.v1.Blocker
+	(*Blockage)(nil),              // 62: rig.v1.Blockage
+	(*ProjectBriefRequest)(nil),   // 63: rig.v1.ProjectBriefRequest
+	(*ProjectBriefResponse)(nil),  // 64: rig.v1.ProjectBriefResponse
+	nil,                           // 65: rig.v1.Record.FieldsEntry
+	nil,                           // 66: rig.v1.RecordPutRequest.FieldsEntry
 }
 var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	1,  // 0: rig.v1.Status.code:type_name -> rig.v1.Code
@@ -4891,9 +4989,9 @@ var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	9,  // 25: rig.v1.ActivityRequest.state:type_name -> rig.v1.SeatState
 	33, // 26: rig.v1.ActivityResponse.you:type_name -> rig.v1.Seat
 	33, // 27: rig.v1.PeersResponse.crew:type_name -> rig.v1.Seat
-	64, // 28: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
+	65, // 28: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
 	40, // 29: rig.v1.Record.prov:type_name -> rig.v1.Provenance
-	65, // 30: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
+	66, // 30: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
 	41, // 31: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
 	41, // 32: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
 	41, // 33: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
@@ -4903,16 +5001,18 @@ var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	10, // 37: rig.v1.ProgressStepRequest.state:type_name -> rig.v1.StepState
 	41, // 38: rig.v1.ProgressStepResponse.step:type_name -> rig.v1.Record
 	10, // 39: rig.v1.ItemState.state:type_name -> rig.v1.StepState
-	11, // 40: rig.v1.ProjectBriefRequest.view:type_name -> rig.v1.BriefView
-	60, // 41: rig.v1.ProjectBriefResponse.open:type_name -> rig.v1.ItemState
-	60, // 42: rig.v1.ProjectBriefResponse.next_up:type_name -> rig.v1.ItemState
-	61, // 43: rig.v1.ProjectBriefResponse.blocked:type_name -> rig.v1.Blockage
-	57, // 44: rig.v1.ProjectBriefResponse.cycles:type_name -> rig.v1.Cycle
-	45, // [45:45] is the sub-list for method output_type
-	45, // [45:45] is the sub-list for method input_type
-	45, // [45:45] is the sub-list for extension type_name
-	45, // [45:45] is the sub-list for extension extendee
-	0,  // [0:45] is the sub-list for field type_name
+	10, // 40: rig.v1.Blocker.state:type_name -> rig.v1.StepState
+	61, // 41: rig.v1.Blockage.blockers:type_name -> rig.v1.Blocker
+	11, // 42: rig.v1.ProjectBriefRequest.view:type_name -> rig.v1.BriefView
+	60, // 43: rig.v1.ProjectBriefResponse.open:type_name -> rig.v1.ItemState
+	60, // 44: rig.v1.ProjectBriefResponse.next_up:type_name -> rig.v1.ItemState
+	62, // 45: rig.v1.ProjectBriefResponse.blocked:type_name -> rig.v1.Blockage
+	57, // 46: rig.v1.ProjectBriefResponse.cycles:type_name -> rig.v1.Cycle
+	47, // [47:47] is the sub-list for method output_type
+	47, // [47:47] is the sub-list for method input_type
+	47, // [47:47] is the sub-list for extension type_name
+	47, // [47:47] is the sub-list for extension extendee
+	0,  // [0:47] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_wire_proto_init() }
@@ -4926,7 +5026,7 @@ func file_proto_rig_v1_wire_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_wire_proto_rawDesc), len(file_proto_rig_v1_wire_proto_rawDesc)),
 			NumEnums:      12,
-			NumMessages:   54,
+			NumMessages:   55,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

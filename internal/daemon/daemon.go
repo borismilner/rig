@@ -29,6 +29,7 @@ import (
 	"github.com/boris-milner/rig/internal/instance"
 	"github.com/boris-milner/rig/internal/kernel"
 	"github.com/boris-milner/rig/internal/mcpserver"
+	"github.com/boris-milner/rig/internal/record"
 	"github.com/boris-milner/rig/internal/wire"
 	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )
@@ -120,6 +121,16 @@ type Daemon struct {
 	// be built before the write-ahead log exists.
 	presence *presence
 
+	// records is section 39's continuity record, and it is the first DURABLE
+	// thing this daemon holds.
+	//
+	// NIL IS A REAL AND CORRECT STATE, not a hole. record.Open takes the
+	// estate NAME and refuses without one, the same way section 37 gives an
+	// unnamed estate no state directory - so every test daemon, and every
+	// unnamed estate, runs with this nil and the record verbs refuse in terms
+	// that name the cause. recordStore in record.go is the one reader.
+	records *record.Store
+
 	// live is every accepted connection, so shutdown can close them.
 	//
 	// It exists because a HEALTHY program used to block shutdown: Serve waits
@@ -209,6 +220,33 @@ func New(cfg Config) (*Daemon, error) {
 	if err := declareSelf(k); err != nil {
 		return nil, fmt.Errorf("daemon: rig could not declare its own commands: %w", err)
 	}
+
+	// THE RECORD STORE IS OPENED HERE AND NOT BY rigd, WHICH IS THE OPPOSITE
+	// OF WHAT Config's Epoch COMMENT DOES - and the difference is the reason.
+	// rigd opens the ESTATE STATE store "under the name claim, before anything
+	// binds", because the epoch has to exist before a daemon can answer with
+	// it. The record store has no such ordering: it needs the estate NAME,
+	// which is already on Config, and nothing answers from it until a call
+	// arrives. Opening it here keeps the lifetime with the thing that serves
+	// it rather than splitting one store across two files.
+	//
+	// AN UNNAMED ESTATE IS NOT AN ERROR HERE. Open refuses one by design and
+	// the daemon carries a nil store; the record verbs then refuse and say
+	// which of the two situations it is. Any OTHER failure is real and stops
+	// the daemon, because a store that half-opened is worse than none.
+	var records *record.Store
+	if cfg.Estate != "" {
+		st, err := record.Open(cfg.Estate)
+		if err != nil {
+			var unnamed *record.UnnamedEstateError
+			if !errors.As(err, &unnamed) {
+				return nil, fmt.Errorf("daemon: opening the record store: %w", err)
+			}
+		} else {
+			records = st
+		}
+	}
+
 	return &Daemon{
 		version:  cfg.Version,
 		wire:     cfg.Wire,
@@ -221,6 +259,7 @@ func New(cfg Config) (*Daemon, error) {
 		live:     make(map[net.Conn]struct{}),
 		programs: make(map[string]*conn),
 		presence: newPresence(cfg.Estate, cfg.Epoch),
+		records:  records,
 	}, nil
 }
 
@@ -760,6 +799,20 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 
 	case "session":
 		d.serveSession(c, f)
+
+	// SECTION 39's RECORD VERBS, all eight through one arm.
+	//
+	// They are grouped rather than listed because this switch is the function
+	// gocyclo already caught once: serveSession was extracted for crossing the
+	// ceiling with ONE inline case, and eight more listed here would bury the
+	// dispatch it lives in. The inner switch is record.go's, beside the
+	// handlers it chooses between.
+	//
+	// `record.refs` is DELIBERATELY ABSENT - slice 4, and the reverse lookup
+	// it needs is not built. record.go says why.
+	case "record.put", "record.get", "record.query", "record.history",
+		"record.link", "record.unlink", "progress.step", "project.brief":
+		d.serveRecord(c, f, command)
 
 	case "down":
 		// Authorised above like everything else, and it is declared

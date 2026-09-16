@@ -1,0 +1,420 @@
+package daemon
+
+import (
+	"errors"
+
+	"github.com/boris-milner/rig/internal/record"
+	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	"google.golang.org/protobuf/proto"
+)
+
+// The record verbs (PLAN.md section 39).
+//
+// EIGHT ARE SERVED HERE AND `record.refs` IS NOT, WHICH IS NARROWER THAN THE
+// NINE THE WIRE'S MESSAGE SET CARRIES. The proto holds the refs shapes so
+// section 21's additive change has somewhere to land, but a MESSAGE TYPE IS
+// NOT A DECLARATION: what a caller can discover is selfDeclaration(), and what
+// it can reach is the switch in serveSelf. `record.refs` is in neither until
+// slice 4, because the reverse lookup it needs does not exist - LinksFrom
+// walks src to dst and refs is the other direction, with a depth bound, a
+// cycle report and a truncation flag on top. Declaring it now would be the
+// wire-that-lies this section refuses for standard.stamp and project.gate.
+
+// serveRecord dispatches every rig.record.* and rig.progress.* method.
+//
+// IT IS ITS OWN FILE FOR THE REASON serveSession IS ITS OWN METHOD: serveSelf
+// crossed gocyclo's ceiling at ONE inline case, and eight would bury the
+// dispatch switch it lives in.
+func (d *Daemon) serveRecord(c *conn, f *rigv1.Frame, command string) {
+	st, ok := d.recordStore(c, f, command)
+	if !ok {
+		return
+	}
+	switch command {
+	case "record.put":
+		d.serveRecordPut(c, f, st)
+	case "record.get":
+		d.serveRecordGet(c, f, st)
+	case "record.query":
+		d.serveRecordQuery(c, f, st)
+	case "record.history":
+		d.serveRecordHistory(c, f, st)
+	case "record.link":
+		d.serveRecordLink(c, f, st)
+	case "record.unlink":
+		d.serveRecordUnlink(c, f, st)
+	case "progress.step":
+		d.serveProgressStep(c, f, st)
+	case "project.brief":
+		d.serveProjectBrief(c, f, st)
+	}
+}
+
+// recordStore answers the store, or refuses in the caller's terms.
+//
+// AN UNNAMED ESTATE HAS NO RECORD STORE AND THAT IS NOT A FAILURE. Open takes
+// the estate name and refuses without one (record.UnnamedEstateError), the same
+// way section 37 gives an unnamed estate no state directory at all. The refusal
+// says which of the two situations this is, because "no store" from a daemon
+// that is otherwise healthy reads as a bug unless it names the cause.
+func (d *Daemon) recordStore(c *conn, f *rigv1.Frame, command string) (*record.Store, bool) {
+	if d.records != nil {
+		return d.records, true
+	}
+	if d.estate == "" {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_UNAVAILABLE,
+			"rig."+command+": this estate is unnamed, so it has no record store. "+
+				"The continuity record is per-estate state and an unnamed estate keeps none "+
+				"(PLAN.md section 37). Name the estate to use the record.")
+		return nil, false
+	}
+	c.fail(f.GetStreamId(), rigv1.Code_CODE_UNAVAILABLE,
+		"rig."+command+": the record store for estate "+d.estate+" did not open, "+
+			"so no record verb can be served. The daemon is otherwise healthy; "+
+			"this is the store alone.")
+	return nil, false
+}
+
+// provenance is WHO IS WRITING, and every field of it is the daemon's.
+//
+// ⛔ THE SESSION IS `Token`, NOT THE FIELD NAMED `SessionID`. They look like
+// synonyms and are opposites: SessionID names ONE CONNECTION and has never
+// travelled to a caller, while Token is section 5f's session token, which
+// outlives a socket and dies with one occupancy. principal.go records that
+// misnomer rather than repairing it, so this is the line where reading it
+// wrong would stamp every version of a reconnecting seat's work as a
+// different author. PLAN.md section 39 carries the table.
+//
+// It returns false when this connection never announced, because a record
+// whose author cannot be named is exactly what the provenance rule exists to
+// prevent - and the refusal below names `announce` rather than reporting a
+// field the caller has no way to supply.
+func (d *Daemon) provenance(c *conn) (session, seat string, epoch uint64, ok bool) {
+	occ, found := d.presence.occupantOf(c.occ)
+	if !found || occ.seat == "" {
+		return "", "", 0, false
+	}
+	return c.principal().Token, occ.seat, d.epoch, true
+}
+
+// refuseUnattributed is the one refusal every WRITE verb shares.
+func (d *Daemon) refuseUnattributed(c *conn, f *rigv1.Frame, command string) {
+	c.failStatus(f.GetStreamId(), &rigv1.Status{
+		Code: rigv1.Code_CODE_DENIED,
+		Message: "rig." + command + ": this connection holds no seat, so the record " +
+			"it would write could not say who wrote it",
+		Precondition: "the caller announced into a named seat",
+		Actual:       "this connection has not announced, or announced without a seat",
+		// ⛔ NO FixCommand, AND ITS ABSENCE IS THE ANSWER RATHER THAN AN
+		// OMISSION. There is no `rig announce` at a terminal - announce is a
+		// wire and door verb, and cmd/rig dispatches no such word. Citing one
+		// would send the caller to the CLI's default branch, which reads an
+		// unmatched word as a PROGRAM name and reports that its program does
+		// not exist: a refusal blaming the caller for this message's mistake.
+		// Caught by refusal_verbs_test.go's dead-verb guard, which is exactly
+		// what that guard exists for.
+		Fix: "call rig.announce on this connection first, with a seat. " +
+			"Provenance is the daemon's and is never read off the request, " +
+			"so there is no field you can set instead",
+	})
+}
+
+func recordToWire(r record.Record) *rigv1.Record {
+	return &rigv1.Record{
+		Id:      r.ID,
+		Version: r.Version,
+		Kind:    r.Kind,
+		Project: r.Project,
+		Body:    r.Body,
+		Fields:  r.Fields,
+		Prov: &rigv1.Provenance{
+			Session:    r.Prov.Session,
+			Seat:       r.Prov.Seat,
+			Epoch:      r.Prov.Epoch,
+			AtUnixNano: r.Prov.CreatedAt.UnixNano(),
+		},
+	}
+}
+
+func (d *Daemon) serveRecordPut(c *conn, f *rigv1.Frame, st *record.Store) {
+	var req rigv1.RecordPutRequest
+	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.put: "+err.Error())
+		return
+	}
+	session, seat, epoch, ok := d.provenance(c)
+	if !ok {
+		d.refuseUnattributed(c, f, "record.put")
+		return
+	}
+	rec, err := st.Put(record.PutRequest{
+		ID:        req.GetId(),
+		IfVersion: req.GetIfVersion(),
+		Kind:      req.GetKind(),
+		Project:   req.GetProject(),
+		Body:      req.GetBody(),
+		Fields:    req.GetFields(),
+		Session:   session,
+		Seat:      seat,
+		Epoch:     epoch,
+	})
+	if err != nil {
+		c.failErr(f.GetStreamId(), recordCode(err), err)
+		return
+	}
+	c.reply(f.GetStreamId(), &rigv1.RecordPutResponse{Record: recordToWire(rec)})
+}
+
+func (d *Daemon) serveRecordGet(c *conn, f *rigv1.Frame, st *record.Store) {
+	var req rigv1.RecordGetRequest
+	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.get: "+err.Error())
+		return
+	}
+	// VERSION 0 IS HEAD. No record has version 0 - the first write is 1 - so
+	// the zero cannot collide with a version somebody meant.
+	var (
+		rec record.Record
+		err error
+	)
+	if v := req.GetVersion(); v == 0 {
+		rec, err = st.Get(req.GetId())
+	} else {
+		rec, err = st.GetVersion(req.GetId(), v)
+	}
+	if err != nil {
+		c.failErr(f.GetStreamId(), recordCode(err), err)
+		return
+	}
+	c.reply(f.GetStreamId(), &rigv1.RecordGetResponse{Record: recordToWire(rec)})
+}
+
+func (d *Daemon) serveRecordQuery(c *conn, f *rigv1.Frame, st *record.Store) {
+	var req rigv1.RecordQueryRequest
+	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.query: "+err.Error())
+		return
+	}
+	recs, err := st.Query(req.GetProject(), req.GetKind())
+	if err != nil {
+		c.failErr(f.GetStreamId(), recordCode(err), err)
+		return
+	}
+	resp := &rigv1.RecordQueryResponse{}
+	for _, r := range recs {
+		resp.Records = append(resp.Records, recordToWire(r))
+	}
+	c.reply(f.GetStreamId(), resp)
+}
+
+func (d *Daemon) serveRecordHistory(c *conn, f *rigv1.Frame, st *record.Store) {
+	var req rigv1.RecordHistoryRequest
+	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.history: "+err.Error())
+		return
+	}
+	recs, err := st.History(req.GetId())
+	if err != nil {
+		c.failErr(f.GetStreamId(), recordCode(err), err)
+		return
+	}
+	resp := &rigv1.RecordHistoryResponse{}
+	for _, r := range recs {
+		resp.Versions = append(resp.Versions, recordToWire(r))
+	}
+	c.reply(f.GetStreamId(), resp)
+}
+
+// serveRecordLink and serveRecordUnlink DO NOT VALIDATE THE LINK TYPE.
+//
+// The store holds the closed set and refuses an unknown one by name, quoting
+// the value back and listing the valid ones. A second copy of that set here is
+// a second thing to keep in step with section 39: two validators drift, one
+// does not.
+func (d *Daemon) serveRecordLink(c *conn, f *rigv1.Frame, st *record.Store) {
+	var req rigv1.RecordLinkRequest
+	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.link: "+err.Error())
+		return
+	}
+	if _, _, _, ok := d.provenance(c); !ok {
+		d.refuseUnattributed(c, f, "record.link")
+		return
+	}
+	if err := st.Link(req.GetSrc(), req.GetType(), req.GetDst()); err != nil {
+		c.failErr(f.GetStreamId(), recordCode(err), err)
+		return
+	}
+	c.reply(f.GetStreamId(), &rigv1.RecordLinkResponse{})
+}
+
+func (d *Daemon) serveRecordUnlink(c *conn, f *rigv1.Frame, st *record.Store) {
+	var req rigv1.RecordUnlinkRequest
+	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.unlink: "+err.Error())
+		return
+	}
+	if _, _, _, ok := d.provenance(c); !ok {
+		d.refuseUnattributed(c, f, "record.unlink")
+		return
+	}
+	if err := st.Unlink(req.GetSrc(), req.GetType(), req.GetDst()); err != nil {
+		c.failErr(f.GetStreamId(), recordCode(err), err)
+		return
+	}
+	c.reply(f.GetStreamId(), &rigv1.RecordUnlinkResponse{})
+}
+
+// stepStateNames maps the wire's enum to the store's strings.
+//
+// UNSPECIFIED IS ABSENT FROM THIS MAP ON PURPOSE, so an unset field cannot
+// decode as a decision - section 21's rule, which noenumzero enforces on the
+// proto and this map enforces at the boundary.
+var stepStateNames = map[rigv1.StepState]string{
+	rigv1.StepState_STEP_STATE_STARTED: "started",
+	rigv1.StepState_STEP_STATE_BLOCKED: "blocked",
+	rigv1.StepState_STEP_STATE_DONE:    "done",
+}
+
+var stepStateWire = map[string]rigv1.StepState{
+	"started": rigv1.StepState_STEP_STATE_STARTED,
+	"blocked": rigv1.StepState_STEP_STATE_BLOCKED,
+	"done":    rigv1.StepState_STEP_STATE_DONE,
+}
+
+func (d *Daemon) serveProgressStep(c *conn, f *rigv1.Frame, st *record.Store) {
+	var req rigv1.ProgressStepRequest
+	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "progress.step: "+err.Error())
+		return
+	}
+	session, seat, epoch, ok := d.provenance(c)
+	if !ok {
+		d.refuseUnattributed(c, f, "progress.step")
+		return
+	}
+	// ⛔ THE PROJECT IS DERIVED FROM THE ITEM AND IS NOT A FIELD ON THE
+	// REQUEST. The store needs one - progress.go refuses an empty project by
+	// name - and the obvious repair was to add `project` to the wire. It is
+	// the wrong repair: a step's project is not the caller's CHOICE, it is a
+	// fact about the item being stepped. A field would let a caller name a
+	// project the item is not in, which is a second source of truth for
+	// exactly the reason section 39 keeps provenance off the request.
+	//
+	// It also buys a better refusal. Stepping an id that does not exist now
+	// answers "no such record" instead of "a step needs a project", which is
+	// the store complaining about a field the caller was never asked for.
+	item, err := st.Get(req.GetItem())
+	if err != nil {
+		c.failErr(f.GetStreamId(), recordCode(err), err)
+		return
+	}
+
+	// An unknown enum value arrives as the empty string and the store refuses
+	// it by name, which is the one refusal a caller should see.
+	rec, err := st.Step(record.StepRequest{
+		Item:    req.GetItem(),
+		State:   stepStateNames[req.GetState()],
+		Note:    req.GetNote(),
+		Project: item.Project,
+		Session: session,
+		Seat:    seat,
+		Epoch:   epoch,
+	})
+	if err != nil {
+		c.failErr(f.GetStreamId(), recordCode(err), err)
+		return
+	}
+	c.reply(f.GetStreamId(), &rigv1.ProgressStepResponse{Step: recordToWire(rec)})
+}
+
+func itemToWire(i record.ItemState) *rigv1.ItemState {
+	w := &rigv1.ItemState{
+		Id:    i.ID,
+		Title: i.Title,
+		State: stepStateWire[i.State],
+		Note:  i.Note,
+	}
+	// A ZERO Since IS "NOBODY HAS STEPPED THIS YET", and it must not become a
+	// 1970 timestamp on the wire - a reader sorting by age would put it above
+	// every real signal, which is the opposite of what it means.
+	if !i.Since.IsZero() {
+		w.SinceUnixNano = i.Since.UnixNano()
+	}
+	return w
+}
+
+func (d *Daemon) serveProjectBrief(c *conn, f *rigv1.Frame, st *record.Store) {
+	var req rigv1.ProjectBriefRequest
+	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "project.brief: "+err.Error())
+		return
+	}
+	b, err := st.Brief(req.GetProject())
+	if err != nil {
+		c.failErr(f.GetStreamId(), recordCode(err), err)
+		return
+	}
+	resp := &rigv1.ProjectBriefResponse{Project: b.Project}
+
+	// A NEGATIVE COUNT IS A BUG, AND ZERO IS THE HONEST ANSWER TO ONE. The
+	// conversion is guarded rather than asserted because an unchecked int to
+	// uint64 turns a negative into an enormous positive, and this field is
+	// read as "how much of the migration is coarse" - the one direction in
+	// which a wrong number would look alarming rather than wrong.
+	if n := b.CoarseCitations; n > 0 {
+		resp.CoarseCitations = uint64(n)
+	}
+	for _, i := range b.Open {
+		resp.Open = append(resp.Open, itemToWire(i))
+	}
+	for _, i := range b.NextUp {
+		resp.NextUp = append(resp.NextUp, itemToWire(i))
+	}
+	// A BLOCKER IS RESOLVED HERE, NOT LEFT AS AN ID. Once an `idea` item can
+	// block, a blocker need not appear anywhere else in this response, so the
+	// brief has to carry enough to render it. `byID` is every item the brief
+	// knows; a blocker missing from it is one outside the active set, which is
+	// exactly the case the blocked-set ruling added.
+	byID := map[string]record.ItemState{}
+	for _, i := range b.Open {
+		byID[i.ID] = i
+	}
+	for _, i := range b.NextUp {
+		byID[i.ID] = i
+	}
+	for _, bl := range b.Blocked {
+		w := &rigv1.Blockage{Item: bl.Item, Title: bl.Title}
+		for _, id := range bl.BlockedBy {
+			blocker := &rigv1.Blocker{Id: id}
+			if known, ok := byID[id]; ok {
+				blocker.Title = known.Title
+				blocker.State = stepStateWire[known.State]
+			}
+			w.Blockers = append(w.Blockers, blocker)
+		}
+		resp.Blocked = append(resp.Blocked, w)
+	}
+	for _, cy := range b.Cycles {
+		resp.Cycles = append(resp.Cycles, &rigv1.Cycle{Items: cy})
+	}
+	c.reply(f.GetStreamId(), resp)
+}
+
+// recordCode maps a store refusal to a wire code.
+//
+// ⛔ IT SEPARATES THE ONES A CALLER CAN ACT ON DIFFERENTLY, rather than
+// answering INVALID to everything. A version conflict is retryable after a
+// re-read and a missing record is not, and a caller that cannot tell them
+// apart will retry the one that never succeeds.
+func recordCode(err error) rigv1.Code {
+	var notFound *record.NotFoundError
+	if errors.As(err, &notFound) {
+		return rigv1.Code_CODE_NOT_FOUND
+	}
+	var conflict *record.ConflictError
+	if errors.As(err, &conflict) {
+		return rigv1.Code_CODE_CONFLICT
+	}
+	return rigv1.Code_CODE_INVALID
+}

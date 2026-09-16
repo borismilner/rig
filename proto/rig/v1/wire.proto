@@ -50,6 +50,15 @@ enum Code {
   // learn it lost its coordination state, because what it does next differs
   // from what it does when a method name was wrong.
   CODE_SESSION_DEAD = 8;
+
+  // A COMPARE-AND-SWAP LOST: the version the caller believed was current is
+  // not the version that is. Added for section 39's record.put, and it is a
+  // code of its own for the same reason SESSION_DEAD is - what the caller
+  // does next differs. A conflict is RETRYABLE after a re-read; INVALID,
+  // which is where this would otherwise land, means "do not send that again".
+  // A caller that cannot tell them apart retries the one that never succeeds,
+  // or gives up on the one that would have worked second time.
+  CODE_CONFLICT = 9;
 }
 
 message Status {
@@ -1088,6 +1097,12 @@ message Cycle {
 
 message ProgressStepRequest {
   // The record id of the work item this step is about.
+  //
+  // ⛔ THERE IS NO `project` FIELD HERE AND THAT IS DELIBERATE. The store needs
+  // a project and the daemon DERIVES it from this item, because a step's
+  // project is a fact about the item rather than a choice the caller makes. A
+  // field would let a caller file a step under a project the item is not in -
+  // a second source of truth, for the same reason provenance is absent.
   string item = 1;
 
   StepState state = 2;
@@ -1125,10 +1140,41 @@ message ItemState {
 }
 
 // Blockage is one item and what it waits on.
+// Blocker is one item standing in the way, named well enough to act on.
+//
+// ⛔ IT CARRIES A TITLE AND A STATE BECAUSE A BARE ID STOPPED BEING
+// RESOLVABLE. Until the blocked-set ruling below, every id in a blockage was
+// guaranteed to appear in `open` or `next_up` as well, so a renderer could
+// look its title up in the same response. That guarantee was implicit and
+// nothing stated it. Once an item whose status is `idea` can block, a blocker
+// can be in NEITHER list - so the old shape would have a renderer either drop
+// it silently or print a raw UUIDv7 at a human, which is not a thing anybody
+// can act on. Raised by the seat holding the package before it shipped the
+// change, which is the only reason this was caught before the first renderer.
+message Blocker {
+  string id = 1;
+  string title = 2;
+
+  // UNSPECIFIED here is LOAD-BEARING and is the `idea` case: nobody has picked
+  // this blocker up. That is a materially different instruction from a blocker
+  // somebody is working on - it means the way forward is for someone to START
+  // it - and collapsing the two is what made the bare-id shape lossy twice
+  // over.
+  StepState state = 3;
+}
+
 message Blockage {
   string item = 1;
   string title = 2;
-  repeated string blocked_by = 3;
+
+  // 3 IS RESERVED, NOT REUSED. It was `repeated string blocked_by`, and a
+  // number carrying bare ids must never come back meaning something else:
+  // section 21 serves every major it has shipped, so a field number is the
+  // one thing that cannot be quietly redefined.
+  reserved 3;
+  reserved "blocked_by";
+
+  repeated Blocker blockers = 4;
 }
 
 message ProjectBriefRequest {
