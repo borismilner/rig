@@ -977,6 +977,89 @@ written more than once, and any estimate that assumed otherwise is low.**
 **ON THE CLI: `rig record`, `rig progress`, `rig standard`, `rig brief`.** Four
 commands, because a surface an agent has to learn is a surface it gets wrong.
 
+### ⛔ THE WIRE SURFACE FOR THE RECORD VERBS. RULED 2026-09-16 LATE, ALL MEASURED.
+
+**Written before a line of it is built, because the last estimate of this
+section assumed a projection mechanism that does not reach rig's own verbs.**
+
+#### The method name is `rig.` + the verb name, verbatim. PROVED, not assumed.
+
+`splitMethod` takes the **first** dot (`internal/daemon/daemon.go:1021`), so the
+command half may contain more. **`badID` refuses a dot only on the PROGRAM id**,
+and its stated reason is exactly that split. **Run, not read** - a throwaway
+probe declared four dotted commands through the real `DeclareSelf` path and
+they were accepted:
+
+    rig.record.put      -> program="rig"  command="record.put"
+    rig.progress.step   -> program="rig"  command="progress.step"
+    rig.project.brief   -> program="rig"  command="project.brief"
+
+⛔ **THIS IS WORTH MORE THAN CONVENIENCE: IT AVOIDS REPEATING A RECORDED
+INJURY.** The door says `announce`/`set_activity`/`list_agents` while the wire
+says `announce`/`activity`/`peers` - **two vocabularies, three calls,
+disagreeing on two**, and renaming was offered and not chosen. **The record
+verbs carry ONE spelling across the wire, the CLI and the door.** Nothing to map,
+nothing to drift.
+
+#### ⛔ THE REQUEST MESSAGES CARRY NO PROVENANCE FIELDS AT ALL
+
+**`Session`, `Seat` and `Epoch` are the DAEMON's and are absent from every
+request message** - not optional, not ignored, absent.
+
+**Found by the `cli` seat against the lead's own interface**, which had mirrored
+the package's `PutRequest` into a CLIENT interface. **The package struct is the
+daemon-to-store boundary, where provenance is already known; mirroring it
+outward hands the caller three fields it must never set.** The seat's word for
+it is the right one: **a forgery surface.** A client able to set its own session
+and seat can write a record attributed to another seat.
+
+**It is enforced by the WIRE rather than by CLI convention**, because a
+convention the wire does not carry is one the first non-CLI caller breaks. The
+connection already knows all three and `newPrincipal` mints them.
+
+#### `progress.step`'s state is an enum with an explicit UNSPECIFIED zero
+
+`started | blocked | done`, and **§21's rule plus the `noenumzero` analyzer make
+the zero mandatory**: an enum whose zero means something makes an unset field
+decode as a decision. A bad value is **refused by name with the value quoted
+back**, which the package already does - the wire surfaces that message rather
+than pre-validating and inventing a second one. **Two validators drift; one does
+not.**
+
+#### The MCP surface is ONE sibling tool, and it describes itself
+
+Ruled on §9's context budget - nine record tools on every seat's list forever is
+the failure §9 exists to prevent. ⛔ **It addresses the RECORD verbs only, never
+the whole of `registry.self`**, or it becomes the invoke surface `rig.down` was
+deliberately kept off. **And it owes its own discovery**: `[ran it]`, neither
+`list` nor `describe` can see rig's own commands - `list` reads `CapabilityMap`
+which excludes rig, and `describe` on `rig` hits the `SelfID` refusal. So the
+sibling must describe itself or it is a door with nine rooms and no map.
+
+#### ⛔ `record.link` AND `record.unlink` MOVE FORWARD TO SLICE 2
+
+**The build order inverted its own dependency and nobody had noticed.**
+Execution order is defined in the PROJECT half as *"a topological sort over
+`blocks`, among items whose `status` is `active` AND whose latest
+`progress.step` is not `done`"*. **`project.brief` is slice 2. `blocks` edges
+are slice 4.** So slice 2 was specified to derive over a graph slice 4 creates,
+and the order ran 2 then 4 - **slice 2's own demonstration could not produce a
+next-up list, a blocked list or a cycle report**, because nothing could make the
+edges all three read.
+
+**`link` and `unlink` land WITH slice 2. `record.refs` STAYS at slice 4** -
+writing an edge and traversing the graph are different capabilities, and refs
+carries the depth bound, the cycle report and the truncation flag, none of which
+the brief needs. **The MVP scope does not change: slice 4 was already on the
+path. Only the order moves.**
+
+**And the alternative was refused for a reason worth keeping: WHO CHOOSES THE
+EDGE.** A `part-of` edge from a step to its item is chosen by nobody - it is
+what `progress.step` MEANS - so the package writes it internally and that is
+not slice 4 leaking. **A `blocks` edge is a caller's assertion about the work**,
+which is precisely slice 4's capability, and writing it from inside the package
+would have put the acceptance demonstration on a path no caller has.
+
 ### The read-before-write gate, which is where the prose layer actually dies
 
 **Today the instruction is *"read `COORDINATION.md` in full before your first
