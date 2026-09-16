@@ -40,6 +40,82 @@ had that ranks its own slices:
 managed IN rig.** Not demonstrated on a fixture, not on a synthetic second
 project - on rig itself, which is the only project there is.
 
+#### ⛔ AND THE ACCEPTANCE TEST IS HIS EYES ON A TRAY ICON, TWICE. RULED BY BORIS 2026-09-16.
+
+> *"I'll know we reached MVP when I'll see the production icon on my system-tray
+> both during this session and after I reboot the machine so I know it is
+> properly deployed."*
+
+⛔ **THIS OVERRIDES THE PARAGRAPH ABOVE, WHICH SAYS THE TRAY IS M8 AND NOT THE
+MVP. IT IS NOW BOTH.** The paragraph is kept rather than edited, because the
+distinction it draws is still true and only its CONCLUSION moved: the AgentBox
+GUI PORT is still a different question, and §11's full window is still not this.
+**What he has added is an acceptance test, not a feature.**
+
+**THE TWO OBSERVATIONS ARE NOT ONE, AND THE SECOND IS THE WHOLE POINT:**
+
+| | What it proves | What it does NOT prove |
+|---|---|---|
+| **the icon, during this session** | a `production` instance is running and the tray can see it | **nothing about deployment.** A hand-started binary looks identical |
+| ⛔ **the icon, AFTER A REBOOT** | **it is INSTALLED, ENABLED and it SURVIVES** - the unit, the autostart target, the binary on a stable path | |
+
+**He said why in the sentence: *"so I know it is properly deployed."*** The
+reboot is the measurement and the icon is only its readout. **A demonstration
+that stands rig up by hand and shows him the icon answers the first row and
+fails the test**, and it would be the exact shape this project keeps recording:
+a green that could not have gone red.
+
+⛔ **THE MVP THEREFORE HAS A DEPLOYMENT HALF THAT NO SLICE OF §39 CONTAINS.**
+Slices 1, 2 and 4 make `rig brief rig` answer; **none of them puts an icon on
+his tray or survives a reboot.** The build order above ranks §39's own slices
+and is unchanged; this is a second axis beside it, and a seat that finishes all
+three slices has not met the acceptance test.
+
+| Half | Where it lives |
+|---|---|
+| **the capability** - rig's own project managed IN rig | §39, slices 1, 2, 4 |
+| ⛔ **the deployment** - `production` installed, enabled, surviving a reboot, with the tray showing it | `packaging/`, `cmd/rigwindow/tray.go`, §37's estates, §11's tray |
+
+**WHAT IS ALREADY THERE, so nobody starts from nothing:** `cmd/rigwindow/tray.go`
+exists and drives `fyne.io/systray`; `packaging/rigd.service` runs
+`--estate=production` and is `WantedBy=graphical-session.target`. **What is NOT
+established is that any of it survives a reboot on this machine**, and §17
+already flags that the tray's own footprint decision is owed at M8.
+
+⛔ **AND `cmd/rigwindow` IS BORIS'S OWN FILE** in `COORDINATION.md`'s ownership
+table - *"that is the GUI work and it is BORIS'S"*. **The acceptance test now
+runs through a file no seat on this team owns.** That is a coordination fact
+that has to be settled by asking him rather than assumed either way, and it is
+the first thing about this criterion a lead should raise.
+
+#### ⛔ REDEPLOYMENT IS BATCHED, AND EVERY PEER WAITS THROUGH IT. RULED BY BORIS 2026-09-16.
+
+> *"Once in a while when there are enough new features, changes and capabilities
+> that deserve redeployment we'll do it while all peers are awaiting
+> redeployment."*
+
+**TWO RULES, AND THE SECOND IS THE ONE A SEAT WILL BREAK BY ACCIDENT:**
+
+- **Redeployment is BATCHED and it is HIS call.** *"Once in a while"*, *"enough …
+  that deserve redeployment"* - a seat does not redeploy because its own change
+  landed. **The trigger is an accumulation he judges, not a commit.**
+- ⛔ **EVERY PEER QUIESCES FOR IT.** *"while all peers are awaiting
+  redeployment"* - the daemon under them is being replaced, so a seat mid-call
+  during a redeploy is a seat whose result is undefined. **Peers wait; they do
+  not work through it.**
+
+**WHY THIS IS A REQUIREMENT AND NOT AN OPERATIONS NOTE.** rig is a singleton per
+runtime directory - `internal/paths` gives one socket, one pidfile, one flock -
+so **a redeploy is not a rolling restart and cannot be made into one.** There is
+no version of it where some peers keep working. The quiesce is forced by the
+architecture, and writing it down is what stops a seat discovering it as an
+outage.
+
+**AND IT IS WHAT MAKES THE ACCEPTANCE TEST REPEATABLE RATHER THAN A ONE-OFF.**
+The reboot observation proves deployment once; a redeploy cadence is how it
+keeps being true as rig changes. **The two rulings are halves of the same
+thing.**
+
 **AND IT SETTLES THE PRIORITY QUESTION §39 COULD NOT ANSWER ABOUT ITSELF.**
 This section was sized at 48-59 seat-days across eight slices on 2026-09-16 and
 that number was read as the cost of the whole thing. **The MVP is slices 1, 2
