@@ -83,6 +83,22 @@ type Brief struct {
 	// order. It counts EVERY feature, not only the building ones, which is why
 	// it is not derivable from Features above.
 	Stages []StageCount
+
+	// Sections is the state of ALL ELEVEN of section 39's brief sections,
+	// every time, whether or not each one can be answered.
+	//
+	// ⛔ IT IS HERE AND NOT AT THE WIRE BECAUSE THE REASON IS THE DERIVATION'S
+	// KNOWLEDGE. The daemon decided these until 2026-09-16 and could not help
+	// going stale: it reported NOT_COMPUTED for notes and features, blaming a
+	// derivation that had already landed, and a reader was sent to build what
+	// existed. See sections.go for the ledger and why a struct-derived answer
+	// would be wrong.
+	//
+	// WITHHELD_BY_VIEW IS NOT SET HERE. A view is a property of who is asking
+	// and the store does not know who is asking; the daemon applies it over
+	// the top. The state is declared in this package so both ends share one
+	// vocabulary.
+	Sections []SectionStatus
 }
 
 // ItemState is a work item and the last thing that happened to it.
@@ -368,6 +384,7 @@ func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 		return Brief{}, errors.New("record: a brief needs a project")
 	}
 	b := Brief{Project: project}
+	led := newSectionLedger()
 
 	items, err := s.Query(ctx, project, "work-item")
 	if err != nil {
@@ -455,6 +472,9 @@ func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 	// including one whose blocker is in neither list. The lists stay disjoint
 	// and together still carry every active item.
 	n := s.nextUpN(ctx, project)
+	led.did(SectionNextUp)
+	led.did(SectionOpen)
+	led.did(SectionBlocked)
 	for _, id := range order {
 		if len(b.NextUp) < n && len(blockedBy[id]) == 0 {
 			b.NextUp = append(b.NextUp, active[id])
@@ -482,9 +502,26 @@ func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 	if b.Notes, err = s.notesAbout(ctx, project, subjects); err != nil {
 		return Brief{}, err
 	}
+	led.did(SectionNotes)
 
 	// SECTION 10.
 	if b.Features, b.Stages, err = s.features(ctx, project); err != nil {
+		return Brief{}, err
+	}
+	led.did(SectionFeatures)
+
+	// ⛔ THE SECTION STATES ARE THE DERIVATION'S AND THIS IS WHERE THEY LAND.
+	// They lived in the daemon as a hand-kept list until now, and its own
+	// comment claimed the answer was derived from this struct - it was not, and
+	// two rows went stale within a day of internal/record growing Notes and
+	// Features. Only the code that computes a section knows whether it did.
+	//
+	// statuses() REFUSES rather than answering ten of eleven, which is why this
+	// can return an error at the very end of a derivation that has otherwise
+	// succeeded. That is a programming error being made loud, not a data
+	// condition: a brief whose section list is incomplete is indistinguishable
+	// from one whose missing section is fine.
+	if b.Sections, err = led.statuses(); err != nil {
 		return Brief{}, err
 	}
 	return b, nil

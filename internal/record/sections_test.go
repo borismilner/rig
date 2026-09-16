@@ -206,3 +206,177 @@ func TestSectionTenOnAProjectWithNothingToSay(t *testing.T) {
 		t.Errorf("a project with no notes reported %+v", b.Notes)
 	}
 }
+
+// ⛔ ALL ELEVEN, EVERY TIME. Boris, 2026-09-16, asked directly whether the four
+// that shipped were enough: "Cover all of them."
+//
+// The count and the SET are asserted separately on purpose. A count of eleven
+// with one section reported twice and another missing is the shape a bare
+// len() check cannot see, and it is the one a hand-kept list actually produces.
+func TestABriefAnswersAllElevenSectionsExactlyOnce(t *testing.T) {
+	s := openStore(t, estate(t, sectProject))
+	project(t, s, "5")
+
+	b, err := s.Brief(tctx, sectProject)
+	if err != nil {
+		t.Fatalf("brief: %v", err)
+	}
+
+	if len(b.Sections) != 11 {
+		t.Fatalf("the brief reports %d sections, want 11", len(b.Sections))
+	}
+	seen := map[Section]int{}
+	for _, st := range b.Sections {
+		seen[st.Section]++
+	}
+	for _, want := range briefSections {
+		switch seen[want] {
+		case 1:
+		case 0:
+			t.Errorf("section %q is not reported at all - absence is the "+
+				"failure section 39 added the section states to prevent", want)
+		default:
+			t.Errorf("section %q is reported %d times", want, seen[want])
+		}
+	}
+	for got := range seen {
+		if _, known := sectionsWaitingOn[got]; !known && !isDerived(got) {
+			t.Errorf("section %q is reported and is not one of the eleven", got)
+		}
+	}
+}
+
+// ⛔ A NOT_COMPUTED WITH A BLANK REASON IS WORSE THAN NO SECTION AT ALL: it
+// says "this cannot be answered" and refuses to say what would answer it. The
+// mirror also holds - a COMPUTED section carrying a reason is a leftover from
+// when it could not be computed, which is exactly how the daemon's rows went
+// stale while still looking maintained.
+func TestEverySectionsReasonMatchesItsState(t *testing.T) {
+	s := openStore(t, estate(t, sectProject))
+	project(t, s, "5")
+
+	b, err := s.Brief(tctx, sectProject)
+	if err != nil {
+		t.Fatalf("brief: %v", err)
+	}
+
+	for _, st := range b.Sections {
+		switch st.State {
+		case SectionComputed:
+			if st.Reason != "" {
+				t.Errorf("section %q is computed and still carries a reason "+
+					"(%q) - a stale reason outlives what it explained",
+					st.Section, st.Reason)
+			}
+		case SectionNotComputed:
+			if st.Reason == "" {
+				t.Errorf("section %q is not computed and names no missing "+
+					"input", st.Section)
+			}
+		case SectionWithheldByView:
+			t.Errorf("section %q is withheld by view, and the DERIVATION must "+
+				"never emit that - a view is a property of who is asking and "+
+				"the store does not know who is asking", st.Section)
+		default:
+			t.Errorf("section %q has state %q, which is not one of the three",
+				st.Section, st.State)
+		}
+	}
+}
+
+// The four that were built before today plus the two that landed at 08ce632.
+// Named individually rather than counted, because "six are computed" stays true
+// while the wrong six are.
+func TestTheSectionsThisDerivationAnswersSayComputed(t *testing.T) {
+	s := openStore(t, estate(t, sectProject))
+	project(t, s, "5")
+	sectItem(t, s, "wi-1")
+
+	b, err := s.Brief(tctx, sectProject)
+	if err != nil {
+		t.Fatalf("brief: %v", err)
+	}
+
+	state := map[Section]SectionState{}
+	for _, st := range b.Sections {
+		state[st.Section] = st.State
+	}
+	for _, want := range []Section{
+		SectionOpen, SectionNextUp, SectionNotes, SectionBlocked, SectionFeatures,
+	} {
+		if state[want] != SectionComputed {
+			t.Errorf("section %q is %q, want %q - this derivation produces it",
+				want, state[want], SectionComputed)
+		}
+	}
+	// ⛔ SECTION 11 IS NOT "not built yet" HERE, IT IS NOT APPLICABLE. Row 11 is
+	// a CASE's attention_n notes and this brief derives a PROJECT. The wire has
+	// no state for inapplicable, so the distinction lives in the reason string
+	// and a caller cannot act on it - reported to the team-lead, not fixed here.
+	if state[SectionCaseNotes] != SectionNotComputed {
+		t.Errorf("section %q is %q on a project brief, want %q",
+			SectionCaseNotes, state[SectionCaseNotes], SectionNotComputed)
+	}
+}
+
+// ⛔ THE GUARD THAT CAN FAIL, AND IT IS THE WHOLE REASON THE STATES MOVED.
+//
+// The daemon's list went stale because a section could be silently unaccounted
+// for: nothing anywhere checked that every section had been given a state by
+// somebody. This asserts the refusal directly rather than trusting that it
+// would fire, by inventing a twelfth section that neither half knows about.
+func TestASectionWithNoStateRefusesTheBriefRatherThanAnsweringTenOfEleven(t *testing.T) {
+	orig := briefSections
+	t.Cleanup(func() { briefSections = orig })
+	briefSections = append(append([]Section{}, orig...), Section("invented"))
+
+	led := newSectionLedger()
+	for _, s := range orig {
+		if isDerived(s) {
+			led.did(s)
+		}
+	}
+
+	got, err := led.statuses()
+	if err == nil {
+		t.Fatalf("a section with no state produced %d statuses and no error - "+
+			"the brief would answer eleven of twelve and say nothing about the "+
+			"twelfth, which is the defect this mechanism exists to stop", len(got))
+	}
+}
+
+// The other half of the same guard, and it is the one that actually happened.
+//
+// ⛔ THE DAEMON WENT ON SAYING "the derivation does not collect this kind yet"
+// FOR NOTES AND FEATURES AFTER THE DERIVATION LANDED THEM. Here that is not a
+// stale string, it is a refusal: a section the derivation answers cannot also
+// be listed as waiting on something.
+func TestASectionCannotBeBothDerivedAndWaiting(t *testing.T) {
+	led := newSectionLedger()
+	for _, s := range briefSections {
+		if isDerived(s) {
+			led.did(s)
+		}
+	}
+	led.did(SectionDrift) // which sectionsWaitingOn still lists
+
+	if _, err := led.statuses(); err == nil {
+		t.Fatal("a section that is both derived and listed as waiting was " +
+			"accepted - that is the daemon's stale row with nothing to catch it")
+	}
+}
+
+// isDerived is the test's own view of which sections this derivation produces,
+// deliberately NOT read from the ledger or from sectionsWaitingOn.
+//
+// ⛔ A SECOND INSTRUMENT SHARING NO CODE PATH WITH ITS SUBJECT. Deriving this
+// from sectionsWaitingOn would make every assertion above a tautology - the
+// test would agree with the table whatever the table said, which is the
+// cross-check-with-the-same-blind-spot this package has paid for before.
+func isDerived(s Section) bool {
+	switch s {
+	case SectionOpen, SectionNextUp, SectionNotes, SectionBlocked, SectionFeatures:
+		return true
+	}
+	return false
+}
