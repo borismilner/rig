@@ -34,6 +34,15 @@ type presence struct {
 	by   map[*conn]*occupant
 	gens map[string]uint64
 
+	// epoch is WHICH DAEMON RUN the generations above are being counted in,
+	// and it is the half of the identity presence cannot derive. The counter
+	// is in memory and restarts at 1 with the daemon; the epoch is durable and
+	// is bumped at every start, so only the pair tells one tenancy from
+	// another. It is taken once at construction because a daemon answers out
+	// of exactly one run: a roster cannot hold two epochs, and a reader must
+	// never have to branch on the possibility.
+	epoch uint64
+
 	// now is injectable because every field this produces is a timestamp and
 	// a test that cannot fix the clock can only assert that time passed.
 	// There are no timers here, so section 20's synctest mandate does not
@@ -48,6 +57,7 @@ type presence struct {
 type occupant struct {
 	seat       string
 	generation uint64
+	epoch      uint64
 	purpose    string
 	activity   string
 	state      rigv1.SeatState
@@ -55,10 +65,11 @@ type occupant struct {
 	moved      time.Time
 }
 
-func newPresence(estate string) *presence {
+func newPresence(estate string, epoch uint64) *presence {
 	return &presence{
 		by:     make(map[*conn]*occupant),
 		gens:   make(map[string]uint64),
+		epoch:  epoch,
 		now:    time.Now,
 		others: func() []string { return otherEstates(estate) },
 	}
@@ -108,6 +119,7 @@ func (p *presence) announce(c *conn, seat, purpose, activity string) (occupant, 
 
 	o := &occupant{
 		seat:      seat,
+		epoch:     p.epoch,
 		purpose:   purpose,
 		activity:  activity,
 		state:     rigv1.SeatState_SEAT_STATE_ACTIVE,
@@ -209,6 +221,7 @@ func (o *occupant) proto() *rigv1.Seat {
 	return &rigv1.Seat{
 		Seat:              o.seat,
 		Generation:        o.generation,
+		Epoch:             o.epoch,
 		Purpose:           o.purpose,
 		Activity:          o.activity,
 		State:             o.state,

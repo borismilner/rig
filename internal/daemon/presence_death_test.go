@@ -68,7 +68,7 @@ import (
 // first is merely paused, which is the two-sessions-one-seat failure the
 // refusal exists to prevent, arriving by a different door.
 func TestAnIdleSeatIsNeverReapedBecauseThereIsNoClockToReapOn(t *testing.T) {
-	p := newPresence("production")
+	p := newPresence("production", 1)
 	at := time.Date(2026, 9, 16, 9, 0, 0, 0, time.UTC)
 	p.now = func() time.Time { return at }
 

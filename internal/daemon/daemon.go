@@ -220,7 +220,7 @@ func New(cfg Config) (*Daemon, error) {
 		ask:      cfg.Ask,
 		live:     make(map[net.Conn]struct{}),
 		programs: make(map[string]*conn),
-		presence: newPresence(cfg.Estate),
+		presence: newPresence(cfg.Estate, cfg.Epoch),
 	}, nil
 }
 
