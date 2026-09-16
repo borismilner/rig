@@ -116,20 +116,29 @@ var sectionsWaitingOn = map[Section]string{
 	SectionProjectionBehind: sectionsWaitOnProjection,
 	SectionPending:          sectionsWaitOnProjection,
 	SectionLocalOnly:        sectionsWaitOnProjection,
+}
 
-	// ⛔ NOT "not built yet" - NOT APPLICABLE TO THIS CONTAINER, and the two are
-	// different things wearing one state. Section 39 row 11 is a CASE's
-	// attention_n notes, and Brief derives a PROJECT. A case brief would answer
-	// this section and would leave sections 10 and the semver card empty for the
-	// same reason in reverse.
-	//
-	// THE WIRE HAS NO STATE FOR IT, so the distinction lives in this string and
-	// a caller cannot act on it programmatically: "will never be answered for
-	// this container" and "will be answered when slice 7 lands" are one value.
-	// Reported to the team-lead rather than fixed here - the enum is its file.
-	SectionCaseNotes: "this brief is for a project and section 39 row 11 is a " +
-		"case's attention_n notes. It is not missing an input: it does not " +
-		"apply to this container. A brief for a case answers it",
+// sectionNotForThisContainer is why a section does not apply to the container
+// being briefed, which is NOT the same fact as an input being missing.
+//
+// ⛔ THE WIRE HAS NO STATE FOR "not applicable" AND THAT IS THE EMPTY-VERSUS-
+// ABSENT ARGUMENT ARRIVING INSIDE THE MECHANISM BUILT TO SETTLE IT. Section 39
+// rules that project.brief takes a container of kind project OR case, so
+// section 11 is answered for one and meaningless for the other. A caller gets
+// not_computed either way and cannot tell "will never be answered for this
+// container" from "will be answered when slice 7 lands". The distinction
+// survives only in this string. Reported to the team-lead; the enum is its file.
+func sectionNotForThisContainer(kind string) string {
+	switch kind {
+	case "":
+		return "section 39 row 11 is a case's attention_n notes, and this " +
+			"container has no record in the store, so its kind is unknown and " +
+			"the brief cannot say whether the section applies"
+	default:
+		return "section 39 row 11 is a case's attention_n notes and this " +
+			"brief is for a " + kind + ". It is not missing an input: it does " +
+			"not apply to this container. A brief for a case answers it"
+	}
 }
 
 // sectionsWaitOnProjection is the one reason sections 7, 8 and 9 share.
@@ -147,10 +156,27 @@ const sectionsWaitOnProjection = "the git projection does not exist yet, so " +
 // table at the end is the hand-kept list again, one file further down: it can
 // be written before the derivation exists and it can outlive it. Marking at the
 // call site means the claim and the work are deleted together.
-type sectionLedger struct{ answered map[Section]bool }
+type sectionLedger struct {
+	answered map[Section]bool
 
-func newSectionLedger() *sectionLedger {
-	return &sectionLedger{answered: map[Section]bool{}}
+	// waiting is this brief's reasons, not a package-level constant, because
+	// ⛔ WHETHER A SECTION IS WAITING DEPENDS ON THE CONTAINER. Section 11 is
+	// derived for a case and inapplicable to a project, so a single global
+	// table would make a case brief report it as both derived and waiting -
+	// which statuses() refuses, correctly.
+	waiting map[Section]string
+}
+
+// newSectionLedger opens a ledger for a container of the given kind.
+func newSectionLedger(kind string) *sectionLedger {
+	w := make(map[Section]string, len(sectionsWaitingOn)+1)
+	for k, v := range sectionsWaitingOn {
+		w[k] = v
+	}
+	if kind != KindCase {
+		w[SectionCaseNotes] = sectionNotForThisContainer(kind)
+	}
+	return &sectionLedger{answered: map[Section]bool{}, waiting: w}
 }
 
 // answered records that this derivation produced section s.
@@ -171,12 +197,12 @@ func (l *sectionLedger) did(s Section) { l.answered[s] = true }
 func (l *sectionLedger) statuses() ([]SectionStatus, error) {
 	out := make([]SectionStatus, 0, len(briefSections))
 	for _, s := range briefSections {
-		why, waiting := sectionsWaitingOn[s]
+		why, waiting := l.waiting[s]
 		switch {
 		case l.answered[s] && waiting:
 			return nil, fmt.Errorf("record: section %q is both derived and "+
 				"listed as waiting on %q - the derivation answers it, so the "+
-				"row in sectionsWaitingOn is stale and must go", s, why)
+				"row saying it is waiting is stale and must go", s, why)
 		case l.answered[s]:
 			out = append(out, SectionStatus{Section: s, State: SectionComputed})
 		case waiting:
@@ -185,7 +211,7 @@ func (l *sectionLedger) statuses() ([]SectionStatus, error) {
 			})
 		default:
 			return nil, fmt.Errorf("record: section %q has no state - it is "+
-				"neither derived nor listed in sectionsWaitingOn, so a brief "+
+				"neither derived nor listed as waiting on anything, so a brief "+
 				"would answer ten of eleven and say nothing about the eleventh", s)
 		}
 	}

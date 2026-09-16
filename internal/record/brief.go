@@ -13,6 +13,13 @@ import (
 // project record does not override it. Section 39: "Default 5."
 const DefaultNextUpN = 5
 
+// DefaultAttentionN is how many notes a CASE's brief surfaces when the case
+// record does not override it. Section 39: "Default 10, override per case."
+//
+// ⛔ NEVER PADDED TO N, the same phrasing section 39 uses for next_up_n. A cap
+// is how many the brief will show, not how many it claims exist.
+const DefaultAttentionN = 10
+
 // Brief is the derived answer to "what is going on here".
 //
 // EVERY FIELD IS COMPUTED AT READ TIME AND NOTHING HERE IS STORED. Section 39
@@ -99,6 +106,20 @@ type Brief struct {
 	// the top. The state is declared in this package so both ends share one
 	// vocabulary.
 	Sections []SectionStatus
+
+	// CaseNotes is SECTION 11: up to attention_n notes part-of this CASE,
+	// priority descending then created_at descending.
+	//
+	// ⛔ SEPARATE FROM Notes AND NOT A SUBSET OF IT. Row 3 renders every note
+	// on a project and its open items, uncapped; row 11 is a case's attention
+	// list, capped and ordered by importance. The wire keeps them apart for the
+	// same reason. EMPTY ON A PROJECT BRIEF, where the section does not apply -
+	// read Sections to tell that from a case with no notes.
+	CaseNotes []Note
+
+	// Kind is the container's own kind, `project` or `case`, and it decides
+	// which sections mean anything. Empty when the container has no record.
+	Kind string
 }
 
 // ItemState is a work item and the last thing that happened to it.
@@ -384,7 +405,21 @@ func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 		return Brief{}, errors.New("record: a brief needs a project")
 	}
 	b := Brief{Project: project}
-	led := newSectionLedger()
+
+	// ⛔ THE CONTAINER IS READ ONCE AND ITS KIND DECIDES THE SHAPE. Section 39
+	// rules that project.brief takes a container of kind project OR case, and
+	// this derivation had never looked: it produced project shapes for whatever
+	// id it was handed. A MISSING CONTAINER IS NOT AN ERROR - the brief answers
+	// for the store as it is, and nextUpN has always fallen back to the default
+	// rather than refusing - but it is no longer silently a project either.
+	container, cerr := s.Get(ctx, project)
+	if cerr != nil && !errors.As(cerr, new(*NotFoundError)) {
+		return Brief{}, cerr
+	}
+	if cerr == nil {
+		b.Kind = container.Kind
+	}
+	led := newSectionLedger(b.Kind)
 
 	items, err := s.Query(ctx, project, "work-item")
 	if err != nil {
@@ -436,42 +471,15 @@ func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 	order, cycles := topoSort(active, edges)
 	b.Cycles = cycles
 
-	// ⛔ WHAT IS BLOCKED, AND ON WHOM - AND THE BLOCKERS COME FROM OUTSIDE THE
-	// ACTIVE SET ON PURPOSE. Ruled by the team-lead, rig fee7580, section 39.
-	//
-	// The ordering above runs over the active set and must: a topological sort
-	// has to be over the nodes being ordered. THE BLOCKED DETERMINATION IS A
-	// DIFFERENT QUESTION and had silently inherited the same filter, because
-	// `edges` is blocksAmong(active) with BOTH ends filtered.
-	//
-	// The defect that hid inside it: the filter is right for a blocker whose
-	// latest step is `done` - finished work is not a live dependency - and
-	// WRONG for every other kind. An item whose status is `idea` is also
-	// outside the active set, `idea` being section 39's word for "has not been
-	// picked up", so the brief called an item ready while the thing it waits on
-	// had not been started. That is the mirror of the never-empties defect
-	// section 39 already corrected, and the code comment here could not see it
-	// because it only ever reasoned about `done`.
-	blockedBy := map[string][]string{}
-	for _, it := range items {
-		if step, ok := latest[it.ID]; ok && step.Fields["state"] == "done" {
-			continue
-		}
-		dsts, err := s.LinksFrom(ctx, it.ID, LinkBlocks)
-		if err != nil {
-			return Brief{}, err
-		}
-		for _, d := range dsts {
-			if _, ok := active[d]; ok {
-				blockedBy[d] = append(blockedBy[d], it.ID)
-			}
-		}
+	blockedBy, err := s.blockedBy(ctx, items, latest, active)
+	if err != nil {
+		return Brief{}, err
 	}
 
 	// NEXT UP IS WHAT CAN BE STARTED NOW, so a blocked item is never in it -
 	// including one whose blocker is in neither list. The lists stay disjoint
 	// and together still carry every active item.
-	n := s.nextUpN(ctx, project)
+	n := nextUpN(container)
 	led.did(SectionNextUp)
 	led.did(SectionOpen)
 	led.did(SectionBlocked)
@@ -510,6 +518,15 @@ func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 	}
 	led.did(SectionFeatures)
 
+	// SECTION 11, and only for a case. A project's notes are section 3 above;
+	// this is the case's own attention list, capped and ordered by importance.
+	if b.Kind == KindCase {
+		if b.CaseNotes, err = s.caseNotes(ctx, container); err != nil {
+			return Brief{}, err
+		}
+		led.did(SectionCaseNotes)
+	}
+
 	// ⛔ THE SECTION STATES ARE THE DERIVATION'S AND THIS IS WHERE THEY LAND.
 	// They lived in the daemon as a hand-kept list until now, and its own
 	// comment claimed the answer was derived from this struct - it was not, and
@@ -527,15 +544,66 @@ func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 	return b, nil
 }
 
-// nextUpN reads the project's override, falling back to the default.
-func (s *Store) nextUpN(ctx context.Context, project string) int {
-	rec, err := s.Get(ctx, project)
-	if err != nil {
-		return DefaultNextUpN
+// ⛔ WHAT IS BLOCKED, AND ON WHOM - AND THE BLOCKERS COME FROM OUTSIDE THE
+// ACTIVE SET ON PURPOSE. Ruled by the team-lead, rig fee7580, section 39.
+//
+// The ordering above runs over the active set and must: a topological sort
+// has to be over the nodes being ordered. THE BLOCKED DETERMINATION IS A
+// DIFFERENT QUESTION and had silently inherited the same filter, because
+// `edges` is blocksAmong(active) with BOTH ends filtered.
+//
+// The defect that hid inside it: the filter is right for a blocker whose
+// latest step is `done` - finished work is not a live dependency - and
+// WRONG for every other kind. An item whose status is `idea` is also
+// outside the active set, `idea` being section 39's word for "has not been
+// picked up", so the brief called an item ready while the thing it waits on
+// had not been started. That is the mirror of the never-empties defect
+// section 39 already corrected, and the code comment here could not see it
+// because it only ever reasoned about `done`.
+//
+// Extracted from Brief when it crossed the house cyclomatic bound: it is a
+// question with its own name and its own ruling, and it reads better beside
+// them than inside a derivation that does eleven other things.
+func (s *Store) blockedBy(ctx context.Context, items []Record,
+	latest map[string]Record, active map[string]ItemState,
+) (map[string][]string, error) {
+	blockedBy := map[string][]string{}
+	for _, it := range items {
+		if step, ok := latest[it.ID]; ok && step.Fields["state"] == "done" {
+			continue
+		}
+		dsts, err := s.LinksFrom(ctx, it.ID, LinkBlocks)
+		if err != nil {
+			return nil, err
+		}
+		for _, d := range dsts {
+			if _, ok := active[d]; ok {
+				blockedBy[d] = append(blockedBy[d], it.ID)
+			}
+		}
 	}
+	return blockedBy, nil
+}
+
+// nextUpN reads the container's override, falling back to the default.
+//
+// It takes the record rather than re-reading it: Brief already holds the
+// container, and two reads of one row is two chances for them to disagree.
+func nextUpN(container Record) int {
+	return capFrom(container, "next_up_n", DefaultNextUpN)
+}
+
+// capFrom reads a positive integer field, falling back to def.
+//
+// ⛔ A MALFORMED OR ABSENT VALUE IS THE DEFAULT, NEVER A REFUSAL, and zero or
+// negative is malformed. A cap of zero would render an empty list that means
+// "nothing here" while the store is full, which is the reassuring lie this
+// brief exists to refuse - and a hand-written field should not be able to
+// silence a section.
+func capFrom(container Record, field string, def int) int {
 	var n int
-	if _, err := fmt.Sscanf(rec.Fields["next_up_n"], "%d", &n); err != nil || n <= 0 {
-		return DefaultNextUpN
+	if _, err := fmt.Sscanf(container.Fields[field], "%d", &n); err != nil || n <= 0 {
+		return def
 	}
 	return n
 }
@@ -778,23 +846,58 @@ func (s *Store) notesAbout(ctx context.Context, project string, subjects map[str
 		return nil, err
 	}
 
-	sort.SliceStable(out, func(i, j int) bool {
-		a, b := out[i], out[j]
+	sortNotes(out)
+	return out, nil
+}
+
+// sortNotes puts the important notes first: priority, then recency, then id.
+//
+// ⛔ ONE SORT FOR BOTH NOTE LISTS, AND THAT IS THE POINT OF IT BEING A
+// FUNCTION. Section 39 states this ordering for a case's attention_n notes
+// (row 11) and states nothing for a project's notes (row 3); using it for both
+// is this seat's choice, taken with the lead, because two adjacent note lists
+// ordering differently is the drift the one-rank ruling exists to stop. A
+// reader who learns the order from one list must not be wrong about the other.
+//
+// "importance leads, recency is the tie-break" is section 39's own phrasing.
+// id comes last so two notes written in the same millisecond still order the
+// same way twice - the clock is millisecond-resolution and tests freeze it, so
+// that tie is real rather than theoretical. It is the argument lateststeps.go
+// makes at length about MAX(id).
+func sortNotes(notes []Note) {
+	sort.SliceStable(notes, func(i, j int) bool {
+		a, b := notes[i], notes[j]
 		if ra, rb := priorityRank(a.Priority), priorityRank(b.Priority); ra != rb {
 			return ra < rb
 		}
-		// Recency second: the same two halves section 39 states for a case's
-		// notes, "importance leads, recency is the tie-break".
 		if !a.Prov.CreatedAt.Equal(b.Prov.CreatedAt) {
 			return a.Prov.CreatedAt.After(b.Prov.CreatedAt)
 		}
-		// id last so two notes written in the same millisecond still order the
-		// same way twice. The clock here is millisecond-resolution and tests
-		// freeze it, so this tie is real rather than theoretical - the argument
-		// lateststeps.go makes at length about MAX(id).
 		return a.ID < b.ID
 	})
-	return out, nil
+}
+
+// caseNotes answers section 11: up to attention_n notes part-of this case.
+//
+// ⛔ IT REUSES notesAbout RATHER THAN WRITING A SECOND QUERY, and the subject
+// set is the case itself. Section 39 is explicit that row 11 needs NO new verb
+// and no new kind - "a note part-of a case IS the mechanism" - and the same
+// argument reaches the read side: a second query over the same two tables is a
+// second place for the part-of scoping to be got wrong.
+//
+// ⛔ NEVER PADDED TO attention_n. Section 39 uses that phrase for next_up_n and
+// it binds here for the same reason: a list padded to its cap tells a reader
+// there are exactly that many, and a cap is a limit on what is SHOWN rather
+// than a claim about what EXISTS.
+func (s *Store) caseNotes(ctx context.Context, container Record) ([]Note, error) {
+	notes, err := s.notesAbout(ctx, container.ID, map[string]bool{container.ID: true})
+	if err != nil {
+		return nil, err
+	}
+	if n := capFrom(container, "attention_n", DefaultAttentionN); len(notes) > n {
+		notes = notes[:n]
+	}
+	return notes, nil
 }
 
 // features answers section 10: the features at stage `building`, and the count

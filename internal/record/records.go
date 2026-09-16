@@ -122,6 +122,17 @@ const KindNote = "note"
 // Boris asked for by name.
 const KindFeature = "feature"
 
+// KindProject and KindCase are section 39's two CONTAINERS.
+//
+// A case is "for what is ongoing and never ships" - Boris, 2026-09-15: "we have
+// projects but we have also things that are ongoing". The brief derives both,
+// and which one it is decides which sections mean anything: row 11 is a case's
+// notes, and a case has no semver because it does not ship.
+const (
+	KindProject = "project"
+	KindCase    = "case"
+)
+
 // The four stages section 39 names for a feature, and there are only four.
 const (
 	StagePlanned    = "planned"
@@ -139,7 +150,7 @@ const (
 // other record's "project it belongs to" field is that same slug. A case takes
 // the same exception for the same reason. Generating a UUID for either would
 // mean the path and the id disagree, and the path is the thing a human reads.
-var slugIDKinds = map[string]bool{"project": true, "case": true}
+var slugIDKinds = map[string]bool{KindProject: true, KindCase: true}
 
 // Put creates a record or supersedes one, and returns the version it wrote.
 func (s *Store) Put(ctx context.Context, r PutRequest) (Record, error) {

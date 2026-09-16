@@ -239,9 +239,24 @@ func TestABriefAnswersAllElevenSectionsExactlyOnce(t *testing.T) {
 			t.Errorf("section %q is reported %d times", want, seen[want])
 		}
 	}
+	// ⛔ THE ELEVEN, WRITTEN OUT, AS A SECOND INSTRUMENT. Checking the reported
+	// set against briefSections would agree with briefSections whatever it
+	// said - the cross-check-with-the-same-blind-spot this package has paid for
+	// before. These names are section 39's rows 1 to 11 in order, transcribed.
+	eleven := map[Section]bool{
+		"open": true, "next_up": true, "notes": true, "blocked": true,
+		"drift": true, "must_read": true, "projection_behind": true,
+		"pending": true, "local_only": true, "features": true,
+		"case_notes": true,
+	}
 	for got := range seen {
-		if _, known := sectionsWaitingOn[got]; !known && !isDerived(got) {
+		if !eleven[got] {
 			t.Errorf("section %q is reported and is not one of the eleven", got)
+		}
+	}
+	for want := range eleven {
+		if seen[want] == 0 {
+			t.Errorf("section %q is one of section 39's eleven and is not reported", want)
 		}
 	}
 }
@@ -330,7 +345,7 @@ func TestASectionWithNoStateRefusesTheBriefRatherThanAnsweringTenOfEleven(t *tes
 	t.Cleanup(func() { briefSections = orig })
 	briefSections = append(append([]Section{}, orig...), Section("invented"))
 
-	led := newSectionLedger()
+	led := newSectionLedger(KindProject)
 	for _, s := range orig {
 		if isDerived(s) {
 			led.did(s)
@@ -352,7 +367,7 @@ func TestASectionWithNoStateRefusesTheBriefRatherThanAnsweringTenOfEleven(t *tes
 // stale string, it is a refusal: a section the derivation answers cannot also
 // be listed as waiting on something.
 func TestASectionCannotBeBothDerivedAndWaiting(t *testing.T) {
-	led := newSectionLedger()
+	led := newSectionLedger(KindProject)
 	for _, s := range briefSections {
 		if isDerived(s) {
 			led.did(s)
