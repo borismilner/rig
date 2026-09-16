@@ -67,6 +67,29 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
       count badge and the **detached** state of §5g are not decoration added
       afterwards. A mark that reads at 22px alone and dies with a badge on it
       has failed the requirement, not passed it.
+    - **DONE 2026-09-16: `design/tray/development.png` and
+      `design/tray/production.png`, transparent PNG, perfect circle, no
+      text.** Boris reviewed both in-session and corrected the direction
+      twice before accepting them, both now recorded because neither is
+      derivable from the files alone:
+      - **the crosshair ring and its tick marks are DROPPED, not carried
+        over from the candidate sheet.** Boris: *"The production can be just
+        the robot inside with the circle around it - no need for the
+        background at all and it needs to fill it well."* The glyph (bug /
+        robot) is cropped tight to fill the circle instead, on his
+        instruction that content should "fill it almost completely, just
+        leave little room to see it's round."
+      - **the source art's 3D bevel (gloss highlight, drop shadow) is
+        flattened to one flat fill colour per icon.** Boris: *"I think the
+        3D effect is redundant and will probably just hurt the good-looks of
+        the icons."* This also brings the shipped asset in line with
+        `icon-candidate-prompt.md`'s own flat-vector constraint, which the
+        generated sheet had not actually followed.
+      - Both checked legible at 22px against a dark panel before being
+        accepted - the untouched candidate art was not (see
+        `icon-candidate-prompt.md`'s own "starting point for a hand-drawn
+        SVG, never the shipped asset" caveat, which the flattening step
+        answers for now without yet being that SVG).
   - **An UNNAMED estate gets no tray at all.** Every test and every reproduction
     recipe starts one, they are not deployments (§37's ephemeral clause), and a
     third icon appearing during `make ci` would be the failure this requirement
