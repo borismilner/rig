@@ -1375,3 +1375,107 @@ func TestAProvenanceWithNoStampDoesNotBecomeTheUnixEpoch(t *testing.T) {
 		t.Errorf("a real stamp arrived as %s, want %s", p.CreatedAt, at)
 	}
 }
+
+// ⛔ A TYPED FIELD REACHES THE WIRE WITH ITS SPELLING UNCHANGED, AND THAT IS
+// WHAT MAKES A CROSS-SEAT FIELD NAME A CONTRACT AT ALL.
+//
+// `must_read` is the ruled example (PLAN.md section 39, rig 891b89f): the CLI
+// writes the field and the brief's derivation reads it, and TWO SPELLINGS FAIL
+// SILENTLY - an empty must-read set renders as "this project requires nothing",
+// which is the reassuring lie the read-before-write gate exists to refuse.
+//
+// ⛔ SO THE PROPERTY UNDER TEST IS THAT rig IS A FAITHFUL CARRIER AND NEVER A
+// HELPFUL ONE. A client that lowercased, trimmed, or turned a dash into an
+// underscore would make the caller's spelling and the derivation's spelling
+// agree BY ACCIDENT on some inputs and not others, which is worse than never
+// agreeing: the contract would hold until the first field whose normalisation
+// differs.
+//
+// ⛔ IT RUNS FROM ARGV AND THE FIRST VERSION DID NOT, WHICH IS WHY IT IS
+// WRITTEN THIS WAY. That version called the API with a PutArgs built in the
+// test, and a mutation that lowercased every key inside fieldFlag.Set SURVIVED
+// it - because the flag parser is exactly the code such a test skips. The
+// carriage being tested spans argv, fieldFlag, PutArgs and the wire, and a
+// measurement that starts halfway along cannot see the half in front of it.
+//
+// A MISSPELLING IS CARRIED, NOT CAUGHT, AND THAT IS A FINDING RATHER THAN AN
+// ASSERTION OF CORRECTNESS. Nothing in this client knows section 39's field
+// vocabulary, so `must_reed` is a valid field name here and everywhere else it
+// reaches. This test pins the carriage; what pins the SPELLING does not exist
+// on either end yet.
+func TestATypedFieldReachesTheWireWithItsSpellingUnchanged(t *testing.T) {
+	// ⛔ THE KEYS ARE ORDERED AND EACH ONE IS A DIFFERENT NORMALISATION BAIT.
+	// A client that "helpfully" tidied any of them would agree with the
+	// derivation on some fields and not others.
+	pairs := []struct{ key, value string }{
+		// The ruled contract name, exactly as section 39 spells it.
+		{"must_read", "true"},
+		// ⛔ THE MISSPELLING, CARRIED RATHER THAN CAUGHT. It is here so that
+		// the day rig learns to refuse an unknown field, this test fails and
+		// somebody reads this comment.
+		{"must_reed", "true"},
+		// A dash and a capital: the two shapes a normaliser reaches for.
+		{"Must-Read", "true"},
+		{"description_short", "one line, for lists and briefs"},
+	}
+
+	argv := []string{"record", "put", "--kind", "work-item", "--project", "rig"}
+	for _, p := range pairs {
+		argv = append(argv, "--field", p.key+"="+p.value)
+	}
+
+	f := serving(t, &fakeRecord{})
+	if _, err := captureStdout(t, func() error { return run(argv) }); err != nil {
+		t.Fatalf("%v: %v", argv, err)
+	}
+
+	got := f.lastPut.Fields
+	for _, p := range pairs {
+		v, ok := got[p.key]
+		if !ok {
+			t.Errorf("the field %q did not survive argv under that key. A "+
+				"client that renames a field breaks every cross-seat contract "+
+				"resting on the name, and it breaks them silently. what "+
+				"arrived: %v", p.key, got)
+			continue
+		}
+		if v != p.value {
+			t.Errorf("%q travelled as %q, want %q", p.key, v, p.value)
+		}
+	}
+	// ⛔ AND NOTHING WAS ADDED. A client that supplied a default for a field
+	// the caller omitted would put a value in the store that nobody typed,
+	// attributed to the seat that typed the rest.
+	if len(got) != len(pairs) {
+		t.Errorf("%d fields arrived and %d were typed: %v", len(got), len(pairs), got)
+	}
+}
+
+// AND THE SAME SPELLINGS SURVIVE THE WIRE ITSELF, which is the second half of
+// the carriage and a different mechanism: the first test ends at PutArgs, this
+// one reads the bytes the daemon was sent.
+func TestATypedFieldReachesTheDaemonUnderTheKeyItWasTyped(t *testing.T) {
+	api, d := wiredTo(t, &rigv1.RecordPutResponse{})
+
+	sent := map[string]string{"must_read": "true", "Must-Read": "true"}
+	if _, err := api.Put(wireCtx(t), PutArgs{
+		Kind: "work-item", Project: "rig", Fields: sent,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	frames := d.frames(t)
+	if len(frames) != 1 {
+		t.Fatalf("the daemon was sent %d frames, want 1", len(frames))
+	}
+	req := &rigv1.RecordPutRequest{}
+	if err := proto.Unmarshal(frames[0].GetPayload(), req); err != nil {
+		t.Fatal(err)
+	}
+	for k, want := range sent {
+		if got := req.GetFields()[k]; got != want {
+			t.Errorf("%q reached the daemon as %q, want %q: %v",
+				k, got, want, req.GetFields())
+		}
+	}
+}
