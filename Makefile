@@ -167,20 +167,35 @@ build-all: ## Cross-compile for every supported target
 	    -o build/$(BIN)-$$os-$$arch ./cmd/rig; \
 	done
 
-install: build ## Install rig and rigd to $(PREFIX)/bin and register the user service
-	install -Dm755 build/$(BIN) $(PREFIX)/bin/$(BIN)
-	install -Dm755 build/$(BIND) $(PREFIX)/bin/$(BIND)
-	install -Dm644 packaging/$(BIND).service $(UNITDIR)/$(BIND).service
-	@systemctl --user daemon-reload 2>/dev/null || \
-	  echo "no user systemd here; the unit is installed but not registered"
-	@echo "installed $(PREFIX)/bin/$(BIN) and $(PREFIX)/bin/$(BIND) ($(VERSION))"
-	@echo "installed $(UNITDIR)/$(BIND).service"
+install-selftest: build ## Prove install's ROLLBACK catches, on a throwaway unit
 	@echo
-	@echo "NOT ENABLED. Enabling changes when your session starts a daemon, so"
-	@echo "it is your call rather than this target's:"
+	@echo "  The rollback is the branch a successful install never runs, and it"
+	@echo "  guards the one outcome section 28 forbids: a machine with no"
+	@echo "  working daemon. This drives it on a throwaway unit with its own"
+	@echo "  prefix, runtime dir and unit name. rigd.service, rigwindow.service"
+	@echo "  and rig-team.service are never named and never signalled."
+	@echo
+	@tools/install-selftest.sh
+
+install: build ## Install rig and rigd, replacing a live deployment without losing anything
+	@echo
+	@echo "  Replacing the deployment, if there is one. PLAN.md section 28."
+	@echo "  A stale daemon left running IS a failed termination - it is just"
+	@echo "  the one nobody looks at, because nothing crashed."
+	@echo
+	@tools/install-rigd.sh "$(PREFIX)" "$(UNITDIR)" build "$(VERSION)"
+	@echo
+	@echo "installed $(PREFIX)/bin/$(BIN) and $(PREFIX)/bin/$(BIND) ($(VERSION))"
+	@echo
+	@echo "ENABLING IS STILL NOT THIS TARGET'S CALL. Replacing what is already"
+	@echo "deployed and deciding to deploy are different acts, and only the"
+	@echo "first one is done here:"
 	@echo "    systemctl --user enable --now $(BIND).service"
 	@echo
 	@echo "THE WINDOW AND TRAY ARE NOT INSTALLED BY THIS TARGET: make install-window"
+	@echo "  It is deliberately separate: the tray is on a screen somebody is"
+	@echo "  looking at, and rigwindow is Wants=rigd.service rather than"
+	@echo "  Requires=, so it rides out the daemon restart above by design."
 
 # install-window installs the window and its tray, and it is SEPARATE FROM
 # `install` on purpose.
