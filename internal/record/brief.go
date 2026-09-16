@@ -120,6 +120,45 @@ type Brief struct {
 	// Kind is the container's own kind, `project` or `case`, and it decides
 	// which sections mean anything. Empty when the container has no record.
 	Kind string
+
+	// Title, Status and Semver are the rest of the container's own metadata,
+	// read from the same record Kind comes from.
+	//
+	// ⛔ THE DERIVATION READ THE CONTAINER AND KEPT ONLY THE KIND, AND THE
+	// STORE HELD THE REST THE WHOLE TIME. Measured 2026-09-17 against the
+	// seeded production store: the project record carried title and status and
+	// `rig brief rig` printed "(not said) (no status)" over "(no title)" with
+	// every row beneath it correct. This is the phase-1 capture-fidelity gate
+	// failing on the one project rig holds - itself.
+	//
+	// ⛔ IT WAS TWO DEFECTS AND NEITHER HALF EXPLAINED THE SCREEN ALONE. The
+	// wire carries four header fields and the daemon set none of them,
+	// INCLUDING the Kind this package already computed, so the emptiness was
+	// reachable from either side and fixing one alone would have changed
+	// nothing visible. The daemon half landed at rig af7715d.
+	//
+	// EMPTY WHEN THE CONTAINER HAS NO RECORD, and a container whose record has
+	// no title reads identically. That is deliberate: a missing title is a fact
+	// about the project, an unread one is a defect in the pipeline, and giving
+	// the defect its own rendering would teach every reader that there are two
+	// normal kinds of blank. The pipeline defect is caught by a
+	// descriptor-coverage guard over the wire, not on a human's screen.
+	Title  string
+	Status string
+
+	// Semver is empty on a case BECAUSE NOTHING WROTE ONE, not because this
+	// derivation suppresses it. Section 39 rules that a case has no semver -
+	// "a case does not ship, so it has no version to advance" - and the wire
+	// says field 12 is empty on a case. Reading the field satisfies both
+	// without a rule, since no case record carries one.
+	//
+	// ⛔ SUPPRESSING IT BY KIND WAS REFUSED, and the refusal is recorded rather
+	// than left as an absence. It is a narrowing no lead ruled, and it would
+	// make the brief hide a field a record genuinely carried - against this
+	// package's own B21 finding, that reporting what the document says beats
+	// inventing what it meant. If a case must ever hide a semver it wrote, that
+	// is a ruling and not a tweak.
+	Semver string
 }
 
 // ItemState is a work item and the last thing that happened to it.
@@ -418,6 +457,9 @@ func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 	}
 	if cerr == nil {
 		b.Kind = container.Kind
+		b.Title = container.Fields["title"]
+		b.Status = container.Fields["status"]
+		b.Semver = container.Fields["semver"]
 	}
 	led := newSectionLedger(b.Kind)
 
