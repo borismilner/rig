@@ -78,6 +78,22 @@ func (d *Daemon) serveMCPConn(ctx context.Context, nc net.Conn) {
 	// do, so it stays identical until it is ruled.
 	who := newPrincipal(nc)
 
+	// THE ACCEPT AND THE TEARDOWN ARE LOGGED AS A PAIR, AND THE PAIR IS THE
+	// POINT. Presence keys an occupant by the connection and drops it on the
+	// handler's own defer, so an occupant's life is exactly one accept to one
+	// teardown. Counting connections from OUTSIDE the daemon cannot see that:
+	// a bridge that reconnects transparently shows an unbroken connection to
+	// the outside while the daemon saw close-then-accept, which is a NEW
+	// principal and - once presence is served here - a new occupant arriving
+	// into a seat the old one still holds. The outside view and the daemon's
+	// disagree exactly where it matters, so the daemon says which it saw.
+	//
+	// ClientID is the identifier rather than a counter because newPrincipal
+	// already mints one per connection. A counter would be a second piece of
+	// per-connection state saying what this one already says.
+	d.log.Debug("mcp session opened", "client", who.ClientID, "peer_pid", who.PID)
+	defer d.log.Debug("mcp session closed", "client", who.ClientID)
+
 	server := mcpserver.New(meta.New(d.kernel, d), who, d.version)
 	d.addMCP(server)
 	defer d.removeMCP(server)
