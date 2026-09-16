@@ -9,6 +9,40 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
 - **One tray icon** for the whole estate, replacing the six that exist today. Per-program status,
   badge, and commands runnable with no window open. A stopped program is still listed, with the
   reason and a Start entry.
+  - ⛔ **BORIS, 2026-09-16 (evening), verbatim - THE TRAY'S LIFETIME IS RIGD'S,
+    NOT THE WINDOW'S. RECORDED THE TURN HE SAID IT:** *"As long as rig is
+    present in the background, the appropriate icon must appear on the
+    system-tray, like AgentBox. Clicking on the icon reveals the different
+    options and it also shows the version and whether it's prod or dev."*
+
+    **THREE REQUIREMENTS, and the first is the one that may move
+    architecture.**
+
+    | # | Requirement |
+    |---|---|
+    | 1 | **PRESENT WHENEVER rig IS IN THE BACKGROUND.** The condition is rig running, not a window being open. *"like AgentBox"* is the benchmark and AgentBox's tray is up whenever its daemon is |
+    | 2 | **CLICKING REVEALS THE OPTIONS.** The menu is the access point, not a window toggle. This restates and sharpens the access-point requirement below |
+    | 3 | **THE MENU SHOWS THE VERSION AND THE ESTATE** - prod or dev - **as TEXT a human reads**, not only as the icon's colour |
+
+    ⛔ **REQUIREMENT 1 IS NOT SATISFIED BY WHAT IS BUILT, and the gap is
+    structural rather than a missing feature.** The tray lives in
+    `cmd/rigwindow/tray.go` - it is the WINDOW process that owns it. So a
+    headless `rigd`, which is the ordinary case and the one a systemd unit
+    creates, shows NO ICON AT ALL. **"As long as rig is present in the
+    background" is exactly the state that has no tray today.**
+
+    **This is a scope call and it is Boris's**, because the honest answers are
+    not small: the tray moves into `rigd`, or `rigd` supervises a tray
+    process, or the window process is always started and the window itself is
+    what is optional. **Recorded, not scheduled, and not a front this team
+    opens** - the same rule as the rest of §11.
+
+    **REQUIREMENT 3 IS SEPARATELY NOT BUILT.** The tray polls `rig.estate`
+    every 5 s and swaps its ICON to carry the estate; nothing renders the
+    estate or the version as readable text, and `fyne.io/systray`'s menu items
+    are where it would go. **The icon says which estate to somebody who knows
+    the colour convention; he asked to be TOLD.**
+
   - **BORIS, 2026-09-16, verbatim - THE TRAY IS AN ACCESS POINT, NOT A WINDOW
     TOGGLE:** *"The icon-tray is not only for when a window is needed, it is
     my access point to many of the future rig functionality."* Said right
