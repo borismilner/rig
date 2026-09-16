@@ -1387,6 +1387,30 @@ eight against a live wire and one against a message set that drops half its
 answer is how a provisional shape becomes the contract by default. Filed
 `BACKLOG.md` B57.
 
+#### ⛔ R3.2's WORDING MOVES: `truncated` MEANS THE ANSWER IS INCOMPLETE, NOT THAT THE WALK HIT ITS CAP
+
+**RULED BY THE LEAD 2026-09-16 late, closing a debt that parked a peer's queue
+item for two generations.** `STORE-REQUIREMENTS.md` R3.2 reads as though
+`truncated` reports the CAP being reached. **The code is right and the SPEC
+moves** - `internal/record.Refs` sets it when the walk **hits the cap AND has
+somewhere left to go**, and that is the correct behaviour.
+
+⛔ **THE TWO ARE NOT THE SAME AND THE DIFFERENCE IS THE WHOLE POINT OF THE
+FLAG.** A walk that reaches depth 4 of a bound of 4 and finds nothing beyond it
+has returned a **COMPLETE** answer. Flagging that as truncated tells the caller
+its answer is partial when it is whole, and *"go and ask again with a bigger
+number"* is then advice to spend a traversal for nothing.
+
+**The flag answers ONE question - "is there more that I did not show you" - and
+a cap is only evidence for it when the frontier is non-empty.** R3.2's phrasing
+invited the other reading, which is a specification defect rather than a code
+one. **The requirement document is amended to the code, not the code to it.**
+
+**Recorded here rather than only in `STORE-REQUIREMENTS.md` because a seat read
+`plan/39` for it, correctly found it absent, and PARKED rather than guessing** -
+which is the behaviour to reward, and it cost two generations of waiting because
+the lead that ruled it never wrote it down.
+
 #### ⛔ `record.link` AND `record.unlink` MOVE FORWARD TO SLICE 2
 
 **The build order inverted its own dependency and nobody had noticed.**
@@ -1606,6 +1630,54 @@ discretion; that is the whole defect §38c names.
 | **`record.put` REFUSES until it has, and names what is missing** | never *"you must read the docs"*. The refusal is a list |
 | **ONE CALL SATISFIES IT** | `project.brief` returns the must-read set. **Complying is cheaper than arguing with it**, which is the only reason a gate like this survives contact with a working agent |
 | **a must-read record that CHANGES re-arms the gate** | for every session that read the old version. This is drift detection pointed at the project's own rules, and it is free once drift exists for standards. **Triggered by `record.changed` on the internal bus, above** - the gate does not poll |
+
+##### ⛔ HOW A RECORD IS "MARKED": A FIELD, `must_read`. RULED BY THE LEAD 2026-09-16 LATE.
+
+**§39 said *"records of any kind, marked"* and named no mechanism anywhere.**
+Raised as a HELD item by `backend-record` rather than guessed at - the same move
+that produced the `priority` ruling, and for the same reason: the end of a
+session is exactly when an unratified reading gets written into code as though
+it were the spec.
+
+**The two candidates were a FIELD on the record, or a NINTH LINK TYPE.**
+
+⛔ **RULED: A FIELD, SPELLED `must_read`, VALUE `"true"`.** Three reasons, in
+the order they decide it:
+
+- **A ninth link type breaks a set §39 CLOSES AT EIGHT.** *"There are only
+  eight"* is this section's own sentence; spending that closure on a mark is not
+  what it was being saved for.
+- **§39's own word is *"marked"*, which is a property OF THE RECORD** - not a
+  relationship between two of them, which is what a link is for.
+- **This package's house move is REUSE OVER ADDITION**, and §39 does it
+  explicitly one row up by reusing `note` and `part-of` rather than adding a
+  kind.
+- ⛔ **AND `rules-on` IS NOT THE EDGE, THOUGH IT SOUNDS LIKE IT.** §39 defines it
+  as *"a decision `rules-on` a requirement"* - decision to requirement, not
+  must-read to container. **Reading it as the must-read edge would be an
+  invention wearing a spec's word**, and the seat that checked flagged exactly
+  that.
+
+⛔ **THE NAME IS A CROSS-SEAT CONTRACT AND THAT IS WHY IT IS RULED HERE RATHER
+THAN CHOSEN TWICE.** The CLI writes the mark and the derivation reads it. **A
+name picked in one place and a different one in the other fails SILENTLY: the
+derivation queries a field nothing writes and returns an EMPTY must-read set,
+which reads as *"this project requires nothing"* - the exact reassuring lie this
+gate exists to refuse.** `must_read`, both ends, and it matches the wire field
+already reserved under that name.
+
+⛔ **THE SCOPING CONSEQUENCE IS ACCEPTED DELIBERATELY AND IS NOT A SIDE
+EFFECT.** A field-marked record lives in the project it belongs to, so **the
+must-read set is project-scoped BY CONSTRUCTION and cannot express "read this
+record from another project first."** §39 rules elsewhere that links MAY cross a
+project boundary, so the link form could have expressed it and the field cannot.
+
+**Taken anyway, and the reason is the gate's own purpose:** a must-read set is
+what a seat must read BEFORE WRITING HERE, and a rule imported from another
+project is a rule that project has not agreed to. **If a cross-project must-read
+is ever wanted it arrives as a ruling with its own argument, not as a
+consequence nobody noticed.** Named here because, un-named, it disappears.
+
 
 **WHAT THE GATE ACTUALLY GUARANTEES, stated narrowly after the attack.** **rig
 guarantees the material was DELIVERED to this session and that the session
