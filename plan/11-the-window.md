@@ -9,6 +9,17 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
 - **One tray icon** for the whole estate, replacing the six that exist today. Per-program status,
   badge, and commands runnable with no window open. A stopped program is still listed, with the
   reason and a Start entry.
+  - **BORIS, 2026-09-16, verbatim - THE TRAY IS AN ACCESS POINT, NOT A WINDOW
+    TOGGLE:** *"The icon-tray is not only for when a window is needed, it is
+    my access point to many of the future rig functionality."* Said right
+    after the mark shipped (the "DONE 2026-09-16" bullet below), so it is not
+    a restatement of that work - it is scope on everything built against the
+    tray from here on. **The click handler wired in this session
+    (`cmd/rigwindow/tray.go`) only toggles the window**, which this
+    requirement says is not the ceiling: `SystemTray.SetMenu` is the
+    mechanism Wails already exposes for tray-native commands, and it is
+    unused so far. Not built this session - recorded so the next one does not
+    treat "the tray shows an icon" as this requirement closed.
   - **BORIS, 2026-09-11, verbatim and still unsatisfied:** *"I also want the rig
     system tray icon to be eye-catching and engaging."* **This is a requirement,
     not a preference, and it is HIS OWN WORDS rather than a seat's reading.**
@@ -90,6 +101,23 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
         `icon-candidate-prompt.md`'s own "starting point for a hand-drawn
         SVG, never the shipped asset" caveat, which the flattening step
         answers for now without yet being that SVG).
+    - **WIRED 2026-09-16, same session: `cmd/rigwindow/tray.go` is a real
+      `org.kde.StatusNotifierItem` on the session bus**, not just files on
+      disk. `make build-rigwindow` copies `design/tray/*.png` into
+      `cmd/rigwindow/icons` (go:embed cannot reach above its own package,
+      same arrangement as the frontend's `dist` and the fake applications'
+      `kit`). It polls `rig.estate` every 5s and creates or destroys the tray
+      itself rather than repainting a static one, so an unnamed estate gets
+      none - live-verified: stopping the named estate on the default runtime
+      dir and starting the other one flips the `IconPixmap` bytes within one
+      poll, with no restart of the window process. Detached (daemon
+      unreachable) keeps the last icon up rather than removing it, on a
+      tooltip that turns out not to render on Linux at Wails v3 beta.19 -
+      `linuxSystemTray.setTooltip` is a no-op stub there, confirmed by
+      reading the vendored source, not assumed.
+      - **This wiring only toggles the window on click.** See the
+        2026-09-16 "ACCESS POINT, NOT A WINDOW TOGGLE" bullet above -
+        `SetMenu` for tray-native commands is still unbuilt.
   - **An UNNAMED estate gets no tray at all.** Every test and every reproduction
     recipe starts one, they are not deployments (§37's ephemeral clause), and a
     third icon appearing during `make ci` would be the failure this requirement

@@ -150,7 +150,12 @@ build-frontend: ## Build the window's frontend into cmd/rigwindow/dist
 	cd frontend && npm run build
 
 build-rigwindow: build-frontend ## Build the window (needs cgo, gtk3 and webkit2gtk)
-	@mkdir -p build
+	# design/tray is the source and cmd/rigwindow/icons is where it has to sit
+	# to be embedded (section 11), same reason and same shape as build-ledger's
+	# kit copy above: go:embed cannot reach above its own package.
+	@mkdir -p build cmd/rigwindow/icons
+	@find cmd/rigwindow/icons -mindepth 1 ! -name .gitkeep -delete
+	cp design/tray/development.png design/tray/production.png cmd/rigwindow/icons/
 	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o build/rigwindow ./cmd/rigwindow
 
 build-all: ## Cross-compile for every supported target

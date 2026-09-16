@@ -75,7 +75,7 @@ func run() error {
 	// One window (section 11). Sized for a rail, a pane and a status strip
 	// rather than for a demo, and floored so the rail cannot be squeezed off
 	// screen.
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
+	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:            "rig",
 		Width:            1280,
 		Height:           800,
@@ -94,6 +94,11 @@ func run() error {
 		// below 100% either. Zoom belongs in the frontend against the theme's
 		// type scale (section 6), which is where step 2 puts it.
 	})
+
+	// The tray (section 11) is a separate goroutine because app.Run() blocks,
+	// and it owns creating and destroying its own SystemTray rather than
+	// painting one up front, so an unnamed estate never gets one.
+	go runTraySupervisor(app, win)
 
 	return app.Run()
 }

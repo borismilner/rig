@@ -16,6 +16,8 @@ cmd/ledger/kit/*
 !cmd/ledger/kit/.gitkeep
 cmd/docket/kit/*
 !cmd/docket/kit/.gitkeep
+cmd/rigwindow/icons/*
+!cmd/rigwindow/icons/.gitkeep
 node_modules/
 *.out
 *.test
