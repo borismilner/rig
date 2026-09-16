@@ -320,7 +320,6 @@ func scanRecord(sc scanner) (Record, error) {
 	return rec, nil
 }
 
-
 // generateID mints an id for a put that did not carry one.
 //
 // SECTION 39, THE ID-SCHEME TABLE: UUIDv7, VIA google/uuid. THE VERSION IS THE
