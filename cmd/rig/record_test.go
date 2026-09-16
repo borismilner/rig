@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/boris-milner/rig/client"
 	"github.com/boris-milner/rig/internal/paths"
@@ -2005,5 +2006,199 @@ func TestTheObjectCarriesTheStoredSeatAndNeverTheDisplayName(t *testing.T) {
 		t.Errorf("--json rendered %q, want the STORED seat: the object is the "+
 			"only surface from which the derived identity is still "+
 			"recoverable", prov["seat"])
+	}
+}
+
+// recordWireRendering declares, per `rigv1.Record` field, the key or keys
+// `recordJSON` emits for it. A wire field absent from this map is expected to
+// be rendered under its own name.
+//
+// ⛔ IT IS A DECLARED MAP RATHER THAN THE SET EQUALITY USED ON `Ref`, because
+// this object does not render its wire one-for-one and the departure is
+// deliberate: `prov` is emitted as `provenance`, spelled out because `Prov` is
+// an abbreviation internal/record chose and a JSON consumer is not reading
+// that file.
+//
+// The cost of a rename map is that it can rot in three directions rather than
+// one - a wire field can vanish, a rendered key can vanish, and the map itself
+// can name something that no longer exists on either side. All three are red
+// below, because a table that only checks the direction its author was
+// thinking about is the comment it replaced.
+var recordWireRendering = map[string][]string{
+	"prov": {"provenance"},
+}
+
+// recordProvWireRendering is the same declaration for the NESTED object.
+//
+// ⛔ ONE WIRE FIELD BECOMES THREE KEYS, AND THAT IS THE WHOLE REASON THIS
+// GUARD COULD NOT BE THE ONE ON `Ref`. `at_unix_nano` is emitted unchanged as
+// `created_at_unix`, formatted as `created_at`, and differenced against the
+// caller's clock as `created_age_s` - peersJSON's rule, so a consumer
+// computing against its own clock is not forced through this one.
+var recordProvWireRendering = map[string][]string{
+	"at_unix_nano": {"created_at", "created_age_s", "created_at_unix"},
+}
+
+// recordWireFieldsNotRendered names every field on `rigv1.Record` that
+// `recordJSON` deliberately does not emit, WITH THE REASON.
+//
+// ⛔ IT IS EMPTY, AND EMPTY IS A RESULT HERE RATHER THAN AN OVERSIGHT: every
+// field the wire carries on a record reaches the reader. It stays declared so
+// that the day one does not, the answer is written down beside the field
+// instead of in a commit message nobody greps.
+var recordWireFieldsNotRendered = map[string]string{}
+
+// recordProvWireFieldsNotRendered is the same for `rigv1.Provenance`, and is
+// empty for the same reason.
+var recordProvWireFieldsNotRendered = map[string]string{}
+
+// ⛔ EVERY FIELD THE WIRE CARRIES ON A RECORD IS RENDERED, OR SAYS WHY NOT -
+// AND SO IS EVERY FIELD OF ITS PROVENANCE.
+//
+// `recordJSON` is the third hand-written JSON object in this package and the
+// most exposed: `rig record get`, `rig record query`, `rig record history` and
+// `rig progress step` all answer through it, so one dropped field is four
+// surfaces losing it at once. It is the object a consumer parses, which is why
+// the walk compares against the EMITTED KEYS rather than against `Record`'s Go
+// fields - a value read into the struct and never emitted is still dropped,
+// and comparing against the struct would hide exactly that.
+//
+// ⛔ `rig progress step --json` NEEDS NO GUARD OF ITS OWN AND MUST NOT GROW
+// ONE. It encodes `recordJSON(step, …)`: a step IS a record, under a comment in
+// progress.go saying so on purpose. This test covers it by construction, and a
+// second walk over the same function would be a second thing to keep in step.
+func TestEveryFieldTheWireCarriesOnARecordIsRenderedOrSaysWhyNot(t *testing.T) {
+	obj := recordJSON(Record{}, now)
+
+	// ⛔ THE POSITIVE CONTROL, AND IT IS FIRST BECAUSE EVERY ASSERTION BELOW
+	// IS AN ABSENCE. A walk that renders nothing and a walk that renders
+	// everything correctly both produce an empty list of complaints; this is
+	// the only line that separates them.
+	prov, nested := obj["provenance"].(map[string]any)
+	if !nested || len(obj) == 0 || len(prov) == 0 {
+		t.Fatalf("recordJSON emitted %d top-level keys and a `provenance` of "+
+			"%T - this test measures ABSENCES and cannot report anything "+
+			"useful about an object it did not get. Fix the instrument "+
+			"before reading its result", len(obj), obj["provenance"])
+	}
+
+	wireCoverage(t, "rigv1.Record", (&rigv1.Record{}).ProtoReflect().Descriptor().Fields(),
+		obj, recordWireRendering, recordWireFieldsNotRendered)
+	wireCoverage(t, "rigv1.Provenance", (&rigv1.Provenance{}).ProtoReflect().Descriptor().Fields(),
+		prov, recordProvWireRendering, recordProvWireFieldsNotRendered)
+}
+
+// wireCoverage is the instrument behind the guard above, and it is written
+// once because it walks two messages.
+//
+// ⛔ IT CHECKS FOUR DIRECTIONS, NOT ONE, AND THE LAST TWO ARE WHAT A RENAME MAP
+// COSTS. `TestEveryFieldTheWireCarriesOnARefIsRendered` can use `slices.Equal`
+// and get every direction free: an unrendered field, an invented key and a
+// stale name are all one inequality. A declared map buys the ability to
+// describe a rename and gives that up, so each direction is asserted by hand:
+//
+//   - a wire field rendered under NO key, with no reason recorded
+//   - a wire field rendered AND excused, which means one of the two is stale
+//   - a wire field PARTIALLY rendered, which only an expanding rename can be
+//   - an entry in either table naming a field the wire no longer carries
+//   - an emitted key NOTHING on the wire accounts for
+//
+// The fourth is the `//rig:allow` property: an exemption must not outlive what
+// it excused. The fifth is the one a rename map silently loses, and losing it
+// would let this object grow a key that answers to nothing.
+func wireCoverage(t *testing.T, message string, fields protoreflect.FieldDescriptors,
+	emitted map[string]any, renamed map[string][]string, excused map[string]string,
+) {
+	// ⛔ `t.Helper()` IS DELIBERATELY ABSENT, AND PUTTING IT BACK BLINDS THE
+	// MUTATION HARNESS. It re-attributes a failure to the CALLER's line, and
+	// this function holds SIX assertions that mean six different things. With
+	// it, every one of them reports as whichever `wireCoverage(...)` call was
+	// running - so three mutations aimed at three separate clauses came back
+	// as two line numbers, and those two were the two MESSAGES being walked,
+	// not two assertions.
+	//
+	// Measured here, 2026-09-17, by the mutation pass on this guard's own
+	// first green. It is COORDINATION.md's "count the distinct assertions your
+	// mutations turn red, not the mutations" arriving from a direction nobody
+	// had recorded: not N mutations tripping one assertion, but N assertions
+	// REPORTING AS one, so the instrument cannot tell whether they are
+	// distinct. A helper is the right shape here - it walks two messages - and
+	// the caller's line is strictly less informative than the assertion's,
+	// because every message below already names which message it was reading.
+
+	onTheWire := map[string]bool{}
+	accountedFor := map[string]bool{}
+
+	for i := range fields.Len() {
+		name := string(fields.Get(i).Name())
+		onTheWire[name] = true
+
+		keys := renamed[name]
+		if keys == nil {
+			keys = []string{name}
+		}
+		var missing []string
+		for _, k := range keys {
+			if _, ok := emitted[k]; ok {
+				accountedFor[k] = true
+				continue
+			}
+			missing = append(missing, k)
+		}
+		why, isExcused := excused[name]
+
+		switch {
+		case len(missing) == 0 && isExcused:
+			t.Errorf("%s.%s is BOTH rendered and excused (%q). One of the two "+
+				"is stale, and an excuse beside a rendering is how a reader "+
+				"learns to distrust the table", message, name, why)
+		case len(missing) == 0:
+			// Rendered under every key it declares. Nothing owed.
+		case len(missing) < len(keys):
+			// ⛔ ONLY AN EXPANDING RENAME REACHES THIS, and it is the half of
+			// the rot a set comparison would have called a plain absence.
+			// `at_unix_nano` becomes three keys; losing one of them leaves a
+			// field that still looks carried from the wire's side.
+			t.Errorf("%s.%s is PARTIALLY rendered: declared as %v, and %v is "+
+				"missing.\nOne wire field expanding into several is exactly "+
+				"where a drop hides - the field still appears rendered "+
+				"because SOME of its keys are there", message, name, keys, missing)
+		case isExcused:
+			// Deliberately unrendered, with the reason written down.
+		default:
+			t.Errorf("the wire carries %s.%s and `recordJSON` emits nothing "+
+				"for it, and no reason is recorded.\n"+
+				"`rig record get`, `query`, `history` and `progress step` all "+
+				"answer through this object, so a field dropped here is lost "+
+				"on four surfaces at once.\n"+
+				"Render it, declare its rename in the rendering table, or "+
+				"excuse it WITH a reason.", message, name)
+		}
+	}
+
+	for name, why := range excused {
+		if !onTheWire[name] {
+			t.Errorf("a reason is recorded for %s.%s (%q), which is not a "+
+				"field on that message any more. Delete the row: an exemption "+
+				"must not outlive what it excused", message, name, why)
+		}
+	}
+	for name, keys := range renamed {
+		if !onTheWire[name] {
+			t.Errorf("the rendering table maps %s.%s to %v, and that field is "+
+				"gone from the wire. A rename outliving its field is the same "+
+				"defect as an excuse outliving one, and it is worse here: it "+
+				"keeps %v accounted for, so the key it names can never be "+
+				"reported as unexplained", message, name, keys, keys)
+		}
+	}
+	for k := range emitted {
+		if !accountedFor[k] {
+			t.Errorf("`recordJSON` emits %q under %s and NOTHING ON THE WIRE "+
+				"ACCOUNTS FOR IT.\nA key a consumer can read but the wire "+
+				"cannot explain is a second source of truth: it either "+
+				"belongs to a field that was removed, or it is invented here "+
+				"and the reader has no way to learn what feeds it", k, message)
+		}
 	}
 }
