@@ -170,13 +170,12 @@ func (s *Store) start() error {
 			return fmt.Errorf("coord: leases bucket: %w", err)
 		}
 
-		switch raw := meta.Get(keySchema); {
-		case raw == nil:
+		if raw := meta.Get(keySchema); raw == nil {
 			// A new store. Stamp it.
 			if err := meta.Put(keySchema, u32(SchemaVersion)); err != nil {
 				return err
 			}
-		default:
+		} else {
 			found := binary.BigEndian.Uint32(raw)
 			if found > SchemaVersion {
 				return &FutureSchemaError{Path: s.path, Found: found, Known: SchemaVersion}
@@ -213,14 +212,40 @@ func (s *Store) start() error {
 	})
 }
 
-// migrate runs forward-only migrations from an older schema.
+// migrations maps a schema version to the step that moves a store from it to
+// the next one. IT IS DELIBERATELY EMPTY: this IS schema 1, so the only value
+// that could reach it is 0 and no build stamps 0.
+//
+// It is a table rather than a chain of ifs because the ladder below then needs
+// no editing at all to gain a step, which is the property that keeps a
+// migration a local change instead of a rewrite of the thing that runs it.
+var migrations = map[uint32]func(*bolt.Tx) error{}
+
+// migrate runs forward-only migrations from an older schema, one step at a
+// time, until the store is at SchemaVersion.
 //
 // Forward only, run at START, idempotent - section 39, and section 18 already
 // made the restart the natural moment because rig does not hot-upgrade itself.
 // Idempotence matters because the way this actually fails is a crash partway.
-func migrate(_ *bolt.Tx, from uint32) error {
-	return fmt.Errorf("coord: no migration from schema %d, which this build "+
-		"should not be able to produce", from)
+//
+// IT RETURNS NIL WHEN THERE IS NOTHING TO DO, and that is not a formality.
+// The first shape of this function was a stub that returned an error
+// unconditionally, which made the caller's `err != nil` dead-true and, worse,
+// left whoever writes the first real migration inheriting a function that
+// cannot report success. staticcheck caught it as SA4023, reported by
+// backend-presence 2026-09-16.
+func migrate(tx *bolt.Tx, from uint32) error {
+	for v := from; v < SchemaVersion; v++ {
+		step, ok := migrations[v]
+		if !ok {
+			return fmt.Errorf("coord: no migration from schema %d, which this "+
+				"build should not be able to produce", v)
+		}
+		if err := step(tx); err != nil {
+			return fmt.Errorf("coord: migrating schema %d to %d: %w", v, v+1, err)
+		}
+	}
+	return nil
 }
 
 // Epoch is the epoch this daemon published when it started. Every handle it

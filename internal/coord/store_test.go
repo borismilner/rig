@@ -18,7 +18,7 @@ import (
 // UNCONDITIONALLY".
 func TestTheEpochIsBumpedOnEveryStart(t *testing.T) {
 	name := estate(t, "development")
-	fakeBoot(t, "boot-one")
+	fakeBoot(t)
 	fakeClock(t)
 
 	var seen []uint64
@@ -47,7 +47,7 @@ func TestTheEpochIsBumpedOnEveryStart(t *testing.T) {
 // downstream would eventually trust it, and a handle that trusts a restart it
 // was told about breaks the first time it was told wrong.
 func TestAPlannedRestartIsIndistinguishableFromACrash(t *testing.T) {
-	fakeBoot(t, "boot-one")
+	fakeBoot(t)
 	fakeClock(t)
 
 	// A clean stop.
@@ -115,7 +115,7 @@ func TestAnUnnamedEstateCannotOpenAStore(t *testing.T) {
 // writing into production's store raises nothing at all, in either direction.
 func TestTwoEstatesDoNotShareAStore(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
-	fakeBoot(t, "boot-one")
+	fakeBoot(t)
 	fakeClock(t)
 	proc := fakeProc(t)
 	spawn(t, proc, 4242, 99)
@@ -149,7 +149,7 @@ func TestTwoEstatesDoNotShareAStore(t *testing.T) {
 // for, and anything else there is visible to both estates by construction.
 func TestTheStoreSitsUnderTheEstateSubtreeAndNotAtTheRoot(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
-	fakeBoot(t, "boot-one")
+	fakeBoot(t)
 	fakeClock(t)
 
 	s := openStore(t, "production")
@@ -182,7 +182,7 @@ func TestTheStoreSitsUnderTheEstateSubtreeAndNotAtTheRoot(t *testing.T) {
 // guess and it does not repair."
 func TestANewerSchemaRefusesToOpen(t *testing.T) {
 	name := estate(t, "development")
-	fakeBoot(t, "boot-one")
+	fakeBoot(t)
 	fakeClock(t)
 
 	s := openStore(t, name)
@@ -245,7 +245,7 @@ func TestANewerSchemaRefusesToOpen(t *testing.T) {
 // which happened.
 func TestAStoreNoticesAReboot(t *testing.T) {
 	name := estate(t, "development")
-	reboot := fakeBoot(t, "boot-one")
+	reboot := fakeBoot(t)
 	fakeClock(t)
 
 	s := openStore(t, name)
@@ -263,7 +263,7 @@ func TestAStoreNoticesAReboot(t *testing.T) {
 	}
 	_ = again.Close()
 
-	reboot("boot-two")
+	reboot(bootTwo)
 	after, err := Open(name)
 	if err != nil {
 		t.Fatal(err)

@@ -62,9 +62,9 @@ func TestStartTicksReadsTheRealProc(t *testing.T) {
 // machine this is a matter of hours, not of bad luck.
 func TestAReusedPidIsObservedDead(t *testing.T) {
 	proc := fakeProc(t)
-	fakeBoot(t, "boot-one")
+	fakeBoot(t)
 	w := witnessFor(t, proc, 4242, 900)
-	if got := w.Observe("boot-one"); got != Alive {
+	if got := w.Observe(bootOne); got != Alive {
 		t.Fatalf("a live witness observes as %s", got)
 	}
 
@@ -73,7 +73,7 @@ func TestAReusedPidIsObservedDead(t *testing.T) {
 	reap(t, proc, 4242)
 	spawn(t, proc, 4242, 5150)
 
-	if got := w.Observe("boot-one"); got != Dead {
+	if got := w.Observe(bootOne); got != Dead {
 		t.Fatalf("a reused pid observes as %s, want Dead: the start time is what "+
 			"distinguishes the holder from its successor", got)
 	}
@@ -84,13 +84,13 @@ func TestAReusedPidIsObservedDead(t *testing.T) {
 // collide by coincidence - the boot id is what closes that.
 func TestAWitnessFromAnotherBootIsDeadWithoutLookingAtProc(t *testing.T) {
 	proc := fakeProc(t)
-	fakeBoot(t, "boot-one")
+	fakeBoot(t)
 	w := witnessFor(t, proc, 4242, 900)
 
 	// The pid AND the start ticks both match, exactly, in the new boot. Only
 	// the boot id differs - so a witness that consulted /proc here would call
 	// this process alive.
-	if got := w.Observe("boot-two"); got != Dead {
+	if got := w.Observe(bootTwo); got != Dead {
 		t.Fatalf("a witness from another boot observes as %s, want Dead", got)
 	}
 
@@ -105,7 +105,7 @@ func TestAWitnessFromAnotherBootIsDeadWithoutLookingAtProc(t *testing.T) {
 // believing they hold the same lease.
 func TestAnUnreadableProcIsUnknownRatherThanDead(t *testing.T) {
 	proc := fakeProc(t)
-	fakeBoot(t, "boot-one")
+	fakeBoot(t)
 	w := witnessFor(t, proc, 4242, 900)
 
 	// The stat file is there but cannot be read. This is the hardened-kernel
@@ -120,7 +120,7 @@ func TestAnUnreadableProcIsUnknownRatherThanDead(t *testing.T) {
 		t.Skip("running as root, which can read it anyway")
 	}
 
-	if got := w.Observe("boot-one"); got != LivenessUnknown {
+	if got := w.Observe(bootOne); got != LivenessUnknown {
 		t.Fatalf("an unreadable /proc entry observes as %s, want Unknown: "+
 			"not knowing is not the same as knowing it is dead", got)
 	}
@@ -130,12 +130,12 @@ func TestAnUnreadableProcIsUnknownRatherThanDead(t *testing.T) {
 // the answer is Unknown forever - which is what makes section 16's explicit
 // human break the ONLY way such a lease is ever freed.
 func TestAnUnwitnessedHolderIsAlwaysUnknown(t *testing.T) {
-	fakeBoot(t, "boot-one")
+	fakeBoot(t)
 	w := NoWitness()
-	if got := w.Observe("boot-one"); got != LivenessUnknown {
+	if got := w.Observe(bootOne); got != LivenessUnknown {
 		t.Fatalf("an unwitnessed holder observes as %s, want Unknown", got)
 	}
-	if got := w.Observe("boot-two"); got != LivenessUnknown {
+	if got := w.Observe(bootTwo); got != LivenessUnknown {
 		t.Fatalf("an unwitnessed holder observes as %s across a reboot, want "+
 			"Unknown: there is no process to have not survived", got)
 	}
@@ -197,15 +197,15 @@ func TestARealProcessIsWitnessedAliveThenDead(t *testing.T) {
 // only field that does not, and it says the process has already exited.
 func TestAZombieHolderIsObservedDead(t *testing.T) {
 	proc := fakeProc(t)
-	fakeBoot(t, "boot-one")
+	fakeBoot(t)
 	w := witnessFor(t, proc, 4242, 900)
-	if got := w.Observe("boot-one"); got != Alive {
+	if got := w.Observe(bootOne); got != Alive {
 		t.Fatalf("a running holder observes as %s", got)
 	}
 
 	// It exits. Its parent is alive and is not reaping, so the entry stays.
 	spawnInState(t, proc, 4242, 900, "Z")
-	if got := w.Observe("boot-one"); got != Dead {
+	if got := w.Observe(bootOne); got != Dead {
 		t.Fatalf("a zombie holder observes as %s, want Dead: the entry left "+
 			"behind is its exit status, not the process", got)
 	}

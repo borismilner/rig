@@ -13,7 +13,7 @@ const ttl = 30 * time.Second
 func setup(t *testing.T) (*Store, *testClock, string) {
 	t.Helper()
 	name := estate(t, "development")
-	fakeBoot(t, "boot-one")
+	fakeBoot(t)
 	clock := fakeClock(t)
 	proc := fakeProc(t)
 	return openStore(t, name), clock, proc

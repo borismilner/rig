@@ -4,9 +4,20 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+)
+
+// The two boot ids every test in this package runs against. They are named
+// rather than written out at each site because the helper below and the
+// assertions in five other files have to agree about them: fakeBoot puts
+// bootOne on disk and Observe is then asked about the same value, and a
+// mismatch between two string literals would read as a liveness bug.
+const (
+	bootOne = "boot-one"
+	bootTwo = "boot-two"
 )
 
 // NOTHING IN THIS PACKAGE'S TESTS RUNS IN PARALLEL, and that is a decision
@@ -35,10 +46,14 @@ func fakeClock(t *testing.T) *testClock {
 
 // fakeBoot points the boot id at a file the test owns, and returns a function
 // that reboots the machine.
-func fakeBoot(t *testing.T, id string) func(string) {
+//
+// The machine always starts on bootOne. The starting id is not a parameter
+// because nothing needs a different one: a test that cares about a reboot
+// cares about the CHANGE, which is what the returned function makes.
+func fakeBoot(t *testing.T) func(string) {
 	t.Helper()
 	p := filepath.Join(t.TempDir(), "boot_id")
-	if err := os.WriteFile(p, []byte(id+"\n"), 0o600); err != nil {
+	if err := os.WriteFile(p, []byte(bootOne+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	old := bootIDPath
@@ -76,7 +91,7 @@ func spawn(t *testing.T, dir string, pid int, ticks uint64) {
 // where it is the subject: a zombie.
 func spawnInState(t *testing.T, dir string, pid int, ticks uint64, state string) {
 	t.Helper()
-	d := filepath.Join(dir, fmt.Sprint(pid))
+	d := filepath.Join(dir, strconv.Itoa(pid))
 	if err := os.MkdirAll(d, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +101,7 @@ func spawnInState(t *testing.T, dir string, pid int, ticks uint64, state string)
 	for i := 1; i < 19; i++ {
 		rest[i] = "0"
 	}
-	rest[19] = fmt.Sprint(ticks)
+	rest[19] = strconv.FormatUint(ticks, 10)
 	line := fmt.Sprintf("%d (weird) name) %s\n", pid, strings.Join(rest, " "))
 	if err := os.WriteFile(filepath.Join(d, "stat"), []byte(line), 0o600); err != nil {
 		t.Fatal(err)
@@ -96,7 +111,7 @@ func spawnInState(t *testing.T, dir string, pid int, ticks uint64, state string)
 // reap removes a process from the fake table.
 func reap(t *testing.T, dir string, pid int) {
 	t.Helper()
-	if err := os.RemoveAll(filepath.Join(dir, fmt.Sprint(pid))); err != nil {
+	if err := os.RemoveAll(filepath.Join(dir, strconv.Itoa(pid))); err != nil {
 		t.Fatal(err)
 	}
 }

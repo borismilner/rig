@@ -11,7 +11,7 @@ import (
 // disk rather than in a map.
 func TestLeasesSurviveARestart(t *testing.T) {
 	name := estate(t, "development")
-	fakeBoot(t, "boot-one")
+	fakeBoot(t)
 	clock := fakeClock(t)
 	proc := fakeProc(t)
 	w := witnessFor(t, proc, 101, 7)
@@ -54,7 +54,7 @@ func TestLeasesSurviveARestart(t *testing.T) {
 // is fenced by the epoch, whatever its token says.
 func TestAHandleFromBeforeTheRestartIsFencedByTheEpoch(t *testing.T) {
 	name := estate(t, "development")
-	fakeBoot(t, "boot-one")
+	fakeBoot(t)
 	clock := fakeClock(t)
 	proc := fakeProc(t)
 	w := witnessFor(t, proc, 101, 7)
@@ -117,7 +117,7 @@ func TestAHandleFromBeforeTheRestartIsFencedByTheEpoch(t *testing.T) {
 // stopped - which is the reason expiry is derived on read.
 func TestALeaseThatExpiredDuringTheOutageIsExpiredOnTheNextRead(t *testing.T) {
 	name := estate(t, "development")
-	fakeBoot(t, "boot-one")
+	fakeBoot(t)
 	clock := fakeClock(t)
 	proc := fakeProc(t)
 
@@ -158,7 +158,7 @@ func TestALeaseThatExpiredDuringTheOutageIsExpiredOnTheNextRead(t *testing.T) {
 // after every reboot and in the FUTURE after that.
 func TestAllLeasesAreFreeAfterAReboot(t *testing.T) {
 	name := estate(t, "development")
-	reboot := fakeBoot(t, "boot-one")
+	reboot := fakeBoot(t)
 	clock := fakeClock(t)
 	proc := fakeProc(t)
 
@@ -175,7 +175,7 @@ func TestAllLeasesAreFreeAfterAReboot(t *testing.T) {
 
 	// The machine reboots. BOOTTIME goes back to near zero and pid 101 is
 	// handed to something unrelated, which is STILL PRESENT in the table.
-	reboot("boot-two")
+	reboot(bootTwo)
 	clock.at = Instant(1_000_000)
 	spawn(t, proc, 101, 7) // same pid, same start ticks, different boot
 

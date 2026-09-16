@@ -1,6 +1,7 @@
 package coord
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -190,7 +191,7 @@ func readStat(pid int) (procStat, error) {
 	if err != nil {
 		return procStat{}, err
 	}
-	i := strings.LastIndexByte(string(b), ')')
+	i := bytes.LastIndexByte(b, ')')
 	if i < 0 {
 		return procStat{}, fmt.Errorf("coord: /proc/%d/stat has no comm field", pid)
 	}
