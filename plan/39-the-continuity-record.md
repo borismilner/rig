@@ -1373,21 +1373,46 @@ same defect, the second time in full view of the sentence warning about it.
 named thing rather than a shrug.** A section answers for real the moment its
 input exists; nothing here is a second implementation.
 
-| Section | Answers today from | Blocked on, if anything |
-|---|---|---|
-| 1, 2, 4 - open, next-up, blocked, cycles | the store, `blocks` edges | nothing. **Built** |
-| 3 - notes in full | `kind: note` + `record.refs` | **nothing - `refs` landed** |
-| 6 - must-read set | per-session mark, slice 2 | nothing. **Built** |
-| 10 - features | `kind: feature`, `stage` field | nothing: records of that kind |
-| 11 - case attention notes | `kind: case`, `attention_n` | nothing: records of that kind |
-| ⛔ **5 - standards drift** | the standards register | **`standard.*`, slice 7.** Not-yet-computed until then |
-| ⛔ **7, 8 - projection behind / pending entries** | the projection | **the git projection.** Not-yet-computed until then |
-| ⛔ **9 - local-only, a push failed** | the projection's push | **same.** Not-yet-computed until then |
+⛔ **THIS TABLE WAS WRONG ON ITS FIRST WRITING AND THE CORRECTION IS THE POINT
+OF KEEPING IT.** It said section 6 was *"Built"*. **It is not, and it never
+was** - `must_read` and `must_read_cleared` have been on
+`ProjectBriefResponse` since the wire landed and **nothing has ever written
+either**, so a caller reading an empty set would conclude this project requires
+nothing. Found by `backend-record` on the bytes (`grep -rn MustRead` over
+hand-written Go returns zero rows) after the lead had written *"Built"* into
+this table from the slice-2 ruling rather than from the code. **A ruling that a
+thing SHOULD be built is not evidence that it IS**, which is this section's own
+standing complaint about prose, aimed at itself.
 
-**So seven of the eleven answer for real on the MVP path and four carry a named
-state.** The MVP is not waiting on slices 6, 7 or the projection; it is waiting
-on the brief telling the truth about them. **A `not_computed` reason string per
-section is the whole cost** - one field, set by the derivation that knows why.
+**AND THE ROW CONFLATED TWO DIFFERENT QUESTIONS**, which is why it read as
+seven-and-four. *Built today* and *buildable with nothing outside the MVP* are
+not the same column:
+
+| Section | State TODAY | What it still needs |
+|---|---|---|
+| **1, 2, 4** - open, next-up, blocked, cycles | ✅ **BUILT** | nothing |
+| 3 - notes in full | ⛔ not built | the derivation collects `kind: note`. `record.refs` landed, so nothing else blocks it |
+| 6 - must-read set | ⛔ not built, **BOTH HALVES** | the SET is records marked in the store; the MARK is per-session state keyed on `Token`. Neither exists |
+| 10 - features | ⛔ not built | the derivation collects `kind: feature` and counts by `stage` |
+| 11 - case attention notes | ⛔ not built | the derivation collects a case's `attention_n` notes |
+| ⛔ **5** - standards drift | ⛔ not built | **the standards register.** `standard.*` is slice 7 |
+| ⛔ **7, 8** - projection behind / pending | ⛔ not built | **the git projection** |
+| ⛔ **9** - local-only, a push failed | ⛔ not built | **the projection's push** |
+
+**THREE are built. FOUR more (3, 6, 10, 11) need only the derivation and are on
+the MVP path. FOUR (5, 7, 8, 9) wait on capabilities outside it** and carry a
+`not_computed` reason naming which.
+
+⛔ **SECTION 6'S SPLIT IS NOT THE RECORD PACKAGE'S ALONE, AND THE OTHER HALF IS
+THE DAEMON'S.** This section already rules that the delivery mark *"owes M7 the
+coordination store, never the record store"* and lives in connection state until
+then. **So the store supplies the SET and the daemon supplies whether this
+session has cleared it** - and a seat told only "section 6 is the derivation's"
+would build half of it and report the whole as done.
+
+**The MVP is not waiting on slices 6, 7 or the projection; it is waiting on the
+brief telling the truth about them.** A `not_computed` reason per section is the
+whole cost, and it is already on the wire.
 
 ⛔ **AND THE MUST-READ ROW IS THE ONE EXCEPTION TO "PRESENT IN EVERY RESPONSE",
 FOR THE REASON THE VIEW TABLE BELOW ALREADY GIVES.** Section 6 is absent from the
