@@ -306,6 +306,43 @@ mechanism. An unnamed estate claims no name and collides with nothing.
 rigd` - that killed every estate on the machine, and it is the reason the verb
 was pulled forward from M6.
 
+#### WHEN A PRECONDITION IS MET, AND IT IS NOT WHEN THE FACT EXISTS
+
+**A precondition is not met when the fact exists. It is met when the caller it
+was built for can read it.**
+
+**ADDED 2026-09-16, AFTER THE SAME INVERSION WAS FOUND TWICE IN ONE DAY, both
+by demonstration and neither by reading a diff:**
+
+| The fact | Real, correct, and built | Who could not read it |
+|---|---|---|
+| **which estate this is** (precondition 1) | `rig.estate` on the wire, `rig estate` from a terminal, demonstrated on three live estates | **the agent.** Eight paths through the MCP surface, and two estates were byte-identical on all eight |
+| **that the daemon restarted** (precondition 4) | the epoch, durable, fenced, bumped unconditionally at every start | **the agent.** `Store.Epoch()` had exactly one consumer outside its own package: a log line |
+
+**BOTH WERE MARKED DONE AND BOTH WERE HONESTLY MARKED.** The wire carried the
+estate. The store bumped the epoch. **Nothing was skipped and nobody
+overclaimed** - the work stopped one layer short of the caller, and the
+completion test in use could not see that layer.
+
+**THIS SECTION NAMES THE AGENT AS THE MOTIVATING CALLER, so the test follows
+from what is already here.** A precondition exists to let two estates coexist
+without corrupting each other, and **a fact that cannot reach the process doing
+the corrupting prevents nothing.** An agent that cannot tell production from
+development routes its write into the wrong one whether or not the daemon knows
+which estate it is.
+
+**WHAT THIS DOES NOT SAY: it is not a demand that every fact reach every
+surface.** The capability digest covers depth, programs and commands
+deliberately, and neither the estate identity nor the epoch belongs inside it -
+a digest that varies by estate stops being comparable between two daemons,
+which is the one property it exists for. **Beside the map, not in it.** The
+test is whether the caller has A route, not whether every route carries
+everything.
+
+**THE CHEAP FORM OF THIS TEST, for a seat about to mark a precondition done:
+name the caller, then name the call it makes.** If the answer is a log line or
+a terminal, it is not done.
+
 ### The ISOLATION preconditions, and NONE of them may be skipped
 
 **RENAMED 2026-09-12, and the word added is the whole correction.** These six
