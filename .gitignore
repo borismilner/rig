@@ -52,3 +52,7 @@ HANDOFF.md
 READINESS.txt
 BACKLOG.md
 DECISIONS.md
+# The tree itself, so that every `logbook/projects/rig/<file>` citation in
+# every brief resolves verbatim from the repo root. Without it those paths
+# are dead and each arriving session pays the same wasted lookup.
+/logbook
