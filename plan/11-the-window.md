@@ -48,6 +48,25 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
     matters here: **the window learns `production` / `development` from the wire
     (`EstateResponse.role`), never by guessing from a name**, so the icon's
     variant is derived from the same source every other surface reads.
+  - **BORIS, 2026-09-16, verbatim and his own - THE ASSETS EXIST AND THIS IS
+    THE WORK ON THEM:** *"Optimize development.png and production.png from my
+    desktop to act as our system-tray icons, remove the text and crop them
+    properly so that they are perfectly circle and that we don't take
+    unnecessary parts of the images and when finished persist them into the
+    rig plan."* He picked the pair from a generated candidate sheet
+    (`logbook/projects/rig/icon-candidate-prompt.md` holds the prompt), so
+    the MARK is now chosen and is no longer an open design question.
+    - **Four operations, all of them his words:** remove the text, crop to a
+      PERFECT CIRCLE, drop every unnecessary part, and optimize for use at
+      tray size.
+    - **"Persist them into the rig plan" means the repository owns the
+      assets**, not a Desktop folder. They live under `design/` beside the
+      visual system that is already built and measured there.
+    - **THE THREE UNDRAWN DIMENSIONS ARE STILL OWED AND THIS DOES NOT CLOSE
+      THEM.** A chosen mark is the first of four: per-program status, the
+      count badge and the **detached** state of §5g are not decoration added
+      afterwards. A mark that reads at 22px alone and dies with a badge on it
+      has failed the requirement, not passed it.
   - **An UNNAMED estate gets no tray at all.** Every test and every reproduction
     recipe starts one, they are not deployments (§37's ephemeral clause), and a
     third icon appearing during `make ci` would be the failure this requirement
