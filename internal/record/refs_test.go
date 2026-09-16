@@ -142,8 +142,17 @@ func TestATraversalStoppedByTheBoundSaysSo(t *testing.T) {
 	if len(full.Refs) != 4 {
 		t.Fatalf("depth 4 reached %d records, want the whole chain: %+v", len(full.Refs), full.Refs)
 	}
+	// ⛔ THIS IS THE ASSERTION THE RULING PINS, plan/39 at rig 891b89f. The
+	// walk reaches depth 4 of a bound of 4 - it HITS THE CAP - and has nowhere
+	// left to go, so the answer is complete and the flag must be false. A
+	// literal reading of R3.2's old wording ("hits the cap returns truncated")
+	// would have made this true, and the specification moved rather than the
+	// code.
 	if full.Truncated {
-		t.Fatal("a traversal that reached the end of the graph reported itself truncated")
+		t.Fatal("a traversal that reached the end of the graph AT its bound " +
+			"reported itself truncated - the cap alone is not the test, and a " +
+			"caller told its whole answer is partial spends another traversal " +
+			"for nothing")
 	}
 }
 

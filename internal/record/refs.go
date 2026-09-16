@@ -68,7 +68,21 @@ type Refs struct {
 	Refs []Ref
 
 	// Truncated is true when the traversal stopped at the depth bound with
-	// somewhere still to go.
+	// somewhere still to go. BOTH HALVES ARE REQUIRED.
+	//
+	// ⛔ RULED, plan/39 at rig 891b89f - NOT a reading of R3.2, which is the
+	// state this comment used to be in. STORE-REQUIREMENTS.md R3.2 said "a
+	// traversal that hits the cap returns truncated: true", which invited the
+	// cap alone as the test. THE SPEC MOVED TO THE CODE, not the code to the
+	// spec, and the requirement document is amended.
+	//
+	// THE DIFFERENCE IS THE WHOLE POINT OF THE FLAG. A walk that reaches depth
+	// 4 of a bound of 4 and finds nothing beyond has returned a COMPLETE
+	// answer. Flagging it truncated tells the caller its answer is partial when
+	// it is whole, and "ask again with a bigger number" is then advice to spend
+	// a traversal for nothing. The flag answers ONE question - is there more I
+	// did not show you - and a cap is evidence for it only when the frontier
+	// still leads somewhere.
 	//
 	// ⛔ A PARTIAL ANSWER THAT LOOKS COMPLETE IS THE FAILURE THIS WHOLE
 	// CAPABILITY EXISTS TO PREVENT. R3.2 requires the flag for that reason: the
