@@ -213,9 +213,13 @@ func programAt(ctx context.Context, c *client.Client, program string,
 		Message:      fmt.Sprintf("no program %q is connected", program),
 		Precondition: program + " is registered with rig",
 		Actual:       connected,
-		// No fix command: rig cannot start a program, and section 9 would
-		// rather say nothing than offer one that does not run.
-		Fix: "start " + program + ", or check the name",
+		// No fix COMMAND: rig cannot start a program, and section 9 would
+		// rather say nothing than offer one that does not run. The prose
+		// carries the second reading instead - see maybeASubcommand, and note
+		// that its two commands are runnable while "start the program" is not,
+		// which is why they are not promoted to FixCommand: they fix the other
+		// reading, not this one.
+		Fix: "start " + program + ", or check the name. " + maybeASubcommand,
 	})
 }
 

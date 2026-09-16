@@ -342,6 +342,31 @@ func wrapUnder(value string) string {
 // proto field names are the contract every other surface will use.
 // TestTheJSONObjectCoversEveryFieldOfStatus is what stops this struct
 // drifting behind the proto when a field is added on the daemon side.
+// maybeASubcommand is THE SECOND READING of a word rig could not resolve as a
+// program, and it exists because the first reading was being served as though
+// it were the only one.
+//
+// THE CASE, MEASURED (B43). A `rig` older than a verb - `rig mcp` on a build
+// that predates it - falls through run()'s dispatch switch to the default
+// branch, which reads the first token as a PROGRAM name by design. The caller
+// is then told its program is not connected, which is true and sends it to
+// look at the daemon, the registry and its own spelling. The word was never a
+// program.
+//
+// IT CANNOT BE DETECTED AND THAT IS NOT A LIMITATION TO FIX LATER. The binary
+// that needs this message is precisely the one that does not carry the verb,
+// so it cannot know the word is one; and skew detection cannot reach it either,
+// because a matched old `rig` and old `rigd` have no skew to report. The honest
+// move is not to guess which reading is right - it is to stop closing the one
+// rig cannot see.
+//
+// BOTH COMMANDS ARE RUNNABLE AS WRITTEN, which section 9 requires of anything
+// offered as a fix, and cmd/rig/refusal_verbs_test.go enforces it by parsing
+// the dispatch switch rather than by holding a list.
+const maybeASubcommand = "if you meant a rig subcommand rather than a program, " +
+	"this build may not have one: `rig help` lists what it dispatches, and " +
+	"`rig version` says which build this is"
+
 type jsonStatus struct {
 	Code         string `json:"code"`
 	Message      string `json:"message,omitempty"`

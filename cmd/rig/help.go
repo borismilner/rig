@@ -250,11 +250,11 @@ func lookupProgram(ctx context.Context, c *client.Client, program string) (*rigv
 	}
 	sort.Strings(names)
 	if len(names) == 0 {
-		return nil, fmt.Errorf("no program %q is connected, and neither is any other",
-			program)
+		return nil, fmt.Errorf("no program %q is connected, and neither is any other\n       %s",
+			program, maybeASubcommand)
 	}
-	return nil, fmt.Errorf("no program %q is connected\n       connected: %s",
-		program, strings.Join(names, ", "))
+	return nil, fmt.Errorf("no program %q is connected\n       connected: %s\n       %s",
+		program, strings.Join(names, ", "), maybeASubcommand)
 }
 
 func idempotentLabel(c *rigv1.Command) string {
