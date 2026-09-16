@@ -740,14 +740,43 @@ is up. systemd sees a `Type=simple` main process exit successfully, considers th
 finished, and runs `ExecStop` - which killed the healthy daemon that was already serving.
 Enabling the unit left the desktop with no agentbox at all.
 
-**rig has the identical shape.** §5f is a single-instance `flock`, §5g auto-spawns on the first
-client call, and §18's SIGTERM path is the same graceful drain a stop command would use. So the
-unit needs no stop verb, and adding one recreates a defect that has already been paid for once
-on this machine.
+**The conclusion stands and two of its supports do not. Corrected 2026-09-16, both by
+measurement, by the seat that installed the unit and ran it.**
 
-**One wrinkle, inherited and accepted:** start the unit while a daemon is already up and the
-unit reports inactive while that daemon keeps serving. At login - the case the unit exists for -
-nothing is running yet, so it starts one and stays active.
+**Not identical, and that is the load-bearing half.** agentbox exits **0** when an incumbent is
+up - `cmd/agentbox/daemon.go` calls `os.Exit(exitOK)` on `ErrAlreadyRunning`, and
+`internal/server/server.go` says so in as many words: *"the loser exits cleanly (NFR12)"*.
+**rigd has never exited 0 there.** It exited 1, and now exits 8, both measured against a live
+incumbent - so the mechanism that caused the scar, systemd reading a successful exit as the
+service finishing, cannot occur here.
+
+**And §5g does not specify auto-spawn.** §5g is *"When rig is not running"*, and it specifies the
+opposite posture: a tolerant client with a reconnect loop and backoff, a resolved snapshot on
+disk, and lifecycle notices, with the old fallback deleted by the attack. **Nothing in it spawns
+a daemon, and no spawn path exists anywhere in the tree.** The citation was inherited rather than
+checked, and it had reached four documents - including a brief that told a seat auto-spawn was a
+specified-but-unbuilt feature in its lane, which is how a design decision nobody took gets built.
+
+**So why no `ExecStop` anyway, on grounds that survive both corrections:** §5f is a
+single-instance `flock`, and §18's SIGTERM path is already the graceful drain a stop command
+would perform, so an `ExecStop` can only duplicate it or race it. §37's 3-to-0 ruling rests on
+§5l's own text and never depended on the shape argument above.
+
+**Starting it while a daemon is already up used to loop forever.** The paragraph that stood here
+called that *"one wrinkle, inherited and accepted"* and said the unit reports inactive while the
+incumbent keeps serving. **Measured 2026-09-16 against a running daemon: it reports
+`activating (auto-restart)`, restarts every 2 s, and does not stop** - 14 restarts in 28 seconds,
+still climbing, about five journal lines each. The start rate limiter does not catch it:
+`RestartSec=2` against `StartLimitBurst=5` over `StartLimitIntervalSec=10s` puts the fifth
+restart at the edge of the window rather than inside it. **The general form is
+`RestartSec x burst >= interval`**, and the specific triple is only an instance. Fixed at
+`e0b4df3` and `3ca160e`: rigd exits a distinct status for a refusal, the unit names it in
+`RestartPreventExitStatus`, and the window widens to 60 s in `[Unit]`.
+
+**And the case is not rare.** The old paragraph reasoned that at login nothing is running yet.
+**A development estate takes the DEFAULT runtime directory unless `XDG_RUNTIME_DIR` is placed
+explicitly**, so a leftover development rigd is exactly this incumbent - which is what was
+running when it was measured.
 
 **It lands at M6, not M15.** M15 keeps the `.deb`, the desktop entry and the signed update
 channel. What moves earlier is the twelve-line unit, because every milestone after M6 assumes
