@@ -148,34 +148,77 @@ one of rig's own commands: `invoke` and `describe` both refused `rig` as *"no
 program \"rig\" is visible to this caller"*, while the same command answered
 normally from a terminal.
 
-**THE REQUIREMENT: every command rig declares of itself is reachable by an agent
-through the ordinary meta tools, on the same terms a terminal reaches it.** It is
-not a new tool, not a new resource, and not a special case in the tool list - it
-is the existing route resolving rig where it already resolves programs.
+**THE REQUIREMENT: an agent can ask rig which estate it is in, and gets an
+answer that distinguishes two estates running the same programs.** It is asked
+through `query`, section 9's tool for asking rig about rig. No fifth tool, no
+second resource, and **no new invoke target** - which is the part the first
+draft of this requirement got wrong.
 
-**WHY IT WAS BROKEN, AND WHY THE FIX IS NARROW.** rig is held BESIDE the program
-map rather than in it, on purpose: `SelfID` is refused to every registration in
-two independent places, and putting rig in the map would weaken the one
-reservation that stops a program shadowing rig's namespace. **The invoker's own
-read already resolves rig before the map lookup** - so the mechanism exists and
-the agent-facing read simply did not use it. **Resolving `SelfID` first preserves
-the non-shadowing reservation by construction**: rig wins, and a program named
-`rig` still cannot exist.
+**THIS PARAGRAPH REPLACED A STRONGER ONE THE SAME DAY IT WAS WRITTEN, and the
+first version is kept here because the mistake is the instructive part.** It
+said: *"every command rig declares of itself is reachable by an agent through
+the ordinary meta tools, on the same terms a terminal reaches it"*, to be
+delivered by resolving `SelfID` before the program lookup on the agent-facing
+read, exactly as the invoker's own read already does. It is a clean-looking
+symmetry and it is **unsafe**:
 
-**AND THE REFUSAL MUST NAME THE RIGHT CAUSE.** *"is not visible to this caller"*
-is visibility-shaped, and the caller in the measured case was an introspecting
-principal that sees everything there is. **An agent acting on that text goes
-looking for a grant it already holds.** Where the truth is structural, the
-refusal says so - which is §9's own "errors an agent can act on" applied to the
-one error an agent was most likely to act on wrongly.
+| | |
+|---|---|
+| **rig declares `down`, and declares it `EffectsDestructive`** | "Every command" is eight commands, and one of them stops the daemon. That change hands `rig.down` to every MCP agent in the estate **in the same diff, silently, with no line of it mentioning `down`** |
+| **It was already pinned against** | `TestRigIsNotAnInvokeTargetOnAnySurface`, written 2026-09-12 and marked FOUND BY DEMONSTRATION, asserts the widest possible principal cannot reach rig through the program projection. The requirement would have been delivered by deleting a test whose comment predicts this exact change |
+| **It would not have worked anyway** | `Daemon.call` routes to a program's own connection. **rig has no connection to itself**, so a resolved `rig.estate` moves the failure from "not visible" to "not connected". A symmetry that cannot execute |
 
-**`query` MAY NOT ANSWER A SUBJECT IT DID NOT UNDERSTAND.** The same measurement
-found `query` with an unrecognised subject falling through to the registry and
-returning it, with the subject silently ignored. **§9's rule is that query NAMES
-what it cannot reach rather than omitting it**, and the surface built to say
-*"I cannot reach that yet"* was the one surface that did not say it. An
-unrecognised subject is named as unrecognised; a recognised-but-unavailable one
-joins the unavailable list.
+**Holding rig beside the map is not an asymmetry to be tidied away. It is the
+mechanism**, and it carries two jobs at once: `SelfID` is refused to every
+registration in two independent places, so no program can shadow rig's
+namespace, **and** rig's destructive command has no invoke surface to be
+reached through. **A fix that makes the surface look regular destroys both.**
+
+**AND THE REFUSAL MUST NAME THE RIGHT CAUSE.** *"is not visible to this
+caller"* is visibility-shaped, and the caller in the measured case was an
+introspecting principal that sees everything there is. **An agent acting on
+that text goes looking for a grant it already holds, cannot be given, and
+would be the wrong fix if it could.** Where the truth is structural, the
+refusal says so and names what does answer - which is section 9's own "errors
+an agent can act on" applied to the one error an agent was most likely to act
+on wrongly.
+
+**WHY THE CAPABILITY MAP COULD NOT CARRY THIS, which is the reason a new
+answer was needed at all.** Its version is a **digest of content**, deliberately
+- "comparable between two daemons", so it survives a restart and can be compared
+across boxes. **The consequence is that two estates holding the same programs
+produce the SAME version.** An agent telling production from development by
+comparing digests gets a match **in exactly the case that matters**: two
+estates of one project, running the same software. The estate's identity is
+not derivable from anything the map returns, and that is why it is a field
+rather than an inference.
+
+**A SECOND MCP RESOURCE WAS REFUSED, and the reason is a property of the SDK
+rather than a preference.** B16 measured that the Go SDK stamps every resource
+read publicly cacheable and a handler cannot opt out. **For "which estate am I
+in", a cache is the worst possible property**: an agent that dialled
+development can be served a cached production answer, and the failure is
+invisible at the point of use.
+
+**WHAT query DOES WITH A SUBJECT IT CANNOT REACH: it does NOT refuse, and an
+earlier draft of this section said the opposite.** That draft recorded
+"`query` MAY NOT ANSWER A SUBJECT IT DID NOT UNDERSTAND" and called the
+fall-through a defect. **The reading was wrong twice.** An unrecognised subject
+never returned the registry - the condition simply did not match, and the
+answer came back with an empty program list. And refusing is pinned against by
+`TestQueryDoesNotRefuseASubjectItCannotReach`: *"a refusal would tell an agent
+the subject does not exist. Saying where to look next is the difference."*
+**Subjects are free-form prose at M2** - the pinned example is *"why did the
+nightly reindex fail"* - so an unmatched subject usually means query cannot
+reach the source yet, not that the agent mistyped a keyword. `unavailable` is
+the answer, and it was already correct.
+
+**WHAT IS STILL OWED, and it is the real half of that misreading.** The answer
+says what query CANNOT read and **never says what it CAN**. An agent asking for
+the estate in prose lands in the unmatched branch and is told about logs.
+**The subject vocabulary belongs in the tool's own description**, which is what
+an agent reads BEFORE calling - not in the answer, which it reads after.
+
 
 **THE MOTIVATING CALLER IS THE ONE THAT WAS BROKEN, which is why this is in §9
 rather than in a defect list.** §37 calls the unregistered agent Boris runs "the

@@ -36,6 +36,8 @@ func MarshalAnswer(a Answer) ([]byte, error) {
 		Command:     commandPtrJSON(a.Command),
 		Result:      rawOrNil(a.Result),
 		Unavailable: a.Unavailable,
+
+		EstateIdentity: estatePtrJSON(a.Identity),
 	})
 }
 
@@ -146,6 +148,46 @@ type answerJSON struct {
 	Command     *commandJSON    `json:"command,omitempty"`
 	Result      json.RawMessage `json:"result,omitempty"`
 	Unavailable []string        `json:"unavailable,omitempty"`
+
+	// EstateIdentity is which estate this is, and it is omitempty because
+	// only one subject of one tool produces it.
+	//
+	// IT IS NOT SPELLED `estate`, AND THAT IS A SCAR RATHER THAN A CHOICE.
+	// `estate` on this object already means THE PROGRAM LIST - the field
+	// named for the estate is the one thing here that is not about the estate
+	// - and renaming it moves a key an agent may already be reading. Both
+	// names move together in one change or not at all; until then the long
+	// name is the honest one, because the short one is taken and lying.
+	EstateIdentity *estateJSON `json:"estateIdentity,omitempty"`
+}
+
+// estateJSON is which rig this is. Every field is emitted, empty included:
+// the whole object is absent unless it was asked for, so its presence already
+// means rig answered, and an absent field inside it could only be read as a
+// server too old to have it.
+//
+// `name` empty is a REAL answer and the common one - it is an estate that
+// claimed no name - which is why it is not omitempty. `role` then carries
+// "unnamed", and the two together are what an agent decides on.
+type estateJSON struct {
+	Name         string `json:"name"`
+	Role         string `json:"role"`
+	Daemon       string `json:"daemonVersion"`
+	Wire         string `json:"wire"`
+	SemanticsGen int32  `json:"semanticsGen"`
+}
+
+func estatePtrJSON(e *Estate) *estateJSON {
+	if e == nil {
+		return nil
+	}
+	return &estateJSON{
+		Name:         e.Name,
+		Role:         e.Role,
+		Daemon:       e.DaemonVersion,
+		Wire:         e.Wire,
+		SemanticsGen: e.SemanticsGen,
+	}
 }
 
 // incompleteJSON is one program admitting how much of rig it has adopted.

@@ -10,6 +10,8 @@ Versions verified 2026-09-10.
 | Config | knadh/koanf/v2 | v2.3.6 |
 | CLI | spf13/cobra | v1.10.2 |
 | Store | modernc.org/sqlite | v1.58.0 |
+| Coordination store: leases, epoch, CAS | `go.etcd.io/bbolt`, linked by **rigd alone** | v1.5.0, MIT. **ADOPTED - in `go.mod` today. +352,256 bytes on rigd**, measured. Chosen by measurement in B25 over a hand-rolled file: it carries leases, CAS, the WAL and subscriptions, which precondition 4 needs and a file rewrite cannot. **Not §39's record store** - that is the `Store` row above and a different axis (B28, still open) |
+| Boot-time clock | `golang.org/x/sys/unix`, promoted indirect -> direct | v0.46.0. **ADOPTED - in `go.mod` today. +4,096 bytes on rigd** - one page, because rigd already links `x/sys/cpu`. `unix.ClockGettime(CLOCK_BOOTTIME)` is the only clock that excludes suspend, and §16's deadlines are stored absolute as boot id + boottime deadline |
 | MCP | modelcontextprotocol/go-sdk | latest at M2 |
 | Tracing, metrics | OpenTelemetry Go | v1.46.0 |
 | Logging | log/slog | stdlib |
@@ -61,6 +63,18 @@ does not say which rows are ADOPTED and which are INTENDED.** A reader cannot
 tell "rig depends on this" from "rig will depend on this", and neither can a
 tool. **Marking the adopted rows is what would let a reverse check exist at
 all**, and it is owed before anyone builds one.
+
+**The two rows added 2026-09-16 - bbolt and `x/sys` - are what that marking
+should look like, and they are the first rows to arrive carrying it.** Each
+names ADOPTED, says the manifest it is in, and carries the byte cost measured
+**on `rigd` rather than over a hello-world**, which is the number that decides
+anything: bbolt is +1,186,587 bytes over an empty binary and +352,256 on top of
+rigd, because rigd has already paid for the runtime, fmt and reflect that
+larger figure includes. **A row without the on-binary number is not evidence of
+adoption, it is a citation.** Both were measured against the `rigd` at
+`f921a04`, whose 10,998,023 bytes match the size ratchet exactly - so the
+baseline is known not to have drifted under the measurement.
+
 
 **Two binaries** (§17): `cmd/rigd` links none of the terminal stack; `cmd/rig` links
 bubbletea, huh, glamour and lipgloss and never the daemon's internals. `make bench-size`

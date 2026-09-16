@@ -56,6 +56,45 @@ type Invoker interface {
 		program, command string, args []byte) ([]byte, error)
 }
 
+// Estate is WHICH rig this is, as opposed to what is registered in it.
+//
+// IT IS NOT DERIVABLE FROM ANYTHING ELSE THIS PACKAGE ALREADY RETURNS, and
+// that is the defect it was added for. The capability map's version is a
+// digest of content alone - deliberately, so it is "comparable between two
+// daemons" - which means two estates holding the same programs produce the
+// SAME version. An agent comparing digests to work out whether it dialled
+// production or development gets a match in exactly the case that matters.
+//
+// The fields are the ones rig.estate already answers on the wire, in the
+// types this package can hold: section 9's data layer knows nothing about the
+// transport, so the wire's role enum arrives here as the word an agent reads.
+type Estate struct {
+	// Name is what this estate claimed, empty when it claimed none.
+	Name string
+
+	// Role is production, development, unnamed or unspecified - the wire
+	// enum's own word, lowercased, so a role added to the proto arrives here
+	// without a second table to update.
+	Role string
+
+	DaemonVersion string
+	Wire          string
+	SemanticsGen  int32
+}
+
+// EstateIdentity is the optional half of Invoker: the thing that can call
+// into an estate usually also knows which estate it is.
+//
+// OPTIONAL RATHER THAN PART OF Invoker, and the reason is the constructor.
+// meta.New's invoker may be nil - "a surface that can read the estate but not
+// call into it is a real configuration" - so a surface with no daemon under it
+// must still be able to answer query, and it answers by reporting the estate's
+// identity UNAVAILABLE rather than by refusing. Widening Invoker would make
+// that configuration unrepresentable instead of honest.
+type EstateIdentity interface {
+	EstateIdentity() Estate
+}
+
 // Request is one call to one meta tool.
 type Request struct {
 	Tool Tool
@@ -120,6 +159,17 @@ type Answer struct {
 
 	// Result is invoke's, exactly as the program returned it.
 	Result []byte
+
+	// Identity is query's answer for subject "estate": which rig this is.
+	//
+	// IT IS NOT CALLED Estate BECAUSE Estate IS ALREADY TAKEN BY THE PROGRAM
+	// LIST, and that is a misnomer this field did not introduce and must not
+	// pretend is fine: `Answer.Estate` carries []kernel.Program, so the field
+	// named for the estate is the one thing in this type that is not about
+	// the estate. Renaming it moves a shipped output shape, so it is a
+	// backlog item rather than a drive-by; until then the two live side by
+	// side and this comment is what keeps the next reader from swapping them.
+	Identity *Estate
 
 	// Unavailable is query's honesty, and it is not an error.
 	//
@@ -281,6 +331,14 @@ var unavailableAtM2 = []string{
 	"schedule history", "the audit log",
 }
 
+// The subjects query understands at M2. A subject in neither this set nor
+// unavailableAtM2 is one query does not understand, and it says so.
+const (
+	SubjectRegistry = "registry"
+	SubjectPrograms = "programs"
+	SubjectEstate   = "estate"
+)
+
 func (s *Server) query(who kernel.Principal, r Request) (Answer, error) {
 	m, err := s.kernel.See(who).CapabilityMap(kernel.DepthCommands)
 	if err != nil {
@@ -293,13 +351,55 @@ func (s *Server) query(who kernel.Principal, r Request) (Answer, error) {
 		Unavailable: append([]string(nil), unavailableAtM2...),
 		Partial:     partialOf(m.Programs...),
 	}
-	// The live views are all query has at M2, so a subject it cannot reach is
-	// answered with what IS covered rather than refused. A refusal would tell
-	// an agent the subject does not exist; this tells it where to look next.
-	if r.Subject == "" || r.Subject == "registry" || r.Subject == "programs" {
+
+	switch {
+	case r.Subject == "" || r.Subject == SubjectRegistry || r.Subject == SubjectPrograms:
 		out.Estate = m.Programs
+
+	case r.Subject == SubjectEstate:
+		// WHICH ESTATE THIS IS, AND IT IS THE ONE QUESTION THE AGENT SURFACE
+		// COULD NOT ANSWER AT ALL. rig.estate is specified (section 37
+		// precondition 1), built, and reachable from a terminal; the agent -
+		// which section 37 calls the motivating caller - had no route to it,
+		// because rig is held BESIDE the program map and invoke reaches the
+		// map. That is not a missing feature, it is an inversion, and the
+		// route out is query: section 9's tool for asking rig about rig.
+		id, ok := s.estate()
+		if !ok {
+			out.Unavailable = append(out.Unavailable, "the estate's own identity")
+			break
+		}
+		out.Identity = &id
+
+	default:
+		// A SUBJECT query CANNOT REACH IS NOT REFUSED, and the reasoning is
+		// pinned by a test rather than left here: "a refusal would tell an
+		// agent the subject does not exist. Saying where to look next is the
+		// difference." Subjects are free-form prose at M2 - the pinned
+		// example is "why did the nightly reindex fail" - so an unmatched one
+		// usually means query cannot reach the source yet, not that the agent
+		// mistyped a keyword. Unavailable above is the answer.
+		//
+		// WHAT IS STILL MISSING HERE IS THE OTHER HALF, and it is recorded
+		// rather than fixed: the answer says what query CANNOT read and never
+		// says what it CAN. An agent asking for the estate in prose lands in
+		// this branch and is told about logs. That belongs in the tool's own
+		// description, which is the thing an agent reads BEFORE calling.
 	}
 	return out, nil
+}
+
+// estate asks the invoker which estate this is, if it can say.
+//
+// The type assertion is where the optional half of Invoker is resolved, and
+// it is done per call rather than at construction so that a surface built
+// with a nil invoker is the same code path as one built with a daemon.
+func (s *Server) estate() (Estate, bool) {
+	e, ok := s.invoker.(EstateIdentity)
+	if !ok {
+		return Estate{}, false
+	}
+	return e.EstateIdentity(), true
 }
 
 // partialOf reports every program whose coverage is not full.
@@ -325,9 +425,49 @@ func partialOf(ps ...kernel.Program) []Incomplete {
 	return out
 }
 
+// notFound says why an address did not resolve, and the SelfID case is why
+// this function has a branch that is not about visibility.
+//
+// A REFUSAL MUST NAME THE RIGHT CAUSE. Asking for rig used to be answered
+// `no program "rig" is visible to this caller`, which reads as a permissions
+// problem: it sends an agent looking for a grant that does not exist and
+// cannot be granted. rig is not hidden from this caller, it is not a program,
+// and holding its declaration beside the registry rather than in it is the
+// mechanism that keeps rig.down - declared destructive - off every invoke
+// surface. So the refusal says that, and points at the tool that does answer.
 func notFound(program, command string) error {
+	if program == kernel.SelfID {
+		return fmt.Errorf("meta: %q is not a program and is not an invoke "+
+			"target; its own commands are held beside the registry, not in "+
+			"it. Ask %s with subject %q for which estate this is",
+			kernel.SelfID, Query, SubjectEstate)
+	}
 	if command == "" {
-		return fmt.Errorf("meta: no program %q is visible to this caller", program)
+		// THREE DIFFERENT FACTS WEAR THIS ONE REFUSAL, AND ONLY ONE OF THEM
+		// IS ANSWERED BY ASKING FOR MORE ACCESS. The address may be
+		// unregistered, in the registry but outside this caller's scope, or
+		// registered and gone since the caller last looked. The old wording
+		// - "is not visible to this caller" - picked the middle one and
+		// ASSERTED it, which is the case that sends an agent after a grant.
+		// For the first it is a typo; for the third the program died and the
+		// agent should be reacting to that, not filing an access request.
+		//
+		// SECTION 36's V20 IS THE RULE: "absent and withheld are different
+		// facts and only one of them means ask for more access". meta cannot
+		// tell them apart here - there is no tombstone at M2 and the
+		// projection does not carry one - so it names the ambiguity instead
+		// of resolving it by guess. That is the same discipline as the
+		// coverage note: a surface that cannot see says so.
+		//
+		// IT DOES NOT ENUMERATE, deliberately. V20's basis-marker annotation
+		// refuses a withheld LIST - the map says HOW it was filtered, never
+		// WHAT was removed - so this says which QUESTION is open and points
+		// at the basis, and never at a name the caller may not have.
+		return fmt.Errorf("meta: no program %q is reachable by this caller. "+
+			"rig cannot say which: unregistered, outside this caller's "+
+			"scope, or gone since you last looked. Only the middle one is "+
+			"fixed by a grant - %s reports the basis this caller's "+
+			"projection was built on", program, List)
 	}
 	return fmt.Errorf("meta: %q declares no command %q, or it is not visible "+
 		"to this caller", program, command)

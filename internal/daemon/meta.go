@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"google.golang.org/protobuf/proto"
 
@@ -17,6 +18,42 @@ import (
 // signature that matters is the one carrying the principal, and a compile
 // error is the only thing that notices it changing.
 var _ meta.Invoker = (*Daemon)(nil)
+
+// And the optional half of it, for the same reason: the daemon is the thing
+// that knows which estate this is, and query is where an agent asks.
+var _ meta.EstateIdentity = (*Daemon)(nil)
+
+// EstateIdentity answers which estate this daemon serves.
+//
+// IT IS THE SAME ANSWER rig.estate GIVES ON THE WIRE, BUILT FROM THE SAME
+// FIELDS, and that is a requirement rather than a convenience: two surfaces
+// answering "which estate am I in" differently is worse than one surface not
+// answering at all, because a wrong answer to this question is what routes an
+// agent's write into the wrong estate. If a field is added to EstateResponse,
+// it is added here in the same change.
+//
+// UNSCOPED, like rig.estate, and the reason is stated at that case in
+// daemon.go: every field is a fact about this daemon and none is data
+// belonging to another principal, so there is nothing to filter. That is why
+// this takes no principal. A later field could quietly destroy it.
+func (d *Daemon) EstateIdentity() meta.Estate {
+	return meta.Estate{
+		Name:          d.estate,
+		Role:          roleWord(estateRole(d.estate)),
+		DaemonVersion: d.version,
+		Wire:          d.wire,
+		SemanticsGen:  selfDeclaration().SemanticsGen,
+	}
+}
+
+// roleWord is the wire's role enum as the word an agent reads.
+//
+// Derived FROM the enum rather than from the estate name a second time, so a
+// role added to the proto arrives on the agent surface without a second table
+// to remember. ESTATE_ROLE_PRODUCTION becomes "production".
+func roleWord(r rigv1.EstateRole) string {
+	return strings.ToLower(strings.TrimPrefix(r.String(), "ESTATE_ROLE_"))
+}
 
 // Invoke runs one declared command as one principal, and it is the whole of
 // meta.Invoker.
