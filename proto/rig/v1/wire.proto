@@ -744,6 +744,36 @@ message Seat {
   // source of truth for the same fact.
   uint64 generation = 2;
 
+  // WHICH DAEMON RUN THE GENERATION ABOVE WAS COUNTED IN, and it is carried
+  // HERE, beside that field, rather than once on the response, because
+  // generation alone does not identify anything. The comment above says so
+  // already: the epoch is what lets a client tell generation 3 of this run
+  // from generation 3 of a previous one. It named the disambiguator and then
+  // did not carry it, and this field closes that.
+  //
+  // EVERY ROW IN ONE RESPONSE CARRIES THE SAME VALUE, BY CONSTRUCTION. A
+  // daemon answers out of one run, so a roster cannot hold two epochs and a
+  // reader must never branch on the possibility. The redundancy is deliberate
+  // and it buys the property below.
+  //
+  // WHY NOT ONCE ON THE RESPONSE, which is the smaller message. Because the
+  // reader we are protecting is the one that writes
+  //
+  //     for _, s := range resp.Crew { store(s) }
+  //
+  // and an epoch on the envelope is gone by the next line. Then the triple has
+  // to be reassembled from two reads, which is the exact defect this field
+  // exists to stop. DEMONSTRATED 2026-09-16 on a live daemon: a reader took a
+  // generation from rig.peers, the daemon restarted, the reader took the epoch
+  // from rig.estate, and the reference it built named a tenancy that never
+  // existed - then VALIDATED against a stranger who had since taken the seat.
+  // A peer contacted by somebody wrongly believing it is the successor is the
+  // failure the whole roster exists to prevent.
+  //
+  // So a Seat is addressable on its own: (seat, epoch, generation) is the
+  // identity, and all three travel together or the identity is not one.
+  uint64 epoch = 8;
+
   // What this occupant is FOR, in the human's terms. Set at announce.
   string purpose = 3;
 

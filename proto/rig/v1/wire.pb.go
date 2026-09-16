@@ -2357,6 +2357,35 @@ type Seat struct {
 	// previous one", and duplicating that guarantee here would be a second
 	// source of truth for the same fact.
 	Generation uint64 `protobuf:"varint,2,opt,name=generation,proto3" json:"generation,omitempty"`
+	// WHICH DAEMON RUN THE GENERATION ABOVE WAS COUNTED IN, and it is carried
+	// HERE, beside that field, rather than once on the response, because
+	// generation alone does not identify anything. The comment above says so
+	// already: the epoch is what lets a client tell generation 3 of this run
+	// from generation 3 of a previous one. It named the disambiguator and then
+	// did not carry it, and this field closes that.
+	//
+	// EVERY ROW IN ONE RESPONSE CARRIES THE SAME VALUE, BY CONSTRUCTION. A
+	// daemon answers out of one run, so a roster cannot hold two epochs and a
+	// reader must never branch on the possibility. The redundancy is deliberate
+	// and it buys the property below.
+	//
+	// WHY NOT ONCE ON THE RESPONSE, which is the smaller message. Because the
+	// reader we are protecting is the one that writes
+	//
+	//	for _, s := range resp.Crew { store(s) }
+	//
+	// and an epoch on the envelope is gone by the next line. Then the triple has
+	// to be reassembled from two reads, which is the exact defect this field
+	// exists to stop. DEMONSTRATED 2026-09-16 on a live daemon: a reader took a
+	// generation from rig.peers, the daemon restarted, the reader took the epoch
+	// from rig.estate, and the reference it built named a tenancy that never
+	// existed - then VALIDATED against a stranger who had since taken the seat.
+	// A peer contacted by somebody wrongly believing it is the successor is the
+	// failure the whole roster exists to prevent.
+	//
+	// So a Seat is addressable on its own: (seat, epoch, generation) is the
+	// identity, and all three travel together or the identity is not one.
+	Epoch uint64 `protobuf:"varint,8,opt,name=epoch,proto3" json:"epoch,omitempty"`
 	// What this occupant is FOR, in the human's terms. Set at announce.
 	Purpose string `protobuf:"bytes,3,opt,name=purpose,proto3" json:"purpose,omitempty"`
 	// What it is doing right now. Set at announce, replaced by rig.activity.
@@ -2412,6 +2441,13 @@ func (x *Seat) GetSeat() string {
 func (x *Seat) GetGeneration() uint64 {
 	if x != nil {
 		return x.Generation
+	}
+	return 0
+}
+
+func (x *Seat) GetEpoch() uint64 {
+	if x != nil {
+		return x.Epoch
 	}
 	return 0
 }
@@ -2889,12 +2925,13 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\vCallRequest\x12\x12\n" +
 	"\x04args\x18\x01 \x01(\fR\x04args\"&\n" +
 	"\fCallResponse\x12\x16\n" +
-	"\x06result\x18\x01 \x01(\fR\x06result\"\xf7\x01\n" +
+	"\x06result\x18\x01 \x01(\fR\x06result\"\x8d\x02\n" +
 	"\x04Seat\x12\x12\n" +
 	"\x04seat\x18\x01 \x01(\tR\x04seat\x12\x1e\n" +
 	"\n" +
 	"generation\x18\x02 \x01(\x04R\n" +
-	"generation\x12\x18\n" +
+	"generation\x12\x14\n" +
+	"\x05epoch\x18\b \x01(\x04R\x05epoch\x12\x18\n" +
 	"\apurpose\x18\x03 \x01(\tR\apurpose\x12\x1a\n" +
 	"\bactivity\x18\x04 \x01(\tR\bactivity\x12'\n" +
 	"\x05state\x18\x05 \x01(\x0e2\x11.rig.v1.SeatStateR\x05state\x12.\n" +
