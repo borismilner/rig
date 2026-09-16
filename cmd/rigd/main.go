@@ -101,6 +101,13 @@ func run() error {
 	// code having already broken a live estate - and this function's defers do
 	// not put another process's sockets back.
 	//
+	// THE EPOCH IS DECLARED OUT HERE, not inside the branch that sets it,
+	// because the daemon below needs it and an unnamed estate has none. Zero
+	// is the honest value for that case rather than a hole: an unnamed estate
+	// opens no store, so it has no epoch, and a real epoch is always at least
+	// 1 because the store bumps before it publishes.
+	var epoch uint64
+
 	// An estate started without --estate claims nothing and reaches none of
 	// this, which is how every test in this repository keeps working by
 	// construction rather than by exemption.
@@ -143,10 +150,11 @@ func run() error {
 			return err
 		}
 		defer func() { _ = st.Close() }()
+		epoch = st.Epoch()
 		log.Info("estate state opened",
 			"estate", *estate,
 			"path", st.Path(),
-			"epoch", st.Epoch(),
+			"epoch", epoch,
 			"rebooted", st.Rebooted())
 	}
 
@@ -199,6 +207,7 @@ func run() error {
 		Version: version,
 		Wire:    wire,
 		Estate:  *estate,
+		Epoch:   epoch,
 		Log:     log,
 		Lock:    lock,
 	})

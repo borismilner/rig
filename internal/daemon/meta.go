@@ -43,6 +43,7 @@ func (d *Daemon) EstateIdentity() meta.Estate {
 		DaemonVersion: d.version,
 		Wire:          d.wire,
 		SemanticsGen:  selfDeclaration().SemanticsGen,
+		Epoch:         d.epoch,
 	}
 }
 

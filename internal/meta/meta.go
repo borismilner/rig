@@ -80,6 +80,26 @@ type Estate struct {
 	DaemonVersion string
 	Wire          string
 	SemanticsGen  int32
+
+	// Epoch is the number this daemon published when it opened the estate's
+	// state, bumped unconditionally on every start (section 37, precondition
+	// 4, and V15).
+	//
+	// IT IS THE ONE FIELD HERE THAT CHANGES WITHOUT THE ESTATE CHANGING, and
+	// that is what it is for. Every other field is identical across a restart
+	// - same name, same role, same build, same wire, same generation - so an
+	// agent holding a handle from before could not tell "same rig, still up"
+	// from "same rig, restarted under me". A lease it believes it holds may
+	// already be somebody else's. The epoch is the only thing in this answer
+	// that moves, and a caller that remembers the last one it saw gets the
+	// distinction for free.
+	//
+	// ZERO MEANS NO PERSISTENT STATE, WHICH IS AN ANSWER RATHER THAN A HOLE.
+	// An estate started without a name opens no store, because it has no name
+	// to key a subtree to, so it has no epoch to report. A real epoch is
+	// always at least 1: the store bumps before it publishes, so 1 is the
+	// first value any daemon can ever carry and 0 cannot be confused with it.
+	Epoch uint64
 }
 
 // EstateIdentity is the optional half of Invoker: the thing that can call

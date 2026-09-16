@@ -175,6 +175,15 @@ type estateJSON struct {
 	Daemon       string `json:"daemonVersion"`
 	Wire         string `json:"wire"`
 	SemanticsGen int32  `json:"semanticsGen"`
+
+	// `epoch` 0 is a REAL answer, exactly as an empty `name` is: an estate
+	// that claimed no name opens no state and has no epoch. It is not
+	// omitempty for the reason stated above - an absent field inside this
+	// object could only be read as a server too old to have it - and here
+	// that would be the worse reading of the two, because "this daemon
+	// cannot tell you about restarts" and "this estate has no persistent
+	// state" are different facts.
+	Epoch uint64 `json:"epoch"`
 }
 
 func estatePtrJSON(e *Estate) *estateJSON {
@@ -187,6 +196,7 @@ func estatePtrJSON(e *Estate) *estateJSON {
 		Daemon:       e.DaemonVersion,
 		Wire:         e.Wire,
 		SemanticsGen: e.SemanticsGen,
+		Epoch:        e.Epoch,
 	}
 }
 

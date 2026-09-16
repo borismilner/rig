@@ -573,6 +573,27 @@ message EstateResponse {
   // semantics does the daemon itself implement", which is what a client built
   // from the development tree needs when it reaches the production daemon.
   int32 semantics_gen = 5;
+
+  // THE INCARNATION, AS OPPOSED TO THE IDENTITY. Every other field in this
+  // message is identical across a restart - same name, same role, same build,
+  // same wire, same generation - so an agent holding a handle from before
+  // could not tell "same rig, still up" from "same rig, restarted under me",
+  // and a lease it believes it holds may already be somebody else's. This is
+  // the only field here that moves, and a caller that remembers the last one
+  // it saw gets the distinction for free.
+  //
+  // Bumped unconditionally on every start, with nothing consulted (section
+  // 37, precondition 4, and V15): the cost of treating a planned restart as a
+  // crash is one re-acquisition, and the cost of the reverse is a fencing
+  // token that outlives what it fences.
+  //
+  // ZERO MEANS NO PERSISTENT STATE, WHICH IS AN ANSWER RATHER THAN A HOLE. An
+  // estate started without a name opens no store, because it has no name to
+  // key a subtree to, so it has no epoch to report. A real epoch is always at
+  // least 1, because the store bumps before it publishes, so 0 is
+  // unambiguously "this estate has no persistent state" and cannot be
+  // confused with a real one.
+  uint64 epoch = 6;
 }
 
 // ---- rig.session, the fifth self-method (PLAN.md section 5f, M6) ----------

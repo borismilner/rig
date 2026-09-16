@@ -62,6 +62,19 @@ type Config struct {
 	// never stored, so there is no second place for the two to disagree from.
 	Estate string
 
+	// Epoch is the number the estate's state published when it was opened,
+	// bumped unconditionally on every start (section 37, precondition 4).
+	//
+	// It is passed in rather than read here because the daemon does not open
+	// the store: rigd opens it under the name claim, before anything binds,
+	// and a daemon that reached for it a second time would be a second opener
+	// of a file that must have exactly one.
+	//
+	// Zero is correct for an unnamed estate, which opens no store and
+	// therefore has no epoch. A real epoch is always at least 1 because the
+	// store bumps before it publishes.
+	Epoch uint64
+
 	// Lock is the single-instance claim, and it is REQUIRED.
 	//
 	// Section 5f says rigd takes the flock "before it binds". Stating an
@@ -79,6 +92,7 @@ type Daemon struct {
 	version string
 	wire    string
 	estate  string
+	epoch   uint64
 	log     *slog.Logger
 	lock    *instance.Lock
 
@@ -199,6 +213,7 @@ func New(cfg Config) (*Daemon, error) {
 		version:  cfg.Version,
 		wire:     cfg.Wire,
 		estate:   cfg.Estate,
+		epoch:    cfg.Epoch,
 		log:      log,
 		lock:     cfg.Lock,
 		kernel:   k,
@@ -709,6 +724,15 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 			DaemonVersion: d.version,
 			Wire:          d.wire,
 			SemanticsGen:  selfDeclaration().SemanticsGen,
+
+			// Added here and on meta.Estate in the SAME change, which is the
+			// rule stated at EstateIdentity in meta.go: two surfaces
+			// answering "which rig is this" differently is the failure that
+			// answer exists to prevent, and the epoch is the field where the
+			// divergence would be worst - an agent on one surface knowing it
+			// was restarted under while an agent on the other does not, same
+			// daemon, same instant.
+			Epoch: d.epoch,
 		})
 
 	case "announce":

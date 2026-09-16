@@ -2034,7 +2034,27 @@ type EstateResponse struct {
 	// is a consumer on the capability map. This field answers only "what
 	// semantics does the daemon itself implement", which is what a client built
 	// from the development tree needs when it reaches the production daemon.
-	SemanticsGen  int32 `protobuf:"varint,5,opt,name=semantics_gen,json=semanticsGen,proto3" json:"semantics_gen,omitempty"`
+	SemanticsGen int32 `protobuf:"varint,5,opt,name=semantics_gen,json=semanticsGen,proto3" json:"semantics_gen,omitempty"`
+	// THE INCARNATION, AS OPPOSED TO THE IDENTITY. Every other field in this
+	// message is identical across a restart - same name, same role, same build,
+	// same wire, same generation - so an agent holding a handle from before
+	// could not tell "same rig, still up" from "same rig, restarted under me",
+	// and a lease it believes it holds may already be somebody else's. This is
+	// the only field here that moves, and a caller that remembers the last one
+	// it saw gets the distinction for free.
+	//
+	// Bumped unconditionally on every start, with nothing consulted (section
+	// 37, precondition 4, and V15): the cost of treating a planned restart as a
+	// crash is one re-acquisition, and the cost of the reverse is a fencing
+	// token that outlives what it fences.
+	//
+	// ZERO MEANS NO PERSISTENT STATE, WHICH IS AN ANSWER RATHER THAN A HOLE. An
+	// estate started without a name opens no store, because it has no name to
+	// key a subtree to, so it has no epoch to report. A real epoch is always at
+	// least 1, because the store bumps before it publishes, so 0 is
+	// unambiguously "this estate has no persistent state" and cannot be
+	// confused with a real one.
+	Epoch         uint64 `protobuf:"varint,6,opt,name=epoch,proto3" json:"epoch,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2100,6 +2120,13 @@ func (x *EstateResponse) GetWire() string {
 func (x *EstateResponse) GetSemanticsGen() int32 {
 	if x != nil {
 		return x.SemanticsGen
+	}
+	return 0
+}
+
+func (x *EstateResponse) GetEpoch() uint64 {
+	if x != nil {
+		return x.Epoch
 	}
 	return 0
 }
@@ -2846,13 +2873,14 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\fDownResponse\x12\x10\n" +
 	"\x03pid\x18\x01 \x01(\x05R\x03pid\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\"\x0f\n" +
-	"\rEstateRequest\"\xac\x01\n" +
+	"\rEstateRequest\"\xc2\x01\n" +
 	"\x0eEstateResponse\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12&\n" +
 	"\x04role\x18\x02 \x01(\x0e2\x12.rig.v1.EstateRoleR\x04role\x12%\n" +
 	"\x0edaemon_version\x18\x03 \x01(\tR\rdaemonVersion\x12\x12\n" +
 	"\x04wire\x18\x04 \x01(\tR\x04wire\x12#\n" +
-	"\rsemantics_gen\x18\x05 \x01(\x05R\fsemanticsGen\"(\n" +
+	"\rsemantics_gen\x18\x05 \x01(\x05R\fsemanticsGen\x12\x14\n" +
+	"\x05epoch\x18\x06 \x01(\x04R\x05epoch\"(\n" +
 	"\x0eSessionRequest\x12\x16\n" +
 	"\x06resume\x18\x01 \x01(\tR\x06resume\"E\n" +
 	"\x0fSessionResponse\x12\x18\n" +
