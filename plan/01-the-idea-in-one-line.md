@@ -44,5 +44,12 @@ here rather than left to a session narrative because it names a reason rig
 exists, not a task to schedule - `BACKLOG.md` is where it becomes ordered
 work once §37's ground work (the self-hosting cutover this document's own
 "Status" line is mid-way through) is far enough along to take it.
+**THE REASON IT IS WORTH DOING RATHER THAN JUST CONSOLIDATION, ALSO HIS OWN
+WORDS:** *"Porting AgentBox visual elements into the rig GUI as planned will
+be a good usability test."* §11's three pane tiers (Generated, Kit, Embedded)
+have only ever been proven against programs built to fit them - the fake
+applications of §23. AgentBox is real, daily-driven and already has its own
+opinionated UI it was never designed to give up, so fitting it into rig's
+split is the first test of that split against a program that resists it.
 
 ---
