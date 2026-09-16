@@ -114,12 +114,27 @@ func Open(estate string) (*Store, error) {
 	}
 	path := filepath.Join(dir, DBName)
 
-	// _txlock=immediate takes the write lock at BEGIN rather than at the first
-	// write, so a transaction cannot start, read, and then fail to upgrade.
-	// That upgrade failure is SQLITE_BUSY arriving in the middle of work that
-	// has already decided what to write, which is the shape compare-and-swap
-	// must never be in.
-	db, err := sql.Open("sqlite", "file:"+path+"?_txlock=immediate")
+	// THREE SETTINGS, AND EACH ONE IS A REQUIREMENT RATHER THAN A TUNING.
+	//
+	//   _txlock=immediate takes the write lock at BEGIN rather than at the
+	//   first write, so a transaction cannot start, read, and then fail to
+	//   upgrade. That upgrade failure is SQLITE_BUSY arriving in the middle of
+	//   work that has already decided what to write, which is the shape
+	//   compare-and-swap must never be in: the read that the swap is checked
+	//   against and the write must be the same transaction or two callers can
+	//   both pass their check.
+	//
+	//   journal_mode(WAL) is section 39's "a reader is never blocked behind a
+	//   writer". Every arriving session calls project.brief, and a seat waiting
+	//   on another seat's write is the coordination pain the record exists to
+	//   remove.
+	//
+	//   busy_timeout(5000) makes a concurrent writer WAIT rather than fail.
+	//   Without it, two seats putting at once produce SQLITE_BUSY, which is a
+	//   different error from the version conflict a caller is meant to handle,
+	//   and a caller cannot tell "somebody edited this" from "try again".
+	db, err := sql.Open("sqlite", "file:"+path+
+		"?_txlock=immediate&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)")
 	if err != nil {
 		return nil, fmt.Errorf("record: opening %s: %w", path, err)
 	}
@@ -209,7 +224,30 @@ CREATE TABLE heads (
 	version INTEGER NOT NULL
 ) STRICT;
 
+-- LINKS ARE INDEXED IN BOTH DIRECTIONS, and the reverse one is the point.
+-- record.refs is "what points AT this record", which section 39 calls the
+-- direction files cannot go, and it has to be a LOOKUP rather than a scan at
+-- any fan-in: rig's own citation graph has one node at in-degree 758.
+--
+-- THE REVERSE INDEX IS ALSO WHAT MAKES THE CYCLE GUARD POSSIBLE. Section 39,
+-- "a blocks cycle is DETECTED AND REPORTED, NEVER RESOLVED": it is found rather
+-- than run into, it appears in the brief as a blocked condition naming its
+-- items, every item outside it keeps its place, and rig does not pick an edge to
+-- break. Choosing which blocks edge is the wrong one is a judgement about the
+-- work, which is domain logic, which is non-goal 1.
+--
+-- SO A CYCLE IS NOT REFUSED AT LINK TIME. The schema has to let a traversal
+-- find one cheaply rather than hope none exists, which is what the reverse
+-- index is for.
+CREATE TABLE links (
+	src  TEXT NOT NULL,
+	type TEXT NOT NULL,
+	dst  TEXT NOT NULL,
+	PRIMARY KEY (src, type, dst)
+) STRICT;
+
 CREATE INDEX records_by_kind ON records (project, kind);
+CREATE INDEX links_by_dst ON links (dst, type);
 `
 	if _, err := tx.Exec(ddl); err != nil {
 		return fmt.Errorf("record: creating schema: %w", err)

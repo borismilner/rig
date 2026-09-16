@@ -1,0 +1,304 @@
+package record
+
+import (
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"time"
+)
+
+// now is the daemon's clock, replaced in tests.
+//
+// SECTION 39: "provenance timestamps are the daemon's, never the client's."
+// A client's clock is a claim, and a record stamped from one cannot be ordered
+// against a record stamped from another. Section 16's resume-grace epoch already
+// handles a suspended laptop and this inherits it rather than inventing a
+// second answer.
+var now = time.Now
+
+// Provenance is who wrote a version, when, and under which daemon.
+//
+// NONE OF IT IS OPTIONAL. Section 39 makes the quotation rule - a quotation
+// attributed to Boris that cannot be traced is a paraphrase until proved
+// otherwise - a PROVENANCE CHECK rather than an investigation, and a nullable
+// field turns the check back into one.
+//
+// THE EPOCH IS WHY A STAMP FROM BEFORE A RESTART IS DISTINGUISHABLE FROM ONE
+// AFTER IT (section 37 precondition 4, re-armed by section 39).
+type Provenance struct {
+	Session   string
+	Seat      string
+	Epoch     uint64
+	CreatedAt time.Time
+}
+
+// Record is one version of one record.
+//
+// APPEND-ONLY: a change writes a NEW version and the previous one is retained,
+// so "what did this say before" is a query rather than a git archaeology
+// expedition. Nothing here is ever updated in place except the head pointer.
+type Record struct {
+	ID      string
+	Version uint64
+	Kind    string
+	Project string
+	Body    string
+	Fields  map[string]string
+	Prov    Provenance
+}
+
+// PutRequest creates a record or supersedes one.
+type PutRequest struct {
+	// ID is the record to write. Slice 1 requires the caller to supply it;
+	// section 39 specifies UUIDv7 via google/uuid, which is already in the
+	// module graph as an indirect dependency and needs one line of go.mod to
+	// become direct. That line is outside the grant this seat was given.
+	ID string
+
+	// IfVersion is the version the caller believes is current. ZERO MEANS
+	// CREATE, and a create against an id that already exists is a conflict
+	// rather than an overwrite.
+	IfVersion uint64
+
+	Kind    string
+	Project string
+	Body    string
+	Fields  map[string]string
+
+	Session string
+	Seat    string
+	Epoch   uint64
+}
+
+// ConflictError means the version named by a put is not the current one.
+//
+// IT CARRIES THE CURRENT VERSION, which is the whole point. Section 39: "a put
+// naming a stale version fails and RETURNS THE CURRENT ONE so the caller can
+// merge rather than guess." An error that says only "conflict" forces the
+// caller into a read-then-retry loop that can livelock.
+type ConflictError struct {
+	ID      string
+	Named   uint64
+	Current uint64
+}
+
+func (e *ConflictError) Error() string {
+	if e.Named == 0 {
+		return fmt.Sprintf("record %s already exists at version %d: a put with "+
+			"IfVersion 0 creates, and this id is taken", e.ID, e.Current)
+	}
+	return fmt.Sprintf("record %s is at version %d and the put named %d: "+
+		"somebody wrote it since you read it", e.ID, e.Current, e.Named)
+}
+
+// NotFoundError means no such record, or no such version of one.
+type NotFoundError struct {
+	ID      string
+	Version uint64
+}
+
+func (e *NotFoundError) Error() string {
+	if e.Version == 0 {
+		return fmt.Sprintf("no record %s", e.ID)
+	}
+	return fmt.Sprintf("no version %d of record %s", e.Version, e.ID)
+}
+
+// Put creates a record or supersedes one, and returns the version it wrote.
+func (s *Store) Put(r PutRequest) (Record, error) {
+	if r.ID == "" {
+		return Record{}, errors.New("record: a put needs an id")
+	}
+	if r.Kind == "" || r.Project == "" {
+		return Record{}, errors.New("record: a put needs a kind and a project")
+	}
+	if r.Session == "" || r.Seat == "" {
+		return Record{}, errors.New("record: a put needs its provenance: session and seat")
+	}
+
+	fields, err := json.Marshal(r.Fields)
+	if err != nil {
+		return Record{}, fmt.Errorf("record: encoding fields: %w", err)
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return Record{}, fmt.Errorf("record: begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var head uint64
+	switch err := tx.QueryRow("SELECT version FROM heads WHERE id = ?", r.ID).Scan(&head); {
+	case errors.Is(err, sql.ErrNoRows):
+		head = 0
+	case err != nil:
+		return Record{}, fmt.Errorf("record: reading head of %s: %w", r.ID, err)
+	}
+
+	// COMPARE-AND-SWAP, AND IT IS INSIDE THE TRANSACTION THAT WRITES.
+	//
+	// The read above and the insert below are one transaction, opened with
+	// _txlock=immediate so the write lock is held from BEGIN. That is what makes
+	// this a swap rather than a hope: two callers cannot both read version 1 and
+	// both proceed, because the second one's BEGIN waits for the first one's
+	// COMMIT and then reads the version the first one wrote.
+	//
+	// A CHECK OUTSIDE THE TRANSACTION PASSES EVERY SEQUENTIAL TEST AND FAILS THE
+	// ONLY CASE IT EXISTS FOR, which is why the demonstration for this is eight
+	// concurrent putters rather than one stale one.
+	//
+	// ONE CONCURRENCY MODEL IN THE DAEMON, NOT TWO (section 39): this is the
+	// same compare-and-swap the blackboard uses, and a second model is how
+	// section 16's lease and claim policies ended up opposite.
+	if r.IfVersion != head {
+		return Record{}, &ConflictError{ID: r.ID, Named: r.IfVersion, Current: head}
+	}
+
+	next := head + 1
+	stamped := Provenance{
+		Session:   r.Session,
+		Seat:      r.Seat,
+		Epoch:     r.Epoch,
+		CreatedAt: now().UTC(),
+	}
+
+	if _, err := tx.Exec(
+		`INSERT INTO records (id, version, kind, project, body, fields,
+			session, seat, epoch, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		r.ID, int64(next), r.Kind, r.Project, r.Body, string(fields),
+		stamped.Session, stamped.Seat, int64(stamped.Epoch),
+		stamped.CreatedAt.UnixNano(),
+	); err != nil {
+		return Record{}, fmt.Errorf("record: writing %s version %d: %w", r.ID, next, err)
+	}
+
+	if _, err := tx.Exec(
+		`INSERT INTO heads (id, version) VALUES (?, ?)
+		 ON CONFLICT(id) DO UPDATE SET version = excluded.version`,
+		r.ID, int64(next),
+	); err != nil {
+		return Record{}, fmt.Errorf("record: moving head of %s: %w", r.ID, err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return Record{}, fmt.Errorf("record: committing %s version %d: %w", r.ID, next, err)
+	}
+
+	return Record{
+		ID: r.ID, Version: next, Kind: r.Kind, Project: r.Project,
+		Body: r.Body, Fields: r.Fields, Prov: stamped,
+	}, nil
+}
+
+// Get returns a record at its head.
+func (s *Store) Get(id string) (Record, error) {
+	row := s.db.QueryRow(
+		`SELECT r.id, r.version, r.kind, r.project, r.body, r.fields,
+			r.session, r.seat, r.epoch, r.created_at
+		 FROM records r JOIN heads h ON h.id = r.id AND h.version = r.version
+		 WHERE r.id = ?`, id)
+	rec, err := scanRecord(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Record{}, &NotFoundError{ID: id}
+	}
+	return rec, err
+}
+
+// GetVersion returns one named version of a record.
+//
+// THIS IS WHAT MAKES APPEND-ONLY WORTH THE STORAGE: section 39's slice 1
+// demonstration is a requirement superseded twice whose FIRST WORDING is read
+// back with the session that wrote it.
+func (s *Store) GetVersion(id string, version uint64) (Record, error) {
+	row := s.db.QueryRow(
+		`SELECT id, version, kind, project, body, fields,
+			session, seat, epoch, created_at
+		 FROM records WHERE id = ? AND version = ?`, id, int64(version))
+	rec, err := scanRecord(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Record{}, &NotFoundError{ID: id, Version: version}
+	}
+	return rec, err
+}
+
+// Query returns the head of every record of a kind in a project.
+//
+// THIS IS SECTION 39's "indexed". A requirement cannot hide in 5,218 lines
+// because it is not in 5,218 lines: it is a record with a kind.
+func (s *Store) Query(project, kind string) ([]Record, error) {
+	rows, err := s.db.Query(
+		`SELECT r.id, r.version, r.kind, r.project, r.body, r.fields,
+			r.session, r.seat, r.epoch, r.created_at
+		 FROM records r JOIN heads h ON h.id = r.id AND h.version = r.version
+		 WHERE r.project = ? AND r.kind = ?
+		 ORDER BY r.id`, project, kind)
+	if err != nil {
+		return nil, fmt.Errorf("record: querying %s/%s: %w", project, kind, err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []Record
+	for rows.Next() {
+		rec, err := scanRecord(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, rec)
+	}
+	return out, rows.Err()
+}
+
+// History returns every version of one record, oldest first, with provenance.
+func (s *Store) History(id string) ([]Record, error) {
+	rows, err := s.db.Query(
+		`SELECT id, version, kind, project, body, fields,
+			session, seat, epoch, created_at
+		 FROM records WHERE id = ? ORDER BY version`, id)
+	if err != nil {
+		return nil, fmt.Errorf("record: history of %s: %w", id, err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []Record
+	for rows.Next() {
+		rec, err := scanRecord(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, rec)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(out) == 0 {
+		return nil, &NotFoundError{ID: id}
+	}
+	return out, nil
+}
+
+// scanner is what QueryRow and Rows have in common.
+type scanner interface{ Scan(dest ...any) error }
+
+func scanRecord(sc scanner) (Record, error) {
+	var (
+		rec     Record
+		version int64
+		epoch   int64
+		nanos   int64
+		fields  string
+	)
+	if err := sc.Scan(&rec.ID, &version, &rec.Kind, &rec.Project, &rec.Body,
+		&fields, &rec.Prov.Session, &rec.Prov.Seat, &epoch, &nanos); err != nil {
+		return Record{}, err
+	}
+	rec.Version = uint64(version)
+	rec.Prov.Epoch = uint64(epoch)
+	rec.Prov.CreatedAt = time.Unix(0, nanos).UTC()
+	if err := json.Unmarshal([]byte(fields), &rec.Fields); err != nil {
+		return Record{}, fmt.Errorf("record: decoding fields of %s v%d: %w",
+			rec.ID, rec.Version, err)
+	}
+	return rec, nil
+}
