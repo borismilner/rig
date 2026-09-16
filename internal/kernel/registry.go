@@ -5,6 +5,7 @@ import (
 	"slices"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
@@ -25,6 +26,18 @@ type Registry struct {
 	mu       sync.RWMutex
 	programs map[string]entry
 
+	// departed is what rig remembers about programs that left (section 36's
+	// V20: absent and withheld are different facts, and an agent cannot act
+	// on the difference unless it is told). Keyed by program id.
+	//
+	// It is a map rather than a ring or a queue because the only read is by
+	// id: an agent that was refused asks about ONE program, the one it just
+	// failed to reach.
+	departed map[string]departure
+
+	// remember is how long a departure stays readable. See DefaultRemember.
+	remember time.Duration
+
 	// self is rig's OWN declaration, and it is deliberately not an entry in
 	// programs. It has no owner, no session and no scope, because it is not a
 	// registration: nothing connected to make it and nothing disconnecting
@@ -42,6 +55,74 @@ type entry struct {
 	// and absent means the command takes no arguments (see ValidateArgs).
 	schemas map[string]*jsonschema.Schema
 }
+
+// departure is one program's tombstone as the registry holds it.
+//
+// THE SCOPE IS THE WHOLE REASON THIS IS NOT THE PUBLIC TYPE. A tombstone is a
+// PROJECTION and it inherits the dead program's scope: a caller may only learn
+// that a program departed if it could have seen that program alive. Without
+// that, the front door becomes an enumeration oracle - register nothing, wait,
+// and read off every program that ever ran in this estate. Section 14 already
+// refuses to let "you may not see shelf" tell a caller that shelf exists, and
+// an unfiltered tombstone undoes that in one step.
+//
+// So the scope is carried here, is never rendered, and exists only to be fed
+// back through the same filter a live read uses.
+type departure struct {
+	at     time.Time
+	scope  string
+	reason DepartureReason
+}
+
+// Departure is what a caller learns about a program that left.
+//
+// IT ANSWERS "DID THIS EXIST AND IS IT GONE", NOT "WHAT COULD IT DO". There is
+// deliberately no declaration and no command list here. Carrying them would
+// make a tombstone a stale capability map, which is the failure the map's
+// content digest exists to prevent, and would hand an agent a set of commands
+// it cannot call.
+type Departure struct {
+	ID     string
+	At     time.Time
+	Reason DepartureReason
+}
+
+// DepartureReason is what rig can honestly say about why a program left.
+type DepartureReason uint8
+
+const (
+	// DepartureUnspecified is nothing said, and it is its own value for the
+	// reason section 21 gives: a zero value that means something is a zero
+	// value that gets written by accident.
+	DepartureUnspecified DepartureReason = iota
+
+	// DepartureConnectionEnded is THE ONLY REASON RIG CAN PRODUCE TODAY, and
+	// that is a statement about the wire rather than a gap in this type.
+	//
+	// A program leaves by closing its connection. There is no goodbye on the
+	// wire - the methods are rig.hello, rig.ping, rig.programs, rig.estate and
+	// rig.down, and none of them is a farewell - so a program that exits
+	// cleanly is byte-identical to one that crashed, as observed from here.
+	//
+	// THE CRASH-VERSUS-SHUTDOWN SPLIT AN AGENT ACTUALLY WANTS IS THEREFORE NOT
+	// BUILDABLE IN THIS FILE. One is a crash to report and the other is a
+	// shutdown to accept, and they call for opposite actions - but rig cannot
+	// see which happened until a program can say so before it goes. This
+	// constant is the honest answer in the meantime, and a second one must not
+	// be invented here to look more capable than the wire is.
+	DepartureConnectionEnded
+)
+
+// DefaultRemember is how long a departure stays readable.
+//
+// TEN MINUTES IS A PLACEHOLDER AND NOT A DECISION. Nobody has measured the
+// thing that settles it, which is how long an agent holds a capability map
+// between list calls: a tombstone exists to correct a map that is still in
+// somebody's hands, so the window has to outlive the maps in flight and
+// nothing else. The measurement is in the backlog; until it is run, this
+// number is a number somebody picked, and it is labelled here rather than only
+// in the plan so that the next reader of this line learns it from the line.
+const DefaultRemember = 10 * time.Minute
 
 // Kernel is what a caller outside this package holds.
 type Kernel struct {
@@ -61,8 +142,12 @@ type Kernel struct {
 // the url defaults. Every other caller starts unmatched.
 func New() *Kernel {
 	return &Kernel{
-		registry: &Registry{programs: map[string]entry{}},
-		rules:    DefaultRules(),
+		registry: &Registry{
+			programs: map[string]entry{},
+			departed: map[string]departure{},
+			remember: DefaultRemember,
+		},
+		rules: DefaultRules(),
 	}
 }
 
@@ -108,6 +193,10 @@ func (k *Kernel) Register(p Principal, d Declaration) (Principal, error) {
 	k.registry.programs[d.Identity.ID] = entry{
 		decl: d, owner: p, scope: scope, schemas: schemas,
 	}
+	// A program that took its id back is not gone, and leaving the tombstone
+	// would have rig answering "it was here and left" about something that is
+	// registered and reachable right now.
+	delete(k.registry.departed, d.Identity.ID)
 	return p, nil
 }
 
@@ -142,13 +231,69 @@ func (k *Kernel) DeclareSelf(d Declaration) error {
 }
 
 // Deregister forgets a program when its connection goes, so a restarted
-// program can take its id back.
+// program can take its id back, and LEAVES A TOMBSTONE saying it was here.
+//
+// The tombstone is the difference between "gone" and "you may not see it",
+// which are answered with the same words today and call for opposite actions:
+// a crash is reported, an access boundary is requested through.
 func (k *Kernel) Deregister(sessionID string) {
+	k.registry.mu.Lock()
+	defer k.registry.mu.Unlock()
+
+	now := time.Now()
+	for id, e := range k.registry.programs {
+		if e.owner.SessionID == sessionID {
+			delete(k.registry.programs, id)
+			k.registry.departed[id] = departure{
+				at:     now,
+				scope:  e.scope,
+				reason: DepartureConnectionEnded,
+			}
+		}
+	}
+	k.registry.sweep(now)
+}
+
+// Rollback forgets a registration that never became reachable, leaving NO
+// tombstone.
+//
+// IT IS A SEPARATE ENTRY POINT BECAUSE THE TWO CASES ARE NOT THE SAME EVENT.
+// The daemon registers a program and then finds another connection already
+// holds that name, so it undoes the registration in the same breath. Nothing
+// departed: an agent told "it was here and left" about a program that never
+// answered a call would be told something that did not happen, and a tombstone
+// that can be wrong is worse than no tombstone at all.
+func (k *Kernel) Rollback(sessionID string) {
 	k.registry.mu.Lock()
 	defer k.registry.mu.Unlock()
 	for id, e := range k.registry.programs {
 		if e.owner.SessionID == sessionID {
 			delete(k.registry.programs, id)
+		}
+	}
+}
+
+// RememberDeparturesFor sets the window, because DefaultRemember is a
+// placeholder and a placeholder that cannot be moved is a constant.
+func (k *Kernel) RememberDeparturesFor(d time.Duration) {
+	k.registry.mu.Lock()
+	defer k.registry.mu.Unlock()
+	k.registry.remember = d
+}
+
+// sweep drops departures past the window.
+//
+// ON WRITE ONLY, AND THAT IS THE COST ARGUMENT RATHER THAN AN OPTIMISATION.
+// Reads check the timestamp and report an expired departure as absent, so a
+// stale entry is never served; deleting it is left until something else
+// departs. The result is that an estate where nothing ever dies pays EXACTLY
+// NOTHING for this feature: no record, no timer, no goroutine, no wakeup.
+// Section 17's idle benchmark is the gate that would have found a reaper, and
+// a feature that does nothing in the steady state must cost nothing in it.
+func (r *Registry) sweep(now time.Time) {
+	for id, d := range r.departed {
+		if now.Sub(d.at) > r.remember {
+			delete(r.departed, id)
 		}
 	}
 }
@@ -274,16 +419,59 @@ func (r *Registry) command(programID, commandID string) (Command, bool) {
 	return Command{}, false
 }
 
+// Departed reports that a program was here and has gone, as this principal
+// may learn it.
+//
+// FALSE MEANS FOUR DIFFERENT THINGS AND THAT IS SECTION 14 HOLDING, NOT A
+// SHORTFALL. Nothing ever registered under that id; something did and the
+// window has passed; something did and this principal could not have seen it;
+// something is registered right now. A future reader will see answers
+// collapsing and try to separate them: separating the third from the first is
+// exactly the leak this type exists to avoid.
+func (v View) Departed(id string) (Departure, bool) {
+	v.r.mu.RLock()
+	defer v.r.mu.RUnlock()
+
+	d, ok := v.r.departed[id]
+	if !ok || time.Since(d.at) > v.r.remember {
+		return Departure{}, false
+	}
+	if !v.canSeeScope(id, d.scope) {
+		return Departure{}, false
+	}
+	return Departure{ID: id, At: d.at, Reason: d.reason}, true
+}
+
+// Remember is how long departures stay readable, SO THAT AN ANSWER CAN SAY SO.
+//
+// Without the window in the answer, absence is ambiguous all over again: no
+// tombstone means either nothing ever left under that id or the tombstone
+// expired, and the agent is back where it started. "rig remembers departures
+// for the last N" is what makes silence past N interpretable rather than
+// evidence, and it is more of the fix than the record itself is.
+func (v View) Remember() time.Duration {
+	v.r.mu.RLock()
+	defer v.r.mu.RUnlock()
+	return v.r.remember
+}
+
 // canSee is the whole filter, in one place.
 func (v View) canSee(e entry) bool {
+	return v.canSeeScope(e.decl.Identity.ID, e.scope)
+}
+
+// canSeeScope is that filter over an id and a scope rather than a live entry,
+// so a tombstone is filtered by the SAME rule its program was, rather than by
+// a second copy of it that can drift.
+func (v View) canSeeScope(id, scope string) bool {
 	if v.p.Introspect {
 		return true
 	}
 	// A program sees itself.
-	if v.p.Scoped && v.p.ClientID == e.decl.Identity.ID {
+	if v.p.Scoped && v.p.ClientID == id {
 		return true
 	}
-	return v.p.InScope(e.scope)
+	return v.p.InScope(scope)
 }
 
 func program(e entry) Program {
