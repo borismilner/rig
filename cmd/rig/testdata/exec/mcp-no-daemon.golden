@@ -1,0 +1,9 @@
+$ rig mcp
+exit 1
+--- stdout (0 bytes)
+--- stderr (303 bytes)
+rig: dial unix $RUNTIME/rig/rigd-mcp.sock: connect: no such file or directory
+       precondition  the rig daemon is running and serving its MCP socket
+       actual        nothing is listening on $RUNTIME/rig/rigd-mcp.sock
+       fix           start rigd, then run this again
+       fix command   rigd

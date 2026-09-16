@@ -1,0 +1,23 @@
+$ rig record put --kind note --project rig --field a=1 --field a=2
+exit 1
+--- stdout (0 bytes)
+--- stderr (642 bytes)
+invalid value "a=2" for flag -field: --field a was given twice, as "1" and "2": rig will not pick one for you
+Usage of record put:
+  -body string
+    	the record's prose
+  -field value
+    	a typed field, key=value; repeatable
+  -id string
+    	the record to write; empty mints one
+  -if-version uint
+    	the version you believe is current; 0 creates
+  -json
+    	emit JSON
+  -kind string
+    	what the record is
+  -project string
+    	the project or case it belongs to
+  -timeout duration
+    	how long to wait (default 30s)
+rig: invalid value "a=2" for flag -field: --field a was given twice, as "1" and "2": rig will not pick one for you

@@ -1,0 +1,5 @@
+$ rig progress stamp
+exit 1
+--- stdout (0 bytes)
+--- stderr (62 bytes)
+rig: "stamp" is not a progress subcommand; there is one: step

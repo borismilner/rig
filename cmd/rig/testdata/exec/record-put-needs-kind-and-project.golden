@@ -1,0 +1,5 @@
+$ rig record put --project rig
+exit 1
+--- stdout (0 bytes)
+--- stderr (141 bytes)
+rig: rig record put needs --kind and --project: a record is what it is and what it belongs to, and neither has a default that could be right

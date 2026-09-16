@@ -1,0 +1,8 @@
+$ rig record put --id 01927-abc --kind note --project rig
+exit 1
+--- stdout (0 bytes)
+--- stderr (408 bytes)
+rig: rig record put --id 01927-abc did not say --if-version, and that reads as a CREATE.
+       IfVersion 0 means create, so an omitted flag and an explicit create are the same request on the wire and rig will not guess which you meant.
+       --if-version <n>  supersede version n of 01927-abc
+       --if-version 0    create 01927-abc, which is how a project or a case is written, since its id is its slug

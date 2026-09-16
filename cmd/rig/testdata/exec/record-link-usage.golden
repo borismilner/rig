@@ -1,0 +1,6 @@
+$ rig record link a cites
+exit 1
+--- stdout (0 bytes)
+--- stderr (147 bytes)
+rig: usage: rig record link <src> <type> <dst>
+       the edge is DIRECTED: src --type--> dst, so `rig record link a cites b` reads as "a cites b"

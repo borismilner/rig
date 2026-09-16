@@ -1,0 +1,6 @@
+$ rig progress step
+exit 1
+--- stdout (0 bytes)
+--- stderr (201 bytes)
+rig: usage: rig progress step <item> --project <project> --state <started|blocked|done> [--note <text>]
+       the item is the work item's RECORD ID, which `rig record query <project> work-item` lists

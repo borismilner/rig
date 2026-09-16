@@ -228,6 +228,28 @@ func TestTheBinary(t *testing.T) {
 		{name: "down-refuses-a-positional", argv: []string{"down", "somewhere"}},
 		{name: "estate-refuses-a-positional", argv: []string{"estate", "somewhere"}},
 
+		// ⛔ SECTION 39's THREE VERBS, WHOSE ABSENCE THIS FILE'S OWN OPENING
+		// SENTENCE DENIED. "Every verb run() dispatches appears here, and so
+		// does the way each one fails" was true of TEN OF THIRTEEN: record,
+		// progress, brief and mcp had no transcript at all, in the test file
+		// whose job is to stop exactly that claim being made without a check.
+		// All four are below, and so is `peers`, which nobody had noticed was
+		// missing either - so the sentence is true again rather than weakened
+		// to match what was there. Checked by grepping run()'s switch against
+		// the argv in this table, not by reading down it.
+		{name: "record-usage", argv: []string{"record"}},
+		{name: "record-unknown-subcommand", argv: []string{"record", "stamp"}},
+		{name: "record-put-needs-kind-and-project", argv: []string{"record", "put", "--project", "rig"}},
+		// The --if-version guard, which is the one refusal in this surface that
+		// a caller meets by forgetting something rather than by typing it.
+		{name: "record-put-id-without-if-version", argv: []string{"record", "put", "--id", "01927-abc", "--kind", "note", "--project", "rig"}},
+		{name: "record-link-usage", argv: []string{"record", "link", "a", "cites"}},
+		{name: "record-refs-depth-zero", argv: []string{"record", "refs", "x", "--depth", "0"}},
+		{name: "record-duplicate-field", argv: []string{"record", "put", "--kind", "note", "--project", "rig", "--field", "a=1", "--field", "a=2"}},
+		{name: "progress-usage", argv: []string{"progress", "step"}},
+		{name: "progress-unknown-subcommand", argv: []string{"progress", "stamp"}},
+		{name: "brief-usage", argv: []string{"brief"}},
+
 		// The no-daemon refusal on every surface that dials. This is the set
 		// that proves the channel and the exit code, because the object and the
 		// prose are the same failure rendered two ways.
@@ -242,6 +264,31 @@ func TestTheBinary(t *testing.T) {
 		{name: "describe", argv: []string{"describe", "fakeapp"}},
 		{name: "declared-command", argv: []string{"fakeapp", "reindex", "--since", "7d"}},
 		{name: "declared-command-json", argv: []string{"fakeapp", "reindex", "--since", "7d", "--json"}},
+
+		// ⛔ THE RECORD SEAM'S NO-DAEMON REFUSAL, IN BOTH MODES, AND IT COULD
+		// NOT HAVE BEEN RECORDED BEFORE THE WIRE LANDED. Until then
+		// openRecordAPI returned notWired() - "rigd serves nothing to call" -
+		// so these three transcripts would have held a refusal about a missing
+		// wire rather than a missing daemon. They are what pins that the seam
+		// now reports the daemon's own cause, and that the object and the prose
+		// are the same failure rendered two ways.
+		{name: "record-get-no-daemon", argv: []string{"record", "get", "01927-abc"}},
+		{name: "record-get-no-daemon-json", argv: []string{"record", "get", "01927-abc", "--json"}},
+		{name: "brief-no-daemon", argv: []string{"brief", "rig"}},
+
+		// ⛔ A FIFTH ABSENTEE, FOUND BY COUNTING RATHER THAN BY READING. The
+		// four above were the ones a reader notices; `peers` was missing too,
+		// and only `grep`ping run()'s own switch against this table found it.
+		// That is the difference between believing a completeness claim and
+		// checking one, which is this file's whole subject.
+		{name: "peers-no-daemon", argv: []string{"peers"}},
+
+		// THE FOURTH ABSENTEE. `rig mcp` is not a command to run by hand and
+		// that is exactly why it needed a transcript: its stdout IS the MCP
+		// stream, so the ONE thing a person ever sees from it is this refusal.
+		// It is safe to record because it fails before it pumps - with nothing
+		// listening it never reaches the byte loop, and stdin here is closed.
+		{name: "mcp-no-daemon", argv: []string{"mcp"}},
 
 		// report's fallback: when the object cannot be written, prose goes to
 		// stderr rather than the caller being told nothing. The comment on that

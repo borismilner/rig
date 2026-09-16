@@ -1,0 +1,5 @@
+$ rig record
+exit 1
+--- stdout (0 bytes)
+--- stderr (64 bytes)
+rig: usage: rig record <put|get|query|history|link|unlink|refs>

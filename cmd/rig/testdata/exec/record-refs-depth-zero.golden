@@ -1,0 +1,5 @@
+$ rig record refs x --depth 0
+exit 1
+--- stdout (0 bytes)
+--- stderr (196 bytes)
+rig: --depth 0 follows no edge at all, so its answer could not be told from a record nothing points at. The smallest useful depth is 1, and leaving --depth off asks the daemon for its own default
