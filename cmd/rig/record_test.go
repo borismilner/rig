@@ -1660,3 +1660,157 @@ func TestTheSeamsReleaseClosesTheConnection(t *testing.T) {
 			"close the connection and every record verb leaks one")
 	}
 }
+
+// ⛔ A FIELD ADDED TO `Ref` ON THE WIRE AND NEVER RENDERED HERE IS THE THING
+// THAT ROTS, AND THIS IS THE TEST THAT NOTICES.
+//
+// It is `TestTheJSONObjectCoversEveryFieldOfStatus` applied one message over,
+// deliberately rather than by coincidence: that test exists because
+// `jsonStatus` is hand-written, and `refsJSON`'s per-edge object is hand-written
+// for exactly the same reason. Section 38 says not to reinvent what already
+// works, and the technique already works here.
+//
+// ⛔ IT IS ALSO A FORCING FUNCTION FOR A DEFECT THIS SEAT HAS REPORTED AND MAY
+// NOT FIX. Measured 2026-09-17 against a two-project store, client and daemon
+// both at `6c768c4`: `record refs --cross-project` returns the foreign edge and
+// NOTHING IN THE ANSWER SAYS WHICH ROWS CROSSED. No layer carries `project` on
+// a ref - not `internal/record.Ref`, not `rigv1.Ref`, not this package's - even
+// though `internal/record/refs.go` reads a record's project to make the pruning
+// decision and then drops it. The wire is not this seat's to change, so the
+// repair is the lead's and the store seat's.
+//
+// **When that field lands, this test goes RED and names it**, which is the
+// whole point: the renderer cannot be the reason a fix to the seam is invisible
+// to a reader. A comment listing the fields would have rotted on the same
+// commit it was written.
+func TestEveryFieldTheWireCarriesOnARefIsRendered(t *testing.T) {
+	var onTheWire []string
+	fields := (&rigv1.Ref{}).ProtoReflect().Descriptor().Fields()
+	for i := range fields.Len() {
+		onTheWire = append(onTheWire, string(fields.Get(i).Name()))
+	}
+
+	// Rendered through refsJSON rather than off the struct, because the struct
+	// is not what a caller reads. A field present on `Ref` and absent from the
+	// object is the same silent drop as a field absent from both.
+	one := refsJSON(Refs{In: []Ref{{}}})["in"].([]map[string]any)
+	if len(one) != 1 {
+		t.Fatalf("refsJSON rendered %d edges from one, so this test is "+
+			"measuring the wrong thing", len(one))
+	}
+	var rendered []string
+	for k := range one[0] {
+		rendered = append(rendered, k)
+	}
+
+	slices.Sort(onTheWire)
+	slices.Sort(rendered)
+	if !slices.Equal(onTheWire, rendered) {
+		t.Errorf("--json does not render the Ref the wire carries\n"+
+			" wire: %v\n json: %v\n"+
+			"a field added to Ref must be rendered here, or the answer "+
+			"silently drops it. If the new field is `project`, this is the "+
+			"cross-project gap closing and the renderer owes a column as well "+
+			"as a key", onTheWire, rendered)
+	}
+}
+
+// ⛔ OPTING IN TO CROSSING WIDENS THE WALK; IT DOES NOT MOVE IT - AND THIS IS
+// THE RENDERER'S HALF OF THAT CLAIM.
+//
+// `internal/daemon/record_wire_test.go` pins it at the wire: a cross-project
+// answer must still carry the SAME-project citation. **That says nothing about
+// whether this package prints it.** A renderer that replaced its rows instead
+// of extending them would satisfy every test on the daemon side and lose a row
+// on the way to the reader - the seam failure this project keeps finding,
+// because ownership is by file and the join between two files is nobody's.
+//
+// Runs from argv through a real socket, so the flag parser, the dial, the
+// unmarshal and the renderer are all on the path. A test that started at
+// `refsText` would skip the three of those most likely to be wrong.
+func TestACrossProjectAnswerStillRendersTheEdgeThatDidNotCross(t *testing.T) {
+	const subject = "01927-subject"
+	near := &rigv1.Ref{
+		Src: "01927-near", Type: "cites", Via: subject,
+		Kind: "decision", Title: "a decision inside alpha", Distance: 1,
+	}
+	// The foreign end. ⛔ NOTHING ON THIS MESSAGE CAN SAY IT IS FOREIGN: the
+	// only reason this fixture can tell the two apart at all is the prose of
+	// the title, which is the defect stated as a construction rather than as a
+	// complaint. A reader whose records are titled less helpfully gets two
+	// identical rows.
+	far := &rigv1.Ref{
+		Src: "01927-far", Type: "cites", Via: subject,
+		Kind: "decision", Title: "a decision inside beta", Distance: 1,
+	}
+	atAFakeDaemon(t, &rigv1.RecordRefsResponse{
+		Id: subject, Depth: 4, Refs: []*rigv1.Ref{near, far},
+	})
+
+	out, err := captureStdout(t, func() error {
+		return run([]string{"record", "refs", subject, "--cross-project"})
+	})
+	if err != nil {
+		t.Fatalf("record refs --cross-project: %v", err)
+	}
+
+	// ⛔ THE TABLE ROWS, NOT THE WHOLE OUTPUT, AND THE DIFFERENCE IS NOT
+	// PEDANTRY - IT IS THE ONLY VERSION OF THIS TEST THAT WORKS.
+	//
+	// Written first as `strings.Contains(out, "01927-near")`, it SURVIVED two
+	// mutations that deleted a row from the table outright (`r.In[:1]` and
+	// `r.In[1:]`). `refsTitleBlock` prints every id again underneath, so the
+	// id is in the output whether or not the row is, and the assertion was
+	// measuring the title block while claiming to measure the table. **It read
+	// as coverage and was none** - the wrong-unit defect, caught by the
+	// mutation rather than by review.
+	rows := tableRows(out)
+	for _, want := range []string{"01927-near", "01927-far"} {
+		found := false
+		for _, r := range rows {
+			if strings.Contains(r, want) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("no TABLE ROW carries %s.\n"+
+				"Crossing widens the walk and must not move it: the near edge "+
+				"and the foreign one are both answers.\nrows=%q\n%s",
+				want, rows, out)
+		}
+	}
+	if len(rows) != 2 {
+		t.Errorf("the table has %d rows, want 2 - a row was added or lost "+
+			"without either id going missing\nrows=%q", len(rows), rows)
+	}
+	if !strings.Contains(out, "2 edges point at") {
+		t.Errorf("the count does not say two, so the summary disagrees with "+
+			"the table above it\n%s", out)
+	}
+}
+
+// tableRows returns the body lines of the one table `refsText` writes: the
+// lines after the SRC header and before the blank line that ends it.
+//
+// It exists because an assertion over the WHOLE of that output cannot tell a
+// row in the table from the same id repeated in the title block underneath -
+// measured, by two mutations that deleted a row and were not noticed.
+func tableRows(out string) []string {
+	var rows []string
+	started := false
+	for _, line := range strings.Split(out, "\n") {
+		if strings.HasPrefix(line, "SRC") {
+			started = true
+			continue
+		}
+		if !started {
+			continue
+		}
+		if strings.TrimSpace(line) == "" {
+			break
+		}
+		rows = append(rows, line)
+	}
+	return rows
+}

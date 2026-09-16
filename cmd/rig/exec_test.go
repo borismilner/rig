@@ -249,6 +249,13 @@ func TestTheBinary(t *testing.T) {
 		{name: "record-put-id-without-if-version", argv: []string{"record", "put", "--id", "01927-abc", "--kind", "note", "--project", "rig"}},
 		{name: "record-link-usage", argv: []string{"record", "link", "a", "cites"}},
 		{name: "record-refs-depth-zero", argv: []string{"record", "refs", "x", "--depth", "0"}},
+		// --cross-project had no transcript at all, and it is the one record
+		// flag whose NAME does not say what it costs: section 39 makes project
+		// scoping a performance rule, so this asks the daemon for a wider walk.
+		// The transcript pins that it PARSES and reaches the dial - a flag
+		// refused at the parser and a flag the daemon never answers are the
+		// same silence from a terminal.
+		{name: "record-refs-cross-project", argv: []string{"record", "refs", "x", "--cross-project"}},
 		{name: "record-duplicate-field", argv: []string{"record", "put", "--kind", "note", "--project", "rig", "--field", "a=1", "--field", "a=2"}},
 		{name: "progress-usage", argv: []string{"progress", "step"}},
 		{name: "progress-unknown-subcommand", argv: []string{"progress", "stamp"}},
