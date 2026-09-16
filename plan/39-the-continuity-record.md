@@ -2336,3 +2336,73 @@ provide.** A tension found later is added here rather than raised in a session.
 **NO CODE IS STARTED.** He ruled the same day that row 1 cuts over first; this
 design is what the build begins from once it does.
 
+
+---
+
+## RIG MANAGES RIG IN TWO PHASES, AND THE GATE BETWEEN THEM IS CAPTURE FIDELITY
+
+**RULED BY BORIS, 2026-09-17, verbatim and complete:**
+
+> *"When we are ready, I want to move to `rig manages rig` gradually, first
+> there will be a peer that will populate all relevant documents into rig so
+> that it's managed by rig, it must report feedback about the agent-experience
+> to see what details may be missing and are important to be added and
+> supported by rig.*
+>
+> *Only after we are able to perfectly capture all relevant rig details to be
+> managed by rig we'll start using rig to manage rig and all the rig-using
+> agents are to also report feedback to see what things should be corrected or
+> improved or added to make rig better, and this way I'm hoping to have a self
+> feeding feedback loop that perfects rig"*
+
+### THE TWO PHASES, AND THEY ARE NOT THE SAME ACT
+
+| | Phase 1 - POPULATE | Phase 2 - USE |
+|---|---|---|
+| **who** | **one peer**, dedicated | **every rig-using agent** |
+| **what** | put **all relevant documents** into rig | run the project **through** rig |
+| **the feedback** | **the agent-experience of POPULATING**: what details are missing, and which of them matter enough to be supported | **what to correct, improve or add** to make rig better |
+| **the question it answers** | *can rig HOLD this project?* | *is rig GOOD at holding it?* |
+
+### THE GATE IS NAMED AND IT IS NOT A DATE
+
+**Phase 2 starts only *"after we are able to perfectly capture all relevant rig
+details"*.** That is a CAPTURE-FIDELITY bar, and it is the same shape as the
+MVP's robustness bar: **a condition on the transition, not a phase that follows
+it.**
+
+**So the honest question at the end of phase 1 is not "is the import finished"
+but "is there anything about this project rig cannot hold".** A document that
+went in with its meaning flattened is a phase-1 FINDING, not a completed row.
+
+### WHY THE POPULATING PEER'S FEEDBACK IS THE POINT AND NOT A COURTESY
+
+**Phase 1's output is TWO things and the second is the valuable one:** a
+populated store, and **a list of what rig could not express.** A peer that
+imports everything cleanly and reports nothing has either found a perfect tool
+or stopped looking, and the second is far likelier.
+
+**This extends section 37's "Every seat is ARMED" rather than replacing it** -
+same rule, a named population and a named moment. **Evidence, never a wish:
+*"this document has a kind rig has no word for"* is the report; *"it would be
+nice if"* is not.**
+
+### THE LOOP HE IS AFTER, STATED SO IT CANNOT BE SOFTENED
+
+> *"a self feeding feedback loop that perfects rig"*
+
+**rig holds rig's own work; the agents doing that work report what rig lacks;
+those reports are themselves rig work items; and fixing them improves the tool
+the next report is written with.** THE LOOP ONLY CLOSES IF THE REPORTS BECOME
+RECORDS IN rig. A feedback channel that ends in a message to a lead is the
+loop's first link missing - and it is the link this project has been running on
+all day.
+
+### WHAT THIS RULES OUT, so it is not done by accident
+
+- **NOT populate-and-use-at-once.** He said *gradually* and named an order.
+  Seeding the backlog is phase 1's beginning, not phase 2's.
+- **NOT one seat doing both.** Phase 1 is *"a peer"*, singular and dedicated;
+  phase 2 is *"all the rig-using agents"*.
+- **NOT a silent import.** A phase-1 peer that reports no friction has not
+  completed phase 1.
