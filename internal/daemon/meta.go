@@ -252,7 +252,28 @@ func (m *mcpCaller) Announce(seat, purpose, activity string) (meta.Crew, error) 
 // not. A seat reading only this error then knows WHICH daemon refused it, and
 // the line is self-describing in a log without a second read.
 func (m *mcpCaller) SetActivity(activity string) (meta.Crew, error) {
-	o, ok := m.presence.setActivity(m.occ, activity, rigv1.SeatState_SEAT_STATE_ACTIVE)
+	// UNSPECIFIED, NOT ACTIVE, AND THAT IS THE OMISSION MADE STRUCTURAL.
+	//
+	// state is deliberately not an argument of this tool: it has no adopter at
+	// this door, and a field a porting caller never sets is a field nobody
+	// tests. Passing ACTIVE would be the door WRITING the field it claims not
+	// to carry - an assertion rather than an abstention - and presence reads
+	// UNSPECIFIED as "leave it alone" precisely so a caller does not have to
+	// restate a transition it did not make.
+	//
+	// It is harmless today, because an MCP occupant's state can only ever be
+	// ACTIVE: a seat is one connection and an MCP connection is not a wire
+	// connection, so there is no HANDING_OFF here to overwrite. It stops being
+	// harmless the moment state IS added - a caller would set HANDING_OFF and
+	// the next set_activity would quietly reset it, which is the failure
+	// presence's own comment describes: a state that resets itself every time
+	// a peer says what it is doing is a state nobody can hold, and HANDING_OFF
+	// must survive several activity lines while a successor is briefed.
+	//
+	// Raised by the presence owner reviewing this file. Kept as one token
+	// rather than a comment on the risk.
+	o, ok := m.presence.setActivity(m.occ, activity,
+		rigv1.SeatState_SEAT_STATE_UNSPECIFIED)
 	if !ok {
 		return meta.Crew{}, &kernel.RefusalError{
 			Err: fmt.Errorf("set_activity: this connection has no row on %s, "+

@@ -306,10 +306,19 @@ func TestARosterRowCarriesEverythingASupervisorReads(t *testing.T) {
 // stay reachable.
 func upRosterAgent(ctx context.Context, t *testing.T, d *Daemon) *sdk.ClientSession {
 	t.Helper()
+	session, _ := upRosterAgentOcc(ctx, t, d)
+	return session
+}
+
+// upRosterAgentOcc is upRosterAgent, plus the occupancy token underneath it,
+// for a test that has to reach the row the way another surface would.
+func upRosterAgentOcc(ctx context.Context, t *testing.T, d *Daemon) (*sdk.ClientSession, *occupancy) {
+	t.Helper()
 	who := principalOfKind(kernel.KindAgent, "an-agent")
+	occ := &occupancy{}
 	server := mcpserver.New(
-		meta.New(d.kernel, &mcpCaller{Daemon: d, occ: &occupancy{}}), who, "test")
-	return connectTo(ctx, t, server)
+		meta.New(d.kernel, &mcpCaller{Daemon: d, occ: occ}), who, "test")
+	return connectTo(ctx, t, server), occ
 }
 
 // connectTo puts a client on an in-memory transport to this server.
@@ -373,4 +382,71 @@ func hasString(v any, want string) bool {
 		}
 	}
 	return false
+}
+
+// TestSetActivityThroughTheDoorDoesNotOVERWRITETheState locks an ABSTENTION,
+// which is a thing tests rarely do and this one has to.
+//
+// state is deliberately not an argument of set_activity at this door: it has
+// no adopter in this cutover, and a field a porting caller never sets is a
+// field nobody tests. But "not an argument" is only half of it. The door still
+// has to pass SOMETHING to presence, and passing ACTIVE would be the door
+// WRITING the field it claims not to carry - an assertion dressed as an
+// abstention. UNSPECIFIED is what presence reads as "leave it alone".
+//
+// WHY IT MATTERS WHEN IT CANNOT BITE TODAY. An MCP occupant's state can only
+// ever be ACTIVE right now, because a seat is one connection and an MCP
+// connection is not a wire connection, so there is no HANDING_OFF at this door
+// to overwrite. This test reaches past that by moving the row's state the way
+// another surface would, which is the only way to express the failure before
+// the argument exists. The day state IS added, a caller setting HANDING_OFF
+// would have it silently reset by its own next activity line - and presence's
+// own comment names that: a state that resets itself every time a peer says
+// what it is doing is a state nobody can hold, and HANDING_OFF must survive
+// several activity lines while a successor is briefed.
+//
+// MUTATION: pass SEAT_STATE_ACTIVE instead of UNSPECIFIED. Red, and the
+// message says the state was overwritten rather than that a number differs.
+//
+// Raised by the presence owner reviewing the door. Kept as a test rather than
+// as a comment on the risk, because a comment cannot go red.
+func TestSetActivityThroughTheDoorDoesNotOverwriteTheState(t *testing.T) {
+	_, d := upDaemon(t, nil)
+	ctx := ctx5(t)
+	session, occ := upRosterAgentOcc(ctx, t, d)
+
+	callTool(ctx, t, session, "announce", map[string]any{
+		"seat": "backend-1", "purpose": "the MCP door",
+	})
+
+	// The row goes into handing-off the way another surface would move it: a
+	// state-only transition, empty line, which presence treats as leaving both
+	// the line and its age alone.
+	if _, ok := d.presence.setActivity(occ, "",
+		rigv1.SeatState_SEAT_STATE_HANDING_OFF); !ok {
+		t.Fatal("the row could not be moved into handing-off, so this test " +
+			"cannot measure whether the door preserves it")
+	}
+
+	got := callTool(ctx, t, session, "set_activity",
+		map[string]any{"activity": "briefing my successor"})
+	crew, _ := got["crew"].(map[string]any)
+	you, ok := crew["you"].(map[string]any)
+	if !ok {
+		t.Fatalf("set_activity did not answer with the caller's row: %v", got)
+	}
+
+	if you["state"] != "handing_off" {
+		t.Errorf("a set_activity through the door reset the row's state to "+
+			"%v. The door does not carry state as an argument, so it must "+
+			"ABSTAIN rather than assert - pass UNSPECIFIED, which presence "+
+			"reads as leave it alone. HANDING_OFF has to survive several "+
+			"activity lines while a successor is briefed, and this is the "+
+			"line that would quietly end it", you["state"])
+	}
+	// And the line it WAS asked to move did move, so the test is not passing
+	// because the call did nothing at all.
+	if you["activity"] != "briefing my successor" {
+		t.Errorf("the activity line did not move: %v", you["activity"])
+	}
 }
