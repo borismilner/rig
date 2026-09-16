@@ -824,15 +824,22 @@ func briefCell(value, absent string) string {
 //
 // ⛔ EVERY FIELD ON THAT MESSAGE THIS FUNCTION DOES NOT READ IS A SECTION THE
 // DAEMON COMPUTED AND THIS CLIENT DROPPED, WHICH IS NOT THE SAME AS A SECTION
-// THAT IS NOT BUILT. The ones still unread are `drift`, `health`,
-// `case_notes`, `coarse_citations` and `must_read`.
+// THAT IS NOT BUILT.
 //
-// ⛔ AND NAMING THEM IN A COMMENT IS NOT THE MECHANISM. briefRenderedSections
-// below is: any section the daemon reports COMPUTED that this build cannot
-// render is listed to the reader as a CLIENT-SIDE gap, in its own sentence,
-// beside the sections the daemon could not compute. A comment rots the first
-// time somebody adds a field; that list cannot, because it is checked against
-// what the daemon actually said on every call.
+// ⛔ THIS COMMENT USED TO LIST THEM AND IT HAD ALREADY ROTTED, IN THE SENTENCE
+// BELOW THAT PREDICTS EXACTLY THAT. It named five - `drift`, `health`,
+// `case_notes`, `coarse_citations`, `must_read` - while the wire carried SIX.
+// `must_read_cleared` was the one nobody noticed, and nobody could, because
+// prose is checked against nothing. THE LIST LIVES IN
+// `briefWireFieldsNotRendered` in the test file now, where every entry needs a
+// written reason, an unlisted new field is RED, and a reason that outlived its
+// field is red too.
+//
+// ⛔ AND NAMING THEM ANYWHERE IS NOT THE WHOLE MECHANISM. briefRenderedSections
+// below is the runtime half: any section the daemon reports COMPUTED that this
+// build cannot render is listed to the reader as a CLIENT-SIDE gap, in its own
+// sentence, beside the sections the daemon could not compute - checked against
+// what the daemon actually said on every call rather than against a list.
 func briefFromWire(r *rigv1.ProjectBriefResponse) Brief {
 	b := Brief{
 		Project: r.GetProject(),

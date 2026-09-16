@@ -704,3 +704,83 @@ func TestANotesAuthorIsRenderedForAHumanRatherThanAsAStoredSeat(t *testing.T) {
 			"namespaced value is what --json carries:\n%s", got)
 	}
 }
+
+// briefWireFieldsNotRendered names every field on `ProjectBriefResponse` that
+// `briefJSON` deliberately does not emit, WITH THE REASON.
+//
+// ⛔ IT IS A TABLE RATHER THAN A COMMENT BECAUSE THE COMMENT ALREADY ROTTED.
+// `briefFromWire`'s own doc predicted it - "a comment rots the first time
+// somebody adds a field" - and then named five unread fields when the wire
+// carried six. `must_read_cleared` was the sixth, and nothing noticed, because
+// nothing could: prose is not checked against anything.
+var briefWireFieldsNotRendered = map[string]string{
+	"coarse_citations": "a count the daemon computes for its own ranking; " +
+		"section 39 does not put it in front of a reader, and a number with " +
+		"no unit beside it is the kind of field a reader invents a meaning for",
+	"must_read": "section 6's set is not built. When it lands it is BARE IDS " +
+		"with no title resolver - the lead withdrew the lookup half of that " +
+		"ruling 2026-09-17, and the precedent on this wire (Blockage carrying " +
+		"item AND title) is that a reference CARRIES what it needs",
+	"must_read_cleared": "the flag half of the same unbuilt set. ⛔ THIS IS " +
+		"THE FIELD THE PROSE VERSION OF THIS LIST MISSED",
+	"drift":      "section 39 row 8, NOT_COMPUTED by today's daemon",
+	"health":     "section 39 row 9, NOT_COMPUTED by today's daemon",
+	"case_notes": "section 39 row 11, NOT_COMPUTED by today's daemon",
+}
+
+// ⛔ EVERY FIELD THE BRIEF WIRE CARRIES IS EITHER RENDERED OR HAS A WRITTEN
+// REASON NOT TO BE, AND A NEW ONE IS RED UNTIL SOMEBODY DECIDES WHICH.
+//
+// This is `TestEveryFieldTheWireCarriesOnARefIsRendered` at the message that
+// matters most, and it exists because of a seam this team keeps losing things
+// in: `internal/record` derives, `internal/daemon` maps, and this package
+// renders, with three different owners and nobody owning the join. A field
+// added at one end and never picked up at the other is invisible from both -
+// `Notes`/`Features`/`Stages` were exactly that, and so was the brief header.
+//
+// ⛔ THE SECOND HALF IS THE ONE THAT MAKES IT SAFE: A REASON FOR A FIELD THAT
+// NO LONGER EXISTS IS ALSO RED. Otherwise this table becomes its own comment -
+// a list of excuses that outlive what they excused, which is precisely the
+// property that makes `//rig:allow` safe and a `.golangci.yml` line not.
+func TestEveryFieldOnTheBriefWireIsRenderedOrSaysWhyNot(t *testing.T) {
+	emitted := map[string]bool{}
+	for k := range briefJSON(Brief{}, now) {
+		emitted[k] = true
+	}
+
+	onTheWire := map[string]bool{}
+	fields := (&rigv1.ProjectBriefResponse{}).ProtoReflect().Descriptor().Fields()
+	for i := range fields.Len() {
+		name := string(fields.Get(i).Name())
+		onTheWire[name] = true
+
+		if emitted[name] {
+			if why, excused := briefWireFieldsNotRendered[name]; excused {
+				t.Errorf("%q is BOTH rendered and excused (%q). One of the two "+
+					"is stale, and an excuse beside a rendering is how a "+
+					"reader learns to distrust the table", name, why)
+			}
+			continue
+		}
+		if _, excused := briefWireFieldsNotRendered[name]; !excused {
+			t.Errorf("the wire carries %q and `briefJSON` does not emit it, "+
+				"and no reason is recorded.\n"+
+				"A field added at the store or the daemon and never picked up "+
+				"here is invisible from BOTH ends - it is the defect this "+
+				"seam has produced three times.\n"+
+				"Render it, or add it to briefWireFieldsNotRendered WITH a "+
+				"reason.", name)
+		}
+	}
+
+	// ⛔ AN EXCUSE THAT OUTLIVED ITS FIELD. Without this the table rots the
+	// same way the comment it replaced did, just more slowly and with more
+	// authority.
+	for name := range briefWireFieldsNotRendered {
+		if !onTheWire[name] {
+			t.Errorf("briefWireFieldsNotRendered excuses %q, which is not a "+
+				"field on ProjectBriefResponse any more. Delete the row: an "+
+				"exemption must not outlive what it excused", name)
+		}
+	}
+}
