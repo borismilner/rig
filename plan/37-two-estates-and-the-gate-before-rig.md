@@ -789,6 +789,61 @@ development experience.**
 courtesy it extends when it has spare time. The bar does not drop: an armed seat
 reports more, not worse.
 
+#### ⛔ AND IT IS NOT ONLY THE SEATS BUILDING rig. EVERY AGENT **USING** rig IS ARMED TOO. RULED BY BORIS 2026-09-16.
+
+> *"Make sure that all future agents that are using `rig` provide feedback on
+> missing or unoptimal agent-experience so that their claims can be considered
+> and consolidated into `rig` development plan."*
+
+**THE SECTION ABOVE ARMS THE SEATS THAT BUILD rig. THIS ARMS EVERY AGENT THAT
+USES IT, WHICH IS A STRICTLY LARGER SET** - and the difference is the whole
+point. A seat building rig reports coordination pain it hit while building; an
+agent merely *using* rig hits the surface as a stranger, with no knowledge of
+why anything is shaped the way it is. **That second reading is the one this
+project cannot get from its own team**, because its own team knows too much.
+
+| Who | Reports | Already covered by |
+|---|---|---|
+| a seat BUILDING rig | coordination pain, lost sync, work done by hand | the section above |
+| ⛔ **any agent USING rig** | **missing or unoptimal AGENT EXPERIENCE** - a verb that is hard to reach, a refusal that does not say what to do, a concept it had to learn twice, a thing it expected and did not find | **this ruling, and nothing before it** |
+
+**WHAT COUNTS AS AGENT EXPERIENCE, so the obligation is not read as bug
+reporting.** A bug is rig doing the wrong thing. **AX is rig doing the right
+thing in a way that costs an agent context, turns or confidence** - and §9's
+context budget is the reason that is a first-class concern here rather than a
+polish item. An agent that spends four calls learning what one call should have
+told it has paid a real price, and **nothing in rig measures that today.**
+
+**THE BAR IS THE ARMED BAR, UNCHANGED: EVIDENCE, NEVER A WISH.** *"I called
+`describe` on `rig` and was refused, so I could not find the record verbs at
+all"* is a report. *"The tools could be nicer"* is not. **And the standing rule
+holds: grep the plan first** - proposing a capability that is already specified
+is the named failure mode, and it is more likely here, because an agent using
+rig has not read the plan.
+
+⛔ **THE CONSOLIDATION IS AN OBLIGATION ON THE LEAD AND IT IS THE HALF THAT
+ROTS.** *"so that their claims can be considered and consolidated into rig
+development plan"* - a report that reaches a transcript and not `BACKLOG.md` or
+a `plan/` section has not been consolidated, it has been heard. **The lead
+weighs it against the plan and the backlog and records the verdict either way**,
+including a refusal, because an AX report silently declined teaches the next
+agent that reporting is theatre.
+
+**AND THE MECHANISM IS rig ITSELF, WHICH IS WHY THIS SITS IN §37 RATHER THAN IN
+A PROCESS DOCUMENT.** Once §39's record is reachable, an AX report is a
+`record.put` into rig's own project - a work-item or a note, with provenance
+naming the agent and the session that hit it. **That is the MVP's own definition
+turned on the tool: rig used to work on rig.** Until then the path is the same
+one the seats use - to the lead, never straight to the backlog, and the lead
+does not review its own.
+
+**A FUTURE AGENT CANNOT BE ARMED BY A DOCUMENT IT DOES NOT READ.** The
+obligation therefore has to reach the surface an arriving agent actually meets,
+which is §9's preamble on the MCP door and the CLI's own help - **not this
+section.** This section is where the requirement lives; carrying it to the door
+is a build item, and a requirement that never reaches a caller is a requirement
+nobody discharges.
+
 **THE THREE TRIGGERS HE NAMED**, broken out because they are the ones a seat is
 most likely to absorb silently as "how it is":
 
