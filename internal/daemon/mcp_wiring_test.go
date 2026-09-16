@@ -2,11 +2,13 @@ package daemon
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -209,6 +211,117 @@ func upMCP(t *testing.T, d *Daemon) string {
 	return sock
 }
 
+// TestTheDoorTearsDownWhenTheConnectionDIESRATHERTHANSAYSGOODBYE is the
+// self-check on dialMCPConn, and it is here because a helper nobody has
+// watched discriminate is not an instrument.
+//
+// WHAT IT ASSERTS: serveMCPConn's teardown runs when the connection is closed
+// underneath it with NO protocol shutdown - an fd closed and nothing else,
+// which is exactly what the kernel does to a SIGKILLed bridge. That is the
+// defer stack an occupant's release will hang off, so a door built on it needs
+// this to be true before it is built, not after.
+//
+// AND THE FINDING THAT CAME OUT OF WRITING IT, which is worth more than the
+// assertion and is the reason this comment is long:
+//
+//	AN ABRUPT DROP AND A GRACEFUL CLOSE ARE THE SAME EVENT AT THIS DAEMON.
+//
+// Measured, not reasoned: both produce `mcp session ended` carrying the same
+// error - "use of closed network connection" - and then `mcp session closed`.
+// There is no attribute, no error and no ordering that differs. The reason is
+// structural rather than incidental: closing an MCP session closes its
+// transport, the transport IS the connection, and serveMCPConn reads the end
+// of that connection the same way whoever ended it.
+//
+// SO DO NOT WRITE THIS AS TWO ARMS. The shape it is tempting to write - one
+// arm for a tidy release and one for a hard death, on the theory that a door
+// could pass the first and leak on the second - has a second arm that CANNOT
+// GO RED, because there is nothing for the door to branch on. The failure that
+// shape is imagining (release wired to the tidy path only, e.g. after
+// server.Run under an `err == nil` guard) leaks on BOTH paths here, since the
+// error is non-nil either way. One arm catches it. Two arms would look like
+// twice the evidence and be exactly the same evidence.
+//
+// WHAT dialMCPConn STILL BUYS, given that: the drop does not depend on the
+// client library behaving well. A test that can only reach teardown by asking
+// the SDK to shut down politely is a test whose instrument is the thing it
+// should not be trusting, and condition A is about what happens when nothing
+// behaves well.
+func TestTheDoorTearsDownWhenTheConnectionDIESRATHERTHANSAYSGOODBYE(t *testing.T) {
+	rec := &recorder{}
+	_, d := upDaemonLogged(t, nil, slog.New(rec))
+	sock := upMCP(t, d)
+	ctx := ctx5(t)
+
+	at := rec.mark()
+	session, nc := dialMCPConn(ctx, t, sock, nil)
+
+	// A REAL REQUEST FIRST, so the session is genuinely established rather
+	// than a dial that has not yet been spoken over. A teardown observed on a
+	// connection that never carried a request proves nothing about one that
+	// did.
+	if _, err := session.ListTools(ctx, nil); err != nil {
+		t.Fatalf("list tools before dropping the connection: %v", err)
+	}
+
+	opened := waitLogged(t, rec, at, "mcp session opened")
+	client := attr(opened, "client")
+	if client == "" {
+		t.Fatal("the accept carries no client id, so a teardown cannot be " +
+			"matched to it and this test cannot tell one session from another")
+	}
+
+	// THE DROP. The connection, and NOT the session - session.Close is never
+	// called, so nothing in the client library gets the chance to be polite.
+	if err := nc.Close(); err != nil {
+		t.Fatalf("drop the connection: %v", err)
+	}
+
+	closed := waitLogged(t, rec, at, "mcp session closed")
+	if got := attr(closed, "client"); got != client {
+		t.Fatalf("the teardown names client %q and the accept named %q, so "+
+			"the daemon released a different session than the one that died",
+			got, client)
+	}
+}
+
+// waitLogged waits, bounded, for one record with this message after mark.
+//
+// BOUNDED AND NOT A SINGLE READ, because the teardown runs on the serving
+// goroutine's own defer and a single read after the close is a race that
+// passes on a fast machine and flakes on a loaded one. The bound is what
+// turns "not yet" into a failure with something to read.
+func waitLogged(t *testing.T, rec *recorder, mark int, msg string) slog.Record {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		recs, _ := rec.since(mark, slog.LevelDebug)
+		for _, r := range recs {
+			if r.Message == msg {
+				return r
+			}
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the daemon never logged %q. What it did log: %v",
+				msg, messages(recs))
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+// attr reads one attribute off a record, or "" if it carries none.
+func attr(r slog.Record, key string) string {
+	var out string
+	r.Attrs(func(a slog.Attr) bool {
+		if a.Key == key {
+			out = a.Value.String()
+			return false
+		}
+		return true
+	})
+	return out
+}
+
 // dialMCP connects an agent the way a real one does: a unix dial and an MCP
 // client over it, with no reference to the server object on the other side.
 func dialMCP(ctx context.Context, t *testing.T, sock string) *sdk.ClientSession {
@@ -220,6 +333,36 @@ func dialMCPWith(ctx context.Context, t *testing.T, sock string,
 	opts *sdk.ClientOptions,
 ) *sdk.ClientSession {
 	t.Helper()
+	session, _ := dialMCPConn(ctx, t, sock, opts)
+	return session
+}
+
+// dialMCPConn is dialMCPWith, and it hands back the connection underneath the
+// session as well.
+//
+// IT EXISTS BECAUSE CLOSING A SESSION IS NOT THE SAME EVENT AS LOSING A
+// CONNECTION, and the door has to survive the second one. Until this helper
+// existed a test could only reach the first: dialMCPWith dialled the conn,
+// handed it to the transport and dropped the reference, so the most abrupt
+// thing any test could do was ask the client library politely to shut down.
+//
+// That gap is not cosmetic. An occupant's life is its connection's life, so
+// the release the roster depends on has to run when a bridge is KILLED - the
+// kernel closing an fd with no protocol shutdown - and not merely when a
+// well-behaved client says goodbye. A door that releases on the tidy path and
+// leaks on the abrupt one would have passed every test this file could write.
+// Closing the returned conn is that abrupt path: it is exactly what the kernel
+// does for a process that has just been SIGKILLed.
+//
+// WHAT IT STILL CANNOT REACH, said here so nobody reads it as more than it is:
+// a bridge that HANGS rather than dies holds its fd open, and no close of any
+// kind models that. Nothing in the tree detects it either - there is no TTL
+// and no reaper, deliberately - so it is a property of the presence model
+// rather than a hole in this helper.
+func dialMCPConn(ctx context.Context, t *testing.T, sock string,
+	opts *sdk.ClientOptions,
+) (*sdk.ClientSession, net.Conn) {
+	t.Helper()
 	nc, err := net.Dial("unix", sock)
 	if err != nil {
 		t.Fatalf("dial the MCP socket: %v", err)
@@ -230,8 +373,13 @@ func dialMCPWith(ctx context.Context, t *testing.T, sock string,
 		_ = nc.Close()
 		t.Fatalf("connect over the MCP socket: %v", err)
 	}
+	// Both, and in this order, so a test that drops the conn itself is not
+	// then torn down twice and a test that does neither leaks no fd. Cleanup
+	// is LIFO, so the conn goes first - which is the abrupt order, and the
+	// one a test asserting on the tidy path must therefore not rely on.
 	t.Cleanup(func() { _ = session.Close() })
-	return session
+	t.Cleanup(func() { _ = nc.Close() })
+	return session, nc
 }
 
 // waitToldToRelist waits for the server to tell this session its tool list
