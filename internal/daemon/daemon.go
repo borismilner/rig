@@ -597,7 +597,15 @@ func (d *Daemon) serveHello(ctx context.Context, c *conn, f *rigv1.Frame) {
 	d.mu.Lock()
 	if existing, taken := d.programs[req.GetProgram()]; taken && existing != c {
 		d.mu.Unlock()
-		d.kernel.Deregister(who.SessionID)
+		// ROLLBACK, NOT DEREGISTER, AND THE DIFFERENCE IS A TOMBSTONE.
+		// Nothing departed here: the registration was undone in the same
+		// breath it was made, because another connection already holds the
+		// name. Deregister would leave a departure record saying this program
+		// was here and left - for a program that never answered a call - and
+		// the next caller asking about that name would be told a program died
+		// when a duplicate was refused. The connection-closed path above is
+		// the real departure and keeps Deregister.
+		d.kernel.Rollback(who.SessionID)
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_DENIED,
 			fmt.Sprintf("program %q is already connected", req.GetProgram()))
 		return

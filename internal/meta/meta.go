@@ -15,6 +15,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/boris-milner/rig/internal/kernel"
 )
@@ -286,7 +287,7 @@ func (s *Server) describe(who kernel.Principal, r Request) (Answer, error) {
 	v := s.kernel.See(who)
 	p, ok := v.Program(r.Program)
 	if !ok {
-		return Answer{}, notFound(r.Program, "")
+		return Answer{}, notFound(v, r.Program, "")
 	}
 	// describe "returns one thing in full" (section 9), so it reports the
 	// depth it actually carries rather than leaving an agent to infer it from
@@ -299,7 +300,7 @@ func (s *Server) describe(who kernel.Principal, r Request) (Answer, error) {
 	}
 	c, ok := v.Command(r.Program, r.Command)
 	if !ok {
-		return Answer{}, notFound(r.Program, r.Command)
+		return Answer{}, notFound(v, r.Program, r.Command)
 	}
 	// The program travels with the command, because coverage is a property of
 	// the program and an agent describing one command still has to be told
@@ -316,7 +317,7 @@ func (s *Server) invoke(ctx context.Context, who kernel.Principal, r Request) (A
 	v := s.kernel.See(who)
 	p, ok := v.Program(r.Program)
 	if !ok {
-		return Answer{}, notFound(r.Program, "")
+		return Answer{}, notFound(v, r.Program, "")
 	}
 	if s.invoker == nil {
 		return Answer{}, errors.New("meta: this surface can read the estate " +
@@ -455,7 +456,7 @@ func partialOf(ps ...kernel.Program) []Incomplete {
 // and holding its declaration beside the registry rather than in it is the
 // mechanism that keeps rig.down - declared destructive - off every invoke
 // surface. So the refusal says that, and points at the tool that does answer.
-func notFound(program, command string) error {
+func notFound(v kernel.View, program, command string) error {
 	if program == kernel.SelfID {
 		return fmt.Errorf("meta: %q is not a program and is not an invoke "+
 			"target; its own commands are held beside the registry, not in "+
@@ -483,12 +484,63 @@ func notFound(program, command string) error {
 		// refuses a withheld LIST - the map says HOW it was filtered, never
 		// WHAT was removed - so this says which QUESTION is open and points
 		// at the basis, and never at a name the caller may not have.
+		//
+		// THE WINDOW SENTENCE IS BUILT ONCE AND USED IN BOTH BRANCHES, AND
+		// THAT IS A SECURITY PROPERTY RATHER THAN TIDINESS. If rig said "it
+		// remembers departures for the last N" only when it HAS a tombstone,
+		// then the presence of that sentence would itself BE the tombstone,
+		// and every caller would learn which programs departed regardless of
+		// scope. The side channel would be in the prose rather than in the
+		// data, where a test on the returned struct could never see it. Same
+		// sentence, both branches, always.
+		//
+		// It also earns its place on its own: without it, absence is
+		// ambiguous all over again - no tombstone means never-registered OR
+		// expired, and the caller cannot tell. With it, silence past N is
+		// interpretable rather than evidence.
+		window := fmt.Sprintf(
+			"rig remembers departures for the last %s", v.Remember())
+
+		// THE TOMBSTONE IS A PROJECTION AND IT INHERITS THE DEAD PROGRAM'S
+		// SCOPE - View.Departed applies the same filter a live read applies,
+		// so this branch can only ever fire for a program this caller would
+		// have been allowed to see alive. Without that, registering nothing
+		// and waiting would enumerate every program that ever ran here.
+		if d, ok := v.Departed(program); ok {
+			return fmt.Errorf("meta: %q was registered here and left at %s "+
+				"(%s). A grant will not bring it back - %s",
+				program, d.At.UTC().Format(time.RFC3339),
+				departureWords(d.Reason), window)
+		}
+
 		return fmt.Errorf("meta: no program %q is reachable by this caller. "+
 			"rig cannot say which: unregistered, outside this caller's "+
 			"scope, or gone since you last looked. Only the middle one is "+
 			"fixed by a grant - %s reports the basis this caller's "+
-			"projection was built on", program, List)
+			"projection was built on. %s",
+			program, List, window)
 	}
 	return fmt.Errorf("meta: %q declares no command %q, or it is not visible "+
 		"to this caller", program, command)
+}
+
+// departureWords is the reason an agent reads, and it is deliberately longer
+// than a label.
+//
+// THE CRASH-VERSUS-CLEAN-SHUTDOWN SPLIT IS THE HALF AN AGENT ACTUALLY WANTS
+// AND RIG CANNOT SEE IT: there is no farewell on the wire, so a program that
+// exits cleanly is byte-identical to one that crashed. Saying so is the point
+// - an agent told only "it left" would reasonably assume rig knew which, and
+// act on a distinction that was never made. A second reason constant must not
+// be invented to look more capable than the wire is.
+func departureWords(r kernel.DepartureReason) string {
+	switch r {
+	case kernel.DepartureConnectionEnded:
+		return "its connection ended; rig cannot tell a clean shutdown from " +
+			"a crash, because no method on the wire is a farewell"
+	case kernel.DepartureUnspecified:
+		return "rig recorded no reason"
+	default:
+		return "rig recorded a reason this build does not know"
+	}
 }
