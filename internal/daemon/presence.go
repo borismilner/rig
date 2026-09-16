@@ -115,6 +115,12 @@ func (e *seatHeldError) Error() string {
 // rows still reading "successor in a warm handoff" because nobody did. Keeping
 // the SAME seat keeps the generation; moving to a different one takes a new
 // tenancy and therefore a new generation.
+//
+// AND A RESTATE CARRIES THE ACTIVITY LINE ACROSS, which is the third thing
+// that does not restart with it. This door was the one the age rule below was
+// missed at: restating a purpose is a call the team is actively encouraged to
+// make, so laundering a day-old activity line into a fresh-looking one on the
+// way past is a failure that arrives through the recommended path.
 func (p *presence) announce(c *conn, seat, purpose, activity string) (occupant, error) {
 	seat = strings.TrimSpace(seat)
 	p.mu.Lock()
@@ -133,12 +139,21 @@ func (p *presence) announce(c *conn, seat, purpose, activity string) (occupant, 
 	t := p.now()
 	prev, had := p.by[c]
 
+	// restating is the same connection saying itself again in the same seat.
+	// The `seat != ""` is load-bearing rather than decorative: the switch
+	// below reaches its second case only for a seated peer, by ORDER, and the
+	// activity block after it has no such ordering to lean on. An UNSEATED
+	// peer re-announcing is deliberately left exactly as it was - it has no
+	// tenancy to preserve, the door requiring a seat removes the case for
+	// agents entirely, and widening this here would be a third change wearing
+	// the coat of the two that were asked for.
+	restating := had && seat != "" && prev.seat == seat
+
 	o := &occupant{
 		seat:      seat,
 		epoch:     p.epoch,
 		estate:    p.estate,
 		purpose:   purpose,
-		activity:  activity,
 		state:     rigv1.SeatState_SEAT_STATE_ACTIVE,
 		announced: t,
 		moved:     t,
@@ -148,7 +163,7 @@ func (p *presence) announce(c *conn, seat, purpose, activity string) (occupant, 
 		// No seat, so no tenancy and no generation. Zero here is a fact and
 		// not a missing value, which is why the proto says so.
 		o.generation = 0
-	case had && prev.seat == seat:
+	case restating:
 		// Same connection restating itself in the same seat. This is not a
 		// new tenancy, so the generation must NOT move: a peer holding a
 		// reference to generation 3 is still correctly addressing this
@@ -160,11 +175,53 @@ func (p *presence) announce(c *conn, seat, purpose, activity string) (occupant, 
 		o.generation = p.gens[seat]
 	}
 
+	// The line and its age come across BEFORE the new one is applied, so that
+	// setLine below compares against what this occupant was already saying
+	// rather than against a blank. Without this the comparison is trivially
+	// true every time and the rule cannot bite at this door at all.
+	if restating {
+		o.activity, o.moved = prev.activity, prev.moved
+	}
+	o.setLine(activity, t)
+
 	p.by[c] = o
 	return *o, nil
 }
 
+// setLine records what an occupant is doing and WHEN THAT LINE LAST CHANGED.
+// Both doors go through here, because the rule is about the line and not about
+// which call carried it.
+//
+// AN UNCHANGED LINE DOES NOT MOVE THE AGE. AgentBox refuses the same reset and
+// gives the reason in its own tool description - "repeating yourself is not
+// progress" - and section 37's cutover inherits the property along with the
+// callers. A session looping on one line otherwise renews its own freshness,
+// which turns the only signal a board has for a stuck session into a signal
+// the stuck session manufactures. `presence_death_test.go` is where that bites
+// hardest: its honest limit is that presence detects DEATH and not a HANG, and
+// it hands the hang off to exactly this field.
+//
+// AN EMPTY LINE IS NOT SUPPLIED, AND NEVER A CLEARING. Nothing on this wire
+// lets a peer mean "I am now doing nothing", and a blank activity is the row
+// `serveAnnounce` already refuses when the PURPOSE is blank - "indistinguishable
+// from a session nobody is supervising". AgentBox takes the activity as
+// OPTIONAL on announce, so a ported caller restating only its purpose supplies
+// no line at all: the ordinary shape, not an exotic one.
+func (o *occupant) setLine(line string, t time.Time) {
+	if line == "" || line == o.activity {
+		return
+	}
+	o.activity = line
+	o.moved = t
+}
+
 // setActivity replaces what an occupant is doing, and optionally its state.
+//
+// THE AGE TRACKS THE LINE AND NOT THE CALL - see setLine, which is the whole
+// of that rule and is shared with announce. A state-only transition therefore
+// reaches here with an empty activity and correctly leaves both the line and
+// its age where they were, which is the same answer as the re-announce case
+// and not a second rule.
 //
 // UNSPECIFIED LEAVES THE STATE ALONE rather than clearing it, so the ordinary
 // call does not have to restate a transition it did not make. A state that
@@ -179,8 +236,7 @@ func (p *presence) setActivity(c *conn, activity string, state rigv1.SeatState) 
 	if !ok {
 		return occupant{}, false
 	}
-	o.activity = activity
-	o.moved = p.now()
+	o.setLine(activity, p.now())
 	if state != rigv1.SeatState_SEAT_STATE_UNSPECIFIED {
 		o.state = state
 	}
