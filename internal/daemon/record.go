@@ -3,7 +3,10 @@ package daemon
 import (
 	"context"
 	"errors"
+	"os/user"
+	"strconv"
 
+	"github.com/boris-milner/rig/internal/kernel"
 	"github.com/boris-milner/rig/internal/record"
 	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 	"google.golang.org/protobuf/proto"
@@ -94,19 +97,80 @@ func (d *Daemon) recordStore(c *conn, f *rigv1.Frame, command string) (*record.S
 // wrong would stamp every version of a reconnecting seat's work as a
 // different author. PLAN.md section 39 carries the table.
 //
-// It returns false when this connection never announced, because a record
-// whose author cannot be named is exactly what the provenance rule exists to
-// prevent - and the refusal below names `announce` rather than reporting a
-// field the caller has no way to supply.
+// AN ANNOUNCED SEAT IS THE FIRST ANSWER AND A TERMINAL IS THE SECOND. A
+// connection that announced writes under its seat. A connection that did not
+// is attributed by the daemon instead of refused - see terminalSeat below for
+// why that is not a weakening.
 func (d *Daemon) provenance(c *conn) (session, seat string, epoch uint64, ok bool) {
-	occ, found := d.presence.occupantOf(c.occ)
-	if !found || occ.seat == "" {
-		return "", "", 0, false
+	if occ, found := d.presence.occupantOf(c.occ); found && occ.seat != "" {
+		return c.principal().Token, occ.seat, d.epoch, true
 	}
-	return c.principal().Token, occ.seat, d.epoch, true
+	p := c.principal()
+	if s := terminalSeat(c, p); s != "" {
+		return p.Token, s, d.epoch, true
+	}
+	return "", "", 0, false
+}
+
+// terminalSeat names the seat an UNANNOUNCED caller writes under, or "" when
+// this connection is not one the daemon is willing to name.
+//
+// ⛔ RULED 2026-09-17 BY THE TEAM-LEAD, AND IT UNBLOCKED THE MVP. Four write
+// verbs were reachable from no surface at all: `record.put`, `record.link`,
+// `record.unlink` and `progress.step` all refused every terminal, because they
+// demanded an announced seat and THERE IS NO `rig announce` AT A TERMINAL. The
+// gap was known and lived in the refusal's own comment, arguing about that
+// refusal's WORDING, connected to nothing it broke. Section 39's MVP is
+// "seed rig's own backlog through the CLI", and it could not be done at all.
+//
+// ⛔ THE ALTERNATIVE IS ALREADY REFUSED IN WRITING, which is what decided this.
+// PLAN.md section 37: "Make terminals handshake. No, and this one is refused on
+// section 14's own terms" - section 14's `scoped` is "the whole authorisation
+// state a connection carries: one boolean", and giving a terminal a hello makes
+// that boolean ambiguous. "A precondition must not weaken the model it is a
+// precondition for." So the CLI must NOT announce, and the daemon must name the
+// caller itself.
+//
+// ⛔ AND IT WEAKENS NOTHING, BECAUSE A NAMED SEAT WAS THE MECHANISM AND NOT THE
+// REQUIREMENT. Section 39 requires that provenance be THE DAEMON'S AND
+// UNFORGEABLE. Every field below is read off the kernel's principal, which is
+// minted at accept from the peer credentials of the socket; none of it is read
+// off the request, and there is still no field a caller can set to claim an
+// identity. A daemon-minted terminal seat satisfies that exactly as a session
+// seat does.
+//
+// ⛔ A SCOPED CONNECTION IS STILL REFUSED, DELIBERATELY. A registered program
+// has an identity of its own and writing it down as a terminal would be a lie
+// the store could not later tell from the truth. It announces or it does not
+// write.
+//
+// ⛔ AND THERE IS NO MCP PATH THROUGH HERE TO WIDEN. The record verbs are
+// dispatched only from the wire (BACKLOG B54: they have no MCP route, and
+// section 9 ruled against giving them one), so this cannot hand a write to an
+// unannounced agent. COORDINATION.md records that newPrincipal minting an MCP
+// caller as KindTerminal is a separate OPEN RULING; this function does not
+// settle it and must not be read as having done so.
+func terminalSeat(c *conn, p kernel.Principal) string {
+	if c.scoped.Load() || p.Kind != kernel.KindTerminal {
+		return ""
+	}
+	// The daemon is one per unix user, so the user IS the author. The uid is
+	// the fallback rather than the first choice because a name is what a human
+	// reading their own backlog expects to see.
+	if u, err := user.LookupId(strconv.Itoa(p.UID)); err == nil && u.Username != "" {
+		return "terminal:" + u.Username
+	}
+	return "terminal:uid-" + strconv.Itoa(p.UID)
 }
 
 // refuseUnattributed is the one refusal every WRITE verb shares.
+//
+// ⛔ A TERMINAL NO LONGER REACHES THIS, AND THAT CHANGE IS WHY THE MVP MOVED.
+// terminalSeat above names an unannounced terminal instead of turning it away,
+// so what arrives here now is a SCOPED connection - a registered program that
+// never announced. The Fix below is addressed to that caller and is right for
+// it: a program is on the wire, rig.announce is a wire verb, so the thing it is
+// told to do is a thing it can do.
 func (d *Daemon) refuseUnattributed(c *conn, f *rigv1.Frame, command string) {
 	c.failStatus(f.GetStreamId(), &rigv1.Status{
 		Code: rigv1.Code_CODE_DENIED,
@@ -114,14 +178,20 @@ func (d *Daemon) refuseUnattributed(c *conn, f *rigv1.Frame, command string) {
 			"it would write could not say who wrote it",
 		Precondition: "the caller announced into a named seat",
 		Actual:       "this connection has not announced, or announced without a seat",
-		// ⛔ NO FixCommand, AND ITS ABSENCE IS THE ANSWER RATHER THAN AN
-		// OMISSION. There is no `rig announce` at a terminal - announce is a
-		// wire and door verb, and cmd/rig dispatches no such word. Citing one
-		// would send the caller to the CLI's default branch, which reads an
-		// unmatched word as a PROGRAM name and reports that its program does
-		// not exist: a refusal blaming the caller for this message's mistake.
-		// Caught by refusal_verbs_test.go's dead-verb guard, which is exactly
-		// what that guard exists for.
+		// ⛔ NO FixCommand, AND ITS ABSENCE IS STILL THE ANSWER. `cmd/rig`
+		// dispatches no `announce` word, so citing one would send the caller to
+		// the CLI's default branch, which reads an unmatched word as a PROGRAM
+		// name and reports that its program does not exist: a refusal blaming
+		// the caller for this message's mistake. Caught by
+		// refusal_verbs_test.go's dead-verb guard, which is what it is for.
+		//
+		// ⛔ AND THE OTHER HALF OF THIS COMMENT USED TO READ AS A JUSTIFICATION
+		// WHEN IT WAS A DEFECT REPORT NOBODY CASHED. It observed that there is
+		// no `rig announce` at a terminal - true - and stopped, while four write
+		// verbs sat unreachable from the only surface section 39's MVP
+		// demonstration runs through. A comment explaining why a message is
+		// worded as it is must not also be the only place recording that the
+		// message makes a verb uncallable.
 		Fix: "call rig.announce on this connection first, with a seat. " +
 			"Provenance is the daemon's and is never read off the request, " +
 			"so there is no field you can set instead",

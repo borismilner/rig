@@ -5,13 +5,16 @@ import (
 	"errors"
 	"net"
 	"os"
+	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/boris-milner/rig/client"
 	"github.com/boris-milner/rig/internal/instance"
+	"github.com/boris-milner/rig/internal/kernel"
 	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )
 
@@ -176,21 +179,131 @@ func TestTheRecordVerbsAreReachableUnderSection39sOwnNames(t *testing.T) {
 	}
 }
 
-// TestAWriteFromAnUnannouncedConnectionIsRefusedByName is the provenance rule
-// with its teeth in.
+// TestATerminalWritesUnderASeatTheDaemonMinted is the provenance rule with its
+// teeth in, and it replaces a test that pinned the opposite.
 //
-// The refusal has to name `announce`, because the caller has NO field it could
-// set instead - that is the whole design - and a refusal reporting a missing
-// session would send it looking for one.
-func TestAWriteFromAnUnannouncedConnectionIsRefusedByName(t *testing.T) {
+// ⛔ THE TEST IT REPLACES ASSERTED THAT AN UNANNOUNCED WRITE IS REFUSED, AND IT
+// PASSED FOR AS LONG AS THE MVP WAS IMPOSSIBLE. `record.put`, `record.link`,
+// `record.unlink` and `progress.step` demanded an announced seat, and there is
+// no `rig announce` at a terminal - so section 39's demonstration, seeding
+// rig's own backlog THROUGH THE CLI, could not be performed from any surface.
+// A green test guarded the hole. Ruled 2026-09-17: the daemon names the caller.
+//
+// What must stay true is the part that was never about announcing: the seat is
+// the DAEMON'S and the caller cannot supply it.
+func TestATerminalWritesUnderASeatTheDaemonMinted(t *testing.T) {
 	sock := upRecordDaemon(t)
-	c := dial(t, sock) // deliberately NOT seated
+	c := dial(t, sock) // deliberately NOT seated - this is a terminal
+
+	var put rigv1.RecordPutResponse
+	if err := c.Call(recordCtx(t), "rig.record.put", &rigv1.RecordPutRequest{
+		Id: "T1", Kind: "note", Project: "rig", Body: "who wrote this?",
+	}, &put); err != nil {
+		t.Fatalf("a terminal could not write, so the CLI demonstration is "+
+			"unreachable again: %v", err)
+	}
+
+	seat := put.GetRecord().GetProv().GetSeat()
+	if !strings.HasPrefix(seat, "terminal:") {
+		t.Errorf("the record's seat is %q, and a terminal's write must be "+
+			"attributed to a terminal seat the daemon minted", seat)
+	}
+	if u, err := user.LookupId(strconv.Itoa(os.Getuid())); err == nil &&
+		u.Username != "" && seat != "terminal:"+u.Username {
+		t.Errorf("the seat is %q and the daemon is one per unix user, so it "+
+			"should name %q", seat, "terminal:"+u.Username)
+	}
+	if put.GetRecord().GetProv().GetSession() == "" {
+		t.Error("the record names a seat and no session, so two invocations " +
+			"by the same user are indistinguishable")
+	}
+}
+
+// TestAnAnnouncedSeatBeatsTheTerminalFallback.
+//
+// ⛔ THE FALLBACK MUST BE A FALLBACK. If it ever ran first, every seated peer's
+// work would be filed under one shared `terminal:` name and the roster's whole
+// point - who is doing what - would be silently gone from the record while
+// every test that only checks "a seat is set" stayed green.
+func TestAnAnnouncedSeatBeatsTheTerminalFallback(t *testing.T) {
+	sock := upRecordDaemon(t)
+	c := seated(t, sock, "team-lead")
+
+	var put rigv1.RecordPutResponse
+	if err := c.Call(recordCtx(t), "rig.record.put", &rigv1.RecordPutRequest{
+		Id: "T2", Kind: "note", Project: "rig", Body: "seated",
+	}, &put); err != nil {
+		t.Fatalf("rig.record.put: %v", err)
+	}
+	if got := put.GetRecord().GetProv().GetSeat(); got != "team-lead" {
+		t.Errorf("a seated connection wrote under %q, not its announced seat", got)
+	}
+}
+
+// TestEachHalfOfTheTerminalGuardIsReachableOnItsOwn measures terminalSeat
+// directly, and it exists because the wire test above CANNOT.
+//
+// ⛔ THE WIRE TEST PINS THE CONJUNCTION AND NEITHER MEMBER, WHICH IS ONLY
+// VISIBLE FROM A MUTATION PASS. Measured: deleting `c.scoped.Load()` leaves it
+// GREEN, and deleting `p.Kind != KindTerminal` leaves it GREEN; only deleting
+// BOTH turns it red. The two conditions are independently sufficient against a
+// registered program, so over the wire each one hides whether the other can
+// fire at all - a guard that survives every mutation aimed at it is not
+// protecting anything that has been demonstrated.
+//
+// They are kept as two because they are two different facts that can change
+// apart: `scoped` is section 14's authorisation boolean, set by the program
+// handshake, and `Kind` is what the kernel minted at accept. This table is the
+// smaller unit of measurement that can tell them apart, so each row below is a
+// mutation target the wire test could not offer.
+func TestEachHalfOfTheTerminalGuardIsReachableOnItsOwn(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		scoped bool
+		kind   kernel.ClientKind
+		want   bool // a seat is minted
+	}{
+		{"an unannounced terminal", false, kernel.KindTerminal, true},
+		{"a SCOPED connection that is still KindTerminal", true, kernel.KindTerminal, false},
+		{"a registered program", false, kernel.KindProgram, false},
+		{"an agent", false, kernel.KindAgent, false},
+		{"a principal that never said what it is", false, kernel.KindUnspecified, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &conn{}
+			c.scoped.Store(tc.scoped)
+			p := kernel.Principal{UID: os.Getuid(), Kind: tc.kind}
+
+			got := terminalSeat(c, p)
+			if (got != "") != tc.want {
+				t.Fatalf("terminalSeat returned %q, and this caller %s be named",
+					got, map[bool]string{true: "must", false: "must NOT"}[tc.want])
+			}
+			if tc.want && !strings.HasPrefix(got, "terminal:") {
+				t.Errorf("the minted seat is %q and must be marked as a terminal's, "+
+					"so a reader of the record can tell it from an announced seat", got)
+			}
+		})
+	}
+}
+
+// TestARegisteredProgramIsStillRefusedByName.
+//
+// ⛔ THE TERMINAL FALLBACK IS NOT A GENERAL AMNESTY, AND THIS IS THE EDGE THAT
+// SAYS SO. A registered program has an identity of its own, so writing its work
+// down as a terminal's would be a lie the store could never afterwards tell
+// from the truth. It announces or it does not write - and unlike a terminal it
+// CAN, which is why the refusal still names `announce` and is still correct.
+func TestARegisteredProgramIsStillRefusedByName(t *testing.T) {
+	sock := upRecordDaemon(t)
+	c := program(t, sock, "fakeapp") // scoped by the handshake, never announced
 
 	err := c.Call(recordCtx(t), "rig.record.put", &rigv1.RecordPutRequest{
-		Kind: "note", Project: "rig", Body: "who wrote this?",
+		Id: "T3", Kind: "note", Project: "rig", Body: "who wrote this?",
 	}, &rigv1.RecordPutResponse{})
 	if err == nil {
-		t.Fatal("an unattributable record was accepted")
+		t.Fatal("a registered program wrote a record without announcing, so " +
+			"the terminal fallback has become a general amnesty")
 	}
 	if !strings.Contains(err.Error(), "seat") {
 		t.Errorf("the refusal does not mention a seat: %v", err)
