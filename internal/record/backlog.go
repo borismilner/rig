@@ -109,13 +109,37 @@ type BacklogItem struct {
 // cells splits a markdown table row and trims every cell. The table is
 // | # | Item | Evidence | Adopter | State |, so cells[1] is the id, cells[2]
 // the item and cells[5] the state.
+//
+// ⛔ A PIPE INSIDE A BACKTICK CODE SPAN IS NOT A CELL BOUNDARY, AND THIS USED
+// TO BE `strings.Split(line, "|")`, WHICH SAID IT WAS. A row whose item cell
+// quotes a regex or a shell alternation - `a|b` - split into one cell too many,
+// and every cell after it shifted LEFT. The state cell then read as the adopter
+// cell, so the row's terminal disposition was decided by a column that never
+// held one. B8 in rig's own backlog is the live instance: its ClaimsDone was
+// being read from "**PRESENCE** proposed, **the lead** holds the shape".
+//
+// ⛔ IT MOVED NO PINNED FIGURE THE DAY IT WAS FIXED, AND THAT IS WHY IT IS
+// WORTH SAYING OUT LOUD. Neither cell's bold lead happened to be a terminal
+// word, so the wrong answer and the right answer agreed. The defect was
+// invisible to every count in this package and would have surfaced the first
+// time somebody wrote a backticked pipe into a row that closes.
 func cells(line string) []string {
-	parts := strings.Split(line, "|")
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		out = append(out, strings.TrimSpace(p))
+	var out []string
+	var cur strings.Builder
+	inCode := false
+	for _, r := range line {
+		switch {
+		case r == '`':
+			inCode = !inCode
+			cur.WriteRune(r)
+		case r == '|' && !inCode:
+			out = append(out, strings.TrimSpace(cur.String()))
+			cur.Reset()
+		default:
+			cur.WriteRune(r)
+		}
 	}
-	return out
+	return append(out, strings.TrimSpace(cur.String()))
 }
 
 // titleOf takes the item cell's title: its FIRST BOLDED RUN, which is how every

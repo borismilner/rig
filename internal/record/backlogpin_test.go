@@ -57,13 +57,19 @@ func TestTheBacklogParserReadsEveryRowShapeTheSameWay(t *testing.T) {
 	items := readBacklogFrom(t, backlogShapes)
 
 	pin(t, "every row read", idsWhere(items, func(BacklogItem) bool { return true }),
-		[]string{"B1", "B10", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9"})
+		[]string{"B1", "B10", "B11", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9"})
 	pin(t, "closed by a struck title", idsWhere(items, func(i BacklogItem) bool { return i.Done && i.Struck }),
 		[]string{"B2", "B7"})
 	pin(t, "closed by a terminal lead in the item cell", idsWhere(items, func(i BacklogItem) bool { return i.Done && !i.Struck }),
 		[]string{"B3", "B5", "B6", "B9"})
+	// ⛔ B11 IS HERE BECAUSE OF A SPLITTER, NOT BECAUSE OF A DISPOSITION. Its item
+	// cell quotes a pipe inside a code span, and a `strings.Split(line, "|")`
+	// cuts the row there: every later cell shifts LEFT, so cells[5] lands on the
+	// ADOPTER cell and this row's terminal state is decided by a column that
+	// never held one. It reads OPEN under the old splitter and CLOSED-claiming
+	// under the right one, and NOTHING ELSE IN THIS SUITE CAN TELL THEM APART.
 	pin(t, "claims a terminal state unstruck, seeded OPEN", idsWhere(items, func(i BacklogItem) bool { return i.ClaimsDone }),
-		[]string{"B4"})
+		[]string{"B11", "B4"})
 	pin(t, "malformed, parsed and seeded anyway", idsWhere(items, func(i BacklogItem) bool { return i.Malformed }),
 		[]string{"B7"})
 
@@ -77,10 +83,11 @@ func TestTheBacklogParserReadsEveryRowShapeTheSameWay(t *testing.T) {
 		titles[it.ID] = it.Title
 	}
 	for id, want := range map[string]string{
-		"B1": "A plain open row",
-		"B2": "A struck row, which is how the document closes one",
-		"B6": "REJECTED, the third terminal word",
-		"B8": "A row whose bold never closes before the pipe",
+		"B1":  "A plain open row",
+		"B2":  "A struck row, which is how the document closes one",
+		"B6":  "REJECTED, the third terminal word",
+		"B8":  "A row whose bold never closes before the pipe",
+		"B11": "A row whose item cell holds a pipe inside backticks, `a|b`",
 	} {
 		if got := titles[id]; got != want {
 			t.Errorf("%s title changed\n  was:  %q\n  now:  %q", id, want, got)
@@ -88,8 +95,8 @@ func TestTheBacklogParserReadsEveryRowShapeTheSameWay(t *testing.T) {
 	}
 
 	// The duplicate id later in the fixture must be DROPPED, not re-read.
-	if n := len(items); n != 10 {
-		t.Errorf("read %d rows, want 10 - a repeated id must be kept once, not twice", n)
+	if n := len(items); n != 11 {
+		t.Errorf("read %d rows, want 11 - a repeated id must be kept once, not twice", n)
 	}
 
 	// ⛔ A DEFECT THIS PIN CAUGHT BEING FIXED, WHICH IS WHAT IT IS FOR. On a row

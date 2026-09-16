@@ -19,6 +19,7 @@ way it did before it moved.
 | B8 | **A row whose bold never closes before the pipe | evidence | nobody | **OPEN** |
 | B9 | **RETRACTED, the fourth** | evidence | a seat | **RETRACTED** |
 | B10 | **An open row whose state cell says something non-terminal** | evidence | nobody | **argued, in flight** |
+| B11 | **A row whose item cell holds a pipe inside backticks, `a|b`** | evidence | nobody | **CLOSED, and only a split that respects a code span can see it** |
 
 The row below repeats an id deliberately: the scanner keeps the FIRST and drops
 the rest, and nothing else in the suite proves that.
