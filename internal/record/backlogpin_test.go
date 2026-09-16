@@ -162,7 +162,8 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 			"B39", "B4", "B40", "B41", "B42", "B43", "B44", "B45",
 			"B46a", "B46b", "B46c", "B46e", "B46f", "B46g", "B47", "B48",
 			"B49", "B5", "B50", "B51", "B52", "B53", "B54", "B55",
-			"B56", "B57", "B58", "B59", "B6", "B7", "B8", "B9",
+			"B56", "B57", "B58", "B59", "B6", "B60", "B61", "B7",
+			"B8", "B9",
 		})
 
 	pin(t, "closed, struck", struck,
@@ -195,9 +196,9 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 		what      string
 		got, want int
 	}{
-		{"rows", len(items), 64},
+		{"rows", len(items), 66},
 		{"closed", len(struck) + len(byLead), 9},
-		{"open", open, 55},
+		{"open", open, 57},
 	} {
 		if c.got != c.want {
 			t.Errorf("%s: %d, pinned at %d.\n"+
