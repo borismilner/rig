@@ -35,6 +35,11 @@ import (
 // only requirement this test exists to meet.
 const backlogPath = "../../BACKLOG.md"
 
+// requireBacklog turns this test's skip into a failure. Set by `make mvp-demo`,
+// which exists so that "has the MVP acceptance demonstration passed" has ONE
+// command whose green cannot be a skip. B46e.
+const requireBacklog = "RIG_RECORD_REQUIRE_BACKLOG"
+
 // backlogRow matches any table row whose first cell is a backlog id.
 //
 // ⛔ IT MUST NOT REQUIRE THE TITLE CELL TO OPEN WITH `**`. The pattern here was
@@ -151,7 +156,29 @@ func readBacklog(t *testing.T) []backlogItem {
 	t.Helper()
 	f, err := os.Open(backlogPath)
 	if err != nil {
-		t.Skipf("rig's own backlog is not at %s from here: %v", backlogPath, err)
+		// ⛔ THE SKIP IS THE HOLE, SO IT HAS AN OFF SWITCH. B46e.
+		//
+		// This test reaches rig's real backlog through a gitignored symlink, so
+		// it cannot run in a fresh clone, a detached gate worktree or CI - and
+		// a skip and a pass are the same colour to everything that reads a
+		// gate. That is how "a green make ci means the MVP demonstration
+		// passed" became sayable when it was never true.
+		//
+		// Committing a fixture copy was considered and rejected: it fails the
+		// one requirement this test exists to meet. What CAN be fixed is the
+		// silence. With requireBacklog set, a missing backlog is a FAILURE,
+		// so a caller that means to demand the demonstration gets an answer
+		// that cannot be mistaken for one. `make mvp-demo` sets it.
+		if os.Getenv(requireBacklog) != "" {
+			t.Fatalf("%s is set, so this demonstration was DEMANDED, and rig's own backlog "+
+				"is not at %s from here: %v\n\nIt reaches the backlog through a gitignored "+
+				"symlink, so it needs the logbook checked out beside rig - run it in the "+
+				"working tree, not in a gate worktree or a fresh clone.",
+				requireBacklog, backlogPath, err)
+		}
+		t.Skipf("rig's own backlog is not at %s from here: %v\n"+
+			"⛔ THIS IS A SKIP, NOT A PASS - B46e. Set %s=1 to make it a failure, "+
+			"or run `make mvp-demo` in the working tree.", backlogPath, err, requireBacklog)
 	}
 	defer func() { _ = f.Close() }()
 
