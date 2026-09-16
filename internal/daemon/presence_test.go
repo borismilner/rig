@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/boris-milner/rig/client"
 	"github.com/boris-milner/rig/internal/instance"
@@ -288,5 +289,83 @@ func TestAStaleEstateClaimIsNotCountedAsAPeer(t *testing.T) {
 	// And an estate never reports itself.
 	if own := otherEstates("production"); len(own) != 0 {
 		t.Fatalf("otherEstates = %v from production's own daemon", own)
+	}
+}
+
+// TestReadingYourOwnRowDoesNotTouchIt is `occupantOf`, and the case is about
+// what it must NOT do rather than what it returns.
+//
+// THE DOOR NEEDS THIS READ AND THE ONLY EXISTING WAY TO GET THE ROW WAS A
+// WRITER. `list_agents` served `you: null` to a SEATED caller, which is the
+// shape the surface uses for "you have no row" - so a seat was told, in the
+// surface's own vocabulary, that it was not on the roster, on the one call the
+// lead ruled must ANSWER rather than refuse because it is what a confused seat
+// uses to find out what happened.
+//
+// `setActivity(c, "", UNSPECIFIED)` would have worked: setLine returns early
+// on an empty line, so today it is a no-op that happens to return the row.
+// **That is exactly why it was not used.** The moment setLine's early return
+// changes, a reader built on it becomes a writer and nothing at the call site
+// says so - and the mutation that would catch it lives in a different function,
+// so no test of the reader could bite.
+//
+// So this case asserts the read is a READ: the age, the state and the
+// generation are all where they were afterwards.
+func TestReadingYourOwnRowDoesNotTouchIt(t *testing.T) {
+	p := newPresence("production", 1)
+	at := time.Date(2026, 9, 16, 9, 0, 0, 0, time.UTC)
+	p.now = func() time.Time { return at }
+
+	const line = "waiting for the gate to finish"
+	var holder occupancy
+	seated, err := p.announce(&holder, "backend-2", "presence", line)
+	if err != nil {
+		t.Fatal(err)
+	}
+	began := at
+
+	// A DAY LATER the connection reads its own row. Reading is not an event in
+	// the tenancy and not work being done.
+	at = at.Add(24 * time.Hour)
+
+	got, ok := p.occupantOf(&holder)
+	if !ok {
+		t.Fatal("a seated connection could not read its own row, which is the " +
+			"defect this exists to close: the door then has to serve `you` as " +
+			"null, and null is how it says you have no row at all")
+	}
+	if got.seat != "backend-2" || got.generation != seated.generation {
+		t.Fatalf("read back seat %q at generation %d, want backend-2 at %d",
+			got.seat, got.generation, seated.generation)
+	}
+	if got.proto().GetActivityUnixNano() != began.UnixNano() {
+		t.Errorf("reading the row set its activity age to %d, want %d. A read "+
+			"that dates the line to now is the stale-line failure arriving "+
+			"through the one call a confused seat makes to orient itself",
+			got.proto().GetActivityUnixNano(), began.UnixNano())
+	}
+	if got.proto().GetActivity() != line {
+		t.Errorf("activity = %q after a read, want %q kept",
+			got.proto().GetActivity(), line)
+	}
+
+	// And the roster itself is untouched, not merely the copy handed back.
+	crew := p.crew()
+	if len(crew) != 1 {
+		t.Fatalf("crew = %d after a read, want 1", len(crew))
+	}
+	if crew[0].GetActivityUnixNano() != began.UnixNano() {
+		t.Errorf("the ROSTER's age moved to %d after a read, want %d. The copy "+
+			"handed back was clean and the row behind it was not",
+			crew[0].GetActivityUnixNano(), began.UnixNano())
+	}
+
+	// A connection that never announced has no row, and must be told so rather
+	// than handed a blank one that reads as a real peer.
+	var stranger occupancy
+	if _, ok := p.occupantOf(&stranger); ok {
+		t.Error("a connection that never announced was given a row. An empty " +
+			"occupant reported as present is a row with no purpose on it, " +
+			"which is the defect the seat mechanism exists to surface")
 	}
 }

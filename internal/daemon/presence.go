@@ -313,6 +313,31 @@ func (p *presence) setActivity(c *occupancy, activity string, state rigv1.SeatSt
 	return *o, true
 }
 
+// occupantOf reads this connection's own row and changes NOTHING.
+//
+// IT EXISTS BECAUSE THE ONLY EXISTING WAY TO GET THIS ROW IS A WRITER.
+// setActivity already returns (occupant, bool) and is a no-op for an empty
+// line and an unspecified state, because setLine returns early on an empty
+// line - so it would serve as a read today, and the door's list_agents could
+// have been built on it. That is a trap rather than a shortcut: the day
+// setLine's early return changes, every caller using it as a read silently
+// becomes a writer, and nothing at the call site says so.
+//
+// A reader that is a writer under the covers cannot be mutation-tested either,
+// because the mutation that breaks it lives in a different function.
+//
+// THE VALUE IS COPIED OUT, as announce and setActivity already do, so a caller
+// cannot reach back into the roster through the row it was handed.
+func (p *presence) occupantOf(c *occupancy) (occupant, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	o, ok := p.by[c]
+	if !ok {
+		return occupant{}, false
+	}
+	return *o, true
+}
+
 // leave forgets a connection. Called from the handler's own defer, so a
 // dropped peer empties its seat with nothing scheduled and nothing to expire.
 func (p *presence) leave(c *occupancy) {
