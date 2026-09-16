@@ -45,12 +45,33 @@ func (d *Daemon) serveAnnounce(c *conn, f *rigv1.Frame) {
 			// and a fix the caller can run. The fix is deliberately not "try
 			// again" - the seat is held by something alive, so retrying is
 			// the wrong action and naming the holder is the right one.
+			//
+			// IT USED TO SAY "Run `rig peers` to see the roster" AND THAT
+			// VERB DOES NOT EXIST. cmd/rig dispatches version, ping, apps,
+			// down, estate, describe, mcp, completion and help; `peers` is a
+			// forward citation to the M7 peers service and falls through to
+			// the DEFAULT branch, which reads the first token as a PROGRAM
+			// name - so a caller following the fix was told its program does
+			// not exist, and the failure read as its own fault rather than
+			// this message's. `rig apps` lists programs, not peers, so no
+			// existing command could satisfy the advice either. The missing
+			// verb is tracked as B41 and is not closed by deleting the
+			// citation; serving a fix nobody can run is what is fixed here.
+			//
+			// THE UNSEATED OFFER STAYS, AND THAT IS NOT AN OVERSIGHT. This
+			// text is served to a WIRE caller only - the MCP door carries its
+			// own refusal, which names `list_agents`, a tool that caller
+			// actually holds. Requiring a seat is a DOOR rule precisely so
+			// the program socket keeps serving unseated programs, so
+			// announcing without a seat is still valid for everything that
+			// can reach this message.
 			c.fail(f.GetStreamId(), rigv1.Code_CODE_DENIED,
 				"announce: seat "+held.Seat+" is already held by a live peer "+
 					"at generation "+strconv.FormatUint(held.Generation, 10)+
 					" whose purpose is "+strconv.Quote(held.Purpose)+
-					". Run `rig peers` to see the roster, and announce "+
-					"without a seat if you are not taking this one")
+					". Announce without a seat if you are not taking this "+
+					"one, or agree with the holder that it should stand "+
+					"down first")
 			return
 		}
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, "announce: "+err.Error())
