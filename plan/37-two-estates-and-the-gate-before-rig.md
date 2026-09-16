@@ -466,10 +466,44 @@ presence, and presence is M7's content. What closes here is the specification.
 
 **`production` takes the DEFAULT `XDG_RUNTIME_DIR`; `development` is always
 placed explicitly.** A `systemd --user` unit inherits the ordinary environment,
-so a unit that sets nothing reaches production and **cannot reach development by
-construction rather than by a flag somebody might omit.** Reversing the two
-would have the unit manage development by accident, which is why which estate
-takes the default is a decision and not a convention.
+so a unit that sets nothing **reaches production's RUNTIME DIRECTORY, and
+cannot reach development's, by construction rather than by a flag somebody
+might omit.** Reversing the two would have the unit manage development by
+accident, which is why which estate takes the default is a decision and not a
+convention.
+
+⛔ **AND IT MUST STILL NAME THE ESTATE ITSELF, because NOTHING ASSIGNS A NAME
+TO THE DEFAULT RUNTIME DIRECTORY.** Corrected 2026-09-16 evening on
+`backend-3`'s measurement; the text above previously read *"a unit that sets
+nothing reaches production"* full stop, and that sentence conflated a PATH fact
+with a NAME fact.
+
+**The two are independent in the code.** `cmd/rigd/main.go` defaults `--estate`
+to the empty string and gates the WHOLE named branch on `*estate != ""`, so an
+unnamed daemon makes no name claim and opens no store. `internal/paths`'
+`RuntimeDir()` never reads an estate name at all: the name lives only under
+`$XDG_STATE_HOME/rig/estates/`. **So the default runtime directory is not
+production's by any mechanism - it is merely the one production is conventionally
+placed in, and a unit that omits the flag reaches it ANONYMOUSLY.**
+
+**THE CONSEQUENCE IS THAT THIS PRECONDITION WAS NOT MET BY THE SHIPPED UNIT, and
+the failure was silent.** An unnamed estate opens no epoch store, so its epoch is
+a constant 0 - `main.go` says so in as many words and zero is deliberate. Every
+mechanism resting on the epoch, including the silent-reattach detection this
+team's cutover needed, **could not have gone red under the unit as installed.**
+Measured with a four-arm probe, `--estate=production` counting 1 then 2 as the
+control and the unnamed arm 0 then 0 as the test, each read confirmed against the
+serving pid's own accept log rather than against the socket file.
+
+**FIXED at `4f247ab`: `packaging/rigd.service` passes `--estate=production`**, so
+the precondition is now pinned TWICE - by construction for the path, and by flag
+for the name. `cmd/rigd/unit_test.go` previously FORBADE the flag on the premise
+corrected here; its path assertion was kept and its name assertion inverted.
+
+**The conflation had reached FOUR documents** - this section, the unit's own
+header, that test, and `cutover-operability.md` - and this one is the source the
+others cite. **Two of the four had already survived a correction pass over the
+same header.**
 
 **STRUCK 2026-09-11. The unit carries no `ExecStop` at all**, per §5l's heading and body. The superseded text read *"`ExecStop` is `rig down`, never a signal to a pid"* and is kept struck rather than deleted because the reasoning below shows how it was reached: it treated "never a signal to a pid" as §5l's lesson, when §5l's lesson is that the unit must carry no stop command whatever its form. `agentbox quit` was not a signal either, and it is what did the damage. Original text follows.
 
