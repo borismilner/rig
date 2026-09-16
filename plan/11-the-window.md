@@ -23,19 +23,51 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
     | 1 | **PRESENT WHENEVER rig IS IN THE BACKGROUND.** The condition is rig running, not a window being open. *"like AgentBox"* is the benchmark and AgentBox's tray is up whenever its daemon is |
     | 2 | **CLICKING REVEALS THE OPTIONS.** The menu is the access point, not a window toggle. This restates and sharpens the access-point requirement below |
     | 3 | **THE MENU SHOWS THE VERSION AND THE ESTATE** - prod or dev - **as TEXT a human reads**, not only as the icon's colour |
+    | ⛔ **4** | ⛔ **CLOSING THE WINDOW MUST NOT REMOVE OR TERMINATE THE TRAY ICON.** Boris, 2026-09-16, verbatim: *"Closing the window should not remove or terminate the system-tray icon"*. **It follows from requirement 1 and is stated separately because the implementation can satisfy 1 at startup and break it on the first close** - the tray belongs to the WINDOW PROCESS, so anything that ends that process ends the icon |
 
-    ⛔ **REQUIREMENT 1 IS NOT SATISFIED BY WHAT IS BUILT, and the gap is
+    ⛔ **REQUIREMENT 1 WAS NOT SATISFIED BY WHAT WAS BUILT, and the gap was
     structural rather than a missing feature.** The tray lives in
     `cmd/rigwindow/tray.go` - it is the WINDOW process that owns it. So a
     headless `rigd`, which is the ordinary case and the one a systemd unit
-    creates, shows NO ICON AT ALL. **"As long as rig is present in the
-    background" is exactly the state that has no tray today.**
+    creates, showed NO ICON AT ALL. **"As long as rig is present in the
+    background" was exactly the state that had no tray.**
 
-    **This is a scope call and it is Boris's**, because the honest answers are
-    not small: the tray moves into `rigd`, or `rigd` supervises a tray
-    process, or the window process is always started and the window itself is
-    what is optional. **Recorded, not scheduled, and not a front this team
-    opens** - the same rule as the rest of §11.
+    **The scope call was Boris's**, because the honest answers were not small:
+    the tray moves into `rigd`, or `rigd` supervises a tray process, **or the
+    window process is always started and the window itself is what is
+    optional.**
+
+    ✅ ⛔ **HE TOOK THE THIRD ONE, 2026-09-16, AND IT IS NOW INSTALLED AND
+    RUNNING.** `packaging/rigwindow.service` starts the window process at
+    login (`WantedBy=graphical-session.target`), so the tray is up whenever the
+    graphical session is - which is *"like AgentBox"*, the benchmark
+    requirement 1 names. `make install-window` puts the binary and the unit in
+    place; rig `6afd76e`.
+
+    **MEASURED, not inferred** `[ran it]` 2026-09-16: `systemctl --user
+    is-enabled rigd.service rigwindow.service` -> `enabled`, `enabled`;
+    `is-active` -> `active`, `active`; `rig estate` over the real socket ->
+    `name production`. **A reboot has NOT been observed** - Boris waived it:
+    *"We won't reboot to check if it survives a reboot - I trust you install it
+    properly"*. **So the install is EVIDENCED and the survival is TRUSTED, and
+    those are different words on purpose.**
+
+    ⛔ **THE THIRD ANSWER CARRIES A COST THAT THE OTHER TWO DID NOT, AND IT IS
+    REQUIREMENT 4.** If the tray's owner is the window process, then **every
+    path that ends that process ends the icon** - closing the window, an
+    unhandled panic, a `Quit` the user did not mean. Requirement 4 is that
+    cost made explicit. The other two answers (tray in `rigd`, or `rigd`
+    supervising it) would not have had it, and **choosing this one makes the
+    close path load-bearing rather than cosmetic.**
+
+    **WHAT IS BUILT AGAINST REQUIREMENT 4, and what is not:**
+
+    | | |
+    |---|---|
+    | the `WindowClosing` hook | `main.go:106` **cancels the event and hides**, skipping Wails' default listener, which destroys the window and quits the process once none remain |
+    | ⛔ **not demonstrated** | the hook is `[read it]`, never exercised on this machine. **A comment describing a cancel is not evidence that the cancel fires** |
+    | ⛔ **and `cmd/rigwindow` IS IN NO GATE** | `Makefile:71` and `:78` exclude it, so `make ci` says nothing about any of this. `BACKLOG.md` B50 |
+    | the systemd unit | `Restart=on-failure`, so a **clean** exit is NOT restarted. That is right for the tray's own `Quit` entry and **wrong for every other way the process could end** |
 
     **REQUIREMENT 3 IS SEPARATELY NOT BUILT.** The tray polls `rig.estate`
     every 5 s and swaps its ICON to carry the estate; nothing renders the
