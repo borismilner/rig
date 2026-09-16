@@ -630,6 +630,25 @@ func (d *Daemon) serveProjectBrief(ctx context.Context, c *conn, f *rigv1.Frame,
 		// is never sent without one.
 		Health:   &rigv1.BriefHealth{},
 		Sections: briefSections(),
+
+		// ⛔ THE PACKAGE COMPUTED THIS AND THIS FUNCTION THREW IT AWAY, SO THE
+		// FIRST BRIEF rig EVER GAVE OF ITSELF SAID "(not said)" ABOUT ITS OWN
+		// KIND. Measured 2026-09-17 on the production store, minutes after
+		// rig's backlog was first seeded: `rig record get rig --json` answered
+		// `"kind":"project"` and `rig brief rig` printed `rig (not said)`.
+		//
+		// brief.go:420 sets b.Kind from the container record whenever the Get
+		// succeeds, and `wire.proto`'s own comment above `string kind = 9` says
+		// these four fields exist because "the CLI renderer was built against
+		// these and the wire did not carry them". ⛔ THE DEFERRAL WAS HONOURED
+		// ON THE WIRE AND ON NEITHER SIDE OF IT - the field was reserved, the
+		// package filled it, and the mapping between them was never written.
+		//
+		// title, status and semver are the OTHER HALF and are NOT set here on
+		// purpose: `record.Brief` has no field for any of them yet, so setting
+		// them would mean this function reading the store a second time and
+		// becoming a second derivation. backend-record carries that half.
+		Kind: b.Kind,
 	}
 
 	// A NEGATIVE COUNT IS A BUG, AND ZERO IS THE HONEST ANSWER TO ONE. The
