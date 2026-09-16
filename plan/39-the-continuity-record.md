@@ -1060,6 +1060,87 @@ not slice 4 leaking. **A `blocks` edge is a caller's assertion about the work**,
 which is precisely slice 4's capability, and writing it from inside the package
 would have put the acceptance demonstration on a path no caller has.
 
+#### ⛔ THE SET THAT GOES ON THE WIRE IS EIGHT ROWS AND NINE VERBS, NOT ELEVEN
+
+**Ruled 2026-09-16 late by the lead, and recorded here rather than in
+`DECISIONS.md` because it is a scope rule about what the table above MEANS.**
+It had lived in one session's briefing until the handover that folded it in.
+
+| Excluded | Why it is not on the wire yet |
+|---|---|
+| `standard.stamp`, `standard.drift` | slice 7 |
+| `project.gate` | slice 6 |
+
+**The reason, and it is the whole of it: a declared-and-unimplemented verb is a
+WIRE THAT LIES.** A caller that can see a method assumes it works, and §21's
+extensibility makes the later additive change cheap - so the cost of waiting is
+lower than the cost of a reader believing a verb exists. This binds the proto,
+the `self.go` declarations and the sibling MCP tool alike.
+
+⛔ **THE NUMBER IS RECORDED BECAUSE IT WAS GOT WRONG TWICE, BOTH TIMES BY
+ARITHMETIC RATHER THAN BY JUDGEMENT.** The lead said "four off-path" when it is
+three, and a predecessor certified "seven verbs" off that figure before it was
+caught. **Eleven rows, minus three excluded, is EIGHT rows; the `record.link` /
+`unlink` row carries TWO verbs, so it is NINE verbs.** Nobody needs to re-derive
+this.
+
+#### ⛔ EVERY RECORD VERB OWES A `kernel.Command` IN `self.go`, AND THE MISS IS CHEAP TO MAKE
+
+**`internal/daemon/self.go` declares EIGHT commands today** - `ping`, `estate`,
+`programs`, `announce`, `activity`, `peers`, `session` and `down`. `[ran it]`.
+
+⛔ **SEVEN OF THE EIGHT ARE INVISIBLE TO THE OBVIOUS GREP.** They are built by a
+`readOnly(id, title, summary, description, returns)` helper at `self.go:17`, so
+only `down` carries a literal `ID:` field. **A seat searching for `ID: "` finds
+one declaration and concludes rig declares almost nothing** - measured, it
+happened during the handover that wrote this paragraph, and it was heading for a
+wire shipped with nine undeclared methods.
+
+**WHY THAT WOULD NOT HAVE BEEN A GAP BUT A SELF-INFLICTED OUTAGE**, in
+`DeclareSelf`'s own terms: rig's methods are otherwise *"the one surface that
+never reaches the rules table, and an unresolvable ref would otherwise resolve
+to `EffectsCeiling`"* - **so ANY RULE AT ALL would stop rig answering.** An
+undeclared verb is not a missing row, it is rig refusing itself the moment a
+house rule exists.
+
+| Verb | Effects | Note |
+|---|---|---|
+| `record.get`, `record.query`, `record.history`, `project.brief` | `EffectsReadOnly` | the `readOnly` helper covers them whole |
+| `record.put`, `record.link`, `record.unlink`, `progress.step` | ⛔ **NOT read-only** | they need real values, and **`Idempotent` is mandatory with no safe default** - `missing()` refuses the declaration without it |
+
+#### ⛔ `project.brief` CARRIES ITS DELIVERY MARK IN SLICE 2, AND IT IS STILL `EffectsReadOnly`
+
+**This resolves the one sentence in this section that specified a build and a
+rewrite at the same time.** The brief's row 6 says calling it MARKS the must-read
+set delivered to this session, and warns that *"a builder implementing the brief
+as a pure derivation in slice 2 rewrites it in slice 6"*. **Two leads have now
+read that sentence in opposite directions**, so it is ruled here.
+
+**RULED: the slice-2 brief RETURNS the must-read set and MARKS it delivered.**
+Not pure. The mark is per-session state and costs one map write; **omitting it
+buys nothing and puts a known rewrite on the MVP's own verb.**
+
+⛔ **AND THE OBJECTION THAT ALMOST CARRIED IT IS ANSWERED BY rig's OWN
+PRECEDENT, WHICH IS WHY THE RULING WENT THIS WAY.** The argument against was
+that a marking brief cannot declare `EffectsReadOnly`, so slice 6 would change a
+DECLARED PROPERTY of a shipped verb rather than only its body. **Measured, that
+is false:** `announce` mutates the estate's roster on every call and is declared
+through the `readOnly` helper (`self.go:81`), and `activity` replaces a
+connection's activity line and is declared the same way (`self.go:85`).
+
+**`Effects` is what a command does to THE WORLD** (`declaration.go:135`), and
+the ladder's next rung is `EffectsWritesFiles`. **Per-session delivery state is
+connection state, exactly like presence** - §39 already requires it be tracked
+*"per session, never per uid"*, so it never reaches the record store and never
+touches a file. **`EffectsReadOnly` is honest for it, today and at slice 6.**
+
+**What the publisher-with-no-subscriber argument really bounds.** `record.changed`
+was held to slice 5 because nothing on the MVP path SUBSCRIBES to it, and that
+reasoning was offered here too. **It does not transfer: `record.changed` costs a
+BUS, and the delivery mark costs a map write on state the daemon already holds
+per connection.** The shapes are not the same size and the rule that fits one
+does not fit the other.
+
 ### The read-before-write gate, which is where the prose layer actually dies
 
 **Today the instruction is *"read `COORDINATION.md` in full before your first
