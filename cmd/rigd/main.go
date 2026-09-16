@@ -17,6 +17,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/boris-milner/rig/internal/coord"
 	"github.com/boris-milner/rig/internal/daemon"
 	"github.com/boris-milner/rig/internal/instance"
 	"github.com/boris-milner/rig/internal/paths"
@@ -118,6 +119,35 @@ func run() error {
 		}
 		defer func() { _ = nameClaim.Close() }()
 		log.Info("estate named", "estate", *estate, "claim", claimPath)
+
+		// THE ESTATE'S PERSISTENT STATE, opened here and for the same reason
+		// the claim is taken here: under the lock, before anything binds
+		// (section 37, preconditions 2 and 4). Two daemons must never have
+		// this file open at once, and the claim above is what guarantees it -
+		// bbolt's own file lock would too, but it would report the collision
+		// as a three-second timeout rather than as "that name is taken".
+		//
+		// AN UNNAMED ESTATE OPENS NOTHING, which is why this sits inside the
+		// named branch rather than beside it. It has no name to key a subtree
+		// to, so it has no persistent state at all; every test in this
+		// repository starts one, and that is what keeps them from sharing a
+		// store with the developer's live estate.
+		//
+		// OPENING IT IS WHAT BUMPS THE EPOCH, unconditionally, once per start
+		// (section 37, precondition 4 and V15). Nothing distinguishes a
+		// planned restart from a crash here, deliberately: the cost of
+		// treating a restart as a crash is one re-acquisition, and the cost of
+		// the reverse is a fencing token that outlives what it fences.
+		st, err := coord.Open(*estate)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = st.Close() }()
+		log.Info("estate state opened",
+			"estate", *estate,
+			"path", st.Path(),
+			"epoch", st.Epoch(),
+			"rebooted", st.Rebooted())
 	}
 
 	// Only now, holding the lock, is a stale socket ours to remove. Doing this
