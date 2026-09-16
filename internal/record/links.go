@@ -1,6 +1,7 @@
 package record
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -49,11 +50,11 @@ func knownLinkTypes() string {
 // after a successful call it does. A second assertion of the same fact carries
 // no new information and is not an error - that is set semantics, and it is
 // what lets a caller re-run a declaration without first reading the graph.
-func (s *Store) Link(src, typ, dst string) error {
-	if err := s.checkEdge(src, typ, dst); err != nil {
+func (s *Store) Link(ctx context.Context, src, typ, dst string) error {
+	if err := s.checkEdge(ctx, src, typ, dst); err != nil {
 		return err
 	}
-	if _, err := s.db.Exec(
+	if _, err := s.db.ExecContext(ctx,
 		`INSERT INTO links (src, type, dst) VALUES (?, ?, ?)
 		 ON CONFLICT(src, type, dst) DO NOTHING`, src, typ, dst); err != nil {
 		return fmt.Errorf("record: linking %s -%s-> %s: %w", src, typ, dst, err)
@@ -63,8 +64,8 @@ func (s *Store) Link(src, typ, dst string) error {
 
 // Unlink removes an edge. Idempotent for the same reason Link is: afterwards
 // the edge is gone, which is what the caller asked for.
-func (s *Store) Unlink(src, typ, dst string) error {
-	if err := s.checkEdge(src, typ, dst); err != nil {
+func (s *Store) Unlink(ctx context.Context, src, typ, dst string) error {
+	if err := s.checkEdge(ctx, src, typ, dst); err != nil {
 		return err
 	}
 
@@ -76,7 +77,7 @@ func (s *Store) Unlink(src, typ, dst string) error {
 	// it has not been deleted, it has been hidden, which is worse.
 	if typ == LinkPartOf {
 		var kind string
-		switch err := s.db.QueryRow(`SELECT kind FROM records WHERE id = ? AND version = 1`, src).Scan(&kind); {
+		switch err := s.db.QueryRowContext(ctx, `SELECT kind FROM records WHERE id = ? AND version = 1`, src).Scan(&kind); {
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
 			return fmt.Errorf("record: checking what %s is: %w", src, err)
 		case kind == KindProgress:
@@ -84,7 +85,7 @@ func (s *Store) Unlink(src, typ, dst string) error {
 		}
 	}
 
-	if _, err := s.db.Exec(
+	if _, err := s.db.ExecContext(ctx,
 		`DELETE FROM links WHERE src = ? AND type = ? AND dst = ?`, src, typ, dst); err != nil {
 		return fmt.Errorf("record: unlinking %s -%s-> %s: %w", src, typ, dst, err)
 	}
@@ -92,8 +93,8 @@ func (s *Store) Unlink(src, typ, dst string) error {
 }
 
 // LinksFrom returns the destinations of one type of edge leaving a record.
-func (s *Store) LinksFrom(src, typ string) ([]string, error) {
-	rows, err := s.db.Query(
+func (s *Store) LinksFrom(ctx context.Context, src, typ string) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx,
 		`SELECT dst FROM links WHERE src = ? AND type = ? ORDER BY dst`, src, typ)
 	if err != nil {
 		return nil, fmt.Errorf("record: reading %s edges from %s: %w", typ, src, err)
@@ -112,7 +113,7 @@ func (s *Store) LinksFrom(src, typ string) ([]string, error) {
 }
 
 // checkEdge is every refusal both verbs share.
-func (s *Store) checkEdge(src, typ, dst string) error {
+func (s *Store) checkEdge(ctx context.Context, src, typ, dst string) error {
 	if src == "" {
 		return errors.New("record: a link needs a source")
 	}
@@ -137,7 +138,7 @@ func (s *Store) checkEdge(src, typ, dst string) error {
 	}
 	for _, end := range []string{src, dst} {
 		var exists int
-		switch err := s.db.QueryRow(`SELECT 1 FROM heads WHERE id = ?`, end).Scan(&exists); {
+		switch err := s.db.QueryRowContext(ctx, `SELECT 1 FROM heads WHERE id = ?`, end).Scan(&exists); {
 		case errors.Is(err, sql.ErrNoRows):
 			return &NotFoundError{ID: end}
 		case err != nil:

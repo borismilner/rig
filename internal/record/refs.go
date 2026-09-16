@@ -1,6 +1,7 @@
 package record
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -104,7 +105,7 @@ type Refs struct {
 // the lead's instruction - 0->1->2->0 ran past 20 seconds and was killed, exit
 // 124. It is written here so nobody rewrites this walk as a CTE without putting
 // a bound in it, not because that hang can happen in this function.
-func (s *Store) Refs(r RefsRequest) (Refs, error) {
+func (s *Store) Refs(ctx context.Context, r RefsRequest) (Refs, error) {
 	if r.ID == "" {
 		return Refs{}, errors.New("record: refs needs a record to point at")
 	}
@@ -122,7 +123,7 @@ func (s *Store) Refs(r RefsRequest) (Refs, error) {
 				"that looks complete", depth, MaxRefsDepth, MaxRefsDepth)
 	}
 
-	subject, err := s.Get(r.ID)
+	subject, err := s.Get(ctx, r.ID)
 	if err != nil {
 		return Refs{}, err
 	}
@@ -138,7 +139,7 @@ func (s *Store) Refs(r RefsRequest) (Refs, error) {
 	for hop := 1; hop <= depth && len(frontier) > 0; hop++ {
 		var next []string
 		for _, node := range frontier {
-			in, err := s.linksTo(node)
+			in, err := s.linksTo(ctx, node)
 			if err != nil {
 				return Refs{}, err
 			}
@@ -151,7 +152,7 @@ func (s *Store) Refs(r RefsRequest) (Refs, error) {
 				if visited[e.src] {
 					continue
 				}
-				rec, err := s.Get(e.src)
+				rec, err := s.Get(ctx, e.src)
 				if err != nil {
 					return Refs{}, err
 				}
@@ -181,7 +182,7 @@ func (s *Store) Refs(r RefsRequest) (Refs, error) {
 		// flag that is always true is exactly as useless as one that is always
 		// false, and it fails in the direction that looks careful.
 		if hop == depth {
-			out.Truncated, err = s.moreBeyond(frontier, visited, subject.Project, r.CrossProject)
+			out.Truncated, err = s.moreBeyond(ctx, frontier, visited, subject.Project, r.CrossProject)
 			if err != nil {
 				return Refs{}, err
 			}
@@ -207,8 +208,8 @@ type inEdge struct {
 // linksTo reads the edges pointing AT a record. It is a lookup rather than a
 // scan - links_by_dst exists for exactly this, because rig's own citation graph
 // has a node at in-degree 758 and a scan there is not interactive.
-func (s *Store) linksTo(dst string) ([]inEdge, error) {
-	rows, err := s.db.Query(
+func (s *Store) linksTo(ctx context.Context, dst string) ([]inEdge, error) {
+	rows, err := s.db.QueryContext(ctx,
 		`SELECT src, type FROM links WHERE dst = ? ORDER BY src, type`, dst)
 	if err != nil {
 		return nil, fmt.Errorf("record: reading what points at %s: %w", dst, err)
@@ -233,9 +234,9 @@ func (s *Store) linksTo(dst string) ([]inEdge, error) {
 // to a record this answer does not already carry, inside whatever scope the
 // caller asked for? A frontier is non-empty on every complete traversal too -
 // those are the leaves - so the flag cannot be read off its length.
-func (s *Store) moreBeyond(frontier []string, visited map[string]bool, project string, cross bool) (bool, error) {
+func (s *Store) moreBeyond(ctx context.Context, frontier []string, visited map[string]bool, project string, cross bool) (bool, error) {
 	for _, node := range frontier {
-		in, err := s.linksTo(node)
+		in, err := s.linksTo(ctx, node)
 		if err != nil {
 			return false, err
 		}
@@ -244,7 +245,7 @@ func (s *Store) moreBeyond(frontier []string, visited map[string]bool, project s
 				continue
 			}
 			if !cross {
-				rec, err := s.Get(e.src)
+				rec, err := s.Get(ctx, e.src)
 				if err != nil {
 					return false, err
 				}

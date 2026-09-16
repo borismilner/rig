@@ -1,6 +1,7 @@
 package record
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -97,17 +98,17 @@ type Blockage struct {
 }
 
 // Brief derives the answer to "what is going on here" for one project.
-func (s *Store) Brief(project string) (Brief, error) {
+func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 	if project == "" {
 		return Brief{}, errors.New("record: a brief needs a project")
 	}
 	b := Brief{Project: project}
 
-	items, err := s.Query(project, "work-item")
+	items, err := s.Query(ctx, project, "work-item")
 	if err != nil {
 		return Brief{}, err
 	}
-	latest, err := s.latestSteps(project)
+	latest, err := s.latestSteps(ctx, project)
 	if err != nil {
 		return Brief{}, err
 	}
@@ -135,7 +136,7 @@ func (s *Store) Brief(project string) (Brief, error) {
 		active[it.ID] = st
 	}
 
-	edges, err := s.blocksAmong(active)
+	edges, err := s.blocksAmong(ctx, active)
 	if err != nil {
 		return Brief{}, err
 	}
@@ -164,7 +165,7 @@ func (s *Store) Brief(project string) (Brief, error) {
 		if step, ok := latest[it.ID]; ok && step.Fields["state"] == "done" {
 			continue
 		}
-		dsts, err := s.LinksFrom(it.ID, LinkBlocks)
+		dsts, err := s.LinksFrom(ctx, it.ID, LinkBlocks)
 		if err != nil {
 			return Brief{}, err
 		}
@@ -178,7 +179,7 @@ func (s *Store) Brief(project string) (Brief, error) {
 	// NEXT UP IS WHAT CAN BE STARTED NOW, so a blocked item is never in it -
 	// including one whose blocker is in neither list. The lists stay disjoint
 	// and together still carry every active item.
-	n := s.nextUpN(project)
+	n := s.nextUpN(ctx, project)
 	for _, id := range order {
 		if len(b.NextUp) < n && len(blockedBy[id]) == 0 {
 			b.NextUp = append(b.NextUp, active[id])
@@ -193,15 +194,15 @@ func (s *Store) Brief(project string) (Brief, error) {
 	}
 	sort.Slice(b.Blocked, func(i, j int) bool { return b.Blocked[i].Item < b.Blocked[j].Item })
 
-	if b.CoarseCitations, err = s.coarseCitations(project); err != nil {
+	if b.CoarseCitations, err = s.coarseCitations(ctx, project); err != nil {
 		return Brief{}, err
 	}
 	return b, nil
 }
 
 // nextUpN reads the project's override, falling back to the default.
-func (s *Store) nextUpN(project string) int {
-	rec, err := s.Get(project)
+func (s *Store) nextUpN(ctx context.Context, project string) int {
+	rec, err := s.Get(ctx, project)
 	if err != nil {
 		return DefaultNextUpN
 	}
@@ -216,10 +217,10 @@ func (s *Store) nextUpN(project string) int {
 //
 // Restricted deliberately: an edge from a done item is not a live dependency,
 // and carrying it would put finished work back into the ordering.
-func (s *Store) blocksAmong(active map[string]ItemState) (map[string][]string, error) {
+func (s *Store) blocksAmong(ctx context.Context, active map[string]ItemState) (map[string][]string, error) {
 	out := map[string][]string{}
 	for id := range active {
-		dsts, err := s.LinksFrom(id, LinkBlocks)
+		dsts, err := s.LinksFrom(ctx, id, LinkBlocks)
 		if err != nil {
 			return nil, err
 		}

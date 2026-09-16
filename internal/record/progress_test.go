@@ -24,7 +24,7 @@ func TestEachStepIsItsOwnRecordAndTheStreamReadsOldestFirst(t *testing.T) {
 		{"blocked", "waiting on the wire"},
 		{"done", "landed"},
 	} {
-		if _, err := s.Step(StepRequest{
+		if _, err := s.Step(tctx, StepRequest{
 			Item: item, State: st.state, Note: st.note, Project: "rig",
 			Session: "record", Seat: "backend-record", Epoch: 6,
 		}); err != nil {
@@ -32,7 +32,7 @@ func TestEachStepIsItsOwnRecordAndTheStreamReadsOldestFirst(t *testing.T) {
 		}
 	}
 
-	stream, err := s.Stream(item)
+	stream, err := s.Stream(tctx, item)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestAProgressRecordCannotBeWrittenOrRewrittenThroughPut(t *testing.T) {
 	s := openStore(t, name)
 
 	item := workItem(t, s, "wi-b28", "the store question")
-	step, err := s.Step(StepRequest{
+	step, err := s.Step(tctx, StepRequest{
 		Item: item, State: "started", Note: "picked it up", Project: "rig",
 		Session: "record", Seat: "backend-record", Epoch: 6,
 	})
@@ -72,7 +72,7 @@ func TestAProgressRecordCannotBeWrittenOrRewrittenThroughPut(t *testing.T) {
 	// Creating one directly.
 	direct := req("", "a step that did not go through Step")
 	direct.Kind = "progress"
-	if _, err := s.Put(direct); err == nil {
+	if _, err := s.Put(tctx, direct); err == nil {
 		t.Fatal("put created a progress record directly; the stream invariant is unenforced")
 	}
 
@@ -80,7 +80,7 @@ func TestAProgressRecordCannotBeWrittenOrRewrittenThroughPut(t *testing.T) {
 	rewrite := req(step.ID, "it was never blocked, honest")
 	rewrite.Kind = "progress"
 	rewrite.IfVersion = 1
-	if _, err := s.Put(rewrite); err == nil {
+	if _, err := s.Put(tctx, rewrite); err == nil {
 		t.Fatal("put superseded a progress step; a stream that can be rewritten is not a stream")
 	}
 }
@@ -98,13 +98,13 @@ func TestAStepIsRefusedByNameWithoutAnItemOrAKnownState(t *testing.T) {
 
 	noItem := base
 	noItem.Item = ""
-	if _, err := s.Step(noItem); err == nil || !strings.Contains(err.Error(), "item") {
+	if _, err := s.Step(tctx, noItem); err == nil || !strings.Contains(err.Error(), "item") {
 		t.Fatalf("a step with no item should be refused by name, got: %v", err)
 	}
 
 	badState := base
 	badState.State = "nearly-done"
-	if _, err := s.Step(badState); err == nil || !strings.Contains(err.Error(), "nearly-done") {
+	if _, err := s.Step(tctx, badState); err == nil || !strings.Contains(err.Error(), "nearly-done") {
 		t.Fatalf("an unknown state should be refused and QUOTED, got: %v", err)
 	}
 
@@ -116,7 +116,7 @@ func TestAStepIsRefusedByNameWithoutAnItemOrAKnownState(t *testing.T) {
 	// guard is doing the work.
 	missing := base
 	missing.Item = "wi-does-not-exist"
-	_, err := s.Step(missing)
+	_, err := s.Step(tctx, missing)
 	if err == nil {
 		t.Fatal("a step against an item that does not exist was accepted; it would be invisible to every derivation")
 	}
@@ -137,7 +137,7 @@ func workItem(t *testing.T, s *Store, id, title string) string {
 		Fields:  map[string]string{"title": title, "status": "active"},
 		Session: "record", Seat: "backend-record", Epoch: 6,
 	}
-	w, err := s.Put(r)
+	w, err := s.Put(tctx, r)
 	if err != nil {
 		t.Fatalf("writing work item %s: %v", id, err)
 	}

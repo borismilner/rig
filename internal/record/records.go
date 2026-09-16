@@ -1,6 +1,7 @@
 package record
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -120,7 +121,7 @@ func (e *NotFoundError) Error() string {
 var slugIDKinds = map[string]bool{"project": true, "case": true}
 
 // Put creates a record or supersedes one, and returns the version it wrote.
-func (s *Store) Put(r PutRequest) (Record, error) {
+func (s *Store) Put(ctx context.Context, r PutRequest) (Record, error) {
 	if r.Kind == "" || r.Project == "" {
 		return Record{}, errors.New("record: a put needs a kind and a project")
 	}
@@ -151,14 +152,14 @@ func (s *Store) Put(r PutRequest) (Record, error) {
 		return Record{}, fmt.Errorf("record: encoding fields: %w", err)
 	}
 
-	tx, err := s.db.Begin()
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return Record{}, fmt.Errorf("record: begin: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
 	var head uint64
-	switch err := tx.QueryRow("SELECT version FROM heads WHERE id = ?", r.ID).Scan(&head); {
+	switch err := tx.QueryRowContext(ctx, "SELECT version FROM heads WHERE id = ?", r.ID).Scan(&head); {
 	case errors.Is(err, sql.ErrNoRows):
 		head = 0
 	case err != nil:
@@ -192,7 +193,7 @@ func (s *Store) Put(r PutRequest) (Record, error) {
 		CreatedAt: now().UTC(),
 	}
 
-	if err := writeVersion(tx, r, next, string(fields), stamped); err != nil {
+	if err := writeVersion(ctx, tx, r, next, string(fields), stamped); err != nil {
 		return Record{}, err
 	}
 
@@ -207,8 +208,8 @@ func (s *Store) Put(r PutRequest) (Record, error) {
 }
 
 // Get returns a record at its head.
-func (s *Store) Get(id string) (Record, error) {
-	row := s.db.QueryRow(
+func (s *Store) Get(ctx context.Context, id string) (Record, error) {
+	row := s.db.QueryRowContext(ctx,
 		`SELECT r.id, r.version, r.kind, r.project, r.body, r.fields,
 			r.session, r.seat, r.epoch, r.created_at
 		 FROM records r JOIN heads h ON h.id = r.id AND h.version = r.version
@@ -225,12 +226,12 @@ func (s *Store) Get(id string) (Record, error) {
 // THIS IS WHAT MAKES APPEND-ONLY WORTH THE STORAGE: section 39's slice 1
 // demonstration is a requirement superseded twice whose FIRST WORDING is read
 // back with the session that wrote it.
-func (s *Store) GetVersion(id string, version uint64) (Record, error) {
+func (s *Store) GetVersion(ctx context.Context, id string, version uint64) (Record, error) {
 	col, err := toColumn("version", version)
 	if err != nil {
 		return Record{}, err
 	}
-	row := s.db.QueryRow(
+	row := s.db.QueryRowContext(ctx,
 		`SELECT id, version, kind, project, body, fields,
 			session, seat, epoch, created_at
 		 FROM records WHERE id = ? AND version = ?`, id, col)
@@ -245,8 +246,8 @@ func (s *Store) GetVersion(id string, version uint64) (Record, error) {
 //
 // THIS IS SECTION 39's "indexed". A requirement cannot hide in 5,218 lines
 // because it is not in 5,218 lines: it is a record with a kind.
-func (s *Store) Query(project, kind string) ([]Record, error) {
-	rows, err := s.db.Query(
+func (s *Store) Query(ctx context.Context, project, kind string) ([]Record, error) {
+	rows, err := s.db.QueryContext(ctx,
 		`SELECT r.id, r.version, r.kind, r.project, r.body, r.fields,
 			r.session, r.seat, r.epoch, r.created_at
 		 FROM records r JOIN heads h ON h.id = r.id AND h.version = r.version
@@ -269,8 +270,8 @@ func (s *Store) Query(project, kind string) ([]Record, error) {
 }
 
 // History returns every version of one record, oldest first, with provenance.
-func (s *Store) History(id string) ([]Record, error) {
-	rows, err := s.db.Query(
+func (s *Store) History(ctx context.Context, id string) ([]Record, error) {
+	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, version, kind, project, body, fields,
 			session, seat, epoch, created_at
 		 FROM records WHERE id = ? ORDER BY version`, id)
@@ -364,7 +365,7 @@ func uuidV7() (string, error) {
 // second copy of this SQL is how the two would drift - a column added for one
 // caller and forgotten for the other is a defect that shows up as a record
 // whose provenance is half-written.
-func writeVersion(tx *sql.Tx, r PutRequest, version uint64, fields string, p Provenance) error {
+func writeVersion(ctx context.Context, tx *sql.Tx, r PutRequest, version uint64, fields string, p Provenance) error {
 	vcol, err := toColumn("version", version)
 	if err != nil {
 		return err
@@ -373,7 +374,7 @@ func writeVersion(tx *sql.Tx, r PutRequest, version uint64, fields string, p Pro
 	if err != nil {
 		return err
 	}
-	if _, err := tx.Exec(
+	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO records (id, version, kind, project, body, fields,
 			session, seat, epoch, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -383,7 +384,7 @@ func writeVersion(tx *sql.Tx, r PutRequest, version uint64, fields string, p Pro
 		return fmt.Errorf("record: writing %s version %d: %w", r.ID, version, err)
 	}
 
-	if _, err := tx.Exec(
+	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO heads (id, version) VALUES (?, ?)
 		 ON CONFLICT(id) DO UPDATE SET version = excluded.version`,
 		r.ID, vcol,

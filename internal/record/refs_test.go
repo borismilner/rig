@@ -8,7 +8,7 @@ import (
 
 func requirement(t *testing.T, s *Store, id, title, body string) string {
 	t.Helper()
-	w, err := s.Put(PutRequest{
+	w, err := s.Put(tctx, PutRequest{
 		ID: id, Kind: "requirement", Project: "rig", Body: body,
 		Fields:  map[string]string{"title": title, "status": "active"},
 		Session: "record", Seat: "backend-record", Epoch: 6,
@@ -39,7 +39,7 @@ func TestWhatCitesThisFindsTheCopyAGrepForTheWordingMisses(t *testing.T) {
 		"The ordering above is unchanged and the register trails it.")
 
 	for _, src := range []string{quoting, paraphrase} {
-		if err := s.Link(src, LinkCites, subject); err != nil {
+		if err := s.Link(tctx, src, LinkCites, subject); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -48,7 +48,7 @@ func TestWhatCitesThisFindsTheCopyAGrepForTheWordingMisses(t *testing.T) {
 	// than asserted.
 	var grepped []string
 	for _, id := range []string{quoting, paraphrase} {
-		rec, err := s.Get(id)
+		rec, err := s.Get(tctx, id)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -61,7 +61,7 @@ func TestWhatCitesThisFindsTheCopyAGrepForTheWordingMisses(t *testing.T) {
 			"exactly the quoting copy", grepped)
 	}
 
-	got, err := s.Refs(RefsRequest{ID: subject})
+	got, err := s.Refs(tctx, RefsRequest{ID: subject})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +91,7 @@ func TestARefsDepthAboveTheCapIsRefusedRatherThanQuietlyClamped(t *testing.T) {
 	s := openStore(t, name)
 	subject := requirement(t, s, "r37", "two estates", "")
 
-	_, err := s.Refs(RefsRequest{ID: subject, Depth: MaxRefsDepth + 1})
+	_, err := s.Refs(tctx, RefsRequest{ID: subject, Depth: MaxRefsDepth + 1})
 	if err == nil {
 		t.Fatal("a depth above the cap was accepted; a silently clamped traversal returns " +
 			"a partial answer that looks complete")
@@ -101,7 +101,7 @@ func TestARefsDepthAboveTheCapIsRefusedRatherThanQuietlyClamped(t *testing.T) {
 	if !strings.Contains(err.Error(), "above the cap") {
 		t.Fatalf("refused with %q, which is not the depth check", err)
 	}
-	if _, err := s.Refs(RefsRequest{ID: subject, Depth: MaxRefsDepth}); err != nil {
+	if _, err := s.Refs(tctx, RefsRequest{ID: subject, Depth: MaxRefsDepth}); err != nil {
 		t.Fatalf("the cap itself was refused: %v", err)
 	}
 }
@@ -117,13 +117,13 @@ func TestATraversalStoppedByTheBoundSaysSo(t *testing.T) {
 	prev := subject
 	for _, id := range []string{"c1", "c2", "c3", "c4"} {
 		cur := requirement(t, s, id, id, "")
-		if err := s.Link(cur, LinkCites, prev); err != nil {
+		if err := s.Link(tctx, cur, LinkCites, prev); err != nil {
 			t.Fatal(err)
 		}
 		prev = cur
 	}
 
-	shallow, err := s.Refs(RefsRequest{ID: subject, Depth: 2})
+	shallow, err := s.Refs(tctx, RefsRequest{ID: subject, Depth: 2})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +135,7 @@ func TestATraversalStoppedByTheBoundSaysSo(t *testing.T) {
 			"and did not say so - the caller cannot tell this from a complete answer")
 	}
 
-	full, err := s.Refs(RefsRequest{ID: subject, Depth: 4})
+	full, err := s.Refs(tctx, RefsRequest{ID: subject, Depth: 4})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +154,7 @@ func TestATraversalStaysInOneProjectUntilItIsAskedToLeave(t *testing.T) {
 
 	subject := requirement(t, s, "r39", "the continuity record", "")
 	inside := requirement(t, s, "r37", "two estates", "")
-	outside, err := s.Put(PutRequest{
+	outside, err := s.Put(tctx, PutRequest{
 		ID: "std-1", Kind: "requirement", Project: "standards", Body: "",
 		Fields:  map[string]string{"title": "every project stamps its checks"},
 		Session: "record", Seat: "backend-record", Epoch: 6,
@@ -163,12 +163,12 @@ func TestATraversalStaysInOneProjectUntilItIsAskedToLeave(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, src := range []string{inside, outside.ID} {
-		if err := s.Link(src, LinkCites, subject); err != nil {
+		if err := s.Link(tctx, src, LinkCites, subject); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	scoped, err := s.Refs(RefsRequest{ID: subject})
+	scoped, err := s.Refs(tctx, RefsRequest{ID: subject})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +177,7 @@ func TestATraversalStaysInOneProjectUntilItIsAskedToLeave(t *testing.T) {
 			"own project", scoped.Refs)
 	}
 
-	crossed, err := s.Refs(RefsRequest{ID: subject, CrossProject: true})
+	crossed, err := s.Refs(tctx, RefsRequest{ID: subject, CrossProject: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,14 +202,14 @@ func TestACycleIsReportedAndTheTraversalDoesNotHang(t *testing.T) {
 	b := requirement(t, s, "b", "b", "")
 	c := requirement(t, s, "c", "c", "")
 	for _, e := range [][2]string{{a, b}, {b, c}, {c, a}} {
-		if err := s.Link(e[0], LinkCites, e[1]); err != nil {
+		if err := s.Link(tctx, e[0], LinkCites, e[1]); err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	done := make(chan Refs, 1)
 	go func() {
-		got, err := s.Refs(RefsRequest{ID: a, Depth: MaxRefsDepth})
+		got, err := s.Refs(tctx, RefsRequest{ID: a, Depth: MaxRefsDepth})
 		if err != nil {
 			t.Error(err)
 			close(done)
@@ -247,7 +247,7 @@ func TestACycleIsReportedAndTheTraversalDoesNotHang(t *testing.T) {
 
 		// AND NOTHING WAS RESOLVED: every edge survives.
 		for _, src := range want {
-			out, err := s.LinksFrom(src, LinkCites)
+			out, err := s.LinksFrom(tctx, src, LinkCites)
 			if err != nil {
 				t.Fatal(err)
 			}

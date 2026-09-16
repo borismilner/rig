@@ -293,7 +293,7 @@ func TestRigsOwnBacklogIsManagedInRigAndTheBriefAnswersIt(t *testing.T) {
 	s := openStore(t, name)
 
 	// The project record. Its id is the SLUG, section 39's id-scheme exception.
-	if _, err := s.Put(PutRequest{
+	if _, err := s.Put(tctx, PutRequest{
 		ID: "rig", Kind: "project", Project: "rig",
 		Body:    "rig itself, the only project there is",
 		Fields:  map[string]string{"title": "rig", "status": "active", "next_up_n": "5"},
@@ -304,7 +304,7 @@ func TestRigsOwnBacklogIsManagedInRigAndTheBriefAnswersIt(t *testing.T) {
 
 	open := 0
 	for _, it := range items {
-		if _, err := s.Put(PutRequest{
+		if _, err := s.Put(tctx, PutRequest{
 			ID: it.ID, Kind: "work-item", Project: "rig", Body: it.Title,
 			Fields:  map[string]string{"title": it.Title, "status": "active"},
 			Session: "record", Seat: "backend-record", Epoch: 6,
@@ -332,12 +332,12 @@ func TestRigsOwnBacklogIsManagedInRigAndTheBriefAnswersIt(t *testing.T) {
 		{"B28", "B29"},
 	}
 	for _, e := range edges {
-		if err := s.Link(e[0], LinkBlocks, e[1]); err != nil {
+		if err := s.Link(tctx, e[0], LinkBlocks, e[1]); err != nil {
 			t.Fatalf("linking %s blocks %s: %v", e[0], e[1], err)
 		}
 	}
 
-	b, err := s.Brief("rig")
+	b, err := s.Brief(tctx, "rig")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -373,10 +373,10 @@ func TestRigsOwnBacklogIsManagedInRigAndTheBriefAnswersIt(t *testing.T) {
 	// asserted between two items that really are entangled: B2 is that
 	// deps-check reports success without comparing, B45 is that the rows are
 	// why. Each can be argued to need the other first.
-	if err := s.Link("B2", LinkBlocks, "B45"); err != nil {
+	if err := s.Link(tctx, "B2", LinkBlocks, "B45"); err != nil {
 		t.Fatal(err)
 	}
-	cyc, err := s.Brief("rig")
+	cyc, err := s.Brief(tctx, "rig")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -393,7 +393,7 @@ func TestRigsOwnBacklogIsManagedInRigAndTheBriefAnswersIt(t *testing.T) {
 	}
 	// AND NOTHING WAS RESOLVED: both edges survive.
 	for _, e := range [][2]string{{"B45", "B2"}, {"B2", "B45"}} {
-		out, err := s.LinksFrom(e[0], LinkBlocks)
+		out, err := s.LinksFrom(tctx, e[0], LinkBlocks)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -409,10 +409,10 @@ func TestRigsOwnBacklogIsManagedInRigAndTheBriefAnswersIt(t *testing.T) {
 	// package have already passed for a reason other than the one they named,
 	// both caught by mutation, and "the report fired" is that same shape if
 	// nobody watches it stop.
-	if err := s.Unlink("B2", LinkBlocks, "B45"); err != nil {
+	if err := s.Unlink(tctx, "B2", LinkBlocks, "B45"); err != nil {
 		t.Fatal(err)
 	}
-	back, err := s.Brief("rig")
+	back, err := s.Brief(tctx, "rig")
 	if err != nil {
 		t.Fatal(err)
 	}

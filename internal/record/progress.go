@@ -1,6 +1,7 @@
 package record
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -51,7 +52,7 @@ type StepRequest struct {
 // transaction, because a step that exists with no edge is invisible to every
 // derivation that matters - it would be a progress record nothing can find,
 // which is worse than a refused write.
-func (s *Store) Step(r StepRequest) (Record, error) {
+func (s *Store) Step(ctx context.Context, r StepRequest) (Record, error) {
 	if r.Item == "" {
 		return Record{}, errors.New("record: a step needs the item it is about")
 	}
@@ -80,7 +81,7 @@ func (s *Store) Step(r StepRequest) (Record, error) {
 		return Record{}, fmt.Errorf("record: encoding step fields: %w", err)
 	}
 
-	tx, err := s.db.Begin()
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return Record{}, fmt.Errorf("record: begin: %w", err)
 	}
@@ -93,7 +94,7 @@ func (s *Store) Step(r StepRequest) (Record, error) {
 	// compare-and-swap in Put is built on, and one concurrency model rather
 	// than two.
 	var exists int
-	if err := tx.QueryRow(`SELECT 1 FROM heads WHERE id = ?`, r.Item).Scan(&exists); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT 1 FROM heads WHERE id = ?`, r.Item).Scan(&exists); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Record{}, &NotFoundError{ID: r.Item}
 		}
@@ -101,10 +102,10 @@ func (s *Store) Step(r StepRequest) (Record, error) {
 	}
 
 	stamped := Provenance{Session: r.Session, Seat: r.Seat, Epoch: r.Epoch, CreatedAt: now().UTC()}
-	if err := writeVersion(tx, put, 1, string(fields), stamped); err != nil {
+	if err := writeVersion(ctx, tx, put, 1, string(fields), stamped); err != nil {
 		return Record{}, err
 	}
-	if _, err := tx.Exec(
+	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO links (src, type, dst) VALUES (?, ?, ?)`,
 		id, LinkPartOf, r.Item,
 	); err != nil {
@@ -136,8 +137,8 @@ func (s *Store) Step(r StepRequest) (Record, error) {
 // both the order and the tie-break. Two files asserting opposite things about
 // one column is the drift section 39 exists to catch, and a later reader
 // believes whichever they open first. One argument now governs both.
-func (s *Store) Stream(item string) ([]Record, error) {
-	rows, err := s.db.Query(
+func (s *Store) Stream(ctx context.Context, item string) ([]Record, error) {
+	rows, err := s.db.QueryContext(ctx,
 		`SELECT r.id, r.version, r.kind, r.project, r.body, r.fields,
 			r.session, r.seat, r.epoch, r.created_at
 		 FROM links l JOIN records r ON r.id = l.src

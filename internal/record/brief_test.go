@@ -7,7 +7,7 @@ import (
 
 func step(t *testing.T, s *Store, item, state string) {
 	t.Helper()
-	if _, err := s.Step(StepRequest{
+	if _, err := s.Step(tctx, StepRequest{
 		Item: item, State: state, Project: "rig",
 		Session: "record", Seat: "backend-record", Epoch: 6,
 	}); err != nil {
@@ -28,7 +28,7 @@ func TestAWorkItemDrivenStartToFinishLeavesTheBriefAndTheStreamHoldsIt(t *testin
 	step(t, s, item, "blocked")
 	step(t, s, item, "started")
 
-	b, err := s.Brief("rig")
+	b, err := s.Brief(tctx, "rig")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestAWorkItemDrivenStartToFinishLeavesTheBriefAndTheStreamHoldsIt(t *testin
 
 	// Drive it to done, and it leaves the brief entirely.
 	step(t, s, item, "done")
-	b, err = s.Brief("rig")
+	b, err = s.Brief(tctx, "rig")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +51,7 @@ func TestAWorkItemDrivenStartToFinishLeavesTheBriefAndTheStreamHoldsIt(t *testin
 
 	// ⛔ AND THE HISTORY SURVIVES IT. The item leaving the brief is a
 	// derivation changing its answer, not a record being erased.
-	stream, err := s.Stream(item)
+	stream, err := s.Stream(tctx, item)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func TestAnItemWhoseLatestStepIsDoneLeavesNextUpEvenWhileStatusSaysActive(t *tes
 	step(t, s, done, "done")
 	step(t, s, live, "started")
 
-	b, err := s.Brief("rig")
+	b, err := s.Brief(tctx, "rig")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,14 +96,14 @@ func TestNextUpIsATopologicalSortOverBlocks(t *testing.T) {
 		step(t, s, id, "started")
 	}
 	// a blocks b blocks c.
-	if err := s.Link(a, LinkBlocks, b); err != nil {
+	if err := s.Link(tctx, a, LinkBlocks, b); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Link(b, LinkBlocks, c); err != nil {
+	if err := s.Link(tctx, b, LinkBlocks, c); err != nil {
 		t.Fatal(err)
 	}
 
-	br, err := s.Brief("rig")
+	br, err := s.Brief(tctx, "rig")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,12 +141,12 @@ func TestABlocksCycleIsReportedByNameAndTheRestIsStillOrdered(t *testing.T) {
 	}
 	// x -> y -> z -> x
 	for _, e := range [][2]string{{x, y}, {y, z}, {z, x}} {
-		if err := s.Link(e[0], LinkBlocks, e[1]); err != nil {
+		if err := s.Link(tctx, e[0], LinkBlocks, e[1]); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	br, err := s.Brief("rig")
+	br, err := s.Brief(tctx, "rig")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +169,7 @@ func TestABlocksCycleIsReportedByNameAndTheRestIsStillOrdered(t *testing.T) {
 	}
 	// NOTHING WAS RESOLVED: all three edges survive.
 	for _, e := range [][2]string{{x, y}, {y, z}, {z, x}} {
-		out, err := s.LinksFrom(e[0], LinkBlocks)
+		out, err := s.LinksFrom(tctx, e[0], LinkBlocks)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -192,12 +192,12 @@ func TestAnItemDownstreamOfACycleIsNotNamedAsPartOfIt(t *testing.T) {
 		step(t, s, id, "started")
 	}
 	for _, e := range [][2]string{{x, y}, {y, x}, {y, down}} {
-		if err := s.Link(e[0], LinkBlocks, e[1]); err != nil {
+		if err := s.Link(tctx, e[0], LinkBlocks, e[1]); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	br, err := s.Brief("rig")
+	br, err := s.Brief(tctx, "rig")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +212,7 @@ func TestNextUpNSplitsTheListsAndTheyAreDisjoint(t *testing.T) {
 	name := estate(t, "development")
 	s := openStore(t, name)
 
-	if _, err := s.Put(PutRequest{
+	if _, err := s.Put(tctx, PutRequest{
 		ID: "rig", Kind: "project", Project: "rig", Body: "rig itself",
 		Fields:  map[string]string{"title": "rig", "status": "active", "next_up_n": "2"},
 		Session: "record", Seat: "backend-record", Epoch: 6,
@@ -224,7 +224,7 @@ func TestNextUpNSplitsTheListsAndTheyAreDisjoint(t *testing.T) {
 		step(t, s, id, "started")
 	}
 
-	br, err := s.Brief("rig")
+	br, err := s.Brief(tctx, "rig")
 	if err != nil {
 		t.Fatal(err)
 	}

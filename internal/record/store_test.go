@@ -1,11 +1,24 @@
 package record
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"strings"
 	"testing"
 )
+
+// tctx is the context every store call in these tests takes.
+//
+// ONE ROOT FOR THE WHOLE PACKAGE'S TESTS, AND IT IS ALLOWED TO BE UNDEADLINED.
+// Section 3's no-call-without-a-deadline rule is enforced by the nocontextfree
+// analyzer, and Product() is false for a test file (internal/analysis.go:382),
+// so a test may hold a root context without wrapping it. One package-level
+// context rather than one per test because nothing in this package exercises
+// cancellation: the deadline these calls exist to honour is the daemon's, and
+// the daemon is not in this package. A test that ever needs a cancelled store
+// call should derive its own and say why.
+var tctx = context.Background()
 
 // estate points the state directory at a temp dir and names the estate.
 //

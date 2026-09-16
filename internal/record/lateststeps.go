@@ -1,6 +1,7 @@
 package record
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 )
@@ -106,20 +107,20 @@ var latestStepsSQL = map[string]string{
 const latestStepsForm = "group-by-max"
 
 // latestSteps returns the newest step on every item in a project, by item id.
-func (s *Store) latestSteps(project string) (map[string]Record, error) {
-	return s.latestStepsUsing(latestStepsForm, project)
+func (s *Store) latestSteps(ctx context.Context, project string) (map[string]Record, error) {
+	return s.latestStepsUsing(ctx, latestStepsForm, project)
 }
 
 // latestStepsUsing runs one named formulation. Exists so the benchmark can
 // measure all four against the SAME corpus through the SAME scan path - a
 // benchmark that measures its own helper rather than the database is the
 // instrument failure this question already paid for once.
-func (s *Store) latestStepsUsing(form, project string) (map[string]Record, error) {
+func (s *Store) latestStepsUsing(ctx context.Context, form, project string) (map[string]Record, error) {
 	q, ok := latestStepsSQL[form]
 	if !ok {
 		return nil, fmt.Errorf("record: %q is not a latest-step formulation", form)
 	}
-	rows, err := s.db.Query(q, project)
+	rows, err := s.db.QueryContext(ctx, q, project)
 	if err != nil {
 		return nil, fmt.Errorf("record: latest steps for %s via %s: %w", project, form, err)
 	}
@@ -173,9 +174,9 @@ func scanStepRow(sc scanner) (Record, string, error) {
 // a failed row: section 37 is 942 lines, and a link to it is the same coarse
 // pointer wearing a new format. Reads ZERO until the migration runs, which is
 // honest rather than empty - the count is a real zero, not a missing feature.
-func (s *Store) coarseCitations(project string) (int, error) {
+func (s *Store) coarseCitations(ctx context.Context, project string) (int, error) {
 	var n int
-	err := s.db.QueryRow(`
+	err := s.db.QueryRowContext(ctx, `
 		SELECT COUNT(*)
 		FROM links l
 		JOIN records src ON src.id = l.src

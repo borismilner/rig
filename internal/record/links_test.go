@@ -12,12 +12,12 @@ func TestALinkIsWrittenOnceAndAssertingItAgainIsNotAnError(t *testing.T) {
 	a := workItem(t, s, "wi-a", "first")
 	b := workItem(t, s, "wi-b", "second")
 
-	if err := s.Link(a, LinkBlocks, b); err != nil {
+	if err := s.Link(tctx, a, LinkBlocks, b); err != nil {
 		t.Fatalf("linking: %v", err)
 	}
 	// IDEMPOTENT BY CONTRACT. The caller asked for the edge to exist, and it
 	// does. A second assertion of the same fact is not new information.
-	if err := s.Link(a, LinkBlocks, b); err != nil {
+	if err := s.Link(tctx, a, LinkBlocks, b); err != nil {
 		t.Fatalf("re-asserting the same edge should be a no-op, got: %v", err)
 	}
 
@@ -26,18 +26,18 @@ func TestALinkIsWrittenOnceAndAssertingItAgainIsNotAnError(t *testing.T) {
 	// whether it honours the type or ignores it - a mutation that deleted the
 	// type predicate survived this test in exactly that form.
 	c := workItem(t, s, "wi-c", "third")
-	if err := s.Link(a, LinkCites, c); err != nil {
+	if err := s.Link(tctx, a, LinkCites, c); err != nil {
 		t.Fatalf("linking a second type: %v", err)
 	}
 
-	out, err := s.LinksFrom(a, LinkBlocks)
+	out, err := s.LinksFrom(tctx, a, LinkBlocks)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(out) != 1 || out[0] != b {
 		t.Fatalf("blocks edges from %s are %v, want exactly [%s] - the cites edge leaked in", a, out, b)
 	}
-	cites, err := s.LinksFrom(a, LinkCites)
+	cites, err := s.LinksFrom(tctx, a, LinkCites)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,13 +45,13 @@ func TestALinkIsWrittenOnceAndAssertingItAgainIsNotAnError(t *testing.T) {
 		t.Fatalf("cites edges from %s are %v, want exactly [%s]", a, cites, c)
 	}
 
-	if err := s.Unlink(a, LinkBlocks, b); err != nil {
+	if err := s.Unlink(tctx, a, LinkBlocks, b); err != nil {
 		t.Fatalf("unlinking: %v", err)
 	}
-	if err := s.Unlink(a, LinkBlocks, b); err != nil {
+	if err := s.Unlink(tctx, a, LinkBlocks, b); err != nil {
 		t.Fatalf("unlinking an edge that is already gone should be a no-op, got: %v", err)
 	}
-	out, err = s.LinksFrom(a, LinkBlocks)
+	out, err = s.LinksFrom(tctx, a, LinkBlocks)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestAnUnknownLinkTypeIsRefusedAndQuotedBack(t *testing.T) {
 	a := workItem(t, s, "wi-a", "first")
 	b := workItem(t, s, "wi-b", "second")
 
-	err := s.Link(a, "block", b)
+	err := s.Link(tctx, a, "block", b)
 	if err == nil {
 		t.Fatal("a misspelt link type was accepted; nothing would ever find that edge")
 	}
@@ -88,7 +88,7 @@ func TestLinkingToARecordThatDoesNotExistNamesWhichEndIsMissing(t *testing.T) {
 	a := workItem(t, s, "wi-a", "first")
 
 	var nf *NotFoundError
-	err := s.Link(a, LinkBlocks, "wi-ghost")
+	err := s.Link(tctx, a, LinkBlocks, "wi-ghost")
 	if !errors.As(err, &nf) {
 		t.Fatalf("linking to a missing record should be NotFound, got %T: %v", err, err)
 	}
@@ -96,7 +96,7 @@ func TestLinkingToARecordThatDoesNotExistNamesWhichEndIsMissing(t *testing.T) {
 		t.Fatalf("the refusal names %q, want the end that was missing", nf.ID)
 	}
 
-	err = s.Link("wi-ghost", LinkBlocks, a)
+	err = s.Link(tctx, "wi-ghost", LinkBlocks, a)
 	if !errors.As(err, &nf) {
 		t.Fatalf("linking FROM a missing record should be NotFound, got %T: %v", err, err)
 	}
@@ -114,7 +114,7 @@ func TestARecordCannotBlockItself(t *testing.T) {
 	s := openStore(t, name)
 	a := workItem(t, s, "wi-a", "first")
 
-	if err := s.Link(a, LinkBlocks, a); err == nil {
+	if err := s.Link(tctx, a, LinkBlocks, a); err == nil {
 		t.Fatal("a record was allowed to block itself")
 	}
 }
@@ -128,7 +128,7 @@ func TestUnlinkCannotDetachAProgressStepFromItsItem(t *testing.T) {
 	s := openStore(t, name)
 	item := workItem(t, s, "wi-b41", "the CLI roster verb")
 
-	step, err := s.Step(StepRequest{
+	step, err := s.Step(tctx, StepRequest{
 		Item: item, State: "started", Project: "rig",
 		Session: "record", Seat: "backend-record", Epoch: 6,
 	})
@@ -136,10 +136,10 @@ func TestUnlinkCannotDetachAProgressStepFromItsItem(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := s.Unlink(step.ID, LinkPartOf, item); err == nil {
+	if err := s.Unlink(tctx, step.ID, LinkPartOf, item); err == nil {
 		t.Fatal("a progress step was detached from its item; it is now invisible to every derivation")
 	}
-	stream, err := s.Stream(item)
+	stream, err := s.Stream(tctx, item)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +158,7 @@ func TestLinkRefusesAnEmptyEndByName(t *testing.T) {
 		{a, "", a, "is not a link type"},
 		{a, LinkBlocks, "", "destination"},
 	} {
-		err := s.Link(c.src, c.typ, c.dst)
+		err := s.Link(tctx, c.src, c.typ, c.dst)
 		if err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Fatalf("Link(%q,%q,%q) should be refused naming the %s, got: %v", c.src, c.typ, c.dst, c.want, err)
 		}

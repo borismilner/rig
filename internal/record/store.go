@@ -31,6 +31,7 @@
 package record
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -157,15 +158,28 @@ func Open(estate string) (*Store, error) {
 // not - and the next start would then migrate data that is already migrated.
 // Section 39 requires the data change and the version bump to be atomic for
 // exactly this reason.
+//
+// THE ONE ROOT CONTEXT IN THIS PACKAGE IS HERE, AND IT IS EXCUSED RATHER THAN
+// GIVEN A DEADLINE. Open runs once at daemon start, before anything binds, so
+// there is no caller deadline to honour: a context threaded in from New would
+// only let a slow disk abort startup, which failing to start already does.
+// Ruled by the team-lead 2026-09-16 with the blast radius as the argument - a
+// thirteenth signature moves daemon.go:239 and New's twelve call sites for no
+// change in behaviour. The exemption is one line with a mandatory reason and
+// nocontextfree reports it as a violation the moment it stops being needed,
+// which is the difference between this and turning the rule off in a config.
 func (s *Store) start() error {
-	tx, err := s.db.Begin()
+	//rig:allow nocontextfree: Open runs once at daemon start and has no caller deadline to honour
+	ctx := context.Background()
+
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("record: begin: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
 	var found uint32
-	if err := tx.QueryRow("PRAGMA user_version").Scan(&found); err != nil {
+	if err := tx.QueryRowContext(ctx, "PRAGMA user_version").Scan(&found); err != nil {
 		return fmt.Errorf("record: reading user_version: %w", err)
 	}
 
@@ -176,7 +190,7 @@ func (s *Store) start() error {
 		// ABSENT IS NOT THE SAME AS UNKNOWN, and conflating the two is how a
 		// rollback initialises over live data. Both mean "I cannot read this";
 		// only one of them is safe to answer by building a new schema.
-		if err := createSchema(tx); err != nil {
+		if err := createSchema(ctx, tx); err != nil {
 			return err
 		}
 	case found > SchemaVersion:
@@ -198,14 +212,14 @@ func (s *Store) start() error {
 
 	// PRAGMA does not take a bound parameter, and SchemaVersion is a constant
 	// in this package rather than anything a caller supplies.
-	if _, err := tx.Exec(fmt.Sprintf("PRAGMA user_version = %d", SchemaVersion)); err != nil {
+	if _, err := tx.ExecContext(ctx, fmt.Sprintf("PRAGMA user_version = %d", SchemaVersion)); err != nil {
 		return fmt.Errorf("record: stamping user_version: %w", err)
 	}
 	return tx.Commit()
 }
 
 // createSchema builds a new store at the current version.
-func createSchema(tx *sql.Tx) error {
+func createSchema(ctx context.Context, tx *sql.Tx) error {
 	const ddl = `
 CREATE TABLE records (
 	id         TEXT    NOT NULL,
@@ -251,7 +265,7 @@ CREATE TABLE links (
 CREATE INDEX records_by_kind ON records (project, kind);
 CREATE INDEX links_by_dst ON links (dst, type);
 `
-	if _, err := tx.Exec(ddl); err != nil {
+	if _, err := tx.ExecContext(ctx, ddl); err != nil {
 		return fmt.Errorf("record: creating schema: %w", err)
 	}
 	return nil

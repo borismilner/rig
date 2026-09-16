@@ -81,18 +81,18 @@ func TestAnItemBlockedByAnIdeaIsBlockedAndItsBlockerIsInNeitherList(t *testing.T
 
 	// The blocker is an IDEA: nobody has picked it up, so it is not active.
 	idea := "b28"
-	if _, err := s.Put(PutRequest{
+	if _, err := s.Put(tctx, PutRequest{
 		ID: idea, Kind: "work-item", Project: "rig", Body: "which store backs the record",
 		Fields:  map[string]string{"title": "which store backs the record", "status": "idea"},
 		Session: "record", Seat: "backend-record", Epoch: 6,
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Link(idea, LinkBlocks, blocked); err != nil {
+	if err := s.Link(tctx, idea, LinkBlocks, blocked); err != nil {
 		t.Fatal(err)
 	}
 
-	b, err := s.Brief("rig")
+	b, err := s.Brief(tctx, "rig")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func TestAVersionTooLargeForTheColumnIsRefusedByNameRatherThanWrapped(t *testing
 	item := workItem(t, s, "b41", "the CLI roster verb")
 
 	// math.MaxInt64 + 1 is the first value that wraps NEGATIVE in the column.
-	_, err := s.GetVersion(item, 1<<63)
+	_, err := s.GetVersion(tctx, item, 1<<63)
 	if err == nil {
 		t.Fatal("a version past the column's range was accepted; it wraps negative and matches the wrong row")
 	}
@@ -150,7 +150,7 @@ func TestAVersionTooLargeForTheColumnIsRefusedByNameRatherThanWrapped(t *testing
 	}
 
 	// A version inside the range is a plain miss, and says so differently.
-	_, err = s.GetVersion(item, 99)
+	_, err = s.GetVersion(tctx, item, 99)
 	var nf *NotFoundError
 	if !errors.As(err, &nf) {
 		t.Fatalf("an in-range version that does not exist gave %v, want a NotFoundError", err)
@@ -214,7 +214,7 @@ func TestTheStreamIsOrderedByIdEvenWhenTheClockGoesBackwards(t *testing.T) {
 		step(t, s, item, st)
 	}
 
-	stream, err := s.Stream(item)
+	stream, err := s.Stream(tctx, item)
 	if err != nil {
 		t.Fatal(err)
 	}

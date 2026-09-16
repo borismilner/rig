@@ -43,7 +43,7 @@ func TestTheFourLatestStepFormulationsAgreeAndAreMeasured(t *testing.T) {
 	)
 	for _, form := range forms {
 		// Warm, then measure the median of five.
-		if _, err := s.latestStepsUsing(form, "rig"); err != nil {
+		if _, err := s.latestStepsUsing(tctx, form, "rig"); err != nil {
 			t.Fatalf("%s: %v", form, err)
 		}
 		var ds []time.Duration
@@ -51,7 +51,7 @@ func TestTheFourLatestStepFormulationsAgreeAndAreMeasured(t *testing.T) {
 		for range 5 {
 			start := time.Now()
 			var err error
-			got, err = s.latestStepsUsing(form, "rig")
+			got, err = s.latestStepsUsing(tctx, form, "rig")
 			if err != nil {
 				t.Fatalf("%s: %v", form, err)
 			}

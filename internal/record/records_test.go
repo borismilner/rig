@@ -28,7 +28,7 @@ func TestARequirementSupersededTwiceStillReadsBackItsFirstWording(t *testing.T) 
 
 	first := req("req-tray", "the tray icon is rig's, not AgentBox's")
 	first.Session = "session-one"
-	v1, err := s.Put(first)
+	v1, err := s.Put(tctx, first)
 	if err != nil {
 		t.Fatalf("writing the requirement: %v", err)
 	}
@@ -39,19 +39,19 @@ func TestARequirementSupersededTwiceStillReadsBackItsFirstWording(t *testing.T) 
 	second := req("req-tray", "the tray icon is rig's, and AgentBox embeds")
 	second.Session = "session-two"
 	second.IfVersion = 1
-	if _, err := s.Put(second); err != nil {
+	if _, err := s.Put(tctx, second); err != nil {
 		t.Fatalf("superseding once: %v", err)
 	}
 
 	third := req("req-tray", "one tray icon where six were")
 	third.Session = "session-three"
 	third.IfVersion = 2
-	if _, err := s.Put(third); err != nil {
+	if _, err := s.Put(tctx, third); err != nil {
 		t.Fatalf("superseding twice: %v", err)
 	}
 
 	// THE HEAD IS THE LATEST WORDING.
-	head, err := s.Get("req-tray")
+	head, err := s.Get(tctx, "req-tray")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +60,7 @@ func TestARequirementSupersededTwiceStillReadsBackItsFirstWording(t *testing.T) 
 	}
 
 	// AND THE FIRST WORDING IS STILL THERE, WITH THE SESSION THAT WROTE IT.
-	original, err := s.GetVersion("req-tray", 1)
+	original, err := s.GetVersion(tctx, "req-tray", 1)
 	if err != nil {
 		t.Fatalf("reading back the first version: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestARequirementSupersededTwiceStillReadsBackItsFirstWording(t *testing.T) 
 	}
 
 	// HISTORY CARRIES ALL THREE, OLDEST FIRST, EACH WITH ITS OWN WRITER.
-	hist, err := s.History("req-tray")
+	hist, err := s.History(tctx, "req-tray")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestOnlyOneOfEightConcurrentPutsOnTheSameVersionWins(t *testing.T) {
 	name := estate(t, "development")
 	s := openStore(t, name)
 
-	if _, err := s.Put(req("req-race", "the first wording")); err != nil {
+	if _, err := s.Put(tctx, req("req-race", "the first wording")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -129,7 +129,7 @@ func TestOnlyOneOfEightConcurrentPutsOnTheSameVersionWins(t *testing.T) {
 			r := req("req-race", "wording from racer")
 			r.IfVersion = 1
 			<-start
-			_, err := s.Put(r)
+			_, err := s.Put(tctx, r)
 
 			mu.Lock()
 			defer mu.Unlock()
@@ -173,7 +173,7 @@ func TestOnlyOneOfEightConcurrentPutsOnTheSameVersionWins(t *testing.T) {
 	}
 
 	// AND THE STORE HOLDS EXACTLY TWO VERSIONS, not eight.
-	hist, err := s.History("req-race")
+	hist, err := s.History(tctx, "req-race")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,10 +188,10 @@ func TestACreateAgainstAnExistingIDIsRefused(t *testing.T) {
 	name := estate(t, "development")
 	s := openStore(t, name)
 
-	if _, err := s.Put(req("req-once", "the first wording")); err != nil {
+	if _, err := s.Put(tctx, req("req-once", "the first wording")); err != nil {
 		t.Fatal(err)
 	}
-	_, err := s.Put(req("req-once", "a second create, not a supersede"))
+	_, err := s.Put(tctx, req("req-once", "a second create, not a supersede"))
 	var conflict *ConflictError
 	if !errors.As(err, &conflict) {
 		t.Fatalf("a create against a taken id returned %v, want *ConflictError: "+
@@ -212,7 +212,7 @@ func TestTheStoreStampsTheTimeAndTheCallerCannot(t *testing.T) {
 	now = func() time.Time { return fixed }
 	t.Cleanup(func() { now = old })
 
-	got, err := s.Put(req("req-clock", "written at a known instant"))
+	got, err := s.Put(tctx, req("req-clock", "written at a known instant"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +220,7 @@ func TestTheStoreStampsTheTimeAndTheCallerCannot(t *testing.T) {
 		t.Fatalf("Put stamped %v, want the daemon clock's %v", got.Prov.CreatedAt, fixed)
 	}
 
-	read, err := s.Get("req-clock")
+	read, err := s.Get(tctx, "req-clock")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -236,29 +236,29 @@ func TestQueryReturnsHeadsOfOneKindInOneProject(t *testing.T) {
 	s := openStore(t, name)
 
 	for _, id := range []string{"req-a", "req-b"} {
-		if _, err := s.Put(req(id, "first")); err != nil {
+		if _, err := s.Put(tctx, req(id, "first")); err != nil {
 			t.Fatal(err)
 		}
 	}
 	d := req("dec-a", "a decision, not a requirement")
 	d.Kind = "decision"
-	if _, err := s.Put(d); err != nil {
+	if _, err := s.Put(tctx, d); err != nil {
 		t.Fatal(err)
 	}
 	o := req("req-other", "another project's requirement")
 	o.Project = "agentbox"
-	if _, err := s.Put(o); err != nil {
+	if _, err := s.Put(tctx, o); err != nil {
 		t.Fatal(err)
 	}
 
 	// Supersede one, so the query has a chance to return a stale version.
 	bump := req("req-a", "second wording")
 	bump.IfVersion = 1
-	if _, err := s.Put(bump); err != nil {
+	if _, err := s.Put(tctx, bump); err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := s.Query("rig", "requirement")
+	got, err := s.Query(tctx, "rig", "requirement")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -299,7 +299,7 @@ func TestIDsGeneratedInSequenceSortAscending(t *testing.T) {
 	ids := make([]string, 0, n)
 	for i := range n {
 		r := req("", "a requirement that did not name its own id")
-		written, err := s.Put(r)
+		written, err := s.Put(tctx, r)
 		if err != nil {
 			t.Fatalf("writing record %d: %v", i, err)
 		}
@@ -327,7 +327,7 @@ func TestAProjectAndACaseAreRefusedWhenTheyDoNotNameTheirSlug(t *testing.T) {
 	for _, kind := range []string{"project", "case"} {
 		r := req("", "no slug supplied")
 		r.Kind = kind
-		if _, err := s.Put(r); err == nil {
+		if _, err := s.Put(tctx, r); err == nil {
 			t.Fatalf("a %s with no id was accepted; section 39 makes its id a slug the caller owns", kind)
 		}
 	}
@@ -335,7 +335,7 @@ func TestAProjectAndACaseAreRefusedWhenTheyDoNotNameTheirSlug(t *testing.T) {
 	// And the same kinds are accepted when they DO carry their slug.
 	r := req("rig", "the project record")
 	r.Kind = "project"
-	if _, err := s.Put(r); err != nil {
+	if _, err := s.Put(tctx, r); err != nil {
 		t.Fatalf("a project naming its slug was refused: %v", err)
 	}
 }
@@ -359,7 +359,7 @@ func TestASupersedingPutWithNoIDIsRefusedByNameRatherThanAsAConflict(t *testing.
 
 	r := req("", "supersedes something, but says nothing about what")
 	r.IfVersion = 3
-	_, err := s.Put(r)
+	_, err := s.Put(tctx, r)
 	if err == nil {
 		t.Fatal("a superseding put with no id was accepted; it would have created a stray record")
 	}
