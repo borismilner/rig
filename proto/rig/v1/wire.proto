@@ -99,9 +99,20 @@ message Frame {
   // Dotted method name: "rig.ping", "shelf.reindex". Set on REQUEST only.
   string method = 3;
 
-  // Client-generated, stable across a retry. rig dedups against a bounded
-  // window and returns the original response (PLAN.md section 4), so a
-  // retried mutating call applies once. Set on REQUEST only.
+  // Client-generated, stable across a retry. Set on REQUEST only.
+  //
+  // NOTHING DEDUPS AGAINST IT. This comment used to say rig dedups against a
+  // bounded window and returns the original response, citing PLAN.md section
+  // 4. SECTION 4 CONTAINS NO DEDUP - `grep -ci` over it returns 0, measured
+  // 2026-09-16 - and no rig surface has ever set this field. The claim was
+  // written in the present indicative about a mechanism section 13a says is
+  // built nowhere, and the comment forty lines below has said so all along,
+  // so this file asserted and denied the same mechanism.
+  //
+  // The field stays: it is plumbed both directions since M0 and it is the
+  // right shape for the dedup nobody has specified. A retried mutating call
+  // applies TWICE today, and any caller relying otherwise is relying on a
+  // sentence rather than on code.
   string request_id = 4;
 
   // The encoded body. Its type is implied by method and kind.

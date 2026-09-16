@@ -518,9 +518,11 @@ it for free, because that is what a declaration buys here.
 
 **The argument against is that the transition table is the easy part.** The hard parts are
 side effects on transition, a retried transition applying twice, and a process dying
-mid-transition; and rig already owns all three - §4's request-id dedup returns *the original
-response* rather than reapplying, §16 has the WAL, absolute deadlines on `CLOCK_BOOTTIME` and
-fencing tokens. So the service is a thin layer over machinery that exists, and a thin layer is
+mid-transition; and rig owns two of the three - §16 has the WAL, absolute deadlines on `CLOCK_BOOTTIME` and
+fencing tokens. ⛔ **IT DOES NOT OWN THE THIRD.** This sentence used to claim §4's request-id
+dedup returns *the original response* rather than reapplying. **§4 contains no dedup** (`grep
+-ci` returns 0, measured 2026-09-16), `Frame.request_id` has never been set by any rig surface,
+and §13a says the mechanism is built nowhere. **A retried mutating call applies twice.** So the service is a thin layer over machinery that exists, and a thin layer is
 worth building only if something real adopts it.
 
 **The condition, and it is decidable now rather than at M13: §18's supervisor is the pilot.**

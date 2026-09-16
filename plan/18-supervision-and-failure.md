@@ -34,8 +34,11 @@
 - **rig dies:** every program keeps running, tolerating the absence (§5g). On restart all
   reconnect, present their session token, and are told explicitly what was lost. In-flight
   commands are marked interrupted with partial output kept, and are **never silently replayed** -
-  a retry is the client's decision, made against the `idempotent` property and deduplicated by
-  the request id on the wire (§5f).
+  a retry is the client's decision, made against the `idempotent` property. ⛔ **IT IS NOT
+  DEDUPLICATED.** This line used to say the retry is deduplicated by the request id on the wire,
+  citing §5f. **The field exists and nothing reads it** - §5f puts the window in the WAL and the
+  WAL lands at M7, so **until M7 a retried mutating call applies twice.** Corrected 2026-09-16;
+  §13 and §23 carry the same correction, and this was the last copy still asserting it.
 - **Shutdown:** the lifecycle notice first (§5g), then SIGTERM, grace period, then SIGKILL.
   Programs rig did not start are never killed. A `DRAINING` notice moves every held lease to
   ORPHANED rather than FREE, so a restart cannot hand one resource to two holders (§16).
