@@ -127,13 +127,22 @@ func (s *Store) Step(r StepRequest) (Record, error) {
 // step in a test shares a created_at, and UUIDv7 is monotonic within a process.
 // That ordering property is the whole reason section 39 chose v7 over v4, and
 // this is the first place it is load-bearing rather than decorative.
+//
+// ⛔ IT ORDERS BY id ALONE, AND created_at IS NOT A TIE-BREAK BESIDE IT.
+// This read `ORDER BY r.created_at, r.id`, which was correct - id caught every
+// tie - and contradicted lateststeps.go in print, where the same question is
+// argued the other way: the daemon clock has millisecond resolution and tests
+// freeze it outright, so created_at is not usable as an ordering and MAX(id) is
+// both the order and the tie-break. Two files asserting opposite things about
+// one column is the drift section 39 exists to catch, and a later reader
+// believes whichever they open first. One argument now governs both.
 func (s *Store) Stream(item string) ([]Record, error) {
 	rows, err := s.db.Query(
 		`SELECT r.id, r.version, r.kind, r.project, r.body, r.fields,
 			r.session, r.seat, r.epoch, r.created_at
 		 FROM links l JOIN records r ON r.id = l.src
 		 WHERE l.dst = ? AND l.type = ? AND r.kind = ?
-		 ORDER BY r.created_at, r.id`, item, LinkPartOf, KindProgress)
+		 ORDER BY r.id`, item, LinkPartOf, KindProgress)
 	if err != nil {
 		return nil, fmt.Errorf("record: reading the stream of %s: %w", item, err)
 	}

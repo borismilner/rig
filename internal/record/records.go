@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -102,7 +103,7 @@ type NotFoundError struct {
 
 func (e *NotFoundError) Error() string {
 	if e.Version == 0 {
-		return fmt.Sprintf("no record %s", e.ID)
+		return "no record " + e.ID
 	}
 	return fmt.Sprintf("no version %d of record %s", e.Version, e.ID)
 }
@@ -225,10 +226,14 @@ func (s *Store) Get(id string) (Record, error) {
 // demonstration is a requirement superseded twice whose FIRST WORDING is read
 // back with the session that wrote it.
 func (s *Store) GetVersion(id string, version uint64) (Record, error) {
+	col, err := toColumn("version", version)
+	if err != nil {
+		return Record{}, err
+	}
 	row := s.db.QueryRow(
 		`SELECT id, version, kind, project, body, fields,
 			session, seat, epoch, created_at
-		 FROM records WHERE id = ? AND version = ?`, id, int64(version))
+		 FROM records WHERE id = ? AND version = ?`, id, col)
 	rec, err := scanRecord(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Record{}, &NotFoundError{ID: id, Version: version}
@@ -306,8 +311,13 @@ func scanRecord(sc scanner) (Record, error) {
 		&fields, &rec.Prov.Session, &rec.Prov.Seat, &epoch, &nanos); err != nil {
 		return Record{}, err
 	}
-	rec.Version = uint64(version)
-	rec.Prov.Epoch = uint64(epoch)
+	var err error
+	if rec.Version, err = fromColumn("version", version); err != nil {
+		return Record{}, err
+	}
+	if rec.Prov.Epoch, err = fromColumn("epoch", epoch); err != nil {
+		return Record{}, err
+	}
 	rec.Prov.CreatedAt = time.Unix(0, nanos).UTC()
 	if err := json.Unmarshal([]byte(fields), &rec.Fields); err != nil {
 		return Record{}, fmt.Errorf("record: decoding fields of %s v%d: %w",
@@ -355,12 +365,20 @@ func uuidV7() (string, error) {
 // caller and forgotten for the other is a defect that shows up as a record
 // whose provenance is half-written.
 func writeVersion(tx *sql.Tx, r PutRequest, version uint64, fields string, p Provenance) error {
+	vcol, err := toColumn("version", version)
+	if err != nil {
+		return err
+	}
+	ecol, err := toColumn("epoch", p.Epoch)
+	if err != nil {
+		return err
+	}
 	if _, err := tx.Exec(
 		`INSERT INTO records (id, version, kind, project, body, fields,
 			session, seat, epoch, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		r.ID, int64(version), r.Kind, r.Project, r.Body, fields,
-		p.Session, p.Seat, int64(p.Epoch), p.CreatedAt.UnixNano(),
+		r.ID, vcol, r.Kind, r.Project, r.Body, fields,
+		p.Session, p.Seat, ecol, p.CreatedAt.UnixNano(),
 	); err != nil {
 		return fmt.Errorf("record: writing %s version %d: %w", r.ID, version, err)
 	}
@@ -368,7 +386,7 @@ func writeVersion(tx *sql.Tx, r PutRequest, version uint64, fields string, p Pro
 	if _, err := tx.Exec(
 		`INSERT INTO heads (id, version) VALUES (?, ?)
 		 ON CONFLICT(id) DO UPDATE SET version = excluded.version`,
-		r.ID, int64(version),
+		r.ID, vcol,
 	); err != nil {
 		return fmt.Errorf("record: moving head of %s: %w", r.ID, err)
 	}
@@ -385,4 +403,36 @@ func decodeFields(blob string, rec *Record) error {
 		return fmt.Errorf("record: decoding fields of %s v%d: %w", rec.ID, rec.Version, err)
 	}
 	return nil
+}
+
+// ⛔ THE COLUMN IS SIGNED AND THE FIELD IS NOT, SO EVERY CROSSING IS CHECKED.
+//
+// SQLite's INTEGER is int64 and section 39's Version and Epoch are uint64, so
+// each conversion between them can wrap, silently, in both directions. Neither
+// end is reachable by rig's own callers - a version counts up from 1 - but
+// "unreachable" was a claim about the callers of the day this was written, and
+// SINCE rig 05a3ceb THE DAEMON SERVES THESE VERBS OVER A SOCKET: GetVersion
+// takes its version from a remote caller now.
+//
+// The wrapped write is the worst available shape - it SUCCEEDS, and the record
+// reads back later under a version nobody asked for - so both directions refuse
+// by name, which is what the rest of this package does with input it cannot
+// honour.
+
+// toColumn narrows a uint64 field to the signed column that stores it.
+func toColumn(field string, v uint64) (int64, error) {
+	if v > math.MaxInt64 {
+		return 0, fmt.Errorf("record: %s %d is too large for the store, whose integer column is signed", field, v)
+	}
+	return int64(v), nil
+}
+
+// fromColumn widens a signed column back to the uint64 field it feeds. A
+// negative value is not a caller's mistake - it is a corrupt database, and
+// saying so is more useful than a very large number.
+func fromColumn(field string, v int64) (uint64, error) {
+	if v < 0 {
+		return 0, fmt.Errorf("record: the store returned %s %d; a negative %s means the database is corrupt", field, v, field)
+	}
+	return uint64(v), nil
 }

@@ -283,7 +283,7 @@ func TestRigsOwnBacklogIsManagedInRigAndTheBriefAnswersIt(t *testing.T) {
 	}
 
 	// REAL blocks EDGES, each defensible from the document's own text.
-	real := [][2]string{
+	edges := [][2]string{
 		// B45: plan/22's multi-dependency rows are WHY depscheck stops
 		// comparing, which is B2. The rows must be split before the report
 		// can be trusted.
@@ -292,7 +292,7 @@ func TestRigsOwnBacklogIsManagedInRigAndTheBriefAnswersIt(t *testing.T) {
 		// slice 1 - which store backs the record.
 		{"B28", "B29"},
 	}
-	for _, e := range real {
+	for _, e := range edges {
 		if err := s.Link(e[0], LinkBlocks, e[1]); err != nil {
 			t.Fatalf("linking %s blocks %s: %v", e[0], e[1], err)
 		}

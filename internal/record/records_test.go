@@ -297,7 +297,7 @@ func TestIDsGeneratedInSequenceSortAscending(t *testing.T) {
 
 	const n = 8
 	ids := make([]string, 0, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		r := req("", "a requirement that did not name its own id")
 		written, err := s.Put(r)
 		if err != nil {

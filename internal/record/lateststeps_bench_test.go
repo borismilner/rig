@@ -48,7 +48,7 @@ func TestTheFourLatestStepFormulationsAgreeAndAreMeasured(t *testing.T) {
 		}
 		var ds []time.Duration
 		var got map[string]Record
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			start := time.Now()
 			var err error
 			got, err = s.latestStepsUsing(form, "rig")
@@ -109,7 +109,7 @@ func seedStreams(t *testing.T, s *Store, items, steps int) {
 	defer func() { _ = tx.Rollback() }()
 
 	states := []string{"started", "blocked", "started"}
-	for i := 0; i < items; i++ {
+	for i := range items {
 		item := fmt.Sprintf("wi-%04d", i)
 		if _, err := tx.Exec(`INSERT INTO records (id, version, kind, project, body, fields,
 			session, seat, epoch, created_at) VALUES (?,1,'work-item','rig','',?,'bench','bench',6,?)`,
@@ -119,7 +119,7 @@ func seedStreams(t *testing.T, s *Store, items, steps int) {
 		if _, err := tx.Exec(`INSERT INTO heads (id, version) VALUES (?, 1)`, item); err != nil {
 			t.Fatal(err)
 		}
-		for j := 0; j < steps; j++ {
+		for j := range steps {
 			id, err := uuidV7()
 			if err != nil {
 				t.Fatal(err)

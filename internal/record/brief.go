@@ -1,6 +1,7 @@
 package record
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"time"
@@ -98,7 +99,7 @@ type Blockage struct {
 // Brief derives the answer to "what is going on here" for one project.
 func (s *Store) Brief(project string) (Brief, error) {
 	if project == "" {
-		return Brief{}, fmt.Errorf("record: a brief needs a project")
+		return Brief{}, errors.New("record: a brief needs a project")
 	}
 	b := Brief{Project: project}
 

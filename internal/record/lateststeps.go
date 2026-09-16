@@ -30,7 +30,6 @@ import (
 // Each takes the project twice where it needs it and returns the full record
 // columns plus the item the step belongs to.
 var latestStepsSQL = map[string]string{
-
 	// 1. GROUP BY with a join back to the winning row.
 	"group-by-max": `
 		SELECT r.id, r.version, r.kind, r.project, r.body, r.fields,
@@ -147,8 +146,13 @@ func scanStepRow(sc scanner) (Record, string, error) {
 		&fields, &rec.Prov.Session, &rec.Prov.Seat, &epoch, &nano, &item); err != nil {
 		return Record{}, "", err
 	}
-	rec.Version = uint64(version)
-	rec.Prov.Epoch = uint64(epoch)
+	var err error
+	if rec.Version, err = fromColumn("version", version); err != nil {
+		return Record{}, "", err
+	}
+	if rec.Prov.Epoch, err = fromColumn("epoch", epoch); err != nil {
+		return Record{}, "", err
+	}
 	rec.Prov.CreatedAt = unixNano(nano)
 	if err := decodeFields(fields, &rec); err != nil {
 		return Record{}, "", err

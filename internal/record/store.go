@@ -36,6 +36,8 @@ import (
 	"os"
 	"path/filepath"
 
+	// The pure-Go SQLite driver, registered for its side effect. Ruled by B28:
+	// no cgo, so the daemon cross-compiles and ships as one static binary.
 	_ "modernc.org/sqlite"
 
 	"github.com/boris-milner/rig/internal/paths"
