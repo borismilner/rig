@@ -158,6 +158,41 @@ lead that reads the robustness bar as a work order is ranking against his own
 stated want without telling him. **Rank it, say which you ranked, and put it to
 him in one clause** - do not hand a successor an ordering with no origin.
 
+##### ⛔ TWO QUESTIONS ARE NOT BEING ASKED, AND THAT IS NOW A DECISION RATHER THAN A FIFTH INHERITANCE
+
+**RULED BY THE LEAD 2026-09-16 late, closing `BACKLOG.md` B55.** The
+**four-clause cadence** and **whether Boris wants `standard.*` and
+`project.gate` at all** have ridden four lead generations inside a table of
+open loops. Each lead inherited them in a table, carried them in a table, and
+handed them on in a table.
+
+⛔ **THE DEFECT WAS NEVER EITHER QUESTION. IT WAS THE CARRYING.** Neither is
+blocking, **which is precisely why nobody's turn it ever was** - a row that
+costs nothing to defer is deferred forever, and it accretes into a list that
+reads as live work. `warm-handoff/references/RECEIVE.md` names the shape: an
+item that *"reads as live and was never asked"*.
+
+**RULED: NEITHER IS ASKED UNTIL THE MVP'S THREE CONDITIONS ARE MET.** Not
+"later", not "when convenient" - **a named event.**
+
+| | |
+|---|---|
+| **the four-clause cadence** | a LEAD'S READING and it always was. §37 states the bar; how often a capability is re-measured is an operating choice a lead makes and records. **No human input is required for it to be correct** |
+| **`standard.*` / `project.gate`** | **slices 6 and 7, which §39's own MVP block places OFF the MVP path.** Asking him to rank work that is two slices past the thing he is waiting to see spends his attention on the least urgent question available |
+
+⛔ **AND THE REASON IS A SCARCITY ARGUMENT, WHICH IS WHY IT BEATS "ask him, it
+is cheap".** An interruption is the scarcest thing this project spends. While
+three MVP conditions are open and one of them is **failing on the artefact he
+named as his acceptance test**, every clause of every interruption belongs to
+those. **A non-blocking preference about slice 7 is the worst available use of
+the same turn.**
+
+**WHAT UNPARKS THEM: the MVP meeting its three conditions.** At that point
+`project.gate` stops being hypothetical, and the cadence question has real
+passes to be a cadence over. **A later lead may overturn this - it is one
+paragraph - but it must say what changed, because "nobody asked yet" is no
+longer the state.**
+
 #### ⛔ REDEPLOYMENT IS BATCHED, AND EVERY PEER WAITS THROUGH IT. RULED BY BORIS 2026-09-16.
 
 > *"Once in a while when there are enough new features, changes and capabilities
