@@ -181,3 +181,47 @@ func EstateLock(name string) (string, error) {
 	}
 	return filepath.Join(d, "estates", name+".pid"), nil
 }
+
+// EstateStateDir is the PERSISTENT STATE subtree for a NAMED estate (section
+// 37, precondition 2): $XDG_STATE_HOME/rig/estates/<name>/.
+//
+// THE SHARED ROOT KEEPS EXACTLY ONE TENANT, AND THAT IS A RULE RATHER THAN AN
+// OBSERVATION. StateDir's own comment above says what the root is for: a name
+// claim refuses a duplicate only if both estates can see it, and the one place
+// the runtime directory does not reach is outside the runtime directory.
+// Anything placed at that root is therefore visible to BOTH estates by
+// construction - which is precisely the property the claim needs and precisely
+// the property everything else must not have. So the claim keeps the root and
+// every other persistent thing rig holds goes under this function's result.
+//
+// The subtree is not invented here. paths.EstateLock is already
+// $XDG_STATE_HOME/rig/estates/<name>.pid, so `estates` is the established
+// idiom and the estate name is the established key; this extends both rather
+// than opening a second tree beside them. The claim file and the state
+// directory are SIBLINGS with the same stem, `production.pid` beside
+// `production/`, and they cannot collide because ValidEstateName refuses a
+// name containing a dot.
+//
+// AN UNNAMED ESTATE GETS NO PERSISTENT STATE AT ALL, AND THAT IS THE ANSWER
+// RATHER THAN AN OMISSION. Its name is the empty string, ValidEstateName
+// refuses the empty string, and so there is no subtree to key it to. This
+// falls out of section 37's ephemeral-estates clause rather than contradicting
+// it: an ephemeral estate that persisted across runs would be a third estate
+// arriving by the back door. Every test in this repository starts an unnamed
+// estate in a temporary runtime directory, so the refusal is what keeps them
+// working - a test that needs state gives itself a name, or does without.
+//
+// It resolves a path and creates nothing, exactly as every other function
+// here does. The mkdir belongs to whoever is about to write, under the lock it
+// took, which is the ordering instance.Acquire already establishes.
+func EstateStateDir(name string) (string, error) {
+	if err := ValidEstateName(name); err != nil {
+		return "", fmt.Errorf("paths: an estate has no persistent state until "+
+			"it is named, and this name cannot be used: %w", err)
+	}
+	d, err := StateDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(d, "estates", name), nil
+}
