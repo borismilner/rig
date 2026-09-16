@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )
 
 // `rig brief` - the derived answer to "what is going on here" (PLAN.md
@@ -29,9 +31,10 @@ import (
 
 // Brief is what `project.brief` derives.
 //
-// ⛔ PROVISIONAL UNTIL SLICE 2. Section 39 specifies what a brief ANSWERS and
-// not the message that carries it, so this struct is shaped by what the
-// renderer needs and the lead's wire message replaces it when it lands.
+// ⛔ THE PROVISIONAL SHAPE IS GONE. This struct used to say it was shaped by
+// what the renderer needed, until "the lead's wire message replaces it when it
+// lands". `ProjectBriefResponse` landed; briefFromWire at the bottom of this
+// file is that promise kept, field for field.
 //
 // TWO THINGS SECTION 39 PUTS IN A BRIEF ARE DELIBERATELY MISSING, and they are
 // missing for the same reason `rig standard` and `rig project gate` are not
@@ -146,12 +149,35 @@ type BriefSectionState struct {
 	Reason string
 }
 
-// BriefItem is one row of "next up".
+// BriefItem is one row of "next up". It mirrors `rigv1.ItemState`.
+//
+// ⛔ IT CARRIED `Owner` AND `Priority` AND THE WIRE HAS NEITHER, WHILE IT DID
+// CARRY THE ITEM'S STATE, ITS AGE AND ITS LATEST NOTE - WHICH THIS STRUCT HAD
+// NOWHERE TO PUT. So the table printed two columns nothing could ever fill and
+// dropped the three that say whether the work is moving. Rendered, that is
+// "(nobody)" under OWNER on every row of every brief: a sentence about the
+// work, produced by a client that was never told anything about ownership.
 type BriefItem struct {
-	ID       string
-	Title    string
-	Owner    string
-	Priority string
+	ID    string
+	Title string
+
+	// State is the item's LATEST STEP, and EMPTY IS A REAL STATE rather than
+	// missing data: the stream is empty, so the item has been picked up and
+	// nobody has reported on it. The wire spends its enum zero on exactly this
+	// and the renderer must not collapse it into a blank.
+	State string
+
+	// Since is when that step landed, and ZERO MEANS THERE ARE NO STEPS.
+	//
+	// ⛔ IT MUST NOT RENDER AS "infinitely stale". An item nobody has stepped
+	// sorts BELOW every real signal, not above it - the wire says so at the
+	// field - and peersAgeCell prints a zero as "-" rather than as an age,
+	// which is the behaviour this field relies on.
+	Since time.Time
+
+	// Note is the latest step's own line, which is usually the one thing in
+	// the row that says WHY the item is where it is.
+	Note string
 }
 
 // BriefNote is one thing attached to a record for an agent to read.
@@ -226,7 +252,7 @@ func cmdBrief(args []string) (err error) {
 		}
 
 		if *bf.asJSON {
-			return json.NewEncoder(os.Stdout).Encode(briefJSON(brief))
+			return json.NewEncoder(os.Stdout).Encode(briefJSON(brief, time.Now()))
 		}
 		fmt.Print(briefText(brief, time.Now()))
 		return nil
@@ -245,14 +271,23 @@ func cmdBrief(args []string) (err error) {
 // `semver` IS PRESENT AND EMPTY ON A CASE rather than omitted. A consumer
 // branching on its absence would have to know that a case has no version;
 // a consumer reading "" learns it from the answer.
-func briefJSON(b Brief) map[string]any {
+func briefJSON(b Brief, now time.Time) map[string]any {
 	next := make([]map[string]any, 0, len(b.NextUp))
 	for _, it := range b.NextUp {
 		next = append(next, map[string]any{
-			"id":       it.ID,
-			"title":    it.Title,
-			"owner":    it.Owner,
-			"priority": it.Priority,
+			"id":     it.ID,
+			titleKey: it.Title,
+			// An empty state is the item's stream being empty, which is an
+			// ANSWER - picked up, not yet reported on - so it is emitted as ""
+			// rather than omitted. A consumer branching on absence would have
+			// to know that, where one reading "" learns it from the answer.
+			"state": it.State,
+			// The timestamp AND the age, for the reason recordJSON gives: a
+			// consumer computing against its own clock must not be forced
+			// through this one.
+			"since_at":    provTime(it.Since),
+			"since_age_s": provAge(it.Since, now),
+			"note":        it.Note,
 		})
 	}
 	notes := make([]map[string]any, 0, len(b.Notes))
@@ -278,7 +313,7 @@ func briefJSON(b Brief) map[string]any {
 		on := make([]map[string]any, 0, len(bl.Blockers))
 		for _, k := range bl.Blockers {
 			on = append(on, map[string]any{
-				"id": k.ID, "title": k.Title,
+				"id": k.ID, titleKey: k.Title,
 				// An empty state is the `idea` case and is rendered as such
 				// rather than as an absent field, which would read as a
 				// serialisation gap.
@@ -286,7 +321,7 @@ func briefJSON(b Brief) map[string]any {
 			})
 		}
 		blocked = append(blocked, map[string]any{
-			"item": bl.Item, "title": bl.Title, "blocked_by": on,
+			"item": bl.Item, titleKey: bl.Title, "blocked_by": on,
 		})
 	}
 	sections := make([]map[string]any, 0, len(b.Sections))
@@ -303,7 +338,7 @@ func briefJSON(b Brief) map[string]any {
 	return map[string]any{
 		"project": b.Project,
 		"kind":    b.Kind,
-		"title":   b.Title,
+		titleKey:  b.Title,
 		"status":  b.Status,
 		"semver":  b.Semver,
 		"next_up": next,
@@ -333,7 +368,7 @@ func briefText(b Brief, now time.Time) string {
 	// hole in it.
 	sb.WriteString(briefBlockedSection(b.Cycles))
 	sb.WriteString(briefBlockageSection(b.Blocked))
-	sb.WriteString(briefNextUpSection(b.NextUp))
+	sb.WriteString(briefNextUpSection(b.NextUp, now))
 	sb.WriteString(briefNotesSection(b.Notes, now))
 	sb.WriteString(briefUnavailableSection(b.Sections))
 	return sb.String()
@@ -384,7 +419,7 @@ func briefStatusWord(status string) string {
 }
 
 // briefNextUpSection is the work in expected execution order.
-func briefNextUpSection(items []BriefItem) string {
+func briefNextUpSection(items []BriefItem, now time.Time) string {
 	var sb strings.Builder
 	sb.WriteString("\nNEXT UP\n")
 
@@ -403,12 +438,20 @@ func briefNextUpSection(items []BriefItem) string {
 	for _, it := range items {
 		rows = append(rows, []string{
 			it.ID,
-			briefCell(it.Owner, "(nobody)"),
-			briefCell(it.Priority, "-"),
+			// ⛔ AN EMPTY STATE IS "picked up, nobody has reported on it",
+			// WHICH IS A STATE. The wire spends its enum zero on it and says
+			// so at the field; a blank cell here would read as a renderer that
+			// ran out of things to print.
+			briefCell(it.State, "not stepped"),
+			// A zero `since` prints "-" rather than an age, because an item
+			// nobody has stepped is not infinitely stale - it has no signal at
+			// all, and those are different facts.
+			peersAgeCell(provUnix(it.Since), now),
 			briefCell(it.Title, "(no title)"),
+			briefCell(firstLine(strings.TrimSpace(it.Note)), "-"),
 		})
 	}
-	writeTable(&sb, []string{"ID", "OWNER", "PRIORITY", "TITLE"}, rows)
+	writeTable(&sb, []string{"ID", "STATE", "AGE", "TITLE", "LATEST NOTE"}, rows)
 
 	// THE COUNT IS NOT COMPARED AGAINST next_up_n, ON PURPOSE. Section 39:
 	// "Never padded to N". A line reading "3 of 5" would teach a reader that
@@ -547,4 +590,131 @@ func briefCell(value, absent string) string {
 		return absent
 	}
 	return value
+}
+
+// ---- the wire ---------------------------------------------------------------
+
+// briefFromWire is `ProjectBriefResponse` in this client's vocabulary.
+//
+// IT IS FIELD FOR FIELD AND THAT IS CHECKABLE, which is the point of keeping
+// it beside the struct it fills rather than with the other wire code: a reader
+// holding the proto open can walk the two together without a third file.
+//
+// ⛔ EVERY FIELD ON THAT MESSAGE THIS FUNCTION DOES NOT READ IS A SECTION THE
+// DAEMON COMPUTED AND THIS CLIENT DROPPED, WHICH IS NOT THE SAME AS A SECTION
+// THAT IS NOT BUILT. The ones still unread are `open`, `drift`, `health`,
+// `features`, `feature_stages`, `case_notes`, `coarse_citations` and
+// `must_read`. They are named here rather than left to be noticed, because
+// their `sections` entries will say COMPUTED while nothing renders them - a
+// partial answer that looks complete, on the verb the MVP is judged by.
+func briefFromWire(r *rigv1.ProjectBriefResponse) Brief {
+	b := Brief{
+		Project: r.GetProject(),
+		Kind:    r.GetKind(),
+		Title:   r.GetTitle(),
+		Status:  r.GetStatus(),
+		Semver:  r.GetSemver(),
+	}
+	for _, it := range r.GetNextUp() {
+		b.NextUp = append(b.NextUp, itemFromWire(it))
+	}
+	for _, n := range r.GetNotes() {
+		b.Notes = append(b.Notes, noteFromWire(n))
+	}
+	for _, bl := range r.GetBlocked() {
+		out := BriefBlockage{Item: bl.GetItem(), Title: bl.GetTitle()}
+		for _, k := range bl.GetBlockers() {
+			out.Blockers = append(out.Blockers, BriefBlocker{
+				ID:    k.GetId(),
+				Title: k.GetTitle(),
+				// UNSPECIFIED becomes the empty string and the renderer spells
+				// it out as "nobody has picked it up". That is section 39's
+				// `idea` case and is LOAD-BEARING - a materially different
+				// instruction from waiting on work in progress - so the zero
+				// must not acquire a word of its own here.
+				State: stepStateWord(k.GetState()),
+			})
+		}
+		b.Blocked = append(b.Blocked, out)
+	}
+	for _, c := range r.GetCycles() {
+		b.Cycles = append(b.Cycles, BriefCycle{Items: c.GetItems()})
+	}
+	for _, s := range r.GetSections() {
+		b.Sections = append(b.Sections, sectionFromWire(s))
+	}
+	return b
+}
+
+func itemFromWire(i *rigv1.ItemState) BriefItem {
+	out := BriefItem{
+		ID:    i.GetId(),
+		Title: i.GetTitle(),
+		State: stepStateWord(i.GetState()),
+		Note:  i.GetNote(),
+	}
+	// A ZERO STAYS THE ZERO time.Time RATHER THAN BECOMING 1970. The wire says
+	// zero means there are no steps, and peersAgeCell prints the zero as "-"
+	// rather than as an age, which is what keeps an unstepped item from
+	// reading as the stalest thing in the list.
+	if n := i.GetSinceUnixNano(); n != 0 {
+		out.Since = time.Unix(0, n).UTC()
+	}
+	return out
+}
+
+func noteFromWire(n *rigv1.BriefNote) BriefNote {
+	return BriefNote{
+		ID:       n.GetId(),
+		Priority: n.GetPriority(),
+		Body:     n.GetBody(),
+		Prov:     provFromWire(n.GetProv()),
+	}
+}
+
+// sectionFromWire is one section's own statement about itself.
+//
+// ⛔ WITHHELD AND NOT-COMPUTED ARE NEVER COLLAPSED, AND THIS IS THE BOUNDARY
+// WHERE COLLAPSING THEM WOULD BE EASIEST. A section the caller is not being
+// shown and a section nothing can compute are different answers: the first
+// says the derivation ran, the second says the input does not exist. Folding
+// the view rule into the capability gap would make the human view read as a
+// degraded agent view, which is the exact reading SectionState was added to
+// prevent.
+//
+// AN UNSPECIFIED STATE IS NEITHER, deliberately. Section 21: the zero means
+// nothing was said, which is never a fact about anything - so it falls through
+// to the not-answered list carrying no reason, and briefUnavailableSection
+// reports the missing reason as the defect it is.
+func sectionFromWire(s *rigv1.BriefSectionStatus) BriefSectionState {
+	return BriefSectionState{
+		// The enum's NUMBER is section 39's own row number, which is why this
+		// is a conversion rather than a lookup: the proto says the numbers
+		// "are citations rather than an ordinal, and they are never
+		// renumbered".
+		Section:  int(s.GetSection().Number()),
+		Computed: s.GetState() == rigv1.SectionState_SECTION_STATE_COMPUTED,
+		Withheld: s.GetState() == rigv1.SectionState_SECTION_STATE_WITHHELD_BY_VIEW,
+		Reason:   s.GetReason(),
+	}
+}
+
+// stepStateWord is a StepState as a person reads it, and THE ZERO KEEPS ITS
+// EMPTINESS.
+//
+// Every caller of this function treats "" as a real answer with its own
+// sentence - "not stepped" in the next-up table, "nobody has picked it up" for
+// a blocker - because the wire spends the enum's zero on precisely that. A
+// word here would be a third spelling of it, in the one place none of those
+// callers could override.
+//
+// A VALUE THIS BUILD HAS NO NAME FOR RENDERS AS THE SKEW TOKEN, not as the
+// zero's emptiness. A newer daemon on the same wire major can send a fourth
+// state, and reporting that as "not stepped" would turn a build skew into a
+// fact about the work.
+func stepStateWord(s rigv1.StepState) string {
+	if s == rigv1.StepState_STEP_STATE_UNSPECIFIED {
+		return ""
+	}
+	return wordOrSkew(s, "STEP_STATE_")
 }

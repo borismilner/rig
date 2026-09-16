@@ -48,11 +48,21 @@ func progressFlagSet() *progressFlags {
 	p.asJSON = p.fs.Bool("json", false, "emit JSON")
 	p.timeout = p.fs.Duration("timeout", defaultCallTimeout, "how long to wait")
 	p.project = p.fs.String("project", "", "the project or case the item is in")
-	// ⛔ THE THREE SPELLINGS ARE HELP TEXT, NOT A CHECK. rigd refuses an
-	// unknown state by name and quotes the value back; this client does not
-	// pre-validate, because two validators drift and one does not. What a
-	// caller cannot do is discover the set from a daemon they have not called
-	// yet, which is what this string is for.
+	// ⛔ THIS STRING IS HELP TEXT AND stepStateOnTheWire IS THE CHECK, AND THE
+	// TWO ARE NOT THE SAME LIST.
+	//
+	// This comment used to say there was no check here at all, because rigd
+	// "refuses an unknown state by name and quotes the value back". THE ENUM
+	// ENDED THAT: `--state banana` has no value on the wire, arrives as
+	// UNSPECIFIED, and the daemon maps UNSPECIFIED to the empty string - so
+	// the store's refusal quotes "" and the caller's word is gone. The check
+	// moved here because this is the last place that word exists.
+	//
+	// It is still not a second source of truth: stepStateOnTheWire WALKS the
+	// enum's descriptor. This string does not, and it is the one hand-kept
+	// spelling left - which is tolerable for the same reason it was written,
+	// that a caller cannot discover the set from a daemon they have not
+	// called yet, and intolerable the moment it decides anything.
 	p.state = p.fs.String("state", "", "started, blocked or done")
 	p.note = p.fs.String("note", "", "one line of what happened")
 	return p
@@ -89,13 +99,19 @@ func cmdProgress(args []string) (err error) {
 	// caller with a bad command must be told about the command rather than
 	// about the daemon.
 	return withRecordAPI(*pf.timeout, func(ctx context.Context, api RecordAPI) error {
-		// ⛔ NOTHING IS CHECKED HERE BEYOND ARGUMENT SHAPE, AND THAT IS A
-		// RULING RATHER THAN AN OMISSION. An empty --state, an empty
-		// --project and an unknown state are all refused by rigd, each in a
-		// sentence naming what was wrong. A client that refuses them first is
+		// ⛔ AN EMPTY --state AND AN EMPTY --project ARE rigd's TO REFUSE, AND
+		// AN UNSPELLABLE STATE IS NOT. That line moved, and where it moved to
+		// is the wire.
+		//
+		// rigd refuses an empty state and an empty project each in a sentence
+		// naming what was wrong, and a client that refused them first would be
 		// a second copy of section 39's rules in a file nobody reads them
-		// from, and the day the two disagree the caller is told something
-		// that is not true of the daemon.
+		// from. That still holds for both. It stopped holding for an UNKNOWN
+		// state the moment the field became an enum: the word does not survive
+		// the wire, so rigd cannot name it and this client is the last place
+		// that can. stepStateOnTheWire in record.go does it, off the enum's
+		// own descriptor, which is why it is not the second validator this
+		// paragraph exists to refuse.
 		step, err := api.Step(ctx, StepArgs{
 			Item:    item,
 			State:   *pf.state,

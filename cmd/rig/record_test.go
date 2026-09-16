@@ -11,6 +11,11 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"google.golang.org/protobuf/proto"
+
+	"github.com/boris-milner/rig/client"
+	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )
 
 // The fake is the whole reason this surface is testable. Every record verb
@@ -30,16 +35,13 @@ type fakeRecord struct {
 		id      string
 		version uint64
 	}
-	lastRefs struct {
-		id    string
-		depth int
-	}
+	lastRefs RefsArgs
 
 	put     func(PutArgs) (Record, error)
 	get     func(string, uint64) (Record, error)
 	query   func(string, string) ([]Record, error)
 	history func(string) ([]Record, error)
-	refs    func(string, int) (Refs, error)
+	refs    func(RefsArgs) (Refs, error)
 	step    func(StepArgs) (Record, error)
 	brief   func(string) (Brief, error)
 	linkErr error
@@ -92,13 +94,13 @@ func (f *fakeRecord) Unlink(_ context.Context, _, _, _ string) error {
 	return f.linkErr
 }
 
-func (f *fakeRecord) Refs(_ context.Context, id string, depth int) (Refs, error) {
+func (f *fakeRecord) Refs(_ context.Context, a RefsArgs) (Refs, error) {
 	f.calls = append(f.calls, "refs")
-	f.lastRefs.id, f.lastRefs.depth = id, depth
+	f.lastRefs = a
 	if f.refs != nil {
-		return f.refs(id, depth)
+		return f.refs(a)
 	}
-	return Refs{ID: id, Depth: depth}, nil
+	return Refs{ID: a.ID, Depth: a.Depth}, nil
 }
 
 func (f *fakeRecord) Step(_ context.Context, a StepArgs) (Record, error) {
@@ -676,10 +678,19 @@ func TestARecordNothingPointsAtGetsASentenceAndNotABlank(t *testing.T) {
 // points AT this" is the whole verb.
 func TestARefRowPrintsBothEndsAndTheType(t *testing.T) {
 	got := refsText(Refs{ID: "01927-dst", Depth: 1, In: []Ref{
-		{Src: "01927-src", Type: "cites", Dst: "01927-dst", Kind: "decision", Depth: 1},
+		{
+			Src: "01927-src", Type: "cites", Via: "01927-dst",
+			Kind: "decision", Title: "the priority ruling", Distance: 1,
+		},
 	}})
 
-	for _, want := range []string{"01927-src", "cites", "01927-dst", "decision"} {
+	// ⛔ `via` IS THE FAR END, NOT A DECORATION ON THE ROW. At distance 1 it is
+	// the subject itself, which is the case asserted here; past that it is the
+	// record this edge was reached THROUGH, and a row without it says how far
+	// and not through what.
+	for _, want := range []string{
+		"01927-src", "cites", "01927-dst", "decision", "the priority ruling",
+	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the row does not carry %q:\n%s", want, got)
 		}
@@ -765,31 +776,51 @@ func TestTheLinkUsageShowsWhichWayTheEdgePoints(t *testing.T) {
 
 // ---- the seam --------------------------------------------------------------
 
-// ⛔ THE UNWIRED REFUSAL MUST NOT BLAME THE DAEMON. Until the record verbs
-// reach the wire, every one of them fails - and reporting "is rigd running?"
-// for a daemon that is running perfectly sends the reader to start something
-// that is already up.
-func TestTheUnwiredRefusalNamesTheWireAndNotAStoppedDaemon(t *testing.T) {
-	err := notWired()
+// ⛔ THE SEAM NOW BLAMES THE DAEMON, AND THAT IS THE REVERSAL RATHER THAN A
+// RELAXATION.
+//
+// This test replaces TestTheUnwiredRefusalNamesTheWireAndNotAStoppedDaemon,
+// which asserted the OPPOSITE: while the record verbs were missing from the
+// wire, reporting "is rigd running?" sent a reader to start a daemon that was
+// already up, so the seam refused with its own code and named the wire.
+//
+// ⛔ EVERY CLAUSE OF THAT REFUSAL IS NOW FALSE. rigd dispatches all nine verbs,
+// so "rigd serves nothing to call" is untrue and its precondition - that rigd
+// answers those nine - is MET. A refusal that has stopped being true is worse
+// than no refusal, because it is a sentence a reader believes. notWired() and
+// codeNoRecordWire are deleted rather than narrowed, and this is what took
+// their place: with the verbs served, a seam that cannot open IS a daemon that
+// is not there, which is the one cause left to name.
+func TestTheSeamRefusesWithTheDaemonsOwnCodeWhenNothingIsListening(t *testing.T) {
+	// A runtime dir with no socket in it, so the dial certainly fails. Without
+	// this the test reads whatever daemon the developer's shell happens to
+	// point at, which is a result that depends on the machine.
+	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+
+	_, _, err := openRecordAPI()
+	if err == nil {
+		t.Fatal("the seam opened against a runtime directory with no daemon " +
+			"in it, so this test proved NOTHING about what it refuses with")
+	}
 
 	obj, _, structured := shape(err)
 	if !structured {
-		t.Fatal("the unwired refusal is not a structured error, so --json " +
+		t.Fatal("the seam's refusal is not a structured error, so --json " +
 			"cannot carry it")
 	}
-	if obj.Code == codeNoDaemon {
-		t.Error("the unwired refusal reports NO_DAEMON, which sends the reader " +
-			"to start a daemon that is already running")
-	}
-	if !strings.HasPrefix(obj.Code, codeLocal) {
-		t.Errorf("the code %q is not one of rig's own, so it can collide with "+
-			"a CODE_* the daemon sends", obj.Code)
+	if obj.Code != codeNoDaemon {
+		t.Errorf("the seam refused with %q. With all nine verbs served, a "+
+			"dial that fails is a daemon that is not running, and any other "+
+			"code sends the reader to look for a gap that was closed",
+			obj.Code)
 	}
 	// internal/kernel/refusal.go: "Runnable as written, or empty. NEVER
-	// prose." There is no command that puts these methods on the wire.
-	if obj.FixCommand != "" {
-		t.Errorf("the refusal offers %q as a command to run, and no command "+
-			"fixes this", obj.FixCommand)
+	// prose." This one HAS a command, which is the other half of the
+	// reversal - there was no command that put the verbs on the wire, and
+	// there is one that starts a daemon.
+	if obj.FixCommand == "" {
+		t.Error("the refusal offers no command, and starting rigd is exactly " +
+			"the thing a caller can run to fix this")
 	}
 }
 
@@ -806,9 +837,18 @@ func TestTheUnwiredRefusalNamesTheWireAndNotAStoppedDaemon(t *testing.T) {
 // So this one runs with the seam left at its default, and it is the ONLY test
 // in the file that does. What it asserts is an ORDER, and the only way to see
 // an order is to make the second step fail.
+//
+// ⛔ THE SECOND STEP FAILS FOR A DIFFERENT REASON NOW AND THE TEST IS
+// STRONGER FOR IT. It used to fail because the wire was missing, which was a
+// property of the build; it now fails because nothing is listening on the
+// runtime directory below, which is a property this test SETS UP. The old
+// version would have quietly stopped asserting anything the moment the wire
+// landed - a green that could no longer go red.
 func TestABadCommandIsRefusedBeforeTheDaemonIsReachedFor(t *testing.T) {
-	// No serving() here, deliberately: recordAPI is the real one, which
-	// refuses, so anything that opens first cannot produce an argument error.
+	// No serving() here, deliberately: recordAPI is the real one, which now
+	// DIALS - so anything that opens first reaches this empty runtime
+	// directory and cannot produce an argument error.
+	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
 	for _, tc := range []struct {
 		name string
 		argv []string
@@ -834,13 +874,13 @@ func TestABadCommandIsRefusedBeforeTheDaemonIsReachedFor(t *testing.T) {
 				t.Fatalf("%v was accepted", tc.argv)
 			}
 			obj, _, _ := shape(err)
-			if obj.Code == codeNoRecordWire {
-				t.Fatalf("%v was answered with the WIRE's failure rather than "+
-					"with what is wrong with the command. rig opened the "+
+			if obj.Code == codeNoDaemon {
+				t.Fatalf("%v was answered with the DAEMON's failure rather "+
+					"than with what is wrong with the command. rig opened the "+
 					"record surface before checking its arguments, so the "+
-					"caller is told about the daemon when the mistake is "+
+					"caller is told to go start rigd when the mistake is "+
 					"theirs - and every refusal in this file is unreachable "+
-					"until the wire lands.\ngot: %s", tc.argv, err)
+					"to anybody without a daemon.\ngot: %s", tc.argv, err)
 			}
 			if !strings.Contains(err.Error(), tc.want) {
 				t.Errorf("the refusal does not mention %q:\n%s", tc.want, err)
@@ -976,5 +1016,362 @@ func TestTheRecordSubcommandsAreOfferedAfterTheVerb(t *testing.T) {
 	if slices.Contains(recordSubcommands, "mutated") {
 		t.Fatal("the completion handed out the dispatcher's own slice, so a " +
 			"caller writing through it changes what `rig record` accepts")
+	}
+}
+
+// ---- the wire, asserted against a fake daemon -------------------------------
+
+// wiredTo is a RecordAPI over a fake daemon, so a test can read the frame this
+// client actually SENT.
+//
+// It builds wireRecord directly rather than going through openRecordAPI,
+// deliberately: openRecordAPI reaches paths.Socket() and runs the skew check,
+// and neither is the thing under test here. buildskew_test.go's
+// TestARealVerbWarnsOnSkew is what covers that path, once, for every verb.
+func wiredTo(t *testing.T, reply proto.Message) (RecordAPI, *fakeDaemon) {
+	t.Helper()
+	d := startFakeDaemon(t, reply)
+	c, err := client.Dial(d.socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = c.Close() })
+	return wireRecord{c: c}, d
+}
+
+// wireCtx is a bounded context for a call to the fake. Bare Background() is
+// what the nocontextfree analyzer refuses, and a deadline here is also what
+// stops a broken read loop hanging the suite instead of failing it.
+func wireCtx(t *testing.T) context.Context {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
+	return ctx
+}
+
+// ⛔ EVERY METHOD NAME CARRIES THE `rig.` PREFIX, AND GETTING ONE WRONG DOES
+// NOT LOOK LIKE A TYPO.
+//
+// rigd splits a method on its FIRST dot into program and command, so
+// "record.put" without the prefix is read as a PROGRAM called `record` and the
+// caller is refused with "no program \"record\" is connected" - a sentence
+// that sends them to the daemon, the registry and their own spelling, none of
+// which is where the answer is. B43 is the recorded instance of exactly that
+// reading, on a different verb.
+//
+// NOTHING ELSE IN THIS PACKAGE CAN CATCH IT. A renderer cannot see what was
+// asked for, and the fake replies to any method at all, so all nine of these
+// pass their own unit tests with every name misspelled.
+func TestEveryRecordMethodNamesItselfWithTheRigPrefix(t *testing.T) {
+	for _, tc := range []struct {
+		want string
+		call func(context.Context, RecordAPI) error
+	}{
+		{"rig.record.put", func(ctx context.Context, a RecordAPI) error {
+			_, err := a.Put(ctx, PutArgs{Kind: "note", Project: "rig"})
+			return err
+		}},
+		{"rig.record.get", func(ctx context.Context, a RecordAPI) error {
+			_, err := a.Get(ctx, "x", 0)
+			return err
+		}},
+		{"rig.record.query", func(ctx context.Context, a RecordAPI) error {
+			_, err := a.Query(ctx, "rig", "note")
+			return err
+		}},
+		{"rig.record.history", func(ctx context.Context, a RecordAPI) error {
+			_, err := a.History(ctx, "x")
+			return err
+		}},
+		{"rig.record.link", func(ctx context.Context, a RecordAPI) error {
+			return a.Link(ctx, "a", "cites", "b")
+		}},
+		{"rig.record.unlink", func(ctx context.Context, a RecordAPI) error {
+			return a.Unlink(ctx, "a", "cites", "b")
+		}},
+		{"rig.record.refs", func(ctx context.Context, a RecordAPI) error {
+			_, err := a.Refs(ctx, RefsArgs{ID: "x"})
+			return err
+		}},
+		{"rig.progress.step", func(ctx context.Context, a RecordAPI) error {
+			_, err := a.Step(ctx, StepArgs{Item: "x", State: "done", Project: "rig"})
+			return err
+		}},
+		{"rig.project.brief", func(ctx context.Context, a RecordAPI) error {
+			_, err := a.Brief(ctx, "rig")
+			return err
+		}},
+	} {
+		t.Run(tc.want, func(t *testing.T) {
+			// An EMPTY reply message, which marshals to zero bytes and so
+			// decodes into whichever response type the method expects. The
+			// answer is not what this test is about; the envelope is.
+			api, d := wiredTo(t, &rigv1.RecordGetResponse{})
+			if err := tc.call(wireCtx(t), api); err != nil {
+				t.Fatalf("%s: %v", tc.want, err)
+			}
+			frames := d.frames(t)
+			if len(frames) != 1 {
+				t.Fatalf("the daemon was sent %d frames, want 1", len(frames))
+			}
+			if got := frames[0].GetMethod(); got != tc.want {
+				t.Errorf("the call went out as %q, want %q. rigd splits on the "+
+					"FIRST dot, so a missing `rig.` is read as a PROGRAM of "+
+					"that name and the caller is told it is not connected",
+					got, tc.want)
+			}
+		})
+	}
+}
+
+// ⛔ AN UNSET --depth ASKS THE DAEMON'S DEFAULT, AND A TYPED ONE ASKS FOR
+// ITSELF.
+//
+// The CLI used to default this flag to 1 while internal/record.DefaultRefsDepth
+// is 4 - two places deciding one default, which is the defect
+// internal/daemon/record.go writes a comment about at the same field. A zero on
+// the wire is carried through to the store untouched, so the zero is how a
+// client says "yours".
+//
+// THE CONTROL IS WHAT MAKES THIS MEAN ANYTHING: a second call at an explicit
+// depth must travel differently, or the test passes against a client that
+// never sets the field at all.
+func TestAnUnsetDepthAsksTheDaemonForItsOwnDefault(t *testing.T) {
+	api, d := wiredTo(t, &rigv1.RecordRefsResponse{})
+	ctx := wireCtx(t)
+
+	if _, err := api.Refs(ctx, RefsArgs{ID: "x"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := api.Refs(ctx, RefsArgs{ID: "x", Depth: 3}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := api.Refs(ctx, RefsArgs{ID: "x", CrossProject: true}); err != nil {
+		t.Fatal(err)
+	}
+
+	sent := refsRequests(t, d)
+	if len(sent) != 3 {
+		t.Fatalf("the daemon was sent %d refs requests, want 3", len(sent))
+	}
+	if got := sent[0].GetDepth(); got != 0 {
+		t.Errorf("an unset --depth travelled as %d. A zero is how this wire "+
+			"says \"the daemon's default\", and any other number is a second "+
+			"default in a client the store cannot see", got)
+	}
+	if got := sent[1].GetDepth(); got != 3 {
+		t.Errorf("--depth 3 travelled as %d, so the field is not travelling "+
+			"at all and the assertion above proves nothing", got)
+	}
+	// ⛔ SECTION 39 MAKES CROSSING "asked for, never arrived at", so the
+	// default must be false on the wire and not merely unset in the flag set.
+	if sent[0].GetCrossProject() {
+		t.Error("a refs call with no --cross-project asked to leave the " +
+			"record's own project")
+	}
+	if !sent[2].GetCrossProject() {
+		t.Error("--cross-project did not reach the wire, so the flag is " +
+			"accepted and does nothing - which is the worst of the three " +
+			"possible answers")
+	}
+}
+
+func refsRequests(t *testing.T, d *fakeDaemon) []*rigv1.RecordRefsRequest {
+	t.Helper()
+	var out []*rigv1.RecordRefsRequest
+	for _, f := range d.frames(t) {
+		req := &rigv1.RecordRefsRequest{}
+		if err := proto.Unmarshal(f.GetPayload(), req); err != nil {
+			t.Fatalf("a refs request did not decode: %v", err)
+		}
+		out = append(out, req)
+	}
+	return out
+}
+
+// ⛔ A STEP STATE THIS BUILD CANNOT SPELL IS REFUSED HERE, NAMING WHAT WAS
+// TYPED, AND NOTHING IS SENT.
+//
+// progress.go's rule was that this client never pre-validates, because rigd
+// "refuses an unknown state by name and quotes the value back". THE ENUM
+// BROKE THAT PREMISE: `banana` has no value, arrives as UNSPECIFIED, and the
+// daemon maps UNSPECIFIED to the empty string - so the store's refusal reads
+// `"" is not a step state` and the caller's own word is gone. This client is
+// the last place it exists.
+func TestAStepStateWithNoValueOnTheWireIsRefusedBeforeItIsSent(t *testing.T) {
+	api, d := wiredTo(t, &rigv1.ProgressStepResponse{})
+
+	_, err := api.Step(wireCtx(t), StepArgs{Item: "x", State: "banana", Project: "rig"})
+	if err == nil {
+		t.Fatal("a state with no value on the wire was sent, and it arrives " +
+			"at rigd as nothing at all")
+	}
+	if !strings.Contains(err.Error(), "banana") {
+		t.Errorf("the refusal does not quote back what was typed, which is "+
+			"the whole reason it happens here rather than at rigd:\n%s", err)
+	}
+	// The three it DOES know, so a caller learns the set from the refusal
+	// rather than from the flag's help text they have already misread once.
+	for _, want := range []string{"started", "blocked", "done"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal does not offer %q:\n%s", want, err)
+		}
+	}
+	// ⛔ AND THE ZERO IS NOT OFFERED. Section 21: its meaning is "nothing was
+	// said", so a caller spelling it would be asking for an unset field.
+	if strings.Contains(err.Error(), "unspecified") {
+		t.Errorf("the refusal offers the enum's ZERO as a state somebody "+
+			"could type:\n%s", err)
+	}
+	if n := len(d.frames(t)); n != 0 {
+		t.Errorf("%d frames reached the daemon; a state rig cannot spell must "+
+			"not be sent", n)
+	}
+}
+
+// THE THREE SPELLINGS ARE WALKED OFF THE ENUM RATHER THAN WRITTEN DOWN, so a
+// fourth state added to the proto is accepted by this build the same day.
+//
+// This is the half that makes the refusal above safe rather than a second
+// source of truth - which is what progress.go was right to refuse.
+func TestEveryStepStateTheWireDeclaresIsAcceptedByName(t *testing.T) {
+	values := rigv1.StepState_STEP_STATE_UNSPECIFIED.Descriptor().Values()
+	seen := 0
+	for i := range values.Len() {
+		v := values.Get(i)
+		if v.Number() == 0 {
+			continue
+		}
+		seen++
+		word := enumLabel(string(v.Name()), "STEP_STATE_")
+		got, err := stepStateOnTheWire(word)
+		if err != nil {
+			t.Errorf("the wire declares %q and this client refuses it: %v", word, err)
+			continue
+		}
+		if got.Number() != v.Number() {
+			t.Errorf("%q mapped to %v, want %v", word, got.Number(), v.Number())
+		}
+	}
+	// The positive control. An empty descriptor walk would pass every
+	// assertion above without checking anything, which is the "nothing is
+	// wrong" and "the check did not run" collapse this repository keeps
+	// catching.
+	if seen != 3 {
+		t.Fatalf("the walk found %d non-zero step states, want 3: it answered "+
+			"about something other than StepState and every assertion above "+
+			"is meaningless", seen)
+	}
+}
+
+// ---- refs: the two fields that stop a partial answer looking complete -------
+
+// ⛔ A TRUNCATED ANSWER SAYS SO, IN THE TEXT AND IN THE OBJECT.
+//
+// It is the single defect this capability exists to prevent: a short list that
+// reads as the whole answer. The store computes the flag and the wire carries
+// it, so a client that drops it is the only thing between a reader and the
+// truth.
+func TestATruncatedRefsAnswerSaysItIsPartial(t *testing.T) {
+	full := refsText(Refs{ID: "x", Depth: 2, In: []Ref{
+		{Src: "a", Type: "cites", Via: "x", Kind: "decision", Distance: 1},
+	}})
+	if strings.Contains(strings.ToUpper(full), "TRUNCATED") {
+		t.Errorf("a COMPLETE answer announced a truncation, so the assertion "+
+			"below cannot tell the two apart:\n%s", full)
+	}
+
+	cut := refsText(Refs{ID: "x", Depth: 2, Truncated: true, In: []Ref{
+		{Src: "a", Type: "cites", Via: "x", Kind: "decision", Distance: 1},
+	}})
+	if !strings.Contains(strings.ToUpper(cut), "TRUNCATED") {
+		t.Errorf("a PARTIAL answer rendered exactly like a complete one:\n%s", cut)
+	}
+
+	// AND ON AN EMPTY ANSWER TOO, which is the case where it matters most: a
+	// reader is being told nothing points at this record, and the walk may
+	// simply not have got there.
+	empty := refsText(Refs{ID: "x", Depth: 1, Truncated: true})
+	if !strings.Contains(strings.ToUpper(empty), "TRUNCATED") {
+		t.Errorf("an empty PARTIAL answer read as \"nothing points at this\", "+
+			"which is a different claim:\n%s", empty)
+	}
+}
+
+// A CYCLE IS NAMED AND NEVER RESOLVED. Section 39: detected, reported, ordered
+// around, never resolved - rig does not pick an edge to break, because
+// choosing which one is wrong is a judgement about the work.
+func TestRefsNamesACycleAndOffersNoEdgeToBreak(t *testing.T) {
+	got := refsText(Refs{ID: "x", Depth: 3, Cycles: [][]string{{"a", "b", "c"}}})
+
+	for _, want := range []string{"a -> b -> c -> a"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the cycle is not named as a closed loop, so it reads as "+
+				"a chain:\n%s", got)
+		}
+	}
+	if !strings.Contains(got, "does not pick an edge to break") {
+		t.Errorf("the cycle report does not say that rig refuses to resolve "+
+			"it:\n%s", got)
+	}
+}
+
+// BOTH FIELDS RIDE IN THE OBJECT ON EVERY ANSWER, not only when they are
+// interesting. A key that appears only when something is wrong is a key
+// nobody's parser has a branch for at the moment it first appears.
+func TestTheRefsObjectAlwaysCarriesTruncatedAndCycles(t *testing.T) {
+	b, err := json.Marshal(refsJSON(Refs{ID: "x", Depth: 4}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"truncated":false`, `"cycles":[]`} {
+		if !strings.Contains(string(b), want) {
+			t.Errorf("the object does not carry %s: %s", want, b)
+		}
+	}
+
+	// THE ROW'S KEYS ARE THE WIRE'S OWN WORDS, and `dst` is not one of them -
+	// there is no such field, and a key of that name would claim every row
+	// points straight at the subject.
+	b, err = json.Marshal(refsJSON(Refs{ID: "x", Depth: 4, In: []Ref{
+		{Src: "a", Type: "cites", Via: "m", Kind: "decision", Title: "t", Distance: 2},
+	}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"via":"m"`, `"title":"t"`, `"distance":2`} {
+		if !strings.Contains(string(b), want) {
+			t.Errorf("the row does not carry %s: %s", want, b)
+		}
+	}
+	if strings.Contains(string(b), `"dst"`) {
+		t.Errorf("the row carries a `dst` key and the wire has no such "+
+			"field: %s", b)
+	}
+}
+
+// ---- provenance off the wire ------------------------------------------------
+
+// ⛔ A ZERO STAMP IS NOT 1970. Computed straight through time.Unix, an unset
+// timestamp renders as a date rather than as an absence, and provTime's whole
+// job is telling those apart. internal/record refuses to write a record
+// without provenance, so a zero here is a defect between the store and this
+// client - a thing to report, not a year to hand the reader.
+func TestAProvenanceWithNoStampDoesNotBecomeTheUnixEpoch(t *testing.T) {
+	p := provFromWire(&rigv1.Provenance{Session: "s", Seat: "cli", Epoch: 7})
+	if !p.CreatedAt.IsZero() {
+		t.Errorf("an unset stamp became %s, which renders as a date",
+			p.CreatedAt)
+	}
+	if got := provTime(p.CreatedAt); got != "" {
+		t.Errorf("provTime rendered the absent stamp as %q", got)
+	}
+
+	// The control: a real stamp must survive, or the assertion above passes
+	// against a converter that drops the field entirely.
+	at := time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC)
+	p = provFromWire(&rigv1.Provenance{AtUnixNano: at.UnixNano()})
+	if !p.CreatedAt.Equal(at) {
+		t.Errorf("a real stamp arrived as %s, want %s", p.CreatedAt, at)
 	}
 }

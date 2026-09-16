@@ -6,12 +6,16 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/boris-milner/rig/client"
+	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )
 
 // The continuity record at a prompt (PLAN.md section 39).
@@ -38,25 +42,28 @@ import (
 // daemon does not have. Adding them is a change to section 39's build order,
 // which is the lead's, not a gap in this file.
 //
-// WHAT THIS FILE IS NOT. It is not the wire. Every call below goes through
-// RecordAPI, which the lead implements against proto/ as one deliberate
-// change; nothing here knows a protobuf exists, which is what let the CLI and
-// the wire be built at the same time by two seats.
+// WHERE THE WIRE IS. Everything down to the seam goes through RecordAPI and
+// knows no protobuf exists; `wireRecord` at the BOTTOM of this file is the
+// implementation against proto/, and it is the only part that does. That
+// split is what let the CLI and the wire be built at the same time by two
+// seats, and it is why every renderer, refusal and argument check above is
+// exercised by a fake rather than by a daemon.
 
 // ---- the contract with rigd ------------------------------------------------
 
 // RecordAPI is everything the CLI needs from rigd for section 39's verbs.
 //
-// ⛔ THE LEAD IMPLEMENTS THIS AND THIS SEAT DOES NOT. The interface is the
-// contract between the CLI and the wire, agreed before either existed, so the
-// two proceed in parallel: proto/rig/v1 is the lead's SECOND COLLISION
-// (COORDINATION.md) and a CLI that waited for it would have waited for a file
-// it may not open.
+// THE INTERFACE IS THE CONTRACT THAT LET TWO SEATS BUILD ONE CAPABILITY AT
+// ONCE, and it outlived the reason it was written. It was agreed before either
+// half existed, so the CLI did not wait on proto/rig/v1 - the lead's SECOND
+// COLLISION in COORDINATION.md, a file this seat may not open. The wire has
+// landed and `wireRecord` at the bottom of this file implements it.
 //
-// It is deliberately NOT a *client.Client wrapper. A CLI built against the
-// concrete client is a CLI whose every verb needs a live daemon to test, and
-// cmd/rig already documents the fifteen functions in that hole. Against an
-// interface, every renderer and every refusal below is exercised by a fake.
+// It is deliberately NOT a *client.Client wrapper, and that is the half worth
+// keeping now the wire exists. A CLI built against the concrete client is a
+// CLI whose every verb needs a live daemon to test, and cmd/rig already
+// documents the fifteen functions in that hole. Against an interface, every
+// renderer and every refusal below is exercised by a fake.
 type RecordAPI interface {
 	// Put creates a record or supersedes one, and returns what was written.
 	Put(ctx context.Context, a PutArgs) (Record, error)
@@ -80,7 +87,12 @@ type RecordAPI interface {
 
 	// Refs is what points AT a record: the direction files cannot go, and
 	// section 39's "correlated".
-	Refs(ctx context.Context, id string, depth int) (Refs, error)
+	//
+	// IT TAKES A STRUCT, on Put's and Step's precedent. It was
+	// `Refs(ctx, id string, depth int)` and `cross_project` arriving on the
+	// wire would have made it a third positional bool - the parameter shape
+	// where a caller swaps two arguments and the compiler says nothing.
+	Refs(ctx context.Context, a RefsArgs) (Refs, error)
 
 	// Step appends one step to a work item's stream and returns the step.
 	//
@@ -196,28 +208,83 @@ type StepArgs struct {
 	Project string
 }
 
+// RefsArgs asks what points AT a record. It mirrors
+// internal/record.RefsRequest, minus the fields the daemon derives.
+type RefsArgs struct {
+	// ID is the record being asked about.
+	ID string
+
+	// Depth is how many hops to follow backwards.
+	//
+	// ⛔ ZERO MEANS THE DAEMON'S DEFAULT AND IS NOT "no hops". The store reads
+	// it that way (internal/record.DefaultRefsDepth), the wire carries it
+	// through untouched, and the answer reports the depth it actually served -
+	// which is the only thing that makes a zero readable at the other end.
+	// recordRefs is where a TYPED zero is refused, because only flag.Visit can
+	// tell a typed one from an omitted one.
+	Depth int
+
+	// CrossProject opts in to leaving the record's own project.
+	//
+	// Section 39 makes the project predicate a performance rule - it prunes
+	// the frontier at every hop rather than filtering the same work - and says
+	// crossing is "asked for, never arrived at". So it is false by default and
+	// there is nothing here that could cross by accident.
+	CrossProject bool
+}
+
 // Ref is one edge, as `record.refs` reports it.
 //
-// ⛔ PROVISIONAL UNTIL SLICE 2. Refs and Ref are shaped by what this renderer
-// needs, because slice 1 puts no wire under them: section 39 specifies the
-// verb and its meaning and not its response message. When the wire lands, the
-// lead's message is the contract and these follow it.
+// ⛔ THE PROVISIONAL SHAPE IS GONE AND THIS ONE IS THE WIRE'S. The comment
+// here used to say "PROVISIONAL UNTIL SLICE 2 ... when the wire lands, the
+// lead's message is the contract and these follow it". `rigv1.Ref` landed
+// carrying src, type, distance, kind, title and via, and this is that promise
+// kept: field for field, with the wire's own words.
+//
+// ⛔ `Dst` IS DELETED RATHER THAN RENAMED, AND THE DIFFERENCE MATTERS. There
+// is no `dst` on the wire and there never was one in the store either: `Via`
+// IS the other end of this edge - internal/record/refs.go spells it "the
+// record this one points at - the subject at depth 1". A field called Dst
+// filled from Via would be right at distance 1 and quietly wrong past it,
+// which is the worst available shape for a field a renderer prints.
 type Ref struct {
-	// Src, Type and Dst are the edge as the store holds it. The edge is
+	// Src and Type are this edge's near end and its label. The edge is
 	// DIRECTED and both ends are printed, because "what points at this" is
 	// only readable if the reader can see which end they are looking at.
 	Src  string
 	Type string
-	Dst  string
+
+	// Via is the record this edge arrives at: the subject itself at distance
+	// 1, and the record it was reached THROUGH beyond that.
+	//
+	// ⛔ IT IS WHAT MAKES A DISTANCE-3 ROW MEAN ANYTHING. A distance with no
+	// via says how far and not through what, so the relationship the caller
+	// asked about is unreadable exactly where the verb stops being obvious.
+	Via string
 
 	// Kind is the kind of the OTHER end, so a reader can tell a decision
 	// citing a requirement from a work-item implementing one without a second
 	// call per row.
 	Kind string
 
-	// Depth is how many hops this edge is from the record that was asked
+	// Title is that record's own one line.
+	//
+	// ⛔ IT IS WHY THIS VERB IS ONE CALL RATHER THAN ONE PLUS N. The store
+	// computes it on the way past; without it a reader holding a column of
+	// UUIDv7s has to `record.get` every row to learn what any of them are,
+	// which is section 9's context budget paying for a field that was already
+	// in hand.
+	Title string
+
+	// Distance is how many hops this edge is from the record that was asked
 	// about. 1 is a direct reference.
-	Depth int
+	//
+	// ⛔ IT IS `Distance` AND NOT `Depth`, WHICH IS THE WIRE'S OWN CHOICE AND
+	// IS LOAD-BEARING. `Refs.Depth` below is how far the walk LOOKED; this is
+	// how far one edge IS. One word for two numbers in one answer is the
+	// collapse this file spends paragraphs preventing in enums, and it would
+	// arrive here through a struct field instead.
+	Distance int
 }
 
 // Refs is the answer to "what points AT this record".
@@ -235,6 +302,26 @@ type Refs struct {
 	// In are the edges pointing at ID. Empty is an ANSWER - nothing cites it
 	// - and never a failure.
 	In []Ref
+
+	// Truncated is true when the walk hit its bound, so this answer is
+	// PARTIAL.
+	//
+	// ⛔ DROPPING IT IS THE DEFECT THE FLAG EXISTS TO PREVENT, AND IT IS THE
+	// ONE THIS REPOSITORY KEEPS CATCHING: a short list that looks complete.
+	// The wire carries it, the store computes it, and a client that reads
+	// neither reports "these are the edges" over "these are some of the
+	// edges".
+	Truncated bool
+
+	// Cycles are the cycles among the records the walk reached, each naming
+	// its items.
+	//
+	// ⛔ DETECTED, REPORTED, ORDERED AROUND, NEVER RESOLVED. Section 39 rules
+	// it and the ruling reaches this client rather than stopping at the
+	// store: rig does not pick an edge to break, because choosing which one
+	// is wrong is a judgement about the work. So this holds the ITEMS and
+	// nothing that could be read as a recommendation.
+	Cycles [][]string
 }
 
 // ---- the seam --------------------------------------------------------------
@@ -250,42 +337,38 @@ type Refs struct {
 // exists.
 var recordAPI = openRecordAPI
 
-// openRecordAPI is the default, and today it refuses.
+// openRecordAPI is the default, and it DIALS.
 //
-// ⛔ IT SAYS THE WIRE IS MISSING RATHER THAN PRETENDING TO DIAL. The
-// alternative - connect() and then fail - would report "is rigd running?" for
-// a daemon that is running perfectly and simply does not serve these methods
-// yet, which sends the reader to start a daemon that is already up. A refusal
-// that names the wrong cause is worse than one that names none.
+// ⛔ IT USED TO REFUSE, AND THE REFUSAL IS DELETED RATHER THAN NARROWED.
+// `notWired()` said "rigd serves nothing to call" and enumerated all nine
+// verbs as its precondition; rigd dispatches all nine (internal/daemon's
+// record.go, declared in self.go, routed in daemon.go), so every clause of it
+// is now false. A refusal that has stopped being true is worse than no
+// refusal: it is a sentence a reader believes.
+//
+// THE FAILURE IT USED TO GUARD AGAINST IS NOW THE TRUE ONE. Reporting "is
+// rigd running?" was wrong while the verbs were missing from a daemon that
+// was running perfectly. With them served, a dial that fails IS a daemon that
+// is not there, which is exactly what noDaemon says.
 func openRecordAPI() (RecordAPI, func(), error) {
-	return nil, nil, notWired()
-}
-
-// codeNoRecordWire is rig's own code for "this build has the verb and nothing
-// to call". It is spelled with codeLocal's prefix, so it is disjoint from
-// every CODE_* the daemon can send by construction rather than by review.
-const codeNoRecordWire = codeLocal + "NO_RECORD_WIRE"
-
-// notWired is the refusal every record verb gives until the wire lands.
-//
-// FixCommand is EMPTY ON PURPOSE. internal/kernel/refusal.go's rule is
-// "runnable as written, or empty. NEVER prose", and there is no command a
-// caller can run that puts these methods on the wire.
-func notWired() error {
-	return local(jsonStatus{
-		Code: codeNoRecordWire,
-		Message: "rig does not have the record verbs on the wire yet: the CLI " +
-			"is built and rigd serves nothing to call",
-		Precondition: "rigd answers record.put, record.get, record.query, " +
-			"record.history, record.link, record.unlink, record.refs, " +
-			"progress.step and project.brief",
-		Actual: "this build of rig can ask and this daemon cannot answer",
-		Fix: "the record verbs reach the wire as one deliberate change " +
-			"(PLAN.md section 39, slice 1). Until then these verbs cannot answer",
-	})
+	c, err := connect()
+	if err != nil {
+		return nil, nil, noDaemon(err)
+	}
+	return wireRecord{c: c}, func() { _ = c.Close() }, nil
 }
 
 // ---- the flags -------------------------------------------------------------
+
+// titleKey is section 39's spelling of the one noun several surfaces here
+// echo, and it is ONE constant because it is ONE name.
+//
+// The work-item metadata table names `title` as a typed field - "one line" -
+// and every rendering below is that field arriving by some route: a record's
+// own `fields["title"]`, a ref's resolved title, a brief item's, a blocker's.
+// They reach this package through three different messages and they are not
+// three different words, which is what a second spelling here would assert.
+const titleKey = "title"
 
 // fieldFlag collects `--field key=value`, repeated.
 //
@@ -353,14 +436,15 @@ type recordFlags struct {
 	asJSON  *bool
 	timeout *time.Duration
 
-	id        *string
-	kind      *string
-	project   *string
-	body      *string
-	fields    *fieldFlag
-	ifVersion *uint64
-	version   *uint64
-	depth     *int
+	id           *string
+	kind         *string
+	project      *string
+	body         *string
+	fields       *fieldFlag
+	ifVersion    *uint64
+	version      *uint64
+	depth        *int
+	crossProject *bool
 }
 
 // recordFlagSet builds the set for one subcommand, or the bare set for a word
@@ -389,7 +473,31 @@ func recordFlagSet(sub string) *recordFlags {
 	case "get":
 		r.version = r.fs.Uint64("version", 0, "a version to read; 0 is the head")
 	case "refs":
-		r.depth = r.fs.Int("depth", 1, "how many hops to follow backwards")
+		// ⛔ ZERO MEANS "THE DAEMON'S DEFAULT", AND THE DEFAULT USED TO BE 1
+		// HERE WHILE THE STORE'S WAS 4.
+		//
+		// internal/record.DefaultRefsDepth is 4 and the wire carries a zero
+		// through to it untouched, deliberately - internal/daemon/record.go
+		// says why at the same field: "two places deciding one default is two
+		// places to disagree from". A `1` here was the second place. It was
+		// not wrong when it was written, because there was no wire and so no
+		// other default to disagree with; the wire landing is what made it
+		// one.
+		//
+		// A caller who types nothing now gets what every other consumer of
+		// record.refs gets, and the answer says which depth it served - which
+		// is the field that makes the zero readable at all.
+		r.depth = r.fs.Int("depth", 0,
+			"how many hops to follow backwards; unset asks the daemon's default")
+		// ⛔ WITHOUT THIS FLAG SECTION 39's RULING IS HALF IMPLEMENTED AT THE
+		// PROMPT. That section makes project-scoping a PERFORMANCE rule rather
+		// than a preference - the predicate prunes the frontier at every hop -
+		// and says crossing is "asked for, never arrived at". The wire grew
+		// `cross_project` so a caller COULD ask; a CLI with no flag to ask
+		// with serves only the default, permanently and silently, which is
+		// the same sentence one layer up.
+		r.crossProject = r.fs.Bool("cross-project", false,
+			"follow edges out of the record's own project")
 	default:
 		// A WORD THAT IS NOT A SUBCOMMAND GETS NO USAGE DUMP. flag prints the
 		// set's own usage to stderr on a parse error, and a usage block for
@@ -740,16 +848,25 @@ func recordRefs(rf *recordFlags, rest []string) error {
 	if len(rest) != 1 {
 		return badArgumentf("usage: rig record refs <id> [--depth <n>]")
 	}
-	if *rf.depth < 1 {
-		// Depth 0 would answer "nothing", which is indistinguishable from a
-		// record nothing cites - the one answer this verb exists to make
-		// readable.
+	// ⛔ THE REFUSAL IS ON WHAT WAS TYPED, NOT ON THE VALUE, AND THAT IS THE
+	// SAME DISTINCTION --if-version TURNS ON. An unset --depth is now 0
+	// meaning "the daemon's default"; a TYPED --depth 0 is a caller asking to
+	// follow no edge at all, and its answer - nothing - could not be told from
+	// a record nothing points at, which is the one answer this verb exists to
+	// make readable. flag.Visit walks only what was actually set, which is the
+	// one place that difference survives.
+	if rf.wasSet("depth") && *rf.depth < 1 {
 		return badArgumentf("--depth %d follows no edge at all, so its answer "+
 			"could not be told from a record nothing points at. The smallest "+
-			"useful depth is 1", *rf.depth)
+			"useful depth is 1, and leaving --depth off asks the daemon for "+
+			"its own default", *rf.depth)
 	}
 	return withRecordAPI(*rf.timeout, func(ctx context.Context, api RecordAPI) error {
-		refs, err := api.Refs(ctx, rest[0], *rf.depth)
+		refs, err := api.Refs(ctx, RefsArgs{
+			ID:           rest[0],
+			Depth:        *rf.depth,
+			CrossProject: *rf.crossProject,
+		})
 		if err != nil {
 			return err
 		}
@@ -964,7 +1081,7 @@ func queryText(project, kind string, rs []Record) string {
 // and briefs", which is this column exactly. The body is the fallback because
 // a `note` or a `decision` may carry nothing else.
 func recordSummary(r Record) string {
-	for _, k := range []string{"title", "description_short"} {
+	for _, k := range []string{titleKey, "description_short"} {
 		if v := strings.TrimSpace(r.Fields[k]); v != "" {
 			return firstLine(v)
 		}
@@ -1031,16 +1148,33 @@ func historyText(id string, rs []Record, now time.Time) string {
 }
 
 // refsJSON is the object --json emits for `record refs`.
+//
+// THE ROW'S KEYS ARE THE WIRE'S OWN FIELD NAMES - src, type, distance, kind,
+// title, via - which is section 10's rule about the proto being the contract.
+// `in` is the one key that is this client's rather than the wire's, and it
+// stays: the wire calls the list `refs` inside a message already called refs,
+// while `in` names the DIRECTION, which is the whole verb.
 func refsJSON(r Refs) map[string]any {
 	in := make([]map[string]any, 0, len(r.In))
 	for _, e := range r.In {
 		in = append(in, map[string]any{
-			"src":   e.Src,
-			"type":  e.Type,
-			"dst":   e.Dst,
-			"kind":  e.Kind,
-			"depth": e.Depth,
+			"src":      e.Src,
+			"type":     e.Type,
+			"via":      e.Via,
+			"kind":     e.Kind,
+			titleKey:   e.Title,
+			"distance": e.Distance,
 		})
+	}
+	cycles := make([][]string, 0, len(r.Cycles))
+	for _, c := range r.Cycles {
+		if c == nil {
+			// [] rather than null, for the reason every other list in this
+			// package is: a null cannot be told from a field this build
+			// failed to set.
+			c = []string{}
+		}
+		cycles = append(cycles, c)
 	}
 	return map[string]any{
 		"id": r.ID,
@@ -1048,6 +1182,13 @@ func refsJSON(r Refs) map[string]any {
 		// cannot otherwise tell a shallow answer from a record nothing cites.
 		"depth": r.Depth,
 		"in":    in,
+		// ⛔ WITHOUT THIS KEY A PARTIAL ANSWER IS INDISTINGUISHABLE FROM A
+		// COMPLETE ONE, which is the single defect this capability exists to
+		// prevent. It is present on EVERY answer rather than only when true,
+		// because a key that appears only when something is wrong is a key
+		// nobody's parser has a branch for at the moment it first appears.
+		"truncated": r.Truncated,
+		"cycles":    cycles,
 	}
 }
 
@@ -1069,6 +1210,15 @@ func refsText(r Refs) string {
 			r.ID, r.Depth, plural(r.Depth))
 		b.WriteString("This is an answer, not a failure: an uncited record " +
 			"is exactly what\n`record.refs` exists to make visible.\n")
+		// ⛔ BOTH QUALIFIERS PRINT ON THE EMPTY PATH TOO, AND THIS IS WHERE
+		// THEY MATTER MOST. The sentence above is the strongest claim this
+		// verb makes - nothing points at this - and a truncated walk or a
+		// cycle is exactly what would make it false. Today's store cannot
+		// report a cycle with no edges, which is a fact about the store and
+		// not a licence for this renderer to drop a field the wire carries:
+		// the asymmetry is how a later change lands silently.
+		b.WriteString(refsTruncationLine(r))
+		b.WriteString(refsCycleBlock(r.Cycles))
 		return b.String()
 	}
 
@@ -1078,13 +1228,102 @@ func refsText(r Refs) string {
 			e.Src,
 			refKindCell(e.Kind),
 			e.Type,
-			e.Dst,
-			strconv.Itoa(e.Depth),
+			// THE EDGE IS PRINTED WHOLE AND `VIA` IS ITS FAR END. At distance
+			// 1 that is the subject itself, which is why the column is
+			// labelled VIA rather than DST: past the first hop the reader is
+			// looking at what this edge arrives at on the way, and a column
+			// called DST would claim every row points straight at the
+			// subject.
+			e.Via,
+			strconv.Itoa(e.Distance),
 		})
 	}
-	writeTable(&b, []string{"SRC", "KIND", "TYPE", "DST", "HOPS"}, rows)
+	writeTable(&b, []string{"SRC", "KIND", "TYPE", "VIA", "HOPS"}, rows)
+	b.WriteString(refsTitleBlock(r.In))
 	fmt.Fprintf(&b, "\n%d edge%s point at %s within %d hop%s.\n",
 		len(r.In), plural(len(r.In)), r.ID, r.Depth, plural(r.Depth))
+	b.WriteString(refsTruncationLine(r))
+	b.WriteString(refsCycleBlock(r.Cycles))
+	return b.String()
+}
+
+// refsTitleBlock names each record the table printed as an id, so a reader is
+// not left holding a column of UUIDv7s.
+//
+// ⛔ IT IS A BLOCK RATHER THAN A SIXTH COLUMN, AND THAT IS A LEGIBILITY
+// DECISION RATHER THAN A TASTE. A title is free prose of any length and the
+// five columns above are all short tokens; folded in, one long title sets the
+// width for every row and the direction the table exists to show stops being
+// scannable. Printed underneath, the ids stay aligned and the titles are read
+// only by somebody who needs them.
+//
+// A REF WITH NO TITLE IS SKIPPED RATHER THAN PRINTED BLANK. The store computes
+// a title for every record that has one and the field is genuinely empty for a
+// record with neither; a row saying `01927-src  (none)` teaches a reader that
+// the block is broken.
+func refsTitleBlock(in []Ref) string {
+	seen := map[string]bool{}
+	var b strings.Builder
+	for _, e := range in {
+		if e.Title == "" || seen[e.Src] {
+			continue
+		}
+		seen[e.Src] = true
+		fmt.Fprintf(&b, "  %s  %s\n", e.Src, firstLine(e.Title))
+	}
+	if b.Len() == 0 {
+		return ""
+	}
+	return "\n" + b.String()
+}
+
+// refsTruncationLine says the answer is PARTIAL, and it is the one line here
+// that changes what a reader may conclude from everything above it.
+//
+// ⛔ IT PRINTS NOTHING WHEN THE ANSWER IS COMPLETE, DELIBERATELY. A line
+// reading "complete" on every call trains a reader to skip the place the real
+// warning appears - the argument briefBlockedSection makes about cycles, and
+// the same one.
+func refsTruncationLine(r Refs) string {
+	if !r.Truncated {
+		return ""
+	}
+	return fmt.Sprintf("\n⛔ TRUNCATED: the walk stopped at %d hop%s and there "+
+		"is more beyond it.\nThis is a PARTIAL answer. Ask for more with "+
+		"--depth <n>.\n", r.Depth, plural(r.Depth))
+}
+
+// refsCycleBlock reports the cycles the walk crossed and REFUSES TO RESOLVE
+// THEM.
+//
+// Section 39: detected, reported, ordered around, never resolved. rig does not
+// pick an edge to break, because choosing which one is wrong is a judgement
+// about the work - so this names the items and carries nothing a reader could
+// take as a recommendation. briefBlockedSection says the same thing about the
+// `blocks` graph; this one is about the reference graph, and a reader meeting
+// either must read the same sentence.
+func refsCycleBlock(cycles [][]string) string {
+	if len(cycles) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("\nCYCLES crossed while walking backwards\n")
+	for _, c := range cycles {
+		if len(c) == 0 {
+			// A cycle with no items is a report that reports nothing, and it
+			// must not render as a decorative warning. Naming the items is
+			// the entire requirement.
+			b.WriteString("  a cycle was found and its items did not reach " +
+				"this client\n")
+			continue
+		}
+		// The first item is repeated at the end, because a cycle written as a
+		// flat list reads as a chain and the reader has to be told it closes.
+		b.WriteString("  " + strings.Join(append(append([]string{}, c...), c[0]),
+			" -> ") + "\n")
+	}
+	b.WriteString("rig does not pick an edge to break: which reference is " +
+		"the wrong one is a\njudgement about the work.\n")
 	return b.String()
 }
 
@@ -1097,4 +1336,276 @@ func refKindCell(kind string) string {
 		return "(not said)"
 	}
 	return kind
+}
+
+// ---- the wire ---------------------------------------------------------------
+
+// wireRecord is RecordAPI against a live rigd.
+//
+// ⛔ IT IS THE ONLY THING IN THIS PACKAGE THAT KNOWS SECTION 39 HAS A
+// PROTOBUF, and that is what the RecordAPI interface bought: every renderer,
+// every refusal and every argument check above is exercised by a fake, and
+// this file is the one place a wire change can reach.
+//
+// EVERY METHOD GOES THROUGH call(), never through c.Call directly.
+// TestEveryWireCallInThisPackageGoesThroughCall walks this package for exactly
+// that, and the reason is that call() is where a client.CallError becomes
+// rig's refusal type - so a record verb refusing renders the same as `rig
+// ping` refusing, which is section 10's promise.
+//
+// THE METHOD NAMES CARRY THE `rig.` PREFIX. rigd splits a method on its FIRST
+// dot into program and command (internal/daemon's splitMethod), so
+// "rig.record.put" reaches the `rig` program's `record.put` command. A name
+// without the prefix would be read as a PROGRAM called record, and the refusal
+// would be about a program that is not connected.
+type wireRecord struct{ c *client.Client }
+
+func (w wireRecord) Put(ctx context.Context, a PutArgs) (Record, error) {
+	// ⛔ NO Session, Seat OR Epoch IS SENT AND THE REQUEST MESSAGE CANNOT
+	// CARRY THEM. PutArgs says why at length: a client that can name a seat
+	// can name somebody else's, on the one field section 39 makes
+	// load-bearing. The daemon stamps all three from the connection.
+	resp := &rigv1.RecordPutResponse{}
+	if err := call(ctx, w.c, "rig.record.put", &rigv1.RecordPutRequest{
+		Id:        a.ID,
+		IfVersion: a.IfVersion,
+		Kind:      a.Kind,
+		Project:   a.Project,
+		Body:      a.Body,
+		Fields:    a.Fields,
+	}, resp); err != nil {
+		return Record{}, err
+	}
+	return recordFromWire(resp.GetRecord()), nil
+}
+
+func (w wireRecord) Get(ctx context.Context, id string, version uint64) (Record, error) {
+	// VERSION 0 IS SENT AS 0 AND MEANS HEAD. Not "version zero", which no
+	// record has - the first write is version 1 - so there is no value this
+	// field could carry that a zero collides with.
+	resp := &rigv1.RecordGetResponse{}
+	if err := call(ctx, w.c, "rig.record.get", &rigv1.RecordGetRequest{
+		Id:      id,
+		Version: version,
+	}, resp); err != nil {
+		return Record{}, err
+	}
+	return recordFromWire(resp.GetRecord()), nil
+}
+
+func (w wireRecord) Query(ctx context.Context, project, kind string) ([]Record, error) {
+	resp := &rigv1.RecordQueryResponse{}
+	if err := call(ctx, w.c, "rig.record.query", &rigv1.RecordQueryRequest{
+		Project: project,
+		Kind:    kind,
+	}, resp); err != nil {
+		return nil, err
+	}
+	return recordsFromWire(resp.GetRecords()), nil
+}
+
+func (w wireRecord) History(ctx context.Context, id string) ([]Record, error) {
+	resp := &rigv1.RecordHistoryResponse{}
+	if err := call(ctx, w.c, "rig.record.history",
+		&rigv1.RecordHistoryRequest{Id: id}, resp); err != nil {
+		return nil, err
+	}
+	return recordsFromWire(resp.GetVersions()), nil
+}
+
+func (w wireRecord) Link(ctx context.Context, src, linkType, dst string) error {
+	// THE TYPE IS NOT VALIDATED HERE. The set is closed at section 39's eight
+	// names and the STORE refuses an unknown one, quoting the value back and
+	// listing the valid ones - and unlike a step's state, a link type crosses
+	// this wire as a STRING, so the caller's own word survives to the refusal
+	// that names it. That is the whole difference between this method and
+	// Step below, and it is why one pre-validates and the other does not.
+	return call(ctx, w.c, "rig.record.link", &rigv1.RecordLinkRequest{
+		Src: src, Type: linkType, Dst: dst,
+	}, &rigv1.RecordLinkResponse{})
+}
+
+func (w wireRecord) Unlink(ctx context.Context, src, linkType, dst string) error {
+	return call(ctx, w.c, "rig.record.unlink", &rigv1.RecordUnlinkRequest{
+		Src: src, Type: linkType, Dst: dst,
+	}, &rigv1.RecordUnlinkResponse{})
+}
+
+func (w wireRecord) Refs(ctx context.Context, a RefsArgs) (Refs, error) {
+	// THE DEPTH IS NOT CLAMPED ON THE WAY OUT. A depth above the store's
+	// maximum is REFUSED BY NAME there, because a caller that asked for 8, got
+	// 5 and was not told has a partial answer that looks complete - the one
+	// failure this capability exists to prevent. A client that clamped would
+	// be the thing hiding it.
+	//
+	// The int is bounded before the conversion because an unchecked negative
+	// becomes an enormous positive, and this field is read as "how many hops"
+	// - the one direction in which a wrong number looks plausible. A negative
+	// cannot arrive: recordRefs refuses a typed depth below 1. The guard is
+	// what lets a reader see that without holding that function open.
+	req := &rigv1.RecordRefsRequest{Id: a.ID, CrossProject: a.CrossProject}
+	if a.Depth > 0 && a.Depth <= math.MaxUint32 {
+		req.Depth = uint32(a.Depth)
+	}
+	resp := &rigv1.RecordRefsResponse{}
+	if err := call(ctx, w.c, "rig.record.refs", req, resp); err != nil {
+		return Refs{}, err
+	}
+	out := Refs{
+		ID: resp.GetId(),
+		// The depth ANSWERED, which is not always the depth asked - and after
+		// the default-meaning zero above, is usually not even a number this
+		// caller sent.
+		Depth:     int(resp.GetDepth()),
+		Truncated: resp.GetTruncated(),
+	}
+	for _, r := range resp.GetRefs() {
+		out.In = append(out.In, Ref{
+			Src:      r.GetSrc(),
+			Type:     r.GetType(),
+			Via:      r.GetVia(),
+			Kind:     r.GetKind(),
+			Title:    r.GetTitle(),
+			Distance: int(r.GetDistance()),
+		})
+	}
+	for _, c := range resp.GetCycles() {
+		out.Cycles = append(out.Cycles, c.GetItems())
+	}
+	return out, nil
+}
+
+func (w wireRecord) Step(ctx context.Context, a StepArgs) (Record, error) {
+	state, err := stepStateOnTheWire(a.State)
+	if err != nil {
+		return Record{}, err
+	}
+	// ⛔ THE PROJECT IS NOT SENT AND THE REQUEST MESSAGE HAS NO FIELD FOR IT.
+	// The daemon DERIVES it from the item, because a step's project is a fact
+	// about the item rather than a choice the caller makes. StepArgs.Project
+	// is still parsed and still refused when empty - by rigd, which needs the
+	// item to exist before it can say anything about a project at all.
+	resp := &rigv1.ProgressStepResponse{}
+	if err := call(ctx, w.c, "rig.progress.step", &rigv1.ProgressStepRequest{
+		Item:  a.Item,
+		State: state,
+		Note:  a.Note,
+	}, resp); err != nil {
+		return Record{}, err
+	}
+	return recordFromWire(resp.GetStep()), nil
+}
+
+func (w wireRecord) Brief(ctx context.Context, project string) (Brief, error) {
+	resp := &rigv1.ProjectBriefResponse{}
+	if err := call(ctx, w.c, "rig.project.brief",
+		&rigv1.ProjectBriefRequest{Project: project}, resp); err != nil {
+		return Brief{}, err
+	}
+	return briefFromWire(resp), nil
+}
+
+// ---- the step state, and why this client refuses one it cannot spell -------
+
+// stepStateOnTheWire turns the caller's word into the enum, and REFUSES A WORD
+// THIS BUILD HAS NO VALUE FOR.
+//
+// ⛔ THIS OVERTURNS progress.go's "the client does not pre-validate", AND THE
+// ENUM IS WHY. That rule was right and its premise has stopped being true.
+// It said rigd "refuses an unknown state by name and quotes the value back",
+// so a second validator here could only drift. But `state` crosses this wire
+// as an ENUM: `--state banana` has no value, arrives as UNSPECIFIED, and
+// internal/daemon maps UNSPECIFIED to the empty string - so the store refuses
+// `"" is not a step state` and QUOTES THE WRONG VALUE BACK. The caller's word
+// cannot survive the enum, which makes this client the last place it exists.
+//
+// ⛔ AND IT IS NOT A SECOND SOURCE OF TRUTH, WHICH IS THE HALF THAT MAKES IT
+// SAFE. The set is WALKED off the enum's own descriptor rather than written
+// down here, so a fourth state added to the proto is offered by this build the
+// same day, and one removed stops being offered. A hand-kept table would have
+// been the thing progress.go was right to refuse.
+//
+// An EMPTY --state is passed through rather than refused, deliberately: rigd
+// already answers that one in a sentence naming the flag, and there is no
+// caller word to lose.
+func stepStateOnTheWire(word string) (rigv1.StepState, error) {
+	if word == "" {
+		return rigv1.StepState_STEP_STATE_UNSPECIFIED, nil
+	}
+	values := rigv1.StepState_STEP_STATE_UNSPECIFIED.Descriptor().Values()
+	var known []string
+	for i := range values.Len() {
+		v := values.Get(i)
+		label := enumLabel(string(v.Name()), "STEP_STATE_")
+		// THE ZERO IS NOT OFFERED AND NOT ACCEPTED. Section 21: its meaning is
+		// "nothing was said", so a caller spelling it would be asking for an
+		// unset field, which is what leaving the flag off already does.
+		if v.Number() == 0 {
+			continue
+		}
+		if label == word {
+			return rigv1.StepState(v.Number()), nil
+		}
+		known = append(known, label)
+	}
+	return rigv1.StepState_STEP_STATE_UNSPECIFIED, badArgumentf(
+		"%q is not a step state; this build knows %s.\n"+
+			"       rig refuses it here rather than sending it, because the "+
+			"state travels as an enum: a word with no value arrives at rigd "+
+			"as nothing at all, and the refusal you would get back quotes an "+
+			"empty string instead of what you typed",
+		word, strings.Join(known, ", "))
+}
+
+// ---- the wire's nouns, in this client's vocabulary -------------------------
+
+// recordFromWire is one record. A NIL MESSAGE YIELDS A ZERO RECORD rather than
+// a panic, and the renderers above are built to report a zero as a defect -
+// provenanceLine says "(not said)" and provTime returns "" for a stamp that
+// never arrived. A daemon that replies with an empty payload is a bug, and the
+// surface that shows it must not be a crash.
+func recordFromWire(r *rigv1.Record) Record {
+	return Record{
+		ID:      r.GetId(),
+		Version: r.GetVersion(),
+		Kind:    r.GetKind(),
+		Project: r.GetProject(),
+		Body:    r.GetBody(),
+		Fields:  r.GetFields(),
+		Prov:    provFromWire(r.GetProv()),
+	}
+}
+
+func recordsFromWire(rs []*rigv1.Record) []Record {
+	if len(rs) == 0 {
+		// nil rather than an empty slice, because every renderer above
+		// branches on len() and recordsJSON already builds the [] a consumer
+		// sees. Two ways to spell "none" in one package is one too many.
+		return nil
+	}
+	out := make([]Record, 0, len(rs))
+	for _, r := range rs {
+		out = append(out, recordFromWire(r))
+	}
+	return out
+}
+
+// provFromWire is who wrote a version and when.
+//
+// ⛔ A ZERO TIMESTAMP STAYS THE ZERO time.Time AND IS NEVER time.Unix(0, 0).
+// The Unix epoch renders as 1970, which reads as a date rather than as an
+// absence, and provTime's whole job is to tell those apart. internal/record
+// refuses to write a record without provenance, so a zero arriving here is a
+// defect between the store and this client - which is a thing to report, not a
+// year to hand the reader.
+func provFromWire(p *rigv1.Provenance) Provenance {
+	out := Provenance{
+		Session: p.GetSession(),
+		Seat:    p.GetSeat(),
+		Epoch:   p.GetEpoch(),
+	}
+	if n := p.GetAtUnixNano(); n != 0 {
+		out.CreatedAt = time.Unix(0, n).UTC()
+	}
+	return out
 }

@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )
 
 func brief(mut ...func(*Brief)) Brief {
@@ -15,8 +17,17 @@ func brief(mut ...func(*Brief)) Brief {
 		Status:  "active",
 		Semver:  "0.4.1",
 		NextUp: []BriefItem{
-			{ID: "01927-a", Title: "wire the record verbs", Owner: "team-lead", Priority: "1"},
-			{ID: "01927-b", Title: "the CLI surface", Owner: "cli", Priority: "2"},
+			{
+				ID:    "01927-a",
+				Title: "wire the record verbs",
+				State: "started",
+				Since: now.Add(-30 * time.Minute),
+				Note:  "the seam is next",
+			},
+			// ⛔ NO STATE AND NO STAMP, DELIBERATELY: it is the item nobody has
+			// stepped, which is a real state and the one a blank cell would
+			// swallow.
+			{ID: "01927-b", Title: "the CLI surface"},
 		},
 		Notes: []BriefNote{{
 			ID:       "01927-n",
@@ -161,7 +172,7 @@ func TestACaseRendersNoVersionAtAll(t *testing.T) {
 // branching on its absence has to already know that a case has no version; a
 // consumer reading "" learns it from the answer.
 func TestTheBriefObjectCarriesEverySectionEvenWhenEmpty(t *testing.T) {
-	b, err := json.Marshal(briefJSON(Brief{Project: "my-health", Kind: "case"}))
+	b, err := json.Marshal(briefJSON(Brief{Project: "my-health", Kind: "case"}, now))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,9 +195,9 @@ func TestTheBriefObjectCarriesEverySectionEvenWhenEmpty(t *testing.T) {
 // everything still an idea - and an arriving session has to be able to tell it
 // from a derivation that failed.
 func TestAnEmptyNextUpIsASentenceAndNotABlankTable(t *testing.T) {
-	got := briefNextUpSection(nil)
+	got := briefNextUpSection(nil, now)
 
-	if strings.Contains(got, "OWNER") {
+	if strings.Contains(got, "STATE") {
 		t.Errorf("an empty next-up printed a table header:\n%s", got)
 	}
 	if !strings.Contains(got, "Nothing is next up") {
@@ -215,7 +226,7 @@ func TestAnEmptyNotesSectionSaysSo(t *testing.T) {
 // reading "3 of 5" teaches a reader that two rows are missing when the truth
 // is that there are three.
 func TestTheNextUpCountReportsWhatIsThereAndNotAShortfall(t *testing.T) {
-	got := briefNextUpSection(brief().NextUp)
+	got := briefNextUpSection(brief().NextUp, now)
 
 	if !strings.Contains(got, "2 items") {
 		t.Errorf("the count line does not report the rows it printed:\n%s", got)
@@ -318,5 +329,148 @@ func TestABriefWithNothingInItStillPrintsEverySection(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("an empty brief is missing %q:\n%s", want, got)
 		}
+	}
+}
+
+// ---- the wire -----------------------------------------------------------
+
+// ⛔ WITHHELD-BY-VIEW IS NEVER COLLAPSED INTO NOT-COMPUTED, AND THIS BOUNDARY
+// IS WHERE COLLAPSING THEM WOULD BE EASIEST.
+//
+// A section the caller is not being shown and a section nothing can compute
+// are different answers: the first says the derivation RAN, the second says
+// its input does not exist. Folding the view rule into the capability gap
+// would make the human view read as a degraded agent view, which is the exact
+// reading SectionState was added to prevent.
+func TestASectionWithheldByTheViewIsNotReportedAsUnbuilt(t *testing.T) {
+	b := briefFromWire(&rigv1.ProjectBriefResponse{
+		Project: "rig",
+		Sections: []*rigv1.BriefSectionStatus{
+			{
+				Section: rigv1.BriefSection_BRIEF_SECTION_NEXT_UP,
+				State:   rigv1.SectionState_SECTION_STATE_COMPUTED,
+			},
+			{
+				Section: rigv1.BriefSection_BRIEF_SECTION_MUST_READ,
+				State:   rigv1.SectionState_SECTION_STATE_WITHHELD_BY_VIEW,
+			},
+			{
+				Section: rigv1.BriefSection_BRIEF_SECTION_DRIFT,
+				State:   rigv1.SectionState_SECTION_STATE_NOT_COMPUTED,
+				Reason:  "the standards register is slice 6",
+			},
+		},
+	})
+
+	if len(b.Sections) != 3 {
+		t.Fatalf("got %d sections, want 3", len(b.Sections))
+	}
+	// THE NUMBER IS SECTION 39'S OWN ROW NUMBER. The proto says so: the
+	// numbers "are citations rather than an ordinal, and they are never
+	// renumbered", which is why this is a conversion and not a lookup table.
+	if b.Sections[0].Section != 2 || !b.Sections[0].Computed {
+		t.Errorf("next-up came back as %+v, want section 2 computed", b.Sections[0])
+	}
+	withheld := b.Sections[1]
+	if !withheld.Withheld {
+		t.Errorf("a section withheld by the view did not say so: %+v", withheld)
+	}
+	if withheld.Computed {
+		t.Errorf("a withheld section reported itself COMPUTED, which would "+
+			"render its emptiness as an answer: %+v", withheld)
+	}
+	// ⛔ AND IT MUST NOT REACH THE NOT-ANSWERED LIST, which is the rendering
+	// where the collapse would actually be read by somebody.
+	if got := briefUnavailableSection(b.Sections); strings.Contains(got, "section 6") {
+		t.Errorf("the must-read set was reported as not built, when the "+
+			"derivation ran and this caller is simply not being shown it:\n%s", got)
+	}
+	// The control: a genuinely unbuilt section MUST appear there, or the
+	// assertion above passes against a renderer that lists nothing at all.
+	if got := briefUnavailableSection(b.Sections); !strings.Contains(got, "slice 6") {
+		t.Errorf("a section that is not built did not reach the not-answered "+
+			"list, so the assertion above proves nothing:\n%s", got)
+	}
+}
+
+// ⛔ AN ITEM NOBODY HAS STEPPED IS NOT THE STALEST THING IN THE LIST.
+//
+// The wire says a zero `since` means there are no steps, and that it must not
+// render as infinitely stale - such an item sorts BELOW every real signal, not
+// above it. A zero stamp turned into time.Unix(0,0) would print as a 56-year
+// age, which is the reading that inverts the list.
+func TestAnItemNobodyHasSteppedReportsNoAgeRatherThanAHugeOne(t *testing.T) {
+	b := briefFromWire(&rigv1.ProjectBriefResponse{
+		Project: "rig",
+		NextUp: []*rigv1.ItemState{
+			{Id: "01927-a", Title: "unstepped"},
+			{
+				Id: "01927-b", Title: "moving", Note: "seam landed",
+				State:         rigv1.StepState_STEP_STATE_STARTED,
+				SinceUnixNano: now.Add(-90 * time.Second).UnixNano(),
+			},
+		},
+	})
+
+	if !b.NextUp[0].Since.IsZero() {
+		t.Errorf("an item with no steps carries the stamp %s", b.NextUp[0].Since)
+	}
+	if b.NextUp[0].State != "" {
+		t.Errorf("an unstepped item was given the state %q. The wire spends "+
+			"its enum ZERO on this case and it is a real state - picked up, "+
+			"nobody has reported on it", b.NextUp[0].State)
+	}
+	if b.NextUp[1].State != "started" {
+		t.Errorf("a stepped item came back as %q, so the state is not "+
+			"travelling and the assertion above proves nothing",
+			b.NextUp[1].State)
+	}
+
+	got := briefNextUpSection(b.NextUp, now)
+	if !strings.Contains(got, "not stepped") {
+		t.Errorf("the unstepped item rendered as a blank rather than as the "+
+			"state it is:\n%s", got)
+	}
+	// The age column: "-" for the zero, a real age beside it. Without the
+	// second half this passes against a renderer that prints "-" for every
+	// row.
+	if !strings.Contains(got, "90s") && !strings.Contains(got, "1m") {
+		t.Errorf("the stepped item shows no age at all:\n%s", got)
+	}
+	if strings.Contains(got, "OWNER") {
+		t.Errorf("the table still prints an OWNER column, and the wire has "+
+			"nothing that could ever fill it:\n%s", got)
+	}
+}
+
+// A BLOCKER NOBODY HAS PICKED UP KEEPS ITS EMPTY STATE, and the renderer is
+// what spells it out. Section 39 makes that the `idea` case and it is
+// load-bearing: the way forward is for somebody to START it, which is a
+// different instruction from waiting on work in progress.
+func TestABlockerNobodyHasStartedKeepsTheEmptyStateTheRendererSpellsOut(t *testing.T) {
+	b := briefFromWire(&rigv1.ProjectBriefResponse{
+		Project: "rig",
+		Blocked: []*rigv1.Blockage{{
+			Item: "01927-a", Title: "the seeding",
+			Blockers: []*rigv1.Blocker{
+				{Id: "01927-b", Title: "the CLI seam"},
+				{
+					Id: "01927-c", Title: "the store",
+					State: rigv1.StepState_STEP_STATE_STARTED,
+				},
+			},
+		}},
+	})
+
+	if s := b.Blocked[0].Blockers[0].State; s != "" {
+		t.Errorf("an unstarted blocker was given the state %q", s)
+	}
+	if s := b.Blocked[0].Blockers[1].State; s != "started" {
+		t.Errorf("a started blocker came back as %q, so the state is not "+
+			"travelling", s)
+	}
+	got := briefBlockageSection(b.Blocked)
+	if !strings.Contains(got, "nobody has picked it up") {
+		t.Errorf("the `idea` blocker rendered as a blank:\n%s", got)
 	}
 }
