@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -75,9 +76,74 @@ type Brief struct {
 	// them.
 	Notes []BriefNote
 
-	// Blocked are the `blocks` cycles the derivation FOUND rather than ran
+	// Cycles are the `blocks` cycles the derivation FOUND rather than ran
 	// into. See BriefCycle.
-	Blocked []BriefCycle
+	//
+	// ⛔ THIS FIELD WAS CALLED `Blocked` AND IT HELD CYCLES, WHICH IS NOT WHAT
+	// THE WIRE MEANS BY THAT WORD. `ProjectBriefResponse` carries `blocked`
+	// (blockages: an item and who it waits on) and `cycles` separately, so a
+	// mapping that trusted the name would have rendered every blockage as a
+	// cycle and printed "the blocks graph has a cycle" over work that simply
+	// has a dependency. Renamed when the wire landed, which is what
+	// PROVISIONAL UNTIL SLICE 2 above promised.
+	Cycles []BriefCycle
+
+	// Blocked is section 39 row 4 proper: what is blocked, and on whom.
+	//
+	// IT WAS MISSING ENTIRELY. The renderer could show a cycle and could not
+	// show an ordinary blockage, which is the common case and the one row 4 is
+	// mostly about.
+	Blocked []BriefBlockage
+
+	// Sections is the state of all ELEVEN of section 39's sections.
+	//
+	// ⛔ RENDERING A SECTION WITHOUT ITS STATE IS THE DEFECT BORIS RULED OUT,
+	// ONE LAYER DOWN. An empty notes list means "no notes" or "the derivation
+	// does not collect them yet", and a reader of this brief has no other way
+	// to tell. Whatever this client does with the rest, it must not present a
+	// section as answered when the daemon said it was not.
+	Sections []BriefSectionState
+}
+
+// BriefBlockage is one item and everything it waits on. Section 39 row 4.
+type BriefBlockage struct {
+	Item  string
+	Title string
+
+	// Blockers are RESOLVED rather than bare ids: once an `idea` item can
+	// block, a blocker need not appear anywhere else in the brief, so an id
+	// alone would render as a raw UUIDv7 at a human.
+	Blockers []BriefBlocker
+}
+
+// BriefBlocker is one thing standing in the way.
+type BriefBlocker struct {
+	ID    string
+	Title string
+
+	// State is the blocker's latest progress step, and EMPTY IS MEANINGFUL: it
+	// is section 39's `idea` case - nobody has picked this blocker up, so the
+	// way forward is for somebody to start it. That is a different instruction
+	// from a blocker somebody is already working on.
+	State string
+}
+
+// BriefSectionState is one section's availability, as the daemon reported it.
+type BriefSectionState struct {
+	// Section is section 39's own row number, 1 to 11.
+	Section int
+
+	// Computed is whether this section's content means anything.
+	Computed bool
+
+	// Withheld is the view rule rather than a capability gap: the human view
+	// does not carry the must-read set because it is not a decision he makes.
+	// ⛔ NEVER FOLD THIS INTO !Computed - a section the caller is not being
+	// shown and a section nothing can compute are different answers.
+	Withheld bool
+
+	// Reason is why, when it is not computed. Never empty in that case.
+	Reason string
 }
 
 // BriefItem is one row of "next up".
@@ -199,13 +265,40 @@ func briefJSON(b Brief) map[string]any {
 			"session":  n.Prov.Session,
 		})
 	}
-	blocked := make([]map[string]any, 0, len(b.Blocked))
-	for _, c := range b.Blocked {
+	cycles := make([]map[string]any, 0, len(b.Cycles))
+	for _, c := range b.Cycles {
 		items := c.Items
 		if items == nil {
 			items = []string{}
 		}
-		blocked = append(blocked, map[string]any{"items": items})
+		cycles = append(cycles, map[string]any{"items": items})
+	}
+	blocked := make([]map[string]any, 0, len(b.Blocked))
+	for _, bl := range b.Blocked {
+		on := make([]map[string]any, 0, len(bl.Blockers))
+		for _, k := range bl.Blockers {
+			on = append(on, map[string]any{
+				"id": k.ID, "title": k.Title,
+				// An empty state is the `idea` case and is rendered as such
+				// rather than as an absent field, which would read as a
+				// serialisation gap.
+				"state": briefCell(k.State, "not started"),
+			})
+		}
+		blocked = append(blocked, map[string]any{
+			"item": bl.Item, "title": bl.Title, "blocked_by": on,
+		})
+	}
+	sections := make([]map[string]any, 0, len(b.Sections))
+	for _, sec := range b.Sections {
+		row := map[string]any{"section": sec.Section, "computed": sec.Computed}
+		if sec.Withheld {
+			row["withheld_by_view"] = true
+		}
+		if !sec.Computed {
+			row["reason"] = sec.Reason
+		}
+		sections = append(sections, row)
 	}
 	return map[string]any{
 		"project": b.Project,
@@ -215,9 +308,16 @@ func briefJSON(b Brief) map[string]any {
 		"semver":  b.Semver,
 		"next_up": next,
 		"notes":   notes,
-		// `blocked` IS A CYCLE REPORT AND NOT A RESOLUTION. It carries the
-		// items and nothing that could be read as an edge to break.
+		// `blocked` IS WHAT WAITS ON WHAT. `cycles` IS THE CYCLE REPORT AND
+		// NOT A RESOLUTION - it carries the items and nothing that could be
+		// read as an edge to break. ⛔ THESE TWO KEYS WERE ONE, UNDER THE
+		// CYCLE'S MEANING, WHICH LEFT ROW 4's ORDINARY CASE WITH NO KEY AT
+		// ALL.
 		"blocked": blocked,
+		"cycles":  cycles,
+		// ⛔ WITHOUT THIS KEY EVERY EMPTY LIST ABOVE IS AMBIGUOUS between "no
+		// such thing" and "not built yet".
+		"sections": sections,
 	}
 }
 
@@ -231,9 +331,11 @@ func briefText(b Brief, now time.Time) string {
 	// keep their place, so both are printed - and a reader who stops after the
 	// next-up table must not be the one who misses that the ordering has a
 	// hole in it.
-	sb.WriteString(briefBlockedSection(b.Blocked))
+	sb.WriteString(briefBlockedSection(b.Cycles))
+	sb.WriteString(briefBlockageSection(b.Blocked))
 	sb.WriteString(briefNextUpSection(b.NextUp))
 	sb.WriteString(briefNotesSection(b.Notes, now))
+	sb.WriteString(briefUnavailableSection(b.Sections))
 	return sb.String()
 }
 
@@ -372,6 +474,69 @@ func briefBlockedSection(cycles []BriefCycle) string {
 	sb.WriteString("rig does not pick an edge to break: which dependency is " +
 		"the wrong one is a\njudgement about the work. Every item outside " +
 		"the cycle keeps its place below.\n")
+	return sb.String()
+}
+
+// briefBlockageSection is section 39 row 4 proper: what is blocked, and on whom.
+//
+// SEPARATE FROM THE CYCLE SECTION ABOVE, because they are different news. A
+// cycle is a defect in the graph that rig refuses to resolve; a blockage is the
+// work behaving normally, and the reader's question is only "on what".
+func briefBlockageSection(blocked []BriefBlockage) string {
+	if len(blocked) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	sb.WriteString("\nBLOCKED\n")
+	for _, b := range blocked {
+		sb.WriteString("  " + briefCell(b.Title, b.Item) + "\n")
+		for _, k := range b.Blockers {
+			// ⛔ AN EMPTY STATE IS THE `idea` CASE AND IS SPELLED OUT. Section
+			// 39 makes it load-bearing: nobody has picked the blocker up, so
+			// the way forward is for somebody to START it - which is a
+			// different instruction from waiting on work in progress. Printing
+			// an empty cell would collapse the two.
+			sb.WriteString("    waits on " + briefCell(k.Title, k.ID) +
+				" (" + briefCell(k.State, "not started - nobody has picked it up") +
+				")\n")
+		}
+	}
+	return sb.String()
+}
+
+// briefUnavailableSection names every section of the brief that could not be
+// answered, and what each one waits on.
+//
+// ⛔ IT PRINTS WHAT IS MISSING, WHICH IS THE WHOLE POINT AND IS EASY TO READ AS
+// NOISE. Boris ruled all eleven of section 39's sections into the MVP on
+// 2026-09-16 - "Cover all of them" - after four shipped and seven were absent.
+// The mechanism that makes that true is not a longer brief, it is a brief that
+// says which of its own sections mean anything: an empty notes list is "no
+// notes" or "the derivation does not collect them yet", and nothing else here
+// can tell a reader which.
+//
+// IT GOES LAST, DELIBERATELY. The answer a reader came for is the work; this is
+// the confidence interval on it. Printing it first would make every brief open
+// with an apology.
+func briefUnavailableSection(sections []BriefSectionState) string {
+	var missing []BriefSectionState
+	for _, s := range sections {
+		if !s.Computed && !s.Withheld {
+			missing = append(missing, s)
+		}
+	}
+	if len(missing) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	sb.WriteString("\nNOT ANSWERED BY THIS BRIEF - " +
+		"these sections are specified and not yet built,\nso their absence " +
+		"above is NOT a statement that there is nothing to report:\n")
+	for _, s := range missing {
+		sb.WriteString("  section " + strconv.Itoa(s.Section) + ": " +
+			briefCell(s.Reason, "no reason was given, which is itself a defect") +
+			"\n")
+	}
 	return sb.String()
 }
 

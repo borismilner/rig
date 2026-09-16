@@ -46,7 +46,7 @@ func brief(mut ...func(*Brief)) Brief {
 // works from.
 func TestACycleIsReportedByNameAndTheOtherItemsKeepTheirPlace(t *testing.T) {
 	got := briefText(brief(func(b *Brief) {
-		b.Blocked = []BriefCycle{{Items: []string{"01927-x", "01927-y", "01927-z"}}}
+		b.Cycles = []BriefCycle{{Items: []string{"01927-x", "01927-y", "01927-z"}}}
 	}), now)
 
 	for _, item := range []string{"01927-x", "01927-y", "01927-z"} {
@@ -90,7 +90,7 @@ func TestTheCycleIsPrintedAsClosingRatherThanAsAChain(t *testing.T) {
 // a hole in it.
 func TestTheBlockedConditionIsPrintedBeforeTheNextUpList(t *testing.T) {
 	got := briefText(brief(func(b *Brief) {
-		b.Blocked = []BriefCycle{{Items: []string{"01927-x", "01927-y"}}}
+		b.Cycles = []BriefCycle{{Items: []string{"01927-x", "01927-y"}}}
 	}), now)
 
 	blocked := strings.Index(got, "BLOCKED CONDITION")
