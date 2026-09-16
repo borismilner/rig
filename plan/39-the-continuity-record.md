@@ -46,6 +46,32 @@ that number was read as the cost of the whole thing. **The MVP is slices 1, 2
 and 4** - and a number for that subset is owed rather than assumed, because
 the sizing was never cut that way.
 
+### ⛔ THE GRAIN IS THE HEADING. RULED BY BORIS 2026-09-16 LATE.
+
+**Put to him as three options with their costs; he took the middle one.** This
+had been open since 2026-09-12, was dropped once as superseded, and was carried
+by two seats as *"waiting on Boris"* **while nobody had asked him** - which is
+the loop-nobody-sent failure, caught by the record seat chasing its lead.
+
+| | |
+|---|---|
+| **ONE RECORD = ONE HEADING** | every `##`, `###` and `####`. **239 requirement records**, against 639 for bold-leads and 39 for whole sections |
+| **what it buys** | a **~40% smaller graph than the bold-lead grain**, so every traversal figure the record seat has published improves |
+| **what it costs, stated because he was shown it** | **a requirement stated mid-paragraph under a heading with five others is not separately addressable.** A supersede names the heading, not the sentence |
+| **what it refuses** | the 39-section grain. §37 is **942 lines**; a link to it points at a DOCUMENT rather than a requirement, which is attack finding 5's failed row |
+
+### ⛔ THE MIGRATION IMPORTS ALL 4,206 CITATIONS AND FLAGS THE COARSE ONES. RULED BY BORIS 2026-09-16 LATE.
+
+**The 22% floor was put to him with its three answers.** He took the one that
+imports everything.
+
+| | |
+|---|---|
+| **22%** - 911 citations carrying a subsection letter | resolve to ONE record. Links |
+| **78%** - 3,295 resolving only to a whole section | **imported as section-grained and COUNTED AND REPORTED AS FAILED ROWS** |
+| ⛔ **what this refuses** | dropping the 78%, which would leave most of the estate's cross-references invisible to rig; and blocking the migration behind a manual citation rewrite, which is a large pass for a slice already off the MVP |
+| ⛔ **the named risk, his to have accepted** | **a flagged count that nobody ever burns down.** `project.brief` surfaces it, so it is visible rather than silent - but visibility is not a plan for it, and this specification does not pretend otherwise |
+
 ### ⛔ THE MVP SHIPS NO EXPORT, SO THE LOGBOOK STAYS AUTHORITATIVE
 
 **Raised by `backend-record` 2026-09-16 while sizing the MVP subset, and it is
@@ -408,7 +434,7 @@ leaving them to convention:
 | | The hand-built version here | What it cost |
 |---|---|---|
 | **indexed** | `PLAN.md`'s Map | **the first one was hand-written and its line numbers were wrong inside the same session that wrote them.** It is generated now, by a tool, with a `--check` that exits 1 when stale |
-| **linked** | ~370 citations of the form *"PLAN.md section 37"* | **they address sections by NUMBER, never by line, because a line address rots.** The convention exists precisely because there are no real links, and it is why splitting 5,218 lines into 38 files needed no citation edited |
+| **linked** | **4,206 `§NN` citation edges**, 42 distinct targets, max in-degree 758 (§5). ⛔ **This row said "~370, of the form `PLAN.md section 37`" until 2026-09-16 - 11x low, and wrong about the dominant form: the prose spelling measures 15.** | **they address sections by NUMBER, never by line, because a line address rots.** The convention exists precisely because there are no real links, and it is why splitting 5,218 lines into 38 files needed no citation edited |
 | **correlated** | **nothing** | and the failures are counted: **four requirements of his found living only in a volatile document**, and **a struck quotation still sitting verbatim in three unswept files** after the fact it rested on was withdrawn |
 
 **THE MAINTENANCE HALF IS THE PART DOCUMENTS CANNOT DO AT ALL.** When a
@@ -536,6 +562,29 @@ store search to settle.
 | **roll-up display id** | `BACKLOG.md`'s `B28`-style short codes are DERIVED at render time - the Nth work-item created in the project - never a stored field. **Same reason auto-completion is derived above**: a counter kept in sync by hand is a field that can go stale |
 
 #### `record.changed` is the one internal event, and it is what triggers the other two
+
+⛔ **AND IT IS SLICE 5's, NOT SLICE 1's. RULED BY THE LEAD 2026-09-16 LATE**,
+on the record seat's finding, after verifying it rather than relaying it.
+
+**§5's `events` bus DOES NOT EXIST IN CODE** - no `Publish`, no `Subscribe`
+anywhere in `internal/` `[ran it]` - and `plan/05` puts the `events` service at
+**M4**, which is not built. So slice 1 either silently contained *"build an M4
+estate service"* or this event moved.
+
+**THE DECIDING FACT IS NOT THE MISSING BUS. IT IS THAT NOTHING ON THE MVP PATH
+SUBSCRIBES.** This subsection names both subscribers and there are only two -
+**the projection writer (slice 5) and the gate's re-arm (slice 6)**. The MVP is
+slices 1, 2 and 4. **Slice 1 would have built a publisher with no subscriber,
+on an unbuilt service, for a consumer three slices away.**
+
+**So `record.changed` and the bus both land at SLICE 5, beside the first thing
+that listens.** Slice 1 is `put`/`get`/`query`/`history` and nothing else.
+**`SLICE-SIZING.md`'s line that slice 7 rides on "`record.changed` which slice
+1 already builds" is thereby FALSE, and slice 7 costs more** - the number moves
+rather than the scope.
+
+**The events bus is nobody's in `COORDINATION.md` and is NOT the record seat's**
+- it is an estate service, not a record concern.
 
 **Two mechanisms this section already names have never had a stated
 trigger.** The projection ("rig continuously materialises it into files",
@@ -1274,7 +1323,7 @@ record is live.**
 |---|---|
 | **import structure mechanically** | `plan/` sections become `requirement` records, `DECISIONS.md` entries become `decision` records, `BACKLOG.md` rows become `work-item` records, `COORDINATION.md` rows become ownership records. **The structure is already there** - this project has been writing tables with stable shapes for three days |
 | **derive the links from the citations** | ⛔ **MEASURED 2026-09-16 AND BOTH HALVES OF THE OLD CLAIM WERE WRONG.** This read *"~370 of them, all of the form `PLAN.md section 37`"*. `[ran it]`: **4,206 `§NN` citation edges** across `plan/` and the logbook, 42 distinct targets, **maximum in-degree 758** (§5). **The count is 11x higher and the dominant form is `§NN`; the prose form measures 15.** Excludes two archived `PLAN.md` snapshots under `agent-work/` that inflated a first pass by 313 - **an archived copy of a generated document is not an independent citation, and a grep cannot tell the two apart.** ⛔ **AND 78% ARE SECTION-GRAINED, WHICH IS ATTACK FINDING 5's FAILED ROW:** 911 carry a subsection letter, the other 3,295 resolve only to a whole section, and §37 is 942 lines. **So the migration's success number STARTS AT 22%, and the remaining 78% is not a parsing problem** - a `§37` does not contain the information needed to resolve it. **This is the first real test of "correlated"**: if the import cannot turn an existing citation into a link, the model is wrong and it is better to find that out on an import than on a year of use |
-| **and the import's unit is the REQUIREMENT, never the section** | **Attack finding 5, which is the one that would have let this pass while delivering nothing.** §37 is 738 lines; a link to it is the same coarse pointer in a new format. **A citation resolvable only to a section is a FAILED row, counted and reported**, and the migration's success number is the share resolving to ONE record |
+| **and the import's unit is the REQUIREMENT, never the section** | **Attack finding 5, which is the one that would have let this pass while delivering nothing.** §37 is **942** lines - this row said 738 until 2026-09-16, one cell away from the measurement that corrected it; a link to it is the same coarse pointer in a new format. **A citation resolvable only to a section is a FAILED row, counted and reported**, and the migration's success number is the share resolving to ONE record |
 | **run both systems in parallel until the projection is comparable to the logbook** | and **this is a pattern this project has already proved**: `tools/plansplit.py` refuses to write anything until it has shown the parts reassemble into the original byte for byte. **The migration owes the same proof before the logbook stops being authoritative** |
 | **cut over per project, never estate-wide** | §37 again. A second project follows only after rig's own has run long enough to have been wrong once |
 
@@ -1383,10 +1432,12 @@ does not judge the work; it distinguishes a check from a claim about a check.**
 
 #### FINDING 5: the migration test would PASS while delivering nothing
 
-**The ~370 citations are of the form *"PLAN.md section 37"* - a pointer to a
-SECTION, and §37 is 738 lines.** Turning that into a link produces a link to 738
+**The 4,206 citations are of the form *"PLAN.md section 37"* - a pointer to a
+SECTION, and §37 is 942 lines.** Turning that into a link produces a link to 942
 lines. **That is the same coarse pointer wearing a new format**, and the test as
 written would report success.
+
+⛔ **THE NUMBERS IN THIS PARAGRAPH WERE ~370 AND 738 UNTIL 2026-09-16**, and both had been corrected in the register's own row above. **A correction landed where it was argued and three summaries kept the old number** - inside the section whose entire purpose is catching that class. Found by the record seat, which had itself reintroduced the same drift one table away the same morning.
 
 **THE FIX: the import's unit is the REQUIREMENT, not the section.** A section
 becomes many records. **A citation that can only be resolved to a section is a
@@ -1477,7 +1528,7 @@ does.
 | 4 | **which documents materialise as files** | **ANSWERED - two targets with opposite commit rules.** The record repository is rig's and rig commits it; documentation in the project repository is written by rig and committed by the human with their code, as `PLAN.md` is today |
 | 5 | **the word "conformance" is taken** | **ANSWERED - §19 keeps it.** The register says `upholds`, `standard.stamp`, `standard.drift`. "Conformance" is reserved and the register may not borrow it |
 | 6 | **continuation slots versus the record** | **ANSWERED by removing a mechanism.** A slot is `kind: continuation` with a TTL and a `sensitive` payload. Anything that survives its TTL should have been a record |
-| 7 | **does the record JOIN §37's minimum set** | **ANSWERED 2026-09-15 - it sits BESIDE the set**, which has a different bar. Row 3 keeps its position and the record follows it. Also closes `00-rig-kickoff.md` Step 0's "row C" ordering question - there is no row C once the record is not in the set |
+| 7 | **does the record JOIN §37's minimum set** | **ANSWERED 2026-09-15 - it sits BESIDE the set**, which has a different bar. ⛔ **This cell said "Row 3 keeps its position and the record follows it" until 2026-09-16** - the superseded sentence, still stated flat here while the body quoted it INSIDE its own correction block. The record's only storage dependency is B28, a DECISION, not row 3; Boris narrowed row 3 and then cancelled rows 2-5 outright. Also closes `00-rig-kickoff.md` Step 0's "row C" ordering question - there is no row C once the record is not in the set |
 | 8 | **how a project extends the schema** | **ANSWERED - add fields, never redefine; local kinds are namespaced and unlinkable across projects.** A local kind two projects want is a proposal to the estate register |
 | 9 | **what the window renders** | **ANSWERED - `project.brief`, the same call an arriving agent makes.** One derivation, two consumers, which is the two-consumer requirement met by construction |
 | 10 | **how a standards check is scheduled** | **ANSWERED - a standard carries `recheck_after`; due checks surface in `project.brief` and the window. rig surfaces, never runs, never judges** |
