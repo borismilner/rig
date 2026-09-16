@@ -44,7 +44,7 @@ const verbVersion = "version"
 
 // staticVerbs are rig's own, and the only names in this file.
 var staticVerbs = []string{
-	"apps", "ping", "down", "estate", "describe",
+	"apps", "ping", "down", "estate", "describe", "mcp",
 	verbVersion, "completion", "help",
 }
 

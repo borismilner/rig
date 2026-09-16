@@ -97,9 +97,13 @@ func usage() {
   down             stop the daemon serving this XDG_RUNTIME_DIR
   version          print every version this build carries
   completion <sh>  a completion script for bash, zsh or fish
+  mcp              bridge stdin/stdout to the daemon's MCP socket, for an
+                   agent host to spawn. Not a command to run by hand
 
-Every command that answers takes --json, with two exceptions. completion
+Every command that answers takes --json, with three exceptions. completion
 writes a shell script for eval, which is not an answer to put in an object.
+mcp's stdout IS the MCP stream, so anything written there but the daemon's
+own bytes corrupts it.
 describe does not have it YET: section 10 binds its object to the one the
 MCP tool returns, and that object is rendered by the daemon rather than
 here, so the flag arrives with the renderer rather than ahead of it.
@@ -180,6 +184,13 @@ func run(args []string) error {
 		return cmdEstate(with(args[1:], lead))
 	case "describe":
 		return cmdDescribe(with(args[1:], lead))
+	case "mcp":
+		// NOT `with(args[1:], lead)`: every other verb folds rig's own
+		// leading flags back in, and this one must not, because it takes
+		// none and stdout is the MCP stream rather than an answer. A
+		// leading --json would otherwise arrive here as an argument to a
+		// verb that has to refuse it.
+		return cmdMCP(args[1:])
 	case "completion":
 		return cmdCompletion(args[1:])
 	case "__complete":
