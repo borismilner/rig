@@ -36,6 +36,7 @@ ipcbench/bench
 # for another reason. Anchored, so only the repo root is affected.
 /rig
 /rigd
+/rigwindow
 /fakeapp
 /ledger
 /docket

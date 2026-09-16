@@ -101,23 +101,58 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
         `icon-candidate-prompt.md`'s own "starting point for a hand-drawn
         SVG, never the shipped asset" caveat, which the flattening step
         answers for now without yet being that SVG).
-    - **WIRED 2026-09-16, same session: `cmd/rigwindow/tray.go` is a real
-      `org.kde.StatusNotifierItem` on the session bus**, not just files on
-      disk. `make build-rigwindow` copies `design/tray/*.png` into
+    - **SUPERSEDED 2026-09-16, same session: the mark above is no longer the
+      shipped one.** Boris: *"Let's use the agentbox tray-icon for rig. The
+      production version should be as the one AgentBox is currently using,
+      the development should have a yellow background."* `design/tray/*.png`
+      is now built from `agentbox/internal/tray/icons/idle.png` (that
+      project's own steady-state tray glyph), not the candidate sheet -
+      **production** is that glyph recropped to this project's existing
+      256px/perfect-circle convention, **development** is the same glyph at
+      84% scale centred on a solid disc in rig's own amber hue (OKLCH
+      hue 78°, `design/theme.js`'s `--h-amber`, pushed to L .80/C .19 -
+      `#f5af26` - for a bold badge rather than the muted UI-text token).
+      Checked legible and clearly distinct at 22px before being kept: *"I
+      like the icons - keep them."* Boris also cleared picking a better
+      development background on the spot if contrast asked for it - *"I
+      allow you to choose the best background if you find one that is
+      better for the development flavour so that the contrast is
+      optimal"* - answered by the amber choice above rather than acted on
+      further, since it already reads clearly at 22px and holds a
+      conventional prod-vs-dev colour meaning (stable green, cautionary
+      yellow). The bug/robot candidate-sheet pair and
+      `icon-candidate-prompt.md`'s own generation prompt are now history,
+      not the source of truth - kept in the repo and this document's earlier
+      bullets as the record of how the first pass was made and un-made, not
+      because either is still live.
+    - **WIRED 2026-09-16, same session, twice: `cmd/rigwindow/tray.go` is a
+      real `org.kde.StatusNotifierItem` on the session bus**, not just files
+      on disk. First wiring used Wails' own `application.SystemTray` and
+      LOOKED right - the object exported fine, properties answered over
+      D-Bus, `register()` logged no error - but its item never reached
+      `org.kde.StatusNotifierWatcher`'s own `RegisteredStatusNotifierItems`
+      list, confirmed by resolving the tray's own D-Bus unique name against
+      that list and finding it absent, so nothing ever drew it. **Root cause
+      not fully chased down** (Wails v3 is beta.19); the fix taken instead
+      was switching to `fyne.io/systray` - the library `agentbox` itself
+      uses in this same session's environment and visibly works there -
+      confirmed this time by the same check succeeding: the tray's unique
+      name resolves to `rigwindow`'s own pid inside the Watcher's list.
+      `make build-rigwindow` copies `design/tray/*.png` into
       `cmd/rigwindow/icons` (go:embed cannot reach above its own package,
       same arrangement as the frontend's `dist` and the fake applications'
-      `kit`). It polls `rig.estate` every 5s and creates or destroys the tray
+      `kit`). It polls `rig.estate` every 5s and creates or quits the tray
       itself rather than repainting a static one, so an unnamed estate gets
-      none - live-verified: stopping the named estate on the default runtime
-      dir and starting the other one flips the `IconPixmap` bytes within one
-      poll, with no restart of the window process. Detached (daemon
-      unreachable) keeps the last icon up rather than removing it, on a
-      tooltip that turns out not to render on Linux at Wails v3 beta.19 -
-      `linuxSystemTray.setTooltip` is a no-op stub there, confirmed by
-      reading the vendored source, not assumed.
+      none - live-verified before the library swap: stopping the named
+      estate on the default runtime dir and starting the other one flips the
+      `IconPixmap` bytes within one poll, with no restart of the window
+      process. Detached (daemon unreachable) keeps the last icon up rather
+      than removing it.
       - **This wiring only toggles the window on click.** See the
         2026-09-16 "ACCESS POINT, NOT A WINDOW TOGGLE" bullet above -
-        `SetMenu` for tray-native commands is still unbuilt.
+        `fyne.io/systray`'s own menu items are the mechanism for tray-native
+        commands now (Wails' `SetMenu` no longer applies, the tray no longer
+        being Wails'), and it is unused so far.
   - **An UNNAMED estate gets no tray at all.** Every test and every reproduction
     recipe starts one, they are not deployments (§37's ephemeral clause), and a
     third icon appearing during `make ci` would be the failure this requirement

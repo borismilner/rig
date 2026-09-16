@@ -95,10 +95,10 @@ func run() error {
 		// type scale (section 6), which is where step 2 puts it.
 	})
 
-	// The tray (section 11) is a separate goroutine because app.Run() blocks,
-	// and it owns creating and destroying its own SystemTray rather than
-	// painting one up front, so an unnamed estate never gets one.
-	go runTraySupervisor(app, win)
+	// The tray (section 11) is a separate goroutine because both it and
+	// app.Run() block. fyne.io/systray, not Wails' own SystemTray - see the
+	// comment on runTraySupervisor.
+	go runTraySupervisor(win)
 
 	return app.Run()
 }

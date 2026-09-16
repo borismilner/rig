@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"time"
 
+	"fyne.io/systray"
 	"github.com/boris-milner/rig/client"
 	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -23,52 +24,72 @@ var trayIcons embed.FS
 // only asks at launch would freeze on whatever it first saw.
 const trayRefresh = 5 * time.Second
 
-// runTraySupervisor owns the tray for the life of the window. It creates and
-// destroys the tray rather than just repainting it, because section 11 is
+// fyne.io/systray, not Wails' own application.SystemTray: the Wails beta.19
+// implementation exports the StatusNotifierItem correctly (properties answer
+// over D-Bus, confirmed with dbus-send) but its RegisterStatusNotifierItem
+// call never lands in org.kde.StatusNotifierWatcher's own
+// RegisteredStatusNotifierItems list, so nothing ever draws it - live-checked
+// on this machine's GNOME session, no error logged either side. AgentBox
+// registers fine with fyne.io/systray in the same session, so this package
+// uses that instead of chasing the beta bug.
+func runTraySupervisor(win application.Window) {
+	systray.Run(func() {
+		systray.SetTooltip("rig")
+		systray.SetOnTapped(func() { toggleWindow(win) })
+		go pollEstate()
+	}, nil)
+}
+
+func toggleWindow(win application.Window) {
+	if win.IsVisible() && !win.IsMinimised() {
+		win.Hide()
+		return
+	}
+	win.Show()
+	win.Focus()
+}
+
+// pollEstate keeps the icon honest for the life of the process. Section 11 is
 // explicit that an UNNAMED estate gets no tray at all - every test and
 // reproduction recipe starts one, and a third icon appearing during `make ci`
-// is the failure this is meant to prevent.
+// is the failure this is meant to prevent - so this only calls SetIcon once a
+// named estate answers, and quits the tray if that ever reverts.
 //
 // Detached (rigd unreachable) is different: the window is still up, so the
-// tray stays up too, on its last-known icon, with the tooltip saying so. A
-// dedicated detached glyph is one of the three dimensions section 11 still
-// owes and is not decided here.
-func runTraySupervisor(app *application.App, win application.Window) {
-	var tray *application.SystemTray
+// tray stays up too, on its last-known icon. A dedicated detached glyph is
+// one of the three dimensions section 11 still owes and is not decided here.
+func pollEstate() {
+	named := false
 	for {
 		role, connected := estateRole()
 		switch {
 		case connected && role == rigv1.EstateRole_ESTATE_ROLE_PRODUCTION:
-			tray = ensureTray(app, win, tray, "production.png", "rig - production")
+			setTrayIcon("production.png", "rig - production")
+			named = true
 		case connected && role == rigv1.EstateRole_ESTATE_ROLE_DEVELOPMENT:
-			tray = ensureTray(app, win, tray, "development.png", "rig - development")
+			setTrayIcon("development.png", "rig - development")
+			named = true
 		case connected:
-			// Unnamed or unspecified: no tray, by section 11's own rule.
-			if tray != nil {
-				tray.Destroy()
-				tray = nil
+			// Unnamed or unspecified: no tray, by section 11's own rule. The
+			// tray having been created to reach this branch at all, quitting
+			// it is the closest fyne.io/systray gets to "never existed" -
+			// there is no re-create-on-demand hook like Wails' SystemTray.New.
+			if named {
+				systray.Quit()
+				return
 			}
 		default:
-			// Detached: keep whatever was last shown, say so in the tooltip.
-			if tray != nil {
-				tray.SetTooltip("rig - detached (rigd not reachable)")
-			}
+			// Detached: keep whatever was last shown.
 		}
 		time.Sleep(trayRefresh)
 	}
 }
 
-func ensureTray(app *application.App, win application.Window, tray *application.SystemTray, icon, tooltip string) *application.SystemTray {
-	if tray == nil {
-		tray = app.SystemTray.New()
-		tray.AttachWindow(win).WindowOffset(4)
-		tray.Run()
-	}
+func setTrayIcon(icon, tooltip string) {
 	if b := iconBytes(icon); b != nil {
-		tray.SetIcon(b)
+		systray.SetIcon(b)
 	}
-	tray.SetTooltip(tooltip)
-	return tray
+	systray.SetTooltip(tooltip)
 }
 
 func iconBytes(name string) []byte {

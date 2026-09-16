@@ -3,6 +3,7 @@ module github.com/boris-milner/rig
 go 1.27.1
 
 require (
+	fyne.io/systray v1.12.2
 	github.com/modelcontextprotocol/go-sdk v1.7.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/wailsapp/wails/v3 v3.0.0-beta.19
