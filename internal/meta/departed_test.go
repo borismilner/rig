@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/boris-milner/rig/internal/kernel"
 	"github.com/boris-milner/rig/internal/meta"
@@ -122,5 +123,59 @@ func TestATombstoneDoesNotREVEALAProgramTheCallerCouldNotSee(t *testing.T) {
 	if a, b := strings.ReplaceAll(gone, "shelf", "X"),
 		strings.ReplaceAll(never, "never-registered", "X"); a != b {
 		t.Errorf("a caller out of scope can tell the two apart:\n gone: %s\nnever: %s", a, b)
+	}
+}
+
+// TestAnExpiredTombstoneIsINDISTINGUISHABLEFromANameThatNeverExisted is the
+// far end of the window, and it is the half that keeps the record from
+// becoming permanent by accident.
+//
+// A tombstone that outlived its window and still answered would be a THIRD
+// answer - "something was here once, and rig will not say when" - and absence
+// would be ambiguous all over again, which is the exact condition the window
+// sentence exists to remove. Worse, it would quietly turn a ten-minute record
+// into a permanent one, and the enumeration oracle section 14 refuses would be
+// back with a delay in front of it.
+//
+// IT IS A UNIT TEST RATHER THAN A LIVE PROBE BECAUSE THE WINDOW HAS NO KNOB A
+// LIVE PROBE COULD TURN. RememberDeparturesFor has no non-test caller and rigd
+// has no flag, so the live version of this control is a ten-minute wait, and a
+// ten-minute wait is not a better demonstration of the same fact. Ruled
+// 2026-09-16: the live probes are the three that can run in seconds; this one
+// is here.
+func TestAnExpiredTombstoneIsINDISTINGUISHABLEFromANameThatNeverExisted(t *testing.T) {
+	k := departedEstate(t)
+
+	// INSIDE THE WINDOW FIRST, AND THAT ASSERTION IS LOAD-BEARING. Without it
+	// a mechanism that never wrote a tombstone at all would satisfy every
+	// assertion below, and this test would report expiry working on a kernel
+	// that had nothing to expire.
+	if got := refusal(t, k, agent(), "shelf"); !strings.Contains(got, "was registered here and left at") {
+		t.Fatalf("no tombstone is readable inside the window, so nothing below "+
+			"is a test of expiry:\n%s", got)
+	}
+
+	// THE SAME KERNEL, THE SAME RECORD, ONLY THE WINDOW MOVES - AND NOTHING
+	// SLEEPS. Expiry is derived ON READ: View.Departed compares the record's
+	// age against the window every time it is asked, rather than a timer
+	// sweeping the map. So shrinking the window below the record's age expires
+	// it at the next read, with no wall clock involved. A test that slept
+	// instead would assert the same fact more slowly AND would still pass
+	// against a sweeper, which is the implementation this one refuses.
+	k.RememberDeparturesFor(time.Nanosecond)
+
+	gone := refusal(t, k, agent(), "shelf")
+	never := refusal(t, k, agent(), "never-registered")
+
+	if strings.Contains(gone, "was registered here and left at") {
+		t.Fatalf("a departure past its window is still being reported:\n%s", gone)
+	}
+	// Normalised exactly as the leak test normalises it, and for the same
+	// reason: the refusal quotes the name it was ASKED about, which is the
+	// caller's own input and cannot be evidence of anything.
+	if a, b := strings.ReplaceAll(gone, "shelf", "X"),
+		strings.ReplaceAll(never, "never-registered", "X"); a != b {
+		t.Errorf("an expired departure is a third answer, so absence is "+
+			"ambiguous again:\n expired: %s\n   never: %s", a, b)
 	}
 }
