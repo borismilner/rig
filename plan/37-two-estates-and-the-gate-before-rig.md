@@ -85,6 +85,35 @@ planned, specified and NOT in the first cutover:
 | `rig peers run --lease` | the only real fence for a resource rig does not own, **and the minimum set guards documents rather than deploys.** It arrives with the first resource that needs fencing |
 | **A crew / idle-visibility view** (`rig crew`, one row per seat, health states) | **REFUSED BY BORIS 2026-09-16, and REFUSED rather than deferred.** The capability study proposed it at ~1-1.5 seat-days on OWNER-AUTHORED evidence twice in one window - his own *"I think you both are idle now - WTF"*, and a seat's key reading BLOCKED while its diff showed it building. **He declined it over his own evidence**, on the ground that AgentBox's board already covers it and the staged-migration rule keeps AgentBox authoritative for everything not yet moved. **Evidence establishes that a need is REAL; it does not establish that the need must be met by building something** - and that is the general lesson, not a detail of this row. A seat proposing it again needs evidence that the board CANNOT be made to answer it, not a second instance of the same complaint |
 
+#### SEAT IDENTITY IS NOT THE REFUSED VIEW
+
+**The row above refuses a crew / idle-visibility surface with health states. It
+does not refuse the question underneath Boris's 2026-09-11 count**, which was
+three rows for one role. **That is LINEAGE, and row 1 already answers it:**
+
+| His count | What answers it |
+|---|---|
+| three board rows for one role | **seat + generation.** A seat is one address; its occupants are generations of it |
+| a row still reading "successor in a warm handoff" | **`SeatState HANDING_OFF`**, a state ON the row rather than a second row |
+
+**Both halves are built, on the wire, and pinned by mutation since `0798255`.**
+What had been missing was conformance, not capability: every assertion about a
+seat's state read the reply handed to the occupant that just called, so nothing
+read `State`, `Generation`, `Purpose` or `Activity` off somebody ELSE's row -
+**which is the only way a third party ever sees them, and the only reason
+`HANDING_OFF` exists.**
+
+**A seat reopening this needs to show that seat + generation and `HANDING_OFF`
+fail to answer the count, not that the count happened again.** That is Boris's
+own bar from the refusal above, stated here because this is where a seat will
+meet it.
+
+**THE DISTINCTION IS WORTH THE PARAGRAPH BECAUSE IT WAS NEARLY MISSED ONCE.**
+The seat that closed this checked the refusal first and found that the obvious
+framing - *build a seat view* - would have proposed what Boris had declined
+hours earlier. **The two questions are one word apart and land on opposite sides
+of a ruling.**
+
 **THE STUDY LANDED, AND THIS TABLE HAS NOW BEEN ADJUDICATED AGAINST IT.** Boris
 ordered an expert study - the backlog's dated item D1 - to derive the
 minimal-but-optimal set from the typical needs of the seats working on rig, kept
