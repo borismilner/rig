@@ -2,6 +2,8 @@ package daemon
 
 import (
 	"testing"
+
+	"github.com/boris-milner/rig/client"
 )
 
 // CONDITION A: AN OCCUPANT IS RELEASED WHEN ITS MCP CONNECTION DIES, AND THE
@@ -99,4 +101,102 @@ func TestAnMCPOccupantIsReleasedWhenItsConnectionDies(t *testing.T) {
 	// because the release runs on the serving goroutine's defer: a single read
 	// after the close races it and would flake rather than fail.
 	awaitRows(t, watcher, "backend-3", 0)
+}
+
+// THE ACTIVITY AGE RULE THROUGH THE DOOR, READ FROM THE OTHER ONE.
+//
+// THE DOOR PROMISES THIS IN ITS OWN TOOL DESCRIPTION - "Re-sending an unchanged
+// line deliberately does NOT reset its age, because repeating yourself is not
+// progress" - and nothing tested it through the door. The four committed cases
+// all call announce and setActivity DIRECTLY on the presence struct, so none of
+// them goes through a door at all. The rule lives in one place, `setLine`, and
+// nothing anywhere asserted that a DOOR reaches it rather than writing the
+// fields itself or synthesising a line when the caller supplied none.
+//
+// TWO ARMS, AND THAT DOES NOT CONTRADICT CONDITION A'S ONE. The test is whether
+// each assertion can be made to fail on its own: deleting setLine's equality
+// guard reds the first arm and leaves the second green; making setLine a no-op
+// reds the second and leaves the first green. Both are load-bearing. The rule
+// was never "one arm" - it is that an arm which cannot independently go red is
+// weight rather than evidence, and condition A had one such arm where this has
+// none. Red cases pre-registered in logbook/projects/rig/age-rule-red-cases.md.
+//
+// NO FAKE CLOCK, AND NONE IS NEEDED. The committed cases inject `p.now` and
+// move it a day; a door-level case runs through a real daemon on a real clock.
+// The assertion is that two reads either side of a set_activity carrying the
+// SAME line are byte-identical, and real time advances between two socket round
+// trips - equality by accident would need both inside one nanosecond, which a
+// unix round trip does not do.
+//
+// THE AGE IS READ FROM THE WIRE WATCHER, not from the door's own reply, for the
+// same reason the release is: a door agreeing with itself is not the claim. It
+// is also the only way a third party ever sees these fields, which is the gap
+// B9 found - nothing in this repository read State, Generation, Purpose or
+// Activity off somebody ELSE's row.
+func TestTheActivityAgeRuleSurvivesTheDoor(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+
+	sock, d := upDaemon(t, nil)
+	msock := upMCP(t, d)
+
+	watcher := dial(t, sock)
+	announce(t, watcher, "team-lead", "watching the age from the other door", "watching")
+
+	ctx := ctx5(t)
+	session, _ := dialMCPConn(ctx, t, msock, nil)
+
+	const line = "waiting for the gate to finish"
+	callTool(ctx, t, session, "announce", map[string]any{
+		"seat":     "backend-3",
+		"purpose":  "an agent that will repeat itself",
+		"activity": line,
+	})
+	began := ageOf(t, watcher, "backend-3")
+
+	// ARM 1: THE SAME LINE AGAIN. This is the call the door's description makes
+	// a promise about, and it is the one a session looping on one line makes.
+	callTool(ctx, t, session, "set_activity", map[string]any{"activity": line})
+
+	if got := ageOf(t, watcher, "backend-3"); got != began {
+		t.Fatalf("re-sending an UNCHANGED line through the door moved its age "+
+			"from %d to %d. The door's own description promises it does not, "+
+			"and the age is the only thing on this roster that can say a "+
+			"session is repeating itself - a board reading this cannot tell a "+
+			"working session from one looping on one line, which is the "+
+			"supervision property the cutover exists to keep rather than lose",
+			began, got)
+	}
+
+	// ARM 2: A DIFFERENT LINE. Without this, a door that never moved the age at
+	// all would pass arm 1 - and a frozen age is the same board defect wearing
+	// the opposite coat.
+	const moved = "gating the change in a detached worktree"
+	callTool(ctx, t, session, "set_activity", map[string]any{"activity": moved})
+
+	rows := seatRows(roster(t, watcher).GetCrew(), "backend-3")
+	if len(rows) != 1 {
+		t.Fatalf("seat backend-3 has %d rows, want 1", len(rows))
+	}
+	if got := rows[0].GetActivityUnixNano(); got <= began {
+		t.Errorf("changing the line left its age at %d, want later than %d. A "+
+			"door that never moves the age passes the arm above for the wrong "+
+			"reason", got, began)
+	}
+	// DECISION 6's other half: a WRONG NON-EMPTY value. Asserting the line came
+	// back EMPTY would assert nothing, because protojson omits the empty string
+	// and absent reads identically to unserved. This asserts the exact bytes.
+	if got := rows[0].GetActivity(); got != moved {
+		t.Errorf("the watcher reads the line as %q, want %q. The door is "+
+			"serving a line other than the one it was handed", got, moved)
+	}
+}
+
+// ageOf reads one seat's activity age off the roster, through the given client.
+func ageOf(t *testing.T, c *client.Client, seat string) int64 {
+	t.Helper()
+	rows := seatRows(roster(t, c).GetCrew(), seat)
+	if len(rows) != 1 {
+		t.Fatalf("seat %q has %d rows on the roster, want 1", seat, len(rows))
+	}
+	return rows[0].GetActivityUnixNano()
 }
