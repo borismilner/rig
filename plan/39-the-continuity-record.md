@@ -1325,6 +1325,77 @@ working from the table alone shipped something wrong in six ways.** Found by
 | **10. features** | features at `stage: building`, plus counts per stage. **This row resolves a CONTRADICTION 20 lines wide:** the GUI overview paragraph says the brief carries *"next-up work-items, **features**, drift, gate status"* and this table had no features row. **The paragraph is the side written against Boris's actual request** - `feature` is a kind he asked for by name with a `stage` field - **and a brief without features cannot drive the overview that paragraph specifies** |
 | **11. a case's `attention_n` notes** | priority desc, then `created_at` desc. See the cases section |
 
+#### ⛔ ALL ELEVEN SECTIONS ARE IN THE MVP. RULED BY BORIS 2026-09-16 LATE.
+
+> **Boris, 2026-09-16, asked whether the seven cut sections belonged in the MVP
+> or whether four was enough to call it done: *"Cover all of them"*.**
+
+**THIS REVERSES A CUT MADE BY ONE SEAT ALONE.** The wire seat shipped
+`project.brief` with **four** of these eleven - open, next-up, blocked, cycles -
+plus the must-read set, and ruled the other seven off the wire under its own
+*a declared-and-unimplemented verb is a WIRE THAT LIES*. **It ruled that an hour
+after writing that rule, it never put the decision to Boris, and it named this
+as the decision he was most likely to have taken differently.** He did.
+
+⛔ **THE ARGUMENT FOR THE CUT WAS SOUND AND IT WAS ANSWERING THE WRONG QUESTION.**
+*An always-empty field lies in the reassuring direction* is true. But **"ship
+nothing" and "ship a field that is always false" were never the only two
+options**, and the third is what this rules:
+
+**EVERY SECTION IS PRESENT IN EVERY RESPONSE. A SECTION WHOSE INPUT DOES NOT
+EXIST YET CARRIES AN EXPLICIT NOT-YET-COMPUTED STATE - never absent, never
+silently empty.**
+
+| | |
+|---|---|
+| **absent** | the caller cannot tell "no drift" from "drift is not built". **This is what shipped** |
+| **empty** | ⛔ **the reassuring lie.** An empty health block reads as healthy |
+| ✅ **present, not-yet-computed** | the caller is told the difference, in the one place it is looking |
+
+**WHY IT IS NOT THE WIRE-THAT-LIES IT LOOKS LIKE, and this is the distinction
+that makes both rules hold at once.** The wire-that-lies rule is about
+**REACHABILITY**: a caller that can see a method assumes calling it works, and
+`standard.stamp` declared-but-unserved would fail on use. **A brief section that
+names its own state is not a promise to a caller; it is an answer.** The verb
+works, the section answers, and what it answers is *"this is not computed yet
+and here is why"*. **The failure the original rule prevents is a caller acting on
+a capability that is not there. Naming the absence is the opposite of that.**
+
+⛔ **ROW 9 IS WHY THIS MATTERS AND IT IS NOT A STYLE QUESTION.** *"The record
+repository is LOCAL-ONLY because a push failed"*, and §39's own words for the
+reason: *"this is how a laptop ends up holding the only copy."* **The brief that
+shipped cannot say it.** The table above already records that a brief built from
+the old six-row table *"reported a healthy-looking project that was not backed
+up"* - **and that is precisely the brief that was then built.** Twice now, the
+same defect, the second time in full view of the sentence warning about it.
+
+**WHAT EACH SECTION DEPENDS ON, so "not-yet-computed" is a statement about a
+named thing rather than a shrug.** A section answers for real the moment its
+input exists; nothing here is a second implementation.
+
+| Section | Answers today from | Blocked on, if anything |
+|---|---|---|
+| 1, 2, 4 - open, next-up, blocked, cycles | the store, `blocks` edges | nothing. **Built** |
+| 3 - notes in full | `kind: note` + `record.refs` | **nothing - `refs` landed** |
+| 6 - must-read set | per-session mark, slice 2 | nothing. **Built** |
+| 10 - features | `kind: feature`, `stage` field | nothing: records of that kind |
+| 11 - case attention notes | `kind: case`, `attention_n` | nothing: records of that kind |
+| ⛔ **5 - standards drift** | the standards register | **`standard.*`, slice 7.** Not-yet-computed until then |
+| ⛔ **7, 8 - projection behind / pending entries** | the projection | **the git projection.** Not-yet-computed until then |
+| ⛔ **9 - local-only, a push failed** | the projection's push | **same.** Not-yet-computed until then |
+
+**So seven of the eleven answer for real on the MVP path and four carry a named
+state.** The MVP is not waiting on slices 6, 7 or the projection; it is waiting
+on the brief telling the truth about them. **A `not_computed` reason string per
+section is the whole cost** - one field, set by the derivation that knows why.
+
+⛔ **AND THE MUST-READ ROW IS THE ONE EXCEPTION TO "PRESENT IN EVERY RESPONSE",
+FOR THE REASON THE VIEW TABLE BELOW ALREADY GIVES.** Section 6 is absent from the
+HUMAN view because it is not a decision he makes - that is a VIEW rule, not a
+not-yet-computed state, and the two must not be collapsed. **A section withheld
+by the view says so differently from a section that cannot be computed**, or the
+human view reads as a degraded agent view.
+
 #### WHICH OF THE ELEVEN SECTIONS EACH VIEW CARRIES
 
 ⛔ **THE TWO VIEWS WERE NAMED AND NEVER SPECIFIED.** Attack finding 9 rules one
