@@ -38,10 +38,18 @@ import (
 // demonstrated on a live daemon and now written into `wire.proto` at the
 // field. Seat.epoch is what removed the second call.
 
-// upDaemonAtEpoch is upDaemon with the estate's epoch chosen, which is the one
-// axis these cases turn on. The shared helper cannot set it and is not this
-// seat's file, so the wiring is repeated here rather than reached into.
-func upDaemonAtEpoch(t *testing.T, epoch uint64) string {
+// upDaemonIn is upDaemon with the estate and its epoch both chosen, which are
+// the two axes these cases turn on. The shared helper can set neither and is
+// not this seat's file, so the wiring is repeated here rather than reached
+// into.
+//
+// THE TWO ARGUMENTS ARE PASSED TOGETHER BECAUSE THEY ARE ONE FACT. A named
+// estate has a store and therefore an epoch of at least 1; an unnamed one has
+// no store and reports 0. `wire.proto` says the mixed pair cannot happen, so a
+// helper that let a caller set the epoch alone would let this package's own
+// tests build the state the wire says is impossible - which the epoch cases
+// below did until the estate landed.
+func upDaemonIn(t *testing.T, estate string, epoch uint64) string {
 	t.Helper()
 	// sun_path is 108 bytes and t.TempDir under a long TMPDIR silently
 	// exceeds it, failing as EINVAL. Kept short for the same reason.
@@ -62,7 +70,10 @@ func upDaemonAtEpoch(t *testing.T, epoch uint64) string {
 	}
 	t.Cleanup(func() { _ = lock.Close() })
 
-	d, err := New(Config{Version: "test", Wire: "v1", Lock: lock, Epoch: epoch})
+	d, err := New(Config{
+		Version: "test", Wire: "v1", Lock: lock,
+		Estate: estate, Epoch: epoch,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,13 +105,13 @@ type reference struct {
 // to make.
 func TestTheEpochIsWhatFencesAGenerationAcrossARestart(t *testing.T) {
 	// The daemon before the restart.
-	before := dial(t, upDaemonAtEpoch(t, 6))
+	before := dial(t, upDaemonIn(t, "production", 6))
 	was := announce(t, before, "backend-1", "the tenancy before the restart", "working").GetYou()
 	wrote := reference{seat: was.GetSeat(), epoch: was.GetEpoch(), generation: was.GetGeneration()}
 
 	// THE RESTART. A new daemon with the next epoch, the same seat name, and a
 	// generation counter that is in memory and only in memory.
-	after := dial(t, upDaemonAtEpoch(t, 7))
+	after := dial(t, upDaemonIn(t, "production", 7))
 	is := announce(t, after, "backend-1", "the tenancy after the restart", "working").GetYou()
 	live := reference{seat: is.GetSeat(), epoch: is.GetEpoch(), generation: is.GetGeneration()}
 
@@ -158,7 +169,7 @@ func TestTheEpochIsWhatFencesAGenerationAcrossARestart(t *testing.T) {
 // it fails on any site that regresses.
 func TestEverySeatServedCarriesTheEpochItWasCountedIn(t *testing.T) {
 	const epoch = 9
-	sock := upDaemonAtEpoch(t, epoch)
+	sock := upDaemonIn(t, "production", epoch)
 
 	seated := dial(t, sock)
 	// An unseated peer too: it holds no seat and carries generation 0, but it

@@ -43,6 +43,20 @@ type presence struct {
 	// never have to branch on the possibility.
 	epoch uint64
 
+	// estate is WHICH ESTATE this roster belongs to, by name, and it is the
+	// outermost component of a seat's identity. It is here for exactly the
+	// reason the epoch is, one level further out: the triple above is not
+	// unique without it, because the epoch store is PER ESTATE and every
+	// estate counts its own from 1, so two estates that have each restarted
+	// once are both at epoch 2.
+	//
+	// EMPTY IS A CASE AND NOT A MISSING VALUE. An unnamed estate has no
+	// persistent store, so it is empty here and zero above, and that pair is
+	// coherent. The pair cannot come apart because ONE caller supplies both
+	// and derives the epoch from this estate's own store, which coord.Open
+	// refuses to give an unnamed estate at all.
+	estate string
+
 	// now is injectable because every field this produces is a timestamp and
 	// a test that cannot fix the clock can only assert that time passed.
 	// There are no timers here, so section 20's synctest mandate does not
@@ -58,6 +72,7 @@ type occupant struct {
 	seat       string
 	generation uint64
 	epoch      uint64
+	estate     string
 	purpose    string
 	activity   string
 	state      rigv1.SeatState
@@ -70,6 +85,7 @@ func newPresence(estate string, epoch uint64) *presence {
 		by:     make(map[*conn]*occupant),
 		gens:   make(map[string]uint64),
 		epoch:  epoch,
+		estate: estate,
 		now:    time.Now,
 		others: func() []string { return otherEstates(estate) },
 	}
@@ -120,6 +136,7 @@ func (p *presence) announce(c *conn, seat, purpose, activity string) (occupant, 
 	o := &occupant{
 		seat:      seat,
 		epoch:     p.epoch,
+		estate:    p.estate,
 		purpose:   purpose,
 		activity:  activity,
 		state:     rigv1.SeatState_SEAT_STATE_ACTIVE,
@@ -222,6 +239,7 @@ func (o *occupant) proto() *rigv1.Seat {
 		Seat:              o.seat,
 		Generation:        o.generation,
 		Epoch:             o.epoch,
+		Estate:            o.estate,
 		Purpose:           o.purpose,
 		Activity:          o.activity,
 		State:             o.state,
