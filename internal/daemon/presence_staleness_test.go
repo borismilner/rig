@@ -244,3 +244,126 @@ func TestReAnnouncingWithNoLineKeepsTheOneItHas(t *testing.T) {
 			"this call exists and it must still take effect", got)
 	}
 }
+
+// TWO MORE CASES, ADDED WHEN THE RULE WAS FOUND TO HOLD FOR SEATED PEERS AND
+// NOT FOR THE REST.
+//
+// The carry-over used to be gated on `restating`, which is a TENANCY test -
+// same connection, same non-empty seat. So the line and its age only survived
+// for a seated peer restating its own seat, and reset for everybody else. A
+// tenancy and a line are two facts with two lifetimes, and one condition was
+// answering for both.
+//
+// THE SPLIT IS NOW `restating` FOR THE TENANCY AND `had` FOR THE LINE, and
+// these two cases are the halves that gate could not see. Each names a
+// mutation ONLY IT goes red under, because an arm that cannot independently go
+// red is weight rather than evidence.
+
+// TestAnUnseatedPeerRestatingOneLineDoesNotRefreshItsAge is the case the old
+// gate excluded by construction, and it is NOT a case that ages out.
+//
+// Requiring a seat AT THE DOOR removes it for agents and leaves it exactly
+// where it was for everything on the program socket. `cmd/fakeapp` and the
+// conformance suite are PERMANENT unseated peers - that is the whole reason
+// enforcement went to the door rather than into announce - and their rows sit
+// on the roster `crew()` hands a board, sorted last but present.
+//
+// MUTATION THIS ONE ALONE CATCHES: `if had && seat != ""`. The two seated
+// cases still carry their line and stay green; only this reds.
+func TestAnUnseatedPeerRestatingOneLineDoesNotRefreshItsAge(t *testing.T) {
+	p := newPresence("production", 1)
+	at := time.Date(2026, 9, 16, 9, 0, 0, 0, time.UTC)
+	p.now = func() time.Time { return at }
+
+	const line = "waiting for the gate to finish"
+	var holder occupancy
+	if _, err := p.announce(&holder, "", "a one-off session holding no seat", line); err != nil {
+		t.Fatal(err)
+	}
+	began := at
+
+	// A DAY LATER, word for word, and nothing it is doing has moved.
+	at = at.Add(24 * time.Hour)
+	o, err := p.announce(&holder, "", "a one-off session holding no seat", line)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := o.proto().GetActivityUnixNano(); got != began.UnixNano() {
+		t.Fatalf("an UNSEATED peer restating an unchanged line a day later "+
+			"set its age to %d, want the original %d. The rule is about the "+
+			"LINE and this peer's line did not change - it has no tenancy to "+
+			"preserve, which is true of its GENERATION and says nothing "+
+			"about its activity. A board cannot tell this row from one doing "+
+			"fresh work, and unseated rows do not go away: the door requires "+
+			"a seat, the program socket does not",
+			got, began.UnixNano())
+	}
+	if got := o.proto().GetGeneration(); got != 0 {
+		t.Errorf("generation = %d on an unseated peer, want 0. Carrying the "+
+			"LINE across must not carry a tenancy with it - that is the "+
+			"split this case exists to hold", got)
+	}
+}
+
+// TestReSeatingCarriesTheLineItDidNotChange is the third case, and it is the
+// one that changed behaviour rather than fixing it.
+//
+// A connection that announces seat A and then announces a different FREE seat
+// B takes a new tenancy: new generation, new `announced`. Its LINE is not part
+// of that. It used to reset, and now it carries.
+//
+// THAT IS DELIBERATE AND IT IS THE STRICTER ANSWER. A session looping on one
+// line that also re-seats would otherwise refresh its own age on the way
+// through - the freshness a stuck session manufactures for itself, which is
+// the exact failure `setLine` exists to stop, arriving through the seat change
+// instead of through the repeat. Nothing is lost by it: `announced` separately
+// says when this tenancy began and is served on the same row, so a reader has
+// both facts and they are not the same fact.
+//
+// REACHABLE, not theoretical: the refusal loop fires only when ANOTHER
+// connection holds the seat, so taking a different free seat is allowed.
+//
+// MUTATION THIS ONE ALONE CATCHES: `if had && (seat == "" || prev.seat == seat)`.
+// Unseated still carries, seated-same-seat still carries, only this reds.
+func TestReSeatingCarriesTheLineItDidNotChange(t *testing.T) {
+	p := newPresence("production", 1)
+	at := time.Date(2026, 9, 16, 9, 0, 0, 0, time.UTC)
+	p.now = func() time.Time { return at }
+
+	const line = "waiting for the gate to finish"
+	var holder occupancy
+	if _, err := p.announce(&holder, "backend-1", "the door", line); err != nil {
+		t.Fatal(err)
+	}
+	began := at
+
+	// A DAY LATER the same connection moves to a different, free seat and is
+	// still saying the same thing it was saying yesterday.
+	at = at.Add(24 * time.Hour)
+	o, err := p.announce(&holder, "backend-2", "presence now", line)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := o.proto().GetActivityUnixNano(); got != began.UnixNano() {
+		t.Fatalf("re-seating set the unchanged line's age to %d, want the "+
+			"original %d. Taking a new seat is a new TENANCY and not new "+
+			"WORK: a session repeating one line across a re-seat would "+
+			"otherwise renew its own freshness, which is the failure setLine "+
+			"exists to stop arriving by another door",
+			got, began.UnixNano())
+	}
+	if got := o.proto().GetAnnouncedUnixNano(); got != at.UnixNano() {
+		t.Errorf("announced_unix_nano = %d after re-seating, want %d. The "+
+			"TENANCY did restart and must say so - that is the field which "+
+			"keeps the line's age from hiding it", got, at.UnixNano())
+	}
+	if got := o.proto().GetGeneration(); got != 1 {
+		t.Errorf("generation = %d in the new seat, want 1. A different seat "+
+			"is a different tenancy with its own counter", got)
+	}
+	if got := o.proto().GetSeat(); got != "backend-2" {
+		t.Errorf("seat = %q, want backend-2", got)
+	}
+}

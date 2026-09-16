@@ -179,14 +179,39 @@ func (p *presence) announce(c *occupancy, seat, purpose, activity string) (occup
 	t := p.now()
 	prev, had := p.by[c]
 
-	// restating is the same connection saying itself again in the same seat.
-	// The `seat != ""` is load-bearing rather than decorative: the switch
-	// below reaches its second case only for a seated peer, by ORDER, and the
-	// activity block after it has no such ordering to lean on. An UNSEATED
-	// peer re-announcing is deliberately left exactly as it was - it has no
-	// tenancy to preserve, the door requiring a seat removes the case for
-	// agents entirely, and widening this here would be a third change wearing
-	// the coat of the two that were asked for.
+	// restating is the same connection saying itself again in the SAME seat,
+	// and it gates the TENANCY only: the generation and the announcement.
+	//
+	// THE LINE AND ITS AGE ARE GATED SEPARATELY, ON `had`, AND THE SPLIT IS
+	// THE WHOLE POINT. A tenancy and a line are two facts with two lifetimes.
+	// The generation and `announced` say when THIS TENANCY began and must
+	// restart when it does; `moved` says when THE LINE last changed, and
+	// setLine's own rule is that the age tracks the LINE and not the call.
+	// Gating both on one condition made the age restart for reasons that had
+	// nothing to do with the line.
+	//
+	// THREE CASES REACH THIS, and the seat is what tells them apart:
+	//
+	//	unseated re-announce	 had, no seat        tenancy no, line YES
+	//	seated, same seat	 had, seat unchanged  tenancy no, line YES
+	//	seated, DIFFERENT seat	 had, seat changed    tenancy YES, line YES
+	//
+	// THE UNSEATED CASE IS NOT A CASE THAT AGES OUT, which is what the
+	// previous version of this comment assumed. Requiring a seat AT THE DOOR
+	// removes it for agents and leaves it untouched for everything on the
+	// program socket - cmd/fakeapp and the conformance suite are permanent
+	// unseated peers, and their rows sit on the roster crew() hands a board.
+	// Measured: an unseated peer restating one line a day later reported that
+	// line as current, while a seated peer restating the same line did not.
+	//
+	// THE THIRD CASE IS THE ONE TO READ TWICE. A connection that re-announces
+	// into a DIFFERENT free seat now carries its line and age across, where it
+	// used to reset them. That is deliberate: a session looping on one line
+	// that also re-seats would otherwise refresh its own age, which is exactly
+	// the freshness a stuck session manufactures for itself - the failure
+	// setLine exists to stop, arriving through the seat change instead of
+	// through the repeat. Nothing is lost, because `announced` separately
+	// carries when the tenancy began and is served on the row beside it.
 	restating := had && seat != "" && prev.seat == seat
 
 	o := &occupant{
@@ -219,7 +244,12 @@ func (p *presence) announce(c *occupancy, seat, purpose, activity string) (occup
 	// setLine below compares against what this occupant was already saying
 	// rather than against a blank. Without this the comparison is trivially
 	// true every time and the rule cannot bite at this door at all.
-	if restating {
+	//
+	// `had` AND NOT `restating`, WHICH IS THE DIFFERENCE BETWEEN A LINE AND A
+	// TENANCY - see the split above. The condition is "the same connection was
+	// already here", because the line belongs to the peer rather than to the
+	// seat it is sitting in.
+	if had {
 		o.activity, o.moved = prev.activity, prev.moved
 	}
 	o.setLine(activity, t)
