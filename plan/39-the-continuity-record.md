@@ -1166,6 +1166,82 @@ BUS, and the delivery mark costs a map write on state the daemon already holds
 per connection.** The shapes are not the same size and the rule that fits one
 does not fit the other.
 
+#### ⛔ WHICH IDENTITY IS §39's "SESSION": `Token`, AND THE FIELD NAMED `SessionID` IS THE WRONG ONE
+
+**`kernel.Principal` carries three identities and the one named for a session
+is not it.** Recorded here because §39 says *"session"* in two load-bearing
+places - the provenance on every record version, and the must-read mark - and
+**a builder reaching for the obviously-named field gets a CONNECTION id.**
+
+| Field | What it actually names | Lifetime |
+|---|---|---|
+| `ClientID` | this client across reconnects | longest |
+| ⛔ `SessionID` | **ONE CONNECTION.** §36's V18 CONNECTION row - the lifetime V18 rules *"no peer should ever hold"*. Minted per connection, never travelled to a caller | shortest |
+| ✅ `Token` | §5f's SESSION TOKEN. **The real session identity** - it outlives one socket and dies with one occupancy | the session |
+
+**`principal.go` says so in its own words and calls the misnomer out rather
+than repairing it:** *"SO THE FIELD CALLED `SessionID` IS A CONNECTION ID AND
+THIS IS THE REAL SESSION IDENTITY."* Renaming it reaches the registry's
+succession rule, which its own tests pin, and V18's full separation is M7's
+work - **so the name stays wrong on purpose and this row is the warning that
+goes with it.**
+
+**THE BUILD RULE, for every record verb:**
+
+- **`Provenance.session` is `Token`.** A record outlives the connection that
+  wrote it, so stamping it with a connection id makes every version of a
+  reconnecting seat's work look like a different author.
+- **The must-read delivery mark is keyed on `Token`.** §39 says *"per session,
+  never per uid"*, and `Token` is the only one of the three that means that.
+- **`Provenance.seat` is the occupancy's seat name**, and `epoch` is the
+  daemon's. Neither is ever read off the request.
+
+⛔ **AND A RECORD WRITE FROM A CONNECTION THAT NEVER ANNOUNCED HAS NO SEAT.**
+`internal/record` refuses an empty `Session` or `Seat` by name, which is
+correct and must not be weakened - **but the refusal a caller sees has to say
+`announce` first, not report a missing field it has no way to supply.** An
+unattributable record is exactly what the provenance rule exists to prevent, so
+the answer is a legible refusal rather than a permissive default.
+
+#### ⛔ "EXECUTION ORDER" DEFINES THE NODE SET. IT DOES NOT DEFINE THE EDGE SET, AND THE TWO ARE NOT THE SAME QUESTION
+
+**Raised by `rig-record` as a reading that lives only in a code comment, which
+is the drift class §39 exists to catch.** `internal/record.blocksAmong` returns
+`blocks` edges *"with BOTH ends in the active set"*, and its stated reason is
+sound: *"an edge from a done item is not a live dependency, and carrying it
+would put finished work back into the ordering."*
+
+⛔ **THAT IS RIGHT FOR A `done` BLOCKER AND WRONG FOR EVERY OTHER KIND, AND
+NOTHING IN §39 SAID SO EITHER WAY.** The active set is *`status: active` AND
+latest step not `done`*, so it also excludes an item whose `status` is `idea` -
+**§39's own word for *"has not been picked up"***. Restricting edges to that set
+drops the edge from an unstarted blocker:
+
+| Item X is blocked by | Y in the active set? | Edge kept? | What the brief says | True? |
+|---|---|---|---|---|
+| Y, whose latest step is `done` | no | dropped | X is ready | ✅ **yes** - a finished blocker does not block |
+| ⛔ **Y, whose status is `idea`** | **no** | **dropped** | **X is ready** | ⛔ **NO. Nobody has picked Y up, so X cannot start** |
+
+**THE FAILURE IS THE ONE §39 ALREADY CORRECTED FROM THE OTHER DIRECTION.** The
+table above this one fixed a next-up list that *"never empties"*; this ships a
+next-up list that **names work nobody can start**, which is worse, because the
+list's whole job is to be actionable in one pass.
+
+**RULED, and both halves are needed:**
+
+- **THE ORDERING runs over the active set.** Unchanged, and `blocksAmong` is
+  correct for it: a topological sort has to be over the nodes being ordered.
+- ⛔ **THE `blocked` DETERMINATION MUST SEE EDGES FROM OUTSIDE IT.** An item is
+  blocked when a `blocks` edge points at it from any item whose latest
+  `progress.step` is not `done` - **active or not.** Only a `done` blocker is
+  dropped, and it is dropped for the reason the code already gives.
+- **So an item can be in `blocked` and absent from `next_up` while its blocker
+  is in neither list.** That is correct and it is the case worth testing.
+
+**This is why the reading had to be asked about rather than left in the
+package:** it reads as an optimisation and it is a semantic decision about what
+the word *blocked* means.
+
 ### The read-before-write gate, which is where the prose layer actually dies
 
 **Today the instruction is *"read `COORDINATION.md` in full before your first
