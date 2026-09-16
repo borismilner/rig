@@ -647,6 +647,115 @@ func (SeatState) EnumDescriptor() ([]byte, []int) {
 	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{9}
 }
 
+// StepState is where a work item stands, per section 39.
+//
+// Zero is UNSPECIFIED and mandatory: an enum whose zero means something makes
+// an UNSET field decode as a decision, which is what section 21 bans and the
+// noenumzero analyzer fails the build over. A value this binary does not know
+// is refused by name with the value quoted back - and that refusal is the
+// store's, surfaced rather than re-implemented here, because two validators
+// drift and one does not.
+type StepState int32
+
+const (
+	StepState_STEP_STATE_UNSPECIFIED StepState = 0
+	StepState_STEP_STATE_STARTED     StepState = 1
+	StepState_STEP_STATE_BLOCKED     StepState = 2
+	StepState_STEP_STATE_DONE        StepState = 3
+)
+
+// Enum value maps for StepState.
+var (
+	StepState_name = map[int32]string{
+		0: "STEP_STATE_UNSPECIFIED",
+		1: "STEP_STATE_STARTED",
+		2: "STEP_STATE_BLOCKED",
+		3: "STEP_STATE_DONE",
+	}
+	StepState_value = map[string]int32{
+		"STEP_STATE_UNSPECIFIED": 0,
+		"STEP_STATE_STARTED":     1,
+		"STEP_STATE_BLOCKED":     2,
+		"STEP_STATE_DONE":        3,
+	}
+)
+
+func (x StepState) Enum() *StepState {
+	p := new(StepState)
+	*p = x
+	return p
+}
+
+func (x StepState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (StepState) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_rig_v1_wire_proto_enumTypes[10].Descriptor()
+}
+
+func (StepState) Type() protoreflect.EnumType {
+	return &file_proto_rig_v1_wire_proto_enumTypes[10]
+}
+
+func (x StepState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use StepState.Descriptor instead.
+func (StepState) EnumDescriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{10}
+}
+
+type BriefView int32
+
+const (
+	BriefView_BRIEF_VIEW_UNSPECIFIED BriefView = 0
+	BriefView_BRIEF_VIEW_AGENT       BriefView = 1
+	BriefView_BRIEF_VIEW_HUMAN       BriefView = 2
+)
+
+// Enum value maps for BriefView.
+var (
+	BriefView_name = map[int32]string{
+		0: "BRIEF_VIEW_UNSPECIFIED",
+		1: "BRIEF_VIEW_AGENT",
+		2: "BRIEF_VIEW_HUMAN",
+	}
+	BriefView_value = map[string]int32{
+		"BRIEF_VIEW_UNSPECIFIED": 0,
+		"BRIEF_VIEW_AGENT":       1,
+		"BRIEF_VIEW_HUMAN":       2,
+	}
+)
+
+func (x BriefView) Enum() *BriefView {
+	p := new(BriefView)
+	*p = x
+	return p
+}
+
+func (x BriefView) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (BriefView) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_rig_v1_wire_proto_enumTypes[11].Descriptor()
+}
+
+func (BriefView) Type() protoreflect.EnumType {
+	return &file_proto_rig_v1_wire_proto_enumTypes[11]
+}
+
+func (x BriefView) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use BriefView.Descriptor instead.
+func (BriefView) EnumDescriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{11}
+}
+
 type Status struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Code  Code                   `protobuf:"varint,1,opt,name=code,proto3,enum=rig.v1.Code" json:"code,omitempty"`
@@ -2871,6 +2980,1488 @@ func (x *PeersResponse) GetPartial() bool {
 	return false
 }
 
+// Provenance is who wrote a record version and when.
+//
+// IT APPEARS ON RESPONSES ONLY. Every field here is the daemon's: the caller
+// reads its own provenance back, and can never assert it.
+type Provenance struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Session       string                 `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
+	Seat          string                 `protobuf:"bytes,2,opt,name=seat,proto3" json:"seat,omitempty"`
+	Epoch         uint64                 `protobuf:"varint,3,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	AtUnixNano    int64                  `protobuf:"varint,4,opt,name=at_unix_nano,json=atUnixNano,proto3" json:"at_unix_nano,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Provenance) Reset() {
+	*x = Provenance{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Provenance) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Provenance) ProtoMessage() {}
+
+func (x *Provenance) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Provenance.ProtoReflect.Descriptor instead.
+func (*Provenance) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *Provenance) GetSession() string {
+	if x != nil {
+		return x.Session
+	}
+	return ""
+}
+
+func (x *Provenance) GetSeat() string {
+	if x != nil {
+		return x.Seat
+	}
+	return ""
+}
+
+func (x *Provenance) GetEpoch() uint64 {
+	if x != nil {
+		return x.Epoch
+	}
+	return 0
+}
+
+func (x *Provenance) GetAtUnixNano() int64 {
+	if x != nil {
+		return x.AtUnixNano
+	}
+	return 0
+}
+
+// Record is one version of one record.
+type Record struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Counted from 1, so version 0 is never a record that exists. `get` reads
+	// that zero as HEAD rather than as a version, which is why the field is not
+	// optional here: a record on the wire always names the version it IS.
+	Version       uint64            `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	Kind          string            `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
+	Project       string            `protobuf:"bytes,4,opt,name=project,proto3" json:"project,omitempty"`
+	Body          string            `protobuf:"bytes,5,opt,name=body,proto3" json:"body,omitempty"`
+	Fields        map[string]string `protobuf:"bytes,6,rep,name=fields,proto3" json:"fields,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Prov          *Provenance       `protobuf:"bytes,7,opt,name=prov,proto3" json:"prov,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Record) Reset() {
+	*x = Record{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Record) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Record) ProtoMessage() {}
+
+func (x *Record) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Record.ProtoReflect.Descriptor instead.
+func (*Record) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *Record) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Record) GetVersion() uint64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *Record) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *Record) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *Record) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *Record) GetFields() map[string]string {
+	if x != nil {
+		return x.Fields
+	}
+	return nil
+}
+
+func (x *Record) GetProv() *Provenance {
+	if x != nil {
+		return x.Prov
+	}
+	return nil
+}
+
+type RecordPutRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Empty means the store mints one - UUIDv7, so a record stream sorts by id.
+	// A `project` or a `case` is the exception and supplies its own SLUG.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// ⛔ ZERO MEANS CREATE, and that is what makes the zero value dangerous: a
+	// caller that forgot the field is indistinguishable on the wire from one
+	// that meant to create. The CLI guards it by requiring --if-version whenever
+	// --id is given; the daemon cannot, because create is a real operation.
+	IfVersion     uint64            `protobuf:"varint,2,opt,name=if_version,json=ifVersion,proto3" json:"if_version,omitempty"`
+	Kind          string            `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
+	Project       string            `protobuf:"bytes,4,opt,name=project,proto3" json:"project,omitempty"`
+	Body          string            `protobuf:"bytes,5,opt,name=body,proto3" json:"body,omitempty"`
+	Fields        map[string]string `protobuf:"bytes,6,rep,name=fields,proto3" json:"fields,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordPutRequest) Reset() {
+	*x = RecordPutRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordPutRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordPutRequest) ProtoMessage() {}
+
+func (x *RecordPutRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordPutRequest.ProtoReflect.Descriptor instead.
+func (*RecordPutRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *RecordPutRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *RecordPutRequest) GetIfVersion() uint64 {
+	if x != nil {
+		return x.IfVersion
+	}
+	return 0
+}
+
+func (x *RecordPutRequest) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *RecordPutRequest) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *RecordPutRequest) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *RecordPutRequest) GetFields() map[string]string {
+	if x != nil {
+		return x.Fields
+	}
+	return nil
+}
+
+type RecordPutResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Record        *Record                `protobuf:"bytes,1,opt,name=record,proto3" json:"record,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordPutResponse) Reset() {
+	*x = RecordPutResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordPutResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordPutResponse) ProtoMessage() {}
+
+func (x *RecordPutResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordPutResponse.ProtoReflect.Descriptor instead.
+func (*RecordPutResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *RecordPutResponse) GetRecord() *Record {
+	if x != nil {
+		return x.Record
+	}
+	return nil
+}
+
+type RecordGetRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// VERSION 0 MEANS HEAD. Not "version zero", which no record has.
+	Version       uint64 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordGetRequest) Reset() {
+	*x = RecordGetRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordGetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordGetRequest) ProtoMessage() {}
+
+func (x *RecordGetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordGetRequest.ProtoReflect.Descriptor instead.
+func (*RecordGetRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *RecordGetRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *RecordGetRequest) GetVersion() uint64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+type RecordGetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Record        *Record                `protobuf:"bytes,1,opt,name=record,proto3" json:"record,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordGetResponse) Reset() {
+	*x = RecordGetResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordGetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordGetResponse) ProtoMessage() {}
+
+func (x *RecordGetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordGetResponse.ProtoReflect.Descriptor instead.
+func (*RecordGetResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *RecordGetResponse) GetRecord() *Record {
+	if x != nil {
+		return x.Record
+	}
+	return nil
+}
+
+type RecordQueryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Project       string                 `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	Kind          string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordQueryRequest) Reset() {
+	*x = RecordQueryRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordQueryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordQueryRequest) ProtoMessage() {}
+
+func (x *RecordQueryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordQueryRequest.ProtoReflect.Descriptor instead.
+func (*RecordQueryRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *RecordQueryRequest) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *RecordQueryRequest) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+type RecordQueryResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The HEAD of every matching record. Section 39's "indexed".
+	Records       []*Record `protobuf:"bytes,1,rep,name=records,proto3" json:"records,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordQueryResponse) Reset() {
+	*x = RecordQueryResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordQueryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordQueryResponse) ProtoMessage() {}
+
+func (x *RecordQueryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordQueryResponse.ProtoReflect.Descriptor instead.
+func (*RecordQueryResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *RecordQueryResponse) GetRecords() []*Record {
+	if x != nil {
+		return x.Records
+	}
+	return nil
+}
+
+type RecordHistoryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordHistoryRequest) Reset() {
+	*x = RecordHistoryRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordHistoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordHistoryRequest) ProtoMessage() {}
+
+func (x *RecordHistoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordHistoryRequest.ProtoReflect.Descriptor instead.
+func (*RecordHistoryRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *RecordHistoryRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type RecordHistoryResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Oldest first, each carrying the provenance of the write that made it.
+	Versions      []*Record `protobuf:"bytes,1,rep,name=versions,proto3" json:"versions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordHistoryResponse) Reset() {
+	*x = RecordHistoryResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordHistoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordHistoryResponse) ProtoMessage() {}
+
+func (x *RecordHistoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordHistoryResponse.ProtoReflect.Descriptor instead.
+func (*RecordHistoryResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *RecordHistoryResponse) GetVersions() []*Record {
+	if x != nil {
+		return x.Versions
+	}
+	return nil
+}
+
+// RecordLinkRequest writes one typed, directed edge. Section 39's "linked".
+//
+// The type set is CLOSED at section 39's eight names and the store refuses an
+// unknown one by name, quoting the value back and listing the valid ones. That
+// message is surfaced rather than pre-validated here, for the same reason as
+// StepState above.
+type RecordLinkRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Src           string                 `protobuf:"bytes,1,opt,name=src,proto3" json:"src,omitempty"`
+	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Dst           string                 `protobuf:"bytes,3,opt,name=dst,proto3" json:"dst,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordLinkRequest) Reset() {
+	*x = RecordLinkRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordLinkRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordLinkRequest) ProtoMessage() {}
+
+func (x *RecordLinkRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordLinkRequest.ProtoReflect.Descriptor instead.
+func (*RecordLinkRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *RecordLinkRequest) GetSrc() string {
+	if x != nil {
+		return x.Src
+	}
+	return ""
+}
+
+func (x *RecordLinkRequest) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *RecordLinkRequest) GetDst() string {
+	if x != nil {
+		return x.Dst
+	}
+	return ""
+}
+
+// RecordLinkResponse is deliberately empty.
+//
+// Link is IDEMPOTENT on the house definition - about the state left behind,
+// not whether the reply is identical - so there is nothing useful to return
+// that the caller did not send. An empty response message rather than no
+// message at all, because section 21's additive rule then has somewhere to
+// put a field.
+type RecordLinkResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordLinkResponse) Reset() {
+	*x = RecordLinkResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordLinkResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordLinkResponse) ProtoMessage() {}
+
+func (x *RecordLinkResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordLinkResponse.ProtoReflect.Descriptor instead.
+func (*RecordLinkResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{39}
+}
+
+type RecordUnlinkRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Src           string                 `protobuf:"bytes,1,opt,name=src,proto3" json:"src,omitempty"`
+	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Dst           string                 `protobuf:"bytes,3,opt,name=dst,proto3" json:"dst,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordUnlinkRequest) Reset() {
+	*x = RecordUnlinkRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordUnlinkRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordUnlinkRequest) ProtoMessage() {}
+
+func (x *RecordUnlinkRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordUnlinkRequest.ProtoReflect.Descriptor instead.
+func (*RecordUnlinkRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *RecordUnlinkRequest) GetSrc() string {
+	if x != nil {
+		return x.Src
+	}
+	return ""
+}
+
+func (x *RecordUnlinkRequest) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *RecordUnlinkRequest) GetDst() string {
+	if x != nil {
+		return x.Dst
+	}
+	return ""
+}
+
+type RecordUnlinkResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordUnlinkResponse) Reset() {
+	*x = RecordUnlinkResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordUnlinkResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordUnlinkResponse) ProtoMessage() {}
+
+func (x *RecordUnlinkResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordUnlinkResponse.ProtoReflect.Descriptor instead.
+func (*RecordUnlinkResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{41}
+}
+
+// RecordRefsRequest asks what points AT a record - the direction files cannot
+// go, and section 39's "correlated". SLICE 4.
+type RecordRefsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Zero means the server's default depth. The answer says which depth it
+	// actually served, because a caller that did not set this cannot otherwise
+	// tell a cheap question from an empty answer.
+	Depth         uint32 `protobuf:"varint,2,opt,name=depth,proto3" json:"depth,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordRefsRequest) Reset() {
+	*x = RecordRefsRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordRefsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordRefsRequest) ProtoMessage() {}
+
+func (x *RecordRefsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordRefsRequest.ProtoReflect.Descriptor instead.
+func (*RecordRefsRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *RecordRefsRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *RecordRefsRequest) GetDepth() uint32 {
+	if x != nil {
+		return x.Depth
+	}
+	return 0
+}
+
+// Ref is one edge arriving at the record that was asked about.
+type Ref struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Src           string                 `protobuf:"bytes,1,opt,name=src,proto3" json:"src,omitempty"`
+	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Distance      uint32                 `protobuf:"varint,3,opt,name=distance,proto3" json:"distance,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Ref) Reset() {
+	*x = Ref{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Ref) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Ref) ProtoMessage() {}
+
+func (x *Ref) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Ref.ProtoReflect.Descriptor instead.
+func (*Ref) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *Ref) GetSrc() string {
+	if x != nil {
+		return x.Src
+	}
+	return ""
+}
+
+func (x *Ref) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *Ref) GetDistance() uint32 {
+	if x != nil {
+		return x.Distance
+	}
+	return 0
+}
+
+type RecordRefsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Echoed, so an answer read out of context still says what it is about.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// The depth ANSWERED, which is not always the depth asked.
+	Depth uint32 `protobuf:"varint,2,opt,name=depth,proto3" json:"depth,omitempty"`
+	Refs  []*Ref `protobuf:"bytes,3,rep,name=refs,proto3" json:"refs,omitempty"`
+	// TRUE WHEN THE WALK HIT ITS BOUND and the answer is therefore partial.
+	// Section 39 requires the truncation flag rather than a short list that
+	// looks complete.
+	Truncated bool `protobuf:"varint,4,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	// Any cycle the walk crossed, each naming its items. Section 39: detected,
+	// reported, ordered around, NEVER resolved - rig does not pick an edge to
+	// break, because choosing which one is wrong is a judgement about the work.
+	Cycles        []*Cycle `protobuf:"bytes,5,rep,name=cycles,proto3" json:"cycles,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordRefsResponse) Reset() {
+	*x = RecordRefsResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordRefsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordRefsResponse) ProtoMessage() {}
+
+func (x *RecordRefsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordRefsResponse.ProtoReflect.Descriptor instead.
+func (*RecordRefsResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *RecordRefsResponse) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *RecordRefsResponse) GetDepth() uint32 {
+	if x != nil {
+		return x.Depth
+	}
+	return 0
+}
+
+func (x *RecordRefsResponse) GetRefs() []*Ref {
+	if x != nil {
+		return x.Refs
+	}
+	return nil
+}
+
+func (x *RecordRefsResponse) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
+}
+
+func (x *RecordRefsResponse) GetCycles() []*Cycle {
+	if x != nil {
+		return x.Cycles
+	}
+	return nil
+}
+
+// Cycle is one cycle, naming its items. A bare bool cannot be acted on.
+type Cycle struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []string               `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Cycle) Reset() {
+	*x = Cycle{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Cycle) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Cycle) ProtoMessage() {}
+
+func (x *Cycle) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Cycle.ProtoReflect.Descriptor instead.
+func (*Cycle) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *Cycle) GetItems() []string {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+type ProgressStepRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The record id of the work item this step is about.
+	Item  string    `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
+	State StepState `protobuf:"varint,2,opt,name=state,proto3,enum=rig.v1.StepState" json:"state,omitempty"`
+	// What happened, in the seat's own words. Optional.
+	Note string `protobuf:"bytes,3,opt,name=note,proto3" json:"note,omitempty"`
+	// Optional link to evidence - what the step is claiming, so the claim is
+	// checkable rather than asserted.
+	Evidence      string `protobuf:"bytes,4,opt,name=evidence,proto3" json:"evidence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProgressStepRequest) Reset() {
+	*x = ProgressStepRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProgressStepRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProgressStepRequest) ProtoMessage() {}
+
+func (x *ProgressStepRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProgressStepRequest.ProtoReflect.Descriptor instead.
+func (*ProgressStepRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *ProgressStepRequest) GetItem() string {
+	if x != nil {
+		return x.Item
+	}
+	return ""
+}
+
+func (x *ProgressStepRequest) GetState() StepState {
+	if x != nil {
+		return x.State
+	}
+	return StepState_STEP_STATE_UNSPECIFIED
+}
+
+func (x *ProgressStepRequest) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+func (x *ProgressStepRequest) GetEvidence() string {
+	if x != nil {
+		return x.Evidence
+	}
+	return ""
+}
+
+type ProgressStepResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The step as written, always version 1: a stream is append-only and a step
+	// is never superseded, because "the latest step is the live state" stops
+	// being true the first time anybody rewrites one.
+	Step          *Record `protobuf:"bytes,1,opt,name=step,proto3" json:"step,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProgressStepResponse) Reset() {
+	*x = ProgressStepResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProgressStepResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProgressStepResponse) ProtoMessage() {}
+
+func (x *ProgressStepResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProgressStepResponse.ProtoReflect.Descriptor instead.
+func (*ProgressStepResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *ProgressStepResponse) GetStep() *Record {
+	if x != nil {
+		return x.Step
+	}
+	return nil
+}
+
+// ItemState is one work item as the brief renders it.
+type ItemState struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	// The latest step's state. UNSPECIFIED when the stream is EMPTY, which is a
+	// real state - picked up, not yet reported on - and not missing data.
+	State StepState `protobuf:"varint,3,opt,name=state,proto3,enum=rig.v1.StepState" json:"state,omitempty"`
+	// Zero when there are no steps. A reader must not render that as
+	// "infinitely stale": an item nobody has stepped sorts BELOW every real
+	// signal, not above it.
+	SinceUnixNano int64  `protobuf:"varint,4,opt,name=since_unix_nano,json=sinceUnixNano,proto3" json:"since_unix_nano,omitempty"`
+	Note          string `protobuf:"bytes,5,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ItemState) Reset() {
+	*x = ItemState{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ItemState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ItemState) ProtoMessage() {}
+
+func (x *ItemState) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ItemState.ProtoReflect.Descriptor instead.
+func (*ItemState) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *ItemState) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ItemState) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *ItemState) GetState() StepState {
+	if x != nil {
+		return x.State
+	}
+	return StepState_STEP_STATE_UNSPECIFIED
+}
+
+func (x *ItemState) GetSinceUnixNano() int64 {
+	if x != nil {
+		return x.SinceUnixNano
+	}
+	return 0
+}
+
+func (x *ItemState) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+// Blockage is one item and what it waits on.
+type Blockage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Item          string                 `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
+	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	BlockedBy     []string               `protobuf:"bytes,3,rep,name=blocked_by,json=blockedBy,proto3" json:"blocked_by,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Blockage) Reset() {
+	*x = Blockage{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Blockage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Blockage) ProtoMessage() {}
+
+func (x *Blockage) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Blockage.ProtoReflect.Descriptor instead.
+func (*Blockage) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *Blockage) GetItem() string {
+	if x != nil {
+		return x.Item
+	}
+	return ""
+}
+
+func (x *Blockage) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *Blockage) GetBlockedBy() []string {
+	if x != nil {
+		return x.BlockedBy
+	}
+	return nil
+}
+
+type ProjectBriefRequest struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Project string                 `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	// WHICH VIEW. One derivation, two views, and the caller says which: the
+	// human wants "is this going well and what must I decide", an arriving agent
+	// wants "what must I read, what is claimed, what is decided". One rendering
+	// for both is mediocre for each.
+	View          BriefView `protobuf:"varint,2,opt,name=view,proto3,enum=rig.v1.BriefView" json:"view,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProjectBriefRequest) Reset() {
+	*x = ProjectBriefRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProjectBriefRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProjectBriefRequest) ProtoMessage() {}
+
+func (x *ProjectBriefRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProjectBriefRequest.ProtoReflect.Descriptor instead.
+func (*ProjectBriefRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *ProjectBriefRequest) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *ProjectBriefRequest) GetView() BriefView {
+	if x != nil {
+		return x.View
+	}
+	return BriefView_BRIEF_VIEW_UNSPECIFIED
+}
+
+type ProjectBriefResponse struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Project string                 `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	// ⛔ `open` AND `next_up` ARE DISJOINT BY CONSTRUCTION, never overlapping
+	// sets to be merged. An item in both got two incompatible rules for
+	// rendering its notes, which is why the lists are cut this way rather than
+	// next_up being a prefix of open.
+	Open []*ItemState `protobuf:"bytes,2,rep,name=open,proto3" json:"open,omitempty"`
+	// The next up to next_up_n items, in EXECUTION ORDER: a topological sort
+	// over `blocks`, among items whose status is active AND whose latest step is
+	// not done. Both halves are required - completion lives in the progress
+	// stream, so status alone ships a list that never empties.
+	NextUp  []*ItemState `protobuf:"bytes,3,rep,name=next_up,json=nextUp,proto3" json:"next_up,omitempty"`
+	Blocked []*Blockage  `protobuf:"bytes,4,rep,name=blocked,proto3" json:"blocked,omitempty"`
+	// A non-empty cycle list is NOT an error and the brief is still complete.
+	// Cyclic items are ordered after the orderable ones so both lists stay
+	// usable. Render it as a finding, not a failure.
+	Cycles []*Cycle `protobuf:"bytes,5,rep,name=cycles,proto3" json:"cycles,omitempty"`
+	// Citations that resolve only to a section rather than to a heading. Boris
+	// accepted the risk of a flagged count nobody burns down ON THE CONDITION
+	// that the brief surfaces it, so a brief without this has not implemented
+	// the ruling. It reads 0 until the migration runs, which is a real zero.
+	CoarseCitations uint64 `protobuf:"varint,6,opt,name=coarse_citations,json=coarseCitations,proto3" json:"coarse_citations,omitempty"`
+	// THE MUST-READ SET, and asking for it DELIVERS it to this session.
+	//
+	// ⛔ THIS IS THE ONLY FIELD ON THIS WIRE WITH A SIDE EFFECT. Section 39's
+	// gate is satisfied by one call, and complying has to be cheaper than
+	// arguing with it. The mark is per-SESSION state and lives beside presence,
+	// never in the record store - and at M7, when a resumed session starts
+	// carrying anything at all, it moves with leases into the coordination
+	// store. Today a session IS a connection, because serveSession answers
+	// SESSION_DEAD to every resume and says so deliberately.
+	//
+	// AGENT VIEW ONLY. It is not a decision a human makes, so the human view
+	// leaves it empty.
+	MustRead        []string `protobuf:"bytes,7,rep,name=must_read,json=mustRead,proto3" json:"must_read,omitempty"`
+	MustReadCleared bool     `protobuf:"varint,8,opt,name=must_read_cleared,json=mustReadCleared,proto3" json:"must_read_cleared,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ProjectBriefResponse) Reset() {
+	*x = ProjectBriefResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProjectBriefResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProjectBriefResponse) ProtoMessage() {}
+
+func (x *ProjectBriefResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProjectBriefResponse.ProtoReflect.Descriptor instead.
+func (*ProjectBriefResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *ProjectBriefResponse) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *ProjectBriefResponse) GetOpen() []*ItemState {
+	if x != nil {
+		return x.Open
+	}
+	return nil
+}
+
+func (x *ProjectBriefResponse) GetNextUp() []*ItemState {
+	if x != nil {
+		return x.NextUp
+	}
+	return nil
+}
+
+func (x *ProjectBriefResponse) GetBlocked() []*Blockage {
+	if x != nil {
+		return x.Blocked
+	}
+	return nil
+}
+
+func (x *ProjectBriefResponse) GetCycles() []*Cycle {
+	if x != nil {
+		return x.Cycles
+	}
+	return nil
+}
+
+func (x *ProjectBriefResponse) GetCoarseCitations() uint64 {
+	if x != nil {
+		return x.CoarseCitations
+	}
+	return 0
+}
+
+func (x *ProjectBriefResponse) GetMustRead() []string {
+	if x != nil {
+		return x.MustRead
+	}
+	return nil
+}
+
+func (x *ProjectBriefResponse) GetMustReadCleared() bool {
+	if x != nil {
+		return x.MustReadCleared
+	}
+	return false
+}
+
 var File_proto_rig_v1_wire_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_wire_proto_rawDesc = "" +
@@ -3018,7 +4609,107 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\fPeersRequest\"K\n" +
 	"\rPeersResponse\x12 \n" +
 	"\x04crew\x18\x01 \x03(\v2\f.rig.v1.SeatR\x04crew\x12\x18\n" +
-	"\apartial\x18\x02 \x01(\bR\apartial*\xbc\x01\n" +
+	"\apartial\x18\x02 \x01(\bR\apartial\"r\n" +
+	"\n" +
+	"Provenance\x12\x18\n" +
+	"\asession\x18\x01 \x01(\tR\asession\x12\x12\n" +
+	"\x04seat\x18\x02 \x01(\tR\x04seat\x12\x14\n" +
+	"\x05epoch\x18\x03 \x01(\x04R\x05epoch\x12 \n" +
+	"\fat_unix_nano\x18\x04 \x01(\x03R\n" +
+	"atUnixNano\"\x8b\x02\n" +
+	"\x06Record\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\x04R\aversion\x12\x12\n" +
+	"\x04kind\x18\x03 \x01(\tR\x04kind\x12\x18\n" +
+	"\aproject\x18\x04 \x01(\tR\aproject\x12\x12\n" +
+	"\x04body\x18\x05 \x01(\tR\x04body\x122\n" +
+	"\x06fields\x18\x06 \x03(\v2\x1a.rig.v1.Record.FieldsEntryR\x06fields\x12&\n" +
+	"\x04prov\x18\a \x01(\v2\x12.rig.v1.ProvenanceR\x04prov\x1a9\n" +
+	"\vFieldsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xfc\x01\n" +
+	"\x10RecordPutRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
+	"\n" +
+	"if_version\x18\x02 \x01(\x04R\tifVersion\x12\x12\n" +
+	"\x04kind\x18\x03 \x01(\tR\x04kind\x12\x18\n" +
+	"\aproject\x18\x04 \x01(\tR\aproject\x12\x12\n" +
+	"\x04body\x18\x05 \x01(\tR\x04body\x12<\n" +
+	"\x06fields\x18\x06 \x03(\v2$.rig.v1.RecordPutRequest.FieldsEntryR\x06fields\x1a9\n" +
+	"\vFieldsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\";\n" +
+	"\x11RecordPutResponse\x12&\n" +
+	"\x06record\x18\x01 \x01(\v2\x0e.rig.v1.RecordR\x06record\"<\n" +
+	"\x10RecordGetRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\x04R\aversion\";\n" +
+	"\x11RecordGetResponse\x12&\n" +
+	"\x06record\x18\x01 \x01(\v2\x0e.rig.v1.RecordR\x06record\"B\n" +
+	"\x12RecordQueryRequest\x12\x18\n" +
+	"\aproject\x18\x01 \x01(\tR\aproject\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\"?\n" +
+	"\x13RecordQueryResponse\x12(\n" +
+	"\arecords\x18\x01 \x03(\v2\x0e.rig.v1.RecordR\arecords\"&\n" +
+	"\x14RecordHistoryRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"C\n" +
+	"\x15RecordHistoryResponse\x12*\n" +
+	"\bversions\x18\x01 \x03(\v2\x0e.rig.v1.RecordR\bversions\"K\n" +
+	"\x11RecordLinkRequest\x12\x10\n" +
+	"\x03src\x18\x01 \x01(\tR\x03src\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x10\n" +
+	"\x03dst\x18\x03 \x01(\tR\x03dst\"\x14\n" +
+	"\x12RecordLinkResponse\"M\n" +
+	"\x13RecordUnlinkRequest\x12\x10\n" +
+	"\x03src\x18\x01 \x01(\tR\x03src\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x10\n" +
+	"\x03dst\x18\x03 \x01(\tR\x03dst\"\x16\n" +
+	"\x14RecordUnlinkResponse\"9\n" +
+	"\x11RecordRefsRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05depth\x18\x02 \x01(\rR\x05depth\"G\n" +
+	"\x03Ref\x12\x10\n" +
+	"\x03src\x18\x01 \x01(\tR\x03src\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x1a\n" +
+	"\bdistance\x18\x03 \x01(\rR\bdistance\"\xa0\x01\n" +
+	"\x12RecordRefsResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05depth\x18\x02 \x01(\rR\x05depth\x12\x1f\n" +
+	"\x04refs\x18\x03 \x03(\v2\v.rig.v1.RefR\x04refs\x12\x1c\n" +
+	"\ttruncated\x18\x04 \x01(\bR\ttruncated\x12%\n" +
+	"\x06cycles\x18\x05 \x03(\v2\r.rig.v1.CycleR\x06cycles\"\x1d\n" +
+	"\x05Cycle\x12\x14\n" +
+	"\x05items\x18\x01 \x03(\tR\x05items\"\x82\x01\n" +
+	"\x13ProgressStepRequest\x12\x12\n" +
+	"\x04item\x18\x01 \x01(\tR\x04item\x12'\n" +
+	"\x05state\x18\x02 \x01(\x0e2\x11.rig.v1.StepStateR\x05state\x12\x12\n" +
+	"\x04note\x18\x03 \x01(\tR\x04note\x12\x1a\n" +
+	"\bevidence\x18\x04 \x01(\tR\bevidence\":\n" +
+	"\x14ProgressStepResponse\x12\"\n" +
+	"\x04step\x18\x01 \x01(\v2\x0e.rig.v1.RecordR\x04step\"\x96\x01\n" +
+	"\tItemState\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12'\n" +
+	"\x05state\x18\x03 \x01(\x0e2\x11.rig.v1.StepStateR\x05state\x12&\n" +
+	"\x0fsince_unix_nano\x18\x04 \x01(\x03R\rsinceUnixNano\x12\x12\n" +
+	"\x04note\x18\x05 \x01(\tR\x04note\"S\n" +
+	"\bBlockage\x12\x12\n" +
+	"\x04item\x18\x01 \x01(\tR\x04item\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\x1d\n" +
+	"\n" +
+	"blocked_by\x18\x03 \x03(\tR\tblockedBy\"V\n" +
+	"\x13ProjectBriefRequest\x12\x18\n" +
+	"\aproject\x18\x01 \x01(\tR\aproject\x12%\n" +
+	"\x04view\x18\x02 \x01(\x0e2\x11.rig.v1.BriefViewR\x04view\"\xca\x02\n" +
+	"\x14ProjectBriefResponse\x12\x18\n" +
+	"\aproject\x18\x01 \x01(\tR\aproject\x12%\n" +
+	"\x04open\x18\x02 \x03(\v2\x11.rig.v1.ItemStateR\x04open\x12*\n" +
+	"\anext_up\x18\x03 \x03(\v2\x11.rig.v1.ItemStateR\x06nextUp\x12*\n" +
+	"\ablocked\x18\x04 \x03(\v2\x10.rig.v1.BlockageR\ablocked\x12%\n" +
+	"\x06cycles\x18\x05 \x03(\v2\r.rig.v1.CycleR\x06cycles\x12)\n" +
+	"\x10coarse_citations\x18\x06 \x01(\x04R\x0fcoarseCitations\x12\x1b\n" +
+	"\tmust_read\x18\a \x03(\tR\bmustRead\x12*\n" +
+	"\x11must_read_cleared\x18\b \x01(\bR\x0fmustReadCleared*\xbc\x01\n" +
 	"\tFrameKind\x12\x1a\n" +
 	"\x16FRAME_KIND_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12FRAME_KIND_REQUEST\x10\x01\x12\x17\n" +
@@ -3078,7 +4769,16 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\tSeatState\x12\x1a\n" +
 	"\x16SEAT_STATE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11SEAT_STATE_ACTIVE\x10\x01\x12\x1a\n" +
-	"\x16SEAT_STATE_HANDING_OFF\x10\x02B0Z.github.com/boris-milner/rig/proto/rig/v1;rigv1b\x06proto3"
+	"\x16SEAT_STATE_HANDING_OFF\x10\x02*l\n" +
+	"\tStepState\x12\x1a\n" +
+	"\x16STEP_STATE_UNSPECIFIED\x10\x00\x12\x16\n" +
+	"\x12STEP_STATE_STARTED\x10\x01\x12\x16\n" +
+	"\x12STEP_STATE_BLOCKED\x10\x02\x12\x13\n" +
+	"\x0fSTEP_STATE_DONE\x10\x03*S\n" +
+	"\tBriefView\x12\x1a\n" +
+	"\x16BRIEF_VIEW_UNSPECIFIED\x10\x00\x12\x14\n" +
+	"\x10BRIEF_VIEW_AGENT\x10\x01\x12\x14\n" +
+	"\x10BRIEF_VIEW_HUMAN\x10\x02B0Z.github.com/boris-milner/rig/proto/rig/v1;rigv1b\x06proto3"
 
 var (
 	file_proto_rig_v1_wire_proto_rawDescOnce sync.Once
@@ -3092,82 +4792,127 @@ func file_proto_rig_v1_wire_proto_rawDescGZIP() []byte {
 	return file_proto_rig_v1_wire_proto_rawDescData
 }
 
-var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 10)
-var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
+var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 12)
+var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 54)
 var file_proto_rig_v1_wire_proto_goTypes = []any{
-	(FrameKind)(0),           // 0: rig.v1.FrameKind
-	(Code)(0),                // 1: rig.v1.Code
-	(Coverage)(0),            // 2: rig.v1.Coverage
-	(Effects)(0),             // 3: rig.v1.Effects
-	(Duration)(0),            // 4: rig.v1.Duration
-	(Shape)(0),               // 5: rig.v1.Shape
-	(Tristate)(0),            // 6: rig.v1.Tristate
-	(Depth)(0),               // 7: rig.v1.Depth
-	(EstateRole)(0),          // 8: rig.v1.EstateRole
-	(SeatState)(0),           // 9: rig.v1.SeatState
-	(*Status)(nil),           // 10: rig.v1.Status
-	(*Frame)(nil),            // 11: rig.v1.Frame
-	(*HelloRequest)(nil),     // 12: rig.v1.HelloRequest
-	(*HelloResponse)(nil),    // 13: rig.v1.HelloResponse
-	(*PingRequest)(nil),      // 14: rig.v1.PingRequest
-	(*PingResponse)(nil),     // 15: rig.v1.PingResponse
-	(*Identity)(nil),         // 16: rig.v1.Identity
-	(*SensitiveFields)(nil),  // 17: rig.v1.SensitiveFields
-	(*Command)(nil),          // 18: rig.v1.Command
-	(*Declaration)(nil),      // 19: rig.v1.Declaration
-	(*Program)(nil),          // 20: rig.v1.Program
-	(*ProgramsRequest)(nil),  // 21: rig.v1.ProgramsRequest
-	(*ProgramsResponse)(nil), // 22: rig.v1.ProgramsResponse
-	(*DownRequest)(nil),      // 23: rig.v1.DownRequest
-	(*DownResponse)(nil),     // 24: rig.v1.DownResponse
-	(*EstateRequest)(nil),    // 25: rig.v1.EstateRequest
-	(*EstateResponse)(nil),   // 26: rig.v1.EstateResponse
-	(*SessionRequest)(nil),   // 27: rig.v1.SessionRequest
-	(*SessionResponse)(nil),  // 28: rig.v1.SessionResponse
-	(*CallRequest)(nil),      // 29: rig.v1.CallRequest
-	(*CallResponse)(nil),     // 30: rig.v1.CallResponse
-	(*Seat)(nil),             // 31: rig.v1.Seat
-	(*AnnounceRequest)(nil),  // 32: rig.v1.AnnounceRequest
-	(*AnnounceResponse)(nil), // 33: rig.v1.AnnounceResponse
-	(*ActivityRequest)(nil),  // 34: rig.v1.ActivityRequest
-	(*ActivityResponse)(nil), // 35: rig.v1.ActivityResponse
-	(*PeersRequest)(nil),     // 36: rig.v1.PeersRequest
-	(*PeersResponse)(nil),    // 37: rig.v1.PeersResponse
+	(FrameKind)(0),                // 0: rig.v1.FrameKind
+	(Code)(0),                     // 1: rig.v1.Code
+	(Coverage)(0),                 // 2: rig.v1.Coverage
+	(Effects)(0),                  // 3: rig.v1.Effects
+	(Duration)(0),                 // 4: rig.v1.Duration
+	(Shape)(0),                    // 5: rig.v1.Shape
+	(Tristate)(0),                 // 6: rig.v1.Tristate
+	(Depth)(0),                    // 7: rig.v1.Depth
+	(EstateRole)(0),               // 8: rig.v1.EstateRole
+	(SeatState)(0),                // 9: rig.v1.SeatState
+	(StepState)(0),                // 10: rig.v1.StepState
+	(BriefView)(0),                // 11: rig.v1.BriefView
+	(*Status)(nil),                // 12: rig.v1.Status
+	(*Frame)(nil),                 // 13: rig.v1.Frame
+	(*HelloRequest)(nil),          // 14: rig.v1.HelloRequest
+	(*HelloResponse)(nil),         // 15: rig.v1.HelloResponse
+	(*PingRequest)(nil),           // 16: rig.v1.PingRequest
+	(*PingResponse)(nil),          // 17: rig.v1.PingResponse
+	(*Identity)(nil),              // 18: rig.v1.Identity
+	(*SensitiveFields)(nil),       // 19: rig.v1.SensitiveFields
+	(*Command)(nil),               // 20: rig.v1.Command
+	(*Declaration)(nil),           // 21: rig.v1.Declaration
+	(*Program)(nil),               // 22: rig.v1.Program
+	(*ProgramsRequest)(nil),       // 23: rig.v1.ProgramsRequest
+	(*ProgramsResponse)(nil),      // 24: rig.v1.ProgramsResponse
+	(*DownRequest)(nil),           // 25: rig.v1.DownRequest
+	(*DownResponse)(nil),          // 26: rig.v1.DownResponse
+	(*EstateRequest)(nil),         // 27: rig.v1.EstateRequest
+	(*EstateResponse)(nil),        // 28: rig.v1.EstateResponse
+	(*SessionRequest)(nil),        // 29: rig.v1.SessionRequest
+	(*SessionResponse)(nil),       // 30: rig.v1.SessionResponse
+	(*CallRequest)(nil),           // 31: rig.v1.CallRequest
+	(*CallResponse)(nil),          // 32: rig.v1.CallResponse
+	(*Seat)(nil),                  // 33: rig.v1.Seat
+	(*AnnounceRequest)(nil),       // 34: rig.v1.AnnounceRequest
+	(*AnnounceResponse)(nil),      // 35: rig.v1.AnnounceResponse
+	(*ActivityRequest)(nil),       // 36: rig.v1.ActivityRequest
+	(*ActivityResponse)(nil),      // 37: rig.v1.ActivityResponse
+	(*PeersRequest)(nil),          // 38: rig.v1.PeersRequest
+	(*PeersResponse)(nil),         // 39: rig.v1.PeersResponse
+	(*Provenance)(nil),            // 40: rig.v1.Provenance
+	(*Record)(nil),                // 41: rig.v1.Record
+	(*RecordPutRequest)(nil),      // 42: rig.v1.RecordPutRequest
+	(*RecordPutResponse)(nil),     // 43: rig.v1.RecordPutResponse
+	(*RecordGetRequest)(nil),      // 44: rig.v1.RecordGetRequest
+	(*RecordGetResponse)(nil),     // 45: rig.v1.RecordGetResponse
+	(*RecordQueryRequest)(nil),    // 46: rig.v1.RecordQueryRequest
+	(*RecordQueryResponse)(nil),   // 47: rig.v1.RecordQueryResponse
+	(*RecordHistoryRequest)(nil),  // 48: rig.v1.RecordHistoryRequest
+	(*RecordHistoryResponse)(nil), // 49: rig.v1.RecordHistoryResponse
+	(*RecordLinkRequest)(nil),     // 50: rig.v1.RecordLinkRequest
+	(*RecordLinkResponse)(nil),    // 51: rig.v1.RecordLinkResponse
+	(*RecordUnlinkRequest)(nil),   // 52: rig.v1.RecordUnlinkRequest
+	(*RecordUnlinkResponse)(nil),  // 53: rig.v1.RecordUnlinkResponse
+	(*RecordRefsRequest)(nil),     // 54: rig.v1.RecordRefsRequest
+	(*Ref)(nil),                   // 55: rig.v1.Ref
+	(*RecordRefsResponse)(nil),    // 56: rig.v1.RecordRefsResponse
+	(*Cycle)(nil),                 // 57: rig.v1.Cycle
+	(*ProgressStepRequest)(nil),   // 58: rig.v1.ProgressStepRequest
+	(*ProgressStepResponse)(nil),  // 59: rig.v1.ProgressStepResponse
+	(*ItemState)(nil),             // 60: rig.v1.ItemState
+	(*Blockage)(nil),              // 61: rig.v1.Blockage
+	(*ProjectBriefRequest)(nil),   // 62: rig.v1.ProjectBriefRequest
+	(*ProjectBriefResponse)(nil),  // 63: rig.v1.ProjectBriefResponse
+	nil,                           // 64: rig.v1.Record.FieldsEntry
+	nil,                           // 65: rig.v1.RecordPutRequest.FieldsEntry
 }
 var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	1,  // 0: rig.v1.Status.code:type_name -> rig.v1.Code
 	0,  // 1: rig.v1.Frame.kind:type_name -> rig.v1.FrameKind
-	10, // 2: rig.v1.Frame.status:type_name -> rig.v1.Status
-	19, // 3: rig.v1.HelloRequest.declaration:type_name -> rig.v1.Declaration
+	12, // 2: rig.v1.Frame.status:type_name -> rig.v1.Status
+	21, // 3: rig.v1.HelloRequest.declaration:type_name -> rig.v1.Declaration
 	3,  // 4: rig.v1.Command.effects:type_name -> rig.v1.Effects
 	6,  // 5: rig.v1.Command.idempotent:type_name -> rig.v1.Tristate
-	17, // 6: rig.v1.Command.sensitive:type_name -> rig.v1.SensitiveFields
+	19, // 6: rig.v1.Command.sensitive:type_name -> rig.v1.SensitiveFields
 	6,  // 7: rig.v1.Command.interactive:type_name -> rig.v1.Tristate
 	6,  // 8: rig.v1.Command.streams:type_name -> rig.v1.Tristate
 	6,  // 9: rig.v1.Command.needs_display:type_name -> rig.v1.Tristate
 	4,  // 10: rig.v1.Command.duration:type_name -> rig.v1.Duration
 	6,  // 11: rig.v1.Command.confirms:type_name -> rig.v1.Tristate
 	5,  // 12: rig.v1.Command.shape:type_name -> rig.v1.Shape
-	16, // 13: rig.v1.Declaration.identity:type_name -> rig.v1.Identity
+	18, // 13: rig.v1.Declaration.identity:type_name -> rig.v1.Identity
 	2,  // 14: rig.v1.Declaration.coverage:type_name -> rig.v1.Coverage
-	18, // 15: rig.v1.Declaration.commands:type_name -> rig.v1.Command
-	16, // 16: rig.v1.Program.identity:type_name -> rig.v1.Identity
+	20, // 15: rig.v1.Declaration.commands:type_name -> rig.v1.Command
+	18, // 16: rig.v1.Program.identity:type_name -> rig.v1.Identity
 	2,  // 17: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
-	18, // 18: rig.v1.Program.commands:type_name -> rig.v1.Command
+	20, // 18: rig.v1.Program.commands:type_name -> rig.v1.Command
 	7,  // 19: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
-	20, // 20: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
+	22, // 20: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
 	8,  // 21: rig.v1.EstateResponse.role:type_name -> rig.v1.EstateRole
 	9,  // 22: rig.v1.Seat.state:type_name -> rig.v1.SeatState
-	31, // 23: rig.v1.AnnounceResponse.you:type_name -> rig.v1.Seat
-	31, // 24: rig.v1.AnnounceResponse.crew:type_name -> rig.v1.Seat
+	33, // 23: rig.v1.AnnounceResponse.you:type_name -> rig.v1.Seat
+	33, // 24: rig.v1.AnnounceResponse.crew:type_name -> rig.v1.Seat
 	9,  // 25: rig.v1.ActivityRequest.state:type_name -> rig.v1.SeatState
-	31, // 26: rig.v1.ActivityResponse.you:type_name -> rig.v1.Seat
-	31, // 27: rig.v1.PeersResponse.crew:type_name -> rig.v1.Seat
-	28, // [28:28] is the sub-list for method output_type
-	28, // [28:28] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	33, // 26: rig.v1.ActivityResponse.you:type_name -> rig.v1.Seat
+	33, // 27: rig.v1.PeersResponse.crew:type_name -> rig.v1.Seat
+	64, // 28: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
+	40, // 29: rig.v1.Record.prov:type_name -> rig.v1.Provenance
+	65, // 30: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
+	41, // 31: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
+	41, // 32: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
+	41, // 33: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
+	41, // 34: rig.v1.RecordHistoryResponse.versions:type_name -> rig.v1.Record
+	55, // 35: rig.v1.RecordRefsResponse.refs:type_name -> rig.v1.Ref
+	57, // 36: rig.v1.RecordRefsResponse.cycles:type_name -> rig.v1.Cycle
+	10, // 37: rig.v1.ProgressStepRequest.state:type_name -> rig.v1.StepState
+	41, // 38: rig.v1.ProgressStepResponse.step:type_name -> rig.v1.Record
+	10, // 39: rig.v1.ItemState.state:type_name -> rig.v1.StepState
+	11, // 40: rig.v1.ProjectBriefRequest.view:type_name -> rig.v1.BriefView
+	60, // 41: rig.v1.ProjectBriefResponse.open:type_name -> rig.v1.ItemState
+	60, // 42: rig.v1.ProjectBriefResponse.next_up:type_name -> rig.v1.ItemState
+	61, // 43: rig.v1.ProjectBriefResponse.blocked:type_name -> rig.v1.Blockage
+	57, // 44: rig.v1.ProjectBriefResponse.cycles:type_name -> rig.v1.Cycle
+	45, // [45:45] is the sub-list for method output_type
+	45, // [45:45] is the sub-list for method input_type
+	45, // [45:45] is the sub-list for extension type_name
+	45, // [45:45] is the sub-list for extension extendee
+	0,  // [0:45] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_wire_proto_init() }
@@ -3180,8 +4925,8 @@ func file_proto_rig_v1_wire_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_wire_proto_rawDesc), len(file_proto_rig_v1_wire_proto_rawDesc)),
-			NumEnums:      10,
-			NumMessages:   28,
+			NumEnums:      12,
+			NumMessages:   54,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

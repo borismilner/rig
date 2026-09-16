@@ -894,3 +894,314 @@ message PeersResponse {
   repeated Seat crew = 1;
   bool partial = 2;
 }
+
+// ============================================================================
+// SECTION 39's CONTINUITY RECORD.
+//
+// NINE VERBS OVER EIGHT OF SECTION 39's ELEVEN ROWS. `standard.stamp`,
+// `standard.drift` (slice 7) and `project.gate` (slice 6) are deliberately NOT
+// here: a declared-and-unimplemented verb is a wire that lies, and section 21
+// makes the later additive change cheap. The nine that ARE here are exactly
+// the MVP's slices - 1, 2 and 4 - so nothing on this wire is unreachable.
+//
+// THE METHOD NAME IS `rig.` + THE VERB NAME, VERBATIM: `rig.record.put`,
+// `rig.progress.step`, `rig.project.brief`. splitMethod takes the FIRST dot,
+// so the command half may carry more; badID refuses a dot only on the PROGRAM
+// id, and says so for exactly this reason. One spelling across the wire, the
+// CLI and the MCP door - the estate already pays for `announce`/`activity`/
+// `peers` disagreeing with `announce`/`set_activity`/`list_agents`, and that
+// injury is not repeated here.
+//
+// ⛔ NO REQUEST MESSAGE CARRIES `session`, `seat` OR `epoch`. Not optional,
+// not ignored - ABSENT. The connection already knows all three and
+// newPrincipal mints them. A client able to set its own seat can write a
+// record attributed to another seat, which is a forgery surface, and a
+// convention the wire does not carry is one the first non-CLI caller breaks.
+// Two seats reached this rule from opposite ends of the interface without
+// speaking to each other.
+// ============================================================================
+
+// StepState is where a work item stands, per section 39.
+//
+// Zero is UNSPECIFIED and mandatory: an enum whose zero means something makes
+// an UNSET field decode as a decision, which is what section 21 bans and the
+// noenumzero analyzer fails the build over. A value this binary does not know
+// is refused by name with the value quoted back - and that refusal is the
+// store's, surfaced rather than re-implemented here, because two validators
+// drift and one does not.
+enum StepState {
+  STEP_STATE_UNSPECIFIED = 0;
+  STEP_STATE_STARTED = 1;
+  STEP_STATE_BLOCKED = 2;
+  STEP_STATE_DONE = 3;
+}
+
+// Provenance is who wrote a record version and when.
+//
+// IT APPEARS ON RESPONSES ONLY. Every field here is the daemon's: the caller
+// reads its own provenance back, and can never assert it.
+message Provenance {
+  string session = 1;
+  string seat = 2;
+  uint64 epoch = 3;
+  int64 at_unix_nano = 4;
+}
+
+// Record is one version of one record.
+message Record {
+  string id = 1;
+
+  // Counted from 1, so version 0 is never a record that exists. `get` reads
+  // that zero as HEAD rather than as a version, which is why the field is not
+  // optional here: a record on the wire always names the version it IS.
+  uint64 version = 2;
+
+  string kind = 3;
+  string project = 4;
+  string body = 5;
+  map<string, string> fields = 6;
+  Provenance prov = 7;
+}
+
+message RecordPutRequest {
+  // Empty means the store mints one - UUIDv7, so a record stream sorts by id.
+  // A `project` or a `case` is the exception and supplies its own SLUG.
+  string id = 1;
+
+  // ⛔ ZERO MEANS CREATE, and that is what makes the zero value dangerous: a
+  // caller that forgot the field is indistinguishable on the wire from one
+  // that meant to create. The CLI guards it by requiring --if-version whenever
+  // --id is given; the daemon cannot, because create is a real operation.
+  uint64 if_version = 2;
+
+  string kind = 3;
+  string project = 4;
+  string body = 5;
+  map<string, string> fields = 6;
+}
+
+message RecordPutResponse {
+  Record record = 1;
+}
+
+message RecordGetRequest {
+  string id = 1;
+
+  // VERSION 0 MEANS HEAD. Not "version zero", which no record has.
+  uint64 version = 2;
+}
+
+message RecordGetResponse {
+  Record record = 1;
+}
+
+message RecordQueryRequest {
+  string project = 1;
+  string kind = 2;
+}
+
+message RecordQueryResponse {
+  // The HEAD of every matching record. Section 39's "indexed".
+  repeated Record records = 1;
+}
+
+message RecordHistoryRequest {
+  string id = 1;
+}
+
+message RecordHistoryResponse {
+  // Oldest first, each carrying the provenance of the write that made it.
+  repeated Record versions = 1;
+}
+
+// RecordLinkRequest writes one typed, directed edge. Section 39's "linked".
+//
+// The type set is CLOSED at section 39's eight names and the store refuses an
+// unknown one by name, quoting the value back and listing the valid ones. That
+// message is surfaced rather than pre-validated here, for the same reason as
+// StepState above.
+message RecordLinkRequest {
+  string src = 1;
+  string type = 2;
+  string dst = 3;
+}
+
+// RecordLinkResponse is deliberately empty.
+//
+// Link is IDEMPOTENT on the house definition - about the state left behind,
+// not whether the reply is identical - so there is nothing useful to return
+// that the caller did not send. An empty response message rather than no
+// message at all, because section 21's additive rule then has somewhere to
+// put a field.
+message RecordLinkResponse {}
+
+message RecordUnlinkRequest {
+  string src = 1;
+  string type = 2;
+  string dst = 3;
+}
+
+message RecordUnlinkResponse {}
+
+// RecordRefsRequest asks what points AT a record - the direction files cannot
+// go, and section 39's "correlated". SLICE 4.
+message RecordRefsRequest {
+  string id = 1;
+
+  // Zero means the server's default depth. The answer says which depth it
+  // actually served, because a caller that did not set this cannot otherwise
+  // tell a cheap question from an empty answer.
+  uint32 depth = 2;
+}
+
+// Ref is one edge arriving at the record that was asked about.
+message Ref {
+  string src = 1;
+  string type = 2;
+  uint32 distance = 3;
+}
+
+message RecordRefsResponse {
+  // Echoed, so an answer read out of context still says what it is about.
+  string id = 1;
+
+  // The depth ANSWERED, which is not always the depth asked.
+  uint32 depth = 2;
+
+  repeated Ref refs = 3;
+
+  // TRUE WHEN THE WALK HIT ITS BOUND and the answer is therefore partial.
+  // Section 39 requires the truncation flag rather than a short list that
+  // looks complete.
+  bool truncated = 4;
+
+  // Any cycle the walk crossed, each naming its items. Section 39: detected,
+  // reported, ordered around, NEVER resolved - rig does not pick an edge to
+  // break, because choosing which one is wrong is a judgement about the work.
+  repeated Cycle cycles = 5;
+}
+
+// Cycle is one cycle, naming its items. A bare bool cannot be acted on.
+message Cycle {
+  repeated string items = 1;
+}
+
+message ProgressStepRequest {
+  // The record id of the work item this step is about.
+  string item = 1;
+
+  StepState state = 2;
+
+  // What happened, in the seat's own words. Optional.
+  string note = 3;
+
+  // Optional link to evidence - what the step is claiming, so the claim is
+  // checkable rather than asserted.
+  string evidence = 4;
+}
+
+message ProgressStepResponse {
+  // The step as written, always version 1: a stream is append-only and a step
+  // is never superseded, because "the latest step is the live state" stops
+  // being true the first time anybody rewrites one.
+  Record step = 1;
+}
+
+// ItemState is one work item as the brief renders it.
+message ItemState {
+  string id = 1;
+  string title = 2;
+
+  // The latest step's state. UNSPECIFIED when the stream is EMPTY, which is a
+  // real state - picked up, not yet reported on - and not missing data.
+  StepState state = 3;
+
+  // Zero when there are no steps. A reader must not render that as
+  // "infinitely stale": an item nobody has stepped sorts BELOW every real
+  // signal, not above it.
+  int64 since_unix_nano = 4;
+
+  string note = 5;
+}
+
+// Blockage is one item and what it waits on.
+message Blockage {
+  string item = 1;
+  string title = 2;
+  repeated string blocked_by = 3;
+}
+
+message ProjectBriefRequest {
+  string project = 1;
+
+  // WHICH VIEW. One derivation, two views, and the caller says which: the
+  // human wants "is this going well and what must I decide", an arriving agent
+  // wants "what must I read, what is claimed, what is decided". One rendering
+  // for both is mediocre for each.
+  BriefView view = 2;
+}
+
+enum BriefView {
+  BRIEF_VIEW_UNSPECIFIED = 0;
+  BRIEF_VIEW_AGENT = 1;
+  BRIEF_VIEW_HUMAN = 2;
+}
+
+message ProjectBriefResponse {
+  string project = 1;
+
+  // ⛔ `open` AND `next_up` ARE DISJOINT BY CONSTRUCTION, never overlapping
+  // sets to be merged. An item in both got two incompatible rules for
+  // rendering its notes, which is why the lists are cut this way rather than
+  // next_up being a prefix of open.
+  repeated ItemState open = 2;
+
+  // The next up to next_up_n items, in EXECUTION ORDER: a topological sort
+  // over `blocks`, among items whose status is active AND whose latest step is
+  // not done. Both halves are required - completion lives in the progress
+  // stream, so status alone ships a list that never empties.
+  repeated ItemState next_up = 3;
+
+  repeated Blockage blocked = 4;
+
+  // A non-empty cycle list is NOT an error and the brief is still complete.
+  // Cyclic items are ordered after the orderable ones so both lists stay
+  // usable. Render it as a finding, not a failure.
+  repeated Cycle cycles = 5;
+
+  // Citations that resolve only to a section rather than to a heading. Boris
+  // accepted the risk of a flagged count nobody burns down ON THE CONDITION
+  // that the brief surfaces it, so a brief without this has not implemented
+  // the ruling. It reads 0 until the migration runs, which is a real zero.
+  uint64 coarse_citations = 6;
+
+  // THE MUST-READ SET, and asking for it DELIVERS it to this session.
+  //
+  // ⛔ THIS IS THE ONLY FIELD ON THIS WIRE WITH A SIDE EFFECT. Section 39's
+  // gate is satisfied by one call, and complying has to be cheaper than
+  // arguing with it. The mark is per-SESSION state and lives beside presence,
+  // never in the record store - and at M7, when a resumed session starts
+  // carrying anything at all, it moves with leases into the coordination
+  // store. Today a session IS a connection, because serveSession answers
+  // SESSION_DEAD to every resume and says so deliberately.
+  //
+  // AGENT VIEW ONLY. It is not a decision a human makes, so the human view
+  // leaves it empty.
+  repeated string must_read = 7;
+  bool must_read_cleared = 8;
+
+  // ⛔ SEVEN OF SECTION 39's ELEVEN BRIEF SECTIONS ARE DELIBERATELY ABSENT,
+  // AND THIS COMMENT IS THE RECORD OF WHICH. Rows 3 (notes in full), 5
+  // (standards drift), 7-9 (the health block: projection behind, pending
+  // entries, local-only), 10 (features) and 11 (case attention notes) are
+  // served by slices 5, 6 and 7. Carrying them as always-empty fields is the
+  // same wire-that-lies this file refuses for the three excluded verbs: a
+  // reader cannot tell "this project has no standards drift" from "rig does
+  // not compute it yet", and the health block LYING in the reassuring
+  // direction is exactly the failure section 39 added rows 7-9 to prevent.
+  //
+  // Section 21 makes each an additive change, and internal/record.Brief is
+  // the shape this mirrors: Project, Open, NextUp, Blocked, Cycles,
+  // CoarseCitations. When a slice computes one of the seven, the field lands
+  // WITH it.
+}
