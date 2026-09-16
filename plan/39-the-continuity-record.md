@@ -1272,6 +1272,67 @@ are both uses; the CLI is the one that answers *"rig manages rig"* first. This
 is recorded now because the ruling it corrects is already written down, not
 because it is next.
 
+#### ⛔ THE `record.refs` WIRE MESSAGES DROP HALF THE ANSWER, AND ONE REQUEST FIELD DOES NOT EXIST AT ALL
+
+**Found 2026-09-16 late by the sixth lead generation, reading the package and
+the proto side by side before wiring the CLI seam - which is the only moment
+either file forces anybody to.** The refs messages were written into
+`wire.proto` at `1a52ccf` **without a dispatch and without a declaration**, so
+nothing has ever exercised them and nothing compared them to what
+`internal/record` actually returns.
+
+⛔ **THIS IS THE `evidence`/`view`/`must_read` DEFECT WITH THE SIGN REVERSED.**
+That one was a **served field nothing reads**. This one is **an answer the
+package computes and the wire cannot carry** - and it fails the same way, by
+answering rather than refusing. A caller gets a well-formed `RecordRefsResponse`
+and never learns that three fields were dropped on the way out.
+
+| `internal/record.Ref` | `Ref` on the wire | |
+|---|---|---|
+| `ID` | `src` | carried, renamed |
+| `Type` | `type` | carried |
+| `Depth` | `distance` | carried, renamed |
+| ⛔ `Kind` | **ABSENT** | |
+| ⛔ `Title` | **ABSENT** | |
+| ⛔ `Via` | **ABSENT** | |
+
+⛔ **AND `RefsRequest.CrossProject` HAS NO WIRE FIELD**, so an agent cannot ask
+for it in any form. `RecordRefsRequest` is `id` and `depth` and nothing else.
+
+**WHY THE THREE MISSING RESPONSE FIELDS ARE NOT COSMETIC, and the argument is
+already written down in two places by two different seats:**
+
+- **`Kind` and `Title` are what make the answer readable in one call.** The
+  CLI's own provisional type says it in as many words - the kind is there *"so
+  a reader can tell a decision citing a requirement from a work-item
+  implementing one **without a second call per row**"*. Dropping them turns one
+  `record.refs` into one plus N `record.get`s, which is §9's context budget
+  paying for a field that was already computed.
+- **`Via` is what makes a depth-3 answer meaningful.** *"What points at this"*
+  at depth 3 is a list of records whose relationship to the subject is
+  unreadable without the hop they arrived through. A `distance` of 3 with no
+  `via` says how far and not through what.
+
+**WHY `CrossProject` IS NOT A DEFAULT TO BE LEFT ALONE.** This section already
+rules that project-scoping is **a performance requirement and not a
+preference**, measured 98% cheaper, and that crossing is *"asked for, never
+arrived at"*. ⛔ **A wire with no field to ask with does not implement that
+ruling - it implements only its default half**, and the capability §39 calls
+*"correlated"* stops at the project boundary for every agent, permanently and
+silently.
+
+**WHAT THIS DOES NOT CHANGE:** the refs messages are additive and nothing has
+shipped against them, so growing them costs one wire change and no
+compatibility. ⛔ **DECISION 6 BINDS THE NEW STRING FIELDS: each owes TWO
+mutations - empty, AND a wrong non-empty value** - because protojson omits the
+empty string, so absent and unserved are the same bytes.
+
+⛔ **AND IT IS THE REASON `record.refs` MUST REACH THE WIRE BEFORE THE CLI SEAM
+IS WRITTEN, NOT AFTER.** The seam implements a nine-method interface; writing
+eight against a live wire and one against a message set that drops half its
+answer is how a provisional shape becomes the contract by default. Filed
+`BACKLOG.md` B57.
+
 #### ⛔ `record.link` AND `record.unlink` MOVE FORWARD TO SLICE 2
 
 **The build order inverted its own dependency and nobody had noticed.**
