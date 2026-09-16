@@ -25,3 +25,14 @@ The row below repeats an id deliberately: the scanner keeps the FIRST and drops
 the rest, and nothing else in the suite proves that.
 
 | B1 | **A duplicate id that must be ignored** | evidence | nobody | **DONE** |
+
+A SECOND TABLE THAT IS NOT A WORK-ITEM TABLE, and its id appears nowhere else.
+
+rig's own backlog has one of these - `| Row | Adopter, as a ROLE |` - and every
+id in it also exists as a real row ABOVE it, so the duplicate rule skips them
+and the not-a-work-item guard never fires. THAT MADE THE GUARD UNFALSIFIABLE:
+a mutation deleting it left the whole suite green. B99 is here so it is not.
+
+| Row | Adopter, as a ROLE |
+|---|---|
+| **B99** the id that exists only in a table this parser must not read | **THE DOOR** |

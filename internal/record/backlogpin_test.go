@@ -94,6 +94,20 @@ func TestTheBacklogParserReadsEveryRowShapeTheSameWay(t *testing.T) {
 		}
 	}
 
+	// ⛔ B99 LIVES IN A TWO-COLUMN TABLE THIS PARSER MUST NOT READ, AND IT IS
+	// HERE BECAUSE A MUTATION SURVIVED WITHOUT IT. Deleting the not-a-work-item
+	// guard left the whole suite green against the real document, because every
+	// id in rig's adopter table also exists as a real row ABOVE it and the
+	// duplicate rule skipped them. The guard was protecting nothing that any
+	// test could see. B99 exists nowhere else, so the guard now has to work.
+	for _, it := range items {
+		if it.ID == "B99" {
+			t.Errorf("B99 is in a `| Row | Adopter, as a ROLE |` table and is not a " +
+				"work item; reading it means the parser is matching on the first " +
+				"cell rather than on the table's header")
+		}
+	}
+
 	// The duplicate id later in the fixture must be DROPPED, not re-read.
 	if n := len(items); n != 11 {
 		t.Errorf("read %d rows, want 11 - a repeated id must be kept once, not twice", n)
@@ -135,21 +149,55 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 	claims := idsWhere(items, func(i BacklogItem) bool { return i.ClaimsDone })
 	malformed := idsWhere(items, func(i BacklogItem) bool { return i.Malformed })
 
+	// ⛔ THE WHOLE SET, NOT THE TOTAL, AND THAT IS THE POINT OF THIS BLOCK.
+	// A count equality hides a swap, and 64 arriving because 64 was expected is
+	// the least informative outcome available. These ids were derived from the
+	// document by a header-aware scan sharing no code path with the parser.
+	pin(t, "every work item read", idsWhere(items, func(BacklogItem) bool { return true }),
+		[]string{
+			"B1", "B10", "B11", "B12", "B13", "B14", "B15", "B16",
+			"B17", "B18", "B19", "B2", "B20", "B21", "B22", "B23",
+			"B24", "B25", "B26", "B27", "B28", "B29", "B3", "B30",
+			"B31", "B32", "B33", "B34", "B35", "B36", "B37", "B38",
+			"B39", "B4", "B40", "B41", "B42", "B43", "B44", "B45",
+			"B46a", "B46b", "B46c", "B46e", "B46f", "B46g", "B47", "B48",
+			"B49", "B5", "B50", "B51", "B52", "B53", "B54", "B55",
+			"B56", "B57", "B58", "B59", "B6", "B7", "B8", "B9",
+		})
+
 	pin(t, "closed, struck", struck,
 		[]string{"B11", "B19", "B20", "B22", "B31", "B33", "B7", "B9"})
 	pin(t, "closed by a terminal lead in the item cell", byLead, []string{"B21"})
 	pin(t, "claims a terminal state unstruck, seeded OPEN", claims,
-		[]string{"B15", "B24", "B25", "B44"})
+		[]string{"B15", "B24", "B25", "B44", "B46a", "B48", "B55", "B56"})
+	pin(t, "closed by a RULING - a tick on the id, a terminal state, no work done",
+		idsWhere(items, func(i BacklogItem) bool { return i.RuledClosed }),
+		[]string{"B55", "B56"})
 	pin(t, "malformed", malformed, []string{"B21"})
+
+	// ⛔ THE FIVE IDS IN THE ADOPTER TABLE MUST NOT BE HERE, AND THIS IS THE
+	// ASSERTION THAT SAYS SO. `| Row | Adopter, as a ROLE |` puts B6, B10, B18,
+	// B20 and B21 in two-column rows that are not work items. All five already
+	// exist as real rows elsewhere, so a parser that read them would not add an
+	// unknown id - it would SUPERSEDE five real rows with a two-cell shape, and
+	// only the titles would show it.
+	for _, id := range []string{"B6", "B10", "B18", "B20", "B21"} {
+		for _, it := range items {
+			if it.ID == id && it.Title == "" {
+				t.Errorf("%s has an empty title, which is what reading it from the "+
+					"two-column adopter table looks like", id)
+			}
+		}
+	}
 
 	open := len(items) - len(struck) - len(byLead)
 	for _, c := range []struct {
 		what      string
 		got, want int
 	}{
-		{"rows", len(items), 45},
+		{"rows", len(items), 64},
 		{"closed", len(struck) + len(byLead), 9},
-		{"open", open, 36},
+		{"open", open, 55},
 	} {
 		if c.got != c.want {
 			t.Errorf("%s: %d, pinned at %d.\n"+
