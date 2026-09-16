@@ -352,11 +352,11 @@ func (s *Server) query(who kernel.Principal, r Request) (Answer, error) {
 		Partial:     partialOf(m.Programs...),
 	}
 
-	switch {
-	case r.Subject == "" || r.Subject == SubjectRegistry || r.Subject == SubjectPrograms:
+	switch r.Subject {
+	case "", SubjectRegistry, SubjectPrograms:
 		out.Estate = m.Programs
 
-	case r.Subject == SubjectEstate:
+	case SubjectEstate:
 		// WHICH ESTATE THIS IS, AND IT IS THE ONE QUESTION THE AGENT SURFACE
 		// COULD NOT ANSWER AT ALL. rig.estate is specified (section 37
 		// precondition 1), built, and reachable from a terminal; the agent -
