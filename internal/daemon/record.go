@@ -11,15 +11,21 @@ import (
 
 // The record verbs (PLAN.md section 39).
 //
-// EIGHT ARE SERVED HERE AND `record.refs` IS NOT, WHICH IS NARROWER THAN THE
-// NINE THE WIRE'S MESSAGE SET CARRIES. The proto holds the refs shapes so
-// section 21's additive change has somewhere to land, but a MESSAGE TYPE IS
-// NOT A DECLARATION: what a caller can discover is selfDeclaration(), and what
-// it can reach is the switch in serveSelf. `record.refs` is in neither until
-// slice 4, because the reverse lookup it needs does not exist - LinksFrom
-// walks src to dst and refs is the other direction, with a depth bound, a
-// cycle report and a truncation flag on top. Declaring it now would be the
-// wire-that-lies this section refuses for standard.stamp and project.gate.
+// ALL NINE ARE SERVED HERE. `record.refs` WAS THE LAST AND IT LANDED 2026-09-16
+// LATE, WITH ITS MESSAGES GROWN IN THE SAME CHANGE.
+//
+// ⛔ THE WIRE SHAPES EXISTED FIRST AND THAT IS EXACTLY WHY THEY WERE WRONG.
+// They were written so section 21's additive change had somewhere to land, and
+// because nothing dispatched them, nothing ever compared them to what
+// internal/record actually returns: `Ref` carried three fields where the store
+// computes six, and `RecordRefsRequest` could not express CrossProject at all.
+// A message type is not a declaration - but it is also not a CONTRACT until
+// something reads it against the thing it describes.
+//
+// THE RULE THAT CAME OUT OF IT: a message set written ahead of its handler is
+// unverified, not merely unused, and the moment to check it is the moment
+// before the first dispatch. Nothing else forces a reader to hold both files
+// open at once.
 
 // serveRecord dispatches every rig.record.* and rig.progress.* method.
 //
@@ -44,6 +50,8 @@ func (d *Daemon) serveRecord(ctx context.Context, c *conn, f *rigv1.Frame, comma
 		d.serveRecordLink(ctx, c, f, st)
 	case "record.unlink":
 		d.serveRecordUnlink(ctx, c, f, st)
+	case "record.refs":
+		d.serveRecordRefs(ctx, c, f, st)
 	case "progress.step":
 		d.serveProgressStep(ctx, c, f, st)
 	case "project.brief":
@@ -451,6 +459,85 @@ func briefSections() []*rigv1.BriefSectionStatus {
 		computed(rigv1.BriefSection_BRIEF_SECTION_FEATURES),
 		waiting(rigv1.BriefSection_BRIEF_SECTION_CASE_NOTES, derivation),
 	}
+}
+
+// serveRecordRefs answers what points AT a record - section 39's "correlated",
+// and the direction files cannot go.
+//
+// ⛔ THE DEPTH IS NOT CLAMPED. A depth above the maximum is REFUSED BY NAME by
+// the store, because a caller that asked for 8, got 5 and was not told has a
+// partial answer that looks complete - which is the one failure this whole
+// capability exists to prevent. The truncation flag is the same argument at the
+// other end of the walk.
+func (d *Daemon) serveRecordRefs(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
+	var req rigv1.RecordRefsRequest
+	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.refs: "+err.Error())
+		return
+	}
+	refs, err := st.Refs(ctx, record.RefsRequest{
+		ID: req.GetId(),
+		// The store reads zero as its own default and says which depth it
+		// actually served, so the conversion carries the zero through rather
+		// than substituting a number here - two places deciding one default is
+		// two places to disagree from.
+		Depth:        int(req.GetDepth()),
+		CrossProject: req.GetCrossProject(),
+	})
+	if err != nil {
+		c.failErr(f.GetStreamId(), recordCode(err), err)
+		return
+	}
+
+	// ⛔ THE DEPTH ANSWERED IS DERIVED HERE BECAUSE record.Refs DOES NOT REPORT
+	// IT, AND THAT IS A GAP WORTH NAMING RATHER THAN PAPERING OVER. The store
+	// resolves a zero to its own default internally and returns only the edges,
+	// so the one caller that has to tell a reader "how far did it actually
+	// look" is this one.
+	//
+	// IT READS THE PACKAGE'S OWN EXPORTED CONSTANT RATHER THAN REPEATING THE
+	// NUMBER. That is the difference between referencing one definition and
+	// creating a second: if record.DefaultRefsDepth moves, this moves with it,
+	// and there is no number here to fall out of step.
+	answered := req.GetDepth()
+	if answered == 0 {
+		answered = uint32(record.DefaultRefsDepth)
+	}
+	resp := &rigv1.RecordRefsResponse{
+		Id:        refs.ID,
+		Depth:     answered,
+		Truncated: refs.Truncated,
+	}
+	for _, r := range refs.Refs {
+		w := &rigv1.Ref{
+			Src:   r.ID,
+			Type:  r.Type,
+			Kind:  r.Kind,
+			Title: r.Title,
+			Via:   r.Via,
+		}
+		// BOUNDED ON BOTH SIDES, AND THE UPPER BOUND IS FOR THE CONVERTER
+		// RATHER THAN FOR THE DATA. An unchecked int to uint32 turns a
+		// negative into an enormous positive, and this field is read as "how
+		// many hops away" - the one direction in which a wrong number looks
+		// plausible rather than wrong.
+		//
+		// A depth above MaxRefsDepth is UNREACHABLE here: the store refuses
+		// such a request BY NAME rather than clamping it, so nothing it
+		// returns can exceed the bound. The check is what lets a reader - and
+		// gosec - see that without holding refs.go open.
+		if d := r.Depth; d > 0 && d <= record.MaxRefsDepth {
+			w.Distance = uint32(d)
+		}
+		resp.Refs = append(resp.Refs, w)
+	}
+	// DETECTED, REPORTED, ORDERED AROUND, NEVER RESOLVED. rig does not pick an
+	// edge to break, because choosing which one is wrong is a judgement about
+	// the work rather than about the graph.
+	for _, cy := range refs.Cycles {
+		resp.Cycles = append(resp.Cycles, &rigv1.Cycle{Items: cy})
+	}
+	c.reply(f.GetStreamId(), resp)
 }
 
 func (d *Daemon) serveProjectBrief(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {

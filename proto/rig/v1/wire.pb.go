@@ -3936,7 +3936,16 @@ type RecordRefsRequest struct {
 	// Zero means the server's default depth. The answer says which depth it
 	// actually served, because a caller that did not set this cannot otherwise
 	// tell a cheap question from an empty answer.
-	Depth         uint32 `protobuf:"varint,2,opt,name=depth,proto3" json:"depth,omitempty"`
+	Depth uint32 `protobuf:"varint,2,opt,name=depth,proto3" json:"depth,omitempty"`
+	// ⛔ OPT IN TO LEAVING THE RECORD'S OWN PROJECT, AND THE FIELD EXISTS
+	// BECAUSE WITHOUT IT SECTION 39's RULING IS ONLY HALF IMPLEMENTED. That
+	// section makes project-scoping a PERFORMANCE requirement rather than a
+	// preference - the predicate prunes the frontier at every hop, removing the
+	// work rather than filtering the same work, measured 98% cheaper - and says
+	// crossing is "asked for, never arrived at". A wire with no field to ask
+	// with serves only the default, so "correlated" would stop at the project
+	// boundary for every agent, permanently and silently.
+	CrossProject  bool `protobuf:"varint,3,opt,name=cross_project,json=crossProject,proto3" json:"cross_project,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3985,12 +3994,39 @@ func (x *RecordRefsRequest) GetDepth() uint32 {
 	return 0
 }
 
+func (x *RecordRefsRequest) GetCrossProject() bool {
+	if x != nil {
+		return x.CrossProject
+	}
+	return false
+}
+
 // Ref is one edge arriving at the record that was asked about.
+//
+// ⛔ THREE OF THESE FIELDS WERE ABSENT UNTIL 2026-09-16 LATE AND THE STORE HAD
+// BEEN COMPUTING THEM ALL ALONG. These messages were written before anything
+// dispatched them, so nothing ever compared them to `internal/record.Ref` -
+// which carries six fields where this carried three. It is the
+// `evidence`/`view` defect with the sign reversed: that was a served field
+// nothing reads, this was an ANSWER THE PACKAGE COMPUTES AND THE WIRE COULD NOT
+// CARRY, and both ANSWER rather than refuse.
 type Ref struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Src           string                 `protobuf:"bytes,1,opt,name=src,proto3" json:"src,omitempty"`
-	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
-	Distance      uint32                 `protobuf:"varint,3,opt,name=distance,proto3" json:"distance,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Src      string                 `protobuf:"bytes,1,opt,name=src,proto3" json:"src,omitempty"`
+	Type     string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Distance uint32                 `protobuf:"varint,3,opt,name=distance,proto3" json:"distance,omitempty"`
+	// ⛔ `kind` AND `title` ARE WHAT MAKE THE ANSWER READABLE IN ONE CALL. They
+	// let a reader tell a decision citing a requirement from a work-item
+	// implementing one without a second `record.get` per row - so dropping them
+	// turns one `record.refs` into one plus N, which is section 9's context
+	// budget paying for fields that were already computed.
+	Kind  string `protobuf:"bytes,4,opt,name=kind,proto3" json:"kind,omitempty"`
+	Title string `protobuf:"bytes,5,opt,name=title,proto3" json:"title,omitempty"`
+	// ⛔ `via` IS WHAT MAKES A DEPTH-3 ANSWER MEAN ANYTHING. At depth 1 it is the
+	// subject itself; beyond that, a `distance` with no `via` says how far and
+	// not through what, and the relationship the caller asked about is
+	// unreadable.
+	Via           string `protobuf:"bytes,6,opt,name=via,proto3" json:"via,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4044,6 +4080,27 @@ func (x *Ref) GetDistance() uint32 {
 		return x.Distance
 	}
 	return 0
+}
+
+func (x *Ref) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *Ref) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *Ref) GetVia() string {
+	if x != nil {
+		return x.Via
+	}
+	return ""
 }
 
 type RecordRefsResponse struct {
@@ -5413,14 +5470,18 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x03src\x18\x01 \x01(\tR\x03src\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x10\n" +
 	"\x03dst\x18\x03 \x01(\tR\x03dst\"\x16\n" +
-	"\x14RecordUnlinkResponse\"9\n" +
+	"\x14RecordUnlinkResponse\"^\n" +
 	"\x11RecordRefsRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
-	"\x05depth\x18\x02 \x01(\rR\x05depth\"G\n" +
+	"\x05depth\x18\x02 \x01(\rR\x05depth\x12#\n" +
+	"\rcross_project\x18\x03 \x01(\bR\fcrossProject\"\x83\x01\n" +
 	"\x03Ref\x12\x10\n" +
 	"\x03src\x18\x01 \x01(\tR\x03src\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x1a\n" +
-	"\bdistance\x18\x03 \x01(\rR\bdistance\"\xa0\x01\n" +
+	"\bdistance\x18\x03 \x01(\rR\bdistance\x12\x12\n" +
+	"\x04kind\x18\x04 \x01(\tR\x04kind\x12\x14\n" +
+	"\x05title\x18\x05 \x01(\tR\x05title\x12\x10\n" +
+	"\x03via\x18\x06 \x01(\tR\x03via\"\xa0\x01\n" +
 	"\x12RecordRefsResponse\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05depth\x18\x02 \x01(\rR\x05depth\x12\x1f\n" +

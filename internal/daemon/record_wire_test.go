@@ -633,3 +633,149 @@ func TestTheBriefCarriesTheNotesAndFeaturesTheDerivationComputes(t *testing.T) {
 		}
 	}
 }
+
+// TestRecordRefsCarriesEveryFieldTheStoreComputes is B57's guard, and the three
+// fields it asserts hardest are the three the wire could not carry until the
+// change that added this test.
+//
+// ⛔ THE DEFECT: RecordRefsRequest and Ref were written into the proto BEFORE
+// anything dispatched them, so nothing ever compared them to
+// internal/record.Ref. The store computes six fields per edge and the wire
+// carried three - `kind`, `title` and `via` were absent - and the request could
+// not express CrossProject at all. A caller would have received a well-formed
+// answer with half of it silently dropped.
+//
+// ⛔ WHY `kind`, `title` AND `via` ARE ASSERTED AND NOT JUST `src`: without the
+// first two a reader needs one record.get PER ROW to know what it is looking
+// at, which is section 9's context budget paying for fields already computed;
+// without `via` a distance-2 edge says how far and not through what, and the
+// relationship the caller asked about is unreadable.
+func TestRecordRefsCarriesEveryFieldTheStoreComputes(t *testing.T) {
+	sock := upRecordDaemon(t)
+	c := seated(t, sock, "team-lead")
+	ctx := recordCtx(t)
+
+	put := func(what string, req *rigv1.RecordPutRequest) string {
+		t.Helper()
+		var resp rigv1.RecordPutResponse
+		if err := c.Call(ctx, "rig.record.put", req, &resp); err != nil {
+			t.Fatalf("rig.record.put(%s): %v", what, err)
+		}
+		return resp.GetRecord().GetId()
+	}
+	link := func(src, typ, dst string) {
+		t.Helper()
+		if err := c.Call(ctx, "rig.record.link", &rigv1.RecordLinkRequest{
+			Src: src, Type: typ, Dst: dst,
+		}, &rigv1.RecordLinkResponse{}); err != nil {
+			t.Fatalf("rig.record.link(%s -%s-> %s): %v", src, typ, dst, err)
+		}
+	}
+
+	put("project", &rigv1.RecordPutRequest{
+		Id: "rig", Kind: "project", Project: "rig", Body: "rig itself",
+	})
+	subject := put("subject", &rigv1.RecordPutRequest{
+		Kind: "work-item", Project: "rig", Body: "the CLI seam",
+		Fields: map[string]string{"title": "the seam", "status": "active"},
+	})
+	citing := put("decision", &rigv1.RecordPutRequest{
+		Kind: "decision", Project: "rig", Body: "land all nine verbs at once",
+		Fields: map[string]string{"title": "nine at once"},
+	})
+	link(citing, "cites", subject)
+
+	var refs rigv1.RecordRefsResponse
+	if err := c.Call(ctx, "rig.record.refs",
+		&rigv1.RecordRefsRequest{Id: subject}, &refs); err != nil {
+		t.Fatalf("rig.record.refs: %v", err)
+	}
+
+	// ⛔ THE DEPTH ANSWERED, WHICH THE CALLER DID NOT ASK FOR. A caller that
+	// sent no depth cannot otherwise tell a cheap question from an empty
+	// answer, and record.Refs does not report it - the daemon derives it from
+	// the package's own exported default, so a zero here means that derivation
+	// is gone.
+	if refs.GetDepth() == 0 {
+		t.Error("the answer does not say which depth it served, so a caller " +
+			"who sent no depth cannot tell a bounded walk from an empty one")
+	}
+	if refs.GetId() != subject {
+		t.Errorf("the answer is about %q, not %q", refs.GetId(), subject)
+	}
+	if len(refs.GetRefs()) != 1 {
+		t.Fatalf("refs carries %d edges and exactly one record cites the "+
+			"subject: refs answers what points AT a record", len(refs.GetRefs()))
+	}
+
+	got := refs.GetRefs()[0]
+	for _, tc := range []struct{ field, got, want, why string }{
+		{"src", got.GetSrc(), citing, "the citing record's id"},
+		{"type", got.GetType(), "cites", "the link type of the edge"},
+		{
+			"kind", got.GetKind(), "decision",
+			"without it a reader cannot tell a decision citing a requirement " +
+				"from a work-item implementing one, and pays a record.get per row",
+		},
+		{
+			"title", got.GetTitle(), "nine at once",
+			"without it every row needs a second call to be readable at all",
+		},
+		{
+			"via", got.GetVia(), subject,
+			"without it a distance says how far and not through what",
+		},
+	} {
+		if tc.got != tc.want {
+			t.Errorf("Ref.%s is %q, want %q - %s", tc.field, tc.got, tc.want, tc.why)
+		}
+	}
+	if got.GetDistance() != 1 {
+		t.Errorf("a direct citation is at distance %d, not 1", got.GetDistance())
+	}
+
+	// ---- cross_project, which had no wire field at all ------------------
+	// ⛔ SECTION 39 MAKES SCOPING A PERFORMANCE REQUIREMENT AND SAYS CROSSING
+	// IS "ASKED FOR, NEVER ARRIVED AT". A wire that cannot ask serves only the
+	// default, so this pair - refused by default, served when asked - is the
+	// whole of that ruling and neither half proves it alone.
+	put("other project", &rigv1.RecordPutRequest{
+		Id: "shelf", Kind: "project", Project: "shelf", Body: "another project",
+	})
+	foreign := put("foreign citation", &rigv1.RecordPutRequest{
+		Kind: "decision", Project: "shelf", Body: "shelf depends on the record",
+		Fields: map[string]string{"title": "from shelf"},
+	})
+	link(foreign, "cites", subject)
+
+	var scoped rigv1.RecordRefsResponse
+	if err := c.Call(ctx, "rig.record.refs",
+		&rigv1.RecordRefsRequest{Id: subject}, &scoped); err != nil {
+		t.Fatalf("rig.record.refs(scoped): %v", err)
+	}
+	if n := len(scoped.GetRefs()); n != 1 {
+		t.Errorf("the default walk returned %d edges and should have stayed "+
+			"inside the subject's own project, which is one: crossing is "+
+			"asked for, never arrived at", n)
+	}
+
+	var crossed rigv1.RecordRefsResponse
+	if err := c.Call(ctx, "rig.record.refs",
+		&rigv1.RecordRefsRequest{Id: subject, CrossProject: true}, &crossed); err != nil {
+		t.Fatalf("rig.record.refs(cross_project): %v", err)
+	}
+	seen := map[string]bool{}
+	for _, r := range crossed.GetRefs() {
+		seen[r.GetSrc()] = true
+	}
+	if !seen[foreign] {
+		t.Errorf("cross_project=true did not reach the citation in another "+
+			"project: the request field is on the wire but nothing carries it "+
+			"to the store, so section 39's opt-in is unreachable (got %d edges)",
+			len(crossed.GetRefs()))
+	}
+	if !seen[citing] {
+		t.Error("cross_project=true LOST the same-project citation: opting in " +
+			"to crossing widens the walk, it does not move it")
+	}
+}

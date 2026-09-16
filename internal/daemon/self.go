@@ -105,10 +105,11 @@ func selfDeclaration() kernel.Declaration {
 			// ALL would stop rig answering. An undeclared verb is not a
 			// missing row, it is rig refusing itself.
 			//
-			// `record.refs` IS NOT HERE. It is slice 4 and the reverse lookup
-			// it needs is unbuilt, so declaring it would be the
-			// wire-that-lies this section refuses for standard.stamp and
-			// project.gate. It lands with the slice that serves it.
+			// `record.refs` IS HERE FROM 2026-09-16 LATE. It was held out while
+			// its reverse lookup was unbuilt - declaring it then would have
+			// been the wire-that-lies this section still refuses for
+			// standard.stamp and project.gate - and it landed with the slice
+			// that serves it, exactly as that rule intends.
 			readOnly("record.get", "Record get",
 				"Read one record, at head or at a version",
 				"Answers one record. Version 0 means HEAD rather than version zero, which no record has - the first write is version 1.",
@@ -121,6 +122,10 @@ func selfDeclaration() kernel.Declaration {
 				"Read every version of one record",
 				"Answers every version of one record, oldest first, each with the provenance of the write that made it.",
 				"One record's versions, oldest first."),
+			readOnly("record.refs", "Record refs",
+				"What points AT this record",
+				"Walks the reverse edges and answers what cites, blocks or is part of this record - section 39's \"correlated\", and the direction files cannot go. The walk is bounded by depth and says which depth it ANSWERED, flags a partial answer rather than returning a short list that looks complete, and reports any cycle it crossed by name without resolving it. It stays inside the record's own project unless asked to cross, which is a performance property rather than a preference.",
+				"What points at the record, each edge naming its kind, title and the record it arrived through."),
 			readOnly("project.brief", "Project brief",
 				"The derived answer to what is going on here",
 				"Derives next-up work in execution order, what is blocked and on whom, any blocks cycle by name, and the must-read set for this session. Nothing here is stored and no seat writes prose: the whole answer is computed at read time. Asking for it MARKS the must-read set delivered to this session, which is the one side effect on this surface and is per-session state rather than anything written to the record.",

@@ -808,10 +808,12 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	// dispatch it lives in. The inner switch is record.go's, beside the
 	// handlers it chooses between.
 	//
-	// `record.refs` is DELIBERATELY ABSENT - slice 4, and the reverse lookup
-	// it needs is not built. record.go says why.
+	// `record.refs` JOINED THEM 2026-09-16 late. Its reverse lookup is built
+	// (internal/record/refs.go), and its wire messages were grown to carry the
+	// three fields the store computes and they did not - record.go says why.
 	case "record.put", "record.get", "record.query", "record.history",
-		"record.link", "record.unlink", "progress.step", "project.brief":
+		"record.link", "record.unlink", "record.refs", "progress.step",
+		"project.brief":
 		d.serveRecord(ctx, c, f, command)
 
 	case "down":
