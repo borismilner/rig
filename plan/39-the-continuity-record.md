@@ -46,6 +46,31 @@ that number was read as the cost of the whole thing. **The MVP is slices 1, 2
 and 4** - and a number for that subset is owed rather than assumed, because
 the sizing was never cut that way.
 
+### ⛔ THE MVP SHIPS NO EXPORT, SO THE LOGBOOK STAYS AUTHORITATIVE
+
+**Raised by `backend-record` 2026-09-16 while sizing the MVP subset, and it is
+the one condition attached to the MVP ranking above.**
+
+**Slice 5 is the projection - the record written out as files, committed and
+pushed - and slice 5 IS NOT IN THE MVP.** So for the whole MVP window, rig's
+project and case management lives in **one SQLite file, on one laptop, with no
+remote.**
+
+⛔ **THE CONDITION, AND IT IS NOT OPTIONAL: THE LOGBOOK STAYS AUTHORITATIVE AND
+NOTHING DELETES IT UNTIL SLICE 5 SHIPS.**
+
+**This is not a new mechanism and not a gap.** §39's migration rule already says
+the logbook stays authoritative until the projection is comparable and that both
+run in parallel. **What changes is the timing: the MVP makes that promise
+load-bearing months earlier than the slice that honours it.**
+
+**The one way it goes wrong is a reader acting on "rig replaces the logbook"
+while the export does not exist** - and §39 says that sentence in several
+places, because it was written assuming all eight slices. **Against a
+single-file store with no remote, acting on it is how the only copy is lost.**
+§39's own words on exactly this failure: *"this is how a laptop ends up holding
+the only copy."*
+
 ### ⛔ A `blocks` CYCLE IS DETECTED AND REPORTED, NEVER RESOLVED
 
 **RULED BY THE LEAD 2026-09-16, on `backend-record`'s finding, because it
@@ -537,7 +562,7 @@ per axis.
 | **query by field** | find a requirement without reading 5,218 lines | SQL directly; or hand-built secondary indexes over a KV store, **which is the half §38b objects to** |
 | **links and traversal** | the reverse edge, and multi-hop *"what does this touch"* | SQL with recursive CTEs at this scale; a graph engine is almost certainly oversized and the search should say so with a number rather than an opinion |
 | **full text** | ranked, stemmed search over the prose, not grep | SQLite FTS5; `bleve` |
-| **semantic search** | *"what did he say about the tray icon"* answered without the word "tray" | **A SEPARATE DECISION, NOT A LIBRARY.** It brings an embedding model, a runtime and a model-versioning problem. Named here so it is chosen deliberately or refused deliberately |
+| **semantic search** | ⛔ **THE WORKED EXAMPLE HERE DID NOT SURVIVE BEING CHECKED.** It read *"what did he say about the tray icon" answered without the word "tray"*. `[ran it]`: **"tray" appears 45 times in `plan/` and FTS5 answers that query at rank 1.** The one piece of evidence offered for the axis argues for FULL TEXT instead. **This is not an argument against semantic search - it is the absence of one.** | **A SEPARATE DECISION, NOT A LIBRARY.** It brings an embedding model, a runtime and a model-versioning problem. ⛔ **REFUSED 2026-09-16 (B28), deliberately rather than by default**, on §29's non-goals and §22's bar. **The ARMED trigger to reopen it: a REAL query, written down, that full text demonstrably failed to answer.** Not a hypothetical one |
 
 **WHAT THE SEARCH MUST PRICE, because a combination is not free:** each added
 dependency costs footprint, a §22 bar to clear, and a §13 trust surface. **Two
@@ -691,6 +716,18 @@ case-shaped brief surfaces it exactly as `project.brief` already
 surfaces next-up work-items - the same derivation aimed at a
 different container.
 
+⛔ **AND THE VERB THAT SERVES IT IS `project.brief` ITSELF, TAKING A
+CONTAINER OF KIND `project` OR `case`.** The verb list calls itself
+exhaustive at eleven and there is no `case.brief` in it, so this
+paragraph assumed a verb that did not exist. **Twelve verbs is not
+better than eleven**, and §39 already reuses `note` and `part-of`
+rather than inventing kinds per container. **The name stays and is
+mildly wrong; the alternative is a second verb whose body is the
+first one's.** A `case` differs from a `project` in three fields -
+`status` is `open`/`resolved`, and there is no `semver` and no
+`feature` - so the brief omits rows 10 and 2's `semver` for a case
+and carries row 11 instead.
+
 ### Comments, and anything else Boris attaches to a record
 
 **Boris, 2026-09-15: *"The user can assign a comment/question or
@@ -841,14 +878,48 @@ so the schema is versioned and improved in one place like everything else.
 
 **It renders `project.brief`.** The same call an arriving agent makes.
 
+⛔ **THIS TABLE CARRIED SIX ROWS AND THE BRIEF HAS ELEVEN SECTIONS.** Five were
+specified elsewhere in this section and appeared in no list, so **a builder
+working from the table alone shipped something wrong in six ways.** Found by
+`backend-record` 2026-09-16, assembling the first consolidated field list from
+**fourteen separate specifying sites** `[ran it]`. Corrected here.
+
 | The brief carries | |
 |---|---|
-| open work items, each with its last progress step and its age | a stale step beside a live session is the signal that a seat is stuck |
-| **the next up to `next_up_n` work-items, in execution order** | title, `description_short`, `priority`, `status`, `owner`, `tags`, `target_date` - **the compact card, never `description_long`.** A list meant to be scanned in one pass fails its own readability requirement the moment it carries a paragraph per row; the long form is one `record.get` away |
-| **any notes `part-of` the project itself, or `part-of` a work-item it lists** | rendered in full, never summarised - **this is Boris's comment/question mechanism above**, and an agent that skips it has not read the item. The next-up-N compact card carries only whether one is attached; the note's own text is one `record.refs` away, same rule as `description_long` |
-| what is blocked, and on whom | including what is waiting on Boris |
-| standards drift, and any check now due | |
-| the must-read set and whether this session has cleared it | |
+| **1. open work items NOT in the next-up set**, each with its last progress step and its age | a stale step beside a live session is the signal that a seat is stuck. ⛔ **THE TWO LISTS ARE DISJOINT BY CONSTRUCTION**, and this sentence is the fix for a contradiction: rows 1 and 3 gave the SAME item two incompatible renderings, because notes are *"rendered in full"* for an item this list carries and *"only whether one is attached"* on a compact card. Disjoint lists give every item exactly one rendering and drop neither rule |
+| **2. the next up to `next_up_n` work-items, in execution order** | title, `description_short`, `priority`, `status`, `owner`, `tags`, `target_date`, **`semver`**, and a flag for whether a note is attached - **the compact card, never `description_long`.** A list meant to be scanned in one pass fails its own readability requirement the moment it carries a paragraph per row; the long form is one `record.get` away. **`semver` is on it because Boris's word for the metadata was "exhaustive" and the brief is where metadata is seen**; it is one short string answering *"how far along is this"*, which is the brief's whole job |
+| ⛔ **"EXECUTION ORDER" IS DEFINED HERE**, not in the `case` section | **a topological sort over `blocks`, among items whose `status` is `active` AND whose latest `progress.step` is not `done`.** Both halves are corrections. The definition previously existed ONLY as a back-reference inside the `case` row, so **a builder reading the project half end to end never learned what the phrase meant.** And *"among active items"* alone is ambiguous in this schema: §39 is explicit that completion lives in the progress stream rather than in `status`, so `status == active` on its own **keeps a finished item in next-up forever and ships a list that never empties** |
+| **3. any notes `part-of` the project itself, or `part-of` a work-item in list 1** | rendered in full, never summarised - **this is Boris's comment/question mechanism above**, and an agent that skips it has not read the item. The next-up compact card carries only whether one is attached; the note's own text is one `record.refs` away, same rule as `description_long` |
+| **4. what is blocked, and on whom** | including what is waiting on Boris, **and any `blocks` CYCLE, naming its items** - see the cycle ruling above |
+| **5. standards drift, and any check now due** | |
+| **6. the must-read set and whether this session has cleared it** | ⛔ **THIS SECTION MUTATES STATE AND THE TABLE PRESENTED ALL ELEVEN IDENTICALLY.** The gate's rule is *"ONE CALL SATISFIES IT - `project.brief` returns the must-read set"*, so **calling the brief MARKS THE SET DELIVERED to this session.** It is the only section with a side effect. **A builder implementing the brief as a pure derivation in slice 2 rewrites it in slice 6**; saying so costs a sentence now |
+| **7. the projection is BEHIND, and by how far** | **THE HEALTH BLOCK, rows 7-9, and none of them was in this table.** Each exists so a degraded state is VISIBLE rather than silent |
+| **8. pending entries, visible AS pending** | attack finding 1 |
+| **9. the record repository is LOCAL-ONLY because a push failed** | §39's own words: *"this is how a laptop ends up holding the only copy."* ⛔ **A brief built from the old six-row table reported a healthy-looking project that was not backed up** |
+| **10. features** | features at `stage: building`, plus counts per stage. **This row resolves a CONTRADICTION 20 lines wide:** the GUI overview paragraph says the brief carries *"next-up work-items, **features**, drift, gate status"* and this table had no features row. **The paragraph is the side written against Boris's actual request** - `feature` is a kind he asked for by name with a `stage` field - **and a brief without features cannot drive the overview that paragraph specifies** |
+| **11. a case's `attention_n` notes** | priority desc, then `created_at` desc. See the cases section |
+
+#### WHICH OF THE ELEVEN SECTIONS EACH VIEW CARRIES
+
+⛔ **THE TWO VIEWS WERE NAMED AND NEVER SPECIFIED.** Attack finding 9 rules one
+derivation, two views, *"and the caller says which"* - and nothing said which
+sections differ. **Unanswerable from §39 until now: is the must-read set in the
+human view? Is the health block in both?**
+
+| Section | Human | Agent |
+|---|---|---|
+| 1, 2, 4 - open, next-up, blocked | yes | yes |
+| 3 - notes | yes | **yes** - finding 9: an agent that skips them has not read the item |
+| 5 - standards drift | yes | yes |
+| **6 - must-read set** | **no** - it is not a decision he makes | **yes, it IS the gate** |
+| **7, 8, 9 - the health block** | **yes** - these are his decisions to make | as a FLAG only |
+| 10 - features | yes | yes |
+| 11 - case notes | yes | yes |
+
+⛔ **THIS TABLE IS DERIVED FROM FINDING 9's REASONING, NOT READ OUT OF §39**, and
+it is the one part of the brief's specification that was proposed rather than
+recovered. **It is written down so it can be argued with**, which an absence
+cannot be.
 
 **ONE DERIVATION, TWO VIEWS, AND THE CALLER SAYS WHICH.** The derivation is
 shared - that is what makes the human view free - but **he wants *is this going
@@ -974,9 +1045,28 @@ superior to the documents - and its own twelve-entry register.** Folding it in
 would have moved a gate Boris narrowed on 2026-09-12 and blurred two
 acceptance tests into one.
 
-**What does NOT change either way:** the record depends on durable storage, so
-**row 3 keeps its position in the set and the record follows it.** That
-dependency is a fact about the build order and was true under both answers.
+**What does NOT change either way:** the record brings its OWN durable storage.
+**Tension 13 establishes that the coordination store** (`bbolt`, chosen by B25
+for leases and CAS) **does not answer the record's axes**, so the record was
+never going to inherit storage from §37's set. **The record's only storage
+dependency is B28** - a dependency on a DECISION, not on a row. Row 3's position
+in §37 is decided on §37's own grounds and §39 does not constrain it.
+
+⛔ **THIS PARAGRAPH USED TO PIN THE RECORD BEHIND ROW 3 AND IT WAS WRONG IN
+THREE WAYS AT ONCE.** It read *"the record depends on durable storage, so row 3
+keeps its position in the set and the record follows it."* Written 2026-09-15,
+when row 3 was the generic versioned blackboard. **Boris narrowed row 3 to the
+seat claim on 2026-09-16 morning, and rows 2-5 were cancelled outright that
+evening. The sentence outlived both** - and tension 13 had contradicted it from
+the day the two were written.
+
+**IT IS RECORDED RATHER THAN QUIETLY DELETED BECAUSE IT IS §39's OWN CASE MADE
+AGAINST §39's OWN SPECIFICATION.** A `record.refs` on the row-3 dependency would
+have listed this paragraph the moment row 3 changed, and the gate's re-arm would
+have fired. **The capability this section specifies is the one whose absence
+produced the defect**, found in the document that specifies it. It is also
+`COORDINATION.md` rule 8's class - a fact that was true with no way to announce
+it had stopped being - and the first instance found inside `plan/`.
 
 **This closes the "row C" ordering question `00-rig-kickoff.md`'s Step 0 put
 to §37 too**: with the record beside the set rather than in it, there is no
@@ -1037,8 +1127,13 @@ record, because it reads as a record.**
 **THE ONE THAT IS NOT A MECHANISM AND MUST BE SAID: a record nobody wrote is
 still nothing.** The gate refuses a write without a read; it cannot force a
 session to record what it learned. **`project.brief` reporting a work item whose
-progress stream has been silent for an hour is the closest rig gets**, and that
-is a signal to Boris rather than a guarantee.
+progress stream has been silent for an hour is the closest rig gets** - ⛔ **and
+the brief carries THE AGE AND NO THRESHOLD, deliberately.** The data is in row 1
+already. **A threshold is a judgement about whether work is going well, which is
+domain logic, which §29 non-goal 1 keeps out of rig.** Stated so nobody adds one
+later believing its absence was an oversight. **The age is a signal to Boris
+rather than a guarantee**, and reading it is his job precisely because deciding
+what it means is not rig's.
 
 ### The build order, in eight slices, each one demonstrable on its own
 
@@ -1066,7 +1161,7 @@ record is live.**
 | Step | |
 |---|---|
 | **import structure mechanically** | `plan/` sections become `requirement` records, `DECISIONS.md` entries become `decision` records, `BACKLOG.md` rows become `work-item` records, `COORDINATION.md` rows become ownership records. **The structure is already there** - this project has been writing tables with stable shapes for three days |
-| **derive the links from the citations** | ~370 of them, all of the form *"PLAN.md section 37"*. **This is the first real test of "correlated"**: if the import cannot turn an existing citation into a link, the model is wrong and it is better to find that out on an import than on a year of use |
+| **derive the links from the citations** | ⛔ **MEASURED 2026-09-16 AND BOTH HALVES OF THE OLD CLAIM WERE WRONG.** This read *"~370 of them, all of the form `PLAN.md section 37`"*. `[ran it]`: **4,206 `§NN` citation edges** across `plan/` and the logbook, 42 distinct targets, **maximum in-degree 758** (§5). **The count is 11x higher and the dominant form is `§NN`; the prose form measures 15.** Excludes two archived `PLAN.md` snapshots under `agent-work/` that inflated a first pass by 313 - **an archived copy of a generated document is not an independent citation, and a grep cannot tell the two apart.** ⛔ **AND 78% ARE SECTION-GRAINED, WHICH IS ATTACK FINDING 5's FAILED ROW:** 911 carry a subsection letter, the other 3,295 resolve only to a whole section, and §37 is 942 lines. **So the migration's success number STARTS AT 22%, and the remaining 78% is not a parsing problem** - a `§37` does not contain the information needed to resolve it. **This is the first real test of "correlated"**: if the import cannot turn an existing citation into a link, the model is wrong and it is better to find that out on an import than on a year of use |
 | **and the import's unit is the REQUIREMENT, never the section** | **Attack finding 5, which is the one that would have let this pass while delivering nothing.** §37 is 738 lines; a link to it is the same coarse pointer in a new format. **A citation resolvable only to a section is a FAILED row, counted and reported**, and the migration's success number is the share resolving to ONE record |
 | **run both systems in parallel until the projection is comparable to the logbook** | and **this is a pattern this project has already proved**: `tools/plansplit.py` refuses to write anything until it has shown the parts reassemble into the original byte for byte. **The migration owes the same proof before the logbook stops being authoritative** |
 | **cut over per project, never estate-wide** | §37 again. A second project follows only after rig's own has run long enough to have been wrong once |
