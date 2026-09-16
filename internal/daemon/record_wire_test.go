@@ -152,7 +152,7 @@ func TestTheRecordVerbsAreReachableUnderSection39sOwnNames(t *testing.T) {
 	// The brief derives it back. NOTHING HERE WAS STORED AS PROSE.
 	var brief rigv1.ProjectBriefResponse
 	if err := c.Call(ctx, "rig.project.brief", &rigv1.ProjectBriefRequest{
-		Project: "rig", View: rigv1.BriefView_BRIEF_VIEW_AGENT,
+		Project: "rig",
 	}, &brief); err != nil {
 		t.Fatalf("rig.project.brief: %v", err)
 	}
@@ -316,5 +316,75 @@ func TestAnUnnamedEstateRefusesTheRecordVerbsAndSaysWhy(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "unnamed") {
 		t.Errorf("the refusal does not name the cause: %v", err)
+	}
+}
+
+// TestNoServedRequestFieldIsSilentlyDropped walks every record request message
+// and fails on a field no handler reads.
+//
+// ⛔ IT EXISTS BECAUSE ONE ALREADY SHIPPED. `ProgressStepRequest` carried
+// `string evidence = 4` for one commit: section 39 names evidence in its
+// definition of a step, so it went on the wire, and nothing ever read it -
+// record.StepRequest has no such field and serveProgressStep never called
+// GetEvidence. A caller could set it, get a SUCCESS, and lose what it sent.
+//
+// WHY THAT IS WORSE THAN AN UNDECLARED VERB, which is the failure section 39
+// spends paragraphs refusing for standard.stamp and project.gate: an
+// undeclared verb REFUSES, so the caller finds out in one call. A served field
+// that is dropped ANSWERS. The rule that selfDeclaration() is the contract
+// does not reach inside a message the daemon already serves, and this test is
+// what covers that gap.
+//
+// THE CHECK IS THE DESCRIPTOR AGAINST THIS FILE'S OWN LIST, deliberately, and
+// not a walk of the handler source. A source walk would have to parse Go to
+// decide whether a GetX() result reaches the store, which is the second source
+// of truth this repository keeps refusing to build. A hand-kept list fails
+// LOUDLY on the one event that matters - somebody adds a field - and the
+// failure names the field and tells them what to do about it.
+func TestNoServedRequestFieldIsSilentlyDropped(t *testing.T) {
+	// read is every field the daemon actually takes off the request and passes
+	// to internal/record. Adding a field here is a claim that record.go reads
+	// it; adding one to the proto without adding it here is the defect.
+	read := map[string][]string{
+		"RecordPutRequest":     {"id", "if_version", "kind", "project", "body", "fields"},
+		"RecordGetRequest":     {"id", "version"},
+		"RecordQueryRequest":   {"project", "kind"},
+		"RecordHistoryRequest": {"id"},
+		"RecordLinkRequest":    {"src", "type", "dst"},
+		"RecordUnlinkRequest":  {"src", "type", "dst"},
+		"ProgressStepRequest":  {"item", "state", "note"},
+		"ProjectBriefRequest":  {"project"},
+	}
+
+	files := (&rigv1.ProgressStepRequest{}).ProtoReflect().Descriptor().ParentFile()
+	msgs := files.Messages()
+	seen := 0
+	for i := range msgs.Len() {
+		md := msgs.Get(i)
+		want, ok := read[string(md.Name())]
+		if !ok {
+			continue
+		}
+		seen++
+		isRead := map[string]bool{}
+		for _, f := range want {
+			isRead[f] = true
+		}
+		fields := md.Fields()
+		for j := range fields.Len() {
+			name := string(fields.Get(j).Name())
+			if !isRead[name] {
+				t.Errorf("%s.%s is ON THE WIRE and NO HANDLER READS IT: a caller "+
+					"that sets it gets a success and loses the value. Either read it "+
+					"in serveRecord and add it to this test's list, or `reserved` the "+
+					"field number the way ProgressStepRequest reserves 4",
+					md.Name(), name)
+			}
+		}
+	}
+	if seen != len(read) {
+		t.Fatalf("checked %d served request messages, expected %d - the "+
+			"descriptor walk found fewer messages than this test names, so it "+
+			"proved nothing about the ones it missed", seen, len(read))
 	}
 }

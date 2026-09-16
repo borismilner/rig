@@ -1110,9 +1110,28 @@ message ProgressStepRequest {
   // What happened, in the seat's own words. Optional.
   string note = 3;
 
-  // Optional link to evidence - what the step is claiming, so the claim is
-  // checkable rather than asserted.
-  string evidence = 4;
+  // 4 IS RESERVED, NOT REUSED, AND IT WAS SERVED FOR ONE COMMIT WHILE DOING
+  // NOTHING.
+  //
+  // It was `string evidence = 4`, put here because section 39 names evidence
+  // in its definition of a step - "the work item, one line of what, a state,
+  // and optionally a link to evidence". NOTHING READ IT. record.StepRequest
+  // has no Evidence field and serveProgressStep never called GetEvidence, so a
+  // caller could set it, receive a SUCCESS, and lose what it sent.
+  //
+  // ⛔ THAT IS WORSE THAN THE WIRE-THAT-LIES THIS SECTION REFUSES FOR
+  // standard.stamp AND project.gate, AND IT IS WORTH SAYING WHY: an undeclared
+  // verb REFUSES, so a caller finds out. A served field that is dropped
+  // ANSWERS, so the caller is told it worked. The rule that the declarations
+  // are the contract does not cover this case, because the field is inside a
+  // message the daemon serves.
+  //
+  // It comes back WITH the store field that holds it, not before. Reserving
+  // the number rather than deleting the line is Blockage field 3's move, for
+  // Blockage field 3's reason: section 21 serves every major it has shipped,
+  // so a field number is the one thing that cannot be quietly redefined.
+  reserved 4;
+  reserved "evidence";
 }
 
 message ProgressStepResponse {
@@ -1180,11 +1199,28 @@ message Blockage {
 message ProjectBriefRequest {
   string project = 1;
 
-  // WHICH VIEW. One derivation, two views, and the caller says which: the
-  // human wants "is this going well and what must I decide", an arriving agent
-  // wants "what must I read, what is claimed, what is decided". One rendering
-  // for both is mediocre for each.
-  BriefView view = 2;
+  // 2 IS RESERVED, NOT REUSED, AND IT WAS THE SHARPER OF THE TWO DROPPED
+  // FIELDS.
+  //
+  // It was `BriefView view = 2`, for section 39's one-derivation-two-views
+  // rule: the human wants "is this going well and what must I decide", an
+  // arriving agent wants "what must I read, what is claimed, what is decided".
+  // THE VIEWS ARE NOT BUILT. serveProjectBrief calls st.Brief(project) and the
+  // store renders one shape, so the field was read by nothing.
+  //
+  // ⛔ AND THE WIRE TEST SET IT. record_wire_test.go asked for
+  // BRIEF_VIEW_AGENT and passed, because a dropped field and an honoured one
+  // produce the same response bytes. That is worse than the `evidence` field
+  // reserved in ProgressStepRequest below: evidence was never set by anybody,
+  // while this one was set by the demonstration that proves the verb works.
+  // A test that exercises a field cannot, on its own, tell that it was ignored.
+  //
+  // It comes back WITH the second view, which is a change to the brief's
+  // derivation and not to this message. BriefView is kept: an enum no field
+  // references is unreachable rather than untrue, and deleting it would put
+  // section 21's wire-compatibility rule in play for nothing.
+  reserved 2;
+  reserved "view";
 }
 
 enum BriefView {

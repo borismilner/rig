@@ -4039,10 +4039,7 @@ type ProgressStepRequest struct {
 	Item  string    `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
 	State StepState `protobuf:"varint,2,opt,name=state,proto3,enum=rig.v1.StepState" json:"state,omitempty"`
 	// What happened, in the seat's own words. Optional.
-	Note string `protobuf:"bytes,3,opt,name=note,proto3" json:"note,omitempty"`
-	// Optional link to evidence - what the step is claiming, so the claim is
-	// checkable rather than asserted.
-	Evidence      string `protobuf:"bytes,4,opt,name=evidence,proto3" json:"evidence,omitempty"`
+	Note          string `protobuf:"bytes,3,opt,name=note,proto3" json:"note,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4094,13 +4091,6 @@ func (x *ProgressStepRequest) GetState() StepState {
 func (x *ProgressStepRequest) GetNote() string {
 	if x != nil {
 		return x.Note
-	}
-	return ""
-}
-
-func (x *ProgressStepRequest) GetEvidence() string {
-	if x != nil {
-		return x.Evidence
 	}
 	return ""
 }
@@ -4372,13 +4362,8 @@ func (x *Blockage) GetBlockers() []*Blocker {
 }
 
 type ProjectBriefRequest struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	Project string                 `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
-	// WHICH VIEW. One derivation, two views, and the caller says which: the
-	// human wants "is this going well and what must I decide", an arriving agent
-	// wants "what must I read, what is claimed, what is decided". One rendering
-	// for both is mediocre for each.
-	View          BriefView `protobuf:"varint,2,opt,name=view,proto3,enum=rig.v1.BriefView" json:"view,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Project       string                 `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4418,13 +4403,6 @@ func (x *ProjectBriefRequest) GetProject() string {
 		return x.Project
 	}
 	return ""
-}
-
-func (x *ProjectBriefRequest) GetView() BriefView {
-	if x != nil {
-		return x.View
-	}
-	return BriefView_BRIEF_VIEW_UNSPECIFIED
 }
 
 type ProjectBriefResponse struct {
@@ -4771,12 +4749,11 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\ttruncated\x18\x04 \x01(\bR\ttruncated\x12%\n" +
 	"\x06cycles\x18\x05 \x03(\v2\r.rig.v1.CycleR\x06cycles\"\x1d\n" +
 	"\x05Cycle\x12\x14\n" +
-	"\x05items\x18\x01 \x03(\tR\x05items\"\x82\x01\n" +
+	"\x05items\x18\x01 \x03(\tR\x05items\"v\n" +
 	"\x13ProgressStepRequest\x12\x12\n" +
 	"\x04item\x18\x01 \x01(\tR\x04item\x12'\n" +
 	"\x05state\x18\x02 \x01(\x0e2\x11.rig.v1.StepStateR\x05state\x12\x12\n" +
-	"\x04note\x18\x03 \x01(\tR\x04note\x12\x1a\n" +
-	"\bevidence\x18\x04 \x01(\tR\bevidence\":\n" +
+	"\x04note\x18\x03 \x01(\tR\x04noteJ\x04\b\x04\x10\x05R\bevidence\":\n" +
 	"\x14ProgressStepResponse\x12\"\n" +
 	"\x04step\x18\x01 \x01(\v2\x0e.rig.v1.RecordR\x04step\"\x96\x01\n" +
 	"\tItemState\x12\x0e\n" +
@@ -4793,10 +4770,9 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x04item\x18\x01 \x01(\tR\x04item\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12+\n" +
 	"\bblockers\x18\x04 \x03(\v2\x0f.rig.v1.BlockerR\bblockersJ\x04\b\x03\x10\x04R\n" +
-	"blocked_by\"V\n" +
+	"blocked_by\";\n" +
 	"\x13ProjectBriefRequest\x12\x18\n" +
-	"\aproject\x18\x01 \x01(\tR\aproject\x12%\n" +
-	"\x04view\x18\x02 \x01(\x0e2\x11.rig.v1.BriefViewR\x04view\"\xca\x02\n" +
+	"\aproject\x18\x01 \x01(\tR\aprojectJ\x04\b\x02\x10\x03R\x04view\"\xca\x02\n" +
 	"\x14ProjectBriefResponse\x12\x18\n" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x12%\n" +
 	"\x04open\x18\x02 \x03(\v2\x11.rig.v1.ItemStateR\x04open\x12*\n" +
@@ -5003,16 +4979,15 @@ var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	10, // 39: rig.v1.ItemState.state:type_name -> rig.v1.StepState
 	10, // 40: rig.v1.Blocker.state:type_name -> rig.v1.StepState
 	61, // 41: rig.v1.Blockage.blockers:type_name -> rig.v1.Blocker
-	11, // 42: rig.v1.ProjectBriefRequest.view:type_name -> rig.v1.BriefView
-	60, // 43: rig.v1.ProjectBriefResponse.open:type_name -> rig.v1.ItemState
-	60, // 44: rig.v1.ProjectBriefResponse.next_up:type_name -> rig.v1.ItemState
-	62, // 45: rig.v1.ProjectBriefResponse.blocked:type_name -> rig.v1.Blockage
-	57, // 46: rig.v1.ProjectBriefResponse.cycles:type_name -> rig.v1.Cycle
-	47, // [47:47] is the sub-list for method output_type
-	47, // [47:47] is the sub-list for method input_type
-	47, // [47:47] is the sub-list for extension type_name
-	47, // [47:47] is the sub-list for extension extendee
-	0,  // [0:47] is the sub-list for field type_name
+	60, // 42: rig.v1.ProjectBriefResponse.open:type_name -> rig.v1.ItemState
+	60, // 43: rig.v1.ProjectBriefResponse.next_up:type_name -> rig.v1.ItemState
+	62, // 44: rig.v1.ProjectBriefResponse.blocked:type_name -> rig.v1.Blockage
+	57, // 45: rig.v1.ProjectBriefResponse.cycles:type_name -> rig.v1.Cycle
+	46, // [46:46] is the sub-list for method output_type
+	46, // [46:46] is the sub-list for method input_type
+	46, // [46:46] is the sub-list for extension type_name
+	46, // [46:46] is the sub-list for extension extendee
+	0,  // [0:46] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_wire_proto_init() }
