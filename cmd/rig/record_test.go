@@ -6,6 +6,7 @@ import (
 	"flag"
 	"io"
 	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/boris-milner/rig/client"
+	"github.com/boris-milner/rig/internal/paths"
 	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )
 
@@ -1477,5 +1479,184 @@ func TestATypedFieldReachesTheDaemonUnderTheKeyItWasTyped(t *testing.T) {
 			t.Errorf("%q reached the daemon as %q, want %q: %v",
 				k, got, want, req.GetFields())
 		}
+	}
+}
+
+// ---- the real seam, through argv, against a socket -------------------------
+
+// atAFakeDaemon points this process's runtime directory at a fake daemon
+// serving one reply, so a verb that DIALS reaches it.
+//
+// ⛔ IT EXISTS BECAUSE EVERY OTHER TEST HERE SWAPS THE SEAM AND SO NEVER RUNS
+// IT. `serving()` replaces recordAPI with a fake, which is what makes the
+// renderers testable - and it means openRecordAPI, connect(), the dial, the
+// deadline and the release are covered by nothing. That is this package's
+// documented coverage hole, in the three verbs this seat owns.
+//
+// The directory is made with os.MkdirTemp rather than t.TempDir for the reason
+// buildskew_test.go gives at the same call: a unix socket path caps near 108
+// bytes and a Go test's own temp path can approach it.
+func atAFakeDaemon(t *testing.T, reply proto.Message) *fakeDaemon {
+	t.Helper()
+	runtime, err := os.MkdirTemp("", "rigseam")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(runtime) })
+	t.Setenv("XDG_RUNTIME_DIR", runtime)
+
+	sock, err := paths.Socket()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(sock), 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	// The skew line is stderr noise here and nothing under test: the fake
+	// answers rig.estate with whatever message it was given, so the check
+	// always has something to complain about. Redirected so a failure message
+	// in this file is readable.
+	saved := skewOut
+	skewOut = io.Discard
+	t.Cleanup(func() { skewOut = saved })
+
+	return serveFakeDaemonAt(t, sock, reply)
+}
+
+// ⛔ `rig record get` DIALS A SOCKET AND RENDERS WHAT CAME BACK OFF IT.
+//
+// Every other rendering test in this file hands recordText a Record the test
+// built. This one starts at argv and ends at stdout with a real wire in the
+// middle, so it is the only thing covering openRecordAPI, the dial, the
+// unmarshal and the provenance conversion together.
+func TestRecordGetDialsARealSocketAndRendersWhatCameBack(t *testing.T) {
+	at := time.Date(2026, 9, 16, 21, 0, 0, 0, time.UTC)
+	d := atAFakeDaemon(t, &rigv1.RecordGetResponse{Record: &rigv1.Record{
+		Id:      "01927-abc",
+		Version: 3,
+		Kind:    "requirement",
+		Project: "rig",
+		Body:    "the grain is the heading",
+		Fields:  map[string]string{titleKey: "the grain"},
+		Prov: &rigv1.Provenance{
+			Session: "sess-4f2", Seat: "terminal:someone", Epoch: 7,
+			AtUnixNano: at.UnixNano(),
+		},
+	}})
+
+	out, err := captureStdout(t, func() error {
+		return run([]string{"record", "get", "01927-abc"})
+	})
+	if err != nil {
+		t.Fatalf("rig record get against the fake: %v", err)
+	}
+
+	for _, want := range []string{
+		"01927-abc", "version 3", "requirement", "rig",
+		"the grain is the heading",
+		// ⛔ THE PROVENANCE IS THE HALF A FAKE SEAM CANNOT EXERCISE. It comes
+		// off `Provenance.at_unix_nano`, an int64 that has to become a
+		// time.Time without passing through the Unix epoch on the way.
+		"terminal:someone", "sess-4f2", "2026-09-16T21:00:00Z",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the rendered record does not carry %q:\n%s", want, out)
+		}
+	}
+
+	// AND THE VERB ASKED FOR WHAT IT WAS TOLD TO. The skew check dials first,
+	// so the record call is the one that is not rig.estate.
+	var asked int
+	for _, f := range d.frames(t) {
+		if f.GetMethod() == "rig.record.get" {
+			asked++
+		}
+	}
+	if asked != 1 {
+		t.Errorf("the daemon was sent %d rig.record.get frames, want 1: %v",
+			asked, d.frames(t))
+	}
+}
+
+// ⛔ THE BRIEF RENDERS FROM WIRE BYTES RATHER THAN FROM A STRUCT A TEST BUILT,
+// which is the only way briefFromWire and the renderer are exercised as one
+// thing. Every other brief test builds a Brief and hands it to a renderer, so
+// a mapping that dropped a field and a renderer that ignored one look the same.
+func TestTheBriefRendersWhatArrivedOnTheWire(t *testing.T) {
+	atAFakeDaemon(t, &rigv1.ProjectBriefResponse{
+		Project: "rig",
+		Kind:    "project",
+		Title:   "the swiss knife and the record under it",
+		Status:  "active",
+		Semver:  "0.4.1",
+		NextUp: []*rigv1.ItemState{{
+			Id: "01927-n", Title: "the seam",
+			State:         rigv1.StepState_STEP_STATE_STARTED,
+			SinceUnixNano: time.Now().Add(-2 * time.Minute).UnixNano(),
+			Note:          "dialling now",
+		}},
+		Open:     []*rigv1.ItemState{{Id: "01927-o", Title: "the coverage hole"}},
+		Features: []*rigv1.Feature{{Id: "01927-f", Title: "the record", Stage: "building"}},
+		Sections: []*rigv1.BriefSectionStatus{
+			{
+				Section: rigv1.BriefSection_BRIEF_SECTION_DRIFT,
+				State:   rigv1.SectionState_SECTION_STATE_NOT_COMPUTED,
+				Reason:  "the standards register is slice 6",
+			},
+		},
+	})
+
+	out, err := captureStdout(t, func() error { return run([]string{"brief", "rig"}) })
+	if err != nil {
+		t.Fatalf("rig brief against the fake: %v", err)
+	}
+
+	for _, want := range []string{
+		"the swiss knife and the record under it", "active", "v0.4.1",
+		// next-up, with the three columns the realigned BriefItem carries.
+		"01927-n", "started", "dialling now",
+		// open, as its OWN section rather than folded in.
+		"ALSO OPEN", "01927-o",
+		// features, and a not-computed section with the daemon's own reason.
+		"FEATURES", "the record", "building",
+		"the standards register is slice 6",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the brief does not carry %q:\n%s", want, out)
+		}
+	}
+	// ⛔ AND THE OPEN ITEM IS NOT ALSO IN NEXT-UP. Disjointness, asserted on
+	// the path where the mapping could break it rather than on a struct.
+	if n := strings.Count(out, "01927-o"); n != 1 {
+		t.Errorf("the open item appears %d times, so the two lists were "+
+			"merged somewhere between the wire and the page:\n%s", n, out)
+	}
+}
+
+// ⛔ THE SEAM'S RELEASE ACTUALLY CLOSES THE CONNECTION.
+//
+// withRecordAPI defers it on every verb, and nothing checked that it does
+// anything. A release that leaked would be invisible to every test in this
+// package and to a person running one command, and would show up only as a
+// daemon accumulating connections under an agent that calls rig in a loop.
+func TestTheSeamsReleaseClosesTheConnection(t *testing.T) {
+	atAFakeDaemon(t, &rigv1.RecordGetResponse{})
+
+	api, release, err := openRecordAPI()
+	if err != nil {
+		t.Fatalf("the seam did not open against a live socket: %v", err)
+	}
+	if _, err := api.Get(wireCtx(t), "01927-abc", 0); err != nil {
+		t.Fatalf("the seam opened and could not call: %v", err)
+	}
+
+	release()
+
+	// The control is the successful call above: without it, a seam that never
+	// worked at all would pass this assertion trivially.
+	if _, err := api.Get(wireCtx(t), "01927-abc", 0); err == nil {
+		t.Error("a call succeeded AFTER release, so the release does not " +
+			"close the connection and every record verb leaks one")
 	}
 }
