@@ -45,6 +45,7 @@ const verbVersion = "version"
 // staticVerbs are rig's own, and the only names in this file.
 var staticVerbs = []string{
 	"apps", "ping", "down", "estate", "peers", "describe", "mcp",
+	"record", "progress", "brief",
 	verbVersion, "completion", "help",
 }
 
@@ -127,6 +128,22 @@ func candidates(argv []string) []string {
 			// name is a real thing a reader would expect to filter on and
 			// `rig peers` does not filter.
 			return answersNothingElse()
+		case "record":
+			// The seven subcommands, read off the dispatcher's own list so
+			// this cannot drift from what `rig record` accepts. A fresh
+			// slice, because callers of complete() append to what they get.
+			return append([]string{}, recordSubcommands...)
+		case "progress":
+			return append([]string{}, progressSubcommands...)
+		case "brief":
+			// NOT answersNothingElse(), and the difference is a fact rather
+			// than a style: `rig brief` DOES take a positional - a project's
+			// or a case's slug - and rig simply cannot name them from here.
+			// The slugs live in the record store, which this completion has
+			// no verb to read; offering nothing is honest, and offering the
+			// estate's programs would be worse than offering nothing, since
+			// a program id is a name that exists and is never a project.
+			return flagNames(briefFlagSet().fs)
 		case verbVersion, "help":
 			return []string{"--json"}
 		}
@@ -134,6 +151,19 @@ func candidates(argv []string) []string {
 	default:
 		if argv[0] == "apps" {
 			return []string{"--commands", "--depth", "--json"}
+		}
+		// `rig record put <TAB>` offers that subcommand's own flags. Without
+		// this the word falls through to flagsOf, which asks the registry
+		// about a PROGRAM called record and offers --args, a flag only a
+		// declared command takes.
+		if argv[0] == "record" && len(argv) == 2 {
+			return flagNames(recordFlagSet(argv[1]).fs)
+		}
+		if argv[0] == "progress" && len(argv) == 2 {
+			return flagNames(progressFlagSet().fs)
+		}
+		if argv[0] == "brief" {
+			return flagNames(briefFlagSet().fs)
 		}
 		// `rig describe <program> <TAB>` offers that program's commands. It
 		// is the one static verb whose SECOND position is a program's own

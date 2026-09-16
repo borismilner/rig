@@ -82,6 +82,24 @@ func takesValue(arg string) bool {
 var valuedFlags = map[string]bool{
 	"timeout": true,
 	"depth":   true,
+
+	// Section 39's record verbs. Every one of these is a flag `rig record`,
+	// `rig progress` or `rig brief` declares as a non-boolean, and a missing
+	// entry here does NOT fail loudly: partition() hands the value to the
+	// positionals and the command dies with "flag needs an argument", which
+	// blames the flag rather than this map. That is the exact defect
+	// TestEveryFlagThatTakesAValueIsDeclaredToThePartitioner was written for,
+	// and TestEveryRecordFlagThatTakesAValueIsDeclaredToThePartitioner walks
+	// the record verbs' own sets against it.
+	"id":         true,
+	"kind":       true,
+	"project":    true,
+	"body":       true,
+	"field":      true,
+	"if-version": true,
+	"version":    true,
+	"state":      true,
+	"note":       true,
 }
 
 func usage() {
@@ -95,6 +113,11 @@ func usage() {
   ping <program>   round-trip a program through rigd ("rig" pings the daemon)
   estate           which estate this shell reached, and what it is for
   peers            who else is here, what each is for and what each is doing
+  record <cmd>     the continuity record: put, get, query, history, link,
+                   unlink, refs
+  progress step <item>
+                   append one step to a work item's stream
+  brief <project>  what is going on in a project or a case
   down             stop the daemon serving this XDG_RUNTIME_DIR
   version          print every version this build carries
   completion <sh>  a completion script for bash, zsh or fish
@@ -185,6 +208,12 @@ func run(args []string) error {
 		return cmdEstate(with(args[1:], lead))
 	case "peers":
 		return cmdPeers(with(args[1:], lead))
+	case "record":
+		return cmdRecord(with(args[1:], lead))
+	case "progress":
+		return cmdProgress(with(args[1:], lead))
+	case "brief":
+		return cmdBrief(with(args[1:], lead))
 	case "describe":
 		return cmdDescribe(with(args[1:], lead))
 	case "mcp":

@@ -1,7 +1,7 @@
 $ rig 
 exit 1
 --- stdout (0 bytes)
---- stderr (1613 bytes)
+--- stderr (1860 bytes)
 usage: rig <command> [flags]
 
   <app> <cmd>      run a command a program declared, with its declared flags
@@ -12,6 +12,11 @@ usage: rig <command> [flags]
   ping <program>   round-trip a program through rigd ("rig" pings the daemon)
   estate           which estate this shell reached, and what it is for
   peers            who else is here, what each is for and what each is doing
+  record <cmd>     the continuity record: put, get, query, history, link,
+                   unlink, refs
+  progress step <item>
+                   append one step to a work item's stream
+  brief <project>  what is going on in a project or a case
   down             stop the daemon serving this XDG_RUNTIME_DIR
   version          print every version this build carries
   completion <sh>  a completion script for bash, zsh or fish
