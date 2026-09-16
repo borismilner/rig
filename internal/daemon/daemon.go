@@ -272,6 +272,11 @@ type conn struct {
 	w   *wire.Conn
 	log *slog.Logger
 
+	// occ is this connection's roster identity, allocated once at accept and
+	// released by the defer below. The MCP door allocates its own; presence
+	// keys on the token rather than on this struct precisely so it can.
+	occ *occupancy
+
 	// scoped is section 14's predicate, and the only authorisation state a
 	// connection carries. It is set by the program handshake and never unset:
 	// a connection that registered as a program is scoped for its whole life,
@@ -357,6 +362,7 @@ func (d *Daemon) handle(ctx context.Context, nc net.Conn) {
 	c := &conn{
 		w:       wire.NewConn(nc),
 		log:     d.log,
+		occ:     &occupancy{},
 		pending: make(map[uint32]chan *rigv1.Frame),
 	}
 	c.nextStream.Store(0) // +2 each time, so daemon streams stay even
@@ -369,7 +375,7 @@ func (d *Daemon) handle(ctx context.Context, nc net.Conn) {
 		d.kernel.Deregister(c.principal().SessionID)
 		// The seat empties with the connection. This is the whole expiry
 		// mechanism for presence: no TTL, no reaper, no orphan state.
-		d.presence.leave(c)
+		d.presence.leave(c.occ)
 		d.resyncMCP(ctx)
 		if n := c.name(); n != "" {
 			d.mu.Lock()

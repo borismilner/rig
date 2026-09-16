@@ -14,6 +14,45 @@ import (
 	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )
 
+// occupancy is WHAT PRESENCE COUNTS AN OCCUPANT BY: an identity, and not a
+// connection. It carries no data because presence needs none.
+//
+// IT USED TO BE `*conn` AND THAT WAS A COUPLING NOBODY CHOSE. Nothing in this
+// file ever dereferenced it - the map lookups, the `other != c` comparison and
+// the delete all used it as an opaque comparable identity and touched no
+// field. So the wire connection was standing in for a token, and the cost only
+// appeared when a SECOND door arrived: the MCP door hands its transport a raw
+// net.Conn and never builds a `conn` at all, which made presence unreachable
+// from the surface the cutover is about.
+//
+// THE LIFETIME CONTRACT IS THE WHOLE OF IT, AND BREAKING IT FAILS SILENTLY.
+// A door must allocate exactly one of these per ACCEPTED CONNECTION and must
+// `defer leave` it on the same defer stack that closes that connection. It
+// cannot be per call, per session or per request: an occupant lives exactly as
+// long as its connection, and that is what buys "no TTL, no reaper, no orphan
+// to detect".
+//
+// A DOOR THAT FORGETS THE LEAVE LEAKS OCCUPANTS FOREVER - the roster only
+// grows and seats are never released - AND NOTHING GOES RED. The holder-dies
+// result stays true for the door that remembered and is false for the one that
+// did not, which is one roster, two doors and a green suite. That is why this
+// paragraph is at the type rather than in a handoff.
+//
+// IT MUST NOT BE ZERO-SIZED, AND THE FIRST VERSION OF IT WAS. This padding is
+// load-bearing and deleting it silently destroys the roster.
+//
+// Go gives every heap allocation of a zero-sized type THE SAME ADDRESS -
+// runtime.zerobase - so `&occupancy{}` on two connections returns one pointer,
+// and a map keyed on it holds ONE entry for both. Measured: two allocations
+// compared equal at 0x594fc0 and a two-key map had length 1.
+//
+// That is not a tidy bug. It is two live peers sharing one roster row, which
+// is the two-sessions-one-seat failure the seat refusal exists to prevent,
+// arriving through the IDENTITY instead of through the seat name - and the
+// refusal cannot fire, because from presence's side there is only one peer.
+// presence_identity_test.go holds it.
+type occupancy struct{ _ [1]byte }
+
 // presence is the estate's roster: who is here, what they are for, and which
 // seat each one holds.
 //
@@ -29,9 +68,10 @@ import (
 // counter per seat NAME rather than per occupant. That asymmetry is the whole
 // mechanism: a seat is an address that persists, an occupancy is a tenancy of
 // it, and the counter is what lets a peer tell one tenancy from the next.
+
 type presence struct {
 	mu   sync.Mutex
-	by   map[*conn]*occupant
+	by   map[*occupancy]*occupant
 	gens map[string]uint64
 
 	// epoch is WHICH DAEMON RUN the generations above are being counted in,
@@ -82,7 +122,7 @@ type occupant struct {
 
 func newPresence(estate string, epoch uint64) *presence {
 	return &presence{
-		by:     make(map[*conn]*occupant),
+		by:     make(map[*occupancy]*occupant),
 		gens:   make(map[string]uint64),
 		epoch:  epoch,
 		estate: estate,
@@ -121,7 +161,7 @@ func (e *seatHeldError) Error() string {
 // missed at: restating a purpose is a call the team is actively encouraged to
 // make, so laundering a day-old activity line into a fresh-looking one on the
 // way past is a failure that arrives through the recommended path.
-func (p *presence) announce(c *conn, seat, purpose, activity string) (occupant, error) {
+func (p *presence) announce(c *occupancy, seat, purpose, activity string) (occupant, error) {
 	seat = strings.TrimSpace(seat)
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -228,7 +268,7 @@ func (o *occupant) setLine(line string, t time.Time) {
 // resets itself every time a peer says what it is doing is a state nobody can
 // hold, and HANDING_OFF is precisely a state that must survive several
 // activity lines while a successor is briefed.
-func (p *presence) setActivity(c *conn, activity string, state rigv1.SeatState) (occupant, bool) {
+func (p *presence) setActivity(c *occupancy, activity string, state rigv1.SeatState) (occupant, bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -245,7 +285,7 @@ func (p *presence) setActivity(c *conn, activity string, state rigv1.SeatState) 
 
 // leave forgets a connection. Called from the handler's own defer, so a
 // dropped peer empties its seat with nothing scheduled and nothing to expire.
-func (p *presence) leave(c *conn) {
+func (p *presence) leave(c *occupancy) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	delete(p.by, c)

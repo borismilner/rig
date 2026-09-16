@@ -164,7 +164,7 @@ func TestReAnnouncingTheSameLineDoesNotRefreshItsAge(t *testing.T) {
 	p.now = func() time.Time { return at }
 
 	const line = "waiting for the gate to finish"
-	var holder conn
+	var holder occupancy
 	if _, err := p.announce(&holder, stalenessSeat, "the cutover", line); err != nil {
 		t.Fatal(err)
 	}
@@ -213,7 +213,7 @@ func TestReAnnouncingWithNoLineKeepsTheOneItHas(t *testing.T) {
 	p.now = func() time.Time { return at }
 
 	const line = "waiting for the gate to finish"
-	var holder conn
+	var holder occupancy
 	if _, err := p.announce(&holder, stalenessSeat, "the cutover", line); err != nil {
 		t.Fatal(err)
 	}

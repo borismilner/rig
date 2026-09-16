@@ -72,7 +72,7 @@ func TestAnIdleSeatIsNeverReapedBecauseThereIsNoClockToReapOn(t *testing.T) {
 	at := time.Date(2026, 9, 16, 9, 0, 0, 0, time.UTC)
 	p.now = func() time.Time { return at }
 
-	var holder conn
+	var holder occupancy
 	seated, err := p.announce(&holder, "backend-1", "seated and then silent", "seated")
 	if err != nil {
 		t.Fatal(err)

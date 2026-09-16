@@ -37,7 +37,7 @@ func (d *Daemon) serveAnnounce(c *conn, f *rigv1.Frame) {
 		}
 	}
 
-	o, err := d.presence.announce(c, req.GetSeat(), req.GetPurpose(), req.GetActivity())
+	o, err := d.presence.announce(c.occ, req.GetSeat(), req.GetPurpose(), req.GetActivity())
 	if err != nil {
 		var held *seatHeldError
 		if ok := asSeatHeld(err, &held); ok {
@@ -72,7 +72,7 @@ func (d *Daemon) serveActivity(c *conn, f *rigv1.Frame) {
 		return
 	}
 
-	o, ok := d.presence.setActivity(c, req.GetActivity(), req.GetState())
+	o, ok := d.presence.setActivity(c.occ, req.GetActivity(), req.GetState())
 	if !ok {
 		// ANNOUNCE FIRST IS A REAL ORDERING AND NOT A FORMALITY: an activity
 		// line with no purpose above it is exactly the unsupervisable row the
