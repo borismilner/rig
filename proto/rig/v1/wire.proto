@@ -1229,6 +1229,135 @@ enum BriefView {
   BRIEF_VIEW_HUMAN = 2;
 }
 
+// BriefSection names each of section 39's eleven brief sections.
+//
+// THE NUMBERS ARE THE SPECIFICATION'S OWN ROW NUMBERS, deliberately, so a
+// reader holding PLAN.md open is not translating between two orderings. They
+// are citations rather than an ordinal, and they are never renumbered.
+enum BriefSection {
+  BRIEF_SECTION_UNSPECIFIED = 0;
+  BRIEF_SECTION_OPEN = 1;
+  BRIEF_SECTION_NEXT_UP = 2;
+  BRIEF_SECTION_NOTES = 3;
+  BRIEF_SECTION_BLOCKED = 4;
+  BRIEF_SECTION_DRIFT = 5;
+  BRIEF_SECTION_MUST_READ = 6;
+  BRIEF_SECTION_PROJECTION_BEHIND = 7;
+  BRIEF_SECTION_PENDING = 8;
+  BRIEF_SECTION_LOCAL_ONLY = 9;
+  BRIEF_SECTION_FEATURES = 10;
+  BRIEF_SECTION_CASE_NOTES = 11;
+}
+
+// SectionState is whether a section's answer means anything.
+//
+// ⛔ IT EXISTS BECAUSE AN EMPTY LIST IS TWO DIFFERENT ANSWERS AND THE BRIEF
+// SHIPPED WITH NO WAY TO TELL THEM APART. Boris, 2026-09-16, asked directly
+// whether the seven unshipped sections belonged in the MVP: "Cover all of
+// them". Absence hides the capability gap; emptiness lies in the reassuring
+// direction. A section that NAMES ITS OWN STATE does neither.
+enum SectionState {
+  SECTION_STATE_UNSPECIFIED = 0;
+
+  // Derived. An empty list now means there is nothing.
+  SECTION_STATE_COMPUTED = 1;
+
+  // The input this section derives from does not exist yet, and `reason`
+  // names WHICH - a statement about a known thing rather than a shrug.
+  SECTION_STATE_NOT_COMPUTED = 2;
+
+  // ⛔ WITHHELD BY THE VIEW, WHICH IS NOT NOT-COMPUTED AND MUST NEVER BE
+  // COLLAPSED INTO IT. Section 39's view table drops the must-read set from
+  // the HUMAN view because it is not a decision he makes: the derivation ran
+  // and this caller is not being shown it. Reporting that as NOT_COMPUTED
+  // would make the human view read as a degraded agent view.
+  SECTION_STATE_WITHHELD_BY_VIEW = 3;
+}
+
+// BriefSectionStatus is one section's state. EVERY BRIEF CARRIES ALL ELEVEN.
+message BriefSectionStatus {
+  BriefSection section = 1;
+  SectionState state = 2;
+
+  // Why, in the caller's terms, and REQUIRED whenever state is not COMPUTED.
+  // The derivation is the only thing that knows which input is missing, so it
+  // is filled there and never invented at the wire.
+  string reason = 3;
+}
+
+// BriefNote is one note attached to a container or one of its items.
+//
+// Section 39 row 3: rendered IN FULL, never summarised. The compact next-up
+// card carries only whether a note is attached; the text is here.
+message BriefNote {
+  string id = 1;
+  string body = 2;
+  string priority = 3;
+
+  // Which record this note is `part-of`. A note on the project itself and a
+  // note on a work item render differently and are not otherwise separable.
+  string about = 4;
+
+  Provenance prov = 5;
+}
+
+// Drift is one standard this project is behind on. Section 39 row 5.
+message Drift {
+  string standard = 1;
+  string claimed_version = 2;
+  string current_version = 3;
+  int64 last_checked_unix_nano = 4;
+
+  // Whether a check is now DUE, which is a different question from being
+  // behind: a project can be current and overdue for re-checking.
+  bool due = 5;
+}
+
+// Feature is one feature of this project. Section 39 row 10.
+message Feature {
+  string id = 1;
+  string title = 2;
+  string stage = 3;
+}
+
+// StageCount is how many features sit at one stage.
+//
+// REPEATED RATHER THAN map<string,uint64>, because protobuf map iteration
+// order is unspecified and this rides into a rendered brief and a golden
+// test. A list is ordered by construction; a map renders one answer two ways.
+message StageCount {
+  string stage = 1;
+  uint64 count = 2;
+}
+
+// BriefHealth is section 39 rows 7, 8 and 9 - THE HEALTH BLOCK.
+//
+// ⛔ EACH FIELD EXISTS SO A DEGRADED STATE IS VISIBLE RATHER THAN SILENT, and
+// row 9 has a recorded injury behind it: section 39's words are "this is how a
+// laptop ends up holding the only copy", and it already records a brief built
+// without these rows that "reported a healthy-looking project that was not
+// backed up". That brief then shipped anyway. This block is why it cannot
+// ship again.
+//
+// ⛔ READ THE SECTION STATUS BEFORE READING THIS MESSAGE. All-zero is the
+// correct encoding of a healthy project AND of a projection that does not
+// exist yet, and only BriefSectionStatus separates them.
+message BriefHealth {
+  // Row 7: how far behind the projection is, in commits.
+  uint64 projection_behind_commits = 1;
+
+  // Row 8: entries recorded but not yet in the projection, visible AS pending.
+  uint64 pending_entries = 2;
+
+  // Row 9: the record repository is LOCAL-ONLY because a push failed.
+  bool local_only = 3;
+
+  // Why the push failed, in the words the push itself reported. Empty when
+  // local_only is false.
+  string local_only_reason = 4;
+}
+
+
 message ProjectBriefResponse {
   string project = 1;
 
@@ -1272,18 +1401,62 @@ message ProjectBriefResponse {
   repeated string must_read = 7;
   bool must_read_cleared = 8;
 
-  // ⛔ SEVEN OF SECTION 39's ELEVEN BRIEF SECTIONS ARE DELIBERATELY ABSENT,
-  // AND THIS COMMENT IS THE RECORD OF WHICH. Rows 3 (notes in full), 5
-  // (standards drift), 7-9 (the health block: projection behind, pending
-  // entries, local-only), 10 (features) and 11 (case attention notes) are
-  // served by slices 5, 6 and 7. Carrying them as always-empty fields is the
-  // same wire-that-lies this file refuses for the three excluded verbs: a
-  // reader cannot tell "this project has no standards drift" from "rig does
-  // not compute it yet", and the health block LYING in the reassuring
-  // direction is exactly the failure section 39 added rows 7-9 to prevent.
+  // ---- the container's own metadata --------------------------------------
   //
-  // Section 21 makes each an additive change, and internal/record.Brief is
-  // the shape this mirrors: Project, Open, NextUp, Blocked, Cycles,
-  // CoarseCitations. When a slice computes one of the seven, the field lands
-  // WITH it.
+  // The CLI renderer was built against these and the wire did not carry them,
+  // so `rig brief` had four fields it could never fill. cmd/rig/brief.go marks
+  // its own types PROVISIONAL UNTIL SLICE 2 and defers to this message; these
+  // four are that deferral honoured.
+
+  // `project` or `case`. It decides which rows below mean anything: a case has
+  // no semver, and its status is open/resolved rather than idea/active.
+  string kind = 9;
+  string title = 10;
+  string status = 11;
+
+  // Empty on a case, which does not ship and so has no version to advance.
+  string semver = 12;
+
+  // ---- the seven that were cut, RULED BACK IN BY BORIS 2026-09-16 --------
+  //
+  // ⛔ THIS BLOCK REPLACES A COMMENT ARGUING THE OPPOSITE, AND THE ARGUMENT IS
+  // KEPT BECAUSE IT WAS NOT STUPID. It said carrying these as always-empty
+  // fields is the same wire-that-lies this file refuses for the three excluded
+  // verbs. That is TRUE OF AN ALWAYS-EMPTY FIELD and the conclusion still does
+  // not follow, because a third option was never considered: a section that
+  // reports its own state. See SectionState.
+  //
+  // AND THE DISTINCTION THAT LETS BOTH RULES STAND: the wire-that-lies rule is
+  // about REACHABILITY - a caller that can see a method assumes calling it
+  // works, so `standard.stamp` declared-but-unserved fails on use. A brief
+  // section that names its own state is not a promise to a caller, it is an
+  // answer. Naming an absence is the opposite of hiding one.
+  //
+  // ⛔ THE OLD COMMENT CITED ROWS 7-9 AS "the failure section 39 added rows
+  // 7-9 to prevent" WHILE OMITTING THEM. It knew.
+
+  // Section 3.
+  repeated BriefNote notes = 13;
+
+  // Section 5.
+  repeated Drift drift = 14;
+
+  // Sections 7, 8 and 9. ALWAYS PRESENT - read `sections` to learn whether its
+  // zeroes are an answer.
+  BriefHealth health = 15;
+
+  // Section 10.
+  repeated Feature features = 16;
+  repeated StageCount feature_stages = 17;
+
+  // Section 11: a case's `attention_n` notes, priority desc then created_at
+  // desc. SEPARATE FROM `notes` because it is a different section with a
+  // different ordering and a cap, not a subset of row 3.
+  repeated BriefNote case_notes = 18;
+
+  // ⛔ ALL ELEVEN SECTIONS' STATES, AND THIS FIELD IS WHAT MAKES THE REST
+  // HONEST. Without it every empty list above is ambiguous between "there is
+  // nothing" and "this is not built yet". A caller that renders a section
+  // without reading its status is the failure this field exists to prevent.
+  repeated BriefSectionStatus sections = 19;
 }

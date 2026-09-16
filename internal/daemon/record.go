@@ -344,6 +344,78 @@ func itemToWire(i record.ItemState) *rigv1.ItemState {
 	return w
 }
 
+// briefSections reports the state of all ELEVEN of section 39's brief
+// sections, every time, whether or not each one can be answered.
+//
+// ⛔ BORIS RULED ALL ELEVEN INTO THE MVP, 2026-09-16: "Cover all of them",
+// asked directly whether the four that shipped were enough. The seven missing
+// ones had been cut by one seat alone, and the cut is recorded in plan/39
+// along with why the argument for it did not hold: ship-nothing and
+// ship-an-always-empty-field were treated as the only two options, and the
+// third is a section that reports its own state.
+//
+// ⛔ WHY THIS LIVES HERE AND ONLY FOR NOW. The reason a section cannot be
+// answered is knowledge the DERIVATION has, not the wire - BACKLOG B46g gives
+// internal/record the job of carrying it. Until that lands, the daemon is the
+// only thing that knows which fields record.Brief actually has, and an empty
+// `sections` would be exactly the defect this commit's sibling guard exists to
+// catch: a served field nothing writes. When the store grows its own section
+// states, this function passes them through and stops deciding.
+//
+// THE ANSWER IS DERIVED FROM THE STORE'S OWN STRUCT, not from a list of
+// booleans kept in step by hand: whatever record.Brief carries is COMPUTED,
+// and the rest names what it waits on.
+func briefSections() []*rigv1.BriefSectionStatus {
+	computed := func(s rigv1.BriefSection) *rigv1.BriefSectionStatus {
+		return &rigv1.BriefSectionStatus{
+			Section: s, State: rigv1.SectionState_SECTION_STATE_COMPUTED,
+		}
+	}
+	waiting := func(s rigv1.BriefSection, why string) *rigv1.BriefSectionStatus {
+		return &rigv1.BriefSectionStatus{
+			Section: s, State: rigv1.SectionState_SECTION_STATE_NOT_COMPUTED,
+			Reason: why,
+		}
+	}
+
+	const (
+		projection = "the git projection does not exist yet, so there is nothing " +
+			"to be behind. PLAN.md section 39's spine, and it is what makes the " +
+			"degraded path readable at all"
+		derivation = "the record store's brief derivation does not collect this " +
+			"kind yet. BACKLOG B46g, and it is the last thing between this brief " +
+			"and all eleven sections"
+	)
+
+	return []*rigv1.BriefSectionStatus{
+		computed(rigv1.BriefSection_BRIEF_SECTION_OPEN),
+		computed(rigv1.BriefSection_BRIEF_SECTION_NEXT_UP),
+		waiting(rigv1.BriefSection_BRIEF_SECTION_NOTES, derivation),
+		computed(rigv1.BriefSection_BRIEF_SECTION_BLOCKED),
+		waiting(rigv1.BriefSection_BRIEF_SECTION_DRIFT,
+			"the standards register does not exist. standard.stamp and "+
+				"standard.drift are slice 7 and are deliberately off this wire, so "+
+				"nothing can be behind a standard rig cannot yet hold"),
+		// ⛔ SPECIFIED, DECLARED ON THE WIRE, AND NOT BUILT - which is why it is
+		// named here rather than left as two empty fields. plan/39 RULED that
+		// the slice-2 brief returns the must-read set AND marks it delivered,
+		// and `must_read`/`must_read_cleared` have been on this message since
+		// the wire landed with nothing writing either. A caller reading an empty
+		// list would conclude this project demands nothing.
+		waiting(rigv1.BriefSection_BRIEF_SECTION_MUST_READ,
+			"neither half of the must-read gate is built: the SET is records "+
+				"marked in the store, and the MARK is per-session state keyed on "+
+				"the session Token. Both are ruled for slice 2 in PLAN.md section "+
+				"39. Until they exist an empty must_read set means UNKNOWN, never "+
+				"\"this project requires nothing\""),
+		waiting(rigv1.BriefSection_BRIEF_SECTION_PROJECTION_BEHIND, projection),
+		waiting(rigv1.BriefSection_BRIEF_SECTION_PENDING, projection),
+		waiting(rigv1.BriefSection_BRIEF_SECTION_LOCAL_ONLY, projection),
+		waiting(rigv1.BriefSection_BRIEF_SECTION_FEATURES, derivation),
+		waiting(rigv1.BriefSection_BRIEF_SECTION_CASE_NOTES, derivation),
+	}
+}
+
 func (d *Daemon) serveProjectBrief(c *conn, f *rigv1.Frame, st *record.Store) {
 	var req rigv1.ProjectBriefRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
@@ -355,7 +427,16 @@ func (d *Daemon) serveProjectBrief(c *conn, f *rigv1.Frame, st *record.Store) {
 		c.failErr(f.GetStreamId(), recordCode(err), err)
 		return
 	}
-	resp := &rigv1.ProjectBriefResponse{Project: b.Project}
+	resp := &rigv1.ProjectBriefResponse{
+		Project: b.Project,
+
+		// ⛔ ALWAYS PRESENT. health is sections 7-9 and its zero value is the
+		// correct encoding of a healthy project AND of a projection that does
+		// not exist - only the section status separates them, which is why it
+		// is never sent without one.
+		Health:   &rigv1.BriefHealth{},
+		Sections: briefSections(),
+	}
 
 	// A NEGATIVE COUNT IS A BUG, AND ZERO IS THE HONEST ANSWER TO ONE. The
 	// conversion is guarded rather than asserted because an unchecked int to

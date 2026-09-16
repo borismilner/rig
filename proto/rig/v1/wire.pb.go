@@ -766,6 +766,154 @@ func (BriefView) EnumDescriptor() ([]byte, []int) {
 	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{11}
 }
 
+// BriefSection names each of section 39's eleven brief sections.
+//
+// THE NUMBERS ARE THE SPECIFICATION'S OWN ROW NUMBERS, deliberately, so a
+// reader holding PLAN.md open is not translating between two orderings. They
+// are citations rather than an ordinal, and they are never renumbered.
+type BriefSection int32
+
+const (
+	BriefSection_BRIEF_SECTION_UNSPECIFIED       BriefSection = 0
+	BriefSection_BRIEF_SECTION_OPEN              BriefSection = 1
+	BriefSection_BRIEF_SECTION_NEXT_UP           BriefSection = 2
+	BriefSection_BRIEF_SECTION_NOTES             BriefSection = 3
+	BriefSection_BRIEF_SECTION_BLOCKED           BriefSection = 4
+	BriefSection_BRIEF_SECTION_DRIFT             BriefSection = 5
+	BriefSection_BRIEF_SECTION_MUST_READ         BriefSection = 6
+	BriefSection_BRIEF_SECTION_PROJECTION_BEHIND BriefSection = 7
+	BriefSection_BRIEF_SECTION_PENDING           BriefSection = 8
+	BriefSection_BRIEF_SECTION_LOCAL_ONLY        BriefSection = 9
+	BriefSection_BRIEF_SECTION_FEATURES          BriefSection = 10
+	BriefSection_BRIEF_SECTION_CASE_NOTES        BriefSection = 11
+)
+
+// Enum value maps for BriefSection.
+var (
+	BriefSection_name = map[int32]string{
+		0:  "BRIEF_SECTION_UNSPECIFIED",
+		1:  "BRIEF_SECTION_OPEN",
+		2:  "BRIEF_SECTION_NEXT_UP",
+		3:  "BRIEF_SECTION_NOTES",
+		4:  "BRIEF_SECTION_BLOCKED",
+		5:  "BRIEF_SECTION_DRIFT",
+		6:  "BRIEF_SECTION_MUST_READ",
+		7:  "BRIEF_SECTION_PROJECTION_BEHIND",
+		8:  "BRIEF_SECTION_PENDING",
+		9:  "BRIEF_SECTION_LOCAL_ONLY",
+		10: "BRIEF_SECTION_FEATURES",
+		11: "BRIEF_SECTION_CASE_NOTES",
+	}
+	BriefSection_value = map[string]int32{
+		"BRIEF_SECTION_UNSPECIFIED":       0,
+		"BRIEF_SECTION_OPEN":              1,
+		"BRIEF_SECTION_NEXT_UP":           2,
+		"BRIEF_SECTION_NOTES":             3,
+		"BRIEF_SECTION_BLOCKED":           4,
+		"BRIEF_SECTION_DRIFT":             5,
+		"BRIEF_SECTION_MUST_READ":         6,
+		"BRIEF_SECTION_PROJECTION_BEHIND": 7,
+		"BRIEF_SECTION_PENDING":           8,
+		"BRIEF_SECTION_LOCAL_ONLY":        9,
+		"BRIEF_SECTION_FEATURES":          10,
+		"BRIEF_SECTION_CASE_NOTES":        11,
+	}
+)
+
+func (x BriefSection) Enum() *BriefSection {
+	p := new(BriefSection)
+	*p = x
+	return p
+}
+
+func (x BriefSection) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (BriefSection) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_rig_v1_wire_proto_enumTypes[12].Descriptor()
+}
+
+func (BriefSection) Type() protoreflect.EnumType {
+	return &file_proto_rig_v1_wire_proto_enumTypes[12]
+}
+
+func (x BriefSection) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use BriefSection.Descriptor instead.
+func (BriefSection) EnumDescriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{12}
+}
+
+// SectionState is whether a section's answer means anything.
+//
+// ⛔ IT EXISTS BECAUSE AN EMPTY LIST IS TWO DIFFERENT ANSWERS AND THE BRIEF
+// SHIPPED WITH NO WAY TO TELL THEM APART. Boris, 2026-09-16, asked directly
+// whether the seven unshipped sections belonged in the MVP: "Cover all of
+// them". Absence hides the capability gap; emptiness lies in the reassuring
+// direction. A section that NAMES ITS OWN STATE does neither.
+type SectionState int32
+
+const (
+	SectionState_SECTION_STATE_UNSPECIFIED SectionState = 0
+	// Derived. An empty list now means there is nothing.
+	SectionState_SECTION_STATE_COMPUTED SectionState = 1
+	// The input this section derives from does not exist yet, and `reason`
+	// names WHICH - a statement about a known thing rather than a shrug.
+	SectionState_SECTION_STATE_NOT_COMPUTED SectionState = 2
+	// ⛔ WITHHELD BY THE VIEW, WHICH IS NOT NOT-COMPUTED AND MUST NEVER BE
+	// COLLAPSED INTO IT. Section 39's view table drops the must-read set from
+	// the HUMAN view because it is not a decision he makes: the derivation ran
+	// and this caller is not being shown it. Reporting that as NOT_COMPUTED
+	// would make the human view read as a degraded agent view.
+	SectionState_SECTION_STATE_WITHHELD_BY_VIEW SectionState = 3
+)
+
+// Enum value maps for SectionState.
+var (
+	SectionState_name = map[int32]string{
+		0: "SECTION_STATE_UNSPECIFIED",
+		1: "SECTION_STATE_COMPUTED",
+		2: "SECTION_STATE_NOT_COMPUTED",
+		3: "SECTION_STATE_WITHHELD_BY_VIEW",
+	}
+	SectionState_value = map[string]int32{
+		"SECTION_STATE_UNSPECIFIED":      0,
+		"SECTION_STATE_COMPUTED":         1,
+		"SECTION_STATE_NOT_COMPUTED":     2,
+		"SECTION_STATE_WITHHELD_BY_VIEW": 3,
+	}
+)
+
+func (x SectionState) Enum() *SectionState {
+	p := new(SectionState)
+	*p = x
+	return p
+}
+
+func (x SectionState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SectionState) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_rig_v1_wire_proto_enumTypes[13].Descriptor()
+}
+
+func (SectionState) Type() protoreflect.EnumType {
+	return &file_proto_rig_v1_wire_proto_enumTypes[13]
+}
+
+func (x SectionState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SectionState.Descriptor instead.
+func (SectionState) EnumDescriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{13}
+}
+
 type Status struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Code  Code                   `protobuf:"varint,1,opt,name=code,proto3,enum=rig.v1.Code" json:"code,omitempty"`
@@ -4405,6 +4553,434 @@ func (x *ProjectBriefRequest) GetProject() string {
 	return ""
 }
 
+// BriefSectionStatus is one section's state. EVERY BRIEF CARRIES ALL ELEVEN.
+type BriefSectionStatus struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Section BriefSection           `protobuf:"varint,1,opt,name=section,proto3,enum=rig.v1.BriefSection" json:"section,omitempty"`
+	State   SectionState           `protobuf:"varint,2,opt,name=state,proto3,enum=rig.v1.SectionState" json:"state,omitempty"`
+	// Why, in the caller's terms, and REQUIRED whenever state is not COMPUTED.
+	// The derivation is the only thing that knows which input is missing, so it
+	// is filled there and never invented at the wire.
+	Reason        string `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BriefSectionStatus) Reset() {
+	*x = BriefSectionStatus{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BriefSectionStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BriefSectionStatus) ProtoMessage() {}
+
+func (x *BriefSectionStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BriefSectionStatus.ProtoReflect.Descriptor instead.
+func (*BriefSectionStatus) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *BriefSectionStatus) GetSection() BriefSection {
+	if x != nil {
+		return x.Section
+	}
+	return BriefSection_BRIEF_SECTION_UNSPECIFIED
+}
+
+func (x *BriefSectionStatus) GetState() SectionState {
+	if x != nil {
+		return x.State
+	}
+	return SectionState_SECTION_STATE_UNSPECIFIED
+}
+
+func (x *BriefSectionStatus) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+// BriefNote is one note attached to a container or one of its items.
+//
+// Section 39 row 3: rendered IN FULL, never summarised. The compact next-up
+// card carries only whether a note is attached; the text is here.
+type BriefNote struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Id       string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Body     string                 `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
+	Priority string                 `protobuf:"bytes,3,opt,name=priority,proto3" json:"priority,omitempty"`
+	// Which record this note is `part-of`. A note on the project itself and a
+	// note on a work item render differently and are not otherwise separable.
+	About         string      `protobuf:"bytes,4,opt,name=about,proto3" json:"about,omitempty"`
+	Prov          *Provenance `protobuf:"bytes,5,opt,name=prov,proto3" json:"prov,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BriefNote) Reset() {
+	*x = BriefNote{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BriefNote) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BriefNote) ProtoMessage() {}
+
+func (x *BriefNote) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BriefNote.ProtoReflect.Descriptor instead.
+func (*BriefNote) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *BriefNote) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *BriefNote) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *BriefNote) GetPriority() string {
+	if x != nil {
+		return x.Priority
+	}
+	return ""
+}
+
+func (x *BriefNote) GetAbout() string {
+	if x != nil {
+		return x.About
+	}
+	return ""
+}
+
+func (x *BriefNote) GetProv() *Provenance {
+	if x != nil {
+		return x.Prov
+	}
+	return nil
+}
+
+// Drift is one standard this project is behind on. Section 39 row 5.
+type Drift struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Standard            string                 `protobuf:"bytes,1,opt,name=standard,proto3" json:"standard,omitempty"`
+	ClaimedVersion      string                 `protobuf:"bytes,2,opt,name=claimed_version,json=claimedVersion,proto3" json:"claimed_version,omitempty"`
+	CurrentVersion      string                 `protobuf:"bytes,3,opt,name=current_version,json=currentVersion,proto3" json:"current_version,omitempty"`
+	LastCheckedUnixNano int64                  `protobuf:"varint,4,opt,name=last_checked_unix_nano,json=lastCheckedUnixNano,proto3" json:"last_checked_unix_nano,omitempty"`
+	// Whether a check is now DUE, which is a different question from being
+	// behind: a project can be current and overdue for re-checking.
+	Due           bool `protobuf:"varint,5,opt,name=due,proto3" json:"due,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Drift) Reset() {
+	*x = Drift{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Drift) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Drift) ProtoMessage() {}
+
+func (x *Drift) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Drift.ProtoReflect.Descriptor instead.
+func (*Drift) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *Drift) GetStandard() string {
+	if x != nil {
+		return x.Standard
+	}
+	return ""
+}
+
+func (x *Drift) GetClaimedVersion() string {
+	if x != nil {
+		return x.ClaimedVersion
+	}
+	return ""
+}
+
+func (x *Drift) GetCurrentVersion() string {
+	if x != nil {
+		return x.CurrentVersion
+	}
+	return ""
+}
+
+func (x *Drift) GetLastCheckedUnixNano() int64 {
+	if x != nil {
+		return x.LastCheckedUnixNano
+	}
+	return 0
+}
+
+func (x *Drift) GetDue() bool {
+	if x != nil {
+		return x.Due
+	}
+	return false
+}
+
+// Feature is one feature of this project. Section 39 row 10.
+type Feature struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Stage         string                 `protobuf:"bytes,3,opt,name=stage,proto3" json:"stage,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Feature) Reset() {
+	*x = Feature{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Feature) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Feature) ProtoMessage() {}
+
+func (x *Feature) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Feature.ProtoReflect.Descriptor instead.
+func (*Feature) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *Feature) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Feature) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *Feature) GetStage() string {
+	if x != nil {
+		return x.Stage
+	}
+	return ""
+}
+
+// StageCount is how many features sit at one stage.
+//
+// REPEATED RATHER THAN map<string,uint64>, because protobuf map iteration
+// order is unspecified and this rides into a rendered brief and a golden
+// test. A list is ordered by construction; a map renders one answer two ways.
+type StageCount struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Stage         string                 `protobuf:"bytes,1,opt,name=stage,proto3" json:"stage,omitempty"`
+	Count         uint64                 `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StageCount) Reset() {
+	*x = StageCount{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StageCount) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StageCount) ProtoMessage() {}
+
+func (x *StageCount) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StageCount.ProtoReflect.Descriptor instead.
+func (*StageCount) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *StageCount) GetStage() string {
+	if x != nil {
+		return x.Stage
+	}
+	return ""
+}
+
+func (x *StageCount) GetCount() uint64 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+// BriefHealth is section 39 rows 7, 8 and 9 - THE HEALTH BLOCK.
+//
+// ⛔ EACH FIELD EXISTS SO A DEGRADED STATE IS VISIBLE RATHER THAN SILENT, and
+// row 9 has a recorded injury behind it: section 39's words are "this is how a
+// laptop ends up holding the only copy", and it already records a brief built
+// without these rows that "reported a healthy-looking project that was not
+// backed up". That brief then shipped anyway. This block is why it cannot
+// ship again.
+//
+// ⛔ READ THE SECTION STATUS BEFORE READING THIS MESSAGE. All-zero is the
+// correct encoding of a healthy project AND of a projection that does not
+// exist yet, and only BriefSectionStatus separates them.
+type BriefHealth struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Row 7: how far behind the projection is, in commits.
+	ProjectionBehindCommits uint64 `protobuf:"varint,1,opt,name=projection_behind_commits,json=projectionBehindCommits,proto3" json:"projection_behind_commits,omitempty"`
+	// Row 8: entries recorded but not yet in the projection, visible AS pending.
+	PendingEntries uint64 `protobuf:"varint,2,opt,name=pending_entries,json=pendingEntries,proto3" json:"pending_entries,omitempty"`
+	// Row 9: the record repository is LOCAL-ONLY because a push failed.
+	LocalOnly bool `protobuf:"varint,3,opt,name=local_only,json=localOnly,proto3" json:"local_only,omitempty"`
+	// Why the push failed, in the words the push itself reported. Empty when
+	// local_only is false.
+	LocalOnlyReason string `protobuf:"bytes,4,opt,name=local_only_reason,json=localOnlyReason,proto3" json:"local_only_reason,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *BriefHealth) Reset() {
+	*x = BriefHealth{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BriefHealth) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BriefHealth) ProtoMessage() {}
+
+func (x *BriefHealth) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BriefHealth.ProtoReflect.Descriptor instead.
+func (*BriefHealth) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *BriefHealth) GetProjectionBehindCommits() uint64 {
+	if x != nil {
+		return x.ProjectionBehindCommits
+	}
+	return 0
+}
+
+func (x *BriefHealth) GetPendingEntries() uint64 {
+	if x != nil {
+		return x.PendingEntries
+	}
+	return 0
+}
+
+func (x *BriefHealth) GetLocalOnly() bool {
+	if x != nil {
+		return x.LocalOnly
+	}
+	return false
+}
+
+func (x *BriefHealth) GetLocalOnlyReason() string {
+	if x != nil {
+		return x.LocalOnlyReason
+	}
+	return ""
+}
+
 type ProjectBriefResponse struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Project string                 `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
@@ -4442,13 +5018,39 @@ type ProjectBriefResponse struct {
 	// leaves it empty.
 	MustRead        []string `protobuf:"bytes,7,rep,name=must_read,json=mustRead,proto3" json:"must_read,omitempty"`
 	MustReadCleared bool     `protobuf:"varint,8,opt,name=must_read_cleared,json=mustReadCleared,proto3" json:"must_read_cleared,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// `project` or `case`. It decides which rows below mean anything: a case has
+	// no semver, and its status is open/resolved rather than idea/active.
+	Kind   string `protobuf:"bytes,9,opt,name=kind,proto3" json:"kind,omitempty"`
+	Title  string `protobuf:"bytes,10,opt,name=title,proto3" json:"title,omitempty"`
+	Status string `protobuf:"bytes,11,opt,name=status,proto3" json:"status,omitempty"`
+	// Empty on a case, which does not ship and so has no version to advance.
+	Semver string `protobuf:"bytes,12,opt,name=semver,proto3" json:"semver,omitempty"`
+	// Section 3.
+	Notes []*BriefNote `protobuf:"bytes,13,rep,name=notes,proto3" json:"notes,omitempty"`
+	// Section 5.
+	Drift []*Drift `protobuf:"bytes,14,rep,name=drift,proto3" json:"drift,omitempty"`
+	// Sections 7, 8 and 9. ALWAYS PRESENT - read `sections` to learn whether its
+	// zeroes are an answer.
+	Health *BriefHealth `protobuf:"bytes,15,opt,name=health,proto3" json:"health,omitempty"`
+	// Section 10.
+	Features      []*Feature    `protobuf:"bytes,16,rep,name=features,proto3" json:"features,omitempty"`
+	FeatureStages []*StageCount `protobuf:"bytes,17,rep,name=feature_stages,json=featureStages,proto3" json:"feature_stages,omitempty"`
+	// Section 11: a case's `attention_n` notes, priority desc then created_at
+	// desc. SEPARATE FROM `notes` because it is a different section with a
+	// different ordering and a cap, not a subset of row 3.
+	CaseNotes []*BriefNote `protobuf:"bytes,18,rep,name=case_notes,json=caseNotes,proto3" json:"case_notes,omitempty"`
+	// ⛔ ALL ELEVEN SECTIONS' STATES, AND THIS FIELD IS WHAT MAKES THE REST
+	// HONEST. Without it every empty list above is ambiguous between "there is
+	// nothing" and "this is not built yet". A caller that renders a section
+	// without reading its status is the failure this field exists to prevent.
+	Sections      []*BriefSectionStatus `protobuf:"bytes,19,rep,name=sections,proto3" json:"sections,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ProjectBriefResponse) Reset() {
 	*x = ProjectBriefResponse{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[52]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4460,7 +5062,7 @@ func (x *ProjectBriefResponse) String() string {
 func (*ProjectBriefResponse) ProtoMessage() {}
 
 func (x *ProjectBriefResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[52]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4473,7 +5075,7 @@ func (x *ProjectBriefResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectBriefResponse.ProtoReflect.Descriptor instead.
 func (*ProjectBriefResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{52}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *ProjectBriefResponse) GetProject() string {
@@ -4530,6 +5132,83 @@ func (x *ProjectBriefResponse) GetMustReadCleared() bool {
 		return x.MustReadCleared
 	}
 	return false
+}
+
+func (x *ProjectBriefResponse) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *ProjectBriefResponse) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *ProjectBriefResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ProjectBriefResponse) GetSemver() string {
+	if x != nil {
+		return x.Semver
+	}
+	return ""
+}
+
+func (x *ProjectBriefResponse) GetNotes() []*BriefNote {
+	if x != nil {
+		return x.Notes
+	}
+	return nil
+}
+
+func (x *ProjectBriefResponse) GetDrift() []*Drift {
+	if x != nil {
+		return x.Drift
+	}
+	return nil
+}
+
+func (x *ProjectBriefResponse) GetHealth() *BriefHealth {
+	if x != nil {
+		return x.Health
+	}
+	return nil
+}
+
+func (x *ProjectBriefResponse) GetFeatures() []*Feature {
+	if x != nil {
+		return x.Features
+	}
+	return nil
+}
+
+func (x *ProjectBriefResponse) GetFeatureStages() []*StageCount {
+	if x != nil {
+		return x.FeatureStages
+	}
+	return nil
+}
+
+func (x *ProjectBriefResponse) GetCaseNotes() []*BriefNote {
+	if x != nil {
+		return x.CaseNotes
+	}
+	return nil
+}
+
+func (x *ProjectBriefResponse) GetSections() []*BriefSectionStatus {
+	if x != nil {
+		return x.Sections
+	}
+	return nil
 }
 
 var File_proto_rig_v1_wire_proto protoreflect.FileDescriptor
@@ -4772,7 +5451,37 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\bblockers\x18\x04 \x03(\v2\x0f.rig.v1.BlockerR\bblockersJ\x04\b\x03\x10\x04R\n" +
 	"blocked_by\";\n" +
 	"\x13ProjectBriefRequest\x12\x18\n" +
-	"\aproject\x18\x01 \x01(\tR\aprojectJ\x04\b\x02\x10\x03R\x04view\"\xca\x02\n" +
+	"\aproject\x18\x01 \x01(\tR\aprojectJ\x04\b\x02\x10\x03R\x04view\"\x88\x01\n" +
+	"\x12BriefSectionStatus\x12.\n" +
+	"\asection\x18\x01 \x01(\x0e2\x14.rig.v1.BriefSectionR\asection\x12*\n" +
+	"\x05state\x18\x02 \x01(\x0e2\x14.rig.v1.SectionStateR\x05state\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"\x89\x01\n" +
+	"\tBriefNote\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04body\x18\x02 \x01(\tR\x04body\x12\x1a\n" +
+	"\bpriority\x18\x03 \x01(\tR\bpriority\x12\x14\n" +
+	"\x05about\x18\x04 \x01(\tR\x05about\x12&\n" +
+	"\x04prov\x18\x05 \x01(\v2\x12.rig.v1.ProvenanceR\x04prov\"\xbc\x01\n" +
+	"\x05Drift\x12\x1a\n" +
+	"\bstandard\x18\x01 \x01(\tR\bstandard\x12'\n" +
+	"\x0fclaimed_version\x18\x02 \x01(\tR\x0eclaimedVersion\x12'\n" +
+	"\x0fcurrent_version\x18\x03 \x01(\tR\x0ecurrentVersion\x123\n" +
+	"\x16last_checked_unix_nano\x18\x04 \x01(\x03R\x13lastCheckedUnixNano\x12\x10\n" +
+	"\x03due\x18\x05 \x01(\bR\x03due\"E\n" +
+	"\aFeature\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\x14\n" +
+	"\x05stage\x18\x03 \x01(\tR\x05stage\"8\n" +
+	"\n" +
+	"StageCount\x12\x14\n" +
+	"\x05stage\x18\x01 \x01(\tR\x05stage\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x04R\x05count\"\xbd\x01\n" +
+	"\vBriefHealth\x12:\n" +
+	"\x19projection_behind_commits\x18\x01 \x01(\x04R\x17projectionBehindCommits\x12'\n" +
+	"\x0fpending_entries\x18\x02 \x01(\x04R\x0ependingEntries\x12\x1d\n" +
+	"\n" +
+	"local_only\x18\x03 \x01(\bR\tlocalOnly\x12*\n" +
+	"\x11local_only_reason\x18\x04 \x01(\tR\x0flocalOnlyReason\"\xf1\x05\n" +
 	"\x14ProjectBriefResponse\x12\x18\n" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x12%\n" +
 	"\x04open\x18\x02 \x03(\v2\x11.rig.v1.ItemStateR\x04open\x12*\n" +
@@ -4781,7 +5490,20 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x06cycles\x18\x05 \x03(\v2\r.rig.v1.CycleR\x06cycles\x12)\n" +
 	"\x10coarse_citations\x18\x06 \x01(\x04R\x0fcoarseCitations\x12\x1b\n" +
 	"\tmust_read\x18\a \x03(\tR\bmustRead\x12*\n" +
-	"\x11must_read_cleared\x18\b \x01(\bR\x0fmustReadCleared*\xbc\x01\n" +
+	"\x11must_read_cleared\x18\b \x01(\bR\x0fmustReadCleared\x12\x12\n" +
+	"\x04kind\x18\t \x01(\tR\x04kind\x12\x14\n" +
+	"\x05title\x18\n" +
+	" \x01(\tR\x05title\x12\x16\n" +
+	"\x06status\x18\v \x01(\tR\x06status\x12\x16\n" +
+	"\x06semver\x18\f \x01(\tR\x06semver\x12'\n" +
+	"\x05notes\x18\r \x03(\v2\x11.rig.v1.BriefNoteR\x05notes\x12#\n" +
+	"\x05drift\x18\x0e \x03(\v2\r.rig.v1.DriftR\x05drift\x12+\n" +
+	"\x06health\x18\x0f \x01(\v2\x13.rig.v1.BriefHealthR\x06health\x12+\n" +
+	"\bfeatures\x18\x10 \x03(\v2\x0f.rig.v1.FeatureR\bfeatures\x129\n" +
+	"\x0efeature_stages\x18\x11 \x03(\v2\x12.rig.v1.StageCountR\rfeatureStages\x120\n" +
+	"\n" +
+	"case_notes\x18\x12 \x03(\v2\x11.rig.v1.BriefNoteR\tcaseNotes\x126\n" +
+	"\bsections\x18\x13 \x03(\v2\x1a.rig.v1.BriefSectionStatusR\bsections*\xbc\x01\n" +
 	"\tFrameKind\x12\x1a\n" +
 	"\x16FRAME_KIND_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12FRAME_KIND_REQUEST\x10\x01\x12\x17\n" +
@@ -4851,7 +5573,26 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\tBriefView\x12\x1a\n" +
 	"\x16BRIEF_VIEW_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10BRIEF_VIEW_AGENT\x10\x01\x12\x14\n" +
-	"\x10BRIEF_VIEW_HUMAN\x10\x02B0Z.github.com/boris-milner/rig/proto/rig/v1;rigv1b\x06proto3"
+	"\x10BRIEF_VIEW_HUMAN\x10\x02*\xe2\x02\n" +
+	"\fBriefSection\x12\x1d\n" +
+	"\x19BRIEF_SECTION_UNSPECIFIED\x10\x00\x12\x16\n" +
+	"\x12BRIEF_SECTION_OPEN\x10\x01\x12\x19\n" +
+	"\x15BRIEF_SECTION_NEXT_UP\x10\x02\x12\x17\n" +
+	"\x13BRIEF_SECTION_NOTES\x10\x03\x12\x19\n" +
+	"\x15BRIEF_SECTION_BLOCKED\x10\x04\x12\x17\n" +
+	"\x13BRIEF_SECTION_DRIFT\x10\x05\x12\x1b\n" +
+	"\x17BRIEF_SECTION_MUST_READ\x10\x06\x12#\n" +
+	"\x1fBRIEF_SECTION_PROJECTION_BEHIND\x10\a\x12\x19\n" +
+	"\x15BRIEF_SECTION_PENDING\x10\b\x12\x1c\n" +
+	"\x18BRIEF_SECTION_LOCAL_ONLY\x10\t\x12\x1a\n" +
+	"\x16BRIEF_SECTION_FEATURES\x10\n" +
+	"\x12\x1c\n" +
+	"\x18BRIEF_SECTION_CASE_NOTES\x10\v*\x8d\x01\n" +
+	"\fSectionState\x12\x1d\n" +
+	"\x19SECTION_STATE_UNSPECIFIED\x10\x00\x12\x1a\n" +
+	"\x16SECTION_STATE_COMPUTED\x10\x01\x12\x1e\n" +
+	"\x1aSECTION_STATE_NOT_COMPUTED\x10\x02\x12\"\n" +
+	"\x1eSECTION_STATE_WITHHELD_BY_VIEW\x10\x03B0Z.github.com/boris-milner/rig/proto/rig/v1;rigv1b\x06proto3"
 
 var (
 	file_proto_rig_v1_wire_proto_rawDescOnce sync.Once
@@ -4865,8 +5606,8 @@ func file_proto_rig_v1_wire_proto_rawDescGZIP() []byte {
 	return file_proto_rig_v1_wire_proto_rawDescData
 }
 
-var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 12)
-var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 55)
+var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 14)
+var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 61)
 var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(FrameKind)(0),                // 0: rig.v1.FrameKind
 	(Code)(0),                     // 1: rig.v1.Code
@@ -4880,114 +5621,132 @@ var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(SeatState)(0),                // 9: rig.v1.SeatState
 	(StepState)(0),                // 10: rig.v1.StepState
 	(BriefView)(0),                // 11: rig.v1.BriefView
-	(*Status)(nil),                // 12: rig.v1.Status
-	(*Frame)(nil),                 // 13: rig.v1.Frame
-	(*HelloRequest)(nil),          // 14: rig.v1.HelloRequest
-	(*HelloResponse)(nil),         // 15: rig.v1.HelloResponse
-	(*PingRequest)(nil),           // 16: rig.v1.PingRequest
-	(*PingResponse)(nil),          // 17: rig.v1.PingResponse
-	(*Identity)(nil),              // 18: rig.v1.Identity
-	(*SensitiveFields)(nil),       // 19: rig.v1.SensitiveFields
-	(*Command)(nil),               // 20: rig.v1.Command
-	(*Declaration)(nil),           // 21: rig.v1.Declaration
-	(*Program)(nil),               // 22: rig.v1.Program
-	(*ProgramsRequest)(nil),       // 23: rig.v1.ProgramsRequest
-	(*ProgramsResponse)(nil),      // 24: rig.v1.ProgramsResponse
-	(*DownRequest)(nil),           // 25: rig.v1.DownRequest
-	(*DownResponse)(nil),          // 26: rig.v1.DownResponse
-	(*EstateRequest)(nil),         // 27: rig.v1.EstateRequest
-	(*EstateResponse)(nil),        // 28: rig.v1.EstateResponse
-	(*SessionRequest)(nil),        // 29: rig.v1.SessionRequest
-	(*SessionResponse)(nil),       // 30: rig.v1.SessionResponse
-	(*CallRequest)(nil),           // 31: rig.v1.CallRequest
-	(*CallResponse)(nil),          // 32: rig.v1.CallResponse
-	(*Seat)(nil),                  // 33: rig.v1.Seat
-	(*AnnounceRequest)(nil),       // 34: rig.v1.AnnounceRequest
-	(*AnnounceResponse)(nil),      // 35: rig.v1.AnnounceResponse
-	(*ActivityRequest)(nil),       // 36: rig.v1.ActivityRequest
-	(*ActivityResponse)(nil),      // 37: rig.v1.ActivityResponse
-	(*PeersRequest)(nil),          // 38: rig.v1.PeersRequest
-	(*PeersResponse)(nil),         // 39: rig.v1.PeersResponse
-	(*Provenance)(nil),            // 40: rig.v1.Provenance
-	(*Record)(nil),                // 41: rig.v1.Record
-	(*RecordPutRequest)(nil),      // 42: rig.v1.RecordPutRequest
-	(*RecordPutResponse)(nil),     // 43: rig.v1.RecordPutResponse
-	(*RecordGetRequest)(nil),      // 44: rig.v1.RecordGetRequest
-	(*RecordGetResponse)(nil),     // 45: rig.v1.RecordGetResponse
-	(*RecordQueryRequest)(nil),    // 46: rig.v1.RecordQueryRequest
-	(*RecordQueryResponse)(nil),   // 47: rig.v1.RecordQueryResponse
-	(*RecordHistoryRequest)(nil),  // 48: rig.v1.RecordHistoryRequest
-	(*RecordHistoryResponse)(nil), // 49: rig.v1.RecordHistoryResponse
-	(*RecordLinkRequest)(nil),     // 50: rig.v1.RecordLinkRequest
-	(*RecordLinkResponse)(nil),    // 51: rig.v1.RecordLinkResponse
-	(*RecordUnlinkRequest)(nil),   // 52: rig.v1.RecordUnlinkRequest
-	(*RecordUnlinkResponse)(nil),  // 53: rig.v1.RecordUnlinkResponse
-	(*RecordRefsRequest)(nil),     // 54: rig.v1.RecordRefsRequest
-	(*Ref)(nil),                   // 55: rig.v1.Ref
-	(*RecordRefsResponse)(nil),    // 56: rig.v1.RecordRefsResponse
-	(*Cycle)(nil),                 // 57: rig.v1.Cycle
-	(*ProgressStepRequest)(nil),   // 58: rig.v1.ProgressStepRequest
-	(*ProgressStepResponse)(nil),  // 59: rig.v1.ProgressStepResponse
-	(*ItemState)(nil),             // 60: rig.v1.ItemState
-	(*Blocker)(nil),               // 61: rig.v1.Blocker
-	(*Blockage)(nil),              // 62: rig.v1.Blockage
-	(*ProjectBriefRequest)(nil),   // 63: rig.v1.ProjectBriefRequest
-	(*ProjectBriefResponse)(nil),  // 64: rig.v1.ProjectBriefResponse
-	nil,                           // 65: rig.v1.Record.FieldsEntry
-	nil,                           // 66: rig.v1.RecordPutRequest.FieldsEntry
+	(BriefSection)(0),             // 12: rig.v1.BriefSection
+	(SectionState)(0),             // 13: rig.v1.SectionState
+	(*Status)(nil),                // 14: rig.v1.Status
+	(*Frame)(nil),                 // 15: rig.v1.Frame
+	(*HelloRequest)(nil),          // 16: rig.v1.HelloRequest
+	(*HelloResponse)(nil),         // 17: rig.v1.HelloResponse
+	(*PingRequest)(nil),           // 18: rig.v1.PingRequest
+	(*PingResponse)(nil),          // 19: rig.v1.PingResponse
+	(*Identity)(nil),              // 20: rig.v1.Identity
+	(*SensitiveFields)(nil),       // 21: rig.v1.SensitiveFields
+	(*Command)(nil),               // 22: rig.v1.Command
+	(*Declaration)(nil),           // 23: rig.v1.Declaration
+	(*Program)(nil),               // 24: rig.v1.Program
+	(*ProgramsRequest)(nil),       // 25: rig.v1.ProgramsRequest
+	(*ProgramsResponse)(nil),      // 26: rig.v1.ProgramsResponse
+	(*DownRequest)(nil),           // 27: rig.v1.DownRequest
+	(*DownResponse)(nil),          // 28: rig.v1.DownResponse
+	(*EstateRequest)(nil),         // 29: rig.v1.EstateRequest
+	(*EstateResponse)(nil),        // 30: rig.v1.EstateResponse
+	(*SessionRequest)(nil),        // 31: rig.v1.SessionRequest
+	(*SessionResponse)(nil),       // 32: rig.v1.SessionResponse
+	(*CallRequest)(nil),           // 33: rig.v1.CallRequest
+	(*CallResponse)(nil),          // 34: rig.v1.CallResponse
+	(*Seat)(nil),                  // 35: rig.v1.Seat
+	(*AnnounceRequest)(nil),       // 36: rig.v1.AnnounceRequest
+	(*AnnounceResponse)(nil),      // 37: rig.v1.AnnounceResponse
+	(*ActivityRequest)(nil),       // 38: rig.v1.ActivityRequest
+	(*ActivityResponse)(nil),      // 39: rig.v1.ActivityResponse
+	(*PeersRequest)(nil),          // 40: rig.v1.PeersRequest
+	(*PeersResponse)(nil),         // 41: rig.v1.PeersResponse
+	(*Provenance)(nil),            // 42: rig.v1.Provenance
+	(*Record)(nil),                // 43: rig.v1.Record
+	(*RecordPutRequest)(nil),      // 44: rig.v1.RecordPutRequest
+	(*RecordPutResponse)(nil),     // 45: rig.v1.RecordPutResponse
+	(*RecordGetRequest)(nil),      // 46: rig.v1.RecordGetRequest
+	(*RecordGetResponse)(nil),     // 47: rig.v1.RecordGetResponse
+	(*RecordQueryRequest)(nil),    // 48: rig.v1.RecordQueryRequest
+	(*RecordQueryResponse)(nil),   // 49: rig.v1.RecordQueryResponse
+	(*RecordHistoryRequest)(nil),  // 50: rig.v1.RecordHistoryRequest
+	(*RecordHistoryResponse)(nil), // 51: rig.v1.RecordHistoryResponse
+	(*RecordLinkRequest)(nil),     // 52: rig.v1.RecordLinkRequest
+	(*RecordLinkResponse)(nil),    // 53: rig.v1.RecordLinkResponse
+	(*RecordUnlinkRequest)(nil),   // 54: rig.v1.RecordUnlinkRequest
+	(*RecordUnlinkResponse)(nil),  // 55: rig.v1.RecordUnlinkResponse
+	(*RecordRefsRequest)(nil),     // 56: rig.v1.RecordRefsRequest
+	(*Ref)(nil),                   // 57: rig.v1.Ref
+	(*RecordRefsResponse)(nil),    // 58: rig.v1.RecordRefsResponse
+	(*Cycle)(nil),                 // 59: rig.v1.Cycle
+	(*ProgressStepRequest)(nil),   // 60: rig.v1.ProgressStepRequest
+	(*ProgressStepResponse)(nil),  // 61: rig.v1.ProgressStepResponse
+	(*ItemState)(nil),             // 62: rig.v1.ItemState
+	(*Blocker)(nil),               // 63: rig.v1.Blocker
+	(*Blockage)(nil),              // 64: rig.v1.Blockage
+	(*ProjectBriefRequest)(nil),   // 65: rig.v1.ProjectBriefRequest
+	(*BriefSectionStatus)(nil),    // 66: rig.v1.BriefSectionStatus
+	(*BriefNote)(nil),             // 67: rig.v1.BriefNote
+	(*Drift)(nil),                 // 68: rig.v1.Drift
+	(*Feature)(nil),               // 69: rig.v1.Feature
+	(*StageCount)(nil),            // 70: rig.v1.StageCount
+	(*BriefHealth)(nil),           // 71: rig.v1.BriefHealth
+	(*ProjectBriefResponse)(nil),  // 72: rig.v1.ProjectBriefResponse
+	nil,                           // 73: rig.v1.Record.FieldsEntry
+	nil,                           // 74: rig.v1.RecordPutRequest.FieldsEntry
 }
 var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	1,  // 0: rig.v1.Status.code:type_name -> rig.v1.Code
 	0,  // 1: rig.v1.Frame.kind:type_name -> rig.v1.FrameKind
-	12, // 2: rig.v1.Frame.status:type_name -> rig.v1.Status
-	21, // 3: rig.v1.HelloRequest.declaration:type_name -> rig.v1.Declaration
+	14, // 2: rig.v1.Frame.status:type_name -> rig.v1.Status
+	23, // 3: rig.v1.HelloRequest.declaration:type_name -> rig.v1.Declaration
 	3,  // 4: rig.v1.Command.effects:type_name -> rig.v1.Effects
 	6,  // 5: rig.v1.Command.idempotent:type_name -> rig.v1.Tristate
-	19, // 6: rig.v1.Command.sensitive:type_name -> rig.v1.SensitiveFields
+	21, // 6: rig.v1.Command.sensitive:type_name -> rig.v1.SensitiveFields
 	6,  // 7: rig.v1.Command.interactive:type_name -> rig.v1.Tristate
 	6,  // 8: rig.v1.Command.streams:type_name -> rig.v1.Tristate
 	6,  // 9: rig.v1.Command.needs_display:type_name -> rig.v1.Tristate
 	4,  // 10: rig.v1.Command.duration:type_name -> rig.v1.Duration
 	6,  // 11: rig.v1.Command.confirms:type_name -> rig.v1.Tristate
 	5,  // 12: rig.v1.Command.shape:type_name -> rig.v1.Shape
-	18, // 13: rig.v1.Declaration.identity:type_name -> rig.v1.Identity
+	20, // 13: rig.v1.Declaration.identity:type_name -> rig.v1.Identity
 	2,  // 14: rig.v1.Declaration.coverage:type_name -> rig.v1.Coverage
-	20, // 15: rig.v1.Declaration.commands:type_name -> rig.v1.Command
-	18, // 16: rig.v1.Program.identity:type_name -> rig.v1.Identity
+	22, // 15: rig.v1.Declaration.commands:type_name -> rig.v1.Command
+	20, // 16: rig.v1.Program.identity:type_name -> rig.v1.Identity
 	2,  // 17: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
-	20, // 18: rig.v1.Program.commands:type_name -> rig.v1.Command
+	22, // 18: rig.v1.Program.commands:type_name -> rig.v1.Command
 	7,  // 19: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
-	22, // 20: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
+	24, // 20: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
 	8,  // 21: rig.v1.EstateResponse.role:type_name -> rig.v1.EstateRole
 	9,  // 22: rig.v1.Seat.state:type_name -> rig.v1.SeatState
-	33, // 23: rig.v1.AnnounceResponse.you:type_name -> rig.v1.Seat
-	33, // 24: rig.v1.AnnounceResponse.crew:type_name -> rig.v1.Seat
+	35, // 23: rig.v1.AnnounceResponse.you:type_name -> rig.v1.Seat
+	35, // 24: rig.v1.AnnounceResponse.crew:type_name -> rig.v1.Seat
 	9,  // 25: rig.v1.ActivityRequest.state:type_name -> rig.v1.SeatState
-	33, // 26: rig.v1.ActivityResponse.you:type_name -> rig.v1.Seat
-	33, // 27: rig.v1.PeersResponse.crew:type_name -> rig.v1.Seat
-	65, // 28: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
-	40, // 29: rig.v1.Record.prov:type_name -> rig.v1.Provenance
-	66, // 30: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
-	41, // 31: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
-	41, // 32: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
-	41, // 33: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
-	41, // 34: rig.v1.RecordHistoryResponse.versions:type_name -> rig.v1.Record
-	55, // 35: rig.v1.RecordRefsResponse.refs:type_name -> rig.v1.Ref
-	57, // 36: rig.v1.RecordRefsResponse.cycles:type_name -> rig.v1.Cycle
+	35, // 26: rig.v1.ActivityResponse.you:type_name -> rig.v1.Seat
+	35, // 27: rig.v1.PeersResponse.crew:type_name -> rig.v1.Seat
+	73, // 28: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
+	42, // 29: rig.v1.Record.prov:type_name -> rig.v1.Provenance
+	74, // 30: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
+	43, // 31: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
+	43, // 32: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
+	43, // 33: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
+	43, // 34: rig.v1.RecordHistoryResponse.versions:type_name -> rig.v1.Record
+	57, // 35: rig.v1.RecordRefsResponse.refs:type_name -> rig.v1.Ref
+	59, // 36: rig.v1.RecordRefsResponse.cycles:type_name -> rig.v1.Cycle
 	10, // 37: rig.v1.ProgressStepRequest.state:type_name -> rig.v1.StepState
-	41, // 38: rig.v1.ProgressStepResponse.step:type_name -> rig.v1.Record
+	43, // 38: rig.v1.ProgressStepResponse.step:type_name -> rig.v1.Record
 	10, // 39: rig.v1.ItemState.state:type_name -> rig.v1.StepState
 	10, // 40: rig.v1.Blocker.state:type_name -> rig.v1.StepState
-	61, // 41: rig.v1.Blockage.blockers:type_name -> rig.v1.Blocker
-	60, // 42: rig.v1.ProjectBriefResponse.open:type_name -> rig.v1.ItemState
-	60, // 43: rig.v1.ProjectBriefResponse.next_up:type_name -> rig.v1.ItemState
-	62, // 44: rig.v1.ProjectBriefResponse.blocked:type_name -> rig.v1.Blockage
-	57, // 45: rig.v1.ProjectBriefResponse.cycles:type_name -> rig.v1.Cycle
-	46, // [46:46] is the sub-list for method output_type
-	46, // [46:46] is the sub-list for method input_type
-	46, // [46:46] is the sub-list for extension type_name
-	46, // [46:46] is the sub-list for extension extendee
-	0,  // [0:46] is the sub-list for field type_name
+	63, // 41: rig.v1.Blockage.blockers:type_name -> rig.v1.Blocker
+	12, // 42: rig.v1.BriefSectionStatus.section:type_name -> rig.v1.BriefSection
+	13, // 43: rig.v1.BriefSectionStatus.state:type_name -> rig.v1.SectionState
+	42, // 44: rig.v1.BriefNote.prov:type_name -> rig.v1.Provenance
+	62, // 45: rig.v1.ProjectBriefResponse.open:type_name -> rig.v1.ItemState
+	62, // 46: rig.v1.ProjectBriefResponse.next_up:type_name -> rig.v1.ItemState
+	64, // 47: rig.v1.ProjectBriefResponse.blocked:type_name -> rig.v1.Blockage
+	59, // 48: rig.v1.ProjectBriefResponse.cycles:type_name -> rig.v1.Cycle
+	67, // 49: rig.v1.ProjectBriefResponse.notes:type_name -> rig.v1.BriefNote
+	68, // 50: rig.v1.ProjectBriefResponse.drift:type_name -> rig.v1.Drift
+	71, // 51: rig.v1.ProjectBriefResponse.health:type_name -> rig.v1.BriefHealth
+	69, // 52: rig.v1.ProjectBriefResponse.features:type_name -> rig.v1.Feature
+	70, // 53: rig.v1.ProjectBriefResponse.feature_stages:type_name -> rig.v1.StageCount
+	67, // 54: rig.v1.ProjectBriefResponse.case_notes:type_name -> rig.v1.BriefNote
+	66, // 55: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
+	56, // [56:56] is the sub-list for method output_type
+	56, // [56:56] is the sub-list for method input_type
+	56, // [56:56] is the sub-list for extension type_name
+	56, // [56:56] is the sub-list for extension extendee
+	0,  // [0:56] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_wire_proto_init() }
@@ -5000,8 +5759,8 @@ func file_proto_rig_v1_wire_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_wire_proto_rawDesc), len(file_proto_rig_v1_wire_proto_rawDesc)),
-			NumEnums:      12,
-			NumMessages:   55,
+			NumEnums:      14,
+			NumMessages:   61,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

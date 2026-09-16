@@ -388,3 +388,110 @@ func TestNoServedRequestFieldIsSilentlyDropped(t *testing.T) {
 			"proved nothing about the ones it missed", seen, len(read))
 	}
 }
+
+// TestEveryBriefSectionReportsItsOwnState is the response-side half of the
+// guard above, and it is the one that would have caught the cut.
+//
+// ⛔ THE FAILURE IT EXISTS FOR ALREADY HAPPENED TWICE. `project.brief` is
+// specified with ELEVEN sections and shipped with four; separately,
+// `must_read` and `must_read_cleared` have been on the response since the wire
+// landed with nothing writing either, so a caller reading an empty set would
+// conclude the project requires nothing. Boris ruled all eleven in on
+// 2026-09-16 - "Cover all of them" - and the mechanism that makes that true is
+// SectionState, not a longer message.
+//
+// THE REQUEST-SIDE GUARD CANNOT SEE ANY OF THIS. It walks request messages
+// against the fields serveRecord READS; a response field nothing WRITES is the
+// same defect pointed the other way, and it needs its own walk. Raised by the
+// backend-record seat, which found `must_read` independently and correctly
+// refused to fix a file it does not own.
+func TestEveryBriefSectionReportsItsOwnState(t *testing.T) {
+	// EVERY section in the enum must be reported EXACTLY ONCE. A section that
+	// is simply absent is the original defect: the caller cannot tell it from
+	// a section with nothing in it.
+	vals := rigv1.BriefSection(0).Descriptor().Values()
+	want := map[rigv1.BriefSection]bool{}
+	for i := range vals.Len() {
+		if n := rigv1.BriefSection(vals.Get(i).Number()); n != 0 {
+			want[n] = true
+		}
+	}
+	if len(want) != 11 {
+		t.Fatalf("BriefSection carries %d sections and section 39 specifies 11 - "+
+			"if the specification changed, this number moves with it deliberately",
+			len(want))
+	}
+
+	seen := map[rigv1.BriefSection]int{}
+	for _, st := range briefSections() {
+		seen[st.GetSection()]++
+
+		// ⛔ A REASON IS MANDATORY WHENEVER A SECTION CANNOT ANSWER. Without it
+		// NOT_COMPUTED is just a quieter absence: the caller learns the section
+		// is unavailable and not which input it is waiting on.
+		if st.GetState() != rigv1.SectionState_SECTION_STATE_COMPUTED &&
+			strings.TrimSpace(st.GetReason()) == "" {
+			t.Errorf("%v is %v with NO REASON: the caller is told a section is "+
+				"unavailable and not what it waits on, which is an absence with "+
+				"extra steps", st.GetSection(), st.GetState())
+		}
+		if st.GetState() == rigv1.SectionState_SECTION_STATE_UNSPECIFIED {
+			t.Errorf("%v reports UNSPECIFIED, so an unset field has decoded as a "+
+				"decision - section 21's rule, and the reason every enum here has "+
+				"an explicit zero", st.GetSection())
+		}
+	}
+	for s := range want {
+		switch seen[s] {
+		case 1:
+		case 0:
+			t.Errorf("%v is in the enum and briefSections() does NOT report it. "+
+				"A missing section reads as covered, which is how seven of eleven "+
+				"were shipped absent", s)
+		default:
+			t.Errorf("%v is reported %d times; a caller reading the first gets a "+
+				"different answer from one reading the last", s, seen[s])
+		}
+	}
+}
+
+// TestTheBriefNeverAnswersWithoutItsSectionStates pins the one property the
+// whole ruling rests on, over the real wire.
+//
+// An all-zero BriefHealth is the correct encoding of a healthy project AND of
+// a projection that does not exist yet. ⛔ SO A BRIEF THAT ARRIVES WITHOUT
+// `sections` IS INDISTINGUISHABLE FROM ONE REPORTING PERFECT HEALTH, which is
+// section 39's recorded injury verbatim: a brief that "reported a
+// healthy-looking project that was not backed up".
+func TestTheBriefNeverAnswersWithoutItsSectionStates(t *testing.T) {
+	sock := upRecordDaemon(t)
+	c := seated(t, sock, "brief-sections")
+
+	var resp rigv1.ProjectBriefResponse
+	if err := c.Call(recordCtx(t), "rig.project.brief",
+		&rigv1.ProjectBriefRequest{Project: "rig"}, &resp); err != nil {
+		t.Fatalf("rig.project.brief: %v", err)
+	}
+	if len(resp.GetSections()) != 11 {
+		t.Fatalf("the brief answered with %d section states, want 11: an empty "+
+			"health block is then indistinguishable from a healthy project",
+			len(resp.GetSections()))
+	}
+	if resp.GetHealth() == nil {
+		t.Error("health is nil on the wire, so sections 7-9 are absent rather " +
+			"than reported - the shape section 39 added rows 7-9 to prevent")
+	}
+	// The must-read gate is the one with a recorded history of reading as
+	// "nothing is required" while being unbuilt.
+	for _, st := range resp.GetSections() {
+		if st.GetSection() != rigv1.BriefSection_BRIEF_SECTION_MUST_READ {
+			continue
+		}
+		if st.GetState() == rigv1.SectionState_SECTION_STATE_COMPUTED &&
+			len(resp.GetMustRead()) == 0 {
+			t.Error("must_read is reported COMPUTED and is empty; if the mark is " +
+				"now built this is right, and if it is not, an empty set is being " +
+				"served as though it meant the project requires nothing")
+		}
+	}
+}
