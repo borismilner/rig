@@ -5,9 +5,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -394,6 +398,90 @@ func TestTheBinaryUnderTestIsTheOneJustBuilt(t *testing.T) {
 		if rigBin == abs {
 			t.Error("these tests run build/rig, which is whatever the " +
 				"last make build produced rather than this tree's source")
+		}
+	}
+}
+
+// ⛔ EVERY VERB run() DISPATCHES HAS A TRANSCRIPT, AND THIS IS THE CHECK
+// BEHIND THE SENTENCE AT THE TOP OF THIS FILE RATHER THAN THE SENTENCE ITSELF.
+//
+// That sentence - "Every verb run() dispatches appears here, and so does the
+// way each one fails" - was TRUE OF TEN OF THIRTEEN when it was written down,
+// and nothing anywhere could tell anyone. `record`, `progress`, `brief` and
+// `mcp` were absent, and so was `peers`.
+//
+// ⛔ THE FIFTH ONE IS THE ARGUMENT FOR THIS TEST EXISTING. Four passes of
+// reading found four; `peers` came out of a set difference and nothing else.
+// AN ABSENCE IS THE ONE THING READING DOES NOT FIND - a missing row looks
+// exactly like a covered one, which is COORDINATION.md's rule about its own
+// ownership table arriving in a test file. So a completeness claim a human
+// re-checks by reading is a claim that will be false again within a week.
+//
+// IT WALKS BOTH SIDES AND INVENTS NEITHER. `dispatchedVerbs` is
+// refusal_verbs_test.go's, parsing run()'s own switch; the covered set is
+// parsed out of the table above rather than listed here, because a hand-kept
+// list of what is covered is a second source of truth that rots exactly like
+// the comment it replaced. TestNoRefusalCitesAVerbRigDoesNotDispatch and
+// briefRenderedSections are the same shape, and this makes three.
+func TestEveryVerbRunDispatchesHasAGoldenTranscript(t *testing.T) {
+	dispatched := dispatchedVerbs(t)
+	covered := map[string]bool{}
+
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "exec_test.go", nil, 0)
+	if err != nil {
+		t.Fatalf("exec_test.go did not parse, so this test proved NOTHING "+
+			"and must not be read as a pass: %v", err)
+	}
+	ast.Inspect(f, func(n ast.Node) bool {
+		kv, ok := n.(*ast.KeyValueExpr)
+		if !ok {
+			return true
+		}
+		if k, ok := kv.Key.(*ast.Ident); !ok || k.Name != "argv" {
+			return true
+		}
+		lit, ok := kv.Value.(*ast.CompositeLit)
+		if !ok || len(lit.Elts) == 0 {
+			// `argv: []string{}` is the no-command-at-all case and covers no
+			// verb. Not an error: it is a real transcript of a real failure.
+			return true
+		}
+		first, ok := lit.Elts[0].(*ast.BasicLit)
+		if !ok {
+			return true
+		}
+		if s, err := strconv.Unquote(first.Value); err == nil {
+			covered[s] = true
+		}
+		return true
+	})
+
+	// ⛔ THE POSITIVE CONTROL, AND WITHOUT IT THIS WHOLE TEST IS AN ABSENCE
+	// CHECKED AGAINST AN EMPTY SET. A parse that matched nothing, or a
+	// `dispatchedVerbs` that answered about the wrong function, both produce a
+	// clean pass below. Two verbs that certainly exist on both sides are named
+	// so the instrument has to prove it ran before its result means anything.
+	for _, control := range []string{"estate", "record"} {
+		if !dispatched[control] {
+			t.Fatalf("the dispatch walk did not find %q, so it answered about "+
+				"something other than run() and every absence below is "+
+				"meaningless. it found: %v", control, sortedKeys(dispatched))
+		}
+		if !covered[control] {
+			t.Fatalf("the case-table walk did not find %q, so it parsed "+
+				"something other than the transcripts and every absence below "+
+				"is meaningless. it found: %v", control, sortedKeys(covered))
+		}
+	}
+
+	for _, verb := range sortedKeys(dispatched) {
+		if !covered[verb] {
+			t.Errorf("run() dispatches %q and no transcript runs it. This "+
+				"file's opening sentence claims every dispatched verb appears "+
+				"here, and an absent row reads exactly like a covered one - "+
+				"which is how `peers` stayed missing through four readings.",
+				verb)
 		}
 	}
 }
