@@ -1034,10 +1034,29 @@ sorts last.** A reader sees a wrong list, not an unmade decision.
   vanishing** - and the two must not disagree.
 - **The tie-break is unchanged**: `created_at` descending, then `id`, so equal
   priorities are stable and the same store answers the same way twice.
-- ⛔ **ONE DEFINITION OF THE RANK, IN `internal/record`, USED BY BOTH SORTS.**
-  `brief.go:616` orders next-up *"by priority then id"* and section 11 orders
-  notes by priority - **two call sites of one rule, and this section's own
-  standing line about validators applies: two drift, one does not.**
+- ⛔ **ONE DEFINITION OF THE RANK, IN `internal/record`, USED BY EVERY SORT.**
+  **This section binds three, and ALL THREE ARE UNBUILT TODAY** - so this is an
+  IMPLEMENTATION, not a repair, and nobody is reading a wrongly-sorted list:
+
+  | Where | What it binds |
+  |---|---|
+  | §39 above, next-up | *"ties broken by `priority`"*. `topoSort` uses `sort.Strings` on ids |
+  | §39 above, section 11 | a CASE's `attention_n` notes, *"`priority` descending, tie-broken by `created_at` descending"* |
+  | ⛔ row 3, a PROJECT's notes | ⛔ **§39 says NOTHING about their order.** `notesAbout`'s `ORDER BY` is `n.id`, and **its own doc comment claims "priority then id"** - a false comment, not a sort. **The gap is real and the derivation seat takes the ordering under it**, putting the same rank in, so two adjacent note lists cannot disagree |
+
+  ⛔ **THE LINE THIS REPLACES WAS FALSE AND IS CORRECTED RATHER THAN ANNOTATED.**
+  It said *"`brief.go:616` orders next-up by priority then id"*. **Line 616 is
+  inside a doc comment, the function under it is `notesAbout` (section 3, not
+  next-up), and its SQL orders by `n.id` alone.** There are ZERO priority sorts
+  in `internal/record`; `ItemState.Priority` is filled at `brief.go:194` and read
+  by nothing. **Found by `backend-record` generation 5, `[ran it]` three ways.**
+
+  ⛔ **HOW IT GOT IN IS THE PART TO CARRY: A DOC COMMENT WAS READ AS THE
+  MECHANISM, inside the ruling that exists to stop an unratified reading becoming
+  spec.** A predecessor relayed the line number untagged, had the file open and
+  did not run it. **A relayed LINE NUMBER is the most dangerous shape a briefing
+  carries - nothing reads more checked than `file.go:616`, and it costs one `sed`
+  to check.**
 - **Three values, not four or five.** The smallest vocabulary that expresses the
   requirement he stated - *"most important"* - and §39's other closed sets
   (`started`/`blocked`/`done`, the four feature stages) are the house style it
