@@ -12,12 +12,29 @@
 # killed the healthy daemon that was already serving. Enabling the unit left
 # the desktop with no agentbox at all.
 #
-# rig has the identical shape: section 5f is a single-instance flock, section
-# 5g auto-spawns on the first client call, and section 18's SIGTERM path is
-# the same graceful drain a stop command would use. So the unit needs no stop
-# verb, and adding one recreates a defect already paid for once here. This
-# holds for `rig down` too: the lesson is not "no signal to a pid", it is no
-# stop command in any form. `agentbox quit` was not a signal either.
+# THE CONCLUSION STANDS AND TWO OF ITS SUPPORTS DO NOT. CORRECTED 2026-09-16,
+# both by measurement, because this paragraph claimed rig "has the identical
+# shape" and cited a section for a property that section does not carry.
+#
+# NOT IDENTICAL, AND IT IS THE LOAD-BEARING HALF: agentbox exits 0 when an
+# incumbent is up (verified at its source - cmd/agentbox/daemon.go calls
+# os.Exit(exitOK) on ErrAlreadyRunning). rigd has never exited 0 there. It
+# exited 1 and now exits 8, so the mechanism that caused the scar - systemd
+# reading a successful exit as the service finishing - cannot occur here.
+#
+# AND SECTION 5g DOES NOT SPECIFY AUTO-SPAWN. It is "When rig is not running",
+# and what it specifies is the opposite posture: a TOLERANT client with a
+# reconnect loop, a resolved snapshot on disk and lifecycle notices, with the
+# old fallback deleted. Nothing in it spawns a daemon, and no spawn path
+# exists in the tree. The citation was inherited, not checked.
+#
+# SO WHY NO ExecStop ANYWAY, on grounds that survive both corrections: section
+# 5f is a single-instance flock, section 18's SIGTERM path is already the
+# graceful drain a stop command would perform, and an ExecStop can only
+# duplicate it or race it. The 3-to-0 ruling in section 37 rests on section
+# 5l's own text rather than on the shape argument above. This holds for
+# `rig down` too: the lesson is not "no signal to a pid", it is no stop
+# command in any form. `agentbox quit` was not a signal either.
 #
 # IT MANAGES production ONLY, and by construction rather than by a flag
 # somebody might omit (section 37, precondition 5). It sets no
