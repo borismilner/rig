@@ -1,12 +1,9 @@
 package record
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"os"
-	"regexp"
-	"strings"
 	"testing"
 )
 
@@ -40,130 +37,8 @@ const backlogPath = "../../BACKLOG.md"
 // command whose green cannot be a skip. B46e.
 const requireBacklog = "RIG_RECORD_REQUIRE_BACKLOG"
 
-// backlogRow matches any table row whose first cell is a backlog id.
-//
-// ⛔ IT MUST NOT REQUIRE THE TITLE CELL TO OPEN WITH `**`. The pattern here was
-// `^\| (B\d+) \| \*\*(.+)$` until 2026-09-16, and a CLOSED row opens `~~**`
-// because strikethrough is how this document marks one. So it dropped eight
-// rows - B7, B9, B11, B19, B20, B22, B31, B33 - every one of them closed, and
-// seeded 36 of 44 while three documents reported 44. The demonstration ran
-// against rig's backlog with its history removed, which is the one distortion
-// most likely to flatter a next-up list.
-var backlogRow = regexp.MustCompile(`^\|\s*(B\d+)\b`)
-
-// backlogRowAnywhere is the SECOND instrument, and it exists to disagree.
-//
-// It is a multiline match over the whole file rather than a line scan, so it
-// shares no code path with the scanner above - not the buffer bound, not the
-// loop, not the split. The guard asserts the two agree as SETS.
-//
-// ⛔ IT EARNED ITS KEEP ON ITS FIRST RUN. It found B21, which FOUR separate
-// hand-counts had missed - the old regex, two python cross-checks, and the
-// `grep -cE '^\| B[0-9]+ \|'` that produced the 44 reported to the lead and
-// into READINESS.txt. Every one of them required a pipe after the id, and B21's
-// row does not have one. THE TRUE ROW COUNT IS 45, NOT 44.
-var backlogRowAnywhere = regexp.MustCompile(`(?m)^\|\s*(B\d+)\b`)
-
-// cells splits a markdown table row and trims every cell. The table is
-// | # | Item | Evidence | Adopter | State |, so cells[1] is the id, cells[2]
-// the item and cells[5] the state.
-func cells(line string) []string {
-	parts := strings.Split(line, "|")
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		out = append(out, strings.TrimSpace(p))
-	}
-	return out
-}
-
-// titleOf takes the item cell's title, past any strikethrough and bold, and
-// stops at whichever marker closes it. The rows are handwritten and not all of
-// them close the bold before the pipe.
-func titleOf(cell string) string {
-	s := strings.TrimPrefix(cell, "~~")
-	s = strings.TrimPrefix(s, "**")
-	for _, cut := range []string{"**", "~~"} {
-		if i := strings.Index(s, cut); i > 0 {
-			s = s[:i]
-		}
-	}
-	return strings.TrimSpace(s)
-}
-
-// boldLead returns a cell's first bolded run, which is how every row in this
-// table states its disposition.
-func boldLead(cell string) string {
-	i := strings.Index(cell, "**")
-	if i < 0 {
-		return ""
-	}
-	rest := cell[i+2:]
-	if j := strings.Index(rest, "**"); j >= 0 {
-		rest = rest[:j]
-	}
-	return rest
-}
-
-// terminalDispositions are the bold leads that mean the work is over.
-var terminalDispositions = map[string]bool{
-	"DONE": true, "CLOSED": true, "REJECTED": true, "RETRACTED": true,
-}
-
-// firstWord returns a cell's first word, upper-cased and stripped of the
-// punctuation these rows attach to it - "DONE," and "DONE." both mean DONE.
-func firstWord(s string) string {
-	s = strings.TrimSpace(s)
-	if i := strings.IndexAny(s, " ,.;:"); i > 0 {
-		s = s[:i]
-	}
-	return strings.ToUpper(s)
-}
-
-type backlogItem struct {
-	ID    string
-	Title string
-
-	// Done is the DOCUMENT'S OWN closure mark: the title struck through.
-	//
-	// ⛔ THIS IS EVIDENCE RATHER THAN INFERENCE. B7's State cell says it in as
-	// many words - "done, struck not deleted" - so the file states its own
-	// convention. Striking a title is a deliberate act somebody performed;
-	// scanning the row's prose for the word "done" is a lottery, and the
-	// pattern this replaced lost B44 to a comma, B15 to the word CLOSED and
-	// B26 to a full stop.
-	Done bool
-
-	// ClaimsDone is a row whose STATE cell leads with a terminal disposition
-	// while its title is NOT struck.
-	//
-	// ⛔ COUNTED AND REPORTED, NEVER FOLDED INTO Done. cells[2] and cells[5]
-	// are different axes: the item cell carries whether the WORK is closed,
-	// the state cell carries how the FINDING was disposed of. B9 is struck and
-	// done while its state says "argued", and that is not a contradiction.
-	// Whether a row that claims done in prose without being struck is closed
-	// is a question about the document, and this test does not own the
-	// document - so it hands the count up rather than deciding.
-	ClaimsDone bool
-
-	// Struck records WHICH of Done's two clauses closed this row: the
-	// strikethrough, or a terminal lead in the item cell.
-	//
-	// ⛔ IT EXISTS BECAUSE THE LABEL LIED. classify printed "%d closed (title
-	// struck)" over a set that is not all struck - 8 of 9 - so two seats
-	// measured honestly and got different numbers. The label asserted a
-	// one-clause test the code does not run, which is the same family as a
-	// bound that cannot notice itself going stale: a caption is a claim, and an
-	// unchecked one goes wrong exactly where nobody looks.
-	Struck bool
-
-	// Malformed is a row whose markdown is irregular enough that the id cell
-	// and the item cell ran together. Counted and named in the report so the
-	// document's owner can fix it; never a reason to drop the row.
-	Malformed bool
-}
-
 // readBacklog pulls the real rows out of the real file.
-func readBacklog(t *testing.T) []backlogItem {
+func readBacklog(t *testing.T) []BacklogItem {
 	t.Helper()
 	f, err := os.Open(backlogPath)
 	if err != nil {
@@ -202,7 +77,7 @@ func readBacklog(t *testing.T) []backlogItem {
 // missing fixture is a FAILURE and never a skip: the skip above is about rig's
 // own document being unreachable from a gate worktree, which is a fact about
 // the checkout, and a fixture that has gone missing is a fact about this test.
-func readBacklogFrom(t *testing.T, path string) []backlogItem {
+func readBacklogFrom(t *testing.T, path string) []BacklogItem {
 	t.Helper()
 	f, err := os.Open(path)
 	if err != nil {
@@ -218,90 +93,13 @@ func readBacklogFrom(t *testing.T, path string) []backlogItem {
 // acceptance demonstration must read rig's real document and the pin must read
 // a fixed one, and two parsers of one table shape is the drift this package
 // spends its time correcting elsewhere.
-func parseBacklog(t *testing.T, f io.Reader) []backlogItem {
+func parseBacklog(t *testing.T, f io.Reader) []BacklogItem {
 	t.Helper()
-	raw, err := io.ReadAll(f)
+	items, err := ParseBacklog(f)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	var out []backlogItem
-	seen := map[string]bool{}
-	sc := bufio.NewScanner(strings.NewReader(string(raw)))
-	sc.Buffer(make([]byte, 1<<20), 1<<20)
-	for sc.Scan() {
-		line := sc.Text()
-		m := backlogRow.FindStringSubmatch(line)
-		if m == nil || seen[m[1]] {
-			continue
-		}
-		seen[m[1]] = true
-		c := cells(line)
-		if len(c) < 6 {
-			t.Fatalf("%s has %d cells, want at least 6 (| # | Item | Evidence | Adopter | State |): %.120s",
-				m[1], len(c), line)
-		}
-
-		// ⛔ ONE ROW IS MISSING THE PIPE AFTER ITS ID, SO ITS ID CELL ABSORBED
-		// THE FRONT OF ITS ITEM CELL - INCLUDING THE CLOSURE MARKER.
-		//
-		// B21, and it is why the second instrument exists. Reconstructing the
-		// item cell is the honest repair: the row is real, it is closed, and
-		// every count anyone ran missed it because every one required the pipe.
-		// It is FLAGGED rather than silently normalised - section 39's ruling
-		// on the migration is import everything and report what is irregular,
-		// and a row this test quietly tidied would be a row nobody ever fixes.
-		item, malformed := c[2], false
-		if rest := strings.TrimSpace(strings.TrimPrefix(c[1], m[1])); rest != "" {
-			item, malformed = rest+" "+item, true
-		}
-
-		out = append(out, backlogItem{
-			ID:    m[1],
-			Title: titleOf(c[2]),
-			// The document's own closure mark, in the item cell: a struck
-			// title, or a terminal bold lead where the strikethrough would be.
-			Struck:    strings.HasPrefix(item, "~~"),
-			Done:      strings.HasPrefix(item, "~~") || terminalDispositions[firstWord(boldLead(item))],
-			Malformed: malformed,
-		})
-		out[len(out)-1].ClaimsDone = !out[len(out)-1].Done &&
-			terminalDispositions[firstWord(boldLead(c[5]))]
-	}
-	if err := sc.Err(); err != nil {
-		t.Fatal(err)
-	}
-
-	// ⛔ THE GUARD IS AN EQUALITY BETWEEN TWO INSTRUMENTS, NOT A BOUND.
-	//
-	// This was `if len(items) < 30 { t.Fatalf("... expected the real file's
-	// ~44", len(items)) }`. Over a 44-row file it read 36, and 36 >= 30, so it
-	// passed and the message naming 44 never printed. A BOUND CANNOT NOTICE
-	// ITSELF GOING STALE - it is the same defect as a check that cannot tell
-	// "nothing is wrong" from "the check did not run", and this repo has now
-	// recorded seven of those.
-	//
-	// So the file is scanned a second time by a pattern that shares no code
-	// path with the scanner above - a multiline match over the whole contents,
-	// no bufio, no buffer bound, no per-line loop - and the two must agree AS
-	// SETS. A count equality would still hide a swap; the set difference names
-	// the rows that went missing, which is the failure that actually happened.
-	byScan := map[string]bool{}
-	for _, it := range out {
-		byScan[it.ID] = true
-	}
-	var missing []string
-	for _, m := range backlogRowAnywhere.FindAllStringSubmatch(string(raw), -1) {
-		if !byScan[m[1]] {
-			missing = append(missing, m[1])
-			delete(byScan, m[1])
-		}
-	}
-	if len(missing) > 0 {
-		t.Fatalf("the row scanner read %d rows and the whole-file scan finds %d; it never saw %v",
-			len(out), len(out)+len(missing), missing)
-	}
-	return out
+	return items
 }
 
 // ⛔ THE MVP ACCEPTANCE DEMONSTRATION. B46b.
@@ -461,7 +259,7 @@ func TestRigsOwnBacklogIsManagedInRigAndTheBriefAnswersIt(t *testing.T) {
 // rather than about this code. So it is counted and named, never folded in.
 // Deciding it here would be this test writing the backlog's semantics into Go,
 // where nobody reviews it as a decision.
-func classify(t *testing.T, items []backlogItem) {
+func classify(t *testing.T, items []BacklogItem) {
 	t.Helper()
 	var done, struck, byLead, claims, malformed []string
 	for _, it := range items {

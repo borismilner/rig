@@ -26,7 +26,7 @@ import (
 const backlogShapes = "testdata/backlog-shapes.md"
 
 // ids, sorted, so a set comparison cannot be defeated by ordering.
-func idsWhere(items []backlogItem, keep func(backlogItem) bool) []string {
+func idsWhere(items []BacklogItem, keep func(BacklogItem) bool) []string {
 	var out []string
 	for _, it := range items {
 		if keep(it) {
@@ -56,15 +56,15 @@ func pin(t *testing.T, what string, got, want []string) {
 func TestTheBacklogParserReadsEveryRowShapeTheSameWay(t *testing.T) {
 	items := readBacklogFrom(t, backlogShapes)
 
-	pin(t, "every row read", idsWhere(items, func(backlogItem) bool { return true }),
+	pin(t, "every row read", idsWhere(items, func(BacklogItem) bool { return true }),
 		[]string{"B1", "B10", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9"})
-	pin(t, "closed by a struck title", idsWhere(items, func(i backlogItem) bool { return i.Done && i.Struck }),
+	pin(t, "closed by a struck title", idsWhere(items, func(i BacklogItem) bool { return i.Done && i.Struck }),
 		[]string{"B2", "B7"})
-	pin(t, "closed by a terminal lead in the item cell", idsWhere(items, func(i backlogItem) bool { return i.Done && !i.Struck }),
+	pin(t, "closed by a terminal lead in the item cell", idsWhere(items, func(i BacklogItem) bool { return i.Done && !i.Struck }),
 		[]string{"B3", "B5", "B6", "B9"})
-	pin(t, "claims a terminal state unstruck, seeded OPEN", idsWhere(items, func(i backlogItem) bool { return i.ClaimsDone }),
+	pin(t, "claims a terminal state unstruck, seeded OPEN", idsWhere(items, func(i BacklogItem) bool { return i.ClaimsDone }),
 		[]string{"B4"})
-	pin(t, "malformed, parsed and seeded anyway", idsWhere(items, func(i backlogItem) bool { return i.Malformed }),
+	pin(t, "malformed, parsed and seeded anyway", idsWhere(items, func(i BacklogItem) bool { return i.Malformed }),
 		[]string{"B7"})
 
 	// ⛔ THE TITLES ARE PINNED BECAUSE NOTHING ELSE PINS THEM. A mutation that
@@ -119,10 +119,10 @@ func TestTheBacklogParserReadsEveryRowShapeTheSameWay(t *testing.T) {
 func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 	items := readBacklog(t) // skips outside the working tree - B46e
 
-	struck := idsWhere(items, func(i backlogItem) bool { return i.Done && i.Struck })
-	byLead := idsWhere(items, func(i backlogItem) bool { return i.Done && !i.Struck })
-	claims := idsWhere(items, func(i backlogItem) bool { return i.ClaimsDone })
-	malformed := idsWhere(items, func(i backlogItem) bool { return i.Malformed })
+	struck := idsWhere(items, func(i BacklogItem) bool { return i.Done && i.Struck })
+	byLead := idsWhere(items, func(i BacklogItem) bool { return i.Done && !i.Struck })
+	claims := idsWhere(items, func(i BacklogItem) bool { return i.ClaimsDone })
+	malformed := idsWhere(items, func(i BacklogItem) bool { return i.Malformed })
 
 	pin(t, "closed, struck", struck,
 		[]string{"B11", "B19", "B20", "B22", "B31", "B33", "B7", "B9"})
