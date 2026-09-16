@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -177,6 +178,7 @@ func TestAnUnnamedEstateSaysSoRatherThanPrintingABlank(t *testing.T) {
 func TestTheEstateObjectCarriesEveryKeyOnEveryAnswer(t *testing.T) {
 	want := []string{
 		"name", "role", "role_number", "daemon_version", "wire", "semantics_gen",
+		"epoch",
 	}
 
 	for _, resp := range []*rigv1.EstateResponse{
@@ -230,12 +232,12 @@ func TestJSONNeverEmitsANameWithoutARoleOrARoleWithoutAName(t *testing.T) {
 func TestTheHumanBlockPrintsEveryFieldInOneColumn(t *testing.T) {
 	out := estateText(&rigv1.EstateResponse{
 		Name: "development", Role: rigv1.EstateRole_ESTATE_ROLE_DEVELOPMENT,
-		DaemonVersion: "0.1.0", Wire: "v1", SemanticsGen: 3,
+		DaemonVersion: "0.1.0", Wire: "v1", SemanticsGen: 3, Epoch: 7,
 	})
 
 	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
-	if len(lines) != 5 {
-		t.Fatalf("rendered %d lines, want 5:\n%s", len(lines), out)
+	if len(lines) != 6 {
+		t.Fatalf("rendered %d lines, want 6:\n%s", len(lines), out)
 	}
 
 	// valueStart is the index the value begins at, measured on the rendered
@@ -254,7 +256,7 @@ func TestTheHumanBlockPrintsEveryFieldInOneColumn(t *testing.T) {
 		}
 	}
 
-	for _, want := range []string{"development", "0.1.0", "v1", "3"} {
+	for _, want := range []string{"development", "0.1.0", "v1", "3", "7"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the block does not carry %q:\n%s", want, out)
 		}
@@ -273,5 +275,110 @@ func TestEstateRefusesAPositionalBeforeItDialsAnything(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "usage:") {
 		t.Errorf("refused with %q, which does not say how to call it", err)
+	}
+}
+
+// TestAZeroEpochNeverRendersAsARealOne is the whole of this field's rendering,
+// and it is the assertion a %d fails.
+//
+// A REAL EPOCH IS ALWAYS >= 1, because the store bumps before it publishes, so
+// 0 means no store was opened rather than "the zeroth epoch". Printed with %d
+// it sits under `epoch` looking exactly like a small one - and the reader who
+// most needs the difference is the one comparing two blocks across a restart,
+// who would see 0 and 0 and conclude nothing moved. That is precisely the
+// reading this field was added to make possible, so the collapse would land in
+// the one place the field exists for.
+func TestAZeroEpochNeverRendersAsARealOne(t *testing.T) {
+	zero := estateEpochCell(&rigv1.EstateResponse{
+		Role: rigv1.EstateRole_ESTATE_ROLE_UNNAMED,
+	})
+	if zero == "0" {
+		t.Fatal("a zero epoch renders as the bare number 0, which reads as a " +
+			"real epoch: a real one is always >= 1, and 0 means no store was " +
+			"opened at all")
+	}
+
+	for _, real := range []uint64{1, 2, 10} {
+		got := estateEpochCell(&rigv1.EstateResponse{
+			Name: "production",
+			Role: rigv1.EstateRole_ESTATE_ROLE_PRODUCTION, Epoch: real,
+		})
+		if got == zero {
+			t.Errorf("epoch %d and epoch 0 both render as %q, so a reader "+
+				"comparing two estates cannot tell a restart from a daemon "+
+				"that opened no store", real, got)
+		}
+		if want := strconv.FormatUint(real, 10); got != want {
+			t.Errorf("epoch %d renders as %q, want the bare %q - a real epoch "+
+				"is a number and decorating it would make two daemons' blocks "+
+				"harder to compare, which is the only thing it is for",
+				real, got, want)
+		}
+	}
+}
+
+// TestTheTwoWaysAnEpochCanBeZeroNeverRenderAsEachOther is estateRoleCell's
+// argument applied one field down.
+//
+// An unnamed estate reports 0 because it opens no store, and that is a FACT
+// about it. A named estate reporting 0 is a daemon that did not publish what it
+// should have, which is a DEFECT. The role travels in the same response, so
+// this renderer can tell them apart rather than guess - and a reader told
+// "no store" about a production estate would go looking in the wrong place.
+func TestTheTwoWaysAnEpochCanBeZeroNeverRenderAsEachOther(t *testing.T) {
+	unnamed := estateEpochCell(&rigv1.EstateResponse{
+		Role: rigv1.EstateRole_ESTATE_ROLE_UNNAMED,
+	})
+	unpublished := estateEpochCell(&rigv1.EstateResponse{
+		Name: "production", Role: rigv1.EstateRole_ESTATE_ROLE_PRODUCTION,
+	})
+
+	if unnamed == unpublished {
+		t.Fatalf("an unnamed estate and a named one that published no epoch "+
+			"both render as %q, so a defect reads as a fact about the estate",
+			unnamed)
+	}
+	if !strings.Contains(unpublished, "defect") {
+		t.Errorf("a named estate publishing no epoch renders as %q, which "+
+			"does not tell the reader they are looking at a defect",
+			unpublished)
+	}
+	if strings.Contains(unnamed, "defect") {
+		t.Errorf("an unnamed estate renders as %q; opening no store is what "+
+			"an unnamed estate DOES, and calling it a defect sends the "+
+			"reader to fix something that is working", unnamed)
+	}
+}
+
+// TestTheEpochTravelsAsARawNumberInJSON pins the asymmetry with the text
+// block, so that it stays a decision rather than becoming an inconsistency.
+//
+// A JSON consumer holds the number and the role in one object and can branch;
+// a person reading a column cannot. So --json spends a number where the text
+// block spends a sentence, and a zero is emitted rather than suppressed
+// because an absent key reads as "never considered".
+func TestTheEpochTravelsAsARawNumberInJSON(t *testing.T) {
+	for _, c := range []struct {
+		what string
+		resp *rigv1.EstateResponse
+		want uint64
+	}{
+		{"a real epoch", &rigv1.EstateResponse{
+			Name: "production",
+			Role: rigv1.EstateRole_ESTATE_ROLE_PRODUCTION, Epoch: 4,
+		}, 4},
+		{"an unnamed estate", &rigv1.EstateResponse{
+			Role: rigv1.EstateRole_ESTATE_ROLE_UNNAMED,
+		}, 0},
+		{"every field its zero", &rigv1.EstateResponse{}, 0},
+	} {
+		got, ok := estateJSON(c.resp)["epoch"]
+		if !ok {
+			t.Errorf("%s: --json dropped the epoch key", c.what)
+			continue
+		}
+		if got != c.want {
+			t.Errorf("%s: --json carries epoch %v, want %v", c.what, got, c.want)
+		}
 	}
 }

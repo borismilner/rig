@@ -111,7 +111,7 @@ func roleLabel(r rigv1.EstateRole) (string, bool) {
 //
 // EVERY KEY IS PRESENT ON EVERY ANSWER, with no omitempty anywhere, and that
 // is the same argument answerJSON writes down for `partial`. An absent key
-// reads as "this was never considered", and all five of these were considered
+// reads as "this was never considered", and all six of these were considered
 // on every call - an empty name is the ANSWER for an unnamed estate, not a
 // missing one. A key that comes and goes is also how a consumer learns to
 // treat absence as a value, which is the distinction the role enum spends its
@@ -140,8 +140,19 @@ func estateJSON(r *rigv1.EstateResponse) map[string]any {
 		"daemon_version": r.GetDaemonVersion(),
 		"wire":           r.GetWire(),
 		"semantics_gen":  r.GetSemanticsGen(),
+		"epoch":          r.GetEpoch(),
 	}
 }
+
+// THE EPOCH IS EMITTED AS THE RAW NUMBER HERE AND NOT IN THE TEXT BLOCK, and
+// the asymmetry is deliberate rather than an oversight.
+//
+// A zero means no store was opened, never "the zeroth epoch". A JSON consumer
+// can branch on that - it has the number and the role in the same object, and
+// branching is what a consumer is for. A person reading a column cannot: `0`
+// sits under `epoch` looking exactly like a small epoch, and the reader who
+// most needs the distinction is the one comparing two blocks across a restart.
+// So the text rendering spends a sentence and this one spends a number.
 
 // estateText is the human rendering. It is a function of its own, taking the
 // response rather than reaching the wire, so every case below is testable
@@ -157,6 +168,7 @@ func estateText(r *rigv1.EstateResponse) string {
 	row("daemon", r.GetDaemonVersion())
 	row("wire", r.GetWire())
 	row("semantics", strconv.Itoa(int(r.GetSemanticsGen())))
+	row("epoch", estateEpochCell(r))
 	return b.String()
 }
 
@@ -177,6 +189,35 @@ func estateNameCell(r *rigv1.EstateResponse) string {
 		return "(none claimed)"
 	}
 	return r.GetName()
+}
+
+// estateEpochCell renders the epoch, and a zero is a CASE rather than a number.
+//
+// A REAL EPOCH IS ALWAYS >= 1, because the store bumps before it publishes, so
+// 0 never means "the zeroth epoch" - it means no store was opened. Printed with
+// %d it would read as a small epoch, and the reader who most needs the
+// distinction is the one comparing two of these across a restart: they would
+// see 0 and 0, conclude nothing moved, and that is the exact reading this field
+// was added to make possible. The zero and a fact must not render the same, for
+// the reason estateRoleCell spends four paragraphs on one function above.
+//
+// ONLY AN UNNAMED ESTATE HAS 0 AS ITS ANSWER: it opens no store, so there is
+// nothing to bump. Any other role reporting 0 is a daemon that did not publish
+// what it should have - and because the role travels in the SAME response, this
+// is one of the few renderers that can tell the two apart instead of guessing
+// which it is looking at.
+func estateEpochCell(r *rigv1.EstateResponse) string {
+	if e := r.GetEpoch(); e != 0 {
+		return strconv.FormatUint(e, 10)
+	}
+	if r.GetRole() == rigv1.EstateRole_ESTATE_ROLE_UNNAMED {
+		return "(none - an unnamed estate opens no store)"
+	}
+	// Covers the unspecified role too, and says nothing about whether this
+	// estate is named: with the role's own zero in play the renderer does not
+	// know that either, and estateRoleCell is the line that reports it.
+	return "(none) - only an unnamed estate answers this, so this is a " +
+		"defect rather than a fact about the estate"
 }
 
 // estateRoleCell renders the role, and the two cases that are not facts about
