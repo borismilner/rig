@@ -2421,6 +2421,40 @@ design is what the build begins from once it does.
 | **the feedback** | **the agent-experience of POPULATING**: what details are missing, and which of them matter enough to be supported | **what to correct, improve or add** to make rig better |
 | **the question it answers** | *can rig HOLD this project?* | *is rig GOOD at holding it?* |
 
+### ⛔ AND THE GATE IS ADVERSARIAL, NOT SELF-ASSESSED. RULED BY BORIS 2026-09-17.
+
+**His words, the turn the store was first populated:**
+
+> *"Before we start working using `rig` for developing `rig` I need an
+> adversarial attack on whether `rig` model of itself is superior to the logbook
+> and doesn't miss anything and whether it can be improved"*
+
+⛔ **THIS IS A PRECONDITION ON PHASE 2 AND IT IS NOT THE POPULATING PEER'S
+OWN REPORT.** Phase 1 already owes *"a list of what rig could not express"*,
+written by the seat that did the populating. **He is adding a HOSTILE pass over
+the result, and the difference is the point: a seat that has just imported
+everything is the worst available judge of what the import lost.**
+
+**THREE QUESTIONS, AND THEY ARE NOT ONE QUESTION:**
+
+| | |
+|---|---|
+| **SUPERIOR** | not *"does rig hold it"* but **does rig hold it BETTER than the logbook does.** `READINESS.txt` already carries the bar - *"significantly superior to the documents. Parity is failure."* |
+| **MISSES NOTHING** | ⛔ **the capture-fidelity gate, stated as an ABSENCE** - what is in the logbook, or in a seat's head, that has no home in records, kinds and links |
+| **CAN BE IMPROVED** | the forward half. Not defects: **what the model should GAIN** |
+
+⛔ **AND "SUPERIOR TO THE LOGBOOK" IS A COMPARISON WITH A LIVE CONTROL, WHICH
+IS THE ONE SHAPE THIS PROJECT KEEPS GETTING WRONG.** The logbook is not a
+strawman: it is 24 documents, `DECISIONS.md` alone is 421k, and it has carried
+this project through eight lead generations. **An attack that does not read the
+control has measured rig against nothing** - and by this file's own rule, a
+check that cannot tell *"rig is better"* from *"nobody compared"* reads as a
+pass.
+
+**The MVP ships no export and the logbook stays authoritative until slice 5, so
+nothing is deleted on the strength of this gate either way.** What it decides is
+whether phase 2 begins.
+
 ### THE GATE IS NAMED AND IT IS NOT A DATE
 
 **Phase 2 starts only *"after we are able to perfectly capture all relevant rig
