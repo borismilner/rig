@@ -194,6 +194,30 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
       of ever letting the native delete-event fire) - a real scope decision,
       not a one-line patch. **The next session should treat this as the
       actual open item**, not the hook fix above, which is done.
+    - ⛔ **RE-RUN 2026-09-16 EVENING AND IT DID NOT REPRODUCE.** Section 9's
+      review instruction was carried out at `695ba56`, in a detached worktree
+      with `git status --porcelain` printed empty from inside it and the binary
+      stamped `695ba56` with no `-dirty`. **Three closes across three runs** -
+      `wmctrl -ic` twice, and once `xdotool windowclose <id>`, the repro above
+      **verbatim**, against a live `rigd` on the real runtime directory. **No
+      `SIGABRT`, no `Gdk-WARNING`, no `egl_native_window` assertion; the process
+      was alive eight seconds after every close** and exited only on the
+      `SIGTERM` that ended the probe (`rc=143`, never `rc=134`). The three
+      claims this section calls done all HELD in the same run: the tray item
+      registers (one new `@/StatusNotifierItem` appears in
+      `RegisteredStatusNotifierItems` exactly at launch), **it survives the
+      window close** - which was Boris's original complaint - and
+      hide-instead-of-quit holds with zero windows mapped.
+      **DOWNGRADED FROM BLOCKER TO UNVERIFIED, NOT CLOSED**, and the limits are
+      the point: the window was **never closed by a pointer click on the
+      titlebar X**, only by a synthetic `_NET_CLOSE_WINDOW` (this section
+      asserts those are the same `delete-event`; that assertion is this
+      document's, not the run's); **the tray menu's Quit item was never
+      exercised**; and the window was **never re-shown from the tray and closed
+      a second time.** *"Did not reproduce three times"* is not *"fixed"* and
+      must not be cited as if it were. Full record, including an instrument bug
+      that cost one run, in `DECISIONS.md` under "THE SECTION 9 REVIEW
+      INSTRUCTION WAS RUN, AND IT CUT THE OTHER WAY".
   - **An UNNAMED estate gets no tray at all.** Every test and every reproduction
     recipe starts one, they are not deployments (§37's ephemeral clause), and a
     third icon appearing during `make ci` would be the failure this requirement
