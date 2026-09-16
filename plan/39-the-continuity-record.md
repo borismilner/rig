@@ -88,6 +88,56 @@ runs through a file no seat on this team owns.** That is a coordination fact
 that has to be settled by asking him rather than assumed either way, and it is
 the first thing about this criterion a lead should raise.
 
+#### ⛔ THE MVP MUST BE SUPER-ROBUST BEFORE IT IS USED, AND TERMINATION IS THE NAMED CASE. RULED BY BORIS 2026-09-16.
+
+> *"We must strive to a super-robust MVP implementation before we start using
+> it. Terminations must be graceful and everything else that makes it very
+> robust."*
+
+⛔ **THIS IS A BAR ON THE MVP, NOT A PHASE AFTER IT.** *"before we start using
+it"* - so robustness is not hardening applied to a working MVP later; an MVP
+that is not robust is not the MVP. It sits beside the capability and the
+deployment as a third condition on the same acceptance.
+
+**TERMINATION IS SINGLED OUT AND IT IS ALREADY FAILING, DEMONSTRATED THE SAME
+DAY.** `[ran it]` 2026-09-16 by the lead, on the installed build:
+
+| | |
+|---|---|
+| what was done | `xdotool windowclose` on the window - **a real `WM_DELETE_WINDOW`, the same message the X button sends** |
+| what happened | ⛔ **the process PANICKED** - *"signal arrived during cgo execution"*, `wails/v3@v3.0.0-beta.19/pkg/application/linux_cgo.go:168`, through `application.go:766` and `cmd/rigwindow/main.go:116` |
+| systemd's verdict | `status=2/INVALIDARGUMENT`, `Failed with result 'exit-code'` |
+| the tray | **went with it.** `NRestarts` 0 -> 1, the PID changed |
+
+**SO REQUIREMENT 4 IN §11 IS BROKEN, AND THE CODE COMMENT ASSERTING IT WORKS IS
+WRONG.** `main.go:106` registers a `WindowClosing` hook that cancels the event
+and hides the window, and its comment explains at length why that keeps the tray
+alive. **The hook does not save it: the crash is below Wails, in GTK, during
+`app.Run()`.**
+
+⛔ **AND THE UNIT SHIPPED HOURS EARLIER IS CURRENTLY MASKING IT. THAT IS THE
+MOST DANGEROUS FACT IN THIS BLOCK.** `packaging/rigwindow.service` carries
+`Restart=on-failure`, so the tray reappears about two seconds later and **a
+human watching the tray sees a flicker rather than a failure.** The unit is a
+MITIGATION and must not be read as the fix. **Without it, closing the window
+leaves no tray until the next login** - which is exactly what Boris reported
+before any of this was measured.
+
+**HOW IT WAS FOUND IS THE METHOD, NOT AN ANECDOTE, BECAUSE THE FIRST RUN SAID
+IT PASSED.** `wmctrl -i -c` returned 0, the PID was unchanged and the service
+was active - **a clean green.** It was false: the window had never been mapped,
+so the close acted on nothing. **Mapping the window first and re-running is what
+turned the pass into a panic.** A check that cannot tell *the thing worked* from
+*the thing never happened* reads as a clean result - this file's own recurring
+defect, arriving this time in a demonstration of a requirement rather than in a
+gate.
+
+**WHAT "EVERYTHING ELSE THAT MAKES IT VERY ROBUST" BINDS, so it is not read as a
+mood:** a termination path is graceful when **the process chooses to exit, says
+why, and leaves nothing half-written.** A panic is none of those. The same bar
+reaches the daemon's shutdown, the record store's open transactions, and any
+path where a seat's write could be in flight when something stops.
+
 #### ⛔ REDEPLOYMENT IS BATCHED, AND EVERY PEER WAITS THROUGH IT. RULED BY BORIS 2026-09-16.
 
 > *"Once in a while when there are enough new features, changes and capabilities
