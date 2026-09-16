@@ -138,6 +138,26 @@ why, and leaves nothing half-written.** A panic is none of those. The same bar
 reaches the daemon's shutdown, the record store's open transactions, and any
 path where a seat's write could be in flight when something stops.
 
+##### ⛔ HE ORDERED NOTHING BETWEEN THE THREE CONDITIONS, AND TWO SEATS HAVE NOW INFERRED ONE
+
+**Recorded 2026-09-16 late, traced between the fifth and sixth lead generations,
+because an inferred ordering was about to be inherited as his.** *"before we
+start using it"* is **a bar on the acceptance, not a sequence over the work.**
+Nothing he has said ranks the capability, the deployment and robustness against
+each other.
+
+**The evidence that no ordering exists is that the same seat wrote it two ways
+within the hour:** its handoff document ranked the window crash FOURTH under
+*"do this next"* and its live briefing led with it FIRST. **Neither is his, and
+they are not even consistently a seat's.**
+
+⛔ **AND THE MOST RECENT THING HE SAID ABOUT WHAT HE WANTS PULLS THE OTHER WAY**
+- *"I want to start seeing things work so it's important that we get there in
+this session"*, verbatim, the same day - **which is the capability half.** A
+lead that reads the robustness bar as a work order is ranking against his own
+stated want without telling him. **Rank it, say which you ranked, and put it to
+him in one clause** - do not hand a successor an ordering with no origin.
+
 #### ⛔ REDEPLOYMENT IS BATCHED, AND EVERY PEER WAITS THROUGH IT. RULED BY BORIS 2026-09-16.
 
 > *"Once in a while when there are enough new features, changes and capabilities
@@ -987,6 +1007,47 @@ case-shaped brief surfaces it exactly as `project.brief` already
 surfaces next-up work-items - the same derivation aimed at a
 different container.
 
+##### ⛔ `priority` HAD NO VOCABULARY, AND "DESCENDING" OVER RAW STRINGS SORTS IT WRONG. RULED BY THE LEAD 2026-09-16 LATE.
+
+**Raised by `backend-record` as a held item rather than guessed at, which is the
+correct move and is why this ruling exists instead of a reading in the code.**
+§39 has used `priority` as an ordering signal in two places since 2026-09-15 -
+the next-up tie-break and section 11's `attention_n` notes - **and has never
+anywhere said what its values are.**
+
+⛔ **THE FAILURE IS SILENT AND IT SHIPS AS A BUG RATHER THAN AS A GAP.** Sorted
+as raw strings descending, `medium` > `low` > `high`: **the most important note
+sorts last.** A reader sees a wrong list, not an unmade decision.
+
+**THE VOCABULARY IS THREE VALUES AND THE RANK IS EXPLICIT:**
+
+| Rank | Value |
+|---|---|
+| 1 | `high` |
+| 2 | `medium` |
+| 3 | `low` |
+
+- ⛔ **AN UNRECOGNISED OR EMPTY `priority` SORTS AFTER ALL THREE, AND IS NEVER
+  DROPPED.** Dropping is how a work item disappears from the one list that
+  exists to surface it. This is the same shape `backend-record` ruled for
+  feature stages the same day - **unrecognised renders last rather than
+  vanishing** - and the two must not disagree.
+- **The tie-break is unchanged**: `created_at` descending, then `id`, so equal
+  priorities are stable and the same store answers the same way twice.
+- ⛔ **ONE DEFINITION OF THE RANK, IN `internal/record`, USED BY BOTH SORTS.**
+  `brief.go:616` orders next-up *"by priority then id"* and section 11 orders
+  notes by priority - **two call sites of one rule, and this section's own
+  standing line about validators applies: two drift, one does not.**
+- **Three values, not four or five.** The smallest vocabulary that expresses the
+  requirement he stated - *"most important"* - and §39's other closed sets
+  (`started`/`blocked`/`done`, the four feature stages) are the house style it
+  matches.
+
+**IT IS A LEAD'S RULING, NOT BORIS'S, AND IT IS CHEAP TO OVERTURN** - the rank
+is one table in one file. Recorded here rather than in `DECISIONS.md` because it
+is what the field MEANS, and a derivation cannot be written against a decision
+log.
+
 ⛔ **AND THE VERB THAT SERVES IT IS `project.brief` ITSELF, TAKING A
 CONTAINER OF KIND `project` OR `case`.** The verb list calls itself
 exhaustive at eleven and there is no `case.brief` in it, so this
@@ -1161,6 +1222,55 @@ deliberately kept off. **And it owes its own discovery**: `[ran it]`, neither
 `list` nor `describe` can see rig's own commands - `list` reads `CapabilityMap`
 which excludes rig, and `describe` on `rig` hits the `SelfID` refusal. So the
 sibling must describe itself or it is a door with nine rooms and no map.
+
+##### ⛔ THE COUNT IS A SEAT'S RULING, NOT BORIS'S - AND §9, ONCE READ, RULES THE ROUTE AGAINST IT
+
+**Traced 2026-09-16 late by the sixth lead generation, because the ruling above
+cites §9 and nobody had opened §9 to check what it says.** The provenance first:
+**the count was ruled by a seat, never by Boris.** It reached three successive
+leads through briefings, each of which repeated *"ruled on §9's context budget"*
+without naming who ruled it. **Nobody had claimed it was his; nobody had asked
+either.** It stands as a seat's ruling, which is a different thing from a
+requirement, and the paragraph above should be read that way.
+
+⛔ **AND THE CITATION, CHECKED, ARGUES SOMETHING STRONGER AND POINTED THE OTHER
+WAY.** §9 does bound tool count - *"Fifteen programs with twenty commands each
+is three hundred tools ... destroys its context before it has done anything"* -
+so the budget half of the citation holds. **But §9 also already ruled the ROUTE
+for exactly this case, and the ruling is `query`, not a sibling:**
+
+> *"It is asked through `query`, section 9's tool for asking rig about rig. **No
+> fifth tool, no second resource, and no new invoke target**"* - §9, "rig itself
+> is reachable FROM the agent surface", added 2026-09-16.
+
+**So the route was never an open question with no answer. It has an answer that
+the sibling-tool ruling does not cite and does not meet.** A tenth tool beside
+`list`, `describe`, `invoke` and `query` is the fifth tool that sentence
+refuses, whatever it is named.
+
+⛔ **AND THE RECORD VERBS DO NOT FIT §9's ANSWER EITHER, WHICH IS THE REAL GAP
+AND IT WAS INVISIBLE FROM BOTH SIDES:**
+
+| | |
+|---|---|
+| `query` | §9: *"reads state, data, logs, traces and history"*. **READ-ONLY.** `record.put`, `record.link`, `record.unlink` and `progress.step` are WRITES, so four of the nine cannot go through it |
+| `invoke` | **refused for rig on purpose**, pinned by `TestRigIsNotAnInvokeTargetOnAnySurface` (2026-09-12, marked FOUND BY DEMONSTRATION), because rig declares `down` as `EffectsDestructive` and a regular surface hands `rig.down` to every MCP agent in the estate |
+| and it could not execute anyway | `Daemon.call` routes to a program's own connection and **rig has no connection to itself** - §9 records a symmetry fix being withdrawn on exactly this |
+
+**THE OPEN QUESTION IS THEREFORE NOT "one tool or nine". IT IS HOW A WRITE TO
+rig'S OWN RECORD REACHES AN AGENT AT ALL, WHEN rig IS DELIBERATELY NOT AN INVOKE
+TARGET.** That question has never been asked by anybody, and the sibling-tool
+ruling reads as though it had been settled.
+
+**What survives unchanged from the paragraph above:** the RECORD verbs only,
+never the whole of `registry.self` - that clause was read at the source and is
+§9's own reasoning about `rig.down`. And the discovery gap is real and measured:
+neither `list` nor `describe` can see rig's own commands.
+
+**NOT ON THE MVP PATH.** §39's MVP block already says the CLI and the MCP door
+are both uses; the CLI is the one that answers *"rig manages rig"* first. This
+is recorded now because the ruling it corrects is already written down, not
+because it is next.
 
 #### ⛔ `record.link` AND `record.unlink` MOVE FORWARD TO SLICE 2
 
