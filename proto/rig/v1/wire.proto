@@ -770,8 +770,26 @@ message Seat {
   // A peer contacted by somebody wrongly believing it is the successor is the
   // failure the whole roster exists to prevent.
   //
-  // So a Seat is addressable on its own: (seat, epoch, generation) is the
-  // identity, and all three travel together or the identity is not one.
+  // So within ONE ESTATE a Seat is addressable on its own: (seat, epoch,
+  // generation) identifies a tenancy, and all three travel together or the
+  // identity is not one.
+  //
+  // IT IS NOT UNIQUE ACROSS TWO ESTATES AND YOU MUST NOT USE IT AS IF IT
+  // WERE. Found 2026-09-16, the same day this field landed, by attacking the
+  // claim rather than the code. The epoch store is per estate - it lives
+  // under $XDG_STATE_HOME/rig/estates/<name>/ - so every estate counts its
+  // own epoch from 1. Two estates that have each restarted once are BOTH at
+  // epoch 2, each can hold a seat named backend-1 at generation 1, and the
+  // two triples are byte-identical while naming different sessions on
+  // different daemons. Nothing in this message names the estate.
+  //
+  // A reader holding references from one daemon is safe, because it knows
+  // which socket it asked. A reader that pools references from two estates
+  // is not, and that is exactly the reader this field was added to protect:
+  // the argument for putting the epoch on the ROW rather than on the
+  // response was that a Seat lifted out of its envelope must stay
+  // identifiable. Lifted out of its ESTATE it is not, and the same argument
+  // applies. UNRESOLVED - see BACKLOG.md and the 2026-09-16 attack findings.
   uint64 epoch = 8;
 
   // What this occupant is FOR, in the human's terms. Set at announce.
