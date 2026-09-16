@@ -10,16 +10,16 @@
       "recorded": "2026-09-12T02:35:43Z"
     },
     "ledger": {
-      "bytes": 10215687,
-      "recorded": "2026-09-12T02:35:43Z"
+      "bytes": 10219783,
+      "recorded": "2026-09-16T07:09:41Z"
     },
     "rig": {
-      "bytes": 6205703,
-      "recorded": "2026-09-16T06:39:40Z"
+      "bytes": 6209799,
+      "recorded": "2026-09-16T07:09:41Z"
     },
     "rigd": {
-      "bytes": 11366663,
-      "recorded": "2026-09-16T06:39:40Z"
+      "bytes": 11378951,
+      "recorded": "2026-09-16T07:09:41Z"
     },
     "rigwindow": {
       "bytes": 13800840,
