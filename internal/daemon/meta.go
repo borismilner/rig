@@ -297,7 +297,23 @@ func (m *mcpCaller) SetActivity(activity string) (meta.Crew, error) {
 // the wire and it is the one call a confused seat uses to find out what
 // happened; refusing it would break an unseated reader and take away the answer
 // at exactly the moment it is needed.
+//
+// ⛔ AND IT SERVES `you`, WHICH IT ONCE DID NOT. This returned crew(nil)
+// unconditionally and therefore answered `"you": null` to a SEATED caller -
+// which is this door's own vocabulary for "you have no row". So a seated seat
+// was told, in the surface's own words, that it was not on the roster, on the
+// one call a confused seat makes after its host has silently re-dialled it to
+// a different daemon. The wrong answer, in the single moment the answer matters
+// most.
+//
+// It survived six mutations because no test entered the state: every one of
+// them asserted `you` on announce and set_activity, where it was right. A live
+// run found it. A mutation measures whether an assertion bites and says nothing
+// about whether the assertions cover the states a caller reaches.
 func (m *mcpCaller) Peers() meta.Crew {
+	if o, ok := m.presence.occupantOf(m.occ); ok {
+		return m.crew(&o)
+	}
 	return m.crew(nil)
 }
 

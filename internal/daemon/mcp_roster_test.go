@@ -450,3 +450,106 @@ func TestSetActivityThroughTheDoorDoesNotOverwriteTheState(t *testing.T) {
 		t.Errorf("the activity line did not move: %v", you["activity"])
 	}
 }
+
+// TestEveryToolAnswersYouTheSameWayInEveryStateACallerReaches is the guard
+// against the class of defect that got past six mutations.
+//
+// ⛔ WHY A STATE TABLE RATHER THAN MORE ASSERTIONS. `list_agents` shipped
+// serving `"you": null` to a SEATED caller - the door's own vocabulary for
+// "you have no row" - and every one of this file's mutations stayed red-when-
+// broken and green-when-fixed throughout, because not one of them was about a
+// state no test entered. A mutation measures whether an assertion BITES. It
+// says nothing about whether the assertions cover the states a caller REACHES,
+// and this project had been reading the first as evidence of the second.
+//
+// So the axis this table varies is the CALLER'S STATE, not the assertion. Every
+// tool is asked in every state, and `you` is checked against one rule that does
+// not vary by tool:
+//
+//	`you` is THIS CONNECTION'S ROW when it has one, and null when it does not.
+//	It never means "this tool does not answer that question".
+//
+// The defect was precisely a third meaning smuggled in as the second.
+func TestEveryToolAnswersYouTheSameWayInEveryStateACallerReaches(t *testing.T) {
+	ctx := ctx5(t)
+
+	for _, c := range []struct {
+		state   string
+		seat    string // announced first, or empty for an unseated connection
+		tool    string
+		args    map[string]any
+		wantYou bool
+	}{
+		{
+			state: "unseated", tool: "list_agents", args: map[string]any{},
+			wantYou: false,
+		},
+		{
+			state: "seated", seat: "backend-1", tool: "list_agents",
+			args: map[string]any{}, wantYou: true,
+		},
+		{
+			state: "seated", seat: "backend-1", tool: "set_activity",
+			args: map[string]any{"activity": "working"}, wantYou: true,
+		},
+		{
+			state: "seated", seat: "backend-1", tool: "announce",
+			args:    map[string]any{"seat": "backend-1", "purpose": "re-announced"},
+			wantYou: true,
+		},
+		{
+			// A connection MOVING seats keeps one row, so `you` follows it.
+			state: "seated", seat: "backend-1", tool: "announce",
+			args:    map[string]any{"seat": "backend-9", "purpose": "moved"},
+			wantYou: true,
+		},
+	} {
+		name := c.tool + "/" + c.state
+		t.Run(name, func(t *testing.T) {
+			_, d := upDaemon(t, nil)
+			session, _ := upRosterAgentOcc(ctx, t, d)
+			if c.seat != "" {
+				callTool(ctx, t, session, "announce",
+					map[string]any{"seat": c.seat, "purpose": "a seat"})
+			}
+
+			got := callTool(ctx, t, session, c.tool, c.args)
+			crew, ok := got["crew"].(map[string]any)
+			if !ok {
+				t.Fatalf("%s answered with no crew object: %v", c.tool, got)
+			}
+			you, present := crew["you"]
+			if !present {
+				t.Fatalf("%s omits `you` entirely, so an absent key cannot be "+
+					"told apart from a daemon too old to have it", c.tool)
+			}
+
+			row, isRow := you.(map[string]any)
+			switch {
+			case c.wantYou && !isRow:
+				t.Fatalf("%s served `you: null` to a SEATED caller. That is "+
+					"this door's own vocabulary for \"you have no row\", so a "+
+					"seated seat is told in the surface's own words that it is "+
+					"not on the roster - and list_agents is the one call a "+
+					"confused seat makes after a reattach, which is the single "+
+					"moment the answer matters most", c.tool)
+			case !c.wantYou && isRow:
+				t.Fatalf("%s served a row to an UNSEATED caller: %v", c.tool, row)
+			}
+			if !c.wantYou {
+				return
+			}
+			// AND IT IS THIS CONNECTION'S ROW, not merely some row. A tool
+			// returning the first entry of the roster would pass every check
+			// above while being wrong for every caller but one.
+			wantSeat, _ := c.args["seat"].(string)
+			if wantSeat == "" {
+				wantSeat = c.seat
+			}
+			if row["seat"] != wantSeat {
+				t.Errorf("%s says this connection holds %v; it holds %q",
+					c.tool, row["seat"], wantSeat)
+			}
+		})
+	}
+}
