@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -260,5 +261,83 @@ func drain(c <-chan struct{}) {
 		default:
 			return
 		}
+	}
+}
+
+// TestTheAgentIsOrientedBeforeItMakesTheMistakesTheSurfaceInvites is rig's
+// own preamble, on the wire, at the one moment an agent reads it.
+//
+// Section 9 requires a preamble per program and describe carries every
+// registered program's. rig was the one thing on its own surface without one,
+// because the MCP server was constructed with nil options and Instructions is
+// where the protocol puts it. An agent met four tools with no orientation.
+//
+// WHAT IS ASSERTED IS THE FACTS, NOT THE PROSE. The preamble may be reworded
+// freely; what it may not do is stop carrying one of the four things an agent
+// cannot recover from the tool list, each of which is a mistake the surface
+// actively invites. Every needle below was a real wrong turn taken against
+// the live socket before the preamble existed.
+func TestTheAgentIsOrientedBeforeItMakesTheMistakesTheSurfaceInvites(t *testing.T) {
+	_, d := upDaemon(t, nil)
+	ctx := ctx5(t)
+
+	got := dialMCP(ctx, t, upMCP(t, d)).InitializeResult().Instructions
+	if got == "" {
+		t.Fatal("an agent connecting to the MCP socket is given no " +
+			"instructions at all, so rig is the one thing on its own " +
+			"surface with no preamble (section 9)")
+	}
+
+	for _, c := range []struct {
+		mistake string
+		needles []string
+	}{
+		{
+			mistake: "asking invoke for program \"rig\", which is refused " +
+				"because rig is held beside the registry rather than in it",
+			needles: []string{"invoke", "query", "estate"},
+		},
+		{
+			mistake: "asking for the widest depth by default, which is what " +
+				"naming the cost in the preamble exists to stop",
+			needles: []string{"depth", "programs", "commands", "full"},
+		},
+		{
+			mistake: "reading a scoped projection as if it were the whole " +
+				"estate, which is section 36's V20: absent can mean withheld",
+			needles: []string{"basis", "complete", "scoped"},
+		},
+		{
+			mistake: "concluding a partial program's config is absent when " +
+				"it is only unreadable from here",
+			needles: []string{"partial", "coverageNote"},
+		},
+		{
+			// This case is here because it was MISSED. The first case above
+			// already names invoke, query and estate, so deleting the whole
+			// vocabulary paragraph left every needle satisfied elsewhere and
+			// the test passed. These two words appear nowhere else in the
+			// preamble, which is what makes the paragraph's absence visible.
+			mistake: "asking query for a subject in prose and being answered " +
+				"with what query cannot reach, because the answer names what " +
+				"it CANNOT read and never what it can",
+			needles: []string{"registry", "unavailable"},
+		},
+	} {
+		for _, n := range c.needles {
+			if !strings.Contains(strings.ToLower(got), strings.ToLower(n)) {
+				t.Errorf("the preamble never says %q, so an agent is left "+
+					"to discover it by %s", n, c.mistake)
+			}
+		}
+	}
+
+	// THE LENGTH IS PART OF THE RULING, 2026-09-16: past roughly forty lines
+	// the preamble has become the specification, and an agent that has to
+	// read the specification before its first call has been given the cost
+	// section 9's tiering exists to avoid.
+	if lines := strings.Count(strings.TrimSpace(got), "\n") + 1; lines > 45 {
+		t.Errorf("the preamble is %d lines; it is orientation, not the "+
+			"specification, and the bar is roughly forty", lines)
 	}
 }

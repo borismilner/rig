@@ -69,9 +69,76 @@ func (s *Server) Run(ctx context.Context, t mcp.Transport) error {
 // function on a path to invocation carries the principal. This takes one
 // because it has one; it does not hold it anywhere the answer could go stale
 // for the caller in front of it.
+// preamble is rig's own document an agent reads before touching rig.
+//
+// SECTION 9 REQUIRES A PREAMBLE PER PROGRAM, AND RIG WAS THE ONE THING ON ITS
+// OWN SURFACE WITHOUT ONE. describe carries every registered program's
+// preamble at DepthFull; the agent surface itself carried nothing, because
+// this constructor passed nil options and ServerOptions.Instructions is where
+// the protocol puts exactly this. An agent therefore met four tools with no
+// orientation and learned the shape by making the mistakes below.
+//
+// WHAT IS IN IT IS RULED, 2026-09-16, and the ruling is worth recording
+// because the obvious contents are the wrong ones. It is NOT a restatement of
+// section 9 and NOT four tool descriptions - the tools carry those already.
+// It is the four things an agent cannot recover by reading the tool list:
+// that rig is not an invoke target, that depth costs, that absent can mean
+// withheld, and what vocabulary query actually understands. Each one is here
+// because an agent without it reasons confidently from a wrong model rather
+// than failing visibly.
+//
+// If it grows past roughly forty lines it has become the specification and
+// should be cut back to the orientation.
+const preamble = `rig is a coordination daemon. These tools read and drive the programs
+registered with it.
+
+THE FOUR TOOLS ARE A SHAPE, NOT FOUR FEATURES.
+  list, describe  the map. list is every program you may reach, at a depth.
+                  describe is one program in full.
+  invoke          the only one that ACTS. The other three read.
+  query           how you ask rig ABOUT RIG rather than about a program.
+
+rig itself is not in the program map, so invoke and describe cannot reach it.
+Asking invoke for program "rig" is the common first mistake; ask query with
+subject "estate" instead. Any tool beyond these four is a promoted command of
+a real program, and it acts.
+
+DEPTH COSTS. ASK FOR THE ONE YOU NEED.
+  programs  who is registered, and how much of rig each has adopted.
+  commands  adds what you PICK a command by: its effects, whether it is
+            idempotent, whether it confirms, one line of summary. Usually the
+            right answer.
+  full      adds what you CALL a command with: argument schemas, and the
+            program's own preamble. That is prose and it is long. Ask for it
+            per program through describe, not across the whole estate.
+
+ABSENT CAN MEAN WITHHELD. What you cannot see may have been filtered rather
+than missing, and the basis field says which: "complete" is the whole estate,
+"scoped" means something may have been filtered away for you and rig will not
+say what. Reasoning from a scoped map as if it were total is the failure that
+field exists to prevent.
+
+READ partial AND coverageNote BEFORE CONCLUDING ANYTHING. A program reporting
+partial coverage has adopted only some of rig, and the note names which part.
+"The wire only: no config, no storage" means that program's config is not
+absent, it is unreadable from here.
+
+QUERY UNDERSTANDS registry, programs AND estate. The first two return the
+estate's programs; estate returns which rig this is - its name, its role, the
+daemon's version, the wire it speaks. Any other subject is accepted rather
+than refused and answered with the list of what query cannot reach, so an
+answer that is mostly "unavailable" means the subject was not understood, not
+that the thing does not exist.
+
+ONE WORD, TWO MEANINGS, AND IT WILL CATCH YOU. In list's answer the key
+"estate" holds the PROGRAMS. Which estate you are connected to is
+estateIdentity, and only query with subject "estate" returns it.
+`
+
 func New(m *meta.Server, who kernel.Principal, version string) *Server {
 	srv := &Server{
-		mcp:      mcp.NewServer(&mcp.Implementation{Name: "rig", Version: version}, nil),
+		mcp: mcp.NewServer(&mcp.Implementation{Name: "rig", Version: version},
+			&mcp.ServerOptions{Instructions: preamble}),
 		meta:     m,
 		who:      who,
 		promoted: map[string]bool{},
