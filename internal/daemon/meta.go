@@ -353,9 +353,24 @@ func (m *mcpCaller) crew(you *occupant) meta.Crew {
 // seatToOccupant maps the wire's row onto the agent surface's.
 //
 // THE MAPPING EXISTS SO internal/meta NEVER LEARNS THE PROTO, which is the same
-// direction meta.Estate already travels. It is deliberately total: every field
-// on the wire's Seat has a home here, so a field added to one and forgotten on
-// the other is a compile-time gap rather than a silently thinner row.
+// direction meta.Estate already travels.
+//
+// NOTHING HERE IS ENFORCED BY THE COMPILER, AND THIS COMMENT USED TO CLAIM IT
+// WAS. It said the mapping is "deliberately total ... a compile-time gap rather
+// than a silently thinner row". MEASURED FALSE 2026-09-16: this is a KEYED
+// literal, so a field added to either side and forgotten here compiles, and the
+// row arrives with a zero value that no reader can tell from a real one.
+//
+// The neighbouring claim IS true and is easy to confuse with this one:
+// meta.occupantToJSON is a type CONVERSION, so Occupant and occupantJSON really
+// are a compile-time contract. That guard stops at meta's own boundary and says
+// nothing about what this function populates. Obeying the compile error it
+// raises - adding the field to occupantJSON - leaves this function untouched
+// and the build green.
+//
+// WHAT GUARDS IT INSTEAD is TestEverySeatFieldReachesTheRosterRow, which sets
+// each wire field alone and requires the row to change. Add a field to Seat and
+// that test goes red and names it; there is no compiler to catch you.
 func seatToOccupant(s *rigv1.Seat) meta.Occupant {
 	return meta.Occupant{
 		Seat:              s.GetSeat(),
