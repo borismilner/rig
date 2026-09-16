@@ -61,6 +61,28 @@ type Brief struct {
 	// that the brief SURFACES it. So this field is not decoration, and a brief
 	// that omits it has not implemented his ruling.
 	CoarseCitations int
+
+	// Notes is SECTION 3: every note part-of the project itself, or part-of a
+	// work-item in the OPEN list.
+	//
+	// ⛔ OPEN, NOT NextUp, AND THAT IS THE FIX FOR A CONTRADICTION SECTION 39
+	// ALREADY RESOLVED. Rows 2 and 3 gave the same item two incompatible
+	// renderings - a next-up item's notes as a flag, an open item's in full -
+	// and the lists were made disjoint so every item has exactly one. Carrying
+	// a next-up item's notes here would put that contradiction back.
+	Notes []Note
+
+	// Features is SECTION 10: the features at stage `building`.
+	//
+	// RULED BY BORIS 2026-09-16 with the other ten: "Cover all of them."
+	// Section 39's own note on this row is that a brief without features
+	// cannot drive the overview the GUI paragraph specifies.
+	Features []Feature
+
+	// Stages is section 10's counts per stage, one row each, in lifecycle
+	// order. It counts EVERY feature, not only the building ones, which is why
+	// it is not derivable from Features above.
+	Stages []StageCount
 }
 
 // ItemState is a work item and the last thing that happened to it.
@@ -235,6 +257,51 @@ type Blockage struct {
 	BlockedBy []string
 }
 
+// Note is section 39 row 3's note, RENDERED IN FULL.
+//
+// "never summarised - this is Boris's comment/question mechanism, and an agent
+// that skips it has not read the item." So the body is carried whole. That is
+// the opposite of the compact card's rule and both are deliberate: the card is
+// a list to scan, this is a question somebody asked and is waiting on.
+type Note struct {
+	ID       string
+	Body     string
+	Priority string
+
+	// About is the record this note is part-of - the project itself, or one of
+	// its work-items. A note with no About has nothing to be read against.
+	About string
+
+	Prov Provenance
+}
+
+// Feature is section 39 row 10's feature, for the features-at-stage list.
+type Feature struct {
+	ID    string
+	Title string
+	Stage string
+}
+
+// StageCount is how many features sit at one stage.
+//
+// ⛔ A SLICE AND NOT A MAP, AND THE REASON IS DETERMINISM RATHER THAN STYLE.
+// Go randomises map iteration order, so a map would produce a different
+// response ordering on every call and a golden test over the rendered brief
+// would flake. The team-lead asked for this shape by name for exactly that.
+type StageCount struct {
+	Stage string
+	Count uint64
+}
+
+// featureStages is section 39's closed stage vocabulary, IN LIFECYCLE ORDER.
+//
+// The order is the point: counts rendered planned/building/shipped/deprecated
+// read as a pipeline, where alphabetical (building, deprecated, planned,
+// shipped) reads as nothing. A stage outside this set still gets a row - the
+// brief reports the store as it is - and sorts after the known ones by name,
+// so an unrecognised value is visible rather than dropped.
+var featureStages = []string{"planned", "building", "shipped", "deprecated"}
+
 // Brief derives the answer to "what is going on here" for one project.
 func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 	if project == "" {
@@ -343,6 +410,21 @@ func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 	sort.Slice(b.Blocked, func(i, j int) bool { return b.Blocked[i].Item < b.Blocked[j].Item })
 
 	if b.CoarseCitations, err = s.coarseCitations(ctx, project); err != nil {
+		return Brief{}, err
+	}
+
+	// SECTION 3. The subjects are the project itself and every item in the OPEN
+	// list - never the next-up ones, which carry only HasNote.
+	subjects := map[string]bool{project: true}
+	for _, it := range b.Open {
+		subjects[it.ID] = true
+	}
+	if b.Notes, err = s.notesAbout(ctx, project, subjects); err != nil {
+		return Brief{}, err
+	}
+
+	// SECTION 10.
+	if b.Features, b.Stages, err = s.features(ctx, project); err != nil {
 		return Brief{}, err
 	}
 	return b, nil
@@ -518,4 +600,111 @@ func stronglyConnected(nodes map[string]bool, edges map[string][]string) [][]str
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i][0] < out[j][0] })
 	return out
+}
+
+// notesAbout collects section 3's notes: every note part-of one of `subjects`.
+//
+// ONE QUERY FOR EVERY NOTE IN THE PROJECT, FILTERED IN GO. The alternative is
+// an IN clause built from the subject set, which is a query whose text changes
+// with the data - unprepareable, and a different plan on every call. The set is
+// the project plus its open items, so the difference is a handful of rows.
+//
+// ⛔ SCOPED ON THE DESTINATION, like the has-note flag, because section 39 rules
+// that links MAY cross a project boundary. A note written elsewhere and attached
+// here is exactly the question this section exists to surface.
+//
+// Ordered by priority then id so the answer is stable: the same store produces
+// the same brief twice, which is what makes a golden test over it possible at
+// all.
+func (s *Store) notesAbout(ctx context.Context, project string, subjects map[string]bool) ([]Note, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT n.id, n.body, n.fields, l.dst,
+		       n.session, n.seat, n.epoch, n.created_at
+		FROM links l
+		JOIN records n ON n.id = l.src
+		JOIN heads hn ON hn.id = n.id AND hn.version = n.version
+		JOIN records d ON d.id = l.dst
+		JOIN heads hd ON hd.id = d.id AND hd.version = d.version
+		WHERE l.type = ? AND n.kind = ? AND d.project = ?
+		ORDER BY n.id`, LinkPartOf, KindNote, project)
+	if err != nil {
+		return nil, fmt.Errorf("record: reading the notes in %s: %w", project, err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []Note
+	for rows.Next() {
+		var (
+			n           Note
+			fields      string
+			epoch, nano int64
+		)
+		if err := rows.Scan(&n.ID, &n.Body, &fields, &n.About,
+			&n.Prov.Session, &n.Prov.Seat, &epoch, &nano); err != nil {
+			return nil, err
+		}
+		if !subjects[n.About] {
+			continue
+		}
+		if n.Prov.Epoch, err = fromColumn("epoch", epoch); err != nil {
+			return nil, err
+		}
+		n.Prov.CreatedAt = unixNano(nano)
+		var f map[string]string
+		if err := json.Unmarshal([]byte(fields), &f); err == nil {
+			n.Priority = f["priority"]
+		}
+		out = append(out, n)
+	}
+	return out, rows.Err()
+}
+
+// features answers section 10: the features at stage `building`, and the count
+// at every stage.
+//
+// BOTH FROM ONE READ. The counts cover every feature and the list covers one
+// stage, so deriving the counts from the list would report a project with three
+// shipped features as having none. They are two answers about the same rows and
+// this reads those rows once.
+func (s *Store) features(ctx context.Context, project string) ([]Feature, []StageCount, error) {
+	recs, err := s.Query(ctx, project, KindFeature)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var building []Feature
+	counts := map[string]uint64{}
+	for _, r := range recs {
+		stage := r.Fields["stage"]
+		counts[stage]++
+		if stage == StageBuilding {
+			building = append(building, Feature{
+				ID: r.ID, Title: r.Fields["title"], Stage: stage,
+			})
+		}
+	}
+
+	// Lifecycle order first, then anything unrecognised by name. A stage the
+	// vocabulary does not know is REPORTED rather than dropped: the brief
+	// answers for the store as it is, and a typo in a stage field should be
+	// visible in the one place somebody is looking.
+	seen := map[string]bool{}
+	var stages []StageCount
+	for _, st := range featureStages {
+		if n, ok := counts[st]; ok {
+			stages = append(stages, StageCount{Stage: st, Count: n})
+		}
+		seen[st] = true
+	}
+	var rest []string
+	for st := range counts {
+		if !seen[st] {
+			rest = append(rest, st)
+		}
+	}
+	sort.Strings(rest)
+	for _, st := range rest {
+		stages = append(stages, StageCount{Stage: st, Count: counts[st]})
+	}
+	return building, stages, nil
 }

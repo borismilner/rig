@@ -118,6 +118,18 @@ func (e *NotFoundError) Error() string {
 // the same silent-failure argument that closed the link-type set.
 const KindNote = "note"
 
+// KindFeature is section 39 row 10's kind: a feature with a `stage`, which
+// Boris asked for by name.
+const KindFeature = "feature"
+
+// The four stages section 39 names for a feature, and there are only four.
+const (
+	StagePlanned    = "planned"
+	StageBuilding   = "building"
+	StageShipped    = "shipped"
+	StageDeprecated = "deprecated"
+)
+
 // slugIDKinds are the kinds whose id is a caller-supplied SLUG rather than a
 // generated UUIDv7.
 //
