@@ -84,41 +84,39 @@ func cmdProgress(args []string) (err error) {
 	}
 	item := positional[1]
 
-	api, release, err := recordAPI()
-	if err != nil {
-		return err
-	}
-	defer release()
+	// THE ARGUMENT SHAPE IS SETTLED ABOVE, BEFORE ANYTHING IS OPENED. Every
+	// verb in this package refuses a malformed command before it dials, and a
+	// caller with a bad command must be told about the command rather than
+	// about the daemon.
+	return withRecordAPI(*pf.timeout, func(ctx context.Context, api RecordAPI) error {
+		// ⛔ NOTHING IS CHECKED HERE BEYOND ARGUMENT SHAPE, AND THAT IS A
+		// RULING RATHER THAN AN OMISSION. An empty --state, an empty
+		// --project and an unknown state are all refused by rigd, each in a
+		// sentence naming what was wrong. A client that refuses them first is
+		// a second copy of section 39's rules in a file nobody reads them
+		// from, and the day the two disagree the caller is told something
+		// that is not true of the daemon.
+		step, err := api.Step(ctx, StepArgs{
+			Item:    item,
+			State:   *pf.state,
+			Note:    *pf.note,
+			Project: *pf.project,
+		})
+		if err != nil {
+			return err
+		}
 
-	ctx, cancel := context.WithTimeout(context.Background(), *pf.timeout)
-	defer cancel()
-
-	// ⛔ NOTHING IS CHECKED HERE BEYOND ARGUMENT SHAPE, AND THAT IS A RULING
-	// RATHER THAN AN OMISSION. An empty --state, an empty --project and an
-	// unknown state are all refused by rigd, each in a sentence naming what
-	// was wrong. A client that refuses them first is a second copy of section
-	// 39's rules in a file nobody reads them from, and the day the two
-	// disagree the caller is told something that is not true of the daemon.
-	step, err := api.Step(ctx, StepArgs{
-		Item:    item,
-		State:   *pf.state,
-		Note:    *pf.note,
-		Project: *pf.project,
+		if *pf.asJSON {
+			// A STEP IS A RECORD AND EMITS THE RECORD OBJECT. One shape for
+			// one noun: a consumer that reads `rig record get` needs no
+			// second parser to read what a step wrote, and the fields that
+			// make it a step - `state` and `item` - are typed fields inside
+			// it, exactly as internal/record writes them.
+			return json.NewEncoder(os.Stdout).Encode(recordJSON(step, time.Now()))
+		}
+		fmt.Print(stepText(step, time.Now()))
+		return nil
 	})
-	if err != nil {
-		return err
-	}
-
-	if *pf.asJSON {
-		// A STEP IS A RECORD AND EMITS THE RECORD OBJECT. One shape for one
-		// noun: a consumer that reads `rig record get` does not need a second
-		// parser to read what a step wrote, and the fields that make it a
-		// step - `state` and `item` - are typed fields inside it, exactly as
-		// internal/record writes them.
-		return json.NewEncoder(os.Stdout).Encode(recordJSON(step, time.Now()))
-	}
-	fmt.Print(stepText(step, time.Now()))
-	return nil
 }
 
 // stepStateSpellings is the set, for a usage line. It is the one place this

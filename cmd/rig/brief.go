@@ -151,25 +151,20 @@ func cmdBrief(args []string) (err error) {
 			"also its record id")
 	}
 
-	api, release, err := recordAPI()
-	if err != nil {
-		return err
-	}
-	defer release()
+	// The container is settled before anything is opened, the same order
+	// every other verb here uses.
+	return withRecordAPI(*bf.timeout, func(ctx context.Context, api RecordAPI) error {
+		brief, err := api.Brief(ctx, positional[0])
+		if err != nil {
+			return err
+		}
 
-	ctx, cancel := context.WithTimeout(context.Background(), *bf.timeout)
-	defer cancel()
-
-	brief, err := api.Brief(ctx, positional[0])
-	if err != nil {
-		return err
-	}
-
-	if *bf.asJSON {
-		return json.NewEncoder(os.Stdout).Encode(briefJSON(brief))
-	}
-	fmt.Print(briefText(brief, time.Now()))
-	return nil
+		if *bf.asJSON {
+			return json.NewEncoder(os.Stdout).Encode(briefJSON(brief))
+		}
+		fmt.Print(briefText(brief, time.Now()))
+		return nil
+	})
 }
 
 // ---- rendering -------------------------------------------------------------

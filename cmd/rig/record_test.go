@@ -793,6 +793,62 @@ func TestTheUnwiredRefusalNamesTheWireAndNotAStoppedDaemon(t *testing.T) {
 	}
 }
 
+// ⛔ A MALFORMED COMMAND IS REFUSED BEFORE ANYTHING IS OPENED, AND THIS IS THE
+// TEST THAT RUNNING THE BINARY PRODUCED.
+//
+// Every other test here installs a fake, and a fake opens successfully - so
+// "check the arguments, then open" and "open, then check the arguments" are
+// indistinguishable to all of them. Against the REAL seam they are not: with
+// the wire missing, opening first answered `rig record put --id X` with the
+// wire's failure and the whole --if-version guard was unreachable. Found by
+// running the binary; every unit test was green.
+//
+// So this one runs with the seam left at its default, and it is the ONLY test
+// in the file that does. What it asserts is an ORDER, and the only way to see
+// an order is to make the second step fail.
+func TestABadCommandIsRefusedBeforeTheDaemonIsReachedFor(t *testing.T) {
+	// No serving() here, deliberately: recordAPI is the real one, which
+	// refuses, so anything that opens first cannot produce an argument error.
+	for _, tc := range []struct {
+		name string
+		argv []string
+		want string
+	}{
+		{
+			"a put with an id and no version",
+			[]string{"record", "put", "--id", "01927-abc", "--kind", "note", "--project", "rig"},
+			"01927-abc",
+		},
+		{"a put with no kind", []string{"record", "put", "--project", "rig"}, "--kind"},
+		{"a get with no id", []string{"record", "get"}, "usage"},
+		{"a query missing its kind", []string{"record", "query", "rig"}, "usage"},
+		{"a history with no id", []string{"record", "history"}, "usage"},
+		{"a link with two arguments", []string{"record", "link", "a", "cites"}, "usage"},
+		{"refs at depth nothing", []string{"record", "refs", "x", "--depth", "0"}, "--depth"},
+		{"a step with no item", []string{"progress", "step"}, "usage"},
+		{"a brief with no container", []string{"brief"}, "usage"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := run(tc.argv)
+			if err == nil {
+				t.Fatalf("%v was accepted", tc.argv)
+			}
+			obj, _, _ := shape(err)
+			if obj.Code == codeNoRecordWire {
+				t.Fatalf("%v was answered with the WIRE's failure rather than "+
+					"with what is wrong with the command. rig opened the "+
+					"record surface before checking its arguments, so the "+
+					"caller is told about the daemon when the mistake is "+
+					"theirs - and every refusal in this file is unreachable "+
+					"until the wire lands.\ngot: %s", tc.argv, err)
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("the refusal does not mention %q:\n%s", tc.want, err)
+			}
+		})
+	}
+}
+
 // EVERY RECORD VERB GOES THROUGH THE SEAM, so none of them can be wired up
 // beside it later and escape both the fake and the refusal above.
 func TestEveryRecordVerbReachesTheSeam(t *testing.T) {

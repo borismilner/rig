@@ -479,31 +479,33 @@ func cmdRecord(args []string) (err error) {
 		return parseErr
 	}
 
+	// ⛔ NOTHING IS OPENED HERE. Each subcommand below checks its own arguments
+	// FIRST and reaches the daemon only through withRecordAPI, which is the
+	// order every other verb in this package already uses - peers and ping
+	// both refuse a bad argument before they dial.
+	//
+	// IT WAS THE OTHER WAY ROUND AND RUNNING THE BINARY IS WHAT FOUND IT.
+	// Opening here meant `rig record put --id X` with no --if-version answered
+	// with the connection's failure instead of the refusal that names the id,
+	// and the whole guard was unreachable. Every unit test passed, because a
+	// test's fake opens successfully and the two orderings are then
+	// indistinguishable.
 	rest := positional[1:]
-	api, release, err := recordAPI()
-	if err != nil {
-		return err
-	}
-	defer release()
-
-	ctx, cancel := context.WithTimeout(context.Background(), *rf.timeout)
-	defer cancel()
-
 	switch sub {
 	case "put":
-		return recordPut(ctx, api, rf, rest)
+		return recordPut(rf, rest)
 	case "get":
-		return recordGet(ctx, api, rf, rest)
+		return recordGet(rf, rest)
 	case "query":
-		return recordQuery(ctx, api, rf, rest)
+		return recordQuery(rf, rest)
 	case "history":
-		return recordHistory(ctx, api, rf, rest)
+		return recordHistory(rf, rest)
 	case "link":
-		return recordLink(ctx, api, rf, rest, false)
+		return recordLink(rf, rest, false)
 	case "unlink":
-		return recordLink(ctx, api, rf, rest, true)
+		return recordLink(rf, rest, true)
 	case "refs":
-		return recordRefs(ctx, api, rf, rest)
+		return recordRefs(rf, rest)
 	default:
 		// Unreachable: the membership check above already refused every word
 		// that is not one of the seven. It is here so that adding a
@@ -513,6 +515,29 @@ func cmdRecord(args []string) (err error) {
 			"dispatches it, which is a defect in rig rather than in what you "+
 			"typed", sub)
 	}
+}
+
+// withRecordAPI opens the record surface, runs one call against it and closes
+// it.
+//
+// IT IS CALLED AFTER A SUBCOMMAND HAS CHECKED ITS ARGUMENTS, NEVER BEFORE.
+// That ordering is the whole reason this is a function rather than four lines
+// at the top of cmdRecord: a caller with a malformed command must be told what
+// is wrong with it, not what is wrong with the daemon, and rig cannot know the
+// second thing is even relevant until the first is settled.
+//
+// The deadline is built here, so no record verb can reach the wire without
+// one.
+func withRecordAPI(timeout time.Duration, call func(context.Context, RecordAPI) error) error {
+	api, release, err := recordAPI()
+	if err != nil {
+		return err
+	}
+	defer release()
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return call(ctx, api)
 }
 
 // ---- put -------------------------------------------------------------------
@@ -530,7 +555,7 @@ func cmdRecord(args []string) (err error) {
 // So the flag is REQUIRED whenever an id is named, and the refusal NAMES THE
 // ID, because the id is the only thing in the caller's head that connects the
 // message to what they typed.
-func recordPut(ctx context.Context, api RecordAPI, rf *recordFlags, rest []string) error {
+func recordPut(rf *recordFlags, rest []string) error {
 	if len(rest) != 0 {
 		return badArgumentf("usage: rig record put --kind <kind> --project " +
 			"<project> [--id <id>] [--body <text>] [--field k=v] " +
@@ -567,26 +592,28 @@ func recordPut(ctx context.Context, api RecordAPI, rf *recordFlags, rest []strin
 			*rf.ifVersion)
 	}
 
-	rec, err := api.Put(ctx, PutArgs{
-		ID:        *rf.id,
-		IfVersion: *rf.ifVersion,
-		Kind:      *rf.kind,
-		Project:   *rf.project,
-		Body:      *rf.body,
-		Fields:    rf.fields.values(),
-	})
-	if err != nil {
-		return err
-	}
+	return withRecordAPI(*rf.timeout, func(ctx context.Context, api RecordAPI) error {
+		rec, err := api.Put(ctx, PutArgs{
+			ID:        *rf.id,
+			IfVersion: *rf.ifVersion,
+			Kind:      *rf.kind,
+			Project:   *rf.project,
+			Body:      *rf.body,
+			Fields:    rf.fields.values(),
+		})
+		if err != nil {
+			return err
+		}
 
-	if *rf.asJSON {
-		return json.NewEncoder(os.Stdout).Encode(recordJSON(rec, time.Now()))
-	}
-	// WHICH IT WAS IS PRINTED, not left to be inferred from the number. A
-	// caller who meant to supersede and created reads "wrote version 1" as a
-	// success; "created" is the word that tells them they did the other thing.
-	fmt.Printf("%s %s at version %d\n", putVerb(rec.Version), rec.ID, rec.Version)
-	return nil
+		if *rf.asJSON {
+			return json.NewEncoder(os.Stdout).Encode(recordJSON(rec, time.Now()))
+		}
+		// WHICH IT WAS IS PRINTED, not left to be inferred from the number. A
+		// caller who meant to supersede and created reads "wrote version 1" as
+		// a success; "created" is the word that tells them otherwise.
+		fmt.Printf("%s %s at version %d\n", putVerb(rec.Version), rec.ID, rec.Version)
+		return nil
+	})
 }
 
 // putVerb is what a put DID, in one word.
@@ -603,54 +630,60 @@ func putVerb(version uint64) string {
 
 // ---- get -------------------------------------------------------------------
 
-func recordGet(ctx context.Context, api RecordAPI, rf *recordFlags, rest []string) error {
+func recordGet(rf *recordFlags, rest []string) error {
 	if len(rest) != 1 {
 		return badArgumentf("usage: rig record get <id> [--version <n>]")
 	}
-	rec, err := api.Get(ctx, rest[0], *rf.version)
-	if err != nil {
-		return err
-	}
-	if *rf.asJSON {
-		return json.NewEncoder(os.Stdout).Encode(recordJSON(rec, time.Now()))
-	}
-	fmt.Print(recordText(rec, time.Now()))
-	return nil
+	return withRecordAPI(*rf.timeout, func(ctx context.Context, api RecordAPI) error {
+		rec, err := api.Get(ctx, rest[0], *rf.version)
+		if err != nil {
+			return err
+		}
+		if *rf.asJSON {
+			return json.NewEncoder(os.Stdout).Encode(recordJSON(rec, time.Now()))
+		}
+		fmt.Print(recordText(rec, time.Now()))
+		return nil
+	})
 }
 
 // ---- query -----------------------------------------------------------------
 
-func recordQuery(ctx context.Context, api RecordAPI, rf *recordFlags, rest []string) error {
+func recordQuery(rf *recordFlags, rest []string) error {
 	if len(rest) != 2 {
 		return badArgumentf("usage: rig record query <project> <kind>")
 	}
 	project, kind := rest[0], rest[1]
-	recs, err := api.Query(ctx, project, kind)
-	if err != nil {
-		return err
-	}
-	if *rf.asJSON {
-		return json.NewEncoder(os.Stdout).Encode(recordsJSON(recs, time.Now()))
-	}
-	fmt.Print(queryText(project, kind, recs))
-	return nil
+	return withRecordAPI(*rf.timeout, func(ctx context.Context, api RecordAPI) error {
+		recs, err := api.Query(ctx, project, kind)
+		if err != nil {
+			return err
+		}
+		if *rf.asJSON {
+			return json.NewEncoder(os.Stdout).Encode(recordsJSON(recs, time.Now()))
+		}
+		fmt.Print(queryText(project, kind, recs))
+		return nil
+	})
 }
 
 // ---- history ---------------------------------------------------------------
 
-func recordHistory(ctx context.Context, api RecordAPI, rf *recordFlags, rest []string) error {
+func recordHistory(rf *recordFlags, rest []string) error {
 	if len(rest) != 1 {
 		return badArgumentf("usage: rig record history <id>")
 	}
-	recs, err := api.History(ctx, rest[0])
-	if err != nil {
-		return err
-	}
-	if *rf.asJSON {
-		return json.NewEncoder(os.Stdout).Encode(recordsJSON(recs, time.Now()))
-	}
-	fmt.Print(historyText(rest[0], recs, time.Now()))
-	return nil
+	return withRecordAPI(*rf.timeout, func(ctx context.Context, api RecordAPI) error {
+		recs, err := api.History(ctx, rest[0])
+		if err != nil {
+			return err
+		}
+		if *rf.asJSON {
+			return json.NewEncoder(os.Stdout).Encode(recordsJSON(recs, time.Now()))
+		}
+		fmt.Print(historyText(rest[0], recs, time.Now()))
+		return nil
+	})
 }
 
 // ---- link and unlink -------------------------------------------------------
@@ -658,7 +691,7 @@ func recordHistory(ctx context.Context, api RecordAPI, rf *recordFlags, rest []s
 // recordLink writes or removes one edge. One function for both, because the
 // argument shape, the refusal and the confirmation differ by a single word and
 // two copies would be two places for that word to be wrong.
-func recordLink(ctx context.Context, api RecordAPI, rf *recordFlags, rest []string, remove bool) error {
+func recordLink(rf *recordFlags, rest []string, remove bool) error {
 	verb := "link"
 	if remove {
 		verb = "unlink"
@@ -673,23 +706,25 @@ func recordLink(ctx context.Context, api RecordAPI, rf *recordFlags, rest []stri
 	}
 	src, linkType, dst := rest[0], rest[1], rest[2]
 
-	var err error
-	if remove {
-		err = api.Unlink(ctx, src, linkType, dst)
-	} else {
-		err = api.Link(ctx, src, linkType, dst)
-	}
-	if err != nil {
-		return err
-	}
+	return withRecordAPI(*rf.timeout, func(ctx context.Context, api RecordAPI) error {
+		var err error
+		if remove {
+			err = api.Unlink(ctx, src, linkType, dst)
+		} else {
+			err = api.Link(ctx, src, linkType, dst)
+		}
+		if err != nil {
+			return err
+		}
 
-	if *rf.asJSON {
-		return json.NewEncoder(os.Stdout).Encode(map[string]any{
-			"src": src, "type": linkType, "dst": dst, "removed": remove,
-		})
-	}
-	fmt.Printf("%s %s --%s--> %s\n", linkVerbPast(remove), src, linkType, dst)
-	return nil
+		if *rf.asJSON {
+			return json.NewEncoder(os.Stdout).Encode(map[string]any{
+				"src": src, "type": linkType, "dst": dst, "removed": remove,
+			})
+		}
+		fmt.Printf("%s %s --%s--> %s\n", linkVerbPast(remove), src, linkType, dst)
+		return nil
+	})
 }
 
 func linkVerbPast(remove bool) string {
@@ -701,7 +736,7 @@ func linkVerbPast(remove bool) string {
 
 // ---- refs ------------------------------------------------------------------
 
-func recordRefs(ctx context.Context, api RecordAPI, rf *recordFlags, rest []string) error {
+func recordRefs(rf *recordFlags, rest []string) error {
 	if len(rest) != 1 {
 		return badArgumentf("usage: rig record refs <id> [--depth <n>]")
 	}
@@ -713,15 +748,17 @@ func recordRefs(ctx context.Context, api RecordAPI, rf *recordFlags, rest []stri
 			"could not be told from a record nothing points at. The smallest "+
 			"useful depth is 1", *rf.depth)
 	}
-	refs, err := api.Refs(ctx, rest[0], *rf.depth)
-	if err != nil {
-		return err
-	}
-	if *rf.asJSON {
-		return json.NewEncoder(os.Stdout).Encode(refsJSON(refs))
-	}
-	fmt.Print(refsText(refs))
-	return nil
+	return withRecordAPI(*rf.timeout, func(ctx context.Context, api RecordAPI) error {
+		refs, err := api.Refs(ctx, rest[0], *rf.depth)
+		if err != nil {
+			return err
+		}
+		if *rf.asJSON {
+			return json.NewEncoder(os.Stdout).Encode(refsJSON(refs))
+		}
+		fmt.Print(refsText(refs))
+		return nil
+	})
 }
 
 // ---- rendering -------------------------------------------------------------
