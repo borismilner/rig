@@ -69,6 +69,15 @@ type Brief struct {
 	// not ship and so has no version to advance.
 	Semver string
 
+	// Open is every work item that is open. Section 39 row 1.
+	//
+	// ⛔ Open AND NextUp ARE DISJOINT BY CONSTRUCTION AND ARE NOT TO BE
+	// MERGED. The wire cuts them that way deliberately: an item in both got
+	// two incompatible rules for rendering its notes, which is why next-up is
+	// not a prefix of open. So the two lists below print as two sections and
+	// a reader adding them up gets the real total.
+	Open []BriefItem
+
 	// NextUp is up to the container's `next_up_n` work items, in expected
 	// execution order. NEVER PADDED TO N - section 39 says so twice, once for
 	// a project's next-up and once for a case's notes.
@@ -97,6 +106,15 @@ type Brief struct {
 	// show an ordinary blockage, which is the common case and the one row 4 is
 	// mostly about.
 	Blocked []BriefBlockage
+
+	// Features and FeatureStages are section 39 row 10: what this project has,
+	// and how many sit at each stage.
+	//
+	// THE COUNTS ARE A LIST AND NOT A MAP, following the wire, which spends a
+	// paragraph on why: protobuf map iteration order is unspecified, and a
+	// map renders one answer two ways. A list is ordered by construction.
+	Features      []BriefFeature
+	FeatureStages []BriefStageCount
 
 	// Sections is the state of all ELEVEN of section 39's sections.
 	//
@@ -178,6 +196,23 @@ type BriefItem struct {
 	// Note is the latest step's own line, which is usually the one thing in
 	// the row that says WHY the item is where it is.
 	Note string
+}
+
+// BriefFeature is one feature of this project. Section 39 row 10.
+type BriefFeature struct {
+	ID    string
+	Title string
+
+	// Stage is where the feature has got to. EMPTY IS A DEFECT rather than a
+	// stage: a feature with no stage cannot be placed against the counts
+	// below, and the renderer says so rather than leaving the cell blank.
+	Stage string
+}
+
+// BriefStageCount is how many features sit at one stage.
+type BriefStageCount struct {
+	Stage string
+	Count uint64
 }
 
 // BriefNote is one thing attached to a record for an agent to read.
@@ -272,6 +307,17 @@ func cmdBrief(args []string) (err error) {
 // branching on its absence would have to know that a case has no version;
 // a consumer reading "" learns it from the answer.
 func briefJSON(b Brief, now time.Time) map[string]any {
+	open := briefItemsJSON(b.Open, now)
+	features := make([]map[string]any, 0, len(b.Features))
+	for _, f := range b.Features {
+		features = append(features, map[string]any{
+			"id": f.ID, "stage": f.Stage, titleKey: f.Title,
+		})
+	}
+	stages := make([]map[string]any, 0, len(b.FeatureStages))
+	for _, c := range b.FeatureStages {
+		stages = append(stages, map[string]any{"stage": c.Stage, "count": c.Count})
+	}
 	next := make([]map[string]any, 0, len(b.NextUp))
 	for _, it := range b.NextUp {
 		next = append(next, map[string]any{
@@ -341,8 +387,15 @@ func briefJSON(b Brief, now time.Time) map[string]any {
 		titleKey:  b.Title,
 		"status":  b.Status,
 		"semver":  b.Semver,
-		"next_up": next,
-		"notes":   notes,
+		// ⛔ `open` AND `next_up` ARE DISJOINT AND ARE NOT TO BE MERGED. The
+		// wire cuts them that way so an item never gets two incompatible
+		// rules for rendering its notes, and a consumer concatenating them
+		// gets the real total rather than a double count.
+		"open":           open,
+		"next_up":        next,
+		"notes":          notes,
+		"features":       features,
+		"feature_stages": stages,
 		// `blocked` IS WHAT WAITS ON WHAT. `cycles` IS THE CYCLE REPORT AND
 		// NOT A RESOLUTION - it carries the items and nothing that could be
 		// read as an edge to break. ⛔ THESE TWO KEYS WERE ONE, UNDER THE
@@ -356,6 +409,29 @@ func briefJSON(b Brief, now time.Time) map[string]any {
 	}
 }
 
+// briefItemsJSON is the object form of an item list, shared by `open` and
+// `next_up` so one noun cannot acquire two shapes.
+func briefItemsJSON(items []BriefItem, now time.Time) []map[string]any {
+	out := make([]map[string]any, 0, len(items))
+	for _, it := range items {
+		out = append(out, map[string]any{
+			"id":     it.ID,
+			titleKey: it.Title,
+			// An empty state is the item's stream being empty, which is an
+			// ANSWER - picked up, not yet reported on - so it is emitted as ""
+			// rather than omitted.
+			"state": it.State,
+			// The timestamp AND the age, for the reason recordJSON gives: a
+			// consumer computing against its own clock must not be forced
+			// through this one.
+			"since_at":    provTime(it.Since),
+			"since_age_s": provAge(it.Since, now),
+			"note":        it.Note,
+		})
+	}
+	return out
+}
+
 // briefText is the brief a person reads.
 func briefText(b Brief, now time.Time) string {
 	var sb strings.Builder
@@ -367,9 +443,18 @@ func briefText(b Brief, now time.Time) string {
 	// next-up table must not be the one who misses that the ordering has a
 	// hole in it.
 	sb.WriteString(briefBlockedSection(b.Cycles))
-	sb.WriteString(briefBlockageSection(b.Blocked))
 	sb.WriteString(briefNextUpSection(b.NextUp, now))
+	// ⛔ ROW 4 SITS AFTER THE LIST IT EXPLAINS, AND THE CYCLE REPORT ABOVE
+	// DOES NOT. They moved apart when row 4 started printing on an empty
+	// list: a cycle puts a HOLE in the next-up ordering, so a reader who
+	// stops after the table must not be the one who misses it - but an
+	// ordinary blockage explains why an item is ABSENT from that table, and
+	// it is only readable once the reader has seen the table. Leading every
+	// brief with "Nothing is blocked" buries the answer the reader came for.
+	sb.WriteString(briefBlockageSection(b.Blocked))
+	sb.WriteString(briefOpenSection(b.Open, now))
 	sb.WriteString(briefNotesSection(b.Notes, now))
+	sb.WriteString(briefFeaturesSection(b.Features, b.FeatureStages))
 	sb.WriteString(briefUnavailableSection(b.Sections))
 	return sb.String()
 }
@@ -434,6 +519,42 @@ func briefNextUpSection(items []BriefItem, now time.Time) string {
 		return sb.String()
 	}
 
+	sb.WriteString(briefItemTable(items, now))
+
+	// THE COUNT IS NOT COMPARED AGAINST next_up_n, ON PURPOSE. Section 39:
+	// "Never padded to N". A line reading "3 of 5" would teach a reader that
+	// two rows are missing when the truth is that there are three.
+	fmt.Fprintf(&sb, "\n%d item%s, in expected execution order.\n",
+		len(items), plural(len(items)))
+	return sb.String()
+}
+
+// briefOpenSection is every open work item. Section 39 row 1.
+//
+// IT IS A SEPARATE SECTION FROM NEXT-UP AND NOT A SUPERSET OF IT. The wire
+// cuts the two lists disjoint on purpose, so a reader adding them up gets the
+// real total and neither list has to be subtracted from the other.
+//
+// ⛔ IT PRINTS EVEN WHEN EMPTY, because the daemon reports row 1 COMPUTED and
+// a computed section that renders nothing cannot be told from one this build
+// has no renderer for.
+func briefOpenSection(items []BriefItem, now time.Time) string {
+	var sb strings.Builder
+	sb.WriteString("\nALSO OPEN\n")
+	if len(items) == 0 {
+		sb.WriteString("Nothing else is open: every open item is in the " +
+			"next-up list above.\n")
+		return sb.String()
+	}
+	sb.WriteString(briefItemTable(items, now))
+	fmt.Fprintf(&sb, "\n%d open item%s beyond the next-up list.\n",
+		len(items), plural(len(items)))
+	return sb.String()
+}
+
+// briefItemTable is the rows shared by next-up and open, so the two sections
+// cannot drift into rendering one noun two ways.
+func briefItemTable(items []BriefItem, now time.Time) string {
 	rows := make([][]string, 0, len(items))
 	for _, it := range items {
 		rows = append(rows, []string{
@@ -451,13 +572,50 @@ func briefNextUpSection(items []BriefItem, now time.Time) string {
 			briefCell(firstLine(strings.TrimSpace(it.Note)), "-"),
 		})
 	}
+	var sb strings.Builder
 	writeTable(&sb, []string{"ID", "STATE", "AGE", "TITLE", "LATEST NOTE"}, rows)
+	return sb.String()
+}
 
-	// THE COUNT IS NOT COMPARED AGAINST next_up_n, ON PURPOSE. Section 39:
-	// "Never padded to N". A line reading "3 of 5" would teach a reader that
-	// two rows are missing when the truth is that there are three.
-	fmt.Fprintf(&sb, "\n%d item%s, in expected execution order.\n",
-		len(items), plural(len(items)))
+// briefFeaturesSection is what this project has. Section 39 row 10.
+//
+// THE STAGE COUNTS RIDE BESIDE THE LIST RATHER THAN REPLACING IT. A count on
+// its own cannot be acted on - "three at `shipped`" does not say which three -
+// and a list on its own makes a reader tally the stages by eye. Section 39
+// carries both fields, so both are printed.
+func briefFeaturesSection(features []BriefFeature, stages []BriefStageCount) string {
+	var sb strings.Builder
+	sb.WriteString("\nFEATURES\n")
+	if len(features) == 0 && len(stages) == 0 {
+		sb.WriteString("This one has no features recorded.\n")
+		return sb.String()
+	}
+
+	if len(features) > 0 {
+		rows := make([][]string, 0, len(features))
+		for _, f := range features {
+			rows = append(rows, []string{
+				f.ID,
+				// ⛔ A FEATURE WITH NO STAGE IS A DEFECT AND SAYS SO. It cannot
+				// be placed against the counts below, and a blank cell reads
+				// as a stage called nothing.
+				briefCell(f.Stage, "(no stage - which is a defect, not a stage)"),
+				briefCell(f.Title, "(no title)"),
+			})
+		}
+		writeTable(&sb, []string{"ID", "STAGE", "TITLE"}, rows)
+	}
+
+	// ⛔ THE COUNTS PRINT EVEN WHEN THE LIST IS EMPTY, AND THE REVERSE. Either
+	// one arriving alone is a fact about the derivation, and collapsing them
+	// into one condition would hide whichever half is missing.
+	if len(stages) > 0 {
+		sb.WriteString("\n")
+		for _, c := range stages {
+			fmt.Fprintf(&sb, "  %-12s %d\n",
+				briefCell(c.Stage, "(no stage)"), c.Count)
+		}
+	}
 	return sb.String()
 }
 
@@ -526,11 +684,21 @@ func briefBlockedSection(cycles []BriefCycle) string {
 // cycle is a defect in the graph that rig refuses to resolve; a blockage is the
 // work behaving normally, and the reader's question is only "on what".
 func briefBlockageSection(blocked []BriefBlockage) string {
-	if len(blocked) == 0 {
-		return ""
-	}
 	var sb strings.Builder
 	sb.WriteString("\nBLOCKED\n")
+
+	// ⛔ IT PRINTS WHEN THERE IS NOTHING, AND THAT IS A CORRECTION. This
+	// function used to return "" on an empty list, borrowing the cycle
+	// section's argument about not training a reader to skip. THE TWO ARE NOT
+	// ALIKE: a cycle is an exception condition and is not one of section 39's
+	// eleven sections at all, while BLOCKED is row 4 and the daemon reports it
+	// COMPUTED. A computed section that renders nothing is indistinguishable
+	// from one this build cannot render, which is the whole reason
+	// SectionState exists.
+	if len(blocked) == 0 {
+		sb.WriteString("Nothing is blocked.\n")
+		return sb.String()
+	}
 	for _, b := range blocked {
 		sb.WriteString("  " + briefCell(b.Title, b.Item) + "\n")
 		for _, k := range b.Blockers {
@@ -547,8 +715,31 @@ func briefBlockageSection(blocked []BriefBlockage) string {
 	return sb.String()
 }
 
-// briefUnavailableSection names every section of the brief that could not be
-// answered, and what each one waits on.
+// briefRenderedSections is every section of section 39's eleven that THIS
+// BUILD has a renderer for.
+//
+// ⛔ IT IS WHAT TURNS "the comment says which fields we dropped" INTO A CHECK.
+// A comment naming the unread fields rots the first time somebody adds one;
+// this list is compared against what the daemon actually SAID on every call,
+// so a section that starts being computed while no renderer exists for it is
+// reported to the reader rather than silently dropped.
+//
+// The numbers are section 39's own row numbers, which the wire's BriefSection
+// enum also uses - "citations rather than an ordinal, and they are never
+// renumbered".
+//
+//	1  open          2  next-up      3  notes       4  blocked
+//	10 features
+//
+// The six absent from it are absent because this client has no FIELD for them:
+// 5 drift, 6 must-read, 7 projection-behind, 8 pending, 9 local-only,
+// 11 case-notes. Every one is NOT_COMPUTED by today's daemon, so none of them
+// currently reaches the second list below - and that is precisely the state in
+// which a gap goes unnoticed, which is why the list exists before the gap does.
+var briefRenderedSections = map[int]bool{1: true, 2: true, 3: true, 4: true, 10: true}
+
+// briefUnavailableSection names every section of the brief the reader is not
+// seeing, AND WHICH OF THE TWO REASONS APPLIES.
 //
 // ⛔ IT PRINTS WHAT IS MISSING, WHICH IS THE WHOLE POINT AND IS EASY TO READ AS
 // NOISE. Boris ruled all eleven of section 39's sections into the MVP on
@@ -558,27 +749,58 @@ func briefBlockageSection(blocked []BriefBlockage) string {
 // notes" or "the derivation does not collect them yet", and nothing else here
 // can tell a reader which.
 //
+// ⛔ THE SECOND LIST IS THE ONE THIS FUNCTION WAS MISSING, AND IT IS A
+// DIFFERENT FAULT WITH THE SAME SYMPTOM. A section the DAEMON could not
+// compute is a capability gap in rig; a section the daemon DID compute and
+// this build cannot render is a gap in the CLIENT. Both leave the reader
+// without the section and they are repaired in different files, so a brief
+// that blurs them sends whoever reads it to the wrong half of the system.
+//
 // IT GOES LAST, DELIBERATELY. The answer a reader came for is the work; this is
 // the confidence interval on it. Printing it first would make every brief open
 // with an apology.
 func briefUnavailableSection(sections []BriefSectionState) string {
-	var missing []BriefSectionState
+	var notComputed, notRendered []BriefSectionState
 	for _, s := range sections {
-		if !s.Computed && !s.Withheld {
-			missing = append(missing, s)
+		switch {
+		case s.Withheld:
+			// ⛔ NOT LISTED AT ALL, AND THAT IS THE POINT OF THE FIELD. The
+			// derivation RAN and this caller is simply not being shown it -
+			// section 39's view table drops the must-read set from the human
+			// view because it is not a decision he makes. Reporting it here
+			// would make the human view read as a degraded agent view.
+		case !s.Computed:
+			notComputed = append(notComputed, s)
+		case !briefRenderedSections[s.Section]:
+			notRendered = append(notRendered, s)
 		}
 	}
-	if len(missing) == 0 {
+	if len(notComputed) == 0 && len(notRendered) == 0 {
 		return ""
 	}
+
 	var sb strings.Builder
-	sb.WriteString("\nNOT ANSWERED BY THIS BRIEF - " +
-		"these sections are specified and not yet built,\nso their absence " +
-		"above is NOT a statement that there is nothing to report:\n")
-	for _, s := range missing {
-		sb.WriteString("  section " + strconv.Itoa(s.Section) + ": " +
-			briefCell(s.Reason, "no reason was given, which is itself a defect") +
-			"\n")
+	if len(notComputed) > 0 {
+		sb.WriteString("\nNOT ANSWERED BY THIS BRIEF - " +
+			"these sections are specified and not yet built,\nso their absence " +
+			"above is NOT a statement that there is nothing to report:\n")
+		for _, s := range notComputed {
+			sb.WriteString("  section " + strconv.Itoa(s.Section) + ": " +
+				briefCell(s.Reason, "no reason was given, which is itself a defect") +
+				"\n")
+		}
+	}
+	if len(notRendered) > 0 {
+		// ⛔ THE SENTENCE NAMES WHICH HALF IS AT FAULT, because the repair is
+		// in a different file from the one above and a reader sent to rigd
+		// for a client-side gap finds nothing wrong there.
+		sb.WriteString("\n⛔ COMPUTED BY rigd AND NOT SHOWN BY THIS BUILD OF " +
+			"rig - the answer EXISTS\nand this client has no renderer for it. " +
+			"That is a gap in rig's CLI, not in\nthe derivation, and upgrading " +
+			"rig is what fixes it:\n")
+		for _, s := range notRendered {
+			sb.WriteString("  section " + strconv.Itoa(s.Section) + "\n")
+		}
 	}
 	return sb.String()
 }
@@ -602,11 +824,15 @@ func briefCell(value, absent string) string {
 //
 // ⛔ EVERY FIELD ON THAT MESSAGE THIS FUNCTION DOES NOT READ IS A SECTION THE
 // DAEMON COMPUTED AND THIS CLIENT DROPPED, WHICH IS NOT THE SAME AS A SECTION
-// THAT IS NOT BUILT. The ones still unread are `open`, `drift`, `health`,
-// `features`, `feature_stages`, `case_notes`, `coarse_citations` and
-// `must_read`. They are named here rather than left to be noticed, because
-// their `sections` entries will say COMPUTED while nothing renders them - a
-// partial answer that looks complete, on the verb the MVP is judged by.
+// THAT IS NOT BUILT. The ones still unread are `drift`, `health`,
+// `case_notes`, `coarse_citations` and `must_read`.
+//
+// ⛔ AND NAMING THEM IN A COMMENT IS NOT THE MECHANISM. briefRenderedSections
+// below is: any section the daemon reports COMPUTED that this build cannot
+// render is listed to the reader as a CLIENT-SIDE gap, in its own sentence,
+// beside the sections the daemon could not compute. A comment rots the first
+// time somebody adds a field; that list cannot, because it is checked against
+// what the daemon actually said on every call.
 func briefFromWire(r *rigv1.ProjectBriefResponse) Brief {
 	b := Brief{
 		Project: r.GetProject(),
@@ -615,8 +841,21 @@ func briefFromWire(r *rigv1.ProjectBriefResponse) Brief {
 		Status:  r.GetStatus(),
 		Semver:  r.GetSemver(),
 	}
+	for _, it := range r.GetOpen() {
+		b.Open = append(b.Open, itemFromWire(it))
+	}
 	for _, it := range r.GetNextUp() {
 		b.NextUp = append(b.NextUp, itemFromWire(it))
+	}
+	for _, f := range r.GetFeatures() {
+		b.Features = append(b.Features, BriefFeature{
+			ID: f.GetId(), Title: f.GetTitle(), Stage: f.GetStage(),
+		})
+	}
+	for _, c := range r.GetFeatureStages() {
+		b.FeatureStages = append(b.FeatureStages, BriefStageCount{
+			Stage: c.GetStage(), Count: c.GetCount(),
+		})
 	}
 	for _, n := range r.GetNotes() {
 		b.Notes = append(b.Notes, noteFromWire(n))

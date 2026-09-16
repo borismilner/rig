@@ -115,15 +115,29 @@ func TestTheBlockedConditionIsPrintedBeforeTheNextUpList(t *testing.T) {
 	}
 }
 
-// AND A BRIEF WITH NO CYCLE SAYS NOTHING ABOUT CYCLES. This is the one section
-// allowed to be silent: a "no cycles" line on every brief trains a reader to
-// skip the place the real one appears.
-func TestABriefWithNoCycleHasNoBlockedSectionAtAll(t *testing.T) {
+// AND A BRIEF WITH NO CYCLE SAYS NOTHING ABOUT CYCLES. The cycle report is the
+// one thing here allowed to be silent: a "no cycles" line on every brief
+// trains a reader to skip the place the real one appears.
+//
+// ⛔ THE PROBE WAS THE BARE WORD "BLOCKED" AND THAT WAS TOO WIDE, WHICH ONLY
+// SHOWED UP WHEN SECTION 4 STARTED PRINTING. "BLOCKED CONDITION" is the cycle
+// report; "BLOCKED" alone is now also section 39's row 4 heading, which the
+// daemon reports COMPUTED and which therefore MUST render - "nothing is
+// blocked" and "blocked was not computed" are different facts and a silent
+// section collapses them. Two different claims had been resting on one
+// substring, and the narrower probe is the one this test always meant.
+func TestABriefWithNoCycleHasNoCycleReportAtAll(t *testing.T) {
 	got := briefText(brief(), now)
 
-	if strings.Contains(got, "BLOCKED") {
-		t.Errorf("a clean brief carries a blocked section, which teaches a "+
+	if strings.Contains(got, "BLOCKED CONDITION") {
+		t.Errorf("a clean brief carries a cycle report, which teaches a "+
 			"reader to skip the line a real cycle appears on:\n%s", got)
+	}
+	// The other half, and it is the new rule rather than a restatement: row 4
+	// is COMPUTED, so it renders even with nothing in it.
+	if !strings.Contains(got, "Nothing is blocked") {
+		t.Errorf("section 4 rendered nothing at all, which cannot be told "+
+			"from a section this build has no renderer for:\n%s", got)
 	}
 }
 
@@ -472,5 +486,187 @@ func TestABlockerNobodyHasStartedKeepsTheEmptyStateTheRendererSpellsOut(t *testi
 	got := briefBlockageSection(b.Blocked)
 	if !strings.Contains(got, "nobody has picked it up") {
 		t.Errorf("the `idea` blocker rendered as a blank:\n%s", got)
+	}
+}
+
+// ---- ⛔ a section the reader is not seeing says WHICH HALF is at fault -----
+
+// ⛔ A SECTION rigd COMPUTED AND THIS BUILD CANNOT RENDER IS A GAP IN THE
+// CLIENT, AND IT MUST NOT READ AS A GAP IN rig.
+//
+// Both faults leave the reader without the section and they are repaired in
+// different files, so a brief that blurs them sends whoever reads it to the
+// wrong half of the system. This is the failure that shipped: `sections` would
+// report a section COMPUTED while the renderer printed nothing, and nothing
+// anywhere said so.
+func TestASectionComputedAndNotRenderedIsReportedAsTheClientsGap(t *testing.T) {
+	// Section 5 is `drift`. This build has no field for it, so a daemon that
+	// starts computing it would silently drop it here.
+	got := briefUnavailableSection([]BriefSectionState{
+		{Section: 5, Computed: true},
+	})
+
+	if got == "" {
+		t.Fatal("a section the daemon computed and this build cannot render " +
+			"was reported nowhere at all, which is the exact defect this list " +
+			"exists to prevent")
+	}
+	if !strings.Contains(got, "section 5") {
+		t.Errorf("the report does not name the section:\n%s", got)
+	}
+	// ⛔ THE SENTENCE HAS TO SAY WHICH HALF. A reader sent to rigd for a
+	// client-side gap finds nothing wrong there and concludes the brief is
+	// correct.
+	if !strings.Contains(got, "rig's CLI") {
+		t.Errorf("the report does not say the gap is in this client rather "+
+			"than in the derivation:\n%s", got)
+	}
+	if strings.Contains(got, "not yet built") {
+		t.Errorf("a COMPUTED section was reported as unbuilt, which is the "+
+			"other fault entirely:\n%s", got)
+	}
+}
+
+// AND THE TWO LISTS ARE SEPARATE, which is what stops one being read as the
+// other when both are present.
+func TestTheTwoNotShownReasonsAreReportedAsDifferentLists(t *testing.T) {
+	got := briefUnavailableSection([]BriefSectionState{
+		{Section: 5, Computed: true},
+		{Section: 7, Computed: false, Reason: "the git projection does not exist yet"},
+	})
+
+	if !strings.Contains(got, "the git projection does not exist yet") {
+		t.Errorf("the unbuilt section lost its reason:\n%s", got)
+	}
+	if !strings.Contains(got, "rig's CLI") {
+		t.Errorf("the client-side gap is not reported beside it:\n%s", got)
+	}
+	// The unbuilt list comes first: it is the one a reader can do nothing
+	// about, and the client-side one has an action attached.
+	if strings.Index(got, "not yet built") > strings.Index(got, "rig's CLI") {
+		t.Errorf("the client-side gap is printed before the capability gap:\n%s", got)
+	}
+}
+
+// ⛔ EVERY SECTION THIS BUILD CLAIMS TO RENDER ACTUALLY PRINTS SOMETHING WHEN
+// IT IS EMPTY.
+//
+// This is the guard behind the lead's ruling - "a section reported COMPUTED
+// must render something, even if that something is none". An empty list and a
+// section this build cannot render are otherwise the same output, and the
+// whole of SectionState exists to keep them apart.
+//
+// THE HEADINGS ARE LISTED HERE RATHER THAN WALKED, and that is deliberate: a
+// heading is prose and there is nothing in the code to walk. What keeps the
+// table honest is the count assertion at the end, which fails the moment
+// briefRenderedSections gains a row this test does not.
+func TestEverySectionThisBuildRendersPrintsSomethingWhenItIsEmpty(t *testing.T) {
+	headings := map[int]string{
+		1:  "ALSO OPEN",
+		2:  "NEXT UP",
+		3:  "NOTES",
+		4:  "BLOCKED",
+		10: "FEATURES",
+	}
+	// The positive control, and it is what makes every assertion below mean
+	// something: a table that has fallen behind briefRenderedSections would
+	// otherwise pass by simply not checking the new row.
+	if len(headings) != len(briefRenderedSections) {
+		t.Fatalf("this table has %d rows and briefRenderedSections has %d. A "+
+			"section was added to the renderer's claim without being added "+
+			"here, so it is UNCHECKED and this test proves nothing about it",
+			len(headings), len(briefRenderedSections))
+	}
+
+	for section, heading := range headings {
+		if !briefRenderedSections[section] {
+			t.Errorf("section %d is in this table and not in "+
+				"briefRenderedSections", section)
+			continue
+		}
+		// An EMPTY brief that says all five are computed. Nothing to print,
+		// and every one of them must print anyway.
+		empty := Brief{Project: "rig", Sections: []BriefSectionState{
+			{Section: section, Computed: true},
+		}}
+		got := briefText(empty, now)
+		if !strings.Contains(got, heading) {
+			t.Errorf("section %d is reported COMPUTED and this build claims "+
+				"to render it, and %q is nowhere in the output. An empty "+
+				"section that prints nothing cannot be told from one this "+
+				"build has no renderer for:\n%s", section, heading, got)
+		}
+		// And it must NOT appear in either not-shown list, because it IS
+		// shown.
+		if u := briefUnavailableSection(empty.Sections); u != "" {
+			t.Errorf("section %d rendered AND was reported as not shown:\n%s",
+				section, u)
+		}
+	}
+}
+
+// THE OPEN LIST IS ITS OWN SECTION AND IS NOT FOLDED INTO NEXT-UP. The wire
+// cuts the two disjoint so an item never gets two incompatible rules for
+// rendering its notes; a renderer that merged them would double-count.
+func TestOpenAndNextUpAreRenderedAsTwoListsAndNotOne(t *testing.T) {
+	b := briefFromWire(&rigv1.ProjectBriefResponse{
+		Project: "rig",
+		NextUp:  []*rigv1.ItemState{{Id: "01927-n", Title: "the seam"}},
+		Open:    []*rigv1.ItemState{{Id: "01927-o", Title: "the render blocks"}},
+	})
+	if len(b.Open) != 1 || len(b.NextUp) != 1 {
+		t.Fatalf("open=%d next_up=%d, want 1 and 1", len(b.Open), len(b.NextUp))
+	}
+
+	got := briefText(b, now)
+	if !strings.Contains(got, "01927-o") {
+		t.Errorf("the open item is nowhere in the brief:\n%s", got)
+	}
+	if !strings.Contains(got, "01927-n") {
+		t.Errorf("the next-up item is nowhere in the brief:\n%s", got)
+	}
+	// ⛔ BOTH IDS ARE COUNTED, AND THE ONE-SIDED VERSION OF THIS SURVIVED A
+	// MUTATION. Counting only the open id catches open leaking into next-up
+	// and is blind to next-up leaking into open, which is the direction a
+	// renderer that concatenates the lists actually fails in. A guard that
+	// covers one direction of a symmetric property has not run on the other.
+	for _, id := range []string{"01927-o", "01927-n"} {
+		if n := strings.Count(got, id); n != 1 {
+			t.Errorf("%s appears %d times, so the two lists were merged and a "+
+				"reader adding them up double-counts:\n%s", id, n, got)
+		}
+	}
+}
+
+// FEATURES AND THEIR STAGE COUNTS ARE BOTH PRINTED. A count on its own cannot
+// be acted on - "three at shipped" does not say which three - and a list on
+// its own makes a reader tally the stages by eye. Section 39 carries both
+// fields, so both are rendered.
+func TestTheFeaturesSectionCarriesBothTheListAndTheCounts(t *testing.T) {
+	b := briefFromWire(&rigv1.ProjectBriefResponse{
+		Project: "rig",
+		Features: []*rigv1.Feature{
+			{Id: "01927-f", Title: "the continuity record", Stage: "building"},
+		},
+		FeatureStages: []*rigv1.StageCount{
+			{Stage: "building", Count: 1},
+			{Stage: "shipped", Count: 4},
+		},
+	})
+
+	got := briefFeaturesSection(b.Features, b.FeatureStages)
+	for _, want := range []string{
+		"01927-f", "the continuity record", "building", "shipped", "4",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the features section does not carry %q:\n%s", want, got)
+		}
+	}
+
+	// AN EMPTY ONE IS A SENTENCE, because row 10 is COMPUTED and a silent
+	// section cannot be told from one this build cannot render.
+	empty := briefFeaturesSection(nil, nil)
+	if !strings.Contains(empty, "no features recorded") {
+		t.Errorf("an empty features section printed no sentence:\n%s", empty)
 	}
 }
