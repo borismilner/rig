@@ -2,6 +2,7 @@ package record
 
 import (
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -274,5 +275,101 @@ func TestQueryReturnsHeadsOfOneKindInOneProject(t *testing.T) {
 		t.Fatalf("query returned %s v%d %q, want req-a v2 and the second wording: "+
 			"a query that returns a superseded version answers about the past",
 			got[0].ID, got[0].Version, got[0].Body)
+	}
+}
+
+// SECTION 39, THE ID-SCHEME TABLE: a generated id is a UUIDv7, chosen for
+// TIME-ORDERING and for nothing else.
+//
+// ⛔ THIS ASSERTION IS THE REQUIREMENT, AND IT IS WHY THE RED THAT MATTERS IS A
+// v4 RED, NOT AN UNIMPLEMENTED ONE. Put used to refuse an empty id outright, so
+// wiring up any generator at all turns "a put needs an id" into green while
+// proving only that something now mints ids. v4 is equally unique and would
+// pass every collision test ever written. The arm that proves this assertion
+// bites is generating with uuid.New() and watching THIS function fail.
+//
+// EIGHT, NOT TWO. Two random ids sort ascending half the time, which is a test
+// that fails every other run and gets deleted for being flaky. Eight sort by
+// chance once in 8! = 40,320 runs.
+func TestIDsGeneratedInSequenceSortAscending(t *testing.T) {
+	name := estate(t, "development")
+	s := openStore(t, name)
+
+	const n = 8
+	ids := make([]string, 0, n)
+	for i := 0; i < n; i++ {
+		r := req("", "a requirement that did not name its own id")
+		written, err := s.Put(r)
+		if err != nil {
+			t.Fatalf("writing record %d: %v", i, err)
+		}
+		if written.ID == "" {
+			t.Fatalf("record %d came back with no id", i)
+		}
+		ids = append(ids, written.ID)
+	}
+
+	for i := 1; i < len(ids); i++ {
+		if ids[i-1] >= ids[i] {
+			t.Fatalf("ids are not time-ordered: id %d (%s) does not sort before id %d (%s).\n"+
+				"Section 39 chose UUIDv7 for ordering; a merely-unique id has not met that requirement.\n"+
+				"full sequence: %v", i-1, ids[i-1], i, ids[i], ids)
+		}
+	}
+}
+
+// A project and a case are section 39's one id-scheme exception: their id is
+// the SLUG that is already their path on disk, so the store must not invent one.
+func TestAProjectAndACaseAreRefusedWhenTheyDoNotNameTheirSlug(t *testing.T) {
+	name := estate(t, "development")
+	s := openStore(t, name)
+
+	for _, kind := range []string{"project", "case"} {
+		r := req("", "no slug supplied")
+		r.Kind = kind
+		if _, err := s.Put(r); err == nil {
+			t.Fatalf("a %s with no id was accepted; section 39 makes its id a slug the caller owns", kind)
+		}
+	}
+
+	// And the same kinds are accepted when they DO carry their slug.
+	r := req("rig", "the project record")
+	r.Kind = "project"
+	if _, err := s.Put(r); err != nil {
+		t.Fatalf("a project naming its slug was refused: %v", err)
+	}
+}
+
+// A put that supersedes names the version it supersedes, so it must also name
+// the id.
+//
+// ⛔ THIS TEST ASSERTED err != nil AND PASSED AGAINST A BROKEN IMPLEMENTATION.
+// Caught by mutation: deleting the refusal in generateID left this green,
+// because a generated id has no head, so the compare-and-swap then refuses
+// IfVersion 3 against a current version of 0 and SOMETHING still errors.
+//
+// The refusal is worth keeping anyway, and the reason is the same one the
+// ConflictError type exists for: "conflict, the current version is 0" tells a
+// caller that never named a record nothing it can act on. SO THE ASSERTION IS
+// ON WHICH FAILURE IT IS, not on whether one happened. An err != nil test here
+// measures nothing.
+func TestASupersedingPutWithNoIDIsRefusedByNameRatherThanAsAConflict(t *testing.T) {
+	name := estate(t, "development")
+	s := openStore(t, name)
+
+	r := req("", "supersedes something, but says nothing about what")
+	r.IfVersion = 3
+	_, err := s.Put(r)
+	if err == nil {
+		t.Fatal("a superseding put with no id was accepted; it would have created a stray record")
+	}
+
+	var conflict *ConflictError
+	if errors.As(err, &conflict) {
+		t.Fatalf("refused as a version conflict (%v), which is unactionable for a put that "+
+			"never named a record. It should be refused for having no id.", err)
+	}
+	if !strings.Contains(err.Error(), "id") {
+		t.Fatalf("the refusal does not mention the id: %v", err)
 	}
 }

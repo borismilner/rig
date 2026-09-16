@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // now is the daemon's clock, replaced in tests.
@@ -105,13 +107,28 @@ func (e *NotFoundError) Error() string {
 	return fmt.Sprintf("no version %d of record %s", e.Version, e.ID)
 }
 
+// slugIDKinds are the kinds whose id is a caller-supplied SLUG rather than a
+// generated UUIDv7.
+//
+// SECTION 39 MAKES THIS ITS ONE ID-SCHEME EXCEPTION, and it is not an oversight
+// to be tidied away later. A project's id is its slug because that slug is
+// already a path on disk - tension 14's name in ~/.rig/scope/name - and every
+// other record's "project it belongs to" field is that same slug. A case takes
+// the same exception for the same reason. Generating a UUID for either would
+// mean the path and the id disagree, and the path is the thing a human reads.
+var slugIDKinds = map[string]bool{"project": true, "case": true}
+
 // Put creates a record or supersedes one, and returns the version it wrote.
 func (s *Store) Put(r PutRequest) (Record, error) {
-	if r.ID == "" {
-		return Record{}, errors.New("record: a put needs an id")
-	}
 	if r.Kind == "" || r.Project == "" {
 		return Record{}, errors.New("record: a put needs a kind and a project")
+	}
+	if r.ID == "" {
+		id, err := s.generateID(r)
+		if err != nil {
+			return Record{}, err
+		}
+		r.ID = id
 	}
 	if r.Session == "" || r.Seat == "" {
 		return Record{}, errors.New("record: a put needs its provenance: session and seat")
@@ -301,4 +318,31 @@ func scanRecord(sc scanner) (Record, error) {
 			rec.ID, rec.Version, err)
 	}
 	return rec, nil
+}
+
+
+// generateID mints an id for a put that did not carry one.
+//
+// SECTION 39, THE ID-SCHEME TABLE: UUIDv7, VIA google/uuid. THE VERSION IS THE
+// REQUIREMENT AND NOT A DETAIL. v4 is equally unique and would satisfy every
+// test that only asks whether two records collide; section 39 chose v7 for
+// TIME-ORDERING, so that records sort chronologically by id alone and
+// ls records/<kind>/ comes out in the order they were written. A generator that
+// is merely unique has met none of the stated requirement.
+//
+// google/uuid's getV7Time holds a mutex and is documented to return a strictly
+// greater (milli << 12 + seq) than any previous call, so ids minted in sequence
+// order even inside one millisecond.
+func (s *Store) generateID(r PutRequest) (string, error) {
+	if slugIDKinds[r.Kind] {
+		return "", fmt.Errorf("record: a %s is identified by its slug, so a put creating one needs an id", r.Kind)
+	}
+	if r.IfVersion != 0 {
+		return "", errors.New("record: a put superseding a version needs the id it supersedes")
+	}
+	id, err := uuid.NewV7()
+	if err != nil {
+		return "", fmt.Errorf("record: generating an id: %w", err)
+	}
+	return id.String(), nil
 }
