@@ -123,6 +123,17 @@ func (s *Store) Put(r PutRequest) (Record, error) {
 	if r.Kind == "" || r.Project == "" {
 		return Record{}, errors.New("record: a put needs a kind and a project")
 	}
+	// A PROGRESS STEP IS REACHED THROUGH Step AND NOWHERE ELSE.
+	//
+	// Section 39 puts a work item's live state in the LATEST step rather than in
+	// a status field, so the stream is the state. A stream a caller can write
+	// into directly, or supersede, is not a stream - it is a mutable list with
+	// an append convention, and "the latest step is the live state" stops being
+	// true the first time anybody rewrites one. The invariant is enforced here
+	// because documenting it protects nothing.
+	if r.Kind == KindProgress {
+		return Record{}, fmt.Errorf("record: a %s record is appended with Step, not written with Put", KindProgress)
+	}
 	if r.ID == "" {
 		id, err := s.generateID(r)
 		if err != nil {
@@ -180,23 +191,8 @@ func (s *Store) Put(r PutRequest) (Record, error) {
 		CreatedAt: now().UTC(),
 	}
 
-	if _, err := tx.Exec(
-		`INSERT INTO records (id, version, kind, project, body, fields,
-			session, seat, epoch, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		r.ID, int64(next), r.Kind, r.Project, r.Body, string(fields),
-		stamped.Session, stamped.Seat, int64(stamped.Epoch),
-		stamped.CreatedAt.UnixNano(),
-	); err != nil {
-		return Record{}, fmt.Errorf("record: writing %s version %d: %w", r.ID, next, err)
-	}
-
-	if _, err := tx.Exec(
-		`INSERT INTO heads (id, version) VALUES (?, ?)
-		 ON CONFLICT(id) DO UPDATE SET version = excluded.version`,
-		r.ID, int64(next),
-	); err != nil {
-		return Record{}, fmt.Errorf("record: moving head of %s: %w", r.ID, err)
+	if err := writeVersion(tx, r, next, string(fields), stamped); err != nil {
+		return Record{}, err
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -339,9 +335,42 @@ func (s *Store) generateID(r PutRequest) (string, error) {
 	if r.IfVersion != 0 {
 		return "", errors.New("record: a put superseding a version needs the id it supersedes")
 	}
+	return uuidV7()
+}
+
+// uuidV7 mints one time-ordered id.
+func uuidV7() (string, error) {
 	id, err := uuid.NewV7()
 	if err != nil {
 		return "", fmt.Errorf("record: generating an id: %w", err)
 	}
 	return id.String(), nil
+}
+
+// writeVersion inserts one version and moves the head pointer to it.
+//
+// IT IS THE SINGLE WRITE PATH AND THAT IS THE POINT. Put reaches it after its
+// compare-and-swap; Step reaches it with the version it already knows is 1. A
+// second copy of this SQL is how the two would drift - a column added for one
+// caller and forgotten for the other is a defect that shows up as a record
+// whose provenance is half-written.
+func writeVersion(tx *sql.Tx, r PutRequest, version uint64, fields string, p Provenance) error {
+	if _, err := tx.Exec(
+		`INSERT INTO records (id, version, kind, project, body, fields,
+			session, seat, epoch, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		r.ID, int64(version), r.Kind, r.Project, r.Body, fields,
+		p.Session, p.Seat, int64(p.Epoch), p.CreatedAt.UnixNano(),
+	); err != nil {
+		return fmt.Errorf("record: writing %s version %d: %w", r.ID, version, err)
+	}
+
+	if _, err := tx.Exec(
+		`INSERT INTO heads (id, version) VALUES (?, ?)
+		 ON CONFLICT(id) DO UPDATE SET version = excluded.version`,
+		r.ID, int64(version),
+	); err != nil {
+		return fmt.Errorf("record: moving head of %s: %w", r.ID, err)
+	}
+	return nil
 }
