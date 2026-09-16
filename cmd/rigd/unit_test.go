@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -188,4 +189,101 @@ func mustExist(t *testing.T) string {
 		t.Skipf("no stand-in executable to point ExecStart at: %v", err)
 	}
 	return p
+}
+
+// TestTheUnitDoesNotRetryARefusal ties the unit's RestartPreventExitStatus to
+// the Go constant, so the number cannot drift in one file alone.
+//
+// MEASURED 2026-09-16, AND THE UNIT'S OWN COMMENT HAD IT WRONG. It called
+// starting the unit over a running daemon "one wrinkle, inherited and
+// accepted" and said the unit reports inactive. Against a live incumbent it
+// reported activating (auto-restart) and restarted every 2 s without stopping
+// - 14 restarts in 28 seconds, still climbing, about five journal lines each.
+// The refusal shared exit status 1 with a real crash, and Restart=on-failure
+// cannot tell those apart.
+//
+// THE ASSERTION IS THE PAIR, not either half. A unit naming a status no
+// binary returns prevents nothing, and a binary returning a status no unit
+// names is retried anyway - and both halves read as done.
+func TestTheUnitDoesNotRetryARefusal(t *testing.T) {
+	want := "RestartPreventExitStatus=" + strconv.Itoa(exitAlreadyRunning)
+	for _, d := range directives(t, unitText(t)) {
+		if d == want {
+			return
+		}
+	}
+	t.Fatalf("the unit does not carry %q. rigd exits %d when an incumbent "+
+		"holds the runtime directory or the estate name; without this "+
+		"directive systemd reads that refusal as a fault and retries it "+
+		"against a healthy daemon every RestartSec, forever", want, exitAlreadyRunning)
+}
+
+// TestTheUnitBoundsARestartLoop pins the two settings that stop any crash loop
+// running unattended, and pins them in [Unit].
+//
+// THE PLACEMENT IS THE HALF THAT BITES. systemd moved StartLimitIntervalSec
+// and StartLimitBurst from [Service] to [Unit] and still accepts the old
+// spelling - by warning and ignoring, which is the silent-fallback shape this
+// file already exists to catch. TestSystemdItselfAcceptsTheUnit gates on empty
+// output, so a misplacement fails there; this test names the reason.
+//
+// THE INTERVAL IS WIDER THAN THE DEFAULT ON PURPOSE. RestartSec=2 against the
+// default 5 restarts per 10 s puts the fifth restart at the edge of the
+// window rather than inside it, so the limiter never fires - which is why the
+// loop above ran unbounded. The window has to exceed RestartSec times the
+// burst for the limit to be reachable at all.
+func TestTheUnitBoundsARestartLoop(t *testing.T) {
+	var interval, burst, restartSec string
+	var section string
+	for _, d := range directives(t, unitText(t)) {
+		if strings.HasPrefix(d, "[") {
+			section = d
+			continue
+		}
+		key, value, ok := strings.Cut(d, "=")
+		if !ok {
+			continue
+		}
+		switch key {
+		case "StartLimitIntervalSec":
+			interval = value
+			if section != "[Unit]" {
+				t.Errorf("StartLimitIntervalSec is in %s. systemd wants it in "+
+					"[Unit] and merely WARNS about the old placement, so the "+
+					"limit silently does not apply", section)
+			}
+		case "StartLimitBurst":
+			burst = value
+			if section != "[Unit]" {
+				t.Errorf("StartLimitBurst is in %s, not [Unit]", section)
+			}
+		case "RestartSec":
+			restartSec = value
+		}
+	}
+	if interval == "" || burst == "" {
+		t.Fatalf("the unit sets StartLimitIntervalSec=%q and StartLimitBurst=%q; "+
+			"both are needed or a crash loop runs unattended", interval, burst)
+	}
+
+	iv, err := strconv.Atoi(interval)
+	if err != nil {
+		t.Fatalf("StartLimitIntervalSec=%q is not a plain number of seconds, so "+
+			"this test cannot check the window against RestartSec: %v", interval, err)
+	}
+	b, err := strconv.Atoi(burst)
+	if err != nil {
+		t.Fatalf("StartLimitBurst=%q is not a number: %v", burst, err)
+	}
+	rs, err := strconv.Atoi(restartSec)
+	if err != nil {
+		t.Fatalf("RestartSec=%q is not a plain number of seconds: %v", restartSec, err)
+	}
+
+	if iv <= rs*b {
+		t.Fatalf("StartLimitIntervalSec=%d is not longer than RestartSec=%d "+
+			"times StartLimitBurst=%d (%d s), so the burst is reached at the "+
+			"edge of the window and the limiter never fires. That is the "+
+			"measured shape of the unbounded loop this test exists for", iv, rs, b, rs*b)
+	}
 }

@@ -26,10 +26,35 @@
 # production's. development is always placed explicitly, so this unit cannot
 # reach it.
 #
-# ONE WRINKLE, INHERITED AND ACCEPTED: start the unit while a daemon is
-# already up and the unit reports inactive while that daemon keeps serving.
-# At login - the case this unit exists for - nothing is running yet, so it
-# starts one and stays active.
+# STARTING IT WHILE A DAEMON IS ALREADY UP USED TO LOOP FOREVER, and the
+# paragraph that stood here was wrong on both of its claims. It called this
+# "one wrinkle, inherited and accepted" and said the unit reports inactive
+# while the incumbent keeps serving. MEASURED 2026-09-16 against a running
+# daemon: the unit reports activating (auto-restart), restarts every 2 s, and
+# does not stop - 14 restarts in 28 seconds, about five journal lines each.
+#
+# The start rate limiter does not catch it. RestartSec=2 against the default
+# StartLimitBurst=5 over StartLimitIntervalSec=10s puts the fifth restart at
+# the edge of the window rather than inside it, so the limiter never fires.
+# Both settings below are widened for that reason, and they bound any crash
+# loop rather than only this one.
+#
+# THE REFUSAL IS NOT A FAULT, so it must not be retried. rigd exits
+# exitAlreadyRunning (3, in cmd/rigd/main.go) when an incumbent holds the
+# runtime directory or the estate name, and RestartPreventExitStatus tells
+# systemd that status means "do not come back". A real crash still exits 1 and
+# is still restarted, which is what Restart=on-failure is here for.
+#
+# WHY IT IS A THIRD NUMBER rather than 0 or 1: exiting 0 is the agentbox
+# defect in the header above, where systemd read a refusal as the service
+# finishing. Exiting 1 is this one. cmd/rigd/unit_test.go ties the number here
+# to the constant in the Go source so the two cannot drift apart.
+#
+# AND THE CASE IS NOT RARE. The comment above assumed that at login nothing is
+# running yet. A development estate takes the DEFAULT runtime directory unless
+# XDG_RUNTIME_DIR is placed explicitly, so a development rigd left up is
+# exactly the incumbent this hits - which is what was running when it was
+# measured.
 
 [Unit]
 Description=rig, the estate platform
@@ -40,11 +65,20 @@ Documentation=https://github.com/boris-milner/rig
 PartOf=graphical-session.target
 After=graphical-session.target
 
+# In [Unit], not [Service]. systemd moved these and still accepts the old
+# placement - by printing a warning, which cmd/rigd/unit_test.go reads as a
+# failure because it gates on empty output rather than on the exit code.
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
 [Service]
 Type=simple
 ExecStart=%h/.local/bin/rigd
 Restart=on-failure
 RestartSec=2
+
+# 3 is exitAlreadyRunning in cmd/rigd/main.go. Keep the two in step.
+RestartPreventExitStatus=3
 
 [Install]
 WantedBy=graphical-session.target

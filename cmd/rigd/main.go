@@ -31,11 +31,48 @@ var (
 	date    = "unknown"
 )
 
+// exitAlreadyRunning is the status rigd exits with when it refuses because
+// another daemon already holds this runtime directory or this estate name.
+//
+// IT IS DISTINCT FROM 1 ON PURPOSE, AND THE REASON WAS MEASURED HERE RATHER
+// THAN REASONED ABOUT. systemd's Restart=on-failure treats every non-zero
+// status as a fault worth retrying, so a refusal that shares 1 with a real
+// crash is retried against a healthy incumbent forever: `systemctl --user
+// start rigd` against a running daemon produced 14 restarts in 28 seconds,
+// still climbing, roughly five journal lines each. The unit's own comment
+// called this "one wrinkle, inherited and accepted" and described the unit as
+// reporting inactive. It does not; it reports activating (auto-restart) and
+// never stops.
+//
+// The header above already records the opposite defect: agentbox exited 0 in
+// this case, systemd read that as the service finishing, and ExecStop killed
+// the healthy daemon. Neither 0 nor 1 is right on its own. A THIRD status is,
+// because it lets the unit say "this one is not a fault to retry" without
+// claiming the daemon started.
+//
+// packaging/rigd.service names this number in RestartPreventExitStatus, and
+// TestTheUnitDoesNotRetryARefusal ties the two together so they cannot drift.
+const exitAlreadyRunning = 3
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, "rigd: "+err.Error())
-		os.Exit(1)
+		os.Exit(exitStatus(err))
 	}
+}
+
+// exitStatus maps a refusal by an incumbent onto its own status, and
+// everything else onto 1.
+//
+// It matches on TYPE rather than on the message, because the message names a
+// pid and a path and is meant to stay readable to a person.
+func exitStatus(err error) int {
+	var held *instance.HeldError
+	var named *instance.NameHeldError
+	if errors.As(err, &held) || errors.As(err, &named) {
+		return exitAlreadyRunning
+	}
+	return 1
 }
 
 func run() error {
@@ -83,7 +120,11 @@ func run() error {
 		if errors.As(err, &held) {
 			// Exit with the incumbent named, rather than unlinking the socket
 			// and taking over.
-			return errors.New(held.Error())
+			//
+			// THE TYPE IS RETURNED, NOT ITS MESSAGE. errors.New(held.Error())
+			// read identically to a person and flattened the one thing main
+			// needs to pick an exit status by.
+			return held
 		}
 		return err
 	}
@@ -120,7 +161,9 @@ func run() error {
 		if err != nil {
 			var held *instance.NameHeldError
 			if errors.As(err, &held) {
-				return errors.New(held.Error())
+				// The type, not its message - same reason as the directory
+				// lock above.
+				return held
 			}
 			return err
 		}
