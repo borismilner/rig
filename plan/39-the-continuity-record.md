@@ -1129,10 +1129,35 @@ through the `readOnly` helper (`self.go:81`), and `activity` replaces a
 connection's activity line and is declared the same way (`self.go:85`).
 
 **`Effects` is what a command does to THE WORLD** (`declaration.go:135`), and
-the ladder's next rung is `EffectsWritesFiles`. **Per-session delivery state is
-connection state, exactly like presence** - §39 already requires it be tracked
-*"per session, never per uid"*, so it never reaches the record store and never
-touches a file. **`EffectsReadOnly` is honest for it, today and at slice 6.**
+the ladder's next rung is `EffectsWritesFiles`. **The delivery mark never
+reaches the record store and never touches a file**, so `EffectsReadOnly` is
+honest for it, today and at slice 6. **The property is about what the CALLER can
+observe as data, not about whether a byte moved** - which is the same reading
+under which `announce` and `activity` are read-only.
+
+⛔ **AND IT LIVES IN CONNECTION STATE ONLY WHILE A SESSION AND A CONNECTION ARE
+THE SAME THING. THEY ARE TODAY, AND M7 ENDS THAT.** Found by `backend-record`
+attacking this ruling rather than accepting it, and confirmed in code:
+
+| | |
+|---|---|
+| §39 says the gate tracks | *"per session, never per uid"* - **a SESSION** |
+| `serveSession` answers every resume | `SESSION_DEAD`, **deliberately**: *"a session holds nothing until M7 ... there is genuinely nothing this daemon could restore"* |
+| so today | a session is a connection, and connection state is the correct home |
+| ⛔ **at M7** | resume starts succeeding, and **the delivery mark becomes the first thing a session would need to KEEP.** A resumed session re-gated on material it has already read is the exact failure the gate exists to avoid making expensive |
+
+**THE OBLIGATION, recorded against M7 rather than left to be rediscovered: when
+resume carries anything at all, the delivery mark moves with leases and claims
+into the coordination store** - **not** the record store. A record store is for
+what outlives the session; one record per session per brief read is write
+amplification on the path every arriving session calls. **And the mark must
+carry the VERSION each session read, not a boolean**, or the re-arm rule above
+cannot fire when a must-read record changes.
+
+**The alternative reading was refused: this is not a reason to build the mark
+durable NOW.** Nothing resumes, so a durable mark would restore state to a
+session that cannot exist - which is the false-claim shape `serveSession`'s own
+comment already refuses for `resumed: true`.
 
 **What the publisher-with-no-subscriber argument really bounds.** `record.changed`
 was held to slice 5 because nothing on the MVP path SUBSCRIBES to it, and that
