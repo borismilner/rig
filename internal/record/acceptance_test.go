@@ -192,7 +192,34 @@ func readBacklog(t *testing.T) []backlogItem {
 			"or run `make mvp-demo` in the working tree.", backlogPath, err, requireBacklog)
 	}
 	defer func() { _ = f.Close() }()
+	return parseBacklog(t, f)
+}
 
+// readBacklogFrom parses any file in the backlog's table shape.
+//
+// It exists so the parser can be pinned against a fixture that holds one row of
+// every SHAPE, without waiting for somebody to edit rig's real backlog. A
+// missing fixture is a FAILURE and never a skip: the skip above is about rig's
+// own document being unreachable from a gate worktree, which is a fact about
+// the checkout, and a fixture that has gone missing is a fact about this test.
+func readBacklogFrom(t *testing.T, path string) []backlogItem {
+	t.Helper()
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatalf("the parser fixture is not at %s: %v", path, err)
+	}
+	defer func() { _ = f.Close() }()
+	return parseBacklog(t, f)
+}
+
+// parseBacklog is the parse itself, with the reading of the file taken off it.
+//
+// ⛔ ONE PARSE, TWO CALLERS, AND THAT IS THE WHOLE POINT OF THE SPLIT. The
+// acceptance demonstration must read rig's real document and the pin must read
+// a fixed one, and two parsers of one table shape is the drift this package
+// spends its time correcting elsewhere.
+func parseBacklog(t *testing.T, f io.Reader) []backlogItem {
+	t.Helper()
 	raw, err := io.ReadAll(f)
 	if err != nil {
 		t.Fatal(err)
