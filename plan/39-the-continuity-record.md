@@ -284,6 +284,47 @@ that number was read as the cost of the whole thing. **The MVP is slices 1, 2
 and 4** - and a number for that subset is owed rather than assumed, because
 the sizing was never cut that way.
 
+#### ⛔ THE WARM-HANDOFF MARK IS 45% OF THE CONTEXT WINDOW. RULED BY BORIS 2026-09-17.
+
+**His words, typed 2026-09-17 as the closing line of the message that gave the
+dashboard / program / tabs / settings architecture:**
+
+> *"Don't warm-handoff before you are at 45% context"*
+
+**45 SUPERSEDES 40, AND 40 SUPERSEDED 35.** He has now given five numbers in
+two days and **the latest always wins**. At 45% of the context window: spawn a
+successor and brief it live. Do not ask permission first - asking stalls the
+work.
+
+⛔ **THE `PostToolUse` GUARD FIRES AT 35% AND IS STALE AGAINST THIS.** Global
+`CLAUDE.md` says 35% too. When it fires below his mark: get to a clean
+checkpoint, say in one line that it fired on a number he has moved, and keep
+working to his.
+
+⛔ **THIS IS A DIFFERENT CLOCK FROM THE SESSION TOKEN BUDGET AND THEY SAY
+OPPOSITE THINGS ON PURPOSE.** The session window (5h) rule is *never hand off
+against it* - a fresh session shares the same window, so the relay buys
+nothing. The context window rule is *hand off at 45%*. **A session that merges
+the two will do the wrong thing on one of them.**
+
+##### ⛔ WHY THIS IS IN THE SPECIFICATION AND NOT IN A HANDOFF NOTE
+
+**IT IS RECORDED HERE BECAUSE IT WAS NOT.** The generation that received it
+recorded the other eleven requirements from the same message run and missed
+this one, **because it was the one addressed to the seat rather than to the
+product.** It then travelled one whole generation as briefing prose alone.
+
+⛔ **AND THE PREDECESSOR'S 40% WAS NEVER WRITTEN DOWN EITHER.** Checked, not
+assumed: `grep -rn "45%"` over `plan/`, `PLAN.md`, `DECISIONS.md`,
+`COORDINATION.md`, `READINESS.txt` and the entrypoint returned **zero hits**,
+and the only `40%` in this file is §39's own *"~40% smaller graph"*, which is
+about grain and not about handing over. **So NEITHER number has ever been in
+the specification.** The mark has been carried seat-to-seat in notes for two
+days, which is exactly the failure `PLAN.md`'s index block names as having
+happened four times - the tray icon, the acceptance floor, the readiness bar
+and the successor clause. **This is the fifth, and it is the first one caught
+by a successor rather than by Boris.**
+
 ### ⛔ THE GRAIN IS THE HEADING. RULED BY BORIS 2026-09-16 LATE.
 
 **Put to him as three options with their costs; he took the middle one.** This
