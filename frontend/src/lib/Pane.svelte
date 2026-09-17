@@ -193,7 +193,8 @@
     // themeGen is referenced, not used: it is the dependency that makes a live
     // theme change re-push. See the prop's own note.
     void themeGen;
-    if (helloed) post({ rig: 1, type: "theme", mode, tokens: liveTokenSet(mode) });
+    if (helloed)
+      post({ rig: 1, type: "theme", mode, tokens: liveTokenSet(mode) });
   });
 
   // The frame keeps its real loopback origin (allow-same-origin) because the

@@ -106,9 +106,10 @@
   // and it is the same boundary section 11 already knows :focus-within will not
   // cross, so nothing in the shell could have noticed from the outside.
   let panelEl: HTMLElement | undefined = $state();
-  const returnTo = typeof document === "undefined"
-    ? null
-    : (document.activeElement as HTMLElement | null);
+  const returnTo =
+    typeof document === "undefined"
+      ? null
+      : (document.activeElement as HTMLElement | null);
 
   // Focus the dialog itself rather than its first control: a screen reader then
   // announces the dialog and its heading before any widget, and the first Tab
@@ -121,7 +122,7 @@
   });
 
   const FOCUSABLE =
-    'button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),' +
+    "button:not([disabled]),[href],input:not([disabled]),select:not([disabled])," +
     'textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
   function onkeydown(e: KeyboardEvent) {
@@ -172,7 +173,7 @@
   aria-modal="true"
   aria-labelledby="settings-title"
   tabindex="-1"
-  onkeydown={onkeydown}
+  {onkeydown}
 >
   <header>
     <h2 id="settings-title">Theme</h2>
@@ -197,8 +198,8 @@
         Following the desktop. Verified 2026-09-11: this window does not see a
         desktop change, so <em>system</em> is whatever it read at startup.
       {:else}
-        An explicit choice, written as <code>data-theme</code> - the same
-        attribute the contrast gate flips to measure both themes.
+        An explicit choice, written as <code>data-theme</code> - the same attribute
+        the contrast gate flips to measure both themes.
       {/if}
     </p>
   </section>
@@ -246,9 +247,7 @@
        wrong surface, failing on all five means it is the wrong colour. -->
   {#if verdict.length}
     <section class="refused">
-      <h3>
-        This set is unreadable, so it will not be applied
-      </h3>
+      <h3>This set is unreadable, so it will not be applied</h3>
       {#each verdict as v}
         <p class="which">in the <strong>{v.mode}</strong> theme:</p>
         <ul>
