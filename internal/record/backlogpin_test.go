@@ -197,7 +197,13 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 			// specification at all - 553 of 570 records come from two
 			// documents and `plan/` contributes none, so a seat still greps
 			// `plan/` to find out what Boris ruled. OPEN.
-			"B83", "B9",
+			"B83",
+			// B84 and B85 filed 2026-09-17 by team-lead generation 15, both as
+			// ARMED reports with receipts: both gates are repo-wide so a seat
+			// cannot tell its own red from a peer's, and a subagent has no row
+			// anywhere so work Boris commissioned is invisible while it runs -
+			// the second reported by him, not inferred for him. Both OPEN.
+			"B84", "B85", "B9",
 		})
 
 	// B65 joins this set 2026-09-17: the field predicate landed at rig
@@ -304,9 +310,17 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 		// its own: B83 was FILED (rows and open both +1) and B75 and B76 were
 		// STRUCK (closed +2, open -2). Net open is -1 while three rows changed.
 		// The SET pins above are what separate them.
-		{"rows", len(items), 88},
+		// 88 -> 90 rows and 74 -> 76 open, 2026-09-17 later still, same seat:
+		// B84 and B85 filed, neither closed, so `closed` is unmoved at 14 and
+		// both other numbers rise by two.
+		//
+		// ⛔ THIS PIN AND THE DOCUMENT IT PINS ARE IN DIFFERENT REPOSITORIES,
+		// so every backlog edit owes a commit HERE and the two can be pushed
+		// apart. It has now been paid three times in one hour by one seat.
+		// That is B63 arriving at the GATE, and it is filed as B84.
+		{"rows", len(items), 90},
 		{"closed", len(struck) + len(byLead), 14},
-		{"open", open, 74},
+		{"open", open, 76},
 	} {
 		if c.got != c.want {
 			t.Errorf("%s: %d, pinned at %d.\n"+
