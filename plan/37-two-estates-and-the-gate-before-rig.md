@@ -789,6 +789,64 @@ development experience.**
 courtesy it extends when it has spare time. The bar does not drop: an armed seat
 reports more, not worse.
 
+#### ⛔ ARMED MEANS HUNTING, NOT ONLY REPORTING. AND THE CAPABILITY IT DEMANDS. RULED BY BORIS 2026-09-17.
+
+> *"All the agents, you included, should be on the lookout to identify problems
+> with `rig` during its development. That's why it's essential that AI agents
+> will have full and total access and introspection into all aspects of `rig`."*
+
+⛔ **THIS WIDENS ARMED AND IT IS A REAL WIDENING, NOT A RESTATEMENT.** The rule
+above says: when coordination pain costs you time, that is a report. **This says:
+be ON THE LOOKOUT.** A seat that hit no friction today has still not discharged
+this - **it is an active posture, and "nothing bit me" is not a report.**
+
+| Before | Now |
+|---|---|
+| **report the friction you HIT** | ⛔ **also GO LOOKING for rig's own defects** |
+| passive, triggered by pain | **active, part of every session** |
+| *"you included"* | ⛔ **the LEAD is not exempt. He named it** |
+
+⛔ **THE BAR DOES NOT DROP AND THIS MUST NOT BECOME A LICENCE TO SPECULATE.**
+§37's ARMED bar is **evidence, never a wish**, and §38's is **grep the plan
+first**. A hunt that returns *"it would be nice if"* has produced nothing.
+**Hunting raises the volume of real findings; it does not lower the bar for
+what counts as one.**
+
+##### ⛔ AND THE SECOND HALF IS A CAPABILITY REQUIREMENT, DERIVED BY HIM FROM THE FIRST
+
+**His word is *"essential"*, and the logic is his: agents cannot find what they
+cannot see.**
+
+> **AI agents get FULL AND TOTAL access and introspection into ALL ASPECTS of
+> rig.**
+
+⛔ **NOTE THE ASYMMETRY, BECAUSE IT IS DELIBERATE AND A SEAT WILL OTHERWISE
+COLLAPSE IT.** §1 records his ordering, and the two halves are not the same
+size:
+
+| Who | What they get |
+|---|---|
+| **Boris** | *"introspect on everything that is of importance and being able to interact"* |
+| **AI agents** | ⛔ ***"full and total access and introspection into ALL aspects"*** |
+
+**The agent scope is WIDER - all aspects, not the important ones.** So **a
+surface built for the human view does not discharge this**, and building the
+window first and calling introspection done would invert it.
+
+⛔ **THIS IS A NAMED ENTRY IN `plan/09` A0's UNDISCHARGED SURVEY.** A0 is his -
+*"agents get every facility they need or may need, and the LEAD owns discovering
+what those are"* - **zero written, four generations.** This is him naming one of
+those facilities directly rather than leaving it to the survey, and it is the
+second time in one day he has pushed on A0. **The survey is overdue and this
+row is now part of its answer rather than a substitute for it.**
+
+⛔ **WHAT IT DOES NOT MEAN: A WRITE SURFACE, OR A SECURITY MODEL CHANGE.** He
+said *access and introspection* - the ability to SEE all of rig. §14's
+authorisation model and §15's redaction invariant are untouched: **what
+`secrets.get` returned is still never recorded, only the key name.** A capability
+that made secrets introspectable would be obeying this sentence and breaking a
+ruling that predates it.
+
 #### ⛔ AND IT IS NOT ONLY THE SEATS BUILDING rig. EVERY AGENT **USING** rig IS ARMED TOO. RULED BY BORIS 2026-09-16.
 
 > *"Make sure that all future agents that are using `rig` provide feedback on
