@@ -310,3 +310,122 @@ func (s *Store) Close() error { return s.db.Close() }
 
 // Path is where the store lives, for a caller that has to name it.
 func (s *Store) Path() string { return s.path }
+
+// QueryFilter narrows a Find. EVERY FIELD IS OPTIONAL, and this is the point
+// of the type.
+//
+// ⛔ AN EMPTY FIELD MEANS *EVERY VALUE*, NEVER "THE EMPTY VALUE". A record
+// cannot have an empty kind or an empty project - Put refuses both by name -
+// so there is no value for an empty filter to collide with.
+//
+// WHY IT IS A STRUCT AND NOT TWO STRINGS. Two adjacent parameters of the same
+// type that a caller can swap with no compiler complaint is the exact shape
+// RefsArgs was changed away from. Here it is worse than usual, because a
+// swapped project and kind under the old "both required" rule returned zero
+// rows, which reads as "the store holds none of those" rather than as a typo.
+type QueryFilter struct {
+	// Project is the project or case to look in. Empty means every project.
+	Project string
+
+	// Kind is what the records are. Empty means every kind.
+	//
+	// ⛔ THE OPTIONALITY OF THIS FIELD IS WHAT MAKES A CENSUS POSSIBLE AT ALL.
+	// `kind` is not a closed set - nothing constrains it beyond non-empty - so
+	// while a query REQUIRED one, a record written under an unguessed kind was
+	// invisible to every question anybody could ask, and no answer about what
+	// the store holds could be complete. That cost a real attack specialist 13
+	// round trips and a hedge on a finding that should have been flat.
+	Kind string
+}
+
+// Find returns the head of every record matching the filter, with the filter's
+// empty fields meaning "every value".
+//
+// THIS IS SECTION 39's `record.query`, whose specification is "by kind, field
+// and project" and which never said all three were mandatory. The CLI and the
+// wire had turned an optional filter set into a required conjunction.
+//
+// ⛔ THE FOUR QUERIES ARE CONSTANTS AND THE FILTER CHOOSES ONE. Two shapes
+// were rejected:
+//
+//   - A disjunction on each filter (matching the empty string OR the column)
+//     reads the same and costs differently. SQLite will not use
+//     records_by_kind (project, kind) through an OR, so the SCOPED case -
+//     which is every call rig makes today - silently degrades to a scan of the
+//     table the index was added for.
+//   - Assembling the WHERE clause from a slice at run time is the same four
+//     queries with a `q +=` in the middle, and gosec is right to flag that
+//     even when every operand is a literal: the next person to add a filter
+//     reaches for the variable, not for a new constant.
+//
+// It does NOT replace Query in records.go, which is the both-required special
+// case and is owned by another seat this session. Folding that one into
+// `return s.Find(ctx, QueryFilter{Project: project, Kind: kind})` is owed, and
+// is a one-line change the moment that file is free.
+func (s *Store) Find(ctx context.Context, f QueryFilter) ([]Record, error) {
+	var q string
+	var args []any
+	switch {
+	case f.Project == "" && f.Kind == "":
+		q = findEverything
+	case f.Kind == "":
+		q, args = findByProject, []any{f.Project}
+	case f.Project == "":
+		q, args = findByKind, []any{f.Kind}
+	default:
+		q, args = findByProjectAndKind, []any{f.Project, f.Kind}
+	}
+
+	rows, err := s.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("record: querying %s: %w", f.describe(), err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []Record
+	for rows.Next() {
+		rec, err := scanRecord(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, rec)
+	}
+	return out, rows.Err()
+}
+
+// The four shapes Find can take, as constants so nothing is ever concatenated
+// around a caller's value.
+//
+// ORDERED BY PROJECT FIRST, which is invisible to a scoped call - one project
+// means the leading key is constant and the order is by id, exactly as Query
+// always returned it - and is the only readable order for an unscoped one.
+const (
+	findSelect = `SELECT r.id, r.version, r.kind, r.project, r.body, r.fields,
+			r.session, r.seat, r.epoch, r.created_at
+		 FROM records r JOIN heads h ON h.id = r.id AND h.version = r.version`
+	findOrder = ` ORDER BY r.project, r.kind, r.id`
+
+	findEverything       = findSelect + findOrder
+	findByProject        = findSelect + ` WHERE r.project = ?` + findOrder
+	findByKind           = findSelect + ` WHERE r.kind = ?` + findOrder
+	findByProjectAndKind = findSelect + ` WHERE r.project = ? AND r.kind = ?` + findOrder
+)
+
+// describe names what a filter asked for, in the words a caller would use.
+//
+// IT IS FOR ERRORS AND FOR THE CLI's EMPTY ANSWER, and both need the same
+// sentence: "no records at all" and "no requirement records in rig" are
+// different facts, and a reader who typed nothing needs to be told that
+// nothing is what was asked.
+func (f QueryFilter) describe() string {
+	switch {
+	case f.Project == "" && f.Kind == "":
+		return "every record in every project"
+	case f.Project == "":
+		return f.Kind + " records in every project"
+	case f.Kind == "":
+		return "every record in " + f.Project
+	default:
+		return f.Kind + " records in " + f.Project
+	}
+}

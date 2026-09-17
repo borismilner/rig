@@ -73,8 +73,16 @@ type RecordAPI interface {
 	// zero", which no record has, because the first write is version 1.
 	Get(ctx context.Context, id string, version uint64) (Record, error)
 
-	// Query returns the head of every record of a kind in a project. This is
+	// Query returns the head of every record matching the filters. This is
 	// section 39's "indexed".
+	//
+	// ⛔ AN EMPTY project OR kind MEANS *EVERY* ONE, NOT "THE EMPTY ONE". A
+	// record cannot have either empty - the store refuses both by name - so
+	// there is no value the empty string could collide with. Section 39
+	// specifies the verb as "by kind, field and project" and makes none of
+	// them mandatory; two of them were required here, and since `kind` is not
+	// a closed set, that made every census of the store incomplete by
+	// construction.
 	Query(ctx context.Context, project, kind string) ([]Record, error)
 
 	// History returns every version of one record, oldest first, with its
@@ -473,6 +481,25 @@ func recordFlagSet(sub string) *recordFlags {
 			"the version you believe is current; 0 creates")
 	case "get":
 		r.version = r.fs.Uint64("version", 0, "a version to read; 0 is the head")
+	case "query":
+		// ⛔ BOTH FILTERS ARE OPTIONAL AND AN ABSENT ONE MEANS *EVERY* VALUE.
+		// Section 39 specifies record.query as "by kind, field and project" and
+		// makes none of the three mandatory. This surface had made two of them
+		// a required conjunction, and because `kind` is not a closed set, that
+		// meant no census of the store could ever be complete: a record under
+		// an unguessed kind was invisible to every question anybody could
+		// write. Note the asymmetry it left behind - `record history` takes a
+		// bare id.
+		//
+		// THE FLAGS EXIST BECAUSE THE POSITIONAL FORM CANNOT EXPRESS THE
+		// INTERESTING CASE. `rig record query <project> <kind>` reads in one
+		// order, so a lone positional can only be the project; asking for one
+		// KIND across every project - which is how a caller finds out what
+		// projects exist at all - has no positional spelling.
+		r.project = r.fs.String("project", "",
+			"the project to look in; unset means every project")
+		r.kind = r.fs.String("kind", "",
+			"the kind to look for; unset means every kind")
 	case "refs":
 		// ⛔ ZERO MEANS "THE DAEMON'S DEFAULT", AND THE DEFAULT USED TO BE 1
 		// HERE WHILE THE STORE'S WAS 4.
@@ -758,11 +785,73 @@ func recordGet(rf *recordFlags, rest []string) error {
 
 // ---- query -----------------------------------------------------------------
 
-func recordQuery(rf *recordFlags, rest []string) error {
-	if len(rest) != 2 {
-		return badArgumentf("usage: rig record query <project> <kind>")
+// verbS is the "s" a VERB takes, which is the opposite of the one plural()
+// gives a noun. One edge POINTS; two edges POINT.
+//
+// It is a second three-line function rather than a flag on plural() because
+// the two are used in the same sentence and a boolean there reads as "plural
+// or not" at exactly the moment the reader needs to know which word it is
+// agreeing with.
+func verbS(n int) string {
+	if n == 1 {
+		return "s"
 	}
-	project, kind := rest[0], rest[1]
+	return ""
+}
+
+const queryUsage = "usage: rig record query [<project> [<kind>]]\n" +
+	"       rig record query [--project <p>] [--kind <k>]\n" +
+	"       both filters are optional and an omitted one means EVERY value, " +
+	"so\n       `rig record query` on its own is the whole store"
+
+// recordQuery lists records, filtered by nothing, by one thing or by both.
+//
+// ⛔ AN OMITTED FILTER MEANS EVERY VALUE AND AN EXPLICITLY EMPTY ONE IS
+// REFUSED, AND THE DIFFERENCE IS THE WHOLE GUARD. `--project ""` is almost
+// always a shell variable that expanded to nothing, and on the wire it is
+// byte-identical to a caller that deliberately asked for every project - so
+// the daemon cannot tell them apart and does not try. THIS is the layer that
+// can: flag.Visit knows what was typed, which is the same distinction
+// --if-version turns on two hundred lines above.
+func recordQuery(rf *recordFlags, rest []string) error {
+	if len(rest) > 2 {
+		return badArgumentf("%s", queryUsage)
+	}
+
+	project, kind := *rf.project, *rf.kind
+	for _, f := range []struct {
+		name, value string
+		positional  int
+	}{{"project", project, 0}, {"kind", kind, 1}} {
+		if rf.wasSet(f.name) && f.value == "" {
+			// THE TWO WAYS OUT ARE COLUMN-ALIGNED, because they are read as a
+			// pair and a ragged left edge makes the reader find the second
+			// one rather than see it. %-18s is the width of the longer form.
+			return badArgumentf(
+				"--%s was given an empty value. An OMITTED --%s means every "+
+					"%s, which is almost certainly what you want; an empty one "+
+					"is what a shell variable that expanded to nothing looks "+
+					"like, and rig will not guess which happened.\n"+
+					"       %-18s ask for every %s\n"+
+					"       %-18s ask for one",
+				f.name, f.name, f.name,
+				"(drop the flag)", f.name,
+				"--"+f.name+" <name>")
+		}
+		if len(rest) > f.positional && rf.wasSet(f.name) {
+			return badArgumentf(
+				"the %s was given twice, as %q and as --%s %q. One of them is "+
+					"the one you meant and rig cannot tell which",
+				f.name, rest[f.positional], f.name, f.value)
+		}
+	}
+	if len(rest) > 0 {
+		project = rest[0]
+	}
+	if len(rest) > 1 {
+		kind = rest[1]
+	}
+
 	return withRecordAPI(*rf.timeout, func(ctx context.Context, api RecordAPI) error {
 		recs, err := api.Query(ctx, project, kind)
 		if err != nil {
@@ -1139,34 +1228,80 @@ func provWhen(t, now time.Time) string {
 		peersAgeCell(provUnix(t), now))
 }
 
-// queryText is a listing of one kind in one project.
+// queryScope names what was asked for, in the words a caller would use.
+//
+// ⛔ AN EMPTY FILTER IS A DIFFERENT SENTENCE, NOT A BLANK IN THE SAME ONE.
+// Both filters became optional, and the old wording formatted straight through
+// them: no kind and no project printed "no  records in .", which reads as a
+// broken command rather than as an answer about the whole store.
+// THE COUNT IS A PARAMETER BECAUSE THE NOUN AGREES WITH IT. `1 records in rig`
+// is the same defect as refsText's "1 edge point at B9", caught here before it
+// shipped rather than after; an empty answer takes n=0, which is plural in
+// English ("no records in rig").
+func queryScope(project, kind string, n int) string {
+	noun := "record" + plural(n)
+	switch {
+	case project == "" && kind == "":
+		return noun + ", across all projects"
+	case project == "":
+		return kind + " " + noun + ", across all projects"
+	case kind == "":
+		return noun + " in " + project
+	default:
+		return kind + " " + noun + " in " + project
+	}
+}
+
+// queryText is a listing of the records a filter matched.
 func queryText(project, kind string, rs []Record) string {
 	var b strings.Builder
+	scope := queryScope(project, kind, len(rs))
 
-	// AN EMPTY RESULT IS A SENTENCE, NOT A BLANK TABLE, and it names both
-	// halves of what was asked. peersText's rule: a bare header over nothing
-	// reads as a broken command, and the reader of an empty answer is usually
-	// somebody who expected rows.
+	// AN EMPTY RESULT IS A SENTENCE, NOT A BLANK TABLE, and it names what was
+	// asked. peersText's rule: a bare header over nothing reads as a broken
+	// command, and the reader of an empty answer is usually somebody who
+	// expected rows.
 	if len(rs) == 0 {
-		fmt.Fprintf(&b, "no %s records in %s.\n", kind, project)
+		fmt.Fprintf(&b, "no %s.\n", scope)
 		b.WriteString("A row appears when something calls record.put with " +
 			"that kind and project;\nboth are matched exactly, so a kind " +
 			"spelled differently is a different kind.\n")
+		if project != "" || kind != "" {
+			// ⛔ THE WAY OUT IS PRINTED, because the reader of an empty answer
+			// has no way to tell a store with nothing in it from a filter that
+			// does not match anything - and until both filters became
+			// optional, there was no command that could tell them either.
+			b.WriteString("`rig record query` with no filter lists the whole " +
+				"store, which is how\na kind or a project spelled differently " +
+				"is found.\n")
+		}
 		return b.String()
 	}
 
+	// ⛔ THE PROJECT COLUMN APPEARS ONLY WHEN IT VARIES. Printed always it is a
+	// column of one repeated word on every scoped call, which is every call
+	// this CLI made before the filters became optional; omitted always, an
+	// unscoped listing is a pile of ids from projects the reader cannot tell
+	// apart.
+	header := []string{"ID", "VERSION", "KIND", "SUMMARY"}
+	if project == "" {
+		header = []string{"ID", "PROJECT", "VERSION", "KIND", "SUMMARY"}
+	}
 	rows := make([][]string, 0, len(rs))
 	for _, r := range rs {
-		rows = append(rows, []string{
-			r.ID,
-			"v" + strconv.FormatUint(r.Version, 10),
+		row := []string{r.ID}
+		if project == "" {
+			row = append(row, r.Project)
+		}
+		row = append(row,
+			"v"+strconv.FormatUint(r.Version, 10),
 			r.Kind,
 			recordSummary(r),
-		})
+		)
+		rows = append(rows, row)
 	}
-	writeTable(&b, []string{"ID", "VERSION", "KIND", "SUMMARY"}, rows)
-	fmt.Fprintf(&b, "\n%d %s record%s in %s.\n", len(rs), kind, plural(len(rs)),
-		project)
+	writeTable(&b, header, rows)
+	fmt.Fprintf(&b, "\n%d %s.\n", len(rs), scope)
 	return b.String()
 }
 
@@ -1253,9 +1388,25 @@ func historyText(id string, rs []Record, now time.Time) string {
 //
 // THE ROW'S KEYS ARE THE WIRE'S OWN FIELD NAMES - src, type, distance, kind,
 // title, via - which is section 10's rule about the proto being the contract.
-// `in` is the one key that is this client's rather than the wire's, and it
-// stays: the wire calls the list `refs` inside a message already called refs,
-// while `in` names the DIRECTION, which is the whole verb.
+//
+// ⛔ THE LIST IS EMITTED TWICE, UNDER `refs` AND UNDER `in`, AND THE
+// DUPLICATION IS A MEASURED REPAIR RATHER THAN AN OVERSIGHT.
+//
+// One thing had three names - the Go field is Refs.Refs, the wire field is
+// `refs`, the text header is SRC, and this object said `in` - and no test
+// compared them. What that cost, on 2026-09-17: at least three separate
+// specialists swept the whole store with `rig record refs --json` keyed on
+// `refs`, got a clean `0` from every record, and that 0 MATCHED A STALE FIGURE
+// IN THEIR BRIEF. The wrong instrument confirmed itself, and the run's
+// most-repeated number was wrong because of it. It was caught by a positive
+// control, not by anybody doubting the number.
+//
+// So `refs` is the primary key and matches the wire, which is what an
+// unprepared caller reaches for; `in` is kept because the seats that DID learn
+// it are outside this repository and a rename would break them silently, in
+// exactly the direction that produced the defect. THE TWO ARE THE SAME SLICE
+// and TestTheJSONKeysAreTheWiresOwnFieldNames pins that they cannot drift.
+// Dropping `in` belongs to the next wire-breaking change, not to this one.
 func refsJSON(r Refs) map[string]any {
 	in := make([]map[string]any, 0, len(r.In))
 	for _, e := range r.In {
@@ -1283,7 +1434,11 @@ func refsJSON(r Refs) map[string]any {
 		// The depth that was ANSWERED. A reader who did not type --depth
 		// cannot otherwise tell a shallow answer from a record nothing cites.
 		"depth": r.Depth,
-		"in":    in,
+		// THE SAME SLICE UNDER BOTH NAMES. See the comment above; `refs` is
+		// the wire's word and `in` is this client's, and a caller that reaches
+		// for either must not be told a record is uncited when it is not.
+		"refs": in,
+		"in":   in,
 		// ⛔ WITHOUT THIS KEY A PARTIAL ANSWER IS INDISTINGUISHABLE FROM A
 		// COMPLETE ONE, which is the single defect this capability exists to
 		// prevent. It is present on EVERY answer rather than only when true,
@@ -1342,8 +1497,12 @@ func refsText(r Refs) string {
 	}
 	writeTable(&b, []string{"SRC", "KIND", "TYPE", "VIA", "HOPS"}, rows)
 	b.WriteString(refsTitleBlock(r.In))
-	fmt.Fprintf(&b, "\n%d edge%s point at %s within %d hop%s.\n",
-		len(r.In), plural(len(r.In)), r.ID, r.Depth, plural(r.Depth))
+	// THE VERB AGREES WITH THE SUBJECT. It read "1 edge point at B9" until
+	// S5 reported it; plural() gives the noun its s and the verb needs the
+	// opposite one.
+	fmt.Fprintf(&b, "\n%d edge%s point%s at %s within %d hop%s.\n",
+		len(r.In), plural(len(r.In)), verbS(len(r.In)), r.ID,
+		r.Depth, plural(r.Depth))
 	b.WriteString(refsTruncationLine(r))
 	b.WriteString(refsCycleBlock(r.Cycles))
 	return b.String()
@@ -1390,9 +1549,19 @@ func refsTruncationLine(r Refs) string {
 	if !r.Truncated {
 		return ""
 	}
-	return fmt.Sprintf("\n⛔ TRUNCATED: the walk stopped at %d hop%s and there "+
-		"is more beyond it.\nThis is a PARTIAL answer. Ask for more with "+
-		"--depth <n>.\n", r.Depth, plural(r.Depth))
+	// ⛔ BOTH WAYS OUT ARE PRINTED, BECAUSE THERE ARE NOW TWO REASONS THE FLAG
+	// IS SET AND THE WIRE CARRIES ONE BOOL FOR BOTH. Either the walk stopped
+	// at its bound with somewhere still to go, or the project scope kept a
+	// record it CROSSED out of the list. Naming only --depth would send a
+	// caller to spend a deeper traversal on an answer a deeper traversal
+	// cannot change.
+	return fmt.Sprintf("\n⛔ TRUNCATED: this is a PARTIAL answer - there is "+
+		"more than it shows.\nEither the walk stopped at %d hop%s with "+
+		"somewhere still to go, or the\nproject scope kept a record it "+
+		"crossed out of the list.\n"+
+		"       --depth <n>      follow further\n"+
+		"       --cross-project  keep the records the scope left out\n",
+		r.Depth, plural(r.Depth))
 }
 
 // refsCycleBlock reports the cycles the walk crossed and REFUSES TO RESOLVE

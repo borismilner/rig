@@ -38,11 +38,36 @@ type RefsRequest struct {
 
 	// CrossProject opts INTO leaving the record's own project.
 	//
-	// ⛔ THE DEFAULT IS A PERFORMANCE REQUIREMENT, NOT A PREFERENCE. Section 39:
-	// a link MAY cross a project boundary and a traversal is project-scoped by
-	// default, because the predicate prunes the frontier at EVERY hop - it
-	// removes the work rather than filtering the same work. Measured 98%
-	// cheaper. Crossing is asked for, never arrived at.
+	// ⛔ IT CONTROLS WHAT IS RETURNED, NOT WHAT IS WALKED, AND THAT IS A RULING
+	// RATHER THAN AN IMPLEMENTATION CHOICE. It used to control both, and the
+	// two meanings on one flag are what produced the defect below.
+	//
+	// THE DEFECT, DEMONSTRATED BEFORE IT WAS FIXED: the filter ran per hop,
+	// before the visited mark and before the frontier append, so a foreign node
+	// was not merely excluded - the whole subtree behind it was unreachable,
+	// INCLUDING records in the subject's own project. The fixture is
+	// C(rig) <-cites- B(standards) <-cites- A(rig): `refs C` answered 0 refs,
+	// truncated=false, about a record its own project points at.
+	//
+	// THE RULING, and its reasoning, so nobody re-decides it from the cost
+	// table alone:
+	//
+	//  1. The gate clause is "doesn't miss anything". A traversal that silently
+	//     omits records in the subject's OWN project fails that clause, and
+	//     flagging truncation alone tells the caller something is missing
+	//     without telling them what.
+	//  2. Correctness is free at the current scale - 78 records in nine
+	//     disjoint two-node components - and the day it stops being free is a
+	//     day with a measurement behind it.
+	//  3. One flag, one meaning.
+	//
+	// ⛔ WHAT THE RULING COSTS, WRITTEN DOWN RATHER THAN DISCOVERED LATER.
+	// Section 39's measured table is the UNSCOPED cost of a walk, and that is
+	// now the cost of the default path too: at 100x, depth 4 is 307.3 ms
+	// against 5.79 ms scoped, and depth 5 is 990.0 ms against 16.33 ms. The
+	// frontier is no longer pruned; only the answer is. Section 39 still calls
+	// the prune a performance requirement and that paragraph is owed an
+	// amendment.
 	CrossProject bool
 }
 
@@ -59,6 +84,12 @@ type Ref struct {
 	Depth int
 
 	// Via is the record this one points at - the subject at depth 1.
+	//
+	// ⛔ IT CAN NAME A RECORD THAT IS NOT IN THIS ANSWER, and that is
+	// deliberate. A project-scoped walk crosses foreign nodes and then leaves
+	// them out of Refs, so a row reached through one cites an id the caller
+	// cannot look up in the same list. Blanking it would hide the only
+	// explanation the answer carries for why Truncated is true.
 	Via string
 }
 
@@ -67,8 +98,16 @@ type Refs struct {
 	ID   string
 	Refs []Ref
 
-	// Truncated is true when the traversal stopped at the depth bound with
-	// somewhere still to go. BOTH HALVES ARE REQUIRED.
+	// Truncated is true when there is more than this answer shows: either the
+	// traversal stopped at the depth bound with somewhere still to go, or the
+	// project scope kept a record that WAS walked out of the list.
+	//
+	// ⛔ THE SECOND SOURCE IS AS REQUIRED AS THE FIRST. A scoped answer that
+	// dropped a foreign record and claimed completeness is this file's cardinal
+	// failure one level down: the caller is told what points at the subject and
+	// not told that something else does. The flag answers ONE question - is
+	// there more I did not show you - and a filtered row is more that was not
+	// shown.
 	//
 	// ⛔ RULED, plan/39 at rig 891b89f - NOT a reading of R3.2, which is the
 	// state this comment used to be in. STORE-REQUIREMENTS.md R3.2 said "a
@@ -170,15 +209,26 @@ func (s *Store) Refs(ctx context.Context, r RefsRequest) (Refs, error) {
 				if err != nil {
 					return Refs{}, err
 				}
+				// ⛔ THE NODE IS MARKED AND FOLLOWED WHATEVER PROJECT IT IS IN.
+				// The scope filter is three lines below, on the ANSWER. Moving
+				// it up here - which is where it used to be - makes the whole
+				// subtree behind a foreign node unreachable, including the
+				// subject's own project, and that is the defect this ordering
+				// exists to prevent. See RefsRequest.CrossProject.
+				visited[e.src] = true
+				next = append(next, e.src)
+
 				if !r.CrossProject && rec.Project != subject.Project {
+					// Walked through, kept out of the answer - and SAYING SO,
+					// because a filtered answer that claims completeness is the
+					// same defect the frontier prune was.
+					out.Truncated = true
 					continue
 				}
-				visited[e.src] = true
 				out.Refs = append(out.Refs, Ref{
 					ID: e.src, Kind: rec.Kind, Title: rec.Fields["title"],
 					Type: e.typ, Depth: hop, Via: node,
 				})
-				next = append(next, e.src)
 			}
 		}
 		sort.Strings(next)
@@ -195,11 +245,18 @@ func (s *Store) Refs(ctx context.Context, r RefsRequest) (Refs, error) {
 		// this flag, which is the only reason it is not shipping: a truncation
 		// flag that is always true is exactly as useless as one that is always
 		// false, and it fails in the direction that looks careful.
+		//
+		// ⛔ IT IS OR-ED, NEVER ASSIGNED. The scope filter above can already
+		// have set the flag, and a plain assignment here clears it - a walk
+		// that dropped a foreign record and then found nothing past its
+		// horizon would report itself complete, which is exactly the answer
+		// this flag exists to make impossible.
 		if hop == depth {
-			out.Truncated, err = s.moreBeyond(ctx, frontier, visited, subject.Project, r.CrossProject)
+			more, err := s.moreBeyond(ctx, frontier, visited)
 			if err != nil {
 				return Refs{}, err
 			}
+			out.Truncated = out.Truncated || more
 		}
 	}
 
@@ -243,31 +300,29 @@ func (s *Store) linksTo(ctx context.Context, dst string) ([]inEdge, error) {
 
 // moreBeyond reports whether the traversal stopped with somewhere still to go.
 //
-// It is the horizon check behind Refs.Truncated, and it asks the question the
-// flag actually means: does any node the bound stopped at have an incoming edge
-// to a record this answer does not already carry, inside whatever scope the
-// caller asked for? A frontier is non-empty on every complete traversal too -
-// those are the leaves - so the flag cannot be read off its length.
-func (s *Store) moreBeyond(ctx context.Context, frontier []string, visited map[string]bool, project string, cross bool) (bool, error) {
+// It is one of the two sources of Refs.Truncated - the horizon - and it asks
+// the question the flag actually means: does any node the bound stopped at have
+// an incoming edge to a record this walk has not already reached? A frontier is
+// non-empty on every complete traversal too - those are the leaves - so the
+// flag cannot be read off its length.
+//
+// ⛔ IT TAKES NO PROJECT AND NO SCOPE, AND THE ABSENCE IS THE FIX. It used to
+// filter by project exactly as the hop loop did, so the same defect reached the
+// horizon check: a walk whose only unexplored neighbours were foreign reported
+// itself complete, when what lay behind those neighbours was never looked at
+// and could be the subject's own project. The walk now crosses freely, so the
+// horizon question is "is there unvisited graph", full stop. Scope is applied
+// to the ANSWER, in Refs, and it raises the flag there itself.
+func (s *Store) moreBeyond(ctx context.Context, frontier []string, visited map[string]bool) (bool, error) {
 	for _, node := range frontier {
 		in, err := s.linksTo(ctx, node)
 		if err != nil {
 			return false, err
 		}
 		for _, e := range in {
-			if visited[e.src] {
-				continue
+			if !visited[e.src] {
+				return true, nil
 			}
-			if !cross {
-				rec, err := s.Get(ctx, e.src)
-				if err != nil {
-					return false, err
-				}
-				if rec.Project != project {
-					continue
-				}
-			}
-			return true, nil
 		}
 	}
 	return false, nil

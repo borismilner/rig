@@ -294,7 +294,34 @@ func (d *Daemon) serveRecordQuery(ctx context.Context, c *conn, f *rigv1.Frame, 
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.query: "+err.Error())
 		return
 	}
-	recs, err := st.Query(ctx, req.GetProject(), req.GetKind())
+	// ⛔ AN EMPTY project OR kind MEANS *EVERY* ONE, AND THAT IS DELIBERATE
+	// RATHER THAN A CONSEQUENCE OF protojson. Section 39 specifies record.query
+	// as "by kind, field and project" and never makes any of the three
+	// mandatory; the served version had turned an optional filter set into a
+	// required conjunction, and since `kind` is not a closed set, that made
+	// every census of the store incomplete by construction - a record under an
+	// unguessed kind was invisible to every question anybody could write.
+	//
+	// ⛔ AN EMPTY FIELD AND AN UNSERVED FIELD ARE THE SAME BYTES, AND THE
+	// AMBIGUITY IS ACCEPTED HERE ON THREE GROUNDS, WRITTEN DOWN SO THE NEXT
+	// READER DOES NOT HAVE TO REDERIVE THEM:
+	//
+	//  1. This is a READ. A caller whose variable expanded to nothing gets MORE
+	//     than it meant, never something else and never a write. The failure
+	//     mode is a large answer, not a wrong one, and the answer carries each
+	//     record's own project and kind, so the caller can see what it got.
+	//  2. The alternative - an explicit `all_projects` bool or a sentinel - is a
+	//     SECOND way to say one thing on the wire, and it invents a request
+	//     that contradicts itself (`project: "rig"` with `all_projects: true`)
+	//     for the server to arbitrate. That is more failure surface than a
+	//     broad read, not less.
+	//  3. The place a typo actually originates is the prompt, and the CLI CAN
+	//     tell "not typed" from "typed empty" through flag.Visit. It refuses
+	//     `--project ""` by name for exactly this reason. See cmd/rig/record.go.
+	recs, err := st.Find(ctx, record.QueryFilter{
+		Project: req.GetProject(),
+		Kind:    req.GetKind(),
+	})
 	if err != nil {
 		c.failErr(f.GetStreamId(), recordCode(err), err)
 		return

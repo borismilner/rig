@@ -178,3 +178,190 @@ func TestAnUnnamedEstateIsRefused(t *testing.T) {
 		t.Fatalf("refused an unnamed estate with %T (%v), want *UnnamedEstateError", err, err)
 	}
 }
+
+// findFixture writes nine records across three projects and four kinds, so a
+// filter can be wrong in every direction and be caught.
+//
+// ⛔ ONE KIND EXISTS IN ONE PROJECT ONLY (`census-only` in `standards`). That
+// is the record a census under the old both-required rule could never see, and
+// it is here so "every kind" is tested against a kind nobody would guess.
+func findFixture(t *testing.T, s *Store) {
+	t.Helper()
+	rows := []struct{ id, kind, project string }{
+		{"rig-req-1", "requirement", "rig"},
+		{"rig-req-2", "requirement", "rig"},
+		{"rig-dec-1", "decision", "rig"},
+		{"rig-wi-1", "work-item", "rig"},
+		{"std-req-1", "requirement", "standards"},
+		{"std-cen-1", "census-only", "standards"},
+		{"other-req-1", "requirement", "other"},
+		{"other-dec-1", "decision", "other"},
+		{"other-dec-2", "decision", "other"},
+	}
+	for _, r := range rows {
+		if _, err := s.Put(tctx, PutRequest{
+			ID: r.id, Kind: r.kind, Project: r.project, Body: "",
+			Fields:  map[string]string{"title": r.id},
+			Session: "record", Seat: "backend-record", Epoch: 6,
+		}); err != nil {
+			t.Fatalf("writing %s: %v", r.id, err)
+		}
+	}
+}
+
+func foundIDs(rs []Record) []string {
+	out := make([]string, 0, len(rs))
+	for _, r := range rs {
+		out = append(out, r.ID)
+	}
+	return out
+}
+
+// ⛔ AN EMPTY FILTER FIELD MEANS EVERY VALUE, AND A WRONG ONE MEANS NOTHING.
+//
+// The two go in one test on purpose, because they are the two mutations of the
+// same line and only the pair pins it. An implementation that always applies
+// the predicate fails the empty case; one that applies it only sometimes, or
+// that treats a non-match as "no filter", passes the empty case and hands a
+// caller the whole store for a typo.
+//
+// The gap this closes: `kind` is not a closed set, so while a query REQUIRED
+// one, a record under an unguessed kind was invisible to every question
+// anybody could write and no census could be complete.
+func TestAnEmptyFilterFieldMeansEveryValueAndAWrongOneMeansNothing(t *testing.T) {
+	name := estate(t, "development")
+	s := openStore(t, name)
+	findFixture(t, s)
+
+	all, err := s.Find(tctx, QueryFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all) != 9 {
+		t.Fatalf("an empty filter returned %d records %v, want all 9: an empty "+
+			"field means every value, and a census that cannot ask for "+
+			"everything is a census that can never be complete",
+			len(all), foundIDs(all))
+	}
+
+	everyKindInRig, err := s.Find(tctx, QueryFilter{Project: "rig"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(everyKindInRig) != 4 {
+		t.Errorf("project rig with no kind returned %d records %v, want 4",
+			len(everyKindInRig), foundIDs(everyKindInRig))
+	}
+
+	everyProjectOneKind, err := s.Find(tctx, QueryFilter{Kind: "requirement"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(everyProjectOneKind) != 4 {
+		t.Errorf("kind requirement with no project returned %d records %v, "+
+			"want 4 across rig, standards and other. An absent project is what "+
+			"lets a caller ask which projects exist at all",
+			len(everyProjectOneKind), foundIDs(everyProjectOneKind))
+	}
+
+	both, err := s.Find(tctx, QueryFilter{Project: "rig", Kind: "requirement"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(both) != 2 {
+		t.Errorf("project rig and kind requirement returned %d records %v, want 2",
+			len(both), foundIDs(both))
+	}
+
+	// ⛔ THE SECOND MUTATION. An empty value and an unserved field are the same
+	// bytes on the wire, so "empty means all" is only safe if a NON-EMPTY
+	// value that matches nothing returns nothing rather than everything.
+	wrongProject, err := s.Find(tctx, QueryFilter{Project: "no-such-project"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(wrongProject) != 0 {
+		t.Errorf("a project that does not exist returned %d records %v, want 0. "+
+			"A mistyped filter must answer nothing, never everything",
+			len(wrongProject), foundIDs(wrongProject))
+	}
+
+	wrongKind, err := s.Find(tctx, QueryFilter{Kind: "no-such-kind"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(wrongKind) != 0 {
+		t.Errorf("a kind that does not exist returned %d records %v, want 0",
+			len(wrongKind), foundIDs(wrongKind))
+	}
+
+	wrongPair, err := s.Find(tctx, QueryFilter{Project: "rig", Kind: "census-only"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(wrongPair) != 0 {
+		t.Errorf("a kind that exists in another project returned %d records %v "+
+			"for project rig, want 0: the predicates are AND-ed, not OR-ed",
+			len(wrongPair), foundIDs(wrongPair))
+	}
+}
+
+// ⛔ THE CENSUS THE STORE COULD NOT ANSWER, ANSWERED.
+//
+// This is the whole point of the optional kind, expressed as the question that
+// cost an attack specialist 13 round trips: what kinds does this store hold?
+// `census-only` is in the fixture precisely because no reader of plan/39 would
+// guess it, so a census built by enumerating known kinds misses it and reports
+// a complete-looking answer.
+func TestEveryKindIsReachableWithoutGuessingItsName(t *testing.T) {
+	name := estate(t, "development")
+	s := openStore(t, name)
+	findFixture(t, s)
+
+	all, err := s.Find(tctx, QueryFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	kinds := map[string]bool{}
+	for _, r := range all {
+		kinds[r.Kind] = true
+	}
+	for _, want := range []string{"requirement", "decision", "work-item", "census-only"} {
+		if !kinds[want] {
+			t.Errorf("kind %q is in the store and an unfiltered query did not "+
+				"reach it; a census that cannot enumerate kinds cannot be "+
+				"complete, which is the defect this closes", want)
+		}
+	}
+
+	projects := map[string]bool{}
+	for _, r := range all {
+		projects[r.Project] = true
+	}
+	if len(projects) != 3 {
+		t.Errorf("an unfiltered query saw %d projects %v, want 3. Enumerating "+
+			"projects is what the window's project tab has to do, and there is "+
+			"no other verb that answers it", len(projects), projects)
+	}
+}
+
+// ⛔ A SCOPED FIND IS ORDERED BY ID, EXACTLY AS Query WAS.
+//
+// The ORDER BY grew two leading keys so an unscoped answer is readable. Inside
+// one project and one kind both are constant, so the order a caller already
+// depends on must not have moved.
+func TestAScopedFindIsStillOrderedByID(t *testing.T) {
+	name := estate(t, "development")
+	s := openStore(t, name)
+	findFixture(t, s)
+
+	got, err := s.Find(tctx, QueryFilter{Project: "other", Kind: "decision"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := foundIDs(got)
+	if len(ids) != 2 || ids[0] != "other-dec-1" || ids[1] != "other-dec-2" {
+		t.Fatalf("a scoped find returned %v, want [other-dec-1 other-dec-2] in "+
+			"that order", ids)
+	}
+}

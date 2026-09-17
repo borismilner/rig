@@ -957,3 +957,99 @@ func TestTheBriefCarriesItsContainersOwnHeaderFields(t *testing.T) {
 		}
 	}
 }
+
+// ⛔ AN EMPTY project OR kind ON THE WIRE MEANS EVERY ONE, AND A WRONG ONE
+// STILL MEANS NOTHING.
+//
+// Both halves are asserted because protojson omits an empty string exactly as
+// it omits an unserved field: absent and empty are the same bytes. "Empty
+// means every" is only safe if a non-empty value that matches nothing answers
+// nothing rather than everything, and a test that checked only the empty case
+// would pass against a handler that ignored the filters entirely.
+//
+// WHAT IT UNBLOCKS, stated so the test is not read as symmetry for its own
+// sake: nine record verbs are served and not one of them enumerates projects.
+// `record.query` with an empty project and kind `project` is that question,
+// and the window's project tab has no other way to ask it.
+func TestAnEmptyQueryFilterMeansEveryValueOverTheWire(t *testing.T) {
+	sock := upRecordDaemon(t)
+	c := seated(t, sock, "team-lead")
+	ctx := recordCtx(t)
+
+	for _, r := range []struct{ id, kind, project string }{
+		{"rig", "project", "rig"},
+		{"standards", "project", "standards"},
+		{"rig-req-1", "requirement", "rig"},
+		{"std-odd-1", "a-kind-nobody-would-guess", "standards"},
+	} {
+		if err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
+			Id: r.id, Kind: r.kind, Project: r.project, Body: "",
+			Fields: map[string]string{"title": r.id},
+		}, &rigv1.RecordPutResponse{}); err != nil {
+			t.Fatalf("rig.record.put(%s): %v", r.id, err)
+		}
+	}
+
+	query := func(project, kind string) []*rigv1.Record {
+		var resp rigv1.RecordQueryResponse
+		if err := c.Call(ctx, "rig.record.query", &rigv1.RecordQueryRequest{
+			Project: project, Kind: kind,
+		}, &resp); err != nil {
+			t.Fatalf("rig.record.query(%q, %q): %v", project, kind, err)
+		}
+		return resp.GetRecords()
+	}
+
+	if got := query("", ""); len(got) != 4 {
+		t.Errorf("an unfiltered query returned %d records, want all 4: an "+
+			"empty filter on the wire means every value, and without it no "+
+			"census of the store can be complete", len(got))
+	}
+
+	// THE PROJECT ENUMERATION, which is the live need.
+	projects := query("", "project")
+	if len(projects) != 2 {
+		t.Fatalf("asking for kind `project` across every project returned %d, "+
+			"want 2. This is the only way anything can find out what projects "+
+			"exist", len(projects))
+	}
+	seen := map[string]bool{}
+	for _, p := range projects {
+		seen[p.GetId()] = true
+	}
+	if !seen["rig"] || !seen["standards"] {
+		t.Errorf("the project enumeration returned %v, want rig and standards", seen)
+	}
+
+	if got := query("rig", ""); len(got) != 2 {
+		t.Errorf("every kind in project rig returned %d records, want 2", len(got))
+	}
+
+	// ⛔ THE KIND NOBODY WOULD GUESS. `kind` is not a closed set, so a census
+	// that enumerates the kinds it knows about misses this record and reports
+	// a complete-looking answer. It is reachable only because the kind filter
+	// became optional.
+	odd := false
+	for _, r := range query("", "") {
+		if r.GetKind() == "a-kind-nobody-would-guess" {
+			odd = true
+		}
+	}
+	if !odd {
+		t.Error("a record under an unguessed kind was not reachable without " +
+			"naming that kind, which is the defect the optional filter closes")
+	}
+
+	// ⛔ THE SECOND MUTATION. A wrong non-empty value must answer nothing.
+	if got := query("no-such-project", ""); len(got) != 0 {
+		t.Errorf("a project that does not exist returned %d records, want 0. "+
+			"A mistyped filter must answer nothing, never everything", len(got))
+	}
+	if got := query("", "no-such-kind"); len(got) != 0 {
+		t.Errorf("a kind that does not exist returned %d records, want 0", len(got))
+	}
+	if got := query("rig", "a-kind-nobody-would-guess"); len(got) != 0 {
+		t.Errorf("a kind that exists only in another project returned %d "+
+			"records for rig, want 0: the filters are AND-ed, not OR-ed", len(got))
+	}
+}

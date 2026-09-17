@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -875,7 +876,16 @@ func TestABadCommandIsRefusedBeforeTheDaemonIsReachedFor(t *testing.T) {
 		},
 		{"a put with no kind", []string{"record", "put", "--project", "rig"}, "--kind"},
 		{"a get with no id", []string{"record", "get"}, "usage"},
-		{"a query missing its kind", []string{"record", "query", "rig"}, "usage"},
+		// ⛔ `record query rig` IS NOW VALID - every kind in project rig -
+		// and this row used to assert the opposite. The bad shapes that
+		// remain are a third positional, which the usage line has no
+		// meaning for, and a flag typed with an empty value, which is a
+		// shell variable that expanded to nothing rather than a request
+		// for everything.
+		{"a query with a third positional", []string{"record", "query", "rig", "note", "extra"}, "usage"},
+		{"a query whose project expanded to nothing", []string{"record", "query", "--project", ""}, "--project"},
+		{"a query whose kind expanded to nothing", []string{"record", "query", "--kind", ""}, "--kind"},
+		{"a query given its project twice", []string{"record", "query", "rig", "--project", "other"}, "twice"},
 		{"a history with no id", []string{"record", "history"}, "usage"},
 		{"a link with two arguments", []string{"record", "link", "a", "cites"}, "usage"},
 		{"refs at depth nothing", []string{"record", "refs", "x", "--depth", "0"}, "--depth"},
@@ -2199,6 +2209,357 @@ func wireCoverage(t *testing.T, message string, fields protoreflect.FieldDescrip
 				"cannot explain is a second source of truth: it either "+
 				"belongs to a field that was removed, or it is invented here "+
 				"and the reader has no way to learn what feeds it", k, message)
+		}
+	}
+}
+
+// ---- query: both filters are optional --------------------------------------
+
+// queried runs `rig record query ...` against a fake and returns the project
+// and kind the CLI decided to ask for. It asserts nothing, so a mutation pass
+// attributes every failure to the case that made it.
+func queried(t *testing.T, argv ...string) (string, string, error) {
+	t.Helper()
+	var gotProject, gotKind string
+	serving(t, &fakeRecord{query: func(p, k string) ([]Record, error) {
+		gotProject, gotKind = p, k
+		return nil, nil
+	}})
+	err := run(append([]string{"record", "query"}, argv...))
+	return gotProject, gotKind, err
+}
+
+// ⛔ AN OMITTED FILTER REACHES THE DAEMON AS AN EMPTY STRING, WHICH MEANS
+// EVERY VALUE.
+//
+// This is the whole census fix at the prompt. `kind` is not a closed set, so
+// while both filters were required positionally, a record written under an
+// unguessed kind was invisible to every question anybody could write, and no
+// answer about what the store holds could be complete. It cost one attack
+// specialist 13 round trips and a hedge on a finding that should have been
+// flat.
+//
+// `plan/39` specifies record.query as "by kind, field and project" and never
+// says all three are mandatory: this surface invented the conjunction.
+func TestBothQueryFiltersAreOptionalAndAbsentMeansEvery(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		argv          []string
+		project, kind string
+	}{
+		{"nothing at all is the whole store", nil, "", ""},
+		{"one positional is the project", []string{"rig"}, "rig", ""},
+		{"two positionals still work", []string{"rig", "note"}, "rig", "note"},
+		{"a kind with no project", []string{"--kind", "project"}, "", "project"},
+		{"a project by flag", []string{"--project", "rig"}, "rig", ""},
+		{"both by flag", []string{"--project", "rig", "--kind", "note"}, "rig", "note"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p, k, err := queried(t, tc.argv...)
+			if err != nil {
+				t.Fatalf("%v was refused: %v", tc.argv, err)
+			}
+			if p != tc.project {
+				t.Errorf("asked the daemon for project %q, want %q", p, tc.project)
+			}
+			if k != tc.kind {
+				t.Errorf("asked the daemon for kind %q, want %q", k, tc.kind)
+			}
+		})
+	}
+}
+
+// ⛔ `--kind project` WITH NO PROJECT IS THE WINDOW's PROJECT TAB, AND IT IS
+// THE ONE QUESTION NO VERB COULD ANSWER.
+//
+// Nine record verbs are served - put, get, query, history, link, unlink, refs,
+// progress.step, project.brief - and not one of them enumerates projects. The
+// window's alternative was to hard-code "rig", which is a lie the moment a
+// second project exists. The filter has to reach the daemon with the project
+// EMPTY for this to work, so the case is pinned on its own rather than left to
+// the table above.
+func TestAskingForEveryProjectIsHowTheProjectsAreEnumerated(t *testing.T) {
+	p, k, err := queried(t, "--kind", "project")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p != "" {
+		t.Errorf("the project filter reached the daemon as %q; it must be "+
+			"empty, or the answer is scoped to one project and cannot name "+
+			"the others", p)
+	}
+	if k != "project" {
+		t.Errorf("the kind filter reached the daemon as %q, want %q", k, "project")
+	}
+}
+
+// ⛔ AN EXPLICITLY EMPTY FLAG IS REFUSED, AND THAT IS THE ONLY DEFENCE THERE
+// IS AGAINST THE WIRE's AMBIGUITY.
+//
+// protojson omits an empty string exactly as it omits an unserved field, so
+// `project: ""` meaning "every project" is byte-identical to a caller that
+// forgot to set it. The daemon cannot tell them apart and does not try. The
+// CLI can, through flag.Visit - the same distinction --if-version turns on -
+// and a typed empty value is what a shell variable that expanded to nothing
+// looks like.
+func TestAFlagTypedEmptyIsRefusedRatherThanReadAsEverything(t *testing.T) {
+	for _, flagName := range []string{"project", "kind"} {
+		t.Run(flagName, func(t *testing.T) {
+			var reached bool
+			serving(t, &fakeRecord{query: func(string, string) ([]Record, error) {
+				reached = true
+				return nil, nil
+			}})
+			err := run([]string{"record", "query", "--" + flagName, ""})
+			if err == nil {
+				t.Fatalf("--%s \"\" was accepted and read as every %s. An "+
+					"omitted flag already says that; an empty one is a "+
+					"variable that expanded to nothing", flagName, flagName)
+			}
+			if !strings.Contains(err.Error(), "--"+flagName) {
+				t.Errorf("the refusal does not name --%s:\n%s", flagName, err)
+			}
+			if reached {
+				t.Errorf("--%s \"\" reached the daemon before it was refused", flagName)
+			}
+		})
+	}
+}
+
+// A FILTER GIVEN TWICE IS REFUSED RATHER THAN SILENTLY PREFERRED.
+func TestAQueryFilterGivenBothWaysIsRefused(t *testing.T) {
+	_, _, err := queried(t, "rig", "note", "--kind", "decision")
+	if err == nil {
+		t.Fatal("`record query rig note --kind decision` was accepted; one of " +
+			"the two kinds would have been silently dropped")
+	}
+	if !strings.Contains(err.Error(), "twice") {
+		t.Errorf("the refusal does not say the filter was given twice:\n%s", err)
+	}
+}
+
+// ---- query: the listing says what it was asked --------------------------
+
+// ⛔ AN UNFILTERED LISTING IS A DIFFERENT SENTENCE, NOT A BLANK IN THE SAME
+// ONE. The old wording formatted straight through both filters, so no kind
+// and no project printed "no  records in .", which reads as a broken command.
+func TestAnEmptyUnfilteredQueryIsStillASentence(t *testing.T) {
+	got := queryText("", "", nil)
+	if strings.Contains(got, "in .") || strings.Contains(got, "no  ") {
+		t.Errorf("an unfiltered empty query formatted its missing filters "+
+			"into the sentence:\n%s", got)
+	}
+	if !strings.Contains(got, "no records") {
+		t.Errorf("an unfiltered empty query does not say that no records "+
+			"were found:\n%s", got)
+	}
+}
+
+// ⛔ A FILTERED EMPTY ANSWER NAMES THE WAY OUT, because a reader cannot
+// otherwise tell an empty store from a filter that matches nothing - and
+// until both filters became optional there was no command that could tell
+// them either.
+func TestAFilteredEmptyQueryNamesTheUnfilteredOne(t *testing.T) {
+	got := queryText("rig", "requirement", nil)
+	if !strings.Contains(got, "rig record query") {
+		t.Errorf("an empty filtered answer does not name the unfiltered "+
+			"query, which is the only way to find a kind spelled "+
+			"differently:\n%s", got)
+	}
+
+	unfiltered := queryText("", "", nil)
+	if strings.Contains(unfiltered, "rig record query` with no filter") {
+		t.Errorf("the unfiltered answer advised itself:\n%s", unfiltered)
+	}
+}
+
+// ⛔ THE PROJECT COLUMN APPEARS EXACTLY WHEN THE PROJECT VARIES. Always, and
+// every scoped call prints one repeated word; never, and an unscoped listing
+// is a pile of ids from projects the reader cannot tell apart.
+func TestTheProjectColumnAppearsOnlyWhenTheProjectWasNotFiltered(t *testing.T) {
+	rs := []Record{
+		record(func(r *Record) { r.ID = "a"; r.Project = "rig" }),
+		record(func(r *Record) { r.ID = "b"; r.Project = "standards" }),
+	}
+
+	unscoped := queryText("", "", rs)
+	if !strings.Contains(unscoped, "PROJECT") {
+		t.Errorf("an unscoped listing has no PROJECT column, so two records "+
+			"from two projects render identically:\n%s", unscoped)
+	}
+	if !strings.Contains(unscoped, "standards") {
+		t.Errorf("an unscoped listing does not print the projects:\n%s", unscoped)
+	}
+
+	scoped := queryText("rig", "", rs[:1])
+	if strings.Contains(scoped, "PROJECT") {
+		t.Errorf("a listing scoped to one project printed a PROJECT column of "+
+			"one repeated word:\n%s", scoped)
+	}
+}
+
+// THE NOUN AGREES WITH THE COUNT. `1 records in rig` is the same defect as
+// `1 edge point at B9`, caught here rather than shipped.
+func TestTheListingFooterAgreesWithItsCount(t *testing.T) {
+	one := queryText("rig", "", []Record{record()})
+	if !strings.Contains(one, "1 record in rig") {
+		t.Errorf("a listing of one says:\n%s", one)
+	}
+	two := queryText("rig", "", []Record{record(), record()})
+	if !strings.Contains(two, "2 records in rig") {
+		t.Errorf("a listing of two says:\n%s", two)
+	}
+}
+
+// ---- the names, across the layers ------------------------------------------
+
+// ⛔ ONE THING WITH THREE NAMES AND NO TEST COMPARING THEM COST A WHOLE ATTACK
+// RUN ITS MOST-REPEATED NUMBER.
+//
+// The Go field is `Refs.Refs`, the wire field is `refs`, the text header is
+// `SRC`, and this client's JSON said `in`. On 2026-09-17 at least three
+// specialists swept the store with `rig record refs --json` keyed on `refs`,
+// got a clean `0` from every record, and that 0 matched a stale figure in
+// their brief - so the wrong instrument confirmed itself. It was caught by a
+// positive control, not by anybody doubting the number.
+//
+// THE TEST IS THE DURABLE HALF. It walks the WIRE's own descriptors and
+// requires every field name to be a key this client emits, so the next
+// divergence goes red at the moment somebody adds a field rather than months
+// later in somebody's shell loop. `in` is allowed as an EXTRA key, never as a
+// replacement, and the case below pins it to the same slice.
+func TestTheJSONKeysAreTheWiresOwnFieldNames(t *testing.T) {
+	got := refsJSON(Refs{
+		ID: "r39", Depth: 4, Truncated: true,
+		In:     []Ref{{Src: "d-1", Type: "cites", Via: "r39", Kind: "decision", Title: "t", Distance: 1}},
+		Cycles: [][]string{{"a", "b"}},
+	})
+
+	top := (&rigv1.RecordRefsResponse{}).ProtoReflect().Descriptor().Fields()
+	for i := range top.Len() {
+		name := string(top.Get(i).Name())
+		if _, ok := got[name]; !ok {
+			t.Errorf("the wire calls a field %q and `record refs --json` emits "+
+				"no such key. A caller keyed on the wire's own name reads the "+
+				"absence as zero, which is the defect this test exists for. "+
+				"Keys emitted: %v", name, emittedKeys(got))
+		}
+	}
+
+	rows, ok := got["refs"].([]map[string]any)
+	if !ok || len(rows) != 1 {
+		t.Fatalf("the `refs` key is %T, want a list of one row", got["refs"])
+	}
+	row := rigv1.Ref{}
+	rf := row.ProtoReflect().Descriptor().Fields()
+	for i := range rf.Len() {
+		name := string(rf.Get(i).Name())
+		if _, ok := rows[0][name]; !ok {
+			t.Errorf("the wire calls a Ref field %q and the emitted row has no "+
+				"such key. Row keys: %v", name, emittedKeys(rows[0]))
+		}
+	}
+}
+
+// ⛔ `in` IS AN ALIAS AND MUST CARRY THE SAME SLICE AS `refs`. Two keys that
+// can disagree is the original defect with one more place to hide.
+func TestTheInAliasCannotDriftFromRefs(t *testing.T) {
+	got := refsJSON(Refs{
+		ID: "r39", Depth: 4,
+		In: []Ref{{Src: "d-1", Type: "cites", Via: "r39", Distance: 1}},
+	})
+
+	refs, err := json.Marshal(got["refs"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	in, err := json.Marshal(got["in"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(refs) != string(in) {
+		t.Fatalf("`refs` and `in` disagree:\n  refs: %s\n  in:   %s", refs, in)
+	}
+
+	// AND NEITHER IS null ON AN EMPTY ANSWER, because a null is what a sweep
+	// reads as "this was never considered" - which is precisely how the
+	// original mis-keyed sweep produced a confident zero.
+	empty := refsJSON(Refs{ID: "r39", Depth: 4})
+	for _, key := range []string{"refs", "in"} {
+		b, err := json.Marshal(empty[key])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(b) != "[]" {
+			t.Errorf("an answer with no edges emitted %q: %s, want []", key, b)
+		}
+	}
+}
+
+// ⛔ THE TEXT HEADER IS THE THIRD NAME AND IT IS THE WIRE's TOO. `SRC` is
+// `src` upper-cased, which is the rule this table already follows; a header
+// that invented its own word would put a fourth name on one thing.
+func TestTheTextHeadersAreTheWiresOwnFieldNames(t *testing.T) {
+	out := refsText(Refs{
+		ID: "r39", Depth: 4,
+		In: []Ref{{Src: "d-1", Type: "cites", Via: "r39", Kind: "decision", Distance: 1}},
+	})
+	for _, want := range []string{"SRC", "TYPE", "VIA", "KIND"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the refs table has no %s column:\n%s", want, out)
+		}
+	}
+}
+
+// emittedKeys names what a rendered JSON object actually carries, so a failure
+// above says what WAS emitted rather than only what was missing.
+//
+// Named apart from refusal_verbs_test.go's sortedKeys, which is the same shape
+// over map[string]bool. Two names is correct here: one thing with two names is
+// this file's subject, and two THINGS sharing one name is the other half of
+// the same mistake.
+func emittedKeys(m map[string]any) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// ⛔ THE REFS FOOTER's VERB AGREES WITH ITS SUBJECT. It printed "1 edge point
+// at B9" and S5 reported it as a micro-defect on a human surface.
+//
+// It is a separate test from the listing footer because they are separate
+// sentences in separate renderers: a mutation pass proved it, killing the
+// listing's agreement and leaving the refs table's alone.
+func TestTheRefsFooterVerbAgreesWithItsSubject(t *testing.T) {
+	one := refsText(Refs{ID: "B9", Depth: 4, In: []Ref{
+		{Src: "d-1", Type: "part-of", Via: "B9", Distance: 1},
+	}})
+	if !strings.Contains(one, "1 edge points at B9") {
+		t.Errorf("a single edge reads:\n%s", one)
+	}
+
+	two := refsText(Refs{ID: "B9", Depth: 4, In: []Ref{
+		{Src: "d-1", Type: "part-of", Via: "B9", Distance: 1},
+		{Src: "d-2", Type: "part-of", Via: "B9", Distance: 1},
+	}})
+	if !strings.Contains(two, "2 edges point at B9") {
+		t.Errorf("two edges read:\n%s", two)
+	}
+}
+
+// ⛔ A TRUNCATED ANSWER NAMES BOTH WAYS OUT, because the flag now has two
+// sources and the wire carries one bool for both. Naming only --depth sends a
+// caller to spend a deeper traversal on an answer a deeper traversal cannot
+// change: a record dropped by the project scope comes back with
+// --cross-project and never with a bigger number.
+func TestATruncatedAnswerNamesBothWaysOut(t *testing.T) {
+	got := refsText(Refs{ID: "r39", Depth: 4, Truncated: true})
+	for _, want := range []string{"--depth", "--cross-project"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("a truncated answer does not offer %s:\n%s", want, got)
 		}
 	}
 }
