@@ -163,21 +163,28 @@
           tabindex={store.current === t.id ? 0 : -1}
           onclick={() => void store.open(t.id)}
           onkeydown={ontabkey}
+          title={t.discovered
+            ? t.title
+            : `${t.title} - asked for by name, not discovered`}
         >
           {t.title}
-          {#if !t.discovered}<span class="byname" title="asked for by name"
-              >·</span
-            >{/if}
         </button>
       {/each}
     </div>
 
+    <!-- ⛔ NO tabindex ON THE PANEL, AND IT IS THE APG RULE RATHER THAN AN
+         omission: a tabpanel is made focusable only when it holds nothing
+         focusable, and this one holds the refresh control. It HAD tabindex="0"
+         and the real window showed the cost - webkit2gtk put focus on the
+         scroll container after a keyboard activation, and a 3px ring drew
+         itself around the entire panel for a person who had only pressed
+         Space on the rail. Headless Chrome never reproduced it, which is the
+         argument for running the thing. -->
     <div
       class="panel"
       role="tabpanel"
       id="pcg-panel"
       aria-labelledby={`tab-${store.current}`}
-      tabindex="0"
     >
       <PlanVsExec
         brief={held.brief}
@@ -317,23 +324,10 @@
     border-radius: 6px;
   }
 
-  /* A tab this window asked for by name rather than discovered. A dot, and
-     the tooltip says what it means - the sentence above the tabs carries the
-     explanation, so this only has to distinguish. */
-  .byname {
-    color: var(--fg-dim);
-    margin-inline-start: 0.35rem;
-  }
-
   .panel {
     overflow: auto;
     min-height: 0;
     padding: calc(1.1rem * var(--den)) 1.15rem calc(2rem * var(--den));
-  }
-
-  .panel:focus-visible {
-    outline: none;
-    box-shadow: inset 0 0 0 var(--ring-w) var(--hue);
   }
 
   .none {

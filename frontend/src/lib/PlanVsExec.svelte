@@ -115,6 +115,11 @@
   {/if}
 
   {#if brief}
+    <!-- The grid is the headline and it gets the full width. It sat in a
+         column beside the numbers first, and the real window showed why that
+         was wrong: the numbers made the row 240px tall and the grid, being
+         two rows of cells, left most of that empty. Found by looking at a
+         screenshot after every ratio had already passed. -->
     <section class="hero">
       <div class="fig">
         <Waffle items={p.items} {summary} />
@@ -123,11 +128,11 @@
       <div class="reading">
         <div class="pair">
           <span class="n">{p.planned}</span>
-          <span class="l">items planned and still open</span>
+          <span class="l">planned and still open</span>
         </div>
         <div class="pair">
           <span class="n" class:zero={p.recorded === 0}>{p.recorded}</span>
-          <span class="l">of them have any step recorded</span>
+          <span class="l">have any step recorded</span>
         </div>
 
         <ul class="legend">
@@ -156,7 +161,7 @@
       </section>
 
       <section class="cov">
-        <h3>How much of this rig can compute</h3>
+        <h3>What rig can work out here</h3>
         <p class="covn">
           <strong>{t.computed}</strong> of {t.total} sections are built.
         </p>
@@ -238,7 +243,7 @@
       </section>
     </div>
 
-    <div class="lists">
+    <div class="lists pair2">
       <section>
         <h3>
           Blocked <span class="cnt"
@@ -415,21 +420,17 @@
 
   /* ── the hero: the grid IS the headline ───────────────────────────────── */
 
+  /* The figure on top, the reading underneath as one row. Two columns put
+     240px of legend beside 40px of grid and left the rest of the box empty -
+     the "grid stretched short cards" defect in this project's own
+     readability notes, in a different shape. */
   .hero {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: calc(1.6rem * var(--den));
-    align-items: start;
+    gap: calc(1.1rem * var(--den));
     padding: calc(1.2rem * var(--den)) 1.25rem;
     background: var(--bg-2);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-  }
-
-  @media (max-width: 860px) {
-    .hero {
-      grid-template-columns: 1fr;
-    }
   }
 
   .fig {
@@ -437,10 +438,12 @@
   }
 
   .reading {
-    display: grid;
-    gap: 0.55rem;
-    align-content: start;
-    min-width: 14rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.6rem 2rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--border);
   }
 
   .pair {
@@ -468,36 +471,37 @@
   .pair .l {
     color: var(--fg-dim);
     font-size: var(--fs--1);
-    max-width: 22ch;
   }
 
   .legend {
     list-style: none;
-    margin: 0.35rem 0 0;
-    padding: 0.7rem 0 0;
-    border-top: 1px solid var(--border);
-    display: grid;
-    gap: 0.3rem;
+    margin: 0;
+    padding: 0;
+    margin-inline-start: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 1.15rem;
   }
 
   .legend li {
-    display: grid;
-    grid-template-columns: 14px 1fr auto;
+    display: flex;
     align-items: center;
-    gap: 0.55rem;
+    gap: 0.45rem;
     font-size: var(--fs--1);
     color: var(--fg-dim);
   }
 
-  /* The swatch repeats the waffle's own mark, hollow and filled alike, so the
-     legend reads as a key to the grid rather than as a row of buttons. A 2px
-     outlined square with nothing in it reads as an empty checkbox and invites
-     a click; this one is 14x14 with the same radius and border width as a
-     cell, which ties it to the figure instead. */
+  /* ⛔ A BAR, NOT A SQUARE, AND THE REASON IS MEASURED RATHER THAN AESTHETIC.
+     It was a 14x14 hollow rounded square first - the same mark as a waffle
+     cell - and in the real window the "not stepped" one read as an unchecked
+     CHECKBOX sitting next to a label, inviting a click that does nothing.
+     That is the first defect in this project's own "a clean audit is not a
+     clean page" list, reproduced exactly. A 18x9 bar cannot be mistaken for a
+     control and still carries hollow-versus-filled. */
   .sw {
-    width: 14px;
-    height: 14px;
-    border-radius: 3px;
+    width: 18px;
+    height: 9px;
+    border-radius: 2px;
     border: 1.5px solid var(--border-2);
   }
 
@@ -631,15 +635,24 @@
 
   /* ── the lists ────────────────────────────────────────────────────────── */
 
+  /* ONE COLUMN FOR THE ITEM LISTS, and it was two. Next up holds 5 rows and
+     Open holds 54, so side by side left half the width empty for the length
+     of the long list while the long list's own titles were being truncated.
+     Full width gives the titles the room and costs only scroll. */
   .lists {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: calc(1.2rem * var(--den));
     align-items: start;
   }
 
+  /* The short pair - blocked and notes - keeps two columns, because neither
+     runs long and a full-width list of nothing is worse than a narrow one. */
+  .lists.pair2 {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
   @media (max-width: 980px) {
-    .lists {
+    .lists.pair2 {
       grid-template-columns: 1fr;
     }
   }
@@ -666,9 +679,12 @@
     background: var(--bg-2);
   }
 
+  /* A bar, for the same measured reason as the legend's swatch: a small
+     hollow square with a label beside it reads as an unchecked checkbox, and
+     a list of them reads as a form. */
   .dotm {
-    width: 9px;
-    height: 9px;
+    width: 12px;
+    height: 6px;
     border-radius: 2px;
     border: 1.5px solid var(--border-2);
     align-self: center;
@@ -714,8 +730,14 @@
     white-space: nowrap;
   }
 
+  /* ⛔ NOT AMBER, AND THE REASON IS A COUNT. It was --sem-warn, and the real
+     window showed 54 rows of identical amber text down one column - the hue
+     stopped meaning "this wants you" and became the list's background noise.
+     Section 11's rule is that a hue appears only when something wants you, so
+     the warn hue is spent ONCE, on the headline zero, and the per-row state
+     stays neutral. The finding is not weakened: every row still says it. */
   .ist.none {
-    color: var(--sem-warn);
+    color: var(--fg-dim);
   }
 
   .secs {
@@ -734,6 +756,20 @@
   /* An unbuilt section's reason gets the same hatched ground it gets on the
      coverage tab, so it can never be mistaken for an empty result wherever a
      reader meets it. */
+  /* ⛔ 30%, AND THE NUMBER IS MEASURED RATHER THAN CHOSEN. It was 55%, which
+     puts the reason text at 3.73:1 dark and 3.71:1 light against a 4.5 floor -
+     A FAILURE THE CONTRAST GATE STRUCTURALLY CANNOT SEE, because every pass
+     reads backgroundColor and a stripe is a background-IMAGE. Measured by
+     compositing --border over --bg-2 by hand in the same headless Chrome:
+
+        stripe   --fg-dim dark / light
+          55%        3.73 / 3.71     FAILS
+          40%        4.54 / 4.46     light fails
+          30%        5.16 / 5.01     passes both
+          20%        5.86 / 5.63
+
+     Do not push it back up without redoing that arithmetic; a green gate will
+     not stop you. */
   .dark {
     padding: 0.55rem 0.7rem;
     border: 1px dashed var(--border);
@@ -742,7 +778,7 @@
     background-image: repeating-linear-gradient(
       -45deg,
       transparent 0 5px,
-      color-mix(in srgb, var(--border) 55%, transparent) 5px 6px
+      color-mix(in srgb, var(--border) 30%, transparent) 5px 6px
     );
   }
 </style>

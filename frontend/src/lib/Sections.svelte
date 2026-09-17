@@ -42,11 +42,15 @@
         <span class="mark" aria-hidden="true"></span>
         <span class="slabel">{v.label}</span>
         {#if v.kind === "computed"}
-          <span class="scount-n">
-            {counts[v.name] === null || counts[v.name] === undefined
-              ? "-"
-              : counts[v.name]}
-          </span>
+          <!-- A built section this window carries no count for says the word
+               rather than a dash. "-" was on screen for Features and reads as
+               an empty result, which is the one thing this component exists
+               to prevent. -->
+          {#if counts[v.name] === null || counts[v.name] === undefined}
+            <span class="sstate">computed</span>
+          {:else}
+            <span class="scount-n">{counts[v.name]}</span>
+          {/if}
         {:else}
           <span class="sstate"
             >{v.kind === "dark" ? v.state : "not answered"}</span
@@ -109,6 +113,20 @@
      here to be full or empty. 45-degree bands at 6px are coarse enough to
      survive the window's own scaling and fine enough not to fight the text
      sitting on them. */
+  /* ⛔ 30%, AND THE NUMBER IS MEASURED RATHER THAN CHOSEN. It was 55%, which
+     puts the reason text at 3.73:1 dark and 3.71:1 light against a 4.5 floor -
+     A FAILURE THE CONTRAST GATE STRUCTURALLY CANNOT SEE, because every pass
+     reads backgroundColor and a stripe is a background-IMAGE. Measured by
+     compositing --border over --bg-2 by hand in the same headless Chrome:
+
+        stripe   --fg-dim dark / light
+          55%        3.73 / 3.71     FAILS
+          40%        4.54 / 4.46     light fails
+          30%        5.16 / 5.01     passes both
+          20%        5.86 / 5.63
+
+     Do not push it back up without redoing that arithmetic; a green gate will
+     not stop you. */
   .sec[data-kind="dark"],
   .sec[data-kind="absent"] {
     border-color: var(--border);
@@ -117,7 +135,7 @@
     background-image: repeating-linear-gradient(
       -45deg,
       transparent 0 5px,
-      color-mix(in srgb, var(--border) 55%, transparent) 5px 6px
+      color-mix(in srgb, var(--border) 30%, transparent) 5px 6px
     );
   }
 

@@ -77,7 +77,9 @@
   .cell {
     width: 15px;
     height: 15px;
-    border-radius: 3px;
+    /* 2px, not 3: at 15px a 3px radius rounds the mark toward a control and
+       the legend's own swatch already had to stop looking like a checkbox. */
+    border-radius: 2px;
     border: 1.5px solid var(--border-2);
     background: transparent;
     flex: none;
