@@ -30,7 +30,38 @@ history segments *"age out in 30 days anyway"* and §15 already specifies
 **retention by size, age AND rate**. **The one-month rung matches the 30 days
 that already exist; the three-month rung and the pin do not exist at all.**
 
-### ⛔ THE COLLISION THAT MUST BE SETTLED BEFORE ANY OF THIS IS BUILT
+### ✅ THE COLLISION IS SETTLED. RULED BY BORIS 2026-09-17.
+
+⛔ **THE LADDER GOVERNS OBSERVABILITY ONLY. THE CONTINUITY RECORD IS EXEMPT AND
+IS NEVER DELETED.** Put to him by team-lead generation 11 with both readings and
+their consequences; **he took the first.**
+
+**So, binding:**
+
+| Data | What the ladder does to it |
+|---|---|
+| history, traces, agent interactions, the high-volume streams | **the ladder applies** - 1 month, 3 months, deleted, exactly as specified below |
+| ⛔ **records: decisions, requirements, work items, cases, an agent's working notes** | ⛔ **NEVER DELETED. NO AGE RUNG REACHES THEM AT ALL.** The user pin is not what saves a record; nothing endangers it |
+
+⛔ **DO NOT BUILD A DELETE RUNG THAT CAN REACH `record`.** A delete path that
+merely defaults to off is not this ruling - the requirement is that the
+continuity record has no age-based deletion path, because *"nothing is ever
+lost"* (§9 A1) is the property §39 exists to provide and an off-by-default
+switch is one config edit from destroying it.
+
+**The evidence he ruled on, kept because it is why the answer is not arbitrary:**
+every rung he named is a **disk-bloat** remedy, and records do not cause bloat -
+**68 work-item bodies are 6,374 bytes TOTAL** while history is measured in
+hundreds of megabytes. **The ladder aimed at records would cost the project its
+memory and save nothing.**
+
+⛔ **THIS CLOSES A LOOP THAT WAS THE ONE THING WAITING ON HIM, AND IT WAS THE
+HIGHEST-CONSEQUENCE UNASKED CALL IN THE PROJECT** - generation 10 ranked it
+first among its five overrulable decisions on the grounds that it is the only
+one that destroys data irreversibly if wrong and unnoticed. **It was a seat's
+reading for one generation, labelled as a reading, and it is now his.**
+
+#### The collision, kept as the record of what was actually asked
 
 ⛔ **HE SAID "EVERYTHING", AND ONE HOUR EARLIER HE SAID "NOTHING IS EVER
 LOST".** §9's A1, his words: *"The AI agent working with `rig` should manage its
@@ -45,12 +76,17 @@ PICK ONE SILENTLY:**
 | **the ladder governs OBSERVABILITY** - history, traces, agent interactions, the high-volume streams | The continuity record is exempt. Consistent with A1, with §39's whole purpose, and with the fact that every rung he named is about **disk bloat**, which records do not cause: **68 work-item bodies are 6,374 bytes TOTAL** |
 | **the ladder governs EVERYTHING, records included** | Then a decision made in March is gone in June unless somebody pinned it, and §39's continuity record cannot be the thing it is specified to be |
 
-⛔ **THE LEAD'S READING IS THE FIRST, AND IT IS A READING RATHER THAN A
-RULING.** The evidence for it is that every rung he named is a disk-space
-remedy, and the record store is measured in kilobytes while history is measured
-in hundreds of megabytes - **so the ladder aimed at records would cost the
-project its memory and save nothing.** ⛔ **PUT IT TO HIM. Do not build the
-delete rung against records on this reading, and do not narrow his word
+✅ **THE LEAD'S READING WAS THE FIRST, AND HE HAS SINCE CONFIRMED IT, SO IT IS
+NO LONGER A READING** - see the ruling at the head of this section. The
+paragraph below is kept as written because **the instruction it gave was
+followed and that is the point**: the reading was labelled as a reading, it was
+not built against, his word "everything" was not narrowed in any document, and
+it was put to him. **This is what a correctly-handled seat's reading looks like
+from the far end.** The evidence for it is that every rung he named is a
+disk-space remedy, and the record store is measured in kilobytes while history
+is measured in hundreds of megabytes - **so the ladder aimed at records would
+cost the project its memory and save nothing.** ⛔ **PUT IT TO HIM. Do not build
+the delete rung against records on this reading, and do not narrow his word
 "everything" in any document without his answer** - a silent narrowing of his
 scope is the exact move this project has recorded four times.
 
