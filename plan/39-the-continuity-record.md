@@ -510,6 +510,37 @@ he does not ask again, and waiting to be asked is the failure.
 | **what it is NOT** | ⛔ **not the AgentBox-GUI readiness report**, which is a separate standing report in the same file with a different bar. **Two reports, two bars, and answering one with the other is the defect §39 already names about the two MVP questions** |
 | **what blocks it today** | **B64 is the next capability** - three of section 39's ten kinds cannot be RENDERED, so rig reads its own backlog and cannot show its own rulings. ⛔ **"B64 alone" is a SEAT'S READING and stood here as a measurement.** Nobody has demonstrated that closing B64 makes the bar met: his acceptance test is B46, and B46 is in no record at all, which is B66. Corrected 2026-09-17 by lead generation 12 |
 
+##### ⛔ AND THE REPORT IS OWED AT EVERY FINISHED STEP, NOT ONLY WHEN THE BAR IS MET. RULED BY BORIS 2026-09-17.
+
+**His words, to the sixteenth lead generation, in the same turn he deployed B68:**
+
+> *"Proceed and with every step you finish show me what is left to get to our
+> perfect MVP."*
+
+⛔ **THIS WIDENS THE OBLIGATION ABOVE AND DOES NOT REPLACE IT.** That one fires
+ONCE, unprompted, the moment the bar is met. **This one fires at EVERY completed
+step**, and its subject is the REMAINING DISTANCE rather than the arrival.
+
+| | |
+|---|---|
+| **the trigger** | a step FINISHED - work landed, committed, gates green. Not a checkpoint, not a plan, not an intention |
+| **what is owed** | ⛔ **what is LEFT**, ranked, in his terms. Not what was done - he can read the commit. The gap list is the deliverable |
+| **who owns it** | the **team-lead**, through `READINESS.txt`, which stays the only artefact allowed to answer "how much longer" |
+| **the form** | the ranked GAPS, each with what closes it and what it is gated on. **Short.** The file's own standing rule - *"as concise and as short as possible (always)"* - binds this too |
+
+⛔ **SO `READINESS.txt` IS UPDATED IN THE SAME COMMIT AS THE STEP, AND THE GAP
+LIST IS SHOWN TO HIM IN THE SAME TURN.** A gap list that is current in the file
+and not in front of him has not discharged this; so has a turn that reports the
+work and leaves him to open the file for the remainder.
+
+⛔ **IT IS STILL A REPORT AND NOT A VERDICT.** Everything below applies to it
+unchanged: the seat states the distance, **he decides whether the bar is met.**
+
+⛔ **AND IT IS NOT AN INVITATION TO RE-SIZE THE GAPS EACH TIME.** `READINESS.txt`
+records that no estimate on this project has ever been executed against. **A
+number invented to make the report feel complete is the failure**, and the honest
+line is the one already in the file: what closes each gap, and what it waits on.
+
 ⛔ **IT IS A REPORT, NOT A VERDICT, AND THAT IS THE LOAD-BEARING HALF.** The
 seat states what rig can now do that it could not, what it still cannot, and
 where that leaves his own sentence. **Then HE says whether the bar is met.**
