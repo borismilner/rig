@@ -842,6 +842,14 @@ func putBody(rf *recordFlags) (string, error) {
 		// ⛔ THIS IS B75. Nothing is read; the mode alone says that something
 		// is there, and something being there with no flag to route it is the
 		// one case where creating the record is the wrong answer.
+		//
+		// AN EMPTY PIPE IS REFUSED TOO, AND THAT IS THE PRICE OF NOT READING.
+		// `printf "" | rig record put ...` offered nothing and is refused
+		// anyway, because telling an empty pipe from a full one means reading
+		// it, and reading it is what can hang. The trade is a loud refusal
+		// with three ways out against a silent hang, and the way out for a
+		// caller who meant no body is one flag: --body ''. Measured by running
+		// it - do not "fix" this by reading first.
 		return "", badArgumentf(
 			"rig record put was given no body, and standard input is not a "+
 				"terminal - something is piped in and nothing here would "+
@@ -892,6 +900,20 @@ func readBody(r io.Reader, name string) (string, error) {
 	if err != nil {
 		return "", badArgumentf("the body could not be read from %s: %v", name, err)
 	}
+	// ⛔ INVALID UTF-8 IS REFUSED HERE SO THE MESSAGE IS ABOUT THE BODY.
+	// protobuf refuses a string field that is not valid UTF-8, and left to it
+	// the answer is "client: marshal rig.record.put: string field contains
+	// invalid UTF-8" - true, and it names neither the body nor the file the
+	// bytes came from. A caller who pointed --body-file at a binary has no
+	// way from that sentence to what they typed. Measured by running it.
+	if !utf8.Valid(raw) {
+		return "", badArgumentf(
+			"%s is not valid UTF-8, and a record's body is text.\n"+
+				"       the first bad byte is at offset %d\n"+
+				"       a file rig cannot read as text is a file, and a "+
+				"record that points at it is the shape rig has for that",
+			name, firstInvalidUTF8(raw))
+	}
 	if len(raw) > maxBodyBytes {
 		return "", badArgumentf(
 			"the body from %s is larger than %d bytes, which is more than "+
@@ -903,6 +925,24 @@ func readBody(r io.Reader, name string) (string, error) {
 			name, maxBodyBytes, rigwire.MaxFrameSize)
 	}
 	return strings.TrimRight(string(raw), "\r\n"), nil
+}
+
+// firstInvalidUTF8 is the offset of the first byte that is not part of a valid
+// rune, so a refusal can point at it rather than at the whole file.
+//
+// It is only ever called on bytes utf8.Valid has already rejected, so the
+// final return is unreachable in practice - it is there because a function
+// that answers "nowhere" with a plausible-looking 0 would be worse than one
+// that answers with the length.
+func firstInvalidUTF8(b []byte) int {
+	for i := 0; i < len(b); {
+		r, size := utf8.DecodeRune(b[i:])
+		if r == utf8.RuneError && size <= 1 {
+			return i
+		}
+		i += size
+	}
+	return len(b)
 }
 
 // ---- put -------------------------------------------------------------------
@@ -1603,12 +1643,8 @@ func queryText(a QueryArgs, rs []Record, width int) string {
 	return b.String()
 }
 
-// mintedIDWidth is the width of an id the store mints for itself: section 39's
-// scheme is UUIDv7, which is 36 columns with its hyphens.
-const mintedIDWidth = 36
-
-// queryTable lays the listing out in aligned columns AND FITS IT TO THE
-// TERMINAL, with the id column exempt from the fitting.
+// queryTable lays the listing out AND FITS IT TO THE TERMINAL, under the house
+// rule rather than a rule of its own.
 //
 // ⛔ MEASURED, NOT SUSPECTED. `rig record query` with no filter answered 568
 // lines on 2026-09-17 whose longest was 413 columns, against a store whose
@@ -1617,78 +1653,106 @@ const mintedIDWidth = 36
 // 568 rows were padded out to 161 before their project was printed, and a
 // terminal showed a quarter of the result.
 //
-// IT REUSES THE BRIEF'S RULE RATHER THAN INVENTING A SECOND ONE. briefFit,
-// briefElide and briefMinCell are brief.go's, and briefTable's own comment
-// named the condition for this: "teaching writeTable about width would change
-// four surfaces at once and only one of them has been measured. The two
-// converge the day somebody measures the others." This is that measurement.
+// ⛔ THE RULE IS brief.go's AND IT WAS RULED FOR BOTH TABLES ON 2026-09-17.
+// Three clauses, in the order they apply:
 //
-// ⛔ AND IT DIFFERS IN EXACTLY ONE CLAUSE: AN ID IS NEVER ELIDED. briefFit
-// shrinks the WIDEST column first, which is right for the brief - where the
-// id is `B75` and the 223-column title is what has to give - and wrong here,
-// where the id IS the widest column. An elided id cannot be handed back to
-// `rig record get`, which is the only reason the column is printed at all; an
-// elided title can still be read. So the id column is sized to the widest id
-// that FITS, and an id longer than that takes a line of its own with its row
-// continuing beneath it in the same columns.
+//  1. PIN the key column so the prose pays. briefFitAround takes the width out
+//     of the widest column that is NOT pinned. The id is pinned: measured at
+//     80 columns against the live store, five of six governing ids rendered
+//     the identical stub because the cut fell inside a shared prefix. An
+//     elided title still reads; an elided id identifies nothing and cannot be
+//     pasted into `rig record get`, which is the one thing the column is for.
+//  2. CHOOSE THE LAYOUT at a default width when there is no terminal. A layout
+//     chosen for a default takes no bytes away, so a pipe's consumer still
+//     reads every one.
+//  3. CUT a cell only at a REAL terminal. st.Width and not the default, which
+//     is the difference between the two numbers below - passing the default to
+//     the fit is what put an ellipsis into a pipe on brief.go's first run of
+//     this code.
 //
-// A WIDTH OF ZERO IS A PIPE AND NOTHING IS CUT, which is briefStyle.Width's
-// own rule: "discarding bytes it was going to read in full is destruction
-// rather than legibility". A redirected query is exactly that reader, so it
-// gets writeTable's layout unchanged.
+// AND THE LAYOUT IS ALL-OR-NOTHING FOR THE WHOLE TABLE, as briefGoverningRows
+// already does it: either every id sits in the column, or the id steps out of
+// the table for every row and is printed whole beneath it. A per-row choice
+// was this file's first answer and it is a SECOND RULE - two shapes of row in
+// one table, and a reader scanning a column cannot tell which kind of line
+// they are on.
 func queryTable(b *strings.Builder, header []string, rows [][]string, width int) {
-	if width <= 0 || len(header) == 0 {
-		writeTable(b, header, rows)
+	if len(header) == 0 {
+		return
+	}
+	// ⛔ TWO NUMBERS, AND CONFLATING THEM IS THE DEFECT CLAUSE 3 NAMES.
+	// `budget` chooses the layout and falls back to a default; `width` cuts,
+	// and is zero at a pipe so that nothing is cut there.
+	budget := width
+	if budget <= 0 {
+		budget = briefDefaultWrap
+	}
+	st := briefStyle{Width: width}
+
+	widest := utf8.RuneCountInString(header[0])
+	for _, r := range rows {
+		if n := utf8.RuneCountInString(r[0]); n > widest {
+			widest = n
+		}
+	}
+
+	// The narrowest the inline form can be without cutting an id: the ids at
+	// full width, every middle column at full width, and the summary squeezed
+	// to the floor below which a cell is an ellipsis and a letter.
+	inline := widest + 2 + briefMinCell
+	for i := 1; i < len(header)-1; i++ {
+		w := utf8.RuneCountInString(header[i])
+		for _, r := range rows {
+			if n := utf8.RuneCountInString(r[i]); n > w {
+				w = n
+			}
+		}
+		inline += w + 2
+	}
+	if inline <= budget {
+		// ⛔ THE PIN IS THE INVARIANT AND THE CONDITION ABOVE IS ITS PROOF, so
+		// do not read the pin as the only thing holding the id whole. `inline`
+		// already reserves the id at FULL width with every other column at its
+		// floor, so briefFitAround runs out of deficit before the id could
+		// become the column it takes from - measured by mutation: removing the
+		// pin changed no output. It stays because it states WHICH column is
+		// the key, and because a later change to `inline` would otherwise make
+		// the id payable with nothing saying it had.
+		briefTableAround(b, st, header, rows, map[int]bool{0: true})
 		return
 	}
 
-	// Every column but the id takes its natural width first.
-	cols := make([]int, len(header))
-	for i, h := range header {
-		cols[i] = utf8.RuneCountInString(h)
-	}
-	for _, r := range rows {
-		for i := 1; i < len(r) && i < len(cols); i++ {
-			if n := utf8.RuneCountInString(r[i]); n > cols[i] {
+	// The id steps out. KIND, VERSION and the rest keep their table, so the
+	// listing is still scannable down a column; only the key leaves it.
+	b.WriteString(briefWrap("An id here is longer than the page, so each is "+
+		"printed whole on its own line below its row: a cut id cannot be "+
+		"pasted into `rig record get`, and these ids share prefixes long "+
+		"enough that cutting would make several of them identical.",
+		budget) + "\n")
+
+	// ⛔ THE REMAINING COLUMNS ARE LAID OUT HERE RATHER THAN THROUGH
+	// briefTableAround, and it is the duplication briefGoverningRows already
+	// accepted for the same reason: the id line has to be indented to the
+	// first column, and a renderer that computes its widths privately cannot
+	// be asked what they came out as. Recomputing them beside it would be two
+	// places deciding one layout.
+	cols := make([]int, len(header)-1)
+	for i := range cols {
+		cols[i] = utf8.RuneCountInString(header[i+1])
+		for _, r := range rows {
+			if n := utf8.RuneCountInString(r[i+1]); n > cols[i] {
 				cols[i] = n
 			}
 		}
 	}
+	briefFitAround(cols, st.Width, nil)
 
-	// idCap is the most the id column may be PADDED to, and the id column is
-	// then sized to the widest id that fits under it. That is the whole
-	// repair: a three-character id is three characters wide, and a
-	// hundred-character one changes nothing for the rows that do not share it.
-	//
-	// ⛔ THE CAP IS mintedIDWidth AND IT IS DERIVED RATHER THAN CHOSEN.
-	// Section 39's id scheme is UUIDv7, so every id the store mints for itself
-	// fits in 36 columns, and every id WIDER than that is a slug a caller
-	// typed - a project, a case, or a document key. A slug's length is that
-	// caller's business, and letting it set the column width spends every
-	// other row's terminal on one row's naming decision. That sentence is the
-	// 413-column measurement.
-	//
-	// A terminal too narrow to afford even that gets less, down to the same
-	// floor every other column has.
-	rest := cols[1:]
-	idCap := min(mintedIDWidth, width-(briefMinCell+2)*len(rest))
-	if idCap < briefMinCell {
-		idCap = briefMinCell
-	}
-	for _, r := range rows {
-		if n := utf8.RuneCountInString(r[0]); n > cols[0] && n <= idCap {
-			cols[0] = n
-		}
-	}
-	briefFit(rest, width-cols[0]-2)
-
-	// tail is every column after the id, laid out at the fitted widths. The
-	// last is never padded, for writeTable's reason: a summary otherwise drags
-	// a run of trailing spaces across the terminal.
-	tail := func(cells []string) string {
+	line := func(cells []string) string {
 		var out strings.Builder
-		for i := 1; i < len(cells); i++ {
-			cell := briefElide(cells[i], cols[i])
+		for i, cell := range cells {
+			cell = briefElide(cell, cols[i])
+			// The last column is never padded, for writeTable's reason: a
+			// summary otherwise drags trailing spaces across the terminal.
 			if i == len(cells)-1 {
 				out.WriteString(cell)
 				break
@@ -1701,24 +1765,15 @@ func queryTable(b *strings.Builder, header []string, rows [][]string, width int)
 		}
 		return out.String()
 	}
-	indent := strings.Repeat(" ", cols[0]+2)
-	line := func(cells []string) {
-		id := cells[0]
-		if n := utf8.RuneCountInString(id); n > cols[0] {
-			// THE ID GETS THE LINE AND THE ROW CONTINUES BENEATH IT, in the
-			// same columns as every row that fitted - which is what keeps the
-			// table scannable instead of leaving one ragged row per long id.
-			b.WriteString(id + "\n" + indent + tail(cells) + "\n")
-			return
-		} else if pad := cols[0] - n; pad > 0 {
-			id += strings.Repeat(" ", pad)
-		}
-		b.WriteString(id + "  " + tail(cells) + "\n")
-	}
 
-	line(header)
+	// ⛔ THE ID IS INDENTED TO THE SECOND COLUMN AND NEVER PASSED THROUGH
+	// briefElide. It is the one cell in this listing that must survive whole,
+	// and the indent is what keeps it reading as part of the row above rather
+	// than as a row of its own.
+	indent := strings.Repeat(" ", cols[0]+2)
+	b.WriteString(st.strong(line(header[1:])) + "\n")
 	for _, r := range rows {
-		line(r)
+		b.WriteString(line(r[1:]) + "\n" + indent + r[0] + "\n")
 	}
 }
 

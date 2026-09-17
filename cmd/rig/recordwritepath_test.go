@@ -336,6 +336,52 @@ func TestABodyTooLargeForOneFrameIsRefusedBeforeItIsSent(t *testing.T) {
 	}
 }
 
+// ⛔ A REFUSAL IN THE WRONG VOCABULARY IS NOT A REFUSAL THE CALLER CAN ACT ON.
+// Left to protobuf, a body that is not valid UTF-8 comes back as "client:
+// marshal rig.record.put: string field contains invalid UTF-8" - which names
+// neither the body nor the file, and a caller who pointed --body-file at a
+// binary has no route from that sentence to what they typed. Found by running
+// it against the live daemon, 2026-09-17.
+func TestABodyThatIsNotTextIsRefusedInTheBodysOwnWords(t *testing.T) {
+	f := serving(t, &fakeRecord{})
+	terminalStdin(t)
+
+	path := filepath.Join(t.TempDir(), "binary.bin")
+	if err := os.WriteFile(path, []byte("valid \xff\xfe tail\n"), 0o600); err != nil {
+		t.Fatalf("writing the body file: %v", err)
+	}
+
+	err := run([]string{
+		"record", "put", "--kind", "note", "--project", "rig",
+		"--body-file", path,
+	})
+	if err == nil {
+		t.Fatal("a body that is not valid UTF-8 was accepted here and would " +
+			"have died on the wire in protobuf's vocabulary")
+	}
+	if !strings.Contains(err.Error(), path) {
+		t.Errorf("the refusal does not name the file: %v", err)
+	}
+	if !strings.Contains(err.Error(), "UTF-8") {
+		t.Errorf("the refusal does not say what is wrong with it: %v", err)
+	}
+	if len(f.calls) != 0 {
+		t.Errorf("the bad body reached the daemon: calls=%v", f.calls)
+	}
+}
+
+// The offset is the point: "somewhere in this file" is not an answer on a file
+// nobody is going to read by hand.
+func TestTheFirstBadByteIsNamedByOffset(t *testing.T) {
+	if got := firstInvalidUTF8([]byte("ok \xff")); got != 3 {
+		t.Errorf("firstInvalidUTF8 = %d, want 3", got)
+	}
+	// A valid multi-byte rune must not be mistaken for one.
+	if got := firstInvalidUTF8([]byte("héllo \xff")); got != 7 {
+		t.Errorf("firstInvalidUTF8 over a two-byte rune = %d, want 7", got)
+	}
+}
+
 // ---- the 413-column table --------------------------------------------------
 //
 // Measured 2026-09-17 against the installed binary: `rig record query` with no
@@ -368,29 +414,10 @@ func queryRows() []Record {
 
 func longQueryID() string { return queryRows()[0].ID }
 
-// ⛔ THE EXACT BYTES OF THE DEFECT. The short-id row carries three characters
-// of id and is dragged to the width of a 161-character one.
-func TestAShortIdRowIsNotPaddedOutToTheWidestId(t *testing.T) {
-	got := queryText(QueryArgs{Project: "rig"}, queryRows(), 100)
-
-	for _, line := range strings.Split(got, "\n") {
-		if !strings.HasPrefix(line, "B75") {
-			continue
-		}
-		if n := utf8.RuneCountInString(line); n > 100 {
-			t.Fatalf("the B75 row is %d columns wide at a 100-column "+
-				"terminal. Its id is 3 characters; the width is padding "+
-				"bought for a row it does not share:\n%s", n, line)
-		}
-		return
-	}
-	t.Fatalf("no row for B75 was rendered at all, so this test asserted "+
-		"nothing:\n%s", got)
-}
-
-// Every line fits, except where the id ALONE does not - and then the overrun
-// is the id's length rather than the table's layout.
-func TestTheQueryTableIsFittedToTheTerminal(t *testing.T) {
+// ⛔ THE EXACT BYTES OF THE DEFECT. Every row was padded to the width of a
+// 161-character id, so a three-character backlog id started its PROJECT cell
+// at column 163.
+func TestNoRowIsPaddedOutToTheWidestId(t *testing.T) {
 	const width = 100
 	got := queryText(QueryArgs{Project: "rig"}, queryRows(), width)
 
@@ -399,100 +426,210 @@ func TestTheQueryTableIsFittedToTheTerminal(t *testing.T) {
 		if n <= width {
 			continue
 		}
-		if strings.HasPrefix(line, longQueryID()) {
+		if strings.Contains(line, longQueryID()) {
 			// The id is 161 characters and the terminal is 100. Nothing can
-			// make that fit, and cutting the id is the one repair that costs
-			// more than the overrun does.
+			// make that fit, and cutting it is the one repair that costs more
+			// than the overrun does.
 			continue
 		}
-		t.Errorf("a line is %d columns wide at a %d-column terminal and its "+
-			"id is not what made it so:\n%s", n, width, line)
+		t.Errorf("a line is %d columns wide at a %d-column terminal and no "+
+			"id is what made it so:\n%s", n, width, line)
 	}
 }
 
-// ⛔ AN ID IS NEVER ELIDED, AND THIS IS THE CLAUSE THAT DIFFERS FROM THE
-// BRIEF'S TABLE. briefFit shrinks the WIDEST column first, and here the widest
-// column is the id - so the brief's rule applied unchanged would cut every
-// doc-key id to about forty characters. A cut id cannot be handed back to
-// `rig record get`, which is the only reason the column is printed.
+// ⛔ AN ID IS NEVER ELIDED, AND THIS IS THE CLAUSE THE HOUSE RULE PINS.
+// briefFitAround shrinks the widest column that is NOT pinned; measured at 80
+// columns against the live store, five of six governing ids rendered the same
+// stub because the cut fell inside a shared prefix. A cut id cannot be pasted
+// into `rig record get`, which is the only reason the column is printed.
 func TestAnIdIsNeverCutToFitTheTerminal(t *testing.T) {
-	got := queryText(QueryArgs{Project: "rig"}, queryRows(), 60)
-
-	if !strings.Contains(got, longQueryID()) {
-		t.Fatalf("the 161-character id was cut to fit a 60-column terminal, "+
-			"so it can no longer be fetched:\n%s", got)
+	for _, width := range []int{120, 100, 60, 20} {
+		got := queryText(QueryArgs{Project: "rig"}, queryRows(), width)
+		if !strings.Contains(got, longQueryID()) {
+			t.Errorf("at %d columns the 161-character id was cut, so it can "+
+				"no longer be fetched:\n%s", width, got)
+		}
+		if !strings.Contains(got, "B75") {
+			t.Errorf("at %d columns the short id vanished:\n%s", width, got)
+		}
 	}
 }
 
-// ⛔ A PIPE HAS NO WIDTH TO FIT. brief.go states the rule at briefStyle.Width
-// - "discarding bytes it was going to read in full is destruction rather than
-// legibility" - and a redirected `rig record query` is exactly that reader.
+// ⛔ CLAUSE 3: A CELL IS CUT ONLY AT A REAL TERMINAL. brief.go states it at
+// briefStyle.Width - "discarding bytes it was going to read in full is
+// destruction rather than legibility" - and its own first run of this code put
+// an ellipsis into a pipe by passing the layout default to the fit.
 func TestAPipeGetsTheWholeTableUncut(t *testing.T) {
 	rs := queryRows()
 	got := queryText(QueryArgs{Project: "rig"}, rs, 0)
 
-	if !strings.Contains(got, longQueryID()) {
-		t.Error("the id was cut at a pipe, where there is no width to fit")
+	for _, r := range rs {
+		if !strings.Contains(got, r.ID) {
+			t.Errorf("an id was cut at a pipe:\n%s", got)
+		}
+		if !strings.Contains(got, recordSummary(r)) {
+			t.Errorf("a summary was cut at a pipe:\n%s", got)
+		}
 	}
-	if !strings.Contains(got, recordSummary(rs[0])) {
-		t.Errorf("the summary was cut at a pipe:\n%s", got)
+	if strings.Contains(got, "…") {
+		t.Errorf("an ellipsis reached a pipe, where there is no width to "+
+			"fit:\n%s", got)
 	}
 }
 
-// ⛔ A LONG ID'S ROW CONTINUES IN THE SAME COLUMNS, which is the only thing
-// that keeps the table scannable once some rows are two lines and some are
-// one. A continuation starting at the left margin reads as a second record.
-func TestALongIdsRowContinuesUnderTheSameColumns(t *testing.T) {
-	const width = 100
-	got := queryText(QueryArgs{Project: "rig"}, queryRows(), width)
-	lines := strings.Split(strings.TrimRight(got, "\n"), "\n")
+// ⛔ CLAUSE 2: THE LAYOUT IS CHOSEN AT A DEFAULT WIDTH WHEN THERE IS NO
+// TERMINAL. A layout costs the reader no bytes, so a pipe gets the stepped-out
+// form rather than the 413-column one it used to get.
+func TestAPipeStillGetsALayoutRatherThanTheWidestId(t *testing.T) {
+	got := queryText(QueryArgs{Project: "rig"}, queryRows(), 0)
 
-	at := strings.Index(lines[0], "VERSION")
-	if at < 0 {
-		t.Fatalf("no VERSION column in the header: %q", lines[0])
-	}
-	for i, line := range lines {
-		if line != longQueryID() {
+	for _, line := range strings.Split(got, "\n") {
+		if !strings.Contains(line, "B75") {
 			continue
 		}
-		if i+1 >= len(lines) {
-			t.Fatalf("the id is the last line, so its row was never "+
-				"rendered:\n%s", got)
-		}
-		cont := lines[i+1]
-		if len(cont) <= at || !strings.HasPrefix(cont[at:], "v1") {
-			t.Fatalf("the continuation does not carry VERSION at column %d, "+
-				"where the header puts it:\nheader: %q\ncont:   %q",
-				at, lines[0], cont)
+		if utf8.RuneCountInString(line) > 80 {
+			t.Fatalf("the B75 line is %d columns at a pipe, so the layout was "+
+				"still chosen off the widest id:\n%s",
+				utf8.RuneCountInString(line), line)
 		}
 		return
 	}
-	t.Fatalf("the long id never got a line of its own:\n%s", got)
+	t.Fatalf("no B75 line at all:\n%s", got)
+}
+
+// ⛔ AND THE DEFAULT IS LOAD-BEARING, WHICH THE TEST ABOVE DOES NOT SHOW. With
+// no fallback the layout budget at a pipe is zero, nothing can ever fit it, and
+// EVERY listing steps its id out - including one whose ids are three characters
+// long. Found by mutation: removing the fallback left the test above green.
+func TestAQueryPipeWithShortIdsKeepsTheColumnTable(t *testing.T) {
+	rs := []Record{
+		{ID: "B75", Version: 2, Kind: "work-item", Project: "rig",
+			Fields: map[string]string{titleKey: "the write path drops prose"}},
+		{ID: "B60", Version: 1, Kind: "work-item", Project: "rig",
+			Fields: map[string]string{titleKey: "a body that is not argv"}},
+	}
+	got := queryText(QueryArgs{Project: "rig"}, rs, 0)
+
+	for _, line := range strings.Split(strings.TrimRight(got, "\n"), "\n") {
+		if strings.TrimSpace(line) == "B75" {
+			t.Fatalf("B75 stepped out of a table it fits in, at a pipe:\n%s",
+				got)
+		}
+	}
+	if !strings.Contains(got, "ID") {
+		t.Errorf("the ID column is gone from a listing whose ids fit:\n%s", got)
+	}
+}
+
+// ⛔ THE LAYOUT IS ALL-OR-NOTHING FOR THE TABLE. Two shapes of row in one table
+// is a second rule: a reader scanning a column cannot tell which kind of line
+// they are on. Either every id sits in the column or every id steps out.
+func TestTheLayoutIsOneShapeForTheWholeTable(t *testing.T) {
+	got := queryText(QueryArgs{Project: "rig"}, queryRows(), 100)
+	lines := strings.Split(strings.TrimRight(got, "\n"), "\n")
+
+	var idLines int
+	for _, line := range lines {
+		for _, r := range queryRows() {
+			if strings.TrimSpace(line) == r.ID {
+				idLines++
+			}
+		}
+	}
+	if idLines != len(queryRows()) {
+		t.Fatalf("%d of %d ids are on lines of their own, so the table has "+
+			"two shapes of row in it:\n%s", idLines, len(queryRows()), got)
+	}
+}
+
+// When every id fits, the table stays one line per record and the id is
+// pinned, so the summary is what pays for any squeeze.
+func TestAListingWhoseIdsFitKeepsOneLinePerRecord(t *testing.T) {
+	rs := []Record{
+		{ID: "B75", Version: 2, Kind: "work-item", Project: "rig",
+			Fields: map[string]string{titleKey: strings.Repeat("long ", 60)}},
+		{ID: "B60", Version: 1, Kind: "work-item", Project: "rig",
+			Fields: map[string]string{titleKey: "a body that is not argv"}},
+	}
+	const width = 80
+	got := queryText(QueryArgs{Project: "rig"}, rs, width)
+
+	for _, line := range strings.Split(strings.TrimRight(got, "\n"), "\n") {
+		if n := utf8.RuneCountInString(line); n > width {
+			t.Errorf("a line is %d columns wide at %d:\n%s", n, width, line)
+		}
+	}
+	// One line per record and a header, plus the blank line and the count that
+	// queryText adds after the table.
+	body := strings.Split(strings.TrimRight(got, "\n"), "\n")
+	if len(body) != len(rs)+3 {
+		t.Fatalf("want a header, %d rows, a blank and a count; got %d "+
+			"lines:\n%s", len(rs), len(body), got)
+	}
+	// ⛔ THE SUMMARY PAID, NOT THE ID. The pin is what decides which.
+	if !strings.Contains(got, "B75") || !strings.Contains(got, "B60") {
+		t.Errorf("an id was cut in the inline form:\n%s", got)
+	}
+	if !strings.Contains(got, "…") {
+		t.Errorf("a 300-character title fitted an 80-column line without "+
+			"being cut, so nothing paid:\n%s", got)
+	}
 }
 
 // The header moves with the columns or it labels the wrong ones.
-func TestTheFittedHeaderSitsOverTheColumnsItNames(t *testing.T) {
+func TestTheSteppedOutHeaderSitsOverTheColumnsItNames(t *testing.T) {
 	got := queryText(QueryArgs{Project: "rig"}, queryRows(), 100)
-	lines := strings.Split(got, "\n")
-	if len(lines) < 3 {
-		t.Fatalf("too few lines to hold a header and two rows:\n%s", got)
-	}
-	header := lines[0]
-	at := strings.Index(header, "VERSION")
-	if at < 0 {
-		t.Fatalf("no VERSION column in the header: %q", header)
-	}
-	for _, line := range lines[1:] {
-		if !strings.HasPrefix(line, "B75") {
-			continue
+	lines := strings.Split(strings.TrimRight(got, "\n"), "\n")
+
+	var header string
+	var at int
+	for _, line := range lines {
+		if at = strings.Index(line, "VERSION"); at >= 0 {
+			header = line
+			break
 		}
-		if !strings.HasPrefix(line[at:], "v2") {
-			t.Fatalf("VERSION starts at column %d in the header and the B75 "+
-				"row carries %q there, so the header labels a different "+
-				"column than the rows fill:\nheader: %q\nrow:    %q",
-				at, line[at:min(at+4, len(line))], header, line)
-		}
-		return
 	}
-	t.Fatalf("no B75 row to align against:\n%s", got)
+	if header == "" {
+		t.Fatalf("no VERSION column in any line:\n%s", got)
+	}
+	if at != 0 {
+		t.Errorf("VERSION is at column %d and the id has stepped out, so it "+
+			"should lead the table: %q", at, header)
+	}
+	for _, line := range lines {
+		if strings.HasPrefix(line, "v2") {
+			return
+		}
+	}
+	t.Fatalf("no row carries v2 under VERSION:\n%s", got)
+}
+
+// ⛔ THE ID SITS UNDER ITS OWN ROW AND INDENTED TO THE FIRST COLUMN. At the
+// left margin it reads as a record of its own; under the wrong row it is
+// worse than absent.
+func TestEachSteppedOutIdSitsUnderItsOwnRowAndIndented(t *testing.T) {
+	rs := queryRows()
+	got := queryText(QueryArgs{Project: "rig"}, rs, 100)
+	lines := strings.Split(strings.TrimRight(got, "\n"), "\n")
+
+	for _, r := range rs {
+		found := false
+		for i, line := range lines {
+			if strings.TrimSpace(line) != r.ID {
+				continue
+			}
+			found = true
+			if !strings.HasPrefix(line, " ") {
+				t.Errorf("the id line starts at the left margin, so it reads "+
+					"as a record of its own: %q", line)
+			}
+			if i == 0 || !strings.HasPrefix(lines[i-1], "v") {
+				t.Errorf("the id at line %d does not sit under a row: "+
+					"above it is %q", i, lines[max(i-1, 0)])
+			}
+		}
+		if !found {
+			t.Fatalf("no line carries the id %q:\n%s", r.ID, got)
+		}
+	}
 }
