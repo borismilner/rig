@@ -835,3 +835,61 @@ icon. **The answer is to distinguish the ESTATE a tray may show from the tray
 EXISTING** - an unnamed estate is a reason to say "unnamed" on the icon, not a
 reason to have no icon. That is the same argument §11 already makes about the
 detached state, applied one level up.
+
+## ⛔ THE WORK-ITEM ROWS ARE NOT LEGIBLE TO A HUMAN REVIEWER. BORIS, 2026-09-17, WITH A SCREENSHOT.
+
+**He sent the Projects-and-cases tab and said, of the work-item rows:**
+
+> *"I'm not sure if what I'm seeing is the short descriptions in this GUI but
+> they are not user friendly and clicking them doesn't show the full
+> description. The information must be stored in a way that helps the human
+> reviewers. I'm missing search/filter functionality. I'm sure they can be
+> grouped or at least tagged so that the user can see what relates to what."*
+
+⛔ **THIS IS FOUR REQUIREMENTS AND ONLY ONE OF THEM IS A GUI CHANGE.** Reading
+it as "make the window nicer" loses three of them, and the one most likely to be
+lost is the one that decides the others.
+
+| # | What he asked for | Where it is answered |
+|---|---|---|
+| 1 | **a row that is readable, and a way to see the FULL text** | the window. A row is a truncated line today and clicking it does nothing |
+| 2 | ⛔ **"The information must be STORED in a way that helps the human reviewers"** | **the STORE and the SEEDER, not the window.** §39's grain and what `rigseed` writes |
+| 3 | **search and filter** | the window, over a store that can already answer - `record.query` has project, kind and a field predicate |
+| 4 | **grouping or at least tagging, so a reader sees what relates to what** | the STORE first (`tags` is a §39 field nothing writes), the window second |
+
+### ⛔ REQUIREMENT 2 IS THE ONE THAT BINDS THE SEEDING, AND IT ARRIVED BEFORE THE RE-SEED
+
+**He said it as an instruction about what to do when the work items are next
+populated** - *"When you later populate the rig work-items just note that"* - so
+it lands on the re-seed rather than after it. ⛔ **A re-seed that writes what
+the current seeder writes has spent the one-way write and NOT met this.**
+
+**What the store holds per work item today, measured 2026-09-17:** `title` and
+`status`, and for the ranked rows a `rank`. **`description_short` is a §39 field
+and nothing writes it. `tags` is a §39 field and nothing writes it. `priority`
+and `owner` are §39 fields and nothing writes them** - which is B62's and B65's
+measured six-of-eleven.
+
+⛔ **SO THE ROW IN THE WINDOW IS A TRUNCATED `title` AND THERE IS NOTHING ELSE
+TO SHOW.** The window cannot be fixed on its own: clicking a row can only reveal
+a fuller description if one was stored, and rows can only be grouped if
+something tagged them. **The GUI complaint is a STORAGE finding with a GUI
+symptom**, and fixing the symptom first would produce a detail pane that renders
+the same truncated line twice.
+
+### What this does NOT license
+
+⛔ **NOT a new grain.** §39's grain is Boris's own and was widened by him to
+`#####` on 2026-09-17. This is about which FIELDS a record carries, not about
+what counts as a record.
+
+⛔ **NOT inventing a description.** A backlog row's prose is what it is; a
+`description_short` derived by summarising it would be a seat composing content,
+which is the thing the record exists to stop. **The full text is what the
+document says and the short form is a deterministic cut of it, or it is absent
+and says so.**
+
+⛔ **NOT a tag vocabulary a seat picks.** Tagging *"so the user can see what
+relates to what"* is answered first by what the documents ALREADY assert - the
+section a row sits under, the `part-of` parent, the owner column - before any
+new classification is invented.
