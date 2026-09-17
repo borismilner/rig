@@ -56,7 +56,7 @@ func TestASectionThatStatesNoHeadingParsesToNoEntry(t *testing.T) {
 // `#####` is OUTSIDE it and is reported rather than imported, so the thirteen
 // that exist today - three of them Boris's own rulings - are visible in
 // `--check` until somebody rules on them.
-func TestTheGrainIsTwoToFourAndDeeperIsReportedRatherThanImported(t *testing.T) {
+func TestTheGrainIsTwoToFiveAndDeeperIsReportedRatherThanImported(t *testing.T) {
 	const doc = `## 39. The continuity record
 
 top prose
@@ -69,7 +69,12 @@ what it says
 
 what that says
 
-##### Too deep to be a record
+##### The ruling under the detail
+
+what THAT says. Boris widened the grain to five on 2026-09-17 because three
+of his own rulings were sitting at this level and rig could not reach them.
+
+###### Too deep to be a record
 
 deep prose
 `
@@ -79,7 +84,8 @@ deep prose
 	}
 
 	want := "39/39-the-continuity-record 39/39-the-continuity-record/a-ruling " +
-		"39/39-the-continuity-record/a-ruling/the-detail"
+		"39/39-the-continuity-record/a-ruling/the-detail " +
+		"39/39-the-continuity-record/a-ruling/the-detail/the-ruling-under-the-detail"
 	if got := strings.Join(planKeys(p), " "); got != want {
 		t.Errorf("entries = {%s}\n          want {%s}", got, want)
 	}
@@ -91,11 +97,11 @@ deep prose
 	if u.Kind != UnimportedHeadingTooDeep {
 		t.Errorf("the deep heading is kind %q, want %q", u.Kind, UnimportedHeadingTooDeep)
 	}
-	if u.Label != "Too deep to be a record" || u.Line != 13 {
+	if u.Label != "Too deep to be a record" || u.Line != 18 {
 		t.Errorf("the report does not resolve to the heading: %+v", u)
 	}
-	if u.Under != "39/39-the-continuity-record/a-ruling/the-detail" {
-		t.Errorf("the deep heading names %q as its enclosure, want the `####` above it", u.Under)
+	if u.Under != "39/39-the-continuity-record/a-ruling/the-detail/the-ruling-under-the-detail" {
+		t.Errorf("the deep heading names %q as its enclosure, want the `#####` above it", u.Under)
 	}
 }
 

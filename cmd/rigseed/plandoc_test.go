@@ -127,17 +127,22 @@ func TestAPlanHeadingsParentIsTheHeadingAboveIt(t *testing.T) {
 }
 
 // ⛔ THE THIRTEEN `#####` HEADINGS ARE REPORTED WITH THEIR FILE AND LINE, NEVER
-// IMPORTED. They are outside the grain Boris ruled, three of them are his own
-// rulings, and `--check` exits 2 over them until somebody rules - which is
-// B73's precedent, where a non-empty set was called the point rather than a
-// failure.
+// IMPORTED. The bound is Boris's and a heading below it is REPORTED rather than
+// dropped, which is section 39's migration rule.
+//
+// ⛔ THE BOUND MOVED ONCE, AND THIS TEST MOVED WITH IT. Until 2026-09-17 the
+// grain was 2-4 and this fixture used `#####`: thirteen real `#####` headings
+// were being reported, THREE OF THEM HIS OWN RULINGS, including section 39's
+// "fill everything in first". Shown that, he widened the grain to 5. The fixture
+// is now `######` so the test still has something outside the bound to catch -
+// a test whose case has been legalised has stopped being able to fail.
 func TestAHeadingBelowTheRuledGrainIsReportedWithItsFileAndLine(t *testing.T) {
 	o := options{project: "rig", backlog: "BACKLOG.md", decisions: "DECISIONS.md", planDir: "plan"}
 	p := planFor(o, oneRow(), record.DecisionParse{},
 		planParseOf(t, "39-the-continuity-record.md",
-			"## 39. The continuity record\n\n##### FILL EVERYTHING IN FIRST.\n"))
+			"## 39. The continuity record\n\n###### DEEPER THAN THE RULED GRAIN.\n"))
 
-	if has(ids(p.want), "39/39-the-continuity-record/fill-everything-in-first") {
+	if has(ids(p.want), "39/39-the-continuity-record/deeper-than-the-ruled-grain") {
 		t.Fatal("a heading below the ruled grain was IMPORTED; the grain is Boris's")
 	}
 	if len(p.unimported) != 1 {
@@ -215,11 +220,11 @@ func TestRigsOwnPlanParsesAtTheRuledGrain(t *testing.T) {
 	// speaks when it disagrees cannot be told from one that never ran, and
 	// these are the numbers the lead asked to see as a set difference.
 	t.Logf("plan/ at the ruled grain: %d requirement records over %d section files "+
-		"(## %d, ### %d, #### %d), %d headings below the grain",
-		byLevel["2"]+byLevel["3"]+byLevel["4"], len(sections),
-		byLevel["2"], byLevel["3"], byLevel["4"], len(pp.Unimported))
+		"(## %d, ### %d, #### %d, ##### %d), %d headings below the grain",
+		byLevel["2"]+byLevel["3"]+byLevel["4"]+byLevel["5"], len(sections),
+		byLevel["2"], byLevel["3"], byLevel["4"], byLevel["5"], len(pp.Unimported))
 
-	if got := byLevel["2"] + byLevel["3"] + byLevel["4"]; got != len(pp.Entries) {
+	if got := byLevel["2"] + byLevel["3"] + byLevel["4"] + byLevel["5"]; got != len(pp.Entries) {
 		t.Errorf("%d entries parsed and %d planned; every entry becomes a record", len(pp.Entries), got)
 	}
 	if len(sections) != 42 {
@@ -275,7 +280,7 @@ func TestTheUnimportedBlockSaysWhyEachKindIsThere(t *testing.T) {
 		Unimported: []record.Unimported{{Kind: record.UnimportedIrregularID, ID: "B60-2", Line: 400}},
 	}, record.DecisionParse{},
 		planParseOf(t, "39-the-continuity-record.md",
-			"## 39. The continuity record\n\n##### FILL EVERYTHING IN FIRST.\n"))
+			"## 39. The continuity record\n\n###### DEEPER THAN THE RULED GRAIN.\n"))
 
 	var b bytes.Buffer
 	d(p).report(&b, o, p, "production")

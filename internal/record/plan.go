@@ -29,14 +29,27 @@ import (
 // planLevels is the ruled grain, as a pair of bounds rather than as two
 // literals sprinkled through the loop.
 //
-// ⛔ THE UPPER BOUND IS A RULING AND NOT A TUNING. `#####` headings exist in
-// the document today and are deliberately OUTSIDE this range; they arrive as
-// UnimportedHeadingTooDeep so a reader can see what was left behind, which is
-// section 39's migration rule - import everything and flag what is irregular -
-// applied to a grain somebody has to widen on purpose.
+// ⛔ THE UPPER BOUND IS A RULING AND NOT A TUNING, and it has been widened
+// once, on purpose, by the person whose ruling it is.
+//
+// Boris ruled the grain on 2026-09-16 as `##`, `###` and `####`, and the bound
+// was 4. On 2026-09-17 he was shown the thirteen `#####` headings that fell
+// outside it - THREE OF THEM HIS OWN RULINGS, including section 39's "fill
+// everything in first", which is the ruling the whole plan import came from -
+// and he widened it to 5. A ruling nobody could reach from rig was the argument.
+//
+// The cost he was shown and accepted: 329 requirement records become 342, about
+// four percent more graph. What it bought: the reported-unimported set for this
+// reason goes to zero, so `rigseed --check` stops carrying a question nobody had
+// answered.
+//
+// ⛔ IT STAYS A RULING. Widening it again is his call and not a seat's, and
+// anything below the bound must keep arriving as UnimportedHeadingTooDeep rather
+// than being dropped - section 39's migration rule is import everything and flag
+// what is irregular.
 const (
 	planMinLevel = 2
-	planMaxLevel = 4
+	planMaxLevel = 5
 )
 
 // planFileName is the shape `tools/plansplit.py` gives every section file. The
@@ -64,7 +77,7 @@ type PlanEntry struct {
 	// Section is the number in the FILE NAME, not one read out of the heading.
 	Section int
 
-	// Level is the markdown heading level: 2, 3 or 4.
+	// Level is the markdown heading level: 2, 3, 4 or 5.
 	Level int
 
 	// PartOf is the Key of the nearest enclosing heading that is itself an
