@@ -284,6 +284,49 @@ that number was read as the cost of the whole thing. **The MVP is slices 1, 2
 and 4** - and a number for that subset is owed rather than assumed, because
 the sizing was never cut that way.
 
+#### ⛔ THE CUTOVER IS A DUAL RUN, AND HE DECIDES WHEN IT ENDS. RULED BY BORIS 2026-09-17.
+
+> *"Once we are there, you are to populate the `rig` information into `rig` from
+> scratch so that it is perfectly represented for us to be using `rig` for the
+> development of `rig`... Just in case, we'll keep the information both in `rig`
+> and in the logbook until we are absolutely comfortable with letting go of
+> `logbook` and staying just with `rig`."*
+
+⛔ **THIS CHANGES THE SHAPE OF THE ENDING AND `READINESS.txt` SAID OTHERWISE.**
+That file's SCOPE line reads *"It REPLACES THE LOGBOOK - one stop shop per
+project"* and its TEST line has the symlinks and the two-repo commit rule
+disappearing. **Both describe the END STATE and neither described the
+TRANSITION, which is now specified:**
+
+| Phase | State |
+|---|---|
+| **1. today** | the logbook is authoritative; rig holds a projection of it |
+| **2. at the MVP** | ⛔ **REPOPULATE rig FROM SCRATCH**, then **BOTH are kept** |
+| **3. when HE says so** | *"absolutely comfortable"* - **HIS words and HIS call.** The logbook goes |
+
+⛔ **"FROM SCRATCH" IS THE OPERATIVE PHRASE AND IT IS NOT A RE-RUN OF
+`rigseed`.** Today's store is an INCREMENTAL projection of one document,
+`BACKLOG.md`, at a grain the parser happened to reach - **4.13% of it, and B46
+is in no record at all because the parser keys on table rows and B46 is a
+heading.** He asked for rig to be *"perfectly represented"*, which is a
+different artefact: **the decisions, the requirements, the coordination facts
+and the work, all of them, at a grain chosen deliberately.** B66 is the row
+about that grain and it is on the path to this.
+
+⛔ **AND THE DUAL RUN MAKES B63 LIVE RATHER THAN THEORETICAL.** B63 says seeding
+is a one-shot and not a sync, so rig's record goes stale the moment a row is
+filed. **Two authoritative-looking stores that disagree is strictly worse than
+either alone**, and the dual run is precisely that arrangement held deliberately
+for a while. **So the phase-2 design owes an answer to "which one is
+authoritative while both exist" BEFORE the repopulation, not after.** It was
+measured again on 2026-09-17: B65 was struck in the document and still read
+`active` in the store, and a seat then quoted the document's number as the
+store's.
+
+⛔ **WHAT THE DUAL RUN IS NOT: A LICENCE TO KEEP WRITING PROSE.** The point of
+the record is that a seat stops composing documents. **Keeping the logbook is a
+SAFETY NET he asked for, not a second place to author.**
+
 #### ⛔ HE IS OWED A REPORT THE MOMENT rig CAN BE USED ON rig. RULED BY BORIS 2026-09-17.
 
 **His words, to the eleventh lead generation, instructing the handover:**
