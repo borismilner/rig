@@ -301,12 +301,36 @@ he does not ask again, and waiting to be asked is the failure.
 | **the bar** | his own MVP definition, verbatim: *"being able to use `rig` to work on `rig` with respect to the project/case management"* |
 | **who owns it** | the **team-lead**, through `READINESS.txt`, which is the only artefact allowed to answer "how much longer" |
 | **what it is NOT** | ⛔ **not the AgentBox-GUI readiness report**, which is a separate standing report in the same file with a different bar. **Two reports, two bars, and answering one with the other is the defect §39 already names about the two MVP questions** |
-| **what blocks it today** | **B64 alone.** Three of section 39's ten kinds are write-only, so rig reads its own backlog and cannot hold its own rulings |
+| **what blocks it today** | **B64 is the next capability** - three of section 39's ten kinds cannot be RENDERED, so rig reads its own backlog and cannot show its own rulings. ⛔ **"B64 alone" is a SEAT'S READING and stood here as a measurement.** Nobody has demonstrated that closing B64 makes the bar met: his acceptance test is B46, and B46 is in no record at all, which is B66. Corrected 2026-09-17 by lead generation 12 |
+
+⛔ **IT IS A REPORT, NOT A VERDICT, AND THAT IS THE LOAD-BEARING HALF.** The
+seat states what rig can now do that it could not, what it still cannot, and
+where that leaves his own sentence. **Then HE says whether the bar is met.**
+
+**The bar is his: *"being able to use `rig` to work on `rig` with respect to the
+project/case management."* That clause has no test a seat can write**, so a seat
+grading it is a seat answering his question for him - which is the thing he
+objected to on 2026-09-16 in the words *"I want to be in control of where things
+are going."*
+
+| Failure | Cost |
+|---|---|
+| a **false READY** | he acts on a capability that is not there. ⛔ **Much the worse of the two** |
+| a **withheld NOT-READY** | a real capability sits unused because a seat graded his sentence for him |
 
 ⛔ **AND THE REPORT CARRIES ITS CONFIDENCE, UNPROMPTED.** Two items in this
 project have ever been executed against an estimate. A "we are ready" that
 rests on a number nobody ran is the shape this section spends its longest
-passages warning about.
+passages warning about. ⛔ **THE FORM IS THE NAMED GAPS, NEVER AN INVENTED
+RANGE** - he has been given invented ranges before.
+
+⛔ **AND "CARRY THE CONFIDENCE WITH IT" IS NOT HIS.** It rode in `READINESS.txt`
+and in the entrypoint as though it were part of his instruction; it is lead
+generation 11's own elaboration, conceded when generation 12 asked for the
+verbatim. **The habit is sound and is kept on its own merits. The attribution is
+withdrawn.** ⛔ **Third instance of this section's own rule: a quotation
+attributed to Boris that cannot be traced to a transcript is a seat's paraphrase
+until proved otherwise, and the carrier of a quotation is never its evidence.**
 
 #### ⛔ THE WARM-HANDOFF MARK IS 40% OF THE CONTEXT WINDOW. RULED BY BORIS 2026-09-17, SECOND STATEMENT.
 
