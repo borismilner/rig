@@ -182,7 +182,17 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 			// a seat, piped prose is discarded and reported as created, a
 			// brief for a project that does not exist exits 0, and nothing
 			// can retract a record. All four OPEN.
-			"B72", "B73", "B74", "B75", "B76", "B77", "B8", "B9",
+			// B78-B82 filed 2026-09-17 by team-lead generation 14, from the
+			// A0 survey's 1,152-line FINDINGS.md that generation 13 never
+			// read: the kind vocabulary is invisible from the product, an
+			// invented kind renders in nothing without even being labelled,
+			// fix_command names a program that is not connected, and dry-run
+			// is declared absent on a command that honours it. B82 is the
+			// process row - nineteen candidates were measured and four became
+			// rows, and nobody asked the seat what it was leaving out. All
+			// five OPEN.
+			"B72", "B73", "B74", "B75", "B76", "B77", "B78", "B79", "B8",
+			"B80", "B81", "B82", "B9",
 		})
 
 	// B65 joins this set 2026-09-17: the field predicate landed at rig
@@ -262,9 +272,26 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 		// closed, so `closed` is unmoved at 12 and both other numbers rise by
 		// exactly four. One direction only, which is the case these counts
 		// CAN see - the set pin above is what names which four.
-		{"rows", len(items), 82},
+		//
+		// 82 -> 87 and 70 -> 75 open, 2026-09-17 later, by team-lead
+		// generation 14: B78-B82 filed from the section 09 A0 survey's
+		// FINDINGS.md, which generation 13 never read - four measured gaps
+		// that had no row, plus B82 recording why nineteen candidates became
+		// four. None closed, so `closed` is again unmoved at 12 and both other
+		// numbers rise by exactly five.
+		//
+		// ⛔ THIS MOVE WAS FOUND BY A PEER AND ATTRIBUTED CORRECTLY, WHICH IS
+		// THE PART WORTH KEEPING. The parser seat hit this red mid-task, ran
+		// this test's OWN discriminator in a detached worktree at its commit's
+		// PARENT, got the identical numbers there, and saw
+		// TestTheBacklogParserReadsEveryRowShapeTheSameWay still passing -
+		// which by that test's own message means the DOCUMENT moved and the
+		// parser did not. It did not touch the numbers; it said whose they
+		// were. **A red in a shared tree is attributable in one worktree run,
+		// and guessing costs more than measuring.**
+		{"rows", len(items), 87},
 		{"closed", len(struck) + len(byLead), 12},
-		{"open", open, 70},
+		{"open", open, 75},
 	} {
 		if c.got != c.want {
 			t.Errorf("%s: %d, pinned at %d.\n"+

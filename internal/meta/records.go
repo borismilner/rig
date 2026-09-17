@@ -285,9 +285,9 @@ type RecordAnswer struct {
 	Linked bool `json:"linked,omitempty"`
 }
 
-func (s *Server) recordPut(who kernel.Principal, r Request) (Answer, error) {
+func (s *Server) recordPut(ctx context.Context, who kernel.Principal, r Request) (Answer, error) {
 	return s.recordTool(who, RecordPutTool, func(rc Records, out *Answer) error {
-		row, err := rc.Put(context.Background(), RecordPut{
+		row, err := rc.Put(ctx, RecordPut{
 			ID: r.RecordID, Project: r.Project, Kind: r.Kind,
 			Body: r.Body, Fields: r.Fields, IfVersion: r.IfVersion,
 		})

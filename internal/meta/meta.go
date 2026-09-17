@@ -348,7 +348,7 @@ func (s *Server) Answer(ctx context.Context, who kernel.Principal, r Request) (A
 	case ListAgents:
 		return s.listAgents(who, r)
 	case RecordPutTool:
-		return s.recordPut(who, r)
+		return s.recordPut(ctx, who, r)
 	case RecordGetTool:
 		return s.recordGet(ctx, who, r)
 	case RecordQueryTool:

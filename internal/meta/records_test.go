@@ -34,8 +34,10 @@ func (h *holdsRecords) Put(_ context.Context, in meta.RecordPut) (meta.RecordRow
 	if h.err != nil {
 		return meta.RecordRow{}, h.err
 	}
-	return meta.RecordRow{ID: in.ID, Project: in.Project, Kind: in.Kind,
-		Version: 1, Body: in.Body, Fields: in.Fields, Seat: "backend-1"}, nil
+	return meta.RecordRow{
+		ID: in.ID, Project: in.Project, Kind: in.Kind,
+		Version: 1, Body: in.Body, Fields: in.Fields, Seat: "backend-1",
+	}, nil
 }
 
 func (h *holdsRecords) Get(_ context.Context, id string, version uint64) (meta.RecordRow, error) {
