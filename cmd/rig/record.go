@@ -1203,7 +1203,8 @@ func recordHistory(rf *recordFlags, rest []string) error {
 		if *rf.asJSON {
 			return json.NewEncoder(os.Stdout).Encode(recordsJSON(recs, time.Now()))
 		}
-		fmt.Print(historyText(rest[0], recs, time.Now()))
+		fmt.Print(historyText(rest[0], recs, time.Now(),
+			briefStyleFor(os.Stdout).Width))
 		return nil
 	})
 }
@@ -1287,7 +1288,7 @@ func recordRefs(rf *recordFlags, rest []string) error {
 		if *rf.asJSON {
 			return json.NewEncoder(os.Stdout).Encode(refsJSON(refs))
 		}
-		fmt.Print(refsText(refs))
+		fmt.Print(refsText(refs, briefStyleFor(os.Stdout).Width))
 		return nil
 	})
 }
@@ -1677,6 +1678,47 @@ func queryText(a QueryArgs, rs []Record, width int) string {
 // one table, and a reader scanning a column cannot tell which kind of line
 // they are on.
 func queryTable(b *strings.Builder, header []string, rows [][]string, width int) {
+	keyedTable(b, header, rows, width,
+		"An id here is longer than the page, so each is printed whole on its "+
+			"own line below its row: a cut id cannot be pasted into "+
+			"`rig record get`, and these ids share prefixes long enough that "+
+			"cutting would make several of them identical.")
+}
+
+// keyedTable is the ruled width rule for any table whose FIRST column is a key.
+//
+// ⛔ IT IS ONE ANSWER BECAUSE A SECOND ONE WAS ALREADY THE DEFECT. `queryTable`
+// and `briefGoverningRows` reached the same three clauses independently, and a
+// THIRD copy was owed the day `record refs` needed it - at which point the rule
+// would have been stated three times and enforced nowhere. `briefGoverningRows`
+// stays where it is: its heading is bespoke and its table is two columns after
+// the key, so folding it in would cost more than it saves.
+//
+// The three clauses, in the order they apply:
+//
+//  1. PIN the key column so the prose pays. briefFitAround takes the width out
+//     of the widest column that is NOT pinned. Measured at 80 columns against
+//     the live store, five of six governing ids rendered the identical stub
+//     because the cut fell inside a shared prefix. An elided title still
+//     reads; an elided id identifies nothing and cannot be pasted into
+//     `rig record get`, which is the one thing the column is for.
+//  2. CHOOSE THE LAYOUT at a default width when there is no terminal. A layout
+//     chosen for a default takes no bytes away, so a pipe's consumer still
+//     reads every one.
+//  3. CUT a cell only at a REAL terminal. st.Width and not the default -
+//     passing the default to the fit is what put an ellipsis into a pipe on
+//     brief.go's first run of this code.
+//
+// AND THE LAYOUT IS ALL-OR-NOTHING FOR THE WHOLE TABLE: either every key sits
+// in the column, or the key steps out for EVERY row and is printed whole
+// beneath it. A per-row choice was this file's first answer and it is a SECOND
+// RULE - two shapes of row in one table, and a reader scanning a column cannot
+// tell which kind of line they are on.
+//
+// `note` is what the step-out form says before it, because a reader meeting the
+// two-line shape has to be told it is a layout rather than a defect. It differs
+// per table, which is why it is an argument and not a constant here.
+func keyedTable(b *strings.Builder, header []string, rows [][]string, width int, note string) {
 	if len(header) == 0 {
 		return
 	}
@@ -1696,9 +1738,9 @@ func queryTable(b *strings.Builder, header []string, rows [][]string, width int)
 		}
 	}
 
-	// The narrowest the inline form can be without cutting an id: the ids at
-	// full width, every middle column at full width, and the summary squeezed
-	// to the floor below which a cell is an ellipsis and a letter.
+	// The narrowest the inline form can be without cutting a key: the keys at
+	// full width, every middle column at full width, and the last column
+	// squeezed to the floor below which a cell is an ellipsis and a letter.
 	inline := widest + 2 + briefMinCell
 	for i := 1; i < len(header)-1; i++ {
 		w := utf8.RuneCountInString(header[i])
@@ -1711,28 +1753,25 @@ func queryTable(b *strings.Builder, header []string, rows [][]string, width int)
 	}
 	if inline <= budget {
 		// ⛔ THE PIN IS THE INVARIANT AND THE CONDITION ABOVE IS ITS PROOF, so
-		// do not read the pin as the only thing holding the id whole. `inline`
-		// already reserves the id at FULL width with every other column at its
-		// floor, so briefFitAround runs out of deficit before the id could
-		// become the column it takes from - measured by mutation: removing the
-		// pin changed no output. It stays because it states WHICH column is
-		// the key, and because a later change to `inline` would otherwise make
-		// the id payable with nothing saying it had.
+		// do not read the pin as the only thing holding the key whole.
+		// `inline` already reserves the key at FULL width with every other
+		// column at its floor, so briefFitAround runs out of deficit before
+		// the key could become the column it takes from - measured by
+		// mutation: removing the pin changed no output. It stays because it
+		// states WHICH column is the key, and because a later change to
+		// `inline` would otherwise make the key payable with nothing saying
+		// it had.
 		briefTableAround(b, st, header, rows, map[int]bool{0: true})
 		return
 	}
 
-	// The id steps out. KIND, VERSION and the rest keep their table, so the
-	// listing is still scannable down a column; only the key leaves it.
-	b.WriteString(briefWrap("An id here is longer than the page, so each is "+
-		"printed whole on its own line below its row: a cut id cannot be "+
-		"pasted into `rig record get`, and these ids share prefixes long "+
-		"enough that cutting would make several of them identical.",
-		budget) + "\n")
+	// The key steps out. Every other column keeps its table, so the listing is
+	// still scannable down a column; only the key leaves it.
+	b.WriteString(briefWrap(note, budget) + "\n")
 
 	// ⛔ THE REMAINING COLUMNS ARE LAID OUT HERE RATHER THAN THROUGH
 	// briefTableAround, and it is the duplication briefGoverningRows already
-	// accepted for the same reason: the id line has to be indented to the
+	// accepted for the same reason: the key line has to be indented to the
 	// first column, and a renderer that computes its widths privately cannot
 	// be asked what they came out as. Recomputing them beside it would be two
 	// places deciding one layout.
@@ -1766,7 +1805,7 @@ func queryTable(b *strings.Builder, header []string, rows [][]string, width int)
 		return out.String()
 	}
 
-	// ⛔ THE ID IS INDENTED TO THE SECOND COLUMN AND NEVER PASSED THROUGH
+	// ⛔ THE KEY IS INDENTED TO THE SECOND COLUMN AND NEVER PASSED THROUGH
 	// briefElide. It is the one cell in this listing that must survive whole,
 	// and the indent is what keeps it reading as part of the row above rather
 	// than as a row of its own.
@@ -1819,7 +1858,7 @@ func firstLine(s string) string {
 // be traced to a transcript is a paraphrase until proved otherwise" becomes a
 // field rather than an investigation. A history without a seat and a session
 // per row would have answered the wrong question.
-func historyText(id string, rs []Record, now time.Time) string {
+func historyText(id string, rs []Record, now time.Time, width int) string {
 	var b strings.Builder
 
 	// An id with no versions cannot happen through the store - History
@@ -1850,7 +1889,23 @@ func historyText(id string, rs []Record, now time.Time) string {
 			recordSummary(r),
 		})
 	}
-	writeTable(&b, []string{"VERSION", "SEAT", "EPOCH", "AGE", "SUMMARY"}, rows)
+	// ⛔ THE SUMMARY IS PROSE AND writeTable SIZED THE COLUMN TO THE LONGEST
+	// ONE, so a single wordy version set the width of every row and the table
+	// ran off the page. The house rule instead: the VERSION key is pinned, the
+	// summary pays for any squeeze, and a cell is cut only at a real terminal.
+	//
+	// ⛔ THE PIN CANNOT BIND HERE AND IS STILL WRITTEN. `v12` is four columns
+	// and can never be the widest, so briefFitAround would never choose it -
+	// but which column is the KEY is a fact about this table rather than about
+	// today's data, and the day an id-shaped column arrives the rule has to be
+	// already stated. The step-out form is unreachable for the same reason and
+	// is not special-cased: an unreachable branch that is correct costs
+	// nothing, and a table that grows a long key later gets the right layout
+	// with no second reading of this function.
+	keyedTable(&b, []string{"VERSION", "SEAT", "EPOCH", "AGE", "SUMMARY"},
+		rows, width,
+		"A version key here is longer than the page, so each is printed "+
+			"whole on its own line below its row.")
 	fmt.Fprintf(&b, "\n%s, %d version%s, oldest first.\n", id, len(rs),
 		plural(len(rs)))
 	return b.String()
@@ -1928,7 +1983,7 @@ func refsJSON(r Refs) map[string]any {
 // row prints the edge whole - src, type, dst - rather than only the other end,
 // because a reader scanning a column of ids has no way to know which side of
 // the arrow they are on.
-func refsText(r Refs) string {
+func refsText(r Refs, width int) string {
 	var b strings.Builder
 
 	// NOTHING POINTING AT A RECORD IS AN ANSWER AND A LOUD ONE. It is what a
@@ -1983,8 +2038,23 @@ func refsText(r Refs) string {
 			strconv.Itoa(e.Distance),
 		})
 	}
-	writeTable(&b, []string{"SRC", "KIND", "TYPE", "VIA", "HOPS"}, rows)
-	b.WriteString(refsTitleBlock(r.In))
+	// ⛔ SRC IS AN ID AND writeTable PADDED THE COLUMN TO THE LONGEST ONE. The
+	// live store's longest id is 161 characters - a doc-key slug derived from
+	// two headings - so one such row started every other row's KIND cell at
+	// column 163 and the table was unreadable for the 550 rows that did not
+	// share it.
+	//
+	// ⛔ AND AN ELIDED SRC IS WORSE THAN A WIDE ONE, WHICH IS WHY THE KEY IS
+	// PINNED RATHER THAN FITTED. These ids share long prefixes, so a cut falls
+	// inside the shared part and several rows render as the same stub - an id
+	// that cannot be told from its neighbour and cannot be pasted into
+	// `rig record get` has stopped doing the one job the column has.
+	keyedTable(&b, []string{"SRC", "KIND", "TYPE", "VIA", "HOPS"}, rows, width,
+		"A src id here is longer than the page, so each is printed whole on "+
+			"its own line below its row: a cut id cannot be pasted into "+
+			"`rig record get`, and these ids share prefixes long enough that "+
+			"cutting would make several of them identical.")
+	b.WriteString(refsTitleBlock(r.In, width))
 	// THE VERB AGREES WITH THE SUBJECT. It read "1 edge point at B9" until
 	// S5 reported it; plural() gives the noun its s and the verb needs the
 	// opposite one.
@@ -2010,7 +2080,19 @@ func refsText(r Refs) string {
 // a title for every record that has one and the field is genuinely empty for a
 // record with neither; a row saying `01927-src  (none)` teaches a reader that
 // the block is broken.
-func refsTitleBlock(in []Ref) string {
+// ⛔ THE ID AND THE TITLE GO ON SEPARATE LINES AND THE TITLE IS WRAPPED, AND
+// THIS BLOCK WAS THE LAST OVERRUNNING THING ON THE PAGE ONCE THE TABLE WAS
+// RULED. Measured against a copy of the production store with six 161-column
+// doc-key ids citing one record: the table came down to the rule and these
+// lines still rendered at 263, because `id + two spaces + title` is unbounded
+// in both halves at once.
+//
+// One line each is what the width rule already says everywhere else: the ID IS
+// NEVER CUT because a cut id cannot be pasted into `rig record get`, and the
+// TITLE IS PROSE so it wraps under the indent. Putting the title on the id's
+// own line would mean choosing which of the two pays, and the answer is that
+// neither has to.
+func refsTitleBlock(in []Ref, width int) string {
 	seen := map[string]bool{}
 	var b strings.Builder
 	for _, e := range in {
@@ -2018,7 +2100,14 @@ func refsTitleBlock(in []Ref) string {
 			continue
 		}
 		seen[e.Src] = true
-		fmt.Fprintf(&b, "  %s  %s\n", e.Src, firstLine(e.Title))
+		// The id whole, on its own line, indented like the table's rows.
+		fmt.Fprintf(&b, "  %s\n", e.Src)
+		// ⛔ THE TITLE WRAPS AT A DEFAULT WHEN THERE IS NO TERMINAL, WHICH IS
+		// NOT THE SAME AS BEING CUT. briefWrapUnits inserts newlines and
+		// discards nothing, so a pipe's consumer still reads every byte -
+		// the distinction briefStyle's zero value exists to keep.
+		b.WriteString(briefWrapUnits(strings.Fields(firstLine(e.Title)),
+			"      ", "      ", width))
 	}
 	if b.Len() == 0 {
 		return ""

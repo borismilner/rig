@@ -653,7 +653,7 @@ func TestTheHistoryCarriesWhoWroteEachVersion(t *testing.T) {
 	got := historyText("01927-abc", []Record{
 		record(func(r *Record) { r.Version = 1; r.Prov.Seat = "backend-1" }),
 		record(func(r *Record) { r.Version = 2; r.Prov.Seat = "record" }),
-	}, now)
+	}, now, 0)
 
 	for _, want := range []string{"backend-1", "record"} {
 		if !strings.Contains(got, want) {
@@ -680,7 +680,7 @@ func TestTheHistoryCarriesWhoWroteEachVersion(t *testing.T) {
 // requirement is exactly what record.refs exists to make visible, and a blank
 // table would read as a failed call.
 func TestARecordNothingPointsAtGetsASentenceAndNotABlank(t *testing.T) {
-	got := refsText(Refs{ID: "01927-abc", Depth: 2})
+	got := refsText(Refs{ID: "01927-abc", Depth: 2}, 0)
 
 	if strings.Contains(got, "SRC") {
 		t.Errorf("an empty refs answer printed a table header:\n%s", got)
@@ -703,7 +703,7 @@ func TestARefRowPrintsBothEndsAndTheType(t *testing.T) {
 			Src: "01927-src", Type: "cites", Via: "01927-dst",
 			Kind: "decision", Title: "the priority ruling", Distance: 1,
 		},
-	}})
+	}}, 0)
 
 	// ⛔ `via` IS THE FAR END, NOT A DECORATION ON THE ROW. At distance 1 it is
 	// the subject itself, which is the case asserted here; past that it is the
@@ -1305,7 +1305,7 @@ func TestEveryStepStateTheWireDeclaresIsAcceptedByName(t *testing.T) {
 func TestATruncatedRefsAnswerSaysItIsPartial(t *testing.T) {
 	full := refsText(Refs{ID: "x", Depth: 2, In: []Ref{
 		{Src: "a", Type: "cites", Via: "x", Kind: "decision", Distance: 1},
-	}})
+	}}, 0)
 	if strings.Contains(strings.ToUpper(full), "TRUNCATED") {
 		t.Errorf("a COMPLETE answer announced a truncation, so the assertion "+
 			"below cannot tell the two apart:\n%s", full)
@@ -1313,7 +1313,7 @@ func TestATruncatedRefsAnswerSaysItIsPartial(t *testing.T) {
 
 	cut := refsText(Refs{ID: "x", Depth: 2, Truncated: true, In: []Ref{
 		{Src: "a", Type: "cites", Via: "x", Kind: "decision", Distance: 1},
-	}})
+	}}, 0)
 	if !strings.Contains(strings.ToUpper(cut), "TRUNCATED") {
 		t.Errorf("a PARTIAL answer rendered exactly like a complete one:\n%s", cut)
 	}
@@ -1321,7 +1321,7 @@ func TestATruncatedRefsAnswerSaysItIsPartial(t *testing.T) {
 	// AND ON AN EMPTY ANSWER TOO, which is the case where it matters most: a
 	// reader is being told nothing points at this record, and the walk may
 	// simply not have got there.
-	empty := refsText(Refs{ID: "x", Depth: 1, Truncated: true})
+	empty := refsText(Refs{ID: "x", Depth: 1, Truncated: true}, 0)
 	if !strings.Contains(strings.ToUpper(empty), "TRUNCATED") {
 		t.Errorf("an empty PARTIAL answer read as \"nothing points at this\", "+
 			"which is a different claim:\n%s", empty)
@@ -1332,7 +1332,7 @@ func TestATruncatedRefsAnswerSaysItIsPartial(t *testing.T) {
 // around, never resolved - rig does not pick an edge to break, because
 // choosing which one is wrong is a judgement about the work.
 func TestRefsNamesACycleAndOffersNoEdgeToBreak(t *testing.T) {
-	got := refsText(Refs{ID: "x", Depth: 3, Cycles: [][]string{{"a", "b", "c"}}})
+	got := refsText(Refs{ID: "x", Depth: 3, Cycles: [][]string{{"a", "b", "c"}}}, 0)
 
 	for _, want := range []string{"a -> b -> c -> a"} {
 		if !strings.Contains(got, want) {
@@ -2512,7 +2512,7 @@ func TestTheTextHeadersAreTheWiresOwnFieldNames(t *testing.T) {
 	out := refsText(Refs{
 		ID: "r39", Depth: 4,
 		In: []Ref{{Src: "d-1", Type: "cites", Via: "r39", Kind: "decision", Distance: 1}},
-	})
+	}, 0)
 	for _, want := range []string{"SRC", "TYPE", "VIA", "KIND"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the refs table has no %s column:\n%s", want, out)
@@ -2545,7 +2545,7 @@ func emittedKeys(m map[string]any) []string {
 func TestTheRefsFooterVerbAgreesWithItsSubject(t *testing.T) {
 	one := refsText(Refs{ID: "B9", Depth: 4, In: []Ref{
 		{Src: "d-1", Type: "part-of", Via: "B9", Distance: 1},
-	}})
+	}}, 0)
 	if !strings.Contains(one, "1 edge points at B9") {
 		t.Errorf("a single edge reads:\n%s", one)
 	}
@@ -2553,7 +2553,7 @@ func TestTheRefsFooterVerbAgreesWithItsSubject(t *testing.T) {
 	two := refsText(Refs{ID: "B9", Depth: 4, In: []Ref{
 		{Src: "d-1", Type: "part-of", Via: "B9", Distance: 1},
 		{Src: "d-2", Type: "part-of", Via: "B9", Distance: 1},
-	}})
+	}}, 0)
 	if !strings.Contains(two, "2 edges point at B9") {
 		t.Errorf("two edges read:\n%s", two)
 	}
@@ -2565,7 +2565,7 @@ func TestTheRefsFooterVerbAgreesWithItsSubject(t *testing.T) {
 // change: a record dropped by the project scope comes back with
 // --cross-project and never with a bigger number.
 func TestATruncatedAnswerNamesBothWaysOut(t *testing.T) {
-	got := refsText(Refs{ID: "r39", Depth: 4, Truncated: true})
+	got := refsText(Refs{ID: "r39", Depth: 4, Truncated: true}, 0)
 	for _, want := range []string{"--depth", "--cross-project"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("a truncated answer does not offer %s:\n%s", want, got)
@@ -2584,7 +2584,7 @@ func TestATruncatedAnswerNamesBothWaysOut(t *testing.T) {
 // This is the defect the traversal repair was about, one layer up, and it was
 // found by an adversarial pass over the diff rather than by a test.
 func TestATruncatedEmptyAnswerDoesNotClaimTheRecordIsUncited(t *testing.T) {
-	cut := refsText(Refs{ID: "r39", Depth: 4, Truncated: true})
+	cut := refsText(Refs{ID: "r39", Depth: 4, Truncated: true}, 0)
 	if strings.Contains(cut, "nothing points at") {
 		t.Errorf("a truncated empty answer still claims nothing points at the "+
 			"record:\n%s", cut)
@@ -2596,7 +2596,7 @@ func TestATruncatedEmptyAnswerDoesNotClaimTheRecordIsUncited(t *testing.T) {
 	// AND THE UNTRUNCATED ONE STILL MAKES THE CLAIM, because an uncited
 	// record is what this verb exists to make visible and hedging every
 	// answer would destroy the one it is for.
-	whole := refsText(Refs{ID: "r39", Depth: 4})
+	whole := refsText(Refs{ID: "r39", Depth: 4}, 0)
 	if !strings.Contains(whole, "nothing points at r39") {
 		t.Errorf("a complete empty answer no longer states the absence:\n%s", whole)
 	}
