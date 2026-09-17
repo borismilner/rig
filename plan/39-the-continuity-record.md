@@ -329,6 +329,35 @@ logbook being behind** - so `rigseed --check` is a migration instrument with a
 retirement date, not a permanent sync. **Nothing may be built that assumes the
 document is the original for ever.**
 
+##### ⛔ THE HANDOVER MARK IS 45% OF CONTEXT. BORIS, 2026-09-17. ⛔ SCOPE UNSTATED - SEE BELOW BEFORE YOU INHERIT IT.
+
+> *"You are not to warm-handoff before you get to 45% context. I want you to
+> proceed without stopping unnecessarily and keep me in the loop once in a while
+> on the converging towards the MVP."*
+
+⛔ **IT IS A FLOOR, NOT A TRIGGER.** *"Not to warm-handoff before"* forbids
+handing over early; it does not order a handover at 45%. A seat reading it as
+*"hand off at 45%"* has inverted it.
+
+⛔ **WHETHER IT BINDS THE NEXT SESSION IS NOT STATED, AND THIS ENTRY MUST NOT
+PRETEND OTHERWISE.** He has now given **seven** context numbers - 35, 40, 45, 40,
+45, 40, 45 - and on 2026-09-17 he corrected a seat for persisting one of them:
+*"the rule about 97% session was only for the current session and you seem to
+have persisted it to all sessions."* **So the failure mode is proven, not
+hypothetical.**
+
+⛔ **ASK HIM, ONCE, BEFORE ACTING ON THIS IN A LATER SESSION.** One line is
+cheaper than a false requirement in the specification. **Until he answers, treat
+it as scoped to the session he said it in** - the conservative reading, because
+persisting it wrongly is the error he has already corrected and the other
+direction merely costs one question.
+
+⛔ **THE SECOND HALF IS A STANDING INSTRUCTION AND IS NOT AMBIGUOUS:** *"proceed
+without stopping unnecessarily"* and *"keep me in the loop once in a while"*.
+**A seat that stops to ask what it can decide is failing the first; a seat that
+works silently for an hour is failing the second.** The report he is owed
+(`READINESS.txt`) is the formal one; this is the informal cadence alongside it.
+
 ##### ⛔ THE DUAL RUN IS BOUNDED BY rig's OWN DEVELOPMENT. BORIS, 2026-09-17.
 
 > *"We are using both logbook and rig just for the period of developing of `rig`
