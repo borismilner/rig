@@ -113,7 +113,7 @@ func (d *Daemon) serveMCPConn(ctx context.Context, nc net.Conn) {
 	occ := &occupancy{}
 	defer d.presence.leave(occ)
 
-	server := mcpserver.New(meta.New(d.kernel, &mcpCaller{Daemon: d, occ: occ}),
+	server := mcpserver.New(meta.New(d.kernel, &mcpCaller{Daemon: d, occ: occ, who: who}),
 		who, d.version)
 	d.addMCP(server)
 	defer d.removeMCP(server)

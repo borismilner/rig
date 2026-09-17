@@ -102,9 +102,28 @@ THE SEVEN TOOLS ARE TWO SHAPES, NOT SEVEN FEATURES.
   set_activity    say what you are doing now, and keep it current.
   list_agents     read the roster: who else is here, and doing what.
 
+THE CONTINUITY RECORD - this project's own memory. Section 39.
+
+  record_put      write a record: a decision, a requirement, a working note.
+                  YOU MUST announce FIRST - every record carries the seat that
+                  wrote it, taken from your roster row, never from the request.
+  record_get      read one record, at its current version or an older one.
+  record_query    find records by project and kind, and by field.
+  record_history  every version of one record, oldest first. Nothing is
+                  overwritten here; a superseded wording is still the record
+                  of what was believed.
+  record_link     write a typed edge between two records.
+  record_unlink   remove one.
+  record_refs     what points at this record, and through what.
+  project_brief   the whole project in twelve sections. START HERE ON RESUME.
+                  It tells you whether the project EXISTS, so a typo in a slug
+                  is not reported as a project with nothing to do.
+  progress_step   say a work item started, blocked or finished.
+
 rig itself is not in the program map, so invoke and describe cannot reach it.
 Asking invoke for program "rig" is the common first mistake; ask query with
-subject "estate". Any tool beyond these seven is a promoted program command.
+subject "estate". Any tool beyond the sixteen above is a promoted program
+command.
 
 IF set_activity SAYS YOU HAVE NO ROW, YOU ARE NOT WHERE YOU THINK YOU ARE. A
 row lives exactly as long as the connection that took it, so if you announced
@@ -250,6 +269,134 @@ func New(m *meta.Server, who kernel.Principal, version string) *Server {
 			"missing instead of implying there is none.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ noArgs) (*mcp.CallToolResult, any, error) {
 		return answer(m.Answer(ctx, who, meta.Request{Tool: meta.ListAgents}))
+	})
+
+	// THE NINE RECORD TOOLS, AND THEY ARE FIRST-CLASS FOR THE ROSTER TOOLS'
+	// REASON RATHER THAN A NEW ONE.
+	//
+	// B54 asked the question this answers and said in as many words that nobody
+	// had: "how does a WRITE to rig's own record reach an agent when rig is
+	// deliberately not an invoke target". The three candidate routes were
+	// already closed before this surface was written. `query` is READ-ONLY and
+	// four of these nine are writes. `invoke` is refused for rig on purpose and
+	// pinned by TestRigIsNotAnInvokeTargetOnAnySurface, because rig declares
+	// `down` as EffectsDestructive and a regular surface would hand `rig.down`
+	// to every agent in the estate - and it could not execute anyway, since
+	// Daemon.call routes through a program's own connection and rig has no
+	// connection to itself. Promotion is closed at four independent points.
+	//
+	// So the route is first-class tools, which is exactly where announce,
+	// set_activity and list_agents landed for the same reason. Second
+	// application of a ruling this tree already made rather than a new one.
+	//
+	// THE NAMES ARE THE WIRE'S OWN, with the dot replaced. `record.put` on the
+	// wire is `record_put` here, and that 1:1 map is what stops a silent
+	// porting error between a seat's CLI habits and its agent surface.
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "record_put",
+		Description: "Write a record - a decision, a requirement, a working " +
+			"note, anything this project must not lose. ANNOUNCE FIRST: the " +
+			"seat that wrote it is taken from your roster row and cannot be " +
+			"supplied here, so a write without a seat is refused rather than " +
+			"stored anonymously. Supply if_version to replace a record you " +
+			"have read; omit it to create, which refuses if the id exists.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a recordPutArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.RecordPutTool, RecordID: a.ID, Project: a.Project,
+			Kind: a.Kind, Body: a.Body, Fields: a.Fields, IfVersion: a.IfVersion,
+		}))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "record_get",
+		Description: "Read one record. Omit version for the current one; give " +
+			"a version to read what it said before. The answer carries who " +
+			"wrote it and when.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a recordGetArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.RecordGetTool, RecordID: a.ID, Version: a.Version,
+		}))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "record_query",
+		Description: "Find records by project and kind, and narrow by field. " +
+			"Both are matched EXACTLY, so a kind spelled differently is a " +
+			"different kind; query with neither to list everything and find " +
+			"out how a thing is actually spelled. An empty result means " +
+			"nothing matched - it is an answer, not a failure.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a recordQueryArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.RecordQueryTool, Project: a.Project, Kind: a.Kind, Fields: a.Fields,
+		}))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "record_history",
+		Description: "Every version of one record, oldest first. The record is " +
+			"append-only: a change writes a new version and keeps the old, so " +
+			"'what did this say before' is a question rather than an " +
+			"archaeology.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a recordIDArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.RecordHistoryTool, RecordID: a.ID,
+		}))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "record_link",
+		Description: "Write a typed edge from one record to another, such as " +
+			"part-of or supersedes. ANNOUNCE FIRST: an edge is a claim about " +
+			"two records and carries who made it.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a linkArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.RecordLinkTool, From: a.From, To: a.To, LinkKind: a.Kind,
+		}))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "record_unlink",
+		Description: "Remove one typed edge between two records. ANNOUNCE FIRST.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a linkArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.RecordUnlinkTool, From: a.From, To: a.To, LinkKind: a.Kind,
+		}))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "record_refs",
+		Description: "What points at this record, and through what edge. The " +
+			"answer says whether it was truncated, so a partial picture never " +
+			"arrives looking complete.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a recordIDArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.RecordRefsTool, RecordID: a.ID,
+		}))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "project_brief",
+		Description: "The whole project in twelve sections: what is next, what " +
+			"is blocked, what governs it, what has moved. START HERE WHEN YOU " +
+			"RESUME. It reports whether the project EXISTS as its own fact, so " +
+			"a mistyped slug is never answered as a project with nothing to do.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a projectArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.ProjectBriefTool, Project: a.Project,
+		}))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "progress_step",
+		Description: "Say a work item started, blocked or finished, with a " +
+			"note in your own words. ANNOUNCE FIRST. This is what makes a " +
+			"brief show movement rather than a static list.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a stepArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.ProgressStepTool, Item: a.Item, Project: a.Project,
+			State: a.State, Body: a.Note,
+		}))
 	})
 
 	// THE CAPABILITY MAP, AS ONE RESOURCE. Section 9, and M2 slice 4.
@@ -586,4 +733,54 @@ func refusal(err error) *mcp.CallToolResult {
 		IsError: true,
 		Content: []mcp.Content{&mcp.TextContent{Text: string(b)}},
 	}
+}
+
+// THE RECORD TOOLS' ARGUMENTS.
+//
+// ⛔ EVERY FIELD CARRIES A jsonschema DESCRIPTION AND THAT IS NOT DECORATION.
+// The survey's finding 5.2 measured argument validation here as schema-driven
+// with actionable errors, and finding 2.6 measured the opposite failure on
+// `query`: its subject vocabulary is not in the description, so an agent cannot
+// discover what it may ask for. These structs are the place that gap either
+// exists or does not.
+
+type recordPutArgs struct {
+	ID        string            `json:"id" jsonschema:"the record id. Supply your own - a stable key you can find again beats a minted uuid nobody can guess."`
+	Project   string            `json:"project" jsonschema:"the project this record belongs to"`
+	Kind      string            `json:"kind" jsonschema:"what this record IS: decision, requirement, work-item, note, artefact, progress, feature, standard, project. Matched exactly."`
+	Body      string            `json:"body,omitempty" jsonschema:"the prose. Optional, and it is the half a typed field cannot carry."`
+	Fields    map[string]string `json:"fields,omitempty" jsonschema:"typed fields beside the prose, such as title or status. These are what a brief renders and a query filters on - prefer them to prose an agent has to parse back out."`
+	IfVersion uint64            `json:"if_version,omitempty" jsonschema:"the version you believe is current, for compare-and-swap. Omit to CREATE, which refuses if the id already exists. This is the only thing standing between two agents and a lost write."`
+}
+
+type recordGetArgs struct {
+	ID      string `json:"id" jsonschema:"the record id"`
+	Version uint64 `json:"version,omitempty" jsonschema:"omit for the current version; give one to read what the record said before"`
+}
+
+type recordQueryArgs struct {
+	Project string            `json:"project,omitempty" jsonschema:"the project. Matched exactly; omit to search every project."`
+	Kind    string            `json:"kind,omitempty" jsonschema:"the kind. Matched exactly; omit for every kind. Query with neither project nor kind to see how things are actually spelled."`
+	Fields  map[string]string `json:"fields,omitempty" jsonschema:"narrow to records whose fields all match these exactly, such as status=active"`
+}
+
+type recordIDArgs struct {
+	ID string `json:"id" jsonschema:"the record id"`
+}
+
+type linkArgs struct {
+	From string `json:"from" jsonschema:"the record the edge starts at"`
+	To   string `json:"to" jsonschema:"the record the edge points at"`
+	Kind string `json:"kind" jsonschema:"the edge type, such as part-of, supersedes, blocks or notes-about"`
+}
+
+type projectArgs struct {
+	Project string `json:"project" jsonschema:"the project to brief"`
+}
+
+type stepArgs struct {
+	Item    string `json:"item" jsonschema:"the record id of the work item this step is about"`
+	Project string `json:"project" jsonschema:"the project the item belongs to"`
+	State   string `json:"state" jsonschema:"started, blocked or done"`
+	Note    string `json:"note,omitempty" jsonschema:"optional: what happened, in your own words. A state with no note is still the signal that something moved."`
 }

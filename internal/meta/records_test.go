@@ -1,0 +1,294 @@
+package meta_test
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/boris-milner/rig/internal/kernel"
+	"github.com/boris-milner/rig/internal/meta"
+)
+
+// holdsRecords is a Records an invoker can also be, so the type assertion under
+// test has something real to find.
+//
+// A NAMED TYPE RATHER THAN AN ANONYMOUS CLOSURE, for Invoker's stated reason:
+// a double that can say what it is in a stack trace is one somebody can find
+// again.
+type holdsRecords struct {
+	putSeen  meta.RecordPut
+	rows     []meta.RecordRow
+	refs     []meta.RecordRef
+	brief    meta.BriefAnswer
+	stepSeen meta.ProgressStep
+	linked   [3]string
+	err      error
+}
+
+func (h *holdsRecords) Invoke(context.Context, kernel.Principal, string, string, []byte) ([]byte, error) {
+	return nil, errors.New("not this test's concern")
+}
+
+func (h *holdsRecords) Put(_ context.Context, in meta.RecordPut) (meta.RecordRow, error) {
+	h.putSeen = in
+	if h.err != nil {
+		return meta.RecordRow{}, h.err
+	}
+	return meta.RecordRow{ID: in.ID, Project: in.Project, Kind: in.Kind,
+		Version: 1, Body: in.Body, Fields: in.Fields, Seat: "backend-1"}, nil
+}
+
+func (h *holdsRecords) Get(_ context.Context, id string, version uint64) (meta.RecordRow, error) {
+	return meta.RecordRow{ID: id, Version: version, Seat: "backend-1"}, h.err
+}
+
+func (h *holdsRecords) Query(context.Context, string, string, map[string]string) ([]meta.RecordRow, error) {
+	return h.rows, h.err
+}
+
+func (h *holdsRecords) History(context.Context, string) ([]meta.RecordRow, error) {
+	return h.rows, h.err
+}
+
+func (h *holdsRecords) Link(_ context.Context, from, to, kind string) error {
+	h.linked = [3]string{from, to, kind}
+	return h.err
+}
+
+func (h *holdsRecords) Unlink(_ context.Context, from, to, kind string) error {
+	h.linked = [3]string{from, to, kind}
+	return h.err
+}
+
+func (h *holdsRecords) Refs(context.Context, string) ([]meta.RecordRef, error) {
+	return h.refs, h.err
+}
+
+func (h *holdsRecords) Brief(context.Context, string) (meta.BriefAnswer, error) {
+	return h.brief, h.err
+}
+
+func (h *holdsRecords) Step(_ context.Context, in meta.ProgressStep) (meta.RecordRow, error) {
+	h.stepSeen = in
+	return meta.RecordRow{ID: "step-1", Kind: "progress", Seat: "backend-1"}, h.err
+}
+
+// TestTheContinuityRecordIsReachableFromTheAgentSurface is the whole point of
+// the route, and it is written to go red against the build that shipped before
+// it.
+//
+// ⛔ THE DEFECT IT PINS WAS MEASURED, NOT PREDICTED. Section 09's A0 survey,
+// 2026-09-17, `[ran it]` on a live estate: `tools/call` for `record` and for
+// `brief` both answered `-32602 unknown tool`, and `query` with subject
+// `records` was byte-identical to an unrecognised subject. Seven tools and not
+// one reached the record - so an agent with rig's MCP server was STRICTLY LESS
+// CAPABLE than the same agent with a filesystem tool and the logbook, which is
+// clause A failing on its own terms.
+//
+// ⛔ IT ASSERTS THE ANSWER IS RIGHT, NEVER MERELY THAT IT IS NOT EMPTY. A
+// mutation setting every governing row's id to a constant "x" passed here in
+// September because the rows were keyed on kind and nothing ever read an id's
+// value. Every case below reads a value back.
+func TestTheContinuityRecordIsReachableFromTheAgentSurface(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		tool meta.Tool
+	}{
+		{"put", meta.RecordPutTool},
+		{"get", meta.RecordGetTool},
+		{"query", meta.RecordQueryTool},
+		{"history", meta.RecordHistoryTool},
+		{"link", meta.RecordLinkTool},
+		{"unlink", meta.RecordUnlinkTool},
+		{"refs", meta.RecordRefsTool},
+		{"brief", meta.ProjectBriefTool},
+		{"step", meta.ProgressStepTool},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := meta.New(estate(t, kernel.CoverageFull), &holdsRecords{})
+			got, err := s.Answer(context.Background(), agent(), meta.Request{Tool: tc.tool})
+			if err != nil {
+				t.Fatalf("%s is not dispatched at all: %v", tc.tool, err)
+			}
+			if got.Tool != tc.tool {
+				t.Errorf("answer came back as %q, not %q", got.Tool, tc.tool)
+			}
+			if got.Record == nil {
+				t.Fatalf("%s dispatched but carried no record payload", tc.tool)
+			}
+			// ⛔ AND IT MUST NOT REPORT THE RECORD AS UNAVAILABLE WHEN IT IS
+			// RIGHT THERE. This is the arm that catches a handler wired to the
+			// dispatch but not to the type assertion - which would answer, and
+			// answer wrongly, and look fine.
+			if contains(got.Unavailable, "this estate's continuity record") {
+				t.Errorf("%s says the record is unavailable while holding one", tc.tool)
+			}
+		})
+	}
+}
+
+// TestAnUnnamedEstateSaysItHasNoRecordRatherThanAnsweringEmpty is the negative
+// arm, and it is the one that could most easily not go red.
+//
+// ⛔ SECTION 37 GIVES AN UNNAMED ESTATE NO CONTINUITY RECORD, so a daemon
+// serving one satisfies Roster and Invoker and not Records. "No rows" and "this
+// estate keeps none" are different facts, and a surface that renders them as
+// the same bytes is section 5k's cardinal failure - a picture that implies a
+// completeness it never had.
+func TestAnUnnamedEstateSaysItHasNoRecordRatherThanAnsweringEmpty(t *testing.T) {
+	// justInvokes satisfies Invoker and NOT Records, which is exactly the
+	// configuration an unnamed estate presents.
+	s := meta.New(estate(t, kernel.CoverageFull), &knowsWhere{where: production()})
+
+	got, err := s.Answer(context.Background(), agent(),
+		meta.Request{Tool: meta.RecordQueryTool, Project: "rig"})
+	if err != nil {
+		t.Fatalf("record_query refused instead of reporting unavailable: %v", err)
+	}
+	if !contains(got.Unavailable, "this estate's continuity record") {
+		t.Fatalf("an estate with no record answered without saying so; "+
+			"Unavailable was %v and Record was %+v", got.Unavailable, got.Record)
+	}
+	if got.Record != nil {
+		t.Errorf("it also invented a payload: %+v", *got.Record)
+	}
+}
+
+// TestTheBriefSaysWhetherTheProjectExists is B76 at the surface that can carry
+// the answer.
+//
+// ⛔ `rig brief <a project that does not exist>` EXITS 0, renders a brief and
+// reports "sections 1-4 computed: true" - so a typo in a slug is
+// indistinguishable from a project with no work, and an agent resuming on the
+// wrong slug is told in rig's own voice that there is nothing to do. Every
+// section of a brief separates "nothing to report" from "this build cannot
+// answer"; the container owed the same distinction and did not have it.
+func TestTheBriefSaysWhetherTheProjectExists(t *testing.T) {
+	t.Run("absent", func(t *testing.T) {
+		s := meta.New(estate(t, kernel.CoverageFull),
+			&holdsRecords{brief: meta.BriefAnswer{Found: false, Project: "riig"}})
+		got, err := s.Answer(context.Background(), agent(),
+			meta.Request{Tool: meta.ProjectBriefTool, Project: "riig"})
+		if err != nil {
+			t.Fatalf("project_brief: %v", err)
+		}
+		if got.Record == nil || got.Record.Brief == nil {
+			t.Fatal("no brief came back at all")
+		}
+		if got.Record.Brief.Found {
+			t.Error("a project that does not exist was reported as found")
+		}
+	})
+
+	t.Run("present", func(t *testing.T) {
+		s := meta.New(estate(t, kernel.CoverageFull),
+			&holdsRecords{brief: meta.BriefAnswer{Found: true, Project: "rig", JSON: []byte(`{"project":"rig"}`)}})
+		got, err := s.Answer(context.Background(), agent(),
+			meta.Request{Tool: meta.ProjectBriefTool, Project: "rig"})
+		if err != nil {
+			t.Fatalf("project_brief: %v", err)
+		}
+		if !got.Record.Brief.Found {
+			t.Error("a real project was reported absent")
+		}
+		// ⛔ THE TWO ARMS MUST DIFFER IN THE FIELD UNDER TEST. Asserting only
+		// that a brief came back would pass against a build that hardcoded
+		// Found either way, which is the "every assertion satisfiable by the
+		// broken code" failure this project has already paid for once.
+		if len(got.Record.Brief.JSON) == 0 {
+			t.Error("a found project carried no brief")
+		}
+	})
+}
+
+// TestEveryRecordArgumentReachesTheRecords catches the wiring defect that would
+// otherwise be invisible: a tool dispatched, answering, and dropping what the
+// caller asked for.
+//
+// ⛔ A HANDLER THAT IGNORES ITS ARGUMENTS PASSES EVERY "did it answer" TEST.
+// That is the shape of the `=` to `LIKE` mutation that survived a thorough
+// suite here, because every case asked for something that exists.
+func TestEveryRecordArgumentReachesTheRecords(t *testing.T) {
+	h := &holdsRecords{}
+	s := meta.New(estate(t, kernel.CoverageFull), h)
+
+	if _, err := s.Answer(context.Background(), agent(), meta.Request{
+		Tool: meta.RecordPutTool, RecordID: "b75", Project: "rig",
+		Kind: "decision", Body: "the prose", IfVersion: 7,
+		Fields: map[string]string{"title": "a title"},
+	}); err != nil {
+		t.Fatalf("record_put: %v", err)
+	}
+	if h.putSeen.ID != "b75" || h.putSeen.Project != "rig" ||
+		h.putSeen.Kind != "decision" || h.putSeen.Body != "the prose" ||
+		h.putSeen.IfVersion != 7 || h.putSeen.Fields["title"] != "a title" {
+		t.Errorf("put lost an argument on the way through: %+v", h.putSeen)
+	}
+
+	if _, err := s.Answer(context.Background(), agent(), meta.Request{
+		Tool: meta.RecordLinkTool, From: "a", To: "b", LinkKind: "part-of",
+	}); err != nil {
+		t.Fatalf("record_link: %v", err)
+	}
+	if h.linked != [3]string{"a", "b", "part-of"} {
+		t.Errorf("link lost an argument: %v", h.linked)
+	}
+
+	if _, err := s.Answer(context.Background(), agent(), meta.Request{
+		Tool: meta.ProgressStepTool, Item: "B75", Project: "rig",
+		State: "done", Body: "shipped",
+	}); err != nil {
+		t.Fatalf("progress_step: %v", err)
+	}
+	if h.stepSeen.Item != "B75" || h.stepSeen.State != "done" ||
+		h.stepSeen.Note != "shipped" || h.stepSeen.Project != "rig" {
+		t.Errorf("step lost an argument: %+v", h.stepSeen)
+	}
+}
+
+// TestEveryDispatchedToolIsNamedInTheRefusal keeps allToolNames honest.
+//
+// ⛔ IT EXISTS BECAUSE THE LIST IS HAND-KEPT AND SAYS SO. `briefSections()` is
+// the same shape and its comment claimed the opposite - that it was derived
+// from the store's struct - and two of its rows went stale behind that false
+// claim. A comment cannot keep a list true; this can.
+//
+// The refusal for an unknown tool must name every tool that IS dispatched, so
+// an agent that mistypes one is told what exists rather than only that it was
+// wrong.
+func TestEveryDispatchedToolIsNamedInTheRefusal(t *testing.T) {
+	s := meta.New(estate(t, kernel.CoverageFull), &holdsRecords{})
+
+	_, err := s.Answer(context.Background(), agent(), meta.Request{Tool: "no_such_tool"})
+	if err == nil {
+		t.Fatal("an unknown tool was accepted")
+	}
+	msg := err.Error()
+
+	for _, tool := range []meta.Tool{
+		meta.List, meta.Describe, meta.Invoke, meta.Query,
+		meta.Announce, meta.SetActivity, meta.ListAgents,
+		meta.RecordPutTool, meta.RecordGetTool, meta.RecordQueryTool,
+		meta.RecordHistoryTool, meta.RecordLinkTool, meta.RecordUnlinkTool,
+		meta.RecordRefsTool, meta.ProjectBriefTool, meta.ProgressStepTool,
+	} {
+		if !containsSub(msg, string(tool)) {
+			t.Errorf("the refusal does not name %q, so an agent that mistyped "+
+				"it would never learn it exists; message was %q", tool, msg)
+		}
+	}
+}
+
+func containsSub(haystack, needle string) bool {
+	return len(haystack) >= len(needle) &&
+		(haystack == needle || indexOf(haystack, needle) >= 0)
+}
+
+func indexOf(h, n string) int {
+	for i := 0; i+len(n) <= len(h); i++ {
+		if h[i:i+len(n)] == n {
+			return i
+		}
+	}
+	return -1
+}

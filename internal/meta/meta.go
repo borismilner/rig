@@ -15,6 +15,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/boris-milner/rig/internal/kernel"
@@ -48,6 +49,39 @@ const (
 	Announce    Tool = "announce"
 	SetActivity Tool = "set_activity"
 	ListAgents  Tool = "list_agents"
+
+	// THE NINE RECORD TOOLS, 1:1 WITH THE WIRE'S OWN NAMES.
+	//
+	// ⛔ ONE TOOL PER VERB RATHER THAN ONE `record` TOOL TAKING A VERB
+	// ARGUMENT, and that is a ruling with two reasons behind it.
+	//
+	// FIRST, the survey's finding 2.6: `query`'s subject vocabulary is not in
+	// its tool description, and an agent therefore cannot discover what it may
+	// ask for. A single `record` tool would bury nine verbs in exactly that
+	// place, repeating a defect this project has already measured rather than
+	// only predicted.
+	//
+	// SECOND, argument validation is schema-driven here (finding 5.2), and one
+	// tool carrying nine argument shapes has no schema worth validating
+	// against. Nine tools each get the errors section 09 asks for - "errors an
+	// agent can act on" - for free.
+	//
+	// THE COST IS STATED RATHER THAN GLOSSED: the tool list goes from seven to
+	// sixteen. That is real, and it is the price of the vocabulary being
+	// visible. ⛔ AND THE PREAMBLE'S "any tool beyond these seven is a promoted
+	// program command" IS AMENDED BY THIS, not broken by it - the sentence was
+	// already false-by-construction for rig's own commands the moment the three
+	// roster tools landed, and the cutover notes said in as many words that it
+	// "needs amending under any honest design".
+	RecordPutTool     Tool = "record_put"
+	RecordGetTool     Tool = "record_get"
+	RecordQueryTool   Tool = "record_query"
+	RecordHistoryTool Tool = "record_history"
+	RecordLinkTool    Tool = "record_link"
+	RecordUnlinkTool  Tool = "record_unlink"
+	RecordRefsTool    Tool = "record_refs"
+	ProjectBriefTool  Tool = "project_brief"
+	ProgressStepTool  Tool = "progress_step"
 )
 
 // Invoker runs one declared command as one principal. The daemon implements
@@ -159,6 +193,25 @@ type Request struct {
 	Seat     string
 	Purpose  string
 	Activity string
+
+	// THE RECORD TOOLS' ARGUMENTS.
+	//
+	// RecordID rather than ID because `Program` and `Command` already address a
+	// thing on this struct, and a bare `ID` beside them reads as theirs.
+	RecordID  string
+	Project   string
+	Kind      string
+	Body      string
+	Fields    map[string]string
+	IfVersion uint64
+	Version   uint64
+
+	// From, To and LinkKind are link's and unlink's; Item and State are step's.
+	From     string
+	To       string
+	LinkKind string
+	Item     string
+	State    string
 }
 
 // Answer is what every meta tool returns, and what both --json and the MCP
@@ -227,6 +280,16 @@ type Answer struct {
 	// exists to prevent.
 	Crew *Crew
 
+	// Record is every record tool's payload, and it is ONE POINTER rather than
+	// nine fields.
+	//
+	// ⛔ ONE TYPE FOR NINE TOOLS IS THIS STRUCT'S OWN RULE, stated at its head
+	// for the four it started with: separate result types "would let one of
+	// them quietly stop carrying Partial, which is the one field section 9's
+	// demo turns on". Nine more top-level fields would be nine more ways to
+	// build an Answer that forgot it.
+	Record *RecordAnswer
+
 	// Unavailable is query's honesty, and it is not an error.
 	//
 	// query reaches "logs, traces, the call log, config provenance, schedule
@@ -284,11 +347,32 @@ func (s *Server) Answer(ctx context.Context, who kernel.Principal, r Request) (A
 		return s.setActivity(who, r)
 	case ListAgents:
 		return s.listAgents(who, r)
+	case RecordPutTool:
+		return s.recordPut(who, r)
+	case RecordGetTool:
+		return s.recordGet(ctx, who, r)
+	case RecordQueryTool:
+		return s.recordQuery(ctx, who, r)
+	case RecordHistoryTool:
+		return s.recordHistory(ctx, who, r)
+	case RecordLinkTool:
+		return s.recordLink(ctx, who, r)
+	case RecordUnlinkTool:
+		return s.recordUnlink(ctx, who, r)
+	case RecordRefsTool:
+		return s.recordRefs(ctx, who, r)
+	case ProjectBriefTool:
+		return s.projectBrief(ctx, who, r)
+	case ProgressStepTool:
+		return s.progressStep(ctx, who, r)
 	default:
-		return Answer{}, fmt.Errorf(
-			"%w: %q; the seven are %s, %s, %s, %s, %s, %s and %s",
-			ErrNoSuchTool, r.Tool, List, Describe, Invoke, Query,
-			Announce, SetActivity, ListAgents)
+		// ⛔ THE REFUSAL ENUMERATES EVERY TOOL AND MUST KEEP DOING SO. It used
+		// to say "the seven are" and list them; a hand-kept count beside a
+		// hand-kept list is two things to forget, and this one was already
+		// wrong by three the moment the roster tools landed. The list is the
+		// answer; the count is not carried at all.
+		return Answer{}, fmt.Errorf("%w: %q; the tools are %s",
+			ErrNoSuchTool, r.Tool, strings.Join(allToolNames(), ", "))
 	}
 }
 

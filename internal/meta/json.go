@@ -39,6 +39,7 @@ func MarshalAnswer(a Answer) ([]byte, error) {
 
 		EstateIdentity: estatePtrJSON(a.Identity),
 		Crew:           crewPtrJSON(a.Crew),
+		Record:         a.Record,
 	})
 }
 
@@ -171,6 +172,25 @@ type answerJSON struct {
 	// the roster in `unavailable`. Rendering both as an empty object would
 	// make an unreachable roster indistinguishable from a quiet one.
 	Crew *crewJSON `json:"crew,omitempty"`
+
+	// Record is the continuity record's payload, and it is carried AS IT IS
+	// rather than re-shaped into a JSON twin.
+	//
+	// ⛔ EVERY OTHER FIELD HERE HAS A `*JSON` MIRROR AND THIS ONE DELIBERATELY
+	// DOES NOT. The mirrors exist because kernel types carry things a wire
+	// answer must not (a Program holds its connection's view; a Crew holds
+	// occupancy internals). RecordAnswer is already a surface type - it was
+	// written for this answer and holds nothing else - so a mirror would be a
+	// second hand-kept copy of the same shape, which is the `briefSections()`
+	// defect: two places to rot and a comment claiming they cannot.
+	//
+	// ⛔ TestEveryAnswerFieldReachesTheJSON IS WHY THIS LINE EXISTS AT ALL. The
+	// field was added to Answer and NOT to this struct, and that test went red
+	// with "MarshalAnswer drops it, so an agent reading --json or an MCP tool
+	// answer can never see it". Nine tools would have dispatched, answered,
+	// and rendered nothing - a route that exists and delivers empty, which is
+	// worse than an absent one because it looks built.
+	Record *RecordAnswer `json:"record,omitempty"`
 }
 
 // estateJSON is which rig this is. Every field is emitted, empty included:

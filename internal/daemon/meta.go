@@ -166,6 +166,15 @@ type mcpCaller struct {
 	// server is and released on the same defer stack as the connection, which
 	// is the whole expiry mechanism - no TTL, no reaper.
 	occ *occupancy
+
+	// who is this connection's principal, minted at accept from the socket's
+	// peer credentials.
+	//
+	// ⛔ IT IS CARRIED RATHER THAN REACHED FOR, so a record write stamps the
+	// session of the connection that made it and nothing else. There is no
+	// field a caller can set to change it, which is section 39's requirement
+	// that provenance be the daemon's and unforgeable.
+	who kernel.Principal
 }
 
 // The roster is the optional half of the meta surface, and this is where it is

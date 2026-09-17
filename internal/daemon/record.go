@@ -145,12 +145,26 @@ func (d *Daemon) provenance(c *conn) (session, seat string, epoch uint64, ok boo
 // the store could not later tell from the truth. It announces or it does not
 // write.
 //
-// ⛔ AND THERE IS NO MCP PATH THROUGH HERE TO WIDEN. The record verbs are
-// dispatched only from the wire (BACKLOG B54: they have no MCP route, and
-// section 9 ruled against giving them one), so this cannot hand a write to an
-// unannounced agent. COORDINATION.md records that newPrincipal minting an MCP
-// caller as KindTerminal is a separate OPEN RULING; this function does not
-// settle it and must not be read as having done so.
+// ⛔ THERE IS NOW AN MCP ROUTE TO THE RECORD AND THIS FUNCTION IS STILL NOT ON
+// IT. Corrected 2026-09-17: this comment used to say the record verbs were
+// dispatched only from the wire and that section 9 had ruled against an MCP
+// route. The first half is obsolete and the second half was a MISREADING - B54
+// re-read section 9 at the source and found it ruled against a sibling tool for
+// asking rig about rig through the read-only `query`, and closed with "THE
+// QUESTION IS: how does a WRITE to rig's own record reach an agent ... Nobody
+// has asked it."
+//
+// ⛔ THE ROUTE THAT ANSWERS IT DOES NOT COME THROUGH HERE, WHICH IS WHY THIS
+// FUNCTION IS UNCHANGED. `mcpCaller.writer` reads the seat off the connection's
+// OCCUPANCY and refuses a write that has none, so an agent must announce first.
+// That is strictly stronger than this concession rather than a second copy of
+// it: this exists because there is no `rig announce` at a terminal and section
+// 37 refuses to give one a handshake, and an agent has had `announce` as a
+// first-class tool since the cutover.
+//
+// COORDINATION.md records that newPrincipal minting an MCP caller as
+// KindTerminal is a separate OPEN RULING; this function does not settle it and
+// must not be read as having done so.
 func terminalSeat(c *conn, p kernel.Principal) string {
 	if c.scoped.Load() || p.Kind != kernel.KindTerminal {
 		return ""
