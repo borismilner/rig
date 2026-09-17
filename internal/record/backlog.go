@@ -35,7 +35,17 @@ import (
 // `grep -cE '^\| B[0-9]+ \|'` that produced the 44 reported to the lead and
 // into READINESS.txt. Every one of them required a pipe after the id, and B21's
 // row does not have one. THE TRUE ROW COUNT IS 45, NOT 44.
-var backlogRowAnywhere = regexp.MustCompile("(?m)^\\|[^|\n]*?\\b(B\\d+[a-z]?)(?:\\b|[^a-z0-9])")
+//
+// ⛔ IT NOW MATCHES THE WIDER ID-SHAPED TOKEN RATHER THAN THE LEGAL ID, AND
+// THAT IS THE HALF THAT WAS MISSING. It used to end at `(?:\b|[^a-z0-9])`,
+// which is a boundary `B60-2` satisfies after `B60` - so it read `B60`, the
+// scanner read `B60`, and the two instruments agreed on a truncation. An id
+// this parser cannot read has to reach BOTH instruments in the shape the
+// document wrote it, or the disagreement they exist to produce cannot happen.
+// Measured 2026-09-17 over the live document: same 68 ids, zero shapes only
+// one of them finds, so the widening costs nothing today and is the only
+// reason `B60-2` is reportable at all.
+var backlogRowAnywhere = regexp.MustCompile(`(?m)^\|[^|\n]*?\b(B\d+[A-Za-z0-9._-]*)`)
 
 // BacklogItem is one row of a backlog table, read rather than interpreted.
 type BacklogItem struct {
@@ -102,6 +112,48 @@ type BacklogItem struct {
 	// Done would assert that a ruling completed the work; dropping it is what
 	// has seeded B15, B24, B25 and B44 as OPEN since the parser existed.
 	RuledClosed bool
+
+	// Disposition is WHICH terminal word closed the row - DONE, CLOSED,
+	// REJECTED or RETRACTED - and it is empty on a row that is not terminal.
+	//
+	// ⛔ THE PARSE HAS ALWAYS DISTINGUISHED THE FOUR AND HAS ALWAYS THROWN THE
+	// WORD AWAY. `terminalDispositions` is a set lookup whose answer is a
+	// bool, so a consumer could learn that a row is closed and never how. The
+	// store's best available statement was `closed`, which is true of all four
+	// - and coarsening is honest where inverting is not, but B19 is RETRACTED
+	// as falsified and a retraction is not a completion. The word is the fact
+	// that matters for trust, so it is carried rather than re-derived by
+	// whoever needs it next.
+	//
+	// ⛔ AND IT IS NOT AN EXPORT OF SOMETHING ALREADY COMPUTED. On a STRUCK row
+	// the terminal word is a SECOND bold run - B19's item cell is
+	// `~~**title**~~ **RETRACTED 2026-09-16 ...**` - and `boldLead` returns the
+	// FIRST run, which is the title. `Done` was reached through
+	// `HasPrefix(item, "~~")` and never through the word at all, so recovering
+	// it meant reading a part of the cell nothing had read.
+	//
+	// ⛔ IT CANNOT MOVE ANY BOOLEAN ABOVE, BY CONSTRUCTION. It is computed FROM
+	// them rather than beside them: empty unless Done or ClaimsDone is already
+	// true, and the search is bounded to the run that clause already decided
+	// on. An empty Disposition on a closed row means the DOCUMENT named no
+	// word there - reported, never guessed.
+	Disposition string
+
+	// PartOf is the id this row is a sub-task of, where the DOCUMENT states it
+	// structurally. Section 39:1027 - "A sub-task IS a work-item, `part-of` its
+	// parent."
+	//
+	// ⛔ IT COMES FROM THE SUB-LETTER AND FROM NOTHING ELSE. Heading enclosure
+	// was the other candidate, it is what the specification recommended, and
+	// running it over the live document produced TWENTY-FOUR edges the
+	// document never states. The measurement and the reasoning are on `partOf`
+	// below; the short form is that where a row SITS is a fact about the file
+	// and `part-of` is a claim about the work.
+	//
+	// ⛔ DERIVED HERE, WIRED TO NOTHING YET. No edge is emitted from it: that is
+	// `cmd/rigseed`'s act and this file does not own it. It is carried so the
+	// seeder needs no second derivation of a relation the document states.
+	PartOf string
 }
 
 // cells splits a markdown table row and trims every cell. The table is
@@ -158,18 +210,64 @@ func titleOf(cell string) string {
 	return strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(cell, "~~"), "**"))
 }
 
+// boldRuns returns every bolded run in a cell, in order. A run left open at
+// the end of the cell is still a run: B8 in the fixture never closes its bold
+// before the pipe and its title has to come from somewhere.
+func boldRuns(cell string) []string {
+	var out []string
+	for {
+		i := strings.Index(cell, "**")
+		if i < 0 {
+			return out
+		}
+		rest := cell[i+2:]
+		j := strings.Index(rest, "**")
+		if j < 0 {
+			return append(out, rest)
+		}
+		out = append(out, rest[:j])
+		cell = rest[j+2:]
+	}
+}
+
 // boldLead returns a cell's first bolded run, which is how every row in this
 // table states its disposition.
 func boldLead(cell string) string {
-	i := strings.Index(cell, "**")
+	if r := boldRuns(cell); len(r) > 0 {
+		return r[0]
+	}
+	return ""
+}
+
+// afterStrike returns the part of an item cell the strikethrough does NOT
+// cover, which on a closed row is where the document puts the terminal word.
+//
+// ⛔ A CELL THAT OPENS A STRIKE AND NEVER CLOSES IT RETURNS NOTHING, not the
+// remainder. Everything after an unclosed `~~` is inside the strike as far as
+// a reader is concerned, so treating it as commentary after the title would
+// read a struck title's own words as the row's disposition.
+func afterStrike(cell string) string {
+	i := strings.Index(cell, "~~")
 	if i < 0 {
-		return ""
+		return cell
 	}
 	rest := cell[i+2:]
-	if j := strings.Index(rest, "**"); j >= 0 {
-		rest = rest[:j]
+	j := strings.Index(rest, "~~")
+	if j < 0 {
+		return ""
 	}
-	return rest
+	return rest[j+2:]
+}
+
+// closingWord returns the first terminal disposition leading a bold run in s,
+// and "" when no run leads with one.
+func closingWord(s string) string {
+	for _, r := range boldRuns(s) {
+		if w := firstWord(r); terminalDispositions[w] {
+			return w
+		}
+	}
+	return ""
 }
 
 // terminalDispositions are the bold leads that mean the work is over.
@@ -200,12 +298,51 @@ func firstWord(s string) string {
 //
 // THE LEGAL SHAPES ARE `B<digits>` AND `B<digits><one lowercase letter>`, and
 // that is evidence rather than preference: B46a, B46b, B46c, B46e, B46f and
-// B46g exist, B46d does not, and nothing in the document uses any other shape.
-// It is written as a closed pattern ON PURPOSE - the next person who invents
-// `B60-2` gets a red from the set guard below rather than a silent drop, which
-// is the whole defect this pattern is being repaired for, relocated one
-// character to the right.
-var backlogID = regexp.MustCompile(`\b(B\d+[a-z]?)(?:\b|$)`)
+// B46g are rows, and no ROW uses any other shape.
+//
+// ⛔ THE SENTENCE THAT STOOD HERE SAID "B46d DOES NOT [EXIST]" AND B46d EXISTS.
+// It is a `###` heading at `BACKLOG.md:176`, "B46d - THE CYCLE IS CONSTRUCTED,
+// AND THE RELAY SAID OTHERWISE". The claim was true of this table's ROWS and
+// was offered as evidence about the DOCUMENT, which is the wider thing it does
+// not cover - and the pattern's design was never what was wrong, because
+// `backlogID` matched `B46d` perfectly well the whole time. **The COMMENT was
+// repaired rather than the code, because there was no code defect to repair.**
+// What was missing is that nothing could REPORT a heading-borne id, and
+// `ParseBacklogDocument` now does.
+//
+// ⛔ AND THE OTHER SENTENCE THAT STOOD HERE WAS FALSE IN THE OTHER DIRECTION:
+// "the next person who invents `B60-2` gets a red from the set guard below
+// rather than a silent drop". ⛔ **MEASURED 2026-09-17: `B60-2` READ AS `B60`,
+// AND SO DID THE SET GUARD.** Both instruments truncated at the same place, so
+// they agreed, and agreement is what they do wrong. B60 is now an OCCUPIED row,
+// so the truncated id hit the duplicate rule and the invented row vanished
+// without a trace; had it come FIRST it would have taken B60's id and title
+// instead, which is a silent mis-id and worse than a drop.
+//
+// **The CODE was repaired for that one**, because the comment was describing
+// the behaviour anyone would want. An id-shaped token is now located with
+// `backlogIDish`, which is deliberately WIDER than any legal id, and tested
+// against `backlogIDLegal`. A token that fails is never read as a prefix: it is
+// reported as an `irregular-id`, so it appears in what the parse says it did
+// not take and a pin over that set goes red.
+//
+// ⛔ REPORTED AND NOT REFUSED, WHICH IS THIS FILE'S OWN RULING APPLIED TO
+// ITSELF. Section 39's migration rule is import everything and flag what is
+// irregular; killing the parse on one malformed id cell would contradict the
+// same sentence `Malformed` is justified by.
+var (
+	backlogIDish   = regexp.MustCompile(`\bB\d+[A-Za-z0-9._-]*`)
+	backlogIDLegal = regexp.MustCompile(`^B\d+[a-z]?$`)
+)
+
+// mdHeading splits a markdown heading into its level and its text.
+var mdHeading = regexp.MustCompile(`^(#{1,6})\s+(.*)$`)
+
+// tableRule matches one cell of a markdown header separator - `---`, `:--`,
+// `--:`. A separator is a row of a table and carries no id, so a detector for
+// "a row in a work-item table with no id" that does not exclude it reports
+// three false positives against rig's own backlog.
+var tableRule = regexp.MustCompile(`^:?-{2,}:?$`)
 
 // decoration is what a first cell may carry around its id without meaning
 // anything: the two status glyphs this document uses, bold and strike markers,
@@ -271,165 +408,468 @@ func tableFor(line string) (id, item, state int, ok bool) {
 	return 0, 0, 0, false
 }
 
+// UnimportedKind names WHY something the document addresses is in no record.
+type UnimportedKind string
+
+const (
+	// UnimportedHeading is an id the document carries in a HEADING rather than
+	// in a row. B46 - the MVP acceptance test - is one, and so is B46d.
+	UnimportedHeading UnimportedKind = "heading"
+
+	// UnimportedRowWithoutID is a row INSIDE a recognised work-item table whose
+	// id cell names no id. The eleven rows of the critical path are these, and
+	// the document calls them Ordered.
+	UnimportedRowWithoutID UnimportedKind = "row-without-id"
+
+	// UnimportedIrregularID is a first cell naming something id-SHAPED that is
+	// not a legal id - `B60-2`. Never read as the prefix it starts with.
+	UnimportedIrregularID UnimportedKind = "irregular-id"
+
+	// UnimportedOtherTable is an id in the first cell of a table that is not a
+	// work-item table. The parser is right not to import it; what was wrong is
+	// that nothing could tell that decision apart from never having seen it.
+	UnimportedOtherTable UnimportedKind = "other-table"
+)
+
+// Unimported is one thing the document addresses that no record carries.
+//
+// ⛔ IT EXISTS BECAUSE AN ABSENCE NO INSTRUMENT CAN REPORT SURVIVES EVERY
+// REVIEW. `ParseBacklog` answered 68 with no error over a document that
+// addresses 70 ids and holds eleven rows it calls Ordered, and BOTH of this
+// package's instruments keyed on the same id shape - so the whole class was
+// invisible by construction rather than by accident. Widening the aperture
+// first would have been the wrong repair in the wrong order: a parser that
+// SOMETIMES catches a heading is undetectable, where one that never does is at
+// least consistent. So the blindness goes first, and what to do about the
+// aperture is then a decision somebody can take on evidence.
+type Unimported struct {
+	Kind UnimportedKind
+
+	// ID is the id the document names, where it names one. Empty for a row
+	// whose id cell holds no id, and empty for an irregular shape - which is
+	// not an id and must not be filed as one.
+	ID string
+
+	// Label is what the document wrote where the id goes: the first cell
+	// verbatim, the id-shaped token verbatim, or the heading's own text.
+	//
+	// ⛔ ON THE ELEVEN ORDERED ROWS IT IS THE RANK - `0`, `6a`, `9` - AND THAT
+	// IS THE ONLY PLACE THE DOCUMENT'S DECLARED ORDER SURVIVES. Section 39
+	// offers `blocks`, which asserts a dependency nobody stated, and
+	// `priority`, which has three buckets for eleven ranks. A total order has
+	// no faithful home in the model, so the rank is REPORTED and no mapping is
+	// invented. That is a ruling and this parser does not own it.
+	Label string
+
+	// Line is the 1-based line the thing sits on, so a report resolves to a
+	// place in the document rather than to the document.
+	Line int
+
+	// Under is the enclosing id-bearing heading, where there is one.
+	//
+	// ⛔ IT IS DELIBERATELY NOT CALLED `PartOf`, AND THE NAME IS THE FINDING.
+	// Position under a heading is a fact about the FILE; `part-of` is a claim
+	// about the WORK, and in this document they come apart - see the note on
+	// `partOf` below, where heading enclosure produced twenty-four edges
+	// nobody stated. Under says where the thing sits and asserts nothing else.
+	Under string
+}
+
+// BacklogParse is one pass over a backlog document: what it imported, and
+// everything else the document addresses.
+type BacklogParse struct {
+	// Items is the row grain, and it is exactly what ParseBacklog returns.
+	Items []BacklogItem
+
+	// Unimported is in DOCUMENT order, because on eleven of these that order
+	// is the only thing the document states about them.
+	Unimported []Unimported
+}
+
+// headingFrame is one level of the heading stack. carry is the nearest
+// id-bearing heading at or above this level, which is what a row underneath is
+// part-of.
+type headingFrame struct {
+	level int
+	carry string
+}
+
+// backlogScan is one pass's state. It is a type rather than a pile of locals
+// because the heading stack, the table roles and the accounting maps all have
+// to survive a line, and a single function holding all of them was already at
+// the edge of being unreadable before any of this was added.
+type backlogScan struct {
+	items      []BacklogItem
+	unimported []Unimported
+
+	// seen is the ids that became records; accounted is every id-shaped token
+	// the parse can EXPLAIN, whether it became a record or not. The guard
+	// reconciles the whole-file instrument against accounted, so "I decided
+	// against this" and "I never saw this" stop being the same silence.
+	seen      map[string]bool
+	accounted map[string]bool
+
+	heads []headingFrame
+
+	idCol, itemCol, stateCol int
+	inTable                  bool
+	line                     int
+}
+
 // ParseBacklog reads a backlog document and returns one item per work-item row.
+//
+// ⛔ IT IS THE NARROW ANSWER AND IT DOES NOT SAY WHAT IT DROPPED. Call
+// ParseBacklogDocument for that. This form is kept because its answer over
+// rig's own backlog is pinned in two places and seeds the live store, and
+// moving a set and adding a capability in one change is how a repair becomes
+// unreviewable.
+func ParseBacklog(r io.Reader) ([]BacklogItem, error) {
+	p, err := ParseBacklogDocument(r)
+	return p.Items, err
+}
+
+// ParseBacklogDocument reads a backlog document and returns BOTH what became a
+// record and everything else the document addresses.
 //
 // It refuses rather than guessing on two conditions, and both have cost this
 // project a wrong number: a row inside a work-item table that is too short to
 // be that table's shape, and a disagreement between the line scanner and a
 // whole-file scan that shares no code path with it.
 //
-// A row in a table this parser does not recognise is SKIPPED AND REMEMBERED,
-// never refused. The adopter table at the foot of rig's backlog puts five
-// backlog ids in two-column rows; refusing them would kill the parse on a row
-// that was never a work item, and dropping them silently would leave the set
-// guard below unable to tell them from rows that went missing.
-func ParseBacklog(r io.Reader) ([]BacklogItem, error) {
+// Everything else it declines to import it REPORTS. A row in a table this
+// parser does not recognise, a row inside one that carries no id, an id shape
+// it cannot read, an id the document states in a heading: each is named in
+// Unimported with its line, never dropped and never refused. Refusing would
+// kill the parse on rows that are real; dropping is the defect this whole
+// mechanism exists to end.
+func ParseBacklogDocument(r io.Reader) (BacklogParse, error) {
 	raw, err := io.ReadAll(r)
 	if err != nil {
-		return nil, err
+		return BacklogParse{}, err
 	}
+	text := string(raw)
 
-	var out []BacklogItem
-	seen := map[string]bool{}
-	notWorkItems := map[string]bool{}
-	idCol, itemCol, stateCol, inTable := 0, 0, 0, false
-
-	sc := bufio.NewScanner(strings.NewReader(string(raw)))
+	s := &backlogScan{seen: map[string]bool{}, accounted: map[string]bool{}}
+	sc := bufio.NewScanner(strings.NewReader(text))
 	sc.Buffer(make([]byte, 1<<20), 1<<20)
 	for sc.Scan() {
-		line := sc.Text()
-		// ⛔ A BLANK LINE DOES NOT END A TABLE IN THIS DOCUMENT, AND STANDARD
-		// MARKDOWN SAYS IT DOES. `BACKLOG.md` uses blank lines to GROUP rows
-		// visually inside one table - five of them inside the five-column table
-		// alone - and a parser that took the markdown rule literally kept the
-		// header for thirteen rows and then lost it, reading the remaining
-		// thirty-two as rows of no table at all. Measured: 32 rows where 64 was
-		// the answer, and the pin caught it on the first run.
-		//
-		// The rule is what a reader sees: the roles persist until a line of
-		// PROSE, which is where a new heading or a new table begins.
-		if strings.TrimSpace(line) == "" {
-			continue
+		s.line++
+		if err := s.read(sc.Text()); err != nil {
+			return BacklogParse{}, err
 		}
-		if !strings.HasPrefix(line, "|") {
-			inTable = false
-			continue
-		}
-		if i, it, st, ok := tableFor(line); ok {
-			idCol, itemCol, stateCol, inTable = i, it, st, true
-			continue
-		}
-
-		c := cells(line)
-		if len(c) < 3 {
-			continue
-		}
-		// ⛔ len RATHER THAN A NIL CHECK, AND IT IS NOT COSMETIC. This read
-		// `m == nil` while it lived in a _test.go file, where gocritic does not
-		// run. Promoting it into product code is what made the linter reach it:
-		// FindStringSubmatch returns nil or a slice of 1+len(groups), so a nil
-		// check happens to be sufficient for THIS pattern and stops being so
-		// the moment somebody edits the pattern's groups.
-		m := backlogID.FindStringSubmatch(c[1])
-		if len(m) < 2 {
-			continue
-		}
-		if !inTable {
-			notWorkItems[m[1]] = true
-			continue
-		}
-		if seen[m[1]] {
-			continue
-		}
-		seen[m[1]] = true
-
-		if len(c) <= stateCol {
-			return nil, fmt.Errorf("%s has %d cells and this table's state column is %d: %.120s",
-				m[1], len(c)-2, stateCol, line)
-		}
-
-		// ⛔ ONE ROW IS MISSING THE PIPE AFTER ITS ID, SO ITS ID CELL ABSORBED
-		// THE FRONT OF ITS ITEM CELL - INCLUDING THE CLOSURE MARKER.
-		//
-		// B21, and it is why the second instrument exists. Reconstructing the
-		// item cell is the honest repair: the row is real, it is closed, and
-		// every count anyone ran missed it because every one required the pipe.
-		//
-		// ⛔ DECORATION IS NOT ABSORBED CONTENT AND THE TEST IS WHAT SURVIVES
-		// STRIPPING IT. `⛔ **B47**` leaves nothing and is an ordinary row;
-		// `B21 ✅ **CLOSED ...` leaves a sentence and is a shifted one. The
-		// ORIGINAL remainder is what gets prepended, markers and all, because
-		// the title is located inside it.
-		item, malformed := c[itemCol], false
-		rest := strings.TrimSpace(strings.Replace(c[idCol], m[1], " ", 1))
-		if strings.Trim(rest, decoration) != "" {
-			item, malformed = rest+" "+item, true
-		}
-
-		it := BacklogItem{
-			ID: m[1],
-			// ⛔ THE TITLE COMES FROM THE RECONSTRUCTED ITEM CELL, NOT FROM
-			// cells[2]. On a row missing the pipe after its id every cell has
-			// shifted left, so cells[2] is the EVIDENCE cell - B21 in rig's own
-			// backlog read its title as the word "evidence" for as long as this
-			// parser has existed. `item` is already the repaired cell three
-			// lines above, and for a well-formed row it IS the item cell, so
-			// the normal path is untouched.
-			Title: titleOf(item),
-			// The document's own closure mark, in the item cell: a struck
-			// title, or a terminal bold lead where the strikethrough would be.
-			Struck:    strings.HasPrefix(item, "~~"),
-			Done:      strings.HasPrefix(item, "~~") || terminalDispositions[firstWord(boldLead(item))],
-			Malformed: malformed,
-		}
-		it.ClaimsDone = !it.Done && terminalDispositions[firstWord(boldLead(c[stateCol]))]
-		// ⛔ THE THIRD CLOSURE CONVENTION, REPORTED RATHER THAN COLLAPSED INTO
-		// THE OTHER TWO. This document closes a row three ways: a struck title,
-		// a terminal bold lead in the item cell, and - for a row closed by a
-		// RULING rather than by work - a tick in the ID cell with a terminal
-		// word leading the state cell. The first two are `Done`. The third is
-		// not, and folding it in would assert that a ruling finished the work.
-		// Naming it is what lets a seeder decide; guessing is what produced the
-		// four rows that have seeded OPEN since B15.
-		it.RuledClosed = it.ClaimsDone && strings.Contains(c[idCol], "✅")
-		out = append(out, it)
 	}
 	if err := sc.Err(); err != nil {
-		return nil, err
+		return BacklogParse{}, err
+	}
+	if err := s.reconcile(text); err != nil {
+		return BacklogParse{}, err
+	}
+	return BacklogParse{Items: s.items, Unimported: s.unimported}, nil
+}
+
+// read takes one line of the document.
+func (s *backlogScan) read(line string) error {
+	// ⛔ A BLANK LINE DOES NOT END A TABLE IN THIS DOCUMENT, AND STANDARD
+	// MARKDOWN SAYS IT DOES. `BACKLOG.md` uses blank lines to GROUP rows
+	// visually inside one table - five of them inside the five-column table
+	// alone - and a parser that took the markdown rule literally kept the
+	// header for thirteen rows and then lost it, reading the remaining
+	// thirty-two as rows of no table at all. Measured: 32 rows where 64 was
+	// the answer, and the pin caught it on the first run.
+	//
+	// ⛔ RE-MEASURED 2026-09-17 AND THE FIGURE HOLDS, WITH ONE REFINEMENT WORTH
+	// MORE THAN THE FIGURE. The 32 are the CONTIGUOUS RUN B14-B45, not a
+	// scatter, which is what a lost header looks like and a bad regex does
+	// not. And the variant reading returns its wrong answer WITH NO ERROR,
+	// because the lost rows land where nothing reads them.
+	//
+	// ⛔ AND THIS RULE IS ABOUT THIS DOCUMENT, NOT ABOUT MARKDOWN. It is
+	// correct for `BACKLOG.md` and it is a guess anywhere else. The rule is
+	// what a reader sees: the roles persist until a line of PROSE, which is
+	// where a new heading or a new table begins.
+	if strings.TrimSpace(line) == "" {
+		return nil
+	}
+	if !strings.HasPrefix(line, "|") {
+		s.inTable = false
+		s.heading(line)
+		return nil
+	}
+	if i, it, st, ok := tableFor(line); ok {
+		s.idCol, s.itemCol, s.stateCol, s.inTable = i, it, st, true
+		return nil
+	}
+	return s.row(line)
+}
+
+// heading tracks the heading stack and reports an id the document states in a
+// heading rather than in a row.
+//
+// ⛔ THE HEADING GRAIN IS REPORTED AND IS NOT SEEDED, AND THE REASON IS
+// OWNERSHIP RATHER THAN DOUBT. An exact whole-set equality between the store
+// and the document IS computable for a heading-borne id, so by the projection
+// criterion it EARNS a record. Writing one is `cmd/rigseed`'s act and the
+// acceptance pin that would move is in another file; this parser derives the
+// id, its text and its parent, and hands them over ready to use.
+func (s *backlogScan) heading(line string) {
+	m := mdHeading.FindStringSubmatch(line)
+	if m == nil {
+		return
+	}
+	level, text := len(m[1]), strings.TrimSpace(m[2])
+	for len(s.heads) > 0 && s.heads[len(s.heads)-1].level >= level {
+		s.heads = s.heads[:len(s.heads)-1]
+	}
+	parent := s.enclosing()
+	carry := parent
+	if tok := backlogIDish.FindString(text); tok != "" {
+		// An irregular id is labelled by its TOKEN wherever it is found, so
+		// one Kind means one thing. A heading's own text is only the Label
+		// when the heading carries a legal id and the whole line is the
+		// thing being reported.
+		u := Unimported{Kind: UnimportedIrregularID, Label: tok, Line: s.line, Under: parent}
+		if backlogIDLegal.MatchString(tok) {
+			u = Unimported{Kind: UnimportedHeading, ID: tok, Label: text, Line: s.line, Under: parent}
+			carry = tok
+		}
+		s.accounted[tok] = true
+		s.unimported = append(s.unimported, u)
+	}
+	s.heads = append(s.heads, headingFrame{level: level, carry: carry})
+}
+
+// enclosing is the nearest id-bearing heading above the current line.
+func (s *backlogScan) enclosing() string {
+	if n := len(s.heads); n > 0 {
+		return s.heads[n-1].carry
+	}
+	return ""
+}
+
+// row takes one table row.
+func (s *backlogScan) row(line string) error {
+	c := cells(line)
+	if len(c) < 3 {
+		return nil
 	}
 
-	// ⛔ THE GUARD IS AN EQUALITY BETWEEN TWO INSTRUMENTS, NOT A BOUND.
+	// ⛔ THE TOKEN IS LOCATED WITH A PATTERN WIDER THAN ANY LEGAL ID, THEN
+	// TESTED. Finding the id with the legal pattern is what let `B60-2` be read
+	// as `B60`: the match succeeded on a prefix and nothing downstream could
+	// know the cell had said something else.
+	tok := backlogIDish.FindString(c[1])
+	switch {
+	case tok == "":
+		// ⛔ A ROW INSIDE A RECOGNISED WORK-ITEM TABLE THAT YIELDS NO ID IS THE
+		// CLASS NEITHER INSTRUMENT COULD SEE. The eleven rows of the critical
+		// path are inside `| # | Work | Seat | State |`, which this parser
+		// READS - they are not lost to an unknown header, they are lost at the
+		// id. The whole-file scan cannot help, because there is no id to find.
+		if s.inTable && !separatorRow(c) {
+			s.unimported = append(s.unimported, Unimported{
+				Kind:  UnimportedRowWithoutID,
+				Label: strings.TrimSpace(c[1]),
+				Line:  s.line, Under: s.enclosing(),
+			})
+		}
+		return nil
+	case !backlogIDLegal.MatchString(tok):
+		s.accounted[tok] = true
+		s.unimported = append(s.unimported, Unimported{
+			Kind: UnimportedIrregularID, Label: tok, Line: s.line, Under: s.enclosing(),
+		})
+		return nil
+	}
+
+	id := tok
+	s.accounted[id] = true
+	if !s.inTable {
+		// The adopter table at the foot of rig's backlog puts five backlog ids
+		// in two-column rows. Refusing them would kill the parse on rows that
+		// were never work items; dropping them silently is what left the set
+		// guard unable to tell them from rows that went missing.
+		s.unimported = append(s.unimported, Unimported{
+			Kind: UnimportedOtherTable, ID: id,
+			Label: strings.TrimSpace(c[1]), Line: s.line, Under: s.enclosing(),
+		})
+		return nil
+	}
+	if s.seen[id] {
+		return nil
+	}
+	s.seen[id] = true
+
+	if len(c) <= s.stateCol {
+		return fmt.Errorf("%s has %d cells and this table's state column is %d: %.120s",
+			id, len(c)-2, s.stateCol, line)
+	}
+	s.items = append(s.items, s.item(id, c))
+	return nil
+}
+
+// item builds the record for one well-formed row of a recognised table.
+func (s *backlogScan) item(id string, c []string) BacklogItem {
+	// ⛔ ONE ROW IS MISSING THE PIPE AFTER ITS ID, SO ITS ID CELL ABSORBED THE
+	// FRONT OF ITS ITEM CELL - INCLUDING THE CLOSURE MARKER.
 	//
-	// This was `if len(items) < 30 { ... "expected the real file's ~44" }`.
-	// Over a 44-row file it read 36, and 36 >= 30, so it passed and the message
-	// naming 44 never printed. A BOUND CANNOT NOTICE ITSELF GOING STALE - it is
-	// the same defect as a check that cannot tell "nothing is wrong" from "the
-	// check did not run".
+	// B21, and it is why the second instrument exists. Reconstructing the item
+	// cell is the honest repair: the row is real, it is closed, and every count
+	// anyone ran missed it because every one required the pipe.
 	//
-	// So the file is scanned a second time by a pattern sharing no code path
-	// with the scanner above, and the two must agree AS SETS. A count equality
-	// would still hide a swap; the set difference names the rows that went
-	// missing, which is the failure that actually happened.
-	//
-	// ⛔ AND THE SECOND INSTRUMENT KNOWS NOTHING ABOUT HEADERS, WHICH IS THE
-	// ASSUMPTION IT NO LONGER SHARES. It finds every id in every first cell;
-	// the scanner decides which table each one was in. So an id it finds must
-	// be either parsed or explicitly not-a-work-item, and a header shape that
-	// stops being recognised shows up here as rows going missing rather than as
-	// a quietly smaller answer. The old pair shared the anchor AND the word
-	// boundary, so both were blind to all nineteen rows of one table and their
-	// agreement read as proof.
-	var missing []string
-	for _, m := range backlogRowAnywhere.FindAllStringSubmatch(string(raw), -1) {
-		if !seen[m[1]] && !notWorkItems[m[1]] {
-			missing = append(missing, m[1])
-			notWorkItems[m[1]] = true
+	// ⛔ DECORATION IS NOT ABSORBED CONTENT AND THE TEST IS WHAT SURVIVES
+	// STRIPPING IT. `⛔ **B47**` leaves nothing and is an ordinary row;
+	// `B21 ✅ **CLOSED ...` leaves a sentence and is a shifted one. The ORIGINAL
+	// remainder is what gets prepended, markers and all, because the title is
+	// located inside it.
+	item, malformed := c[s.itemCol], false
+	rest := strings.TrimSpace(strings.Replace(c[s.idCol], id, " ", 1))
+	if strings.Trim(rest, decoration) != "" {
+		item, malformed = rest+" "+item, true
+	}
+
+	it := BacklogItem{
+		ID: id,
+		// ⛔ THE TITLE COMES FROM THE RECONSTRUCTED ITEM CELL, NOT FROM cells[2].
+		// On a row missing the pipe after its id every cell has shifted left, so
+		// cells[2] is the EVIDENCE cell - B21 in rig's own backlog read its title
+		// as the word "evidence" for as long as this parser has existed. `item`
+		// is already the repaired cell, and for a well-formed row it IS the item
+		// cell, so the normal path is untouched.
+		Title: titleOf(item),
+		// The document's own closure mark, in the item cell: a struck title, or a
+		// terminal bold lead where the strikethrough would be.
+		Struck:    strings.HasPrefix(item, "~~"),
+		Done:      strings.HasPrefix(item, "~~") || terminalDispositions[firstWord(boldLead(item))],
+		Malformed: malformed,
+		PartOf:    partOf(id),
+	}
+	it.ClaimsDone = !it.Done && terminalDispositions[firstWord(boldLead(c[s.stateCol]))]
+	// ⛔ THE THIRD CLOSURE CONVENTION, REPORTED RATHER THAN COLLAPSED INTO THE
+	// OTHER TWO. This document closes a row three ways: a struck title, a
+	// terminal bold lead in the item cell, and - for a row closed by a RULING
+	// rather than by work - a tick in the ID cell with a terminal word leading
+	// the state cell. The first two are `Done`. The third is not, and folding it
+	// in would assert that a ruling finished the work. Naming it is what lets a
+	// seeder decide; guessing is what produced the four rows that have seeded
+	// OPEN since B15.
+	it.RuledClosed = it.ClaimsDone && strings.Contains(c[s.idCol], "✅")
+	it.Disposition = dispositionOf(it, item, c[s.stateCol])
+	return it
+}
+
+// dispositionOf recovers WHICH terminal word closed a row, from whichever part
+// of the row the clause that closed it already read.
+//
+// ⛔ THE STRUCK CASE IS THE ONE THAT IS NOT A LOOKUP. `Done` on a struck row
+// was decided by `HasPrefix(item, "~~")` and never touched a word at all; the
+// word sits in a SECOND bold run after the strike closes, which `boldLead`
+// cannot reach. Bounding the search to `afterStrike` is what stops a struck
+// TITLE containing the word DONE from being read as the row's disposition.
+func dispositionOf(it BacklogItem, item, state string) string {
+	switch {
+	case it.Done && it.Struck:
+		return closingWord(afterStrike(item))
+	case it.Done:
+		return closingWord(item)
+	case it.ClaimsDone:
+		return closingWord(state)
+	}
+	return ""
+}
+
+// partOf is the id a row is a sub-task of, and it comes from the SUB-LETTER
+// alone: B46a is part-of B46, and a row whose id carries no letter is part-of
+// nothing.
+//
+// ⛔ HEADING ENCLOSURE WAS TRIED AND IS FALSIFIED BY THE DOCUMENT, WHICH IS
+// WHY IT IS NOT HERE. The specification this parser was repaired against
+// recommends it - "a row under `## B46` is enclosed by it. Exact, derivable,
+// checkable" - and that was reasoned rather than run. ⛔ MEASURED 2026-09-17:
+// the table under `## ⛔ B46` has accumulated TWENTY-FOUR rows that are not
+// B46's children, B61 ("section 6's configuration system is unbuilt") among
+// them. Deciding which of them belongs needs a human reading the prose, which
+// is precisely what the projection criterion forbids.
+//
+// The sub-letter survives because it is INSIDE the id. A row can be moved to
+// another section of a file somebody is still editing and its parent does not
+// change; a row's position cannot make that promise.
+func partOf(id string) string {
+	if n := len(id); n > 1 && id[n-1] >= 'a' && id[n-1] <= 'z' {
+		return id[:n-1]
+	}
+	return ""
+}
+
+// separatorRow reports whether every content cell is a header rule.
+func separatorRow(c []string) bool {
+	for _, x := range c[1 : len(c)-1] {
+		if !tableRule.MatchString(strings.TrimSpace(x)) {
+			return false
 		}
 	}
-	if len(missing) > 0 {
-		return nil, fmt.Errorf("the row scanner read %d work items and the whole-file scan "+
-			"finds %d ids it can account for as neither a work item nor a row of "+
-			"another table; it never saw %v", len(out), len(missing), missing)
+	return true
+}
+
+// reconcile is the guard, run once the whole document has been read.
+//
+// ⛔ IT IS AN EQUALITY BETWEEN TWO INSTRUMENTS, NOT A BOUND.
+//
+// This was `if len(items) < 30 { ... "expected the real file's ~44" }`. Over a
+// 44-row file it read 36, and 36 >= 30, so it passed and the message naming 44
+// never printed. A BOUND CANNOT NOTICE ITSELF GOING STALE - it is the same
+// defect as a check that cannot tell "nothing is wrong" from "the check did not
+// run".
+//
+// So the file is scanned a second time by a pattern sharing no code path with
+// the scanner, and the two must agree AS SETS. A count equality would still
+// hide a swap; the set difference names the rows that went missing, which is
+// the failure that actually happened.
+//
+// ⛔ AND THE SECOND INSTRUMENT KNOWS NOTHING ABOUT HEADERS, WHICH IS THE
+// ASSUMPTION IT NO LONGER SHARES. It finds every id-shaped token in every first
+// cell; the scanner decides what each one was. So a token it finds must be
+// either imported or EXPLAINED, and "explained" is now a thing a caller can
+// read rather than a private map that existed to keep this check quiet.
+//
+// ⛔ WHAT IT STILL CANNOT DO, STATED SO NOBODY READS MORE INTO A GREEN THAN IS
+// THERE: the second instrument reads FIRST CELLS, so it can no more see a
+// heading-borne id or an id-less row than the scanner can. Those two classes
+// are found by ONE instrument each, and the only real check on them is a pin
+// over the reported set against the live document. A second regex over the same
+// lines would be two instruments sharing an assumption, which is the failure
+// this whole guard descends from rather than a defence against it.
+func (s *backlogScan) reconcile(text string) error {
+	// A heading id that ALSO became a record is not unimported. Today no
+	// heading id is a row, so this removes nothing; it exists so that the day
+	// one is both, the report says so rather than accusing the parse.
+	kept := s.unimported[:0]
+	for _, u := range s.unimported {
+		if u.Kind == UnimportedHeading && s.seen[u.ID] {
+			continue
+		}
+		kept = append(kept, u)
 	}
-	return out, nil
+	s.unimported = kept
+
+	var missing []string
+	for _, m := range backlogRowAnywhere.FindAllStringSubmatch(text, -1) {
+		if s.accounted[m[1]] {
+			continue
+		}
+		s.accounted[m[1]] = true
+		missing = append(missing, m[1])
+	}
+	if len(missing) > 0 {
+		// ⛔ THE SET, NOT A DERIVED COUNT. An earlier draft of this message
+		// reported "and accounted for N further ids" as
+		// len(accounted)-len(seen)-len(missing), which undercounts: an id in
+		// the adopter table is usually a record as well, so it is counted
+		// once. A number in an error message is a claim like any other, and
+		// this file has spent its whole history on captions that were not
+		// checked. The ids are the evidence; the arithmetic added nothing.
+		return fmt.Errorf("the row scanner read %d work items and could explain "+
+			"neither importing nor declining %d further ids the whole-file scan "+
+			"found in a first cell: it never saw %v", len(s.items), len(missing), missing)
+	}
+	return nil
 }
