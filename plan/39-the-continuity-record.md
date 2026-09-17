@@ -1130,6 +1130,33 @@ sorts last.** A reader sees a wrong list, not an unmade decision.
   **This section binds three, and ALL THREE ARE UNBUILT TODAY** - so this is an
   IMPLEMENTATION, not a repair, and nobody is reading a wrongly-sorted list:
 
+  ⛔ **THE SECOND HALF OF THAT SENTENCE WENT FALSE ON 2026-09-17 AND THE RULING
+  IS OTHERWISE UNCHANGED.** *"Nobody is reading a wrongly-sorted list"* was true
+  when written and is not now: rig's own backlog was seeded into `production`,
+  `rig brief rig` is on Boris's screen, and **0 of 68 records carry a
+  `priority`**, so `sortByPriority` - which is built and is CORRECT - degenerates
+  to `sort.Strings` and the list he reads is a byte sort of the id. Measured by
+  the S6 specialist: the printed head `B1 B10 B12 B13 B14` equals
+  `sorted(ids)[:5]` exactly; **B8 prints 59th of 59 and B10 prints 2nd.**
+
+  ⛔ **THE LESSON IS SHARPER THAN THE CORRECTION: THIS RULING REASONED ABOUT
+  CODE AND THE DEFECT MOVED INTO DATA.** Nothing about the three bindings
+  changed - they are still unbuilt, the implementation is still owed, and every
+  word below still stands. **What changed is that the store stopped being
+  empty**, and a premise about who is reading what is not a premise about the
+  code at all. **A ruling whose safety rests on "nobody is looking" acquires an
+  expiry the moment somebody looks, and nothing in this document was watching
+  for it.**
+
+  ✅ **WHAT WAS DONE ABOUT IT, 2026-09-17, and it is deliberately NOT an
+  invented ordering:** all four sites that captioned the output *"in expected
+  execution order"* now DERIVE the caption - they compare the order they were
+  handed against those same ids sorted and report what they see, so the caption
+  retires itself the day a priority exists. Three were in `cmd/rig/brief.go`
+  (rig `7e115cf`), the fourth in `make mvp-demo`'s own report (rig `2f900c6`).
+  **Inventing a priority to make the caption true would have put a ranking in
+  front of Boris that nobody decided.**
+
   | Where | What it binds |
   |---|---|
   | §39 above, next-up | *"ties broken by `priority`"*. `topoSort` uses `sort.Strings` on ids |
