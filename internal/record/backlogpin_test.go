@@ -176,7 +176,13 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 			// ranked rows of the critical path are in no record, and one of
 			// them is Boris's own order. OPEN, and it is B66's named
 			// remainder rather than a new finding.
-			"B72", "B73", "B8", "B9",
+			// B74-B77 filed 2026-09-17 by team-lead generation 13 from the
+			// section 09 A0 survey, which was RUN for the first time after
+			// four generations wrote nothing: no door writes a record under
+			// a seat, piped prose is discarded and reported as created, a
+			// brief for a project that does not exist exits 0, and nothing
+			// can retract a record. All four OPEN.
+			"B72", "B73", "B74", "B75", "B76", "B77", "B8", "B9",
 		})
 
 	// B65 joins this set 2026-09-17: the field predicate landed at rig
@@ -252,9 +258,13 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 		// TestEveryBacklogIdInTheDocumentIsEitherARecordOrReported went RED
 		// on a dangling id the same minute - a cross-reference check this
 		// project has said twice it does not have, working.
-		{"rows", len(items), 78},
+		// 78 -> 82 and 66 -> 70 open, 2026-09-17: FOUR rows FILED, none
+		// closed, so `closed` is unmoved at 12 and both other numbers rise by
+		// exactly four. One direction only, which is the case these counts
+		// CAN see - the set pin above is what names which four.
+		{"rows", len(items), 82},
 		{"closed", len(struck) + len(byLead), 12},
-		{"open", open, 66},
+		{"open", open, 70},
 	} {
 		if c.got != c.want {
 			t.Errorf("%s: %d, pinned at %d.\n"+
