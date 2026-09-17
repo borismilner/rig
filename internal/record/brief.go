@@ -133,6 +133,53 @@ type Brief struct {
 	// surfaced.
 	Governing []GoverningRecord
 
+	// Closed is SECTION 13: every work item this brief's open lists drop
+	// because something CLOSED it, each row carrying that word.
+	//
+	// ⛔ RULED BY BORIS 2026-09-17, B68, AND THE OPEN LIST DOES NOT CHANGE.
+	// 14 of 80 work items were invisible because the derivation rendered only
+	// `status == "active"`, and absence was the store's only way of saying a
+	// thing was finished. He was shown three shapes and chose this one: a
+	// section of its own, because marking the closed rows inside the open list
+	// would grow the one part of the brief he has already called hard to read.
+	//
+	// ⛔ CLOSED IS A FAMILY AND NOT A WORD. `closed` and `closed-by-ruling`
+	// are both in the live store, so the membership test is what the status
+	// is NOT - see itemClosingWord.
+	Closed []ClosedItem
+
+	// ClosedCounts is how many closed items carry each word, word ascending.
+	//
+	// It is the census the ruling asks the section to show, and it is what
+	// makes the family visible as a family rather than as a column a reader
+	// has to tally by eye.
+	ClosedCounts []WordCount
+
+	// Unlisted is how many work items are in NEITHER the open lists NOR the
+	// closed one.
+	//
+	// ⛔ IT EXISTS BECAUSE THE CLOSED SECTION CREATES A WRONG INFERENCE AND
+	// NOTHING ELSE CORRECTS IT. Before this section there was one list and no
+	// reason to add anything up; with two, a reader takes open + closed for
+	// the total. Measured 2026-09-17 in the live production store: 11 of 95
+	// work items carry no `status` field at all, written by rigseed out of a
+	// backlog table with no status column, so the sum is wrong by 11.
+	//
+	// ⛔ A COUNT AND NOT A LIST, AND THAT IS THE HONEST LIMIT. `idea` means the
+	// item has not been picked up and an absent status means nobody said - two
+	// facts that are neither open work nor closed work, and rendering them as
+	// either would be this brief's own reassuring-lie failure. The count says
+	// they are there; record.query says which.
+	//
+	// ⛔ uint64 AND NOT int, AND IT IS THE WIRE'S TYPE ON PURPOSE. A signed
+	// count here means the daemon converts on every brief, and a conversion
+	// gosec is right to flag: nothing in the type stops a negative arriving,
+	// and int -> uint64 turns one into a number larger than the store could
+	// ever hold. The bound belongs where the count is DERIVED, not at the
+	// crossing - the same argument GoverningCounts and StageCount already make
+	// by being uint64 all the way down.
+	Unlisted uint64
+
 	// GoverningCounts is how many of each governing kind exist, in the
 	// vocabulary's order.
 	//
@@ -339,6 +386,86 @@ func card(it Record) ItemState {
 	}
 }
 
+// closedItems is section 13: every work item the open lists drop because
+// something closed it, the per-word census, and how many items are in NEITHER
+// list.
+//
+// ⛔ THE ACTIVE SET IS THE INPUT, NOT A SECOND COPY OF ITS PREDICATE. Deciding
+// membership here by re-testing `status` and the latest step would be the same
+// rule written twice, and the day one half moves an item leaves both lists or
+// appears in both. "Not open" is the only definition that cannot drift.
+//
+// ⛔ AND THE CENSUS IS ACCUMULATED BESIDE THE LIST RATHER THAN FROM IT, for the
+// reason GoverningCounts records: a count taken from a list starts describing
+// the list the day somebody caps it.
+func closedItems(items []Record, latest map[string]Record,
+	active map[string]ItemState,
+) ([]ClosedItem, []WordCount, uint64) {
+	closed := make([]ClosedItem, 0, len(items))
+	counts := map[string]uint64{}
+	var unlisted uint64
+	for _, it := range items {
+		if _, open := active[it.ID]; open {
+			continue
+		}
+		word := itemClosingWord(it.Fields["status"], latest[it.ID].Fields["state"])
+		if word == "" {
+			unlisted++
+			continue
+		}
+		closed = append(closed, ClosedItem{
+			ID: it.ID, Title: it.Fields["title"], Word: word,
+		})
+		counts[word]++
+	}
+	sort.Slice(closed, func(i, j int) bool { return closed[i].ID < closed[j].ID })
+
+	words := make([]WordCount, 0, len(counts))
+	for w, n := range counts {
+		words = append(words, WordCount{Word: w, Count: n})
+	}
+	sort.Slice(words, func(i, j int) bool { return words[i].Word < words[j].Word })
+
+	if len(closed) == 0 {
+		closed = nil
+	}
+	if len(words) == 0 {
+		words = nil
+	}
+	return closed, words, unlisted
+}
+
+// itemClosingWord is WHAT CLOSED an item, or empty when nothing did.
+//
+// ⛔ THE FAMILY IS DEFINED BY EXCLUSION AND THIS IS THE WHOLE OF B68. The live
+// store holds `closed` AND `closed-by-ruling`; a predicate written against the
+// literal `"closed"` drops the second silently, which is the invisibility the
+// section was ruled to end. So every status that is not one of the three
+// NON-closing words is a closing word, including ones nobody has written yet.
+//
+// ⛔ THE THREE EXCLUSIONS EACH SAY SOMETHING DIFFERENT AND NONE OF THEM SAYS
+// FINISHED. `active` is open work. `idea` is section 39's word for "has not
+// been picked up". An ABSENT status is nobody having said - 11 of the live
+// store's 95 work items, written by rigseed out of a backlog table with no
+// status column. Filing any of the three under a heading reading CLOSED would
+// state something no document says; they are counted in Brief.Unlisted instead.
+//
+// ⛔ THE STATUS WORD WINS OVER THE STEP, because it is what a person wrote. An
+// item stepped `done` whose status still reads `active` is closed by its
+// progress stream and B68's own row names that case - absence is how this store
+// already expresses closure for the progress-stepped items.
+func itemClosingWord(status, step string) string {
+	switch status {
+	case "", "active", "idea":
+		if step == "done" {
+			return "done"
+		}
+		return ""
+	default:
+		return status
+	}
+}
+
 // decodeTags reads the JSON array a tags field holds.
 //
 // ⛔ A MALFORMED VALUE IS NO TAGS, NEVER AN ERROR, and that is deliberate
@@ -452,6 +579,43 @@ type GoverningRecord struct {
 // the brief would flake.
 type KindCount struct {
 	Kind  string
+	Count uint64
+}
+
+// ClosedItem is one work item that is NOT open, and THE WORD THAT CLOSED IT.
+//
+// ⛔ THE WORD IS THE WHOLE ROW AND IT IS WHAT BORIS RULED, 2026-09-17: the
+// brief gains a section carrying the closed rows "with the word that closed
+// them". `closed` and `closed-by-ruling` are both in the live store, and a
+// section that printed one heading over both would have hidden the second
+// inside the first - the fold that GoverningRecord.Kind already refuses one
+// section up.
+//
+// ⛔ IT IS NOT ItemState. The compact card carries nine fields for work that is
+// live - a state, an age, a latest note, a priority to rank it by - and every
+// one of them answers a question nobody asks about finished work. A reader of
+// this section is asking what happened to B55, which is three strings.
+type ClosedItem struct {
+	ID    string
+	Title string
+
+	// Word is what closed it: the record's own status when it carries a
+	// closing one, and `done` when the thing that closed it is the progress
+	// stream. EMPTY IS IMPOSSIBLE HERE by construction - an item with no
+	// closing word is not in this list at all, it is in Brief.Unlisted.
+	Word string
+}
+
+// WordCount is how many closed items carry one closing word.
+//
+// ⛔ SEPARATELY DERIVED FROM THE LIST, for the reason GoverningCounts and
+// StageCount both record: a total derived from a list starts describing the
+// list the day somebody caps it, and the cap is the change nobody remembers
+// was load-bearing.
+//
+// A SLICE AND NOT A MAP, for StageCount's reason: Go randomises map iteration.
+type WordCount struct {
+	Word  string
 	Count uint64
 }
 
@@ -706,6 +870,13 @@ func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 		}
 		led.did(SectionCaseNotes)
 	}
+
+	// SECTION 13, B68, RULED BY BORIS 2026-09-17. A SEPARATE PASS OVER THE
+	// SAME ITEMS, AND THAT IS THE RULING EXPRESSED IN CODE: he chose a section
+	// of its own precisely so the open list would not change, so the active-set
+	// loop above is untouched and this reads what that loop declined to keep.
+	b.Closed, b.ClosedCounts, b.Unlisted = closedItems(items, latest, active)
+	led.did(SectionClosed)
 
 	// ⛔ THE SECTION STATES ARE THE DERIVATION'S AND THIS IS WHERE THEY LAND.
 	// They lived in the daemon as a hand-kept list until now, and its own

@@ -151,6 +151,23 @@ type Brief struct {
 	Governing       []BriefGoverning
 	GoverningCounts []BriefKindCount
 
+	// Closed, ClosedCounts and Unlisted are SECTION 13, B68, ruled by Boris
+	// 2026-09-17: the work items the open lists drop because something closed
+	// them, each carrying the word that closed it.
+	//
+	// ⛔ THE OPEN LISTS DO NOT CHANGE AND A RENDERER MAY NOT MERGE THESE BACK
+	// INTO THEM. Marking the closed rows inside the open list is the shape he
+	// was shown and rejected, on the grounds that the open list is already the
+	// part of the brief he has called hard to read.
+	//
+	// ⛔ Unlisted IS NOT A REMAINDER TO BE IGNORED WHEN IT IS INCONVENIENT. It
+	// is how many work items are in NEITHER list - an `idea` nobody picked up,
+	// or a record whose status nobody wrote - and without it a reader adds the
+	// two lists up and is wrong with no way to find out.
+	Closed       []BriefClosedItem
+	ClosedCounts []BriefWordCount
+	Unlisted     uint64
+
 	// Sections is the state of all ELEVEN of section 39's sections.
 	//
 	// ⛔ RENDERING A SECTION WITHOUT ITS STATE IS THE DEFECT BORIS RULED OUT,
@@ -318,6 +335,28 @@ type BriefGoverning struct {
 // BriefKindCount is how many governing records of one kind exist.
 type BriefKindCount struct {
 	Kind  string
+	Count uint64
+}
+
+// BriefClosedItem is one work item that is NOT open, and THE WORD THAT CLOSED
+// IT. Section 13, B68.
+type BriefClosedItem struct {
+	ID    string
+	Title string
+
+	// Word is what closed it: a status somebody wrote, or `done` from the
+	// progress stream when the status still reads `active`.
+	//
+	// ⛔ EMPTY IS A DEFECT rather than a word, for BriefGoverning.Kind's
+	// reason. The derivation puts an item with no closing word in Unlisted, so
+	// a blank cell here means the wire dropped the field - and a blank cell
+	// reads as a closure called nothing.
+	Word string
+}
+
+// BriefWordCount is how many closed items carry one closing word.
+type BriefWordCount struct {
+	Word  string
 	Count uint64
 }
 
@@ -518,6 +557,18 @@ func briefJSON(b Brief, now time.Time) map[string]any {
 			kindKey: c.Kind, "count": c.Count,
 		})
 	}
+	closed := make([]map[string]any, 0, len(b.Closed))
+	for _, c := range b.Closed {
+		closed = append(closed, map[string]any{
+			"id": c.ID, titleKey: c.Title, "closing_word": c.Word,
+		})
+	}
+	closedCounts := make([]map[string]any, 0, len(b.ClosedCounts))
+	for _, c := range b.ClosedCounts {
+		closedCounts = append(closedCounts, map[string]any{
+			"word": c.Word, "count": c.Count,
+		})
+	}
 	cycles := make([]map[string]any, 0, len(b.Cycles))
 	for _, c := range b.Cycles {
 		items := c.Items
@@ -576,6 +627,15 @@ func briefJSON(b Brief, now time.Time) map[string]any {
 		// whole brief is built on.
 		"governing":        governing,
 		"governing_counts": governingCounts,
+
+		// ⛔ SECTION 13, B68. `unlisted_items` IS EMITTED EVEN WHEN IT IS ZERO,
+		// unlike the text form which suppresses it. A person reading a brief
+		// with nothing unlisted does not need a line saying so; a consumer
+		// reading JSON needs to know the key exists, or it cannot tell a build
+		// that counts them from one that does not.
+		"closed":         closed,
+		"closed_counts":  closedCounts,
+		"unlisted_items": b.Unlisted,
 		// `blocked` IS WHAT WAITS ON WHAT. `cycles` IS THE CYCLE REPORT AND
 		// NOT A RESOLUTION - it carries the items and nothing that could be
 		// read as an edge to break. ⛔ THESE TWO KEYS WERE ONE, UNDER THE
@@ -723,6 +783,11 @@ func briefText(b Brief, now time.Time, st briefStyle) string {
 	sb.WriteString(briefNotesSection(b.Notes, now, st))
 	sb.WriteString(briefFeaturesSection(b.Features, b.FeatureStages, st))
 	sb.WriteString(briefGoverningSection(b.Project, b.Governing, b.GoverningCounts, st))
+	// ⛔ LAST OF THE WORK SECTIONS, AND THE POSITION IS THE RULING. Closed work
+	// is the least actionable thing in the brief, and putting it here leaves
+	// every screen above byte-identical to what it was - which is what Boris's
+	// "already hard to read" objection asks of a section being ADDED to it.
+	sb.WriteString(briefClosedSection(b.Closed, b.ClosedCounts, b.Unlisted, st))
 	sb.WriteString(briefUnavailableSection(b.Sections, st))
 	return sb.String()
 }
@@ -1624,7 +1689,83 @@ func briefBlockageSection(blocked []BriefBlockage, st briefStyle) string {
 // list. ADDING A RENDERER MEANS ADDING ITS NUMBER HERE, IN THE SAME CHANGE.
 // TestASectionThisBuildRendersIsNotAlsoReportedAsUnrenderable is the guard.
 var briefRenderedSections = map[int]bool{
-	1: true, 2: true, 3: true, 4: true, 10: true, 12: true,
+	1: true, 2: true, 3: true, 4: true, 10: true, 12: true, 13: true,
+}
+
+// briefClosedSection is the work this project has FINISHED. Section 13, B68.
+//
+// ⛔ IT EXISTS BECAUSE ABSENCE WAS THE STORE'S ONLY WAY OF SAYING A THING WAS
+// DONE. The open lists carry `status == active` and nothing else, so a closed
+// item simply vanished: 14 of 80 work items in the live store were invisible,
+// and a reader had no way to learn rig still held them.
+//
+// ⛔ THE CLOSING WORD IS RENDERED AND NOT FOLDED INTO A HEADING. `closed` and
+// `closed-by-ruling` are both in the store and they are different facts - one
+// is work that finished, the other is work Boris ended - so a section printing
+// one heading over both would hide the second inside the first. Same argument
+// briefGoverningKindCell makes one section up.
+//
+// ⛔ AND IT USES keyedTable RATHER THAN A FOURTH COPY OF THE WIDTH RULE. A
+// work-item id is a slug derived from its heading and can be longer than the
+// page; keyedTable is the one implementation that pins the key and steps it
+// out when it will not fit, which rig 58d5d20 extracted for exactly this.
+func briefClosedSection(rows []BriefClosedItem, counts []BriefWordCount,
+	unlisted uint64, st briefStyle,
+) string {
+	var sb strings.Builder
+	sb.WriteString("\n" + st.strong("CLOSED") + "\n")
+
+	switch {
+	case len(rows) == 0 && len(counts) == 0:
+		sb.WriteString("No work item here has been closed.\n")
+	default:
+		table := make([][]string, 0, len(rows))
+		for _, c := range rows {
+			table = append(table, []string{
+				c.ID,
+				briefCell(c.Word, "(no word - which is a defect, not a word)"),
+				briefCell(c.Title, "(no title)"),
+			})
+		}
+		keyedTable(&sb, []string{"ID", "CLOSED BY", "TITLE"}, table, st.Width,
+			"An id here is longer than the page, so each is printed whole on "+
+				"its own line: a cut id cannot be pasted into "+
+				"`rig record get`, which is the one thing this section exists "+
+				"to make possible.")
+
+		// The counts print even when the list is empty, and the reverse:
+		// either arriving alone is a fact about the derivation, and one
+		// condition covering both would hide whichever half is missing.
+		// briefGoverningSection's rule.
+		if len(counts) > 0 {
+			sb.WriteString("\n")
+			for _, c := range counts {
+				fmt.Fprintf(&sb, "  %-18s %d\n",
+					briefCell(c.Word, "(no word)"), c.Count)
+			}
+		}
+	}
+
+	// ⛔ PRINTED ONLY WHEN THERE ARE ANY, AND THAT ASYMMETRY IS DELIBERATE. The
+	// line exists to correct an inference - that OPEN plus CLOSED is the total
+	// - and a zero makes no wrong inference to correct. A brief that announced
+	// "0 work items are in neither list" would be spending a line of the
+	// reader's attention on nothing, which is the charge against the section
+	// itself if it is not careful.
+	if unlisted > 0 {
+		// budget CHOOSES THE WRAP and st.Width would be zero at a pipe, where
+		// briefStyle's zero means unbounded. keyedTable's own two-number
+		// comment is the rule; this is the prose half of it.
+		budget := st.Width
+		if budget <= 0 {
+			budget = briefDefaultWrap
+		}
+		sb.WriteString("\n" + briefWrap(fmt.Sprintf(
+			"%d work item(s) are in neither list: nobody has picked them up "+
+				"(`idea`), or nobody wrote a status. `rig record query "+
+				"--kind=work-item` lists them.", unlisted), budget))
+	}
+	return sb.String()
 }
 
 // briefUnavailableSection names every section of the brief the reader is not
@@ -1777,6 +1918,22 @@ func briefFromWire(r *rigv1.ProjectBriefResponse) Brief {
 			Kind: c.GetKind(), Count: c.GetCount(),
 		})
 	}
+	for _, c := range r.GetClosed() {
+		b.Closed = append(b.Closed, BriefClosedItem{
+			ID: c.GetId(), Title: c.GetTitle(), Word: c.GetClosingWord(),
+		})
+	}
+	for _, c := range r.GetClosedCounts() {
+		b.ClosedCounts = append(b.ClosedCounts, BriefWordCount{
+			Word: c.GetWord(), Count: c.GetCount(),
+		})
+	}
+	// ⛔ READ EVEN THOUGH ITS ZERO IS INDISTINGUISHABLE FROM AN UNSERVED FIELD.
+	// An older daemon is told apart by the ABSENCE of the closed section from
+	// `sections`, which briefUnavailableSection already reports; dropping the
+	// count here would instead make a brief that HAS the section silently
+	// under-report by every statusless item.
+	b.Unlisted = r.GetUnlistedItems()
 	for _, n := range r.GetNotes() {
 		b.Notes = append(b.Notes, noteFromWire(n))
 	}

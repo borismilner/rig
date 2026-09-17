@@ -569,11 +569,11 @@ func TestEveryBriefSectionReportsItsOwnState(t *testing.T) {
 			want[n] = true
 		}
 	}
-	if len(want) != 12 {
-		t.Fatalf("BriefSection carries %d sections and this wire serves 12 - "+
-			"section 39's eleven plus the governing section B64 added. If the "+
-			"specification changed, this number moves with it deliberately",
-			len(want))
+	if len(want) != 13 {
+		t.Fatalf("BriefSection carries %d sections and this wire serves 13 - "+
+			"section 39's eleven, the governing section B64 added and the "+
+			"closed section B68 did. If the specification changed, this "+
+			"number moves with it deliberately", len(want))
 	}
 
 	// ⛔ THE STORE'S TWELVE, TRANSCRIBED, AS A SECOND INSTRUMENT. Feeding this
@@ -596,6 +596,7 @@ func TestEveryBriefSectionReportsItsOwnState(t *testing.T) {
 		{Section: record.SectionFeatures, State: record.SectionComputed},
 		{Section: record.SectionCaseNotes, State: record.SectionNotComputed, Reason: "r"},
 		{Section: record.SectionGoverning, State: record.SectionComputed},
+		{Section: record.SectionClosed, State: record.SectionComputed},
 	}
 	got, err := sectionStatuses(from)
 	if err != nil {
@@ -662,8 +663,8 @@ func TestTheBriefNeverAnswersWithoutItsSectionStates(t *testing.T) {
 		&rigv1.ProjectBriefRequest{Project: "rig"}, &resp); err != nil {
 		t.Fatalf("rig.project.brief: %v", err)
 	}
-	if len(resp.GetSections()) != 12 {
-		t.Fatalf("the brief answered with %d section states, want 12: an empty "+
+	if len(resp.GetSections()) != 13 {
+		t.Fatalf("the brief answered with %d section states, want 13: an empty "+
 			"health block is then indistinguishable from a healthy project",
 			len(resp.GetSections()))
 	}

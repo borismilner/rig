@@ -48,20 +48,39 @@ const (
 	// obeys it; a fold that hides one kind inside another's row is the thing it
 	// was made against.
 	SectionGoverning Section = "governing"
+
+	// SectionClosed is the THIRTEENTH, and Boris ruled it himself on
+	// 2026-09-17 after being shown three shapes with their costs. B68.
+	//
+	// ⛔ THE OPEN LIST DOES NOT CHANGE, WHICH IS THE HALF OF THE RULING THAT IS
+	// EASIEST TO LOSE. Marking the closed rows inside the open list was the
+	// option he rejected, on the grounds that the open list is already the part
+	// of the brief he has called hard to read. A section of its own is the
+	// whole point of the shape, not an implementation detail of it.
+	//
+	// ⛔ AND IT IS A FAMILY OF WORDS RATHER THAN THE WORD `closed`: the live
+	// store holds `closed` and `closed-by-ruling`, and a predicate written
+	// against the literal drops the second and re-opens B68 for it.
+	SectionClosed Section = "closed"
 )
 
-// briefSections is section 39's eleven, in the section's own order, plus the
-// twelfth that B64 added.
+// briefSections is section 39's own list in the section's own order, then the
+// ones later rulings added - B64's governing, B68's closed - each at the end.
 //
-// EVERY BRIEF ANSWERS ALL ELEVEN. Boris, 2026-09-16, asked directly whether the
-// four that shipped were enough: "Cover all of them." A section that cannot be
-// answered says so; it is not omitted, because absence hides the capability gap
-// and an empty list lies in the reassuring direction.
+// ⛔ THE COUNT IS NOT WRITTEN HERE AND THAT IS DELIBERATE. This caption read
+// "section 39's eleven ... plus the twelfth" and was a sentence asserting a
+// number the slice no longer held the moment B68 added a thirteenth. len() is
+// the only honest count and it is one line below.
+//
+// EVERY BRIEF ANSWERS ALL OF THEM. Boris, 2026-09-16, asked directly whether
+// the four that shipped were enough: "Cover all of them." A section that cannot
+// be answered says so; it is not omitted, because absence hides the capability
+// gap and an empty list lies in the reassuring direction.
 var briefSections = []Section{
 	SectionOpen, SectionNextUp, SectionNotes, SectionBlocked,
 	SectionDrift, SectionMustRead, SectionProjectionBehind,
 	SectionPending, SectionLocalOnly, SectionFeatures, SectionCaseNotes,
-	SectionGoverning,
+	SectionGoverning, SectionClosed,
 }
 
 // SectionState is whether a section's answer means anything.

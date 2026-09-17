@@ -797,6 +797,15 @@ const (
 	// then fails loudly, where a half-done fold renders and hides a decision
 	// inside another row's shape.
 	BriefSection_BRIEF_SECTION_GOVERNING BriefSection = 12
+	// ⛔ B68, RULED BY BORIS 2026-09-17. The work this project has FINISHED,
+	// which the open lists drop by construction and nothing else carried.
+	//
+	// ⛔ ITS ABSENCE IS HOW A READER KNOWS AN OLDER DAEMON CANNOT ANSWER IT, and
+	// that is the whole reason `closed` and `unlisted_items` need no Tristate of
+	// their own. A daemon that predates this member serves twelve section rows
+	// and no thirteenth, so an empty closed list from it is distinguishable from
+	// an empty closed list from a daemon that looked and found nothing.
+	BriefSection_BRIEF_SECTION_CLOSED BriefSection = 13
 )
 
 // Enum value maps for BriefSection.
@@ -815,6 +824,7 @@ var (
 		10: "BRIEF_SECTION_FEATURES",
 		11: "BRIEF_SECTION_CASE_NOTES",
 		12: "BRIEF_SECTION_GOVERNING",
+		13: "BRIEF_SECTION_CLOSED",
 	}
 	BriefSection_value = map[string]int32{
 		"BRIEF_SECTION_UNSPECIFIED":       0,
@@ -830,6 +840,7 @@ var (
 		"BRIEF_SECTION_FEATURES":          10,
 		"BRIEF_SECTION_CASE_NOTES":        11,
 		"BRIEF_SECTION_GOVERNING":         12,
+		"BRIEF_SECTION_CLOSED":            13,
 	}
 )
 
@@ -5214,6 +5225,143 @@ func (x *KindCount) GetCount() uint64 {
 	return 0
 }
 
+// ClosedItem is one work item that is NOT open, and THE WORD THAT CLOSED IT.
+// Section 13, B68.
+//
+// ⛔ THE WORD IS THE ROW AND IT IS WHAT BORIS RULED: the section carries the
+// closed rows "with the word that closed them". The live store holds `closed`
+// AND `closed-by-ruling`, and a section that printed one heading over both
+// would have hidden the second inside the first - the fold `GoverningRecord`'s
+// own `kind` field refuses one section up.
+//
+// ⛔ IT IS NOT AN ItemState AND THAT IS NOT A SAVING. The compact card carries
+// nine fields about work that is LIVE - a state, an age, a latest note, a
+// priority to rank it by - and every one of them answers a question nobody asks
+// about finished work.
+//
+// ⛔ EVERY FIELD IS A STRING, SO DECISION 6 BINDS EACH OF THEM: protojson omits
+// the empty string, so absent and unserved are the same bytes and an
+// empty-value mutation asserts nothing about liveness. Any test proving these
+// travel owes TWO mutations per field - empty, and a wrong non-empty value.
+type ClosedItem struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	// What closed it. EMPTY IS IMPOSSIBLE BY CONSTRUCTION - an item with no
+	// closing word is not in this list, it is in `unlisted_items`.
+	ClosingWord   string `protobuf:"bytes,3,opt,name=closing_word,json=closingWord,proto3" json:"closing_word,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ClosedItem) Reset() {
+	*x = ClosedItem{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[60]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClosedItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClosedItem) ProtoMessage() {}
+
+func (x *ClosedItem) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[60]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClosedItem.ProtoReflect.Descriptor instead.
+func (*ClosedItem) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{60}
+}
+
+func (x *ClosedItem) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ClosedItem) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *ClosedItem) GetClosingWord() string {
+	if x != nil {
+		return x.ClosingWord
+	}
+	return ""
+}
+
+// WordCount is how many closed items carry one closing word.
+//
+// A REPEATED MESSAGE AND NOT A map<string,uint64>, for StageCount's reason:
+// proto3 maps have no defined ordering on the wire, so a renderer would emit a
+// different order per call and a golden test would flake.
+type WordCount struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Word          string                 `protobuf:"bytes,1,opt,name=word,proto3" json:"word,omitempty"`
+	Count         uint64                 `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WordCount) Reset() {
+	*x = WordCount{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[61]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WordCount) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WordCount) ProtoMessage() {}
+
+func (x *WordCount) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[61]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WordCount.ProtoReflect.Descriptor instead.
+func (*WordCount) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{61}
+}
+
+func (x *WordCount) GetWord() string {
+	if x != nil {
+		return x.Word
+	}
+	return ""
+}
+
+func (x *WordCount) GetCount() uint64 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
 type ProjectBriefResponse struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Project string                 `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
@@ -5318,13 +5466,45 @@ type ProjectBriefResponse struct {
 	// has no container record. Suppressing them would replace one wrong answer
 	// with another.
 	ContainerFound Tristate `protobuf:"varint,22,opt,name=container_found,json=containerFound,proto3,enum=rig.v1.Tristate" json:"container_found,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// ⛔ SECTION 13, B68. The work items the open lists drop because something
+	// CLOSED them, each row carrying that word. 14 of 80 work items were
+	// invisible before this existed, and absence was the store's only way of
+	// saying a thing was finished.
+	//
+	// ⛔ THE OPEN LISTS DO NOT CHANGE, which is the half of the ruling easiest to
+	// lose in a mapper. `open`, `next_up` and `blocked` are byte-identical to
+	// what they were before this field; a reader merging the closed rows back
+	// into them is rebuilding the shape Boris rejected.
+	Closed []*ClosedItem `protobuf:"bytes,23,rep,name=closed,proto3" json:"closed,omitempty"`
+	// How many closed items carry each closing word, word ascending.
+	//
+	// SEPARATELY SERVED FROM `closed` FOR THE REASON governing_counts GIVES: a
+	// total derived from a list starts describing the list the day somebody caps
+	// it, and the cap is the change nobody remembers was load-bearing.
+	ClosedCounts []*WordCount `protobuf:"bytes,24,rep,name=closed_counts,json=closedCounts,proto3" json:"closed_counts,omitempty"`
+	// ⛔ HOW MANY WORK ITEMS ARE IN NEITHER THE OPEN LISTS NOR `closed`, AND IT
+	// EXISTS BECAUSE THE CLOSED LIST CREATES A WRONG INFERENCE NOTHING ELSE
+	// CORRECTS. With one list there was no reason to add anything up; with two, a
+	// reader takes open + closed for the total. Measured 2026-09-17 in the live
+	// store: 11 of 95 work items carry no `status` field at all, written by
+	// rigseed out of a backlog table with no status column, so the sum is wrong
+	// by 11 and the reader has no way to find out.
+	//
+	// ⛔ A COUNT AND NOT A LIST, AND THAT IS THE HONEST LIMIT. `idea` means the
+	// item has not been picked up and an absent status means nobody said - two
+	// facts that are neither open work nor closed work, and serving them as
+	// either would be this brief's own reassuring-lie failure.
+	//
+	// A ZERO HERE IS NOT A Tristate CASE: an older daemon is told apart by the
+	// ABSENCE of BRIEF_SECTION_CLOSED from `sections`, not by this number.
+	UnlistedItems uint64 `protobuf:"varint,25,opt,name=unlisted_items,json=unlistedItems,proto3" json:"unlisted_items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ProjectBriefResponse) Reset() {
 	*x = ProjectBriefResponse{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[60]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5336,7 +5516,7 @@ func (x *ProjectBriefResponse) String() string {
 func (*ProjectBriefResponse) ProtoMessage() {}
 
 func (x *ProjectBriefResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[60]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5349,7 +5529,7 @@ func (x *ProjectBriefResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectBriefResponse.ProtoReflect.Descriptor instead.
 func (*ProjectBriefResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{60}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *ProjectBriefResponse) GetProject() string {
@@ -5504,6 +5684,27 @@ func (x *ProjectBriefResponse) GetContainerFound() Tristate {
 		return x.ContainerFound
 	}
 	return Tristate_TRISTATE_UNSPECIFIED
+}
+
+func (x *ProjectBriefResponse) GetClosed() []*ClosedItem {
+	if x != nil {
+		return x.Closed
+	}
+	return nil
+}
+
+func (x *ProjectBriefResponse) GetClosedCounts() []*WordCount {
+	if x != nil {
+		return x.ClosedCounts
+	}
+	return nil
+}
+
+func (x *ProjectBriefResponse) GetUnlistedItems() uint64 {
+	if x != nil {
+		return x.UnlistedItems
+	}
+	return 0
 }
 
 var File_proto_rig_v1_wire_proto protoreflect.FileDescriptor
@@ -5789,7 +5990,15 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x05title\x18\x03 \x01(\tR\x05title\"5\n" +
 	"\tKindCount\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x14\n" +
-	"\x05count\x18\x02 \x01(\x04R\x05count\"\xa1\a\n" +
+	"\x05count\x18\x02 \x01(\x04R\x05count\"U\n" +
+	"\n" +
+	"ClosedItem\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12!\n" +
+	"\fclosing_word\x18\x03 \x01(\tR\vclosingWord\"5\n" +
+	"\tWordCount\x12\x12\n" +
+	"\x04word\x18\x01 \x01(\tR\x04word\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x04R\x05count\"\xac\b\n" +
 	"\x14ProjectBriefResponse\x12\x18\n" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x12%\n" +
 	"\x04open\x18\x02 \x03(\v2\x11.rig.v1.ItemStateR\x04open\x12*\n" +
@@ -5814,7 +6023,10 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\bsections\x18\x13 \x03(\v2\x1a.rig.v1.BriefSectionStatusR\bsections\x125\n" +
 	"\tgoverning\x18\x14 \x03(\v2\x17.rig.v1.GoverningRecordR\tgoverning\x12<\n" +
 	"\x10governing_counts\x18\x15 \x03(\v2\x11.rig.v1.KindCountR\x0fgoverningCounts\x129\n" +
-	"\x0fcontainer_found\x18\x16 \x01(\x0e2\x10.rig.v1.TristateR\x0econtainerFound*\xbc\x01\n" +
+	"\x0fcontainer_found\x18\x16 \x01(\x0e2\x10.rig.v1.TristateR\x0econtainerFound\x12*\n" +
+	"\x06closed\x18\x17 \x03(\v2\x12.rig.v1.ClosedItemR\x06closed\x126\n" +
+	"\rclosed_counts\x18\x18 \x03(\v2\x11.rig.v1.WordCountR\fclosedCounts\x12%\n" +
+	"\x0eunlisted_items\x18\x19 \x01(\x04R\runlistedItems*\xbc\x01\n" +
 	"\tFrameKind\x12\x1a\n" +
 	"\x16FRAME_KIND_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12FRAME_KIND_REQUEST\x10\x01\x12\x17\n" +
@@ -5884,7 +6096,7 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\tBriefView\x12\x1a\n" +
 	"\x16BRIEF_VIEW_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10BRIEF_VIEW_AGENT\x10\x01\x12\x14\n" +
-	"\x10BRIEF_VIEW_HUMAN\x10\x02*\xff\x02\n" +
+	"\x10BRIEF_VIEW_HUMAN\x10\x02*\x99\x03\n" +
 	"\fBriefSection\x12\x1d\n" +
 	"\x19BRIEF_SECTION_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12BRIEF_SECTION_OPEN\x10\x01\x12\x19\n" +
@@ -5899,7 +6111,8 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x16BRIEF_SECTION_FEATURES\x10\n" +
 	"\x12\x1c\n" +
 	"\x18BRIEF_SECTION_CASE_NOTES\x10\v\x12\x1b\n" +
-	"\x17BRIEF_SECTION_GOVERNING\x10\f*\x8d\x01\n" +
+	"\x17BRIEF_SECTION_GOVERNING\x10\f\x12\x18\n" +
+	"\x14BRIEF_SECTION_CLOSED\x10\r*\x8d\x01\n" +
 	"\fSectionState\x12\x1d\n" +
 	"\x19SECTION_STATE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16SECTION_STATE_COMPUTED\x10\x01\x12\x1e\n" +
@@ -5919,7 +6132,7 @@ func file_proto_rig_v1_wire_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 14)
-var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 63)
+var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 65)
 var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(FrameKind)(0),                // 0: rig.v1.FrameKind
 	(Code)(0),                     // 1: rig.v1.Code
@@ -5995,9 +6208,11 @@ var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(*BriefHealth)(nil),           // 71: rig.v1.BriefHealth
 	(*GoverningRecord)(nil),       // 72: rig.v1.GoverningRecord
 	(*KindCount)(nil),             // 73: rig.v1.KindCount
-	(*ProjectBriefResponse)(nil),  // 74: rig.v1.ProjectBriefResponse
-	nil,                           // 75: rig.v1.Record.FieldsEntry
-	nil,                           // 76: rig.v1.RecordPutRequest.FieldsEntry
+	(*ClosedItem)(nil),            // 74: rig.v1.ClosedItem
+	(*WordCount)(nil),             // 75: rig.v1.WordCount
+	(*ProjectBriefResponse)(nil),  // 76: rig.v1.ProjectBriefResponse
+	nil,                           // 77: rig.v1.Record.FieldsEntry
+	nil,                           // 78: rig.v1.RecordPutRequest.FieldsEntry
 }
 var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	1,  // 0: rig.v1.Status.code:type_name -> rig.v1.Code
@@ -6028,9 +6243,9 @@ var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	9,  // 25: rig.v1.ActivityRequest.state:type_name -> rig.v1.SeatState
 	35, // 26: rig.v1.ActivityResponse.you:type_name -> rig.v1.Seat
 	35, // 27: rig.v1.PeersResponse.crew:type_name -> rig.v1.Seat
-	75, // 28: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
+	77, // 28: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
 	42, // 29: rig.v1.Record.prov:type_name -> rig.v1.Provenance
-	76, // 30: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
+	78, // 30: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
 	43, // 31: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
 	43, // 32: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
 	43, // 33: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
@@ -6059,11 +6274,13 @@ var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	72, // 56: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
 	73, // 57: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
 	6,  // 58: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
-	59, // [59:59] is the sub-list for method output_type
-	59, // [59:59] is the sub-list for method input_type
-	59, // [59:59] is the sub-list for extension type_name
-	59, // [59:59] is the sub-list for extension extendee
-	0,  // [0:59] is the sub-list for field type_name
+	74, // 59: rig.v1.ProjectBriefResponse.closed:type_name -> rig.v1.ClosedItem
+	75, // 60: rig.v1.ProjectBriefResponse.closed_counts:type_name -> rig.v1.WordCount
+	61, // [61:61] is the sub-list for method output_type
+	61, // [61:61] is the sub-list for method input_type
+	61, // [61:61] is the sub-list for extension type_name
+	61, // [61:61] is the sub-list for extension extendee
+	0,  // [0:61] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_wire_proto_init() }
@@ -6077,7 +6294,7 @@ func file_proto_rig_v1_wire_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_wire_proto_rawDesc), len(file_proto_rig_v1_wire_proto_rawDesc)),
 			NumEnums:      14,
-			NumMessages:   63,
+			NumMessages:   65,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

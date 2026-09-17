@@ -214,12 +214,12 @@ func TestSectionTenOnAProjectWithNothingToSay(t *testing.T) {
 // section reported twice and another missing is the shape a bare len() check
 // cannot see, and it is the one a hand-kept list actually produces.
 //
-// ⛔ TWELVE SINCE B64, AND THE TWO SETS ARE KEPT APART IN THIS TEST RATHER THAN
-// MERGED INTO ONE LIST OF TWELVE. Eleven are section 39's, transcribed from the
-// specification; the twelfth is this project's own addition, taken under a
-// delegation from Boris. Merging them would lose exactly the distinction that
-// makes the transcription worth having - the next reader could no longer tell
-// which rows answer to the spec and which answer to a seat.
+// ⛔ THIRTEEN SINCE B68, AND THE TWO SETS ARE KEPT APART IN THIS TEST RATHER
+// THAN MERGED INTO ONE LIST. Eleven are section 39's, transcribed from the
+// specification; the other two were added after it. Merging them would lose
+// exactly the distinction that makes the transcription worth having - the next
+// reader could no longer tell which rows answer to the spec and which were
+// added since.
 func TestABriefAnswersAllElevenSectionsExactlyOnce(t *testing.T) {
 	s := openStore(t, estate(t, sectProject))
 	project(t, s, "5")
@@ -229,9 +229,10 @@ func TestABriefAnswersAllElevenSectionsExactlyOnce(t *testing.T) {
 		t.Fatalf("brief: %v", err)
 	}
 
-	if len(b.Sections) != 12 {
-		t.Fatalf("the brief reports %d sections, want 12 - section 39's "+
-			"eleven plus the governing section B64 added", len(b.Sections))
+	if len(b.Sections) != 13 {
+		t.Fatalf("the brief reports %d sections, want 13 - section 39's "+
+			"eleven, the governing section B64 added and the closed section "+
+			"B68 did", len(b.Sections))
 	}
 	seen := map[Section]int{}
 	for _, st := range b.Sections {
@@ -257,11 +258,16 @@ func TestABriefAnswersAllElevenSectionsExactlyOnce(t *testing.T) {
 		"pending": true, "local_only": true, "features": true,
 		"case_notes": true,
 	}
-	// ⛔ NOT SECTION 39's, AND SEPARATELY LISTED SO THAT STAYS VISIBLE. B64's
-	// twelfth, added under Boris's delegation of the choice between a twelfth
-	// section and a fold. Anything else appearing here is an addition nobody
-	// ruled on.
-	ours := map[Section]bool{"governing": true}
+	// ⛔ NOT SECTION 39's, AND SEPARATELY LISTED SO THAT STAYS VISIBLE.
+	// Anything else appearing here is an addition nobody ruled on.
+	//
+	//   - `governing` is B64's twelfth, added under Boris's DELEGATION of the
+	//     choice between a twelfth section and a fold.
+	//   - `closed` is B68's thirteenth, and he ruled it HIMSELF on 2026-09-17
+	//     after being shown three shapes with their costs. A delegation and a
+	//     direct ruling are not the same authority, and a seat re-opening
+	//     either owes a different conversation.
+	ours := map[Section]bool{"governing": true, "closed": true}
 
 	for got := range seen {
 		if !eleven[got] && !ours[got] {

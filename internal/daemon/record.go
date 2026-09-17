@@ -521,6 +521,32 @@ func governingCounts(in []record.KindCount) []*rigv1.KindCount {
 	return out
 }
 
+// closedRows maps section 13's closed work items onto the wire. B68.
+//
+// ⛔ THE WORD IS COPIED AND NOT RE-DERIVED. The store decided what closed each
+// item - a status word it found, or `done` from the progress stream - and a
+// mapper that looked at the status again here would be the same predicate
+// written twice, which is how the two halves drift apart. Same argument as
+// governingRows makes about `kind`.
+func closedRows(in []record.ClosedItem) []*rigv1.ClosedItem {
+	out := make([]*rigv1.ClosedItem, 0, len(in))
+	for _, c := range in {
+		out = append(out, &rigv1.ClosedItem{
+			Id: c.ID, Title: c.Title, ClosingWord: c.Word,
+		})
+	}
+	return out
+}
+
+// closedCounts maps section 13's per-word census onto the wire.
+func closedCounts(in []record.WordCount) []*rigv1.WordCount {
+	out := make([]*rigv1.WordCount, 0, len(in))
+	for _, c := range in {
+		out = append(out, &rigv1.WordCount{Word: c.Word, Count: c.Count})
+	}
+	return out
+}
+
 // containerFoundOnTheWire spells B76's condition as a Tristate.
 //
 // ⛔ THE POINT OF THE FUNCTION IS THAT IT NEVER RETURNS UNSPECIFIED. A `bool`
@@ -590,6 +616,8 @@ func sectionStatuses(in []record.SectionStatus) ([]*rigv1.BriefSectionStatus, er
 			sec = rigv1.BriefSection_BRIEF_SECTION_CASE_NOTES
 		case record.SectionGoverning:
 			sec = rigv1.BriefSection_BRIEF_SECTION_GOVERNING
+		case record.SectionClosed:
+			sec = rigv1.BriefSection_BRIEF_SECTION_CLOSED
 		default:
 			return nil, fmt.Errorf("daemon: the record store reported section %q "+
 				"and this wire has no member for it - a section added on one side "+
@@ -733,6 +761,15 @@ func (d *Daemon) serveProjectBrief(ctx context.Context, c *conn, f *rigv1.Frame,
 		// against itself when it went on naming five unread fields of six.
 		Governing:       governingRows(b.Governing),
 		GoverningCounts: governingCounts(b.GoverningCounts),
+
+		// ⛔ SECTION 13, B68, AND `unlisted_items` TRAVELS WITH THE LIST OR
+		// THE LIST LIES. A brief carrying the closed rows without the count of
+		// the ones in neither list invites the reader to add two lists up for a
+		// total that is short by every statusless item - the precise inference
+		// the count was ruled in to correct.
+		Closed:        closedRows(b.Closed),
+		ClosedCounts:  closedCounts(b.ClosedCounts),
+		UnlistedItems: b.Unlisted,
 
 		// ⛔ THE PACKAGE COMPUTED THIS AND THIS FUNCTION THREW IT AWAY, SO THE
 		// FIRST BRIEF rig EVER GAVE OF ITSELF SAID "(not said)" ABOUT ITS OWN

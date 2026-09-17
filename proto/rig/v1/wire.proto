@@ -1313,6 +1313,16 @@ enum BriefSection {
   // then fails loudly, where a half-done fold renders and hides a decision
   // inside another row's shape.
   BRIEF_SECTION_GOVERNING = 12;
+
+  // ⛔ B68, RULED BY BORIS 2026-09-17. The work this project has FINISHED,
+  // which the open lists drop by construction and nothing else carried.
+  //
+  // ⛔ ITS ABSENCE IS HOW A READER KNOWS AN OLDER DAEMON CANNOT ANSWER IT, and
+  // that is the whole reason `closed` and `unlisted_items` need no Tristate of
+  // their own. A daemon that predates this member serves twelve section rows
+  // and no thirteenth, so an empty closed list from it is distinguishable from
+  // an empty closed list from a daemon that looked and found nothing.
+  BRIEF_SECTION_CLOSED = 13;
 }
 
 // SectionState is whether a section's answer means anything.
@@ -1450,6 +1460,43 @@ message GoverningRecord {
 // different order per call and a golden test would flake.
 message KindCount {
   string kind = 1;
+  uint64 count = 2;
+}
+
+// ClosedItem is one work item that is NOT open, and THE WORD THAT CLOSED IT.
+// Section 13, B68.
+//
+// ⛔ THE WORD IS THE ROW AND IT IS WHAT BORIS RULED: the section carries the
+// closed rows "with the word that closed them". The live store holds `closed`
+// AND `closed-by-ruling`, and a section that printed one heading over both
+// would have hidden the second inside the first - the fold `GoverningRecord`'s
+// own `kind` field refuses one section up.
+//
+// ⛔ IT IS NOT AN ItemState AND THAT IS NOT A SAVING. The compact card carries
+// nine fields about work that is LIVE - a state, an age, a latest note, a
+// priority to rank it by - and every one of them answers a question nobody asks
+// about finished work.
+//
+// ⛔ EVERY FIELD IS A STRING, SO DECISION 6 BINDS EACH OF THEM: protojson omits
+// the empty string, so absent and unserved are the same bytes and an
+// empty-value mutation asserts nothing about liveness. Any test proving these
+// travel owes TWO mutations per field - empty, and a wrong non-empty value.
+message ClosedItem {
+  string id = 1;
+  string title = 2;
+
+  // What closed it. EMPTY IS IMPOSSIBLE BY CONSTRUCTION - an item with no
+  // closing word is not in this list, it is in `unlisted_items`.
+  string closing_word = 3;
+}
+
+// WordCount is how many closed items carry one closing word.
+//
+// A REPEATED MESSAGE AND NOT A map<string,uint64>, for StageCount's reason:
+// proto3 maps have no defined ordering on the wire, so a renderer would emit a
+// different order per call and a golden test would flake.
+message WordCount {
+  string word = 1;
   uint64 count = 2;
 }
 
@@ -1598,4 +1645,39 @@ message ProjectBriefResponse {
   // has no container record. Suppressing them would replace one wrong answer
   // with another.
   Tristate container_found = 22;
+
+  // ⛔ SECTION 13, B68. The work items the open lists drop because something
+  // CLOSED them, each row carrying that word. 14 of 80 work items were
+  // invisible before this existed, and absence was the store's only way of
+  // saying a thing was finished.
+  //
+  // ⛔ THE OPEN LISTS DO NOT CHANGE, which is the half of the ruling easiest to
+  // lose in a mapper. `open`, `next_up` and `blocked` are byte-identical to
+  // what they were before this field; a reader merging the closed rows back
+  // into them is rebuilding the shape Boris rejected.
+  repeated ClosedItem closed = 23;
+
+  // How many closed items carry each closing word, word ascending.
+  //
+  // SEPARATELY SERVED FROM `closed` FOR THE REASON governing_counts GIVES: a
+  // total derived from a list starts describing the list the day somebody caps
+  // it, and the cap is the change nobody remembers was load-bearing.
+  repeated WordCount closed_counts = 24;
+
+  // ⛔ HOW MANY WORK ITEMS ARE IN NEITHER THE OPEN LISTS NOR `closed`, AND IT
+  // EXISTS BECAUSE THE CLOSED LIST CREATES A WRONG INFERENCE NOTHING ELSE
+  // CORRECTS. With one list there was no reason to add anything up; with two, a
+  // reader takes open + closed for the total. Measured 2026-09-17 in the live
+  // store: 11 of 95 work items carry no `status` field at all, written by
+  // rigseed out of a backlog table with no status column, so the sum is wrong
+  // by 11 and the reader has no way to find out.
+  //
+  // ⛔ A COUNT AND NOT A LIST, AND THAT IS THE HONEST LIMIT. `idea` means the
+  // item has not been picked up and an absent status means nobody said - two
+  // facts that are neither open work nor closed work, and serving them as
+  // either would be this brief's own reassuring-lie failure.
+  //
+  // A ZERO HERE IS NOT A Tristate CASE: an older daemon is told apart by the
+  // ABSENCE of BRIEF_SECTION_CLOSED from `sections`, not by this number.
+  uint64 unlisted_items = 25;
 }
