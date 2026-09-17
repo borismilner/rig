@@ -192,7 +192,12 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 			// rows, and nobody asked the seat what it was leaving out. All
 			// five OPEN.
 			"B72", "B73", "B74", "B75", "B76", "B77", "B78", "B79", "B8",
-			"B80", "B81", "B82", "B9",
+			"B80", "B81", "B82",
+			// B83 filed 2026-09-17 by team-lead generation 15: rig holds no
+			// specification at all - 553 of 570 records come from two
+			// documents and `plan/` contributes none, so a seat still greps
+			// `plan/` to find out what Boris ruled. OPEN.
+			"B83", "B9",
 		})
 
 	// B65 joins this set 2026-09-17: the field predicate landed at rig
@@ -205,8 +210,12 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 	// its title and status (rig `f970106`), `rigseed --check` computes the
 	// whole-set equality the row's own bar names, and B46 is in `rig brief
 	// rig` on the live production daemon. The row was struck.
+	// B75 and B76 join 2026-09-17: the write path stopped discarding piped
+	// prose (rig `334c3e2`, hardened at `c147419`) and a brief for a project
+	// that does not exist is now NAMED and exits 1 (rig `072aea4`). Both were
+	// demonstrated and both rows were struck.
 	pin(t, "closed, struck", struck,
-		[]string{"B11", "B19", "B20", "B22", "B31", "B33", "B64", "B65", "B66", "B7", "B9"})
+		[]string{"B11", "B19", "B20", "B22", "B31", "B33", "B64", "B65", "B66", "B7", "B75", "B76", "B9"})
 	pin(t, "closed by a terminal lead in the item cell", byLead, []string{"B21"})
 	pin(t, "claims a terminal state unstruck, seeded OPEN", claims,
 		[]string{"B15", "B24", "B25", "B44", "B46a", "B48", "B55", "B56"})
@@ -289,9 +298,15 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 		// parser did not. It did not touch the numbers; it said whose they
 		// were. **A red in a shared tree is attributable in one worktree run,
 		// and guessing costs more than measuring.**
-		{"rows", len(items), 87},
-		{"closed", len(struck) + len(byLead), 12},
-		{"open", open, 75},
+		// 87 -> 88 rows, 12 -> 14 closed and 75 -> 74 open, 2026-09-17 later,
+		// by team-lead generation 15. THREE ROWS MOVED AND THE COUNTS MOVE IN
+		// OPPOSITE DIRECTIONS, which is exactly what a count pin cannot see on
+		// its own: B83 was FILED (rows and open both +1) and B75 and B76 were
+		// STRUCK (closed +2, open -2). Net open is -1 while three rows changed.
+		// The SET pins above are what separate them.
+		{"rows", len(items), 88},
+		{"closed", len(struck) + len(byLead), 14},
+		{"open", open, 74},
 	} {
 		if c.got != c.want {
 			t.Errorf("%s: %d, pinned at %d.\n"+

@@ -503,11 +503,14 @@ func TestRigsOwnBacklogSaysWhichWordClosedEachRow(t *testing.T) {
 	// DID NOT NAME. It said two - the counts and the struck SET - and this
 	// closing-WORD set is a third, found by generation 11 running it. Closing a
 	// row therefore touches backlogpin_test.go TWICE and this file ONCE.
+	// B75 and B76 join 2026-09-17 later: the write path no longer discards
+	// piped prose and a brief for a missing project is named and exits 1.
+	// Both were struck with DONE the same day.
 	// B66 joins 2026-09-17: the heading grain reached the store with its title
 	// and status, `rigseed --check` computes the whole-set equality the row's
 	// own bar names, and B46 is in the live brief. Struck, closing word DONE.
 	sameSet(t, "DONE", by["DONE"],
-		[]string{"B20", "B22", "B24", "B25", "B31", "B33", "B44", "B46a", "B64", "B65", "B66", "B9"})
+		[]string{"B20", "B22", "B24", "B25", "B31", "B33", "B44", "B46a", "B64", "B65", "B66", "B75", "B76", "B9"})
 	sameSet(t, "REJECTED", by["REJECTED"], nil)
 
 	// ⛔ B19 IS THE ROW THE WHOLE FIELD EXISTS FOR. It was RETRACTED as
