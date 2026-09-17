@@ -567,6 +567,7 @@ func TestEverySectionThisBuildRendersPrintsSomethingWhenItIsEmpty(t *testing.T) 
 		3:  "NOTES",
 		4:  "BLOCKED",
 		10: "FEATURES",
+		12: "GOVERNING",
 	}
 	// The positive control, and it is what makes every assertion below mean
 	// something: a table that has fallen behind briefRenderedSections would

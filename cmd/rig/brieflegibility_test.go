@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -543,5 +544,173 @@ func TestNoColorSuppressesTheAttributeAndKeepsTheWidth(t *testing.T) {
 	}
 	if st.Width != 97 {
 		t.Errorf("NO_COLOR took the terminal's width with it: %+v", st)
+	}
+}
+
+// ---- S6-4: the section dumped everything it held ---------------------------
+
+// ⛔ `GOVERNING` PRINTED ONE ROW PER RULING, SO IT GREW WITHOUT BOUND.
+// Measured 2026-09-17 by team-lead generation 13, after importing rig's own
+// DECISIONS.md: 451 governing records made the section 473 lines of a
+// 495-line brief. Id, kind and title, no date, no grouping, no ordering a
+// reader can use, and no way to see the latest ruling without scrolling past
+// all 450 older ones.
+//
+// ⛔ IT LOOKED FINISHED AT THREE RECORDS, which is the whole lesson. The
+// section shipped with B64 against a store holding three rows and every
+// review of it read a complete, legible table.
+//
+// THE CAP IS A RENDERING RULE AND NOT A WIRE ONE. `Brief.Governing` still
+// carries every row, so `--json` is unchanged and nothing downstream loses
+// data - the defect is what a person reads, so that is what changes.
+func TestGoverningDoesNotGrowWithoutBoundAsRulingsAccumulate(t *testing.T) {
+	const decisions = 443
+	var rows []BriefGoverning
+	for i := range decisions {
+		rows = append(rows, BriefGoverning{
+			ID:    fmt.Sprintf("dec-%03d", i),
+			Kind:  "decision",
+			Title: fmt.Sprintf("ruling number %d", i),
+		})
+	}
+	rows = append(rows,
+		BriefGoverning{ID: "req-0", Kind: "requirement", Title: "the only requirement"},
+		BriefGoverning{ID: "art-0", Kind: "artefact", Title: "the only artefact"},
+	)
+	counts := []BriefKindCount{
+		{Kind: "decision", Count: decisions},
+		{Kind: "requirement", Count: 1},
+		{Kind: "artefact", Count: 1},
+	}
+
+	got := briefGoverningSection("rig", rows, counts, briefStyle{})
+	lines := strings.Count(got, "\n")
+
+	// The bound is the assertion. 445 rows must not become 445 lines, and a
+	// number here is what stops the next widening from being invisible.
+	if lines > 30 {
+		t.Errorf("the section is %d lines over %d records; it is a summary, "+
+			"not a dump:\n%s", lines, len(rows), got)
+	}
+
+	// ⛔ THE TOTAL SURVIVES THE CAP. A section that shows five and says five
+	// has hidden 438 rulings from a reader who has no way to know.
+	if !strings.Contains(got, "443") {
+		t.Errorf("the count of 443 decisions is gone, so the cap is not a "+
+			"summary, it is a loss:\n%s", got)
+	}
+
+	// ⛔ THE NEWEST IS WHAT A READER CAME FOR. Ids arrive oldest-first, so the
+	// last one put in is the latest ruling and it must be on the page - and it
+	// must be at the TOP of the five, not buried among them. Without the
+	// position the reversal is untested and reads as decoration.
+	if !strings.Contains(got, "ruling number 442") {
+		t.Errorf("the most recent ruling is not shown:\n%s", got)
+	}
+	newest := strings.Index(got, "ruling number 442")
+	oldestShown := strings.Index(got, "ruling number 438")
+	if newest < 0 || oldestShown < 0 || newest > oldestShown {
+		t.Errorf("the five are not newest-first: 442 at %d, 438 at %d:\n%s",
+			newest, oldestShown, got)
+	}
+	if strings.Contains(got, "ruling number 0\n") || strings.Contains(got, "ruling number 100") {
+		t.Errorf("an old ruling is shown ahead of the newest ones:\n%s", got)
+	}
+
+	// ⛔ AND IT SAYS HOW TO SEE THE REST. A cap with no exit turns a summary
+	// into a dead end, which is a worse defect than the dump it replaced.
+	if !strings.Contains(got, "record query") {
+		t.Errorf("nothing tells the reader how to see the other 438:\n%s", got)
+	}
+
+	// A kind with fewer rows than the cap is NOT truncated and must not
+	// advertise a remainder that does not exist.
+	if !strings.Contains(got, "the only requirement") || !strings.Contains(got, "the only artefact") {
+		t.Errorf("a kind under the cap lost its rows:\n%s", got)
+	}
+}
+
+// AND A SMALL PROJECT IS UNCHANGED, which is the control: the cap must not be
+// visible at all until there is something to cap.
+func TestGoverningUnderTheCapPrintsNoTruncationNoticeAtAll(t *testing.T) {
+	rows := []BriefGoverning{
+		{ID: "d1", Kind: "decision", Title: "the first ruling"},
+		{ID: "d2", Kind: "decision", Title: "the second ruling"},
+	}
+	counts := []BriefKindCount{{Kind: "decision", Count: 2}}
+
+	got := briefGoverningSection("rig", rows, counts, briefStyle{})
+	if strings.Contains(got, "record query") {
+		t.Errorf("two rows and the section is already apologising for a cap:\n%s", got)
+	}
+	for _, want := range []string{"the first ruling", "the second ruling"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("%q is missing from a section holding two rows:\n%s", want, got)
+		}
+	}
+}
+
+// AND EXACTLY AT THE CAP IS NOT OVER IT. An off-by-one here tells a reader
+// there is more to see when there is not, which is the same lie as hiding
+// rows, pointed the other way - and it is the boundary a comparison operator
+// gets wrong silently.
+func TestGoverningExactlyAtTheCapAdvertisesNoRemainder(t *testing.T) {
+	var rows []BriefGoverning
+	for i := range governingRowsPerKind {
+		rows = append(rows, BriefGoverning{
+			ID: fmt.Sprintf("d%d", i), Kind: "decision",
+			Title: fmt.Sprintf("ruling %d", i),
+		})
+	}
+	counts := []BriefKindCount{{Kind: "decision", Count: uint64(len(rows))}}
+
+	got := briefGoverningSection("rig", rows, counts, briefStyle{})
+	if strings.Contains(got, "record query") {
+		t.Errorf("exactly %d rows, all of them shown, and the section still "+
+			"points at a remainder that does not exist:\n%s",
+			governingRowsPerKind, got)
+	}
+	for i := range governingRowsPerKind {
+		if want := fmt.Sprintf("ruling %d", i); !strings.Contains(got, want) {
+			t.Errorf("%q is missing, so the cap dropped a row at the boundary:\n%s", want, got)
+		}
+	}
+}
+
+// ---- S6-5: the brief rendered a section and denied having a renderer -------
+
+// ⛔ THE BRIEF PRINTED `GOVERNING` AND THEN TOLD THE READER THIS BUILD CANNOT
+// SHOW SECTION 12. Both sentences, in one brief, on the surface Boris reads.
+// Measured 2026-09-17 by team-lead generation 13 against the live production
+// daemon at v0.0.0-m0-430-g60cfaed - so it was true of the build on his tray,
+// not of a tree.
+//
+// ⛔ THE MECHANISM WORKED AND ITS DATA WAS STALE, WHICH IS THE WORSE HALF.
+// `briefRenderedSections` exists precisely to report a section the daemon
+// computes and the client cannot draw; B64 shipped a renderer for 12 and never
+// added 12 to the map, so the check fired correctly against a fact that had
+// stopped being true. A detector nobody updates reports its own staleness as a
+// finding about the product.
+func TestASectionThisBuildRendersIsNotAlsoReportedAsUnrenderable(t *testing.T) {
+	b := brief(func(b *Brief) {
+		b.Project = "rig"
+		b.Governing = []BriefGoverning{{ID: "d1", Kind: "decision", Title: "a ruling"}}
+		b.GoverningCounts = []BriefKindCount{{Kind: "decision", Count: 1}}
+		b.Sections = []BriefSectionState{{Section: 12, Computed: true}}
+	})
+
+	got := briefText(b, now, briefStyle{})
+
+	// The positive control: without it this passes against a build that
+	// stopped rendering section 12 altogether, which is a different defect
+	// wearing the same green.
+	if !strings.Contains(got, "a ruling") {
+		t.Fatalf("section 12 was not rendered at all, so the assertion below "+
+			"proves nothing:\n%s", got)
+	}
+	if strings.Contains(got, "section 12") {
+		t.Errorf("the brief drew section 12 and then listed it as a section "+
+			"this build cannot draw. briefRenderedSections has not been told "+
+			"about the renderer that B64 shipped:\n%s", got)
 	}
 }

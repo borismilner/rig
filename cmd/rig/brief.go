@@ -616,7 +616,7 @@ func briefText(b Brief, now time.Time, st briefStyle) string {
 	sb.WriteString(briefOpenSection(b.Open, now, st))
 	sb.WriteString(briefNotesSection(b.Notes, now, st))
 	sb.WriteString(briefFeaturesSection(b.Features, b.FeatureStages, st))
-	sb.WriteString(briefGoverningSection(b.Governing, b.GoverningCounts, st))
+	sb.WriteString(briefGoverningSection(b.Project, b.Governing, b.GoverningCounts, st))
 	sb.WriteString(briefUnavailableSection(b.Sections, st))
 	return sb.String()
 }
@@ -1094,7 +1094,7 @@ func briefFeaturesSection(features []BriefFeature, stages []BriefStageCount, st 
 // ask record.query for them. An empty section that says "none recorded" teaches
 // a reader what to write next; a section that is simply absent teaches nothing,
 // which is section 39's own argument for the section states one layer up.
-func briefGoverningSection(rows []BriefGoverning, counts []BriefKindCount, st briefStyle) string {
+func briefGoverningSection(project string, rows []BriefGoverning, counts []BriefKindCount, st briefStyle) string {
 	var sb strings.Builder
 	sb.WriteString("\n" + st.strong("GOVERNING") + "\n")
 	if len(rows) == 0 && len(counts) == 0 {
@@ -1103,9 +1103,10 @@ func briefGoverningSection(rows []BriefGoverning, counts []BriefKindCount, st br
 		return sb.String()
 	}
 
-	if len(rows) > 0 {
-		table := make([][]string, 0, len(rows))
-		for _, g := range rows {
+	shown, held := governingShownPerKind(rows)
+	if len(shown) > 0 {
+		table := make([][]string, 0, len(shown))
+		for _, g := range shown {
 			table = append(table, []string{
 				g.ID,
 				// ⛔ A ROW THAT CANNOT SAY WHICH KIND IT IS HAS FOLDED THREE
@@ -1125,10 +1126,79 @@ func briefGoverningSection(rows []BriefGoverning, counts []BriefKindCount, st br
 	if len(counts) > 0 {
 		sb.WriteString("\n")
 		for _, c := range counts {
-			fmt.Fprintf(&sb, "  %-12s %d\n", briefCell(c.Kind, "(no kind)"), c.Count)
+			kind := briefCell(c.Kind, "(no kind)")
+			if held[c.Kind] <= governingRowsPerKind {
+				fmt.Fprintf(&sb, "  %-12s %d\n", kind, c.Count)
+				continue
+			}
+			// ⛔ THE EXIT IS PART OF THE CAP. A summary that cannot be
+			// expanded is a dead end, and a reader who cannot reach the other
+			// 438 is worse off than one who had to scroll past them.
+			fmt.Fprintf(&sb, "  %-12s %d   (last %d shown - %s)\n",
+				kind, c.Count, governingRowsPerKind,
+				governingQueryHint(project, c.Kind))
 		}
 	}
 	return sb.String()
+}
+
+// governingRowsPerKind is how many rows of one governing kind the brief
+// prints.
+//
+// ⛔ FIVE, FOR THE SAME REASON `NEXT UP` IS FIVE. The brief is a page a
+// person reads to learn where a project is, and a section that grows one line
+// per ruling stops being that on the day the record starts being used - which
+// is the day it was supposed to start working. Measured: 451 records made this
+// section 473 lines of a 495-line brief.
+const governingRowsPerKind = 5
+
+// governingShownPerKind takes the last governingRowsPerKind rows of each kind,
+// most recent first, and reports how many rows each kind actually holds.
+//
+// ⛔ IT TAKES THE TAIL AND DOES NOT RE-SORT. The rows arrive grouped by kind
+// in the order of consequence the derivation chose, and ordered by id within a
+// kind. Re-sorting here would be a second ordering rule no reader could see -
+// S6-1's defect, which was a caption asserting an order the data did not have.
+// Taking the tail claims nothing beyond "the end of the list I was handed",
+// and the caption says exactly that.
+func governingShownPerKind(rows []BriefGoverning) ([]BriefGoverning, map[string]uint64) {
+	held := map[string]uint64{}
+	order := []string{}
+	byKind := map[string][]BriefGoverning{}
+	for _, g := range rows {
+		if _, seen := byKind[g.Kind]; !seen {
+			order = append(order, g.Kind)
+		}
+		byKind[g.Kind] = append(byKind[g.Kind], g)
+		held[g.Kind]++
+	}
+
+	var out []BriefGoverning
+	for _, kind := range order {
+		of := byKind[kind]
+		if len(of) > governingRowsPerKind {
+			of = of[len(of)-governingRowsPerKind:]
+		}
+		for i := len(of) - 1; i >= 0; i-- {
+			out = append(out, of[i])
+		}
+	}
+	return out, held
+}
+
+// governingQueryHint is the command that lists one governing kind in full.
+//
+// It is built rather than written out so the flags cannot drift from the ones
+// `rig record query` actually takes, and the project is omitted when the brief
+// does not carry one - a hint naming `--project ""` would not run.
+func governingQueryHint(project, kind string) string {
+	if kind == "" {
+		return "rig record query"
+	}
+	if project == "" {
+		return "rig record query --kind " + kind
+	}
+	return "rig record query --project " + project + " --kind " + kind
 }
 
 // briefNotesSection is what has been attached for an agent to read.
@@ -1242,14 +1312,25 @@ func briefBlockageSection(blocked []BriefBlockage, st briefStyle) string {
 // renumbered".
 //
 //	1  open          2  next-up      3  notes       4  blocked
-//	10 features
+//	10 features     12 governing
 //
 // The six absent from it are absent because this client has no FIELD for them:
 // 5 drift, 6 must-read, 7 projection-behind, 8 pending, 9 local-only,
 // 11 case-notes. Every one is NOT_COMPUTED by today's daemon, so none of them
 // currently reaches the second list below - and that is precisely the state in
 // which a gap goes unnoticed, which is why the list exists before the gap does.
-var briefRenderedSections = map[int]bool{1: true, 2: true, 3: true, 4: true, 10: true}
+//
+// ⛔ 12 WAS MISSING FROM 2026-09-17, WHEN B64 SHIPPED ITS RENDERER, UNTIL
+// LATER THE SAME DAY. The brief drew GOVERNING and then told the reader this
+// build had no renderer for section 12, both on the live production daemon.
+// ⛔ THE CHECK WAS RIGHT AND ITS DATA WAS STALE, which is the failure this
+// map is most exposed to: it fires correctly against a fact that stopped being
+// true, and the report reads as a defect in the product rather than in the
+// list. ADDING A RENDERER MEANS ADDING ITS NUMBER HERE, IN THE SAME CHANGE.
+// TestASectionThisBuildRendersIsNotAlsoReportedAsUnrenderable is the guard.
+var briefRenderedSections = map[int]bool{
+	1: true, 2: true, 3: true, 4: true, 10: true, 12: true,
+}
 
 // briefUnavailableSection names every section of the brief the reader is not
 // seeing, AND WHICH OF THE TWO REASONS APPLIES.
