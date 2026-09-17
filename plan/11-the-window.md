@@ -903,17 +903,39 @@ new classification is invented.
 > click 'Open Projects and cases' with relevant information for each
 > project/case."*
 
-⛔ **A RAIL ENTRY IS A DESTINATION AND NOT A TEASER.** Today the rail entry
-called *Projects and cases* opens a summary card whose own content is a count
-and a paragraph, carrying a LINK called *Open Projects and cases* - so the
-answer he asked for is two clicks away behind a page that restates the question.
-**He named the smell exactly: the intermediate page has no job of its own.**
+⛔ **A RAIL ENTRY IS A DESTINATION AND NOT A TEASER.** His principle stands
+and is not in question. ⛔ **BUT THE MECHANISM THIS SECTION RECORDED WAS
+WRONG, AND IT WAS FALSIFIED BY DEMONSTRATION ON 2026-09-17 BY GENERATION 17.**
+
+**WHAT THIS ENTRY USED TO SAY, kept because deleting it hides the lesson:**
+*"the rail entry called Projects and cases opens a summary card whose own
+content is a count and a paragraph, carrying a LINK called Open Projects and
+cases."* ⛔ **THAT IS NOT WHAT THE RAIL DOES.** `App.svelte`'s `pick()` sets
+`atHome = false` and `selected = id`, so `internalGui()` resolves and
+`ProjectCaseGui` renders. **Clicked in a real browser against the real built
+bundle: the rail entry lands directly on the tabbed Projects/Cases display.**
+The rail was never the defect.
+
+⛔ **THE TEASER IS THE DASHBOARD, WHICH IS WHERE THE WINDOW LANDS ON OPEN.**
+`Dashboard.svelte` carries a card titled *"rig: plan against execution"* holding
+a waffle, the same verdict sentence the real view prints, and a button reading
+*Open Projects and cases*. **That card is the "strange partial dashboard"** - a
+partial duplicate of a view one click away, on the page he sees first and did
+not choose.
 
 | | |
 |---|---|
 | **what he clicks** | a rail entry named `Projects and cases` |
 | **what he must get** | the projects and cases, tabbed, with each one's information |
-| ⛔ **what he gets today** | a card that says how many there are, and a link |
+| ✅ **what the rail actually does** | exactly that, and it always did |
+| ⛔ **what he was looking at** | the DASHBOARD, the landing page, whose record card restates the real view and links to it |
+
+⛔ **SO THE FIX MOVES: IT IS THE DASHBOARD'S CARD, NOT THE RAIL'S ROUTING.**
+A seat that "fixed" the rail would have changed working code, shipped it, and
+left his complaint standing - **and this section would have been its evidence.**
+**The lesson is the one this project keeps re-learning: a seat described a
+mechanism it had read and not run.** The page's own footer already conceded it -
+*"What belongs on this page is still being decided."*
 
 **THE TEST IS HIS SENTENCE:** *"I expect to see what I see after I click 'Open
 Projects and cases'."* The second page's content is right; its POSITION is the
