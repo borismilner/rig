@@ -64,6 +64,34 @@
   | ✅ **the three-option table above is SETTLED by this** | **Do not build the Go-side watcher and do not build a wire subscription for this tab.** Both were only ever there to fake requirement 8 early, and the poll-behind-an-event-API trap named above is now a trap nobody needs to walk into |
   | ⛔ **NEW REQUIREMENT 9: THE VISUAL BAR, AND IT IS HIS OWN WORDS** | *"top of the art, the best of the best the technology offers"* - CSS, JS/TS, HTML, components, **and specifically *"the best visualization mechanisms"***, which names charts and data display rather than chrome |
 
+  ⛔ **THE STANDARD HAS A NAME AND AN ADDRESS, GIVEN 2026-09-17 AFTER HE SAW
+  THE FIRST BUILD. BORIS, verbatim:** *"The GUI is quite dull, try to see our
+  golden standard for visualization partly having to do with our library
+  project and in general"*, and then, for the record: *"I want the GUIs to be
+  beautiful with respect to our golden level of quality and beauty you can find
+  in the library project and probably in other places too."*
+
+  | | |
+  |---|---|
+  | **the reference** | **`~/me/library/index.html`** - the library project's page. **GO AND LOOK AT IT RENDERED** |
+  | **the second reference** | **`design/visual-system.html`** (177 KB) and `design/theme.js` - **rig's OWN**, which this section already calls built and measured |
+  | **"and probably in other places too"** | his words. The two above are the ones located; **he has not claimed they are the only ones** |
+
+  ⛔ **AND THE FINDING THAT SAVES THE NEXT SEAT A WRONG TURN, MEASURED RATHER
+  THAN ADMIRED.** `[ran it]` 2026-09-17 against `~/me/library/index.html`, 190,762
+  bytes: **8 `box-shadow`, 1 `@keyframes`, 2 `transform`, and ZERO gradients of
+  any kind** - no linear, no radial, no conic, no `backdrop-filter`, no
+  `mix-blend-mode`, no `clip-path`. Two font families, both stack defaults: one
+  serif, one sans.
+
+  ⛔ **SO WHATEVER MAKES IT GOLDEN IS NOT EFFECTS, AND A SEAT THAT ANSWERS
+  "DULL" WITH GRADIENTS AND GLOW HAS MISREAD THE STANDARD IT WAS POINTED AT.**
+  What is left to carry it is typography, hierarchy, density, restraint and how
+  a large set is made browsable - which is `browsable-page`'s subject and
+  `readable-output`'s, not a decoration budget. **The likeliest diagnosis for a
+  dull rig window is therefore not that it needs more; it is that it is not
+  using the visual system this repository already built.**
+
   ⛔ **REQUIREMENT 9 IS NOT A STYLE PREFERENCE AND MUST NOT BE FILED AS ONE.**
   §23 M1a already says that *"for a program whose whole job is presenting other
   programs, the visual design IS the product"*, and `readable-output`'s standing
