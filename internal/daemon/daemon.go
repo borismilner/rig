@@ -230,10 +230,26 @@ func New(cfg Config) (*Daemon, error) {
 	// arrives. Opening it here keeps the lifetime with the thing that serves
 	// it rather than splitting one store across two files.
 	//
-	// AN UNNAMED ESTATE IS NOT AN ERROR HERE. Open refuses one by design and
-	// the daemon carries a nil store; the record verbs then refuse and say
-	// which of the two situations it is. Any OTHER failure is real and stops
-	// the daemon, because a store that half-opened is worse than none.
+	// AN UNNAMED ESTATE NOW GETS AN EPHEMERAL STORE RATHER THAN NONE, AND THAT
+	// CHANGED 2026-09-17.
+	//
+	// ⛔ IT USED TO CARRY A NIL STORE AND REFUSE EVERY RECORD VERB, which was
+	// a reasoned position - section 37 gives an unnamed estate no persistent
+	// state - and had a cost nobody had counted. Section 09's A0 survey measured
+	// it: a third estate NAME is refused, an unnamed estate had no store, and a
+	// second daemon on a named estate is B72, so every door was shut and every
+	// write an agent made landed in one of the two estates on the human's
+	// screen. Four lead generations wrote nothing for that survey, and the
+	// reason was that the instrument did not exist.
+	//
+	// ⛔ SECTION 37's RULE IS INTACT: the scratch store lives in the RUNTIME
+	// directory, which the operating system clears, so nothing persists across
+	// runs and no third estate arrives by the back door. What it buys is a
+	// sandbox an agent can be pointed at with one environment variable.
+	//
+	// Any failure is real and stops the daemon, because a store that half-opened
+	// is worse than none - and that was true of the named path before this and
+	// is true of both now.
 	var records *record.Store
 	if cfg.Estate != "" {
 		st, err := record.Open(cfg.Estate)
@@ -245,6 +261,12 @@ func New(cfg Config) (*Daemon, error) {
 		} else {
 			records = st
 		}
+	} else {
+		st, err := record.OpenScratch()
+		if err != nil {
+			return nil, fmt.Errorf("daemon: opening the scratch record store: %w", err)
+		}
+		records = st
 	}
 
 	return &Daemon{

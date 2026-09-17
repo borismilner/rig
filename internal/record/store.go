@@ -100,7 +100,25 @@ type Store struct {
 	db     *sql.DB
 	estate string
 	path   string
+
+	// ephemeral is true for an UNNAMED estate's scratch store, which lives in
+	// the runtime directory and does not survive it.
+	//
+	// ⛔ IT IS ON THE STORE RATHER THAN INFERRED FROM THE ESTATE NAME BEING
+	// EMPTY, so no caller has to re-derive it and no caller can get it wrong. A
+	// surface that rendered a scratch store as the durable record would tell an
+	// agent its working notes were saved when they will vanish with the runtime
+	// directory - a write that reports success and loses the data, which is
+	// B75's shape arriving one layer down.
+	ephemeral bool
 }
+
+// Ephemeral says whether this store vanishes with the runtime directory.
+//
+// EVERY SURFACE THAT SHOWS RECORDS OWES THIS ANSWER. "Durable" is the default a
+// reader assumes, so the exception has to be carried rather than left to be
+// noticed.
+func (s *Store) Ephemeral() bool { return s.ephemeral }
 
 // Open opens (and creates) the record store for a NAMED estate.
 //
@@ -112,6 +130,59 @@ func Open(estate string) (*Store, error) {
 	if err != nil {
 		return nil, &UnnamedEstateError{Err: err}
 	}
+	return open(dir, estate, false)
+}
+
+// OpenScratch opens the EPHEMERAL record store an unnamed estate keeps in its
+// runtime directory.
+//
+// ⛔ IT IS THE SANDBOX AN AGENT HAD NO WAY TO GET, and the absence of it is
+// why section 09's A0 survey had zero written after four generations: a third
+// estate name is refused, a second daemon on a named estate is B72, and an
+// unnamed estate had no store at all - so a seat told to measure the record
+// verbs had to choose between not measuring them and writing into the estate on
+// the human's screen.
+//
+// ⛔ IT IS NOT PERSISTENT AND MUST NEVER BECOME SO. EstateStateDir's rule -
+// persistent state needs a NAME, because an ephemeral estate that persisted
+// would be a third estate arriving by the back door - is untouched: this keys on
+// the runtime directory, which the operating system clears, and it sets
+// Ephemeral so every surface can say which store a caller is holding.
+func OpenScratch() (*Store, error) {
+	dir, err := paths.EstateScratchDir()
+	if err != nil {
+		return nil, err
+	}
+	// ⛔ IT IS DISCARDED AT EVERY START, AND THAT IS THE SEMANTICS RATHER THAN A
+	// CLEANUP. Found by the daemon suite within minutes of this landing: the
+	// store keys on the runtime directory, the directory outlives the daemon,
+	// and so a second unnamed run inherited the first one's records - a put
+	// answered CODE_CONFLICT for an id that test had never written.
+	//
+	// ⛔ THE BUG WAS THE MEANING, NOT THE COLLISION. EstateStateDir's rule says
+	// an ephemeral estate that PERSISTED ACROSS RUNS "would be a third estate
+	// arriving by the back door", and a scratch store surviving a daemon
+	// restart is exactly that: durable state, keyed on a directory instead of
+	// on a name, with nothing claiming the name and nothing able to refuse a
+	// duplicate. Discarding it is what makes "ephemeral" true rather than
+	// advertised.
+	//
+	// ⛔ AND IT IS WHY ISOLATION IS THE CALLER'S TO ASK FOR. Two agents that
+	// both want a private store give themselves different XDG_RUNTIME_DIRs,
+	// which is already the machine-wide singleton for the socket, the pidfile
+	// and the flock - so one runtime directory is one daemon by construction
+	// and one scratch store belongs to it alone. Sharing the DEFAULT runtime
+	// directory means sharing this store; that is the same rule every other
+	// per-runtime thing here follows.
+	for _, f := range []string{DBName, DBName + "-wal", DBName + "-shm"} {
+		if err := os.Remove(filepath.Join(dir, f)); err != nil && !os.IsNotExist(err) {
+			return nil, fmt.Errorf("record: clearing the scratch store: %w", err)
+		}
+	}
+	return open(dir, "", true)
+}
+
+func open(dir, estate string, ephemeral bool) (*Store, error) {
 	// 0700: this is the user's own state and nothing here is a socket, so no
 	// client boundary rides on the mode (section 14).
 	if err := os.MkdirAll(dir, 0o700); err != nil {
@@ -144,7 +215,7 @@ func Open(estate string) (*Store, error) {
 		return nil, fmt.Errorf("record: opening %s: %w", path, err)
 	}
 
-	s := &Store{db: db, estate: estate, path: path}
+	s := &Store{db: db, estate: estate, path: path, ephemeral: ephemeral}
 	if err := s.start(); err != nil {
 		_ = db.Close()
 		return nil, err

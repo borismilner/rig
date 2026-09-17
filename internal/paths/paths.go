@@ -214,6 +214,42 @@ func EstateLock(name string) (string, error) {
 // It resolves a path and creates nothing, exactly as every other function
 // here does. The mkdir belongs to whoever is about to write, under the lock it
 // took, which is the ordering instance.Acquire already establishes.
+// EstateScratchDir is the EPHEMERAL record subtree for an UNNAMED estate:
+// $XDG_RUNTIME_DIR/rig/record/.
+//
+// ⛔ IT EXISTS BECAUSE AN AGENT HAD NOWHERE TO WRITE, AND THAT WAS MEASURED
+// RATHER THAN SUPPOSED. Section 09's A0 survey, 2026-09-17, `[ran it]`: a third
+// estate NAME is refused by rigd; an unnamed estate starts and had no record
+// store at all; and a second daemon on production or development is B72. Every
+// door closed, so every write an agent made landed in one of the two estates on
+// the human's screen. ⛔ **FOUR LEAD GENERATIONS WROTE NOTHING FOR THAT SURVEY,
+// AND THE REASON WAS NOT RELUCTANCE - THE INSTRUMENT DID NOT EXIST.** A seat
+// told to measure the record verbs had to choose between not measuring them and
+// writing into production.
+//
+// ⛔ IT DOES NOT WEAKEN EstateStateDir's RULE, IT KEYS ON A DIFFERENT THING.
+// That function's rule is that PERSISTENT state needs a NAME, and the reason is
+// exact: an ephemeral estate that persisted across runs would be a third estate
+// arriving by the back door. This keys on the RUNTIME DIRECTORY instead, which
+// is already the machine-wide singleton for the socket, the pidfile and the
+// flock - so it extends the established key rather than opening a second tree,
+// and it cannot outlive the runtime directory the operating system clears.
+// Ephemeral state in an ephemeral place; persistent state still needs a name.
+//
+// ⛔ AND THE PRODUCT MUST SAY WHICH ONE A CALLER IS TALKING TO. A scratch
+// store that looked durable would be worse than none: an agent would write its
+// working notes into something that vanishes and be told, correctly, that the
+// write succeeded. Store.Ephemeral carries it and the surfaces render it.
+//
+// It resolves a path and creates nothing, exactly as every other function here.
+func EstateScratchDir() (string, error) {
+	d, err := RuntimeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(d, "rig", "record"), nil
+}
+
 func EstateStateDir(name string) (string, error) {
 	if err := ValidEstateName(name); err != nil {
 		return "", fmt.Errorf("paths: an estate has no persistent state until "+

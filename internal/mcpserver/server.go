@@ -89,70 +89,51 @@ func (s *Server) Run(ctx context.Context, t mcp.Transport) error {
 //
 // If it grows past roughly forty lines it has become the specification and
 // should be cut back to the orientation.
-const preamble = `rig is a coordination daemon. These tools read and drive the programs
-registered with it, and carry rig's own roster.
+const preamble = `rig is a coordination daemon: these tools read and drive the programs
+registered with it, carry its roster, and hold this project's record.
 
-THE SEVEN TOOLS ARE TWO SHAPES, NOT SEVEN FEATURES.
-  list, describe  the map. list is every program you may reach, at a depth;
-                  describe is one program in full.
-  invoke          the only one of the four that ACTS on a program.
-  query           how you ask rig ABOUT RIG rather than about a program.
-  announce        take a seat on the roster and say what you are FOR. A SEAT
-                  NAME IS REQUIRED. Do this first; the next two need it.
-  set_activity    say what you are doing now, and keep it current.
-  list_agents     read the roster: who else is here, and doing what.
+THE PROGRAMS, AND THE ROSTER.
+  list, describe  the map: every program you may reach, at a depth; then one
+                  in full. invoke is the only one that ACTS on a program.
+  query           ask rig ABOUT RIG rather than about a program.
+  announce        take a seat and say what you are FOR. A SEAT NAME IS
+                  REQUIRED, and set_activity and list_agents both need it.
 
-THE CONTINUITY RECORD - this project's own memory. Section 39.
+THE CONTINUITY RECORD - this project's memory. Writes need a seat, so
+announce first; the seat comes from your row, never from the request.
+  project_brief   the project in twelve sections. START HERE ON RESUME. Says
+                  whether it EXISTS, so a typo is not "nothing to do".
+  record_query    find records; project and kind are matched EXACTLY.
+  record_get / record_put / record_history   read one, write one, and every
+                  version it ever had. Nothing is ever overwritten.
+  record_link / record_unlink / record_refs   typed edges between records.
+  progress_step   a work item started, blocked or finished.
 
-  record_put      write a record: a decision, a requirement, a working note.
-                  YOU MUST announce FIRST - every record carries the seat that
-                  wrote it, taken from your roster row, never from the request.
-  record_get      read one record, at its current version or an older one.
-  record_query    find records by project and kind, and by field.
-  record_history  every version of one record, oldest first. Nothing is
-                  overwritten here; a superseded wording is still the record
-                  of what was believed.
-  record_link     write a typed edge between two records.
-  record_unlink   remove one.
-  record_refs     what points at this record, and through what.
-  project_brief   the whole project in twelve sections. START HERE ON RESUME.
-                  It tells you whether the project EXISTS, so a typo in a slug
-                  is not reported as a project with nothing to do.
-  progress_step   say a work item started, blocked or finished.
-
-rig itself is not in the program map, so invoke and describe cannot reach it.
-Asking invoke for program "rig" is the common first mistake; ask query with
-subject "estate". Any tool beyond the sixteen above is a promoted program
-command.
+rig is not in the program map, so invoke and describe cannot reach it; asking
+invoke for program "rig" is the common first mistake. Any tool beyond the
+sixteen above is a promoted program command.
 
 IF set_activity SAYS YOU HAVE NO ROW, YOU ARE NOT WHERE YOU THINK YOU ARE. A
-row lives exactly as long as the connection that took it, so if you announced
-earlier and this call says otherwise, that daemon is gone and something
-re-dialled you without saying so. Announce again; do not retry.
+row lives exactly as long as its connection, so if you announced earlier and
+this call disagrees, that daemon is gone and something re-dialled you without
+saying so. Announce again; do not retry.
 
-DEPTH COSTS. ASK FOR THE ONE YOU NEED.
-  programs  who is registered, and how much of rig each has adopted.
-  commands  adds what you PICK a command by: effects, idempotency, whether it
-            confirms, one line of summary. Usually the right answer.
-  full      adds what you CALL it with: argument schemas and the program's
-            own preamble. Long - ask it per program through describe.
+DEPTH COSTS. ASK FOR THE ONE YOU NEED. programs is who is registered and how
+much of rig each adopted; commands adds what you PICK a command by and is
+usually right; full adds what you CALL it with and is long - take that one per
+program through describe.
 
-ABSENT CAN MEAN WITHHELD. What you cannot see may have been filtered rather
-than missing, and the basis field says which: "complete" is the whole estate,
-"scoped" means something may have been filtered away and rig will not say what.
+ABSENT CAN MEAN WITHHELD, and two fields say so. basis "complete" is the whole
+estate; "scoped" means something may have been filtered and rig will not say
+what. partial and
+coverageNote mean a program adopted only some of rig and name which part -
+"the wire only" is unreadable from here, not absent. READ BOTH FIRST.
 
-READ partial AND coverageNote BEFORE CONCLUDING ANYTHING. A program reporting
-partial coverage has adopted only some of rig and the note names which part:
-"the wire only" means its config is unreadable from here, not absent.
-
-QUERY UNDERSTANDS registry, programs AND estate. The first two return the
-estate's programs; estate returns which rig this is. Any other subject is
-accepted, not refused, and answered with what query cannot reach - so an
-answer that is mostly "unavailable" means the subject was not understood.
-
-ONE WORD, TWO MEANINGS, AND IT WILL CATCH YOU. In list's answer the key
-"estate" holds the PROGRAMS. Which estate you are connected to is
-estateIdentity, and only query with subject "estate" returns it.
+QUERY TAKES registry, programs AND estate. Any other subject is accepted
+rather than refused and answered with what query cannot reach, so an answer
+that is mostly "unavailable" means the subject was not understood. ONE WORD,
+TWO MEANINGS: in list's answer "estate" holds the PROGRAMS, while which rig
+you are connected to is estateIdentity, from query subject "estate" alone.
 `
 
 func New(m *meta.Server, who kernel.Principal, version string) *Server {

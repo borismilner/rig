@@ -414,22 +414,54 @@ func TestVersionZeroMeansHeadAndNotVersionZero(t *testing.T) {
 	}
 }
 
-// TestAnUnnamedEstateRefusesTheRecordVerbsAndSaysWhy.
+// TestAnUnnamedEstateServesTheRecordFromAnEphemeralStore.
 //
-// nil is a correct state, not a hole - and the refusal has to separate "this
-// estate keeps no record" from "the store broke", because the second would
-// send a reader hunting a fault that does not exist.
-func TestAnUnnamedEstateRefusesTheRecordVerbsAndSaysWhy(t *testing.T) {
+// ⛔ THIS TEST REPLACES TestAnUnnamedEstateRefusesTheRecordVerbsAndSaysWhy,
+// WHICH PINNED THE OPPOSITE CONTRACT, AND THE REPLACEMENT IS RECORDED RATHER
+// THAN QUIET. The old behaviour was reasoned and was not a bug: section 37
+// gives an unnamed estate no PERSISTENT state, so the daemon carried a nil
+// store and every record verb refused with the cause named.
+//
+// ⛔ WHAT CHANGED IS THAT THE COST WAS FINALLY COUNTED. Section 09's A0
+// survey, 2026-09-17, `[ran it]`: a third estate NAME is refused by rigd, an
+// unnamed estate had no store, and a second daemon on a named estate is B72 -
+// every door shut, so every write an agent made landed in one of the two
+// estates on the human's screen. Four lead generations wrote nothing for that
+// survey and the reason was that the instrument did not exist.
+//
+// ⛔ SECTION 37's RULE IS NOT WEAKENED AND THIS TEST IS WHERE THAT IS PROVED.
+// The scratch store lives in the RUNTIME directory rather than the state
+// directory, so it cannot survive one, and no third estate arrives by the back
+// door. Persistent state still needs a name; only ephemeral state does not.
+func TestAnUnnamedEstateServesTheRecordFromAnEphemeralStore(t *testing.T) {
 	sock, _ := upDaemon(t, nil) // unnamed
 	c := dial(t, sock)
 
-	err := c.Call(recordCtx(t), "rig.project.brief",
-		&rigv1.ProjectBriefRequest{Project: "rig"}, &rigv1.ProjectBriefResponse{})
-	if err == nil {
-		t.Fatal("an unnamed estate served a record verb")
+	var got rigv1.ProjectBriefResponse
+	if err := c.Call(recordCtx(t), "rig.project.brief",
+		&rigv1.ProjectBriefRequest{Project: "rig"}, &got); err != nil {
+		t.Fatalf("an unnamed estate still cannot serve the record, so an agent "+
+			"has nowhere to write that is not somebody's live estate: %v", err)
 	}
-	if !strings.Contains(err.Error(), "unnamed") {
-		t.Errorf("the refusal does not name the cause: %v", err)
+
+	// ⛔ AND IT MUST ACCEPT A WRITE, NOT ONLY A READ. A read-only sandbox is
+	// not a sandbox: the survey's whole difficulty was the WRITE half, and a
+	// brief that answers on an empty store would pass an assertion about
+	// reading while leaving the measured gap exactly where it was.
+	var put rigv1.RecordPutResponse
+	if err := c.Call(recordCtx(t), "rig.record.put", &rigv1.RecordPutRequest{
+		Id: "scratch-1", Kind: "note", Project: "rig", Body: "written to scratch",
+	}, &put); err != nil {
+		t.Fatalf("the scratch store refused a write: %v", err)
+	}
+
+	var back rigv1.RecordGetResponse
+	if err := c.Call(recordCtx(t), "rig.record.get",
+		&rigv1.RecordGetRequest{Id: "scratch-1"}, &back); err != nil {
+		t.Fatalf("what was written could not be read back: %v", err)
+	}
+	if body := back.GetRecord().GetBody(); body != "written to scratch" {
+		t.Errorf("the scratch store lost the body: got %q", body)
 	}
 }
 
