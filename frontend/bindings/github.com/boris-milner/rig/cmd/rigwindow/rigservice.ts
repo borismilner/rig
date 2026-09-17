@@ -14,18 +14,30 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wailsio/runtime";
+import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
 /**
+ * Brief reads one project's brief. Named rather than discovered, because
+ * Projects is what discovers.
+ */
+export function Brief(project: string): $CancellablePromise<$models.Brief> {
+    return $Call.ByID(2495945197, project).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * Build is the four versions the binary carries, so the strip can show which
  * window is running without a person going to a terminal.
  */
-export function Build(): $CancellablePromise<{ [_ in string]?: string } | null> {
-    return $Call.ByID(1191479857);
+export function Build(): $CancellablePromise<{ [_ in string]?: string }> {
+    return $Call.ByID(1191479857).then(($result: any) => {
+        return $$createType1($result);
+    });
 }
 
 /**
@@ -33,7 +45,9 @@ export function Build(): $CancellablePromise<{ [_ in string]?: string } | null> 
  * not a failure the window has to handle.
  */
 export function Health(): $CancellablePromise<$models.Health> {
-    return $Call.ByID(2625630141);
+    return $Call.ByID(2625630141).then(($result: any) => {
+        return $$createType2($result);
+    });
 }
 
 /**
@@ -41,6 +55,36 @@ export function Health(): $CancellablePromise<$models.Health> {
  * answer and not a filtered copy of it (section 14 decided visibility at
  * connect time).
  */
-export function Programs(): $CancellablePromise<$models.Program[] | null> {
-    return $Call.ByID(1823204778);
+export function Programs(): $CancellablePromise<$models.Program[]> {
+    return $Call.ByID(1823204778).then(($result: any) => {
+        return $$createType4($result);
+    });
 }
+
+/**
+ * Projects answers what the store actually holds, rather than what the window
+ * was compiled believing.
+ * 
+ * ⛔ IT ASKS WITH AN EMPTY PROJECT ON PURPOSE, and if the daemon refuses that,
+ * the refusal is REPORTED rather than papered over with a hard-coded "rig".
+ * There is no verb on this wire that enumerates projects - the nine record
+ * verbs are put, get, query, history, link, unlink, refs, progress.step and
+ * project.brief, and none of them answers "what is in here". Asking
+ * `record.query` for every `project` record is the closest honest question,
+ * and a window that hard-coded one name would be lying the day a second
+ * project exists.
+ */
+export function Projects(): $CancellablePromise<$models.ProjectRef[]> {
+    return $Call.ByID(2659636225).then(($result: any) => {
+        return $$createType6($result);
+    });
+}
+
+// Private type creation functions
+const $$createType0 = $models.Brief.createFrom;
+const $$createType1 = $Create.Map($Create.Any, $Create.Any);
+const $$createType2 = $models.Health.createFrom;
+const $$createType3 = $models.Program.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = $models.ProjectRef.createFrom;
+const $$createType6 = $Create.Array($$createType5);

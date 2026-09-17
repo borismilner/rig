@@ -6,7 +6,15 @@ export {
     RigService
 };
 
-export type {
+export {
+    Blocked,
+    Blocker,
+    Brief,
     Health,
-    Program
+    Item,
+    Note,
+    Program,
+    ProjectRef,
+    ProjectionHealth,
+    SectionStatus
 } from "./models.js";
