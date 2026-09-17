@@ -2,42 +2,62 @@
 
 ### ⛔ WHO rig IS FOR, AND IN WHICH ORDER. RULED BY BORIS 2026-09-17.
 
+**Two statements, hours apart, and the second SCOPES the first. Read them
+together or the ordering comes out wrong.**
+
 > *"What is important about `rig` is that it perfectly serve the AI agents, and
 > the secondary objective is me being able to introspect everything."*
 
-⛔ **THIS IS A PRIORITY ORDERING AND NOTHING IN THE PLAN HAD ONE.** §39 has said
-since 2026-09-15 that the record has *"two consumers"* - an agent resuming, and
-Boris reading - and it has never said **which wins when they pull apart.** They
-do pull apart, and this settles it:
+> *"`rig` will serve different needs, as I said previously, not only AI-agents.
+> The actual goal is to serve me as its creator and user, but in handling
+> projects and cases it's definitely AI-agents first, they must have the perfect
+> environment to thrive in, with all the facilities they need and the secondary
+> goal is for me to introspect on everything that is of importance and being
+> able to interact."*
 
-| | |
+⛔ **THE FIRST WAS RECORDED HERE AS A FLAT "AGENTS ARE PRIMARY" AND THAT WAS
+WRONG. HE CORRECTED IT THE SAME DAY.** The ordering is real and it is **SCOPED**:
+
+| Scope | Who comes first |
 |---|---|
-| **PRIMARY** | **the AI agents, served PERFECTLY.** Not adequately, not alongside - it is the thing rig is for |
-| **SECONDARY** | **Boris introspecting everything.** A real objective, and it yields when the two conflict |
+| **rig, overall** | ⛔ **BORIS. *"The actual goal is to serve me as its creator and user."* ** rig serves different needs and the agents are one of them |
+| **handling PROJECTS AND CASES** - §39's whole subject | ⛔ **AI-AGENTS FIRST, and the bar is *"the perfect environment to thrive in, with all the facilities they need"* ** |
+| **the second objective, inside that scope** | he introspects **everything that is of importance** - ⛔ **AND INTERACTS.** Not a read-only window |
 
-⛔ **WHAT THIS CHANGES, CONCRETELY, BECAUSE A PRIORITY NOBODY CAN APPLY IS A
-SLOGAN.** Every one of these has come up already and was decided by taste:
+⛔ **THE SEAT THAT WROTE THE FIRST VERSION GENERALISED A SCOPED STATEMENT INTO A
+GLOBAL ONE, WHICH IS THE SECOND TIME IN ONE DAY THIS SEAT DID THAT** - the other
+was a one-session handover rule written into §39 as standing. **RECORD WHAT HE
+SAID THE TURN HE SAYS IT, AND RECORD ITS SCOPE WITH IT.** A requirement whose
+scope is guessed is worse than one that is late, because it reads as settled.
 
-- **a surface that is cheap for an agent and plain for a human BEATS a
-  surface that is handsome for a human and expensive for an agent.** §40's
-  knowledge-sharing index is exactly this shape: he specified it as *"very
-  efficiently indexed and exposed to the AI agents so that they don't waste
-  tokens"*, with human use named second in the same breath.
+#### What the ordering decides, concretely
+
+**Inside project and case handling, where agents come first:**
+
+- **a surface that is cheap for an agent and plain for a human BEATS one that is
+  handsome for a human and expensive for an agent.** §40's knowledge-sharing
+  index is this shape in his own words: *"very efficiently indexed and exposed
+  to the AI agents so that they don't waste tokens"*.
 - **token cost is a FIRST-ORDER design constraint, not an optimisation.** An
   answer an agent cannot afford to read has not served it.
-- ⛔ **AND THE SECOND OBJECTIVE IS "INTROSPECT EVERYTHING", WHICH IS A
-  COMPLETENESS BAR, NOT A BEAUTY ONE.** It is not satisfied by a nicer GUI and
-  it is not violated by a plain one. **He must be able to see everything;
-  nothing says he must enjoy looking at it.** The GUI beauty requirement at
-  §11 is his and stands on its own - **it is not this**, and reading this row
-  as a licence to let the GUI rot inverts it.
+- ⛔ **"ALL THE FACILITIES THEY NEED" IS `plan/09` A0, AND IT IS STILL
+  UNDISCHARGED.** *"agents get every facility they need or may need, and the
+  LEAD owns discovering what those are."* **Zero written.** This statement is
+  the second time he has made that point and it raises the bar from *needed* to
+  *thrive*.
 
-⛔ **IT DOES NOT DEMOTE HIM AND MUST NOT BE READ THAT WAY.** He is the only one
-who sets direction, and *"introspect everything"* is a hard requirement with
-teeth - a capability an agent can use and he cannot see is a failure of the
-second objective, not an acceptable trade. **The ordering decides ties, not
-whose project this is.**
+**And the second objective has teeth of its own:**
 
+- ⛔ **"INTROSPECT ON EVERYTHING THAT IS OF IMPORTANCE AND BEING ABLE TO
+  INTERACT."** Interaction is named. **A read-only surface does not satisfy
+  this**, and "he can see it in a log" is not introspection.
+- **It is a COMPLETENESS bar, not a beauty one.** Not satisfied by a nicer GUI,
+  not violated by a plain one. ⛔ **The GUI beauty requirement at §11 is his and
+  stands on its own - it is NOT this row, and reading this as a licence to let
+  the window rot inverts both.**
+- **A capability an agent can use and he cannot see or reach is a FAILURE of the
+  second objective**, not an acceptable trade. The ordering decides ties; it
+  does not delete the loser.
 
 **An app declares what it can do, once. rig projects that onto every way anyone might reach it.**
 
