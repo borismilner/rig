@@ -332,16 +332,55 @@ withdrawn.** ⛔ **Third instance of this section's own rule: a quotation
 attributed to Boris that cannot be traced to a transcript is a seat's paraphrase
 until proved otherwise, and the carrier of a quotation is never its evidence.**
 
-#### ⛔ THE WARM-HANDOFF MARK IS 40% OF THE CONTEXT WINDOW. RULED BY BORIS 2026-09-17, SECOND STATEMENT.
+#### ⛔ THERE IS NO WARM-HANDOFF MARK. THE SESSION WINDS DOWN AT 97% OF THE SESSION BUDGET. RULED BY BORIS 2026-09-17, THIRD AND LATEST STATEMENT.
+
+**His words, to the twelfth lead generation, and they retire the context mark
+outright:**
+
+> *"You must work on our goal of the perfect MVP and wind-down once session is
+> at 97%, you are not to warm-handoff before that."*
+
+> *"Once you are at 97% session you must wind down and fully prepare the
+> relevant documents for autonomous work on the next session when I point you
+> to the entry point and you'll have no context at all."*
+
+⛔ **THIS IS NOT A SEVENTH NUMBER IN THE SAME SERIES. IT CHANGES WHICH CLOCK
+GOVERNS.** Six values had been given for a CONTEXT-window mark; this ruling
+says the context window does not trigger a handover at all. **The SESSION
+budget does, at 97%, and what happens there is a COLD wind-down - documents
+prepared for a session that arrives with no context - not a live relay.**
+
+| Clock | What it now does |
+|---|---|
+| the **SESSION budget** (5h) | ⛔ **THE ONLY TRIGGER. At 97%: wind down and prepare the documents.** |
+| the **CONTEXT window** | ⛔ **TRIGGERS NOTHING.** Keep working |
+
+⛔ **SO A WARM HANDOFF IS BANNED BEFORE 97% OF THE SESSION BUDGET**, and at
+97% the thing owed is the entry point, not a successor. **This is consistent
+with his 2026-09-16 objection that a warm handoff is "a waste of time" and with
+his standing instruction that the entry point must be sufficient on its own -
+the two rulings agree, and the context-window mark was the odd one out.**
+
+⛔ **THE `PostToolUse` GUARD AND GLOBAL `CLAUDE.md` BOTH FIRE ON THE CONTEXT
+WINDOW AND ARE NOW STALE AGAINST THIS.** When one fires: say in one line that it
+fired on a clock he has retired, and **keep working.** Do not spawn.
+
+⛔ **THE ACCEPTANCE TEST FOR THE WIND-DOWN IS HIS OWN SENTENCE:** *"when I
+point you to the entry point and you'll have no context at all."* **A wind-down
+that leaves anything only in this session's context has failed it.**
+
+##### ⛔ SUPERSEDED: THE 40% CONTEXT MARK, KEPT BECAUSE THE SUPERSESSION IS THE POINT
 
 **His words, later the same day, to the eleventh lead generation:**
 
 > *"Keep working towards our goal of a perfect MVP until you get to 40% context"*
 
 ⛔ **40 SUPERSEDES THE 45 RECORDED EARLIER THE SAME DAY**, which superseded 40,
-which superseded 35. **He has now given SIX numbers in two days and the latest
-always wins.** At 40% of the context window: spawn a successor and brief it
-live. Do not ask permission first - asking stalls the work.
+which superseded 35. **He gave SIX numbers in two days and then retired the
+clock they measured.** ⛔ **DO NOT ACT ON THIS ROW. At 40% of the context
+window, nothing now happens** - the block above is the live rule and this one is
+kept only so a reader meeting the number elsewhere can see it was withdrawn
+rather than forgotten.
 
 ⛔ **DO NOT "RECONCILE" THE TWO. There is nothing to reconcile and the number is
 not converging on anything** - it has been 35, 40, 45, 40, 45, 40. **Treat this
@@ -363,7 +402,9 @@ working to his.
 OPPOSITE THINGS ON PURPOSE.** The session window (5h) rule is *never hand off
 against it* - a fresh session shares the same window, so the relay buys
 nothing. The context window rule is *hand off at 45%*. **A session that merges
-the two will do the wrong thing on one of them.**
+the two will do the wrong thing on one of them.** ⛔ **AND THE 2026-09-17 THIRD
+STATEMENT SETTLES IT IN THE OTHER DIRECTION: the session window is now the only
+clock that triggers anything, and what it triggers is a COLD wind-down.**
 
 ##### ⛔ WHY THIS IS IN THE SPECIFICATION AND NOT IN A HANDOFF NOTE
 
@@ -1962,6 +2003,34 @@ working from the table alone shipped something wrong in six ways.** Found by
 | **9. the record repository is LOCAL-ONLY because a push failed** | §39's own words: *"this is how a laptop ends up holding the only copy."* ⛔ **A brief built from the old six-row table reported a healthy-looking project that was not backed up** |
 | **10. features** | features at `stage: building`, plus counts per stage. **This row resolves a CONTRADICTION 20 lines wide:** the GUI overview paragraph says the brief carries *"next-up work-items, **features**, drift, gate status"* and this table had no features row. **The paragraph is the side written against Boris's actual request** - `feature` is a kind he asked for by name with a `stage` field - **and a brief without features cannot drive the overview that paragraph specifies** |
 | **11. a case's `attention_n` notes** | priority desc, then `created_at` desc. See the cases section |
+
+#### ⛔ WHETHER THE ELEVEN BECOME TWELVE IS THE LEAD'S CALL. RULED BY BORIS 2026-09-17.
+
+**B64 has to make a decision, a requirement and an artefact REACHABLE from the
+brief, and there were two ways to do it: a TWELFTH section, or folding them into
+an existing row. The fork was put to him because either answer touches the
+"Cover all of them" ruling below.**
+
+> **Boris, 2026-09-17:** *"I don't care twelfth section or fold - I trust you to
+> make the best decision!"*
+
+⛔ **SO IT IS DELEGATED, NOT DEFERRED, AND NO SEAT REOPENS IT AS AN OPEN LOOP.**
+Same shape as the backlog re-rank: an item that costs nothing to defer is
+deferred forever and accretes into a list that reads as live work.
+
+⛔ **THE LEAD'S ANSWER, AND THE REASON IS MECHANICAL RATHER THAN AESTHETIC: A
+TWELFTH SECTION.** `sectionLedger.statuses()` refuses any brief in which a
+section is neither derived nor given a reason, and `brief.go` returns
+`Brief{}, err` on that refusal. **So a twelfth section CANNOT ship half-done -
+the whole brief fails loudly, including the one the window polls.** Folding
+decisions into an existing row has no such property: **a half-done fold is
+silent, and a decision arriving disguised as a note is exactly the
+"reachable only if you already know" failure B64 exists to close.**
+
+⛔ **AND IT DOES NOT CONTRADICT "Cover all of them" - IT EXTENDS IT.** That
+ruling is that no section may be silently absent. **A twelfth section that
+declares its own state obeys the rule; a fold that hides one kind inside
+another's row is the thing the rule was made against.**
 
 #### ⛔ ALL ELEVEN SECTIONS ARE IN THE MVP. RULED BY BORIS 2026-09-16 LATE.
 
