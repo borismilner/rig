@@ -646,7 +646,9 @@ the loop-nobody-sent failure, caught by the record seat chasing its lead.
 
 | | |
 |---|---|
-| **ONE RECORD = ONE HEADING** | every `##`, `###` and `####`. **239 requirement records**, against 639 for bold-leads and 39 for whole sections |
+| **ONE RECORD = ONE HEADING** | ⛔ **WIDENED TO `#####` ON 2026-09-17, BY BORIS, AFTER THE IMPORT WAS BUILT.** Every `##`, `###`, `####` and `#####`. **342 requirement records** over 42 section files - 56 / 183 / 90 / 13 by level - against 639 for bold-leads and 39 for whole sections |
+| **why it moved** | thirteen `#####` headings fell outside the original bound and **three were his own rulings**, including this section's *"fill everything in first"* - the ruling the whole plan import came from. **A ruling nobody could reach from rig was the argument.** He was shown the cost (329 -> 342 records, about 4% more graph) and took it |
+| ⛔ **239 WAS NEVER RIGHT** | measured with the shipped parser over `git archive` at the exact commit that wrote it: the grain yields **247** there, so **8 was a hand count and not growth**. The other 82 are growth and account fully - +28 from new sections 40, 41, 42 and +54 in existing ones, less 4. **247 + 82 = 329**, then +13 from the widening |
 | **what it buys** | a **~40% smaller graph than the bold-lead grain**, so every traversal figure the record seat has published improves |
 | **what it costs, stated because he was shown it** | **a requirement stated mid-paragraph under a heading with five others is not separately addressable.** A supersede names the heading, not the sentence |
 | **what it refuses** | the 39-section grain. §37 is **942 lines**; a link to it points at a DOCUMENT rather than a requirement, which is attack finding 5's failed row |

@@ -133,3 +133,29 @@ for most of its life. So:
 
 ⛔ **NOT CRITICAL FOR THE MVP - HIS WORDS - AND *"SHOULD BE IMPLEMENTED SOON"*,
 which is the same weight he gave §40.** The MVP is §39 slices 1, 2 and 4.
+
+### ⛔ A CLI-WRITTEN RECORD CARRIES WHAT THE DAEMON CAN CHECK, AND NOTHING MORE. RULED BY BORIS 2026-09-17.
+
+**The measurement that forced the ruling:** 451 decisions in the production
+store, **one distinct seat, 783 sessions**. Every record written through the CLI
+is anonymous, because `terminalSeat` returns the username from the uid and there
+is one daemon per uid - **so the seat is a machine-wide constant, not an
+identity.** A terminal has no name the daemon can check.
+
+**Boris was shown three answers and took the first:**
+
+| | |
+|---|---|
+| ✅ **RULED** | **derive what is derivable.** The daemon already holds the caller's pid from `SO_PEERCRED`, so it can derive a real per-terminal SESSION id from the unix session or tty. **The seat stays the username** |
+| what it buys | two terminals become distinguishable, and a run of writes from one terminal groups together as one session instead of minting a new one per write |
+| ⛔ **what it does NOT buy, and he was told** | the seat remains a machine-wide constant. **It answers "which terminal", never "which agent."** Do not report it as attribution |
+
+⛔ **TWO ANSWERS STAY REFUSED, AND THEY WERE REFUSED BEFORE THIS RULING RATHER
+THAN BY IT.** A seat name carried in the REQUEST is refused because provenance
+must be the daemon's and unforgeable; terminals handshaking for a name is refused
+on §37's own terms. **This ruling does not reopen either.**
+
+⛔ **AND THE AGENT SURFACE IS ALREADY WHOLE - the gap is the CLI's alone.** The
+MCP door refuses a record write from a connection holding no seat, with §9's four
+fields, and the seat it stamps comes from the roster row rather than from the
+request. **An agent that needs an attributable write already has one.**
