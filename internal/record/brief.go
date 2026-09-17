@@ -147,6 +147,30 @@ type Brief struct {
 	// which sections mean anything. Empty when the container has no record.
 	Kind string
 
+	// ContainerFound is whether the id this brief is about has a record in
+	// this store AT ALL.
+	//
+	// ⛔ FALSE IS NOT "A PROJECT WITH NOTHING IN IT", AND B76 IS WHAT HAPPENS
+	// WHEN THE TWO ARE ONE ANSWER. Every section below is written to
+	// distinguish "nothing to report" from "this build cannot answer"; the
+	// CONTAINER made no such distinction, so a typo in a slug rendered a
+	// complete, confident brief reporting sections 1-4 computed and nothing to
+	// do. An agent resuming on the wrong slug was told, in rig's own voice,
+	// that its project was clear.
+	//
+	// ⛔ IT IS A FIELD AND NOT `Kind == ""` REPEATED AT EVERY CALL SITE. The
+	// emptiness of Kind already carried this fact and three consumers had to
+	// know the rule to read it - which is the same "reachable only if you
+	// already know" failure section 12 exists to end. ContainerMissing below
+	// is the one place the rule is written.
+	//
+	// ⛔ A FALSE HERE DOES NOT EMPTY THE BRIEF, AND MUST NOT. Records carry
+	// their own `project` field, so work items, decisions and notes can exist
+	// under an id that has no container record - `a0-survey` in the live
+	// production store is exactly that, measured 2026-09-17. Suppressing the
+	// sections would replace one wrong answer with another.
+	ContainerFound bool
+
 	// Title, Status and Semver are the rest of the container's own metadata,
 	// read from the same record Kind comes from.
 	//
@@ -186,6 +210,19 @@ type Brief struct {
 	// is a ruling and not a tweak.
 	Semver string
 }
+
+// ContainerMissing is the ONE statement of B76's condition in this package.
+//
+// It is a method rather than a comparison spelled out at each reader, because
+// the comparison is not self-explaining: `!ContainerFound` reads as a fact
+// about the STORE, and what a caller needs to decide is whether the ANSWER it
+// is holding describes anything at all.
+//
+// ⛔ A BRIEF WHOSE CONTAINER IS MISSING IS STILL A BRIEF AND IS STILL
+// ACCURATE. Its lists are the records that name this project, and there may be
+// many. What it cannot do is claim the project exists, and a caller that
+// reports it as an ordinary result has made exactly B76's mistake.
+func (b Brief) ContainerMissing() bool { return !b.ContainerFound }
 
 // ItemState is a work item and the last thing that happened to it.
 //
@@ -526,8 +563,13 @@ func (s *Store) briefContainer(ctx context.Context, project string, b *Brief) (R
 		if !errors.As(err, new(*NotFoundError)) {
 			return Record{}, err
 		}
+		// ⛔ B76. THE ONLY PLACE IN THE DERIVATION THAT KNOWS THE CONTAINER IS
+		// ABSENT, AND IT USED TO RETURN THAT KNOWLEDGE AS A ZERO VALUE. The
+		// brief carried on and answered every section, and nothing downstream
+		// could tell a mistyped slug from a project with no work.
 		return Record{}, nil
 	}
+	b.ContainerFound = true
 	b.Kind = container.Kind
 	b.Title = container.Fields["title"]
 	b.Status = container.Fields["status"]

@@ -164,7 +164,7 @@ func TestACaseRendersNoVersionAtAll(t *testing.T) {
 		b.Kind = "case"
 		b.Status = "open"
 		b.Semver = ""
-	}))
+	}), briefStyle{})
 
 	if strings.Contains(got, "v") && strings.Contains(got, " v") {
 		t.Errorf("a case printed a version:\n%s", got)
@@ -176,7 +176,7 @@ func TestACaseRendersNoVersionAtAll(t *testing.T) {
 	}
 	// And the project still prints one, or the assertion above would pass
 	// against a renderer that dropped the version for everybody.
-	if p := briefHeading(brief()); !strings.Contains(p, "v0.4.1") {
+	if p := briefHeading(brief(), briefStyle{}); !strings.Contains(p, "v0.4.1") {
 		t.Errorf("a project's semver is not printed either, so the case "+
 			"assertion above proves nothing:\n%s", p)
 	}
@@ -230,8 +230,17 @@ func TestAnEmptyNotesSectionSaysSo(t *testing.T) {
 	if strings.Contains(got, "PRIORITY") {
 		t.Errorf("an empty notes section printed a table header:\n%s", got)
 	}
-	if !strings.Contains(got, "Nothing has been attached") {
+	if !strings.Contains(got, "Nothing is attached to this one") {
 		t.Errorf("an empty notes section did not say so:\n%s", got)
+	}
+	// ⛔ AND IT SAYS WHAT IT LOOKED FOR, which every other empty section on
+	// this page does and this one did not. The live store holds eight notes
+	// this section correctly reports none of, because none of them carries the
+	// `part-of` edge section 3 is defined over.
+	if !strings.Contains(got, "part-of") {
+		t.Errorf("the empty notes sentence states what it FOUND and not what "+
+			"it LOOKED FOR, so a reader cannot tell an unwritten note from an "+
+			"unattached one:\n%s", got)
 	}
 }
 

@@ -161,6 +161,33 @@ type Brief struct {
 	Sections []BriefSectionState
 }
 
+// ContainerMissing is B76: this brief is about an id the store has no record
+// for, so the container it describes does not exist.
+//
+// ⛔ IT IS THE ABSENT-VERSUS-EMPTY ARGUMENT THE WHOLE BRIEF IS BUILT ON,
+// APPLIED TO THE CONTAINER ITSELF. Every section above distinguishes "nothing
+// to report" from "this build cannot answer", and until this method existed
+// the container made no such distinction: `rig brief <typo>` exited 0, printed
+// a complete brief, and reported sections 1-4 computed. A seat resuming on the
+// wrong slug was told in rig's own voice that there was nothing to do.
+//
+// ⛔ THE TEST IS THE KIND, AND THE WIRE DOES NOT CARRY A BETTER ONE. The
+// derivation knows this directly - `record.Brief.ContainerFound`, set where
+// the container read returns NotFound - and `ProjectBriefResponse` has no
+// field for it, so the client re-derives it from the one symptom that does
+// cross: a record always has a kind, so an empty kind on a served brief means
+// the container was never read. THE DAEMON SHOULD CARRY THE FIELD and this
+// comment is the reason; until it does, this is an inference and is written
+// down as one.
+//
+// ⛔ THE SKEW HAZARD, NAMED RATHER THAN DISCOVERED. Against a daemon older
+// than rig af7715d - which is when the four header fields started being served
+// at all - EVERY brief arrives with an empty kind and every brief would be
+// reported as a missing container. That is loud and wrong rather than quiet
+// and wrong, which is the right way round, but it is a real skew and the
+// remedy is the wire field above, not a softer test here.
+func (b Brief) ContainerMissing() bool { return b.Kind == "" }
+
 // BriefBlockage is one item and everything it waits on. Section 39 row 4.
 type BriefBlockage struct {
 	Item  string
@@ -340,11 +367,65 @@ func cmdBrief(args []string) (err error) {
 			return err
 		}
 
+		// ⛔ B76, AND THE TWO MODES ANSWER IT DIFFERENTLY ON PURPOSE.
+		//
+		// --json RETURNS THE REFUSAL AND NOT THE BRIEF, because refusal.go's
+		// rule for that mode is that the object IS the answer, and two JSON
+		// documents on one stdout is not something any consumer can parse. A
+		// caller handed RIG_NO_SUCH_CONTAINER learns strictly more than it
+		// would from an empty brief with a flag buried in it.
+		//
+		// HUMAN MODE PRINTS THE BRIEF AND THEN REFUSES, because the sections
+		// may be real - a record carries its own project field, so an id with
+		// no container can still have work under it - and stdout and stderr
+		// are two channels precisely so an answer and a complaint do not have
+		// to displace each other. The heading already says it at the top of
+		// the page; this is the half an agent reads.
 		if *bf.asJSON {
+			if brief.ContainerMissing() {
+				return noSuchContainer(brief.Project)
+			}
 			return json.NewEncoder(os.Stdout).Encode(briefJSON(brief, time.Now()))
 		}
 		fmt.Print(briefText(brief, time.Now(), briefStyleFor(os.Stdout)))
+		if brief.ContainerMissing() {
+			return noSuchContainer(brief.Project)
+		}
 		return nil
+	})
+}
+
+// codeNoSuchContainer: the id names no record in this store, so there is no
+// project and no case for a brief to be about.
+//
+// ⛔ IT IS NOT codeBadArgument AND THE DIFFERENCE IS NOT COSMETIC. That code's
+// own definition is a failure "before anything left this process"; this one is
+// only knowable after the store has been asked, and an agent that retries
+// argv-shaped failures differently from store-shaped ones needs them apart. It
+// is not the daemon's CODE_NOT_FOUND either: the daemon answered, correctly
+// and successfully, with a brief about an id it holds nothing for.
+const codeNoSuchContainer = codeLocal + "NO_SUCH_CONTAINER"
+
+// noSuchContainer is B76's refusal.
+//
+// The fix command is `rig record query --kind project`, which lists what this
+// store actually holds - the one thing a caller who mistyped a slug needs and
+// the one thing an empty brief never gave them.
+func noSuchContainer(project string) error {
+	return local(jsonStatus{
+		Code: codeNoSuchContainer,
+		Message: "rig brief " + project + ": no record under that id, so " +
+			"there is no project or case for this brief to describe",
+		Precondition: "the id names a record in this store",
+		// ⛔ IT DOES NOT SAY "THE BRIEF ABOVE". The first wording did, and it
+		// was a lie on the --json path, where the object replaces the brief
+		// and there is nothing above it. One sentence serves both modes, so
+		// it may not describe either one's layout.
+		Actual: "the store holds no record under " + project +
+			"; any sections a brief reports for it are only what OTHER " +
+			"records say about it",
+		Fix:        "check the slug against the projects this store holds",
+		FixCommand: "rig record query --kind project",
 	})
 }
 
@@ -596,7 +677,7 @@ func (s briefStyle) strong(text string) string {
 // briefText is the brief a person reads.
 func briefText(b Brief, now time.Time, st briefStyle) string {
 	var sb strings.Builder
-	sb.WriteString(briefHeading(b))
+	sb.WriteString(briefHeading(b, st))
 
 	// ⛔ THE BLOCKED CONDITION COMES FIRST, BEFORE THE LIST IT AFFECTS.
 	// Section 39 requires the cycle to be reported and the items outside it to
@@ -627,8 +708,11 @@ func briefText(b Brief, now time.Time, st briefStyle) string {
 // a project's and `open` is a case's, and a reader who cannot see which
 // container they are looking at cannot tell a status they do not recognise
 // from one this build rendered wrong.
-func briefHeading(b Brief) string {
+func briefHeading(b Brief, st briefStyle) string {
 	var sb strings.Builder
+	if b.ContainerMissing() {
+		return briefMissingHeading(b.Project, st)
+	}
 	fmt.Fprintf(&sb, "%s (%s) %s", b.Project, briefKindWord(b.Kind),
 		briefStatusWord(b.Status))
 
@@ -647,6 +731,29 @@ func briefHeading(b Brief) string {
 		sb.WriteString(b.Title + "\n")
 	}
 	return sb.String()
+}
+
+// briefMissingHeading is what the top of the page says when the id names
+// nothing, and it is the FIRST thing on the screen rather than a footnote.
+//
+// ⛔ THE HEADING AND THE EXIT STATUS BOTH CARRY IT, and neither is enough
+// alone. A person reads the top of a page and never the exit code; an agent
+// reads the exit code and may never render the page. B76 is answered for both
+// readers or it is answered for neither.
+//
+// ⛔ IT DOES NOT SAY "NO SUCH PROJECT". The sections below it are real: a
+// record carries its own `project` field, so work items and decisions can name
+// an id that was never created as a container - `a0-survey` in the live
+// production store is exactly that shape. The sentence says what is missing
+// (the container's own record) and leaves what follows standing.
+func briefMissingHeading(project string, st briefStyle) string {
+	return st.strong(project+" - NO RECORD UNDER THIS ID") + "\n" +
+		briefWrap("Nothing has ever been written under this id, so this is not "+
+			"a project with no work: it is an id this store does not know, and "+
+			"a mistyped slug looks exactly like one. Anything below names this "+
+			"id without a container ever having been created for it, and an "+
+			"empty section means UNKNOWN rather than nothing to report.",
+			st.Width)
 }
 
 func briefKindWord(kind string) string {
@@ -835,6 +942,14 @@ const briefMinCell = 8
 // replaces and the residual error is bounded by the number of wide glyphs in
 // a title.
 func briefTable(sb *strings.Builder, st briefStyle, header []string, rows [][]string) {
+	briefTableAround(sb, st, header, rows, nil)
+}
+
+// briefTableAround is briefTable with columns the fit may not shrink. See
+// briefFitAround for why a key column is one of those.
+func briefTableAround(sb *strings.Builder, st briefStyle, header []string,
+	rows [][]string, pinned map[int]bool,
+) {
 	if len(header) == 0 {
 		return
 	}
@@ -849,7 +964,7 @@ func briefTable(sb *strings.Builder, st briefStyle, header []string, rows [][]st
 			}
 		}
 	}
-	briefFit(width, st.Width)
+	briefFitAround(width, st.Width, pinned)
 
 	line := func(cells []string) string {
 		var out strings.Builder
@@ -892,7 +1007,24 @@ func briefTable(sb *strings.Builder, st briefStyle, header []string, rows [][]st
 // One column per pass is O(the deficit), which is at most a few hundred
 // iterations on a table nobody can read anyway. It is written this way
 // because it is obviously right.
-func briefFit(width []int, budget int) {
+func briefFit(width []int, budget int) { briefFitAround(width, budget, nil) }
+
+// briefFitAround is briefFit with columns it MAY NOT TOUCH.
+//
+// ⛔ A KEY COLUMN IS NOT A WIDE COLUMN, AND TREATING IT AS ONE IS WHAT THE PIN
+// EXISTS TO STOP. briefFit takes the width out of the widest column, which is
+// right for prose and wrong for an identifier: measured 2026-09-17 at 80
+// columns against the live production store, FIVE of the six GOVERNING rows
+// rendered the identical stub `yes-one-mcp-session-is-one-wire-c…`. An elided
+// title still identifies the row and can still be read; an elided id
+// identifies nothing, cannot be told from its neighbours, and cannot be pasted
+// into `rig record get` - which is the single thing section 12 exists to make
+// possible.
+//
+// A pin can make the row unfittable, and that is allowed for the reason
+// briefFit already gives about its own floor: an overrun wraps and stays
+// readable, and every alternative here destroys the key.
+func briefFitAround(width []int, budget int, pinned map[int]bool) {
 	if budget <= 0 || len(width) == 0 {
 		return
 	}
@@ -903,7 +1035,7 @@ func briefFit(width []int, budget int) {
 	for total > budget {
 		widest, at := briefMinCell, -1
 		for i, w := range width {
-			if w > widest {
+			if !pinned[i] && w > widest {
 				widest, at = w, i
 			}
 		}
@@ -1105,19 +1237,7 @@ func briefGoverningSection(project string, rows []BriefGoverning, counts []Brief
 
 	shown, held := governingShownPerKind(rows)
 	if len(shown) > 0 {
-		table := make([][]string, 0, len(shown))
-		for _, g := range shown {
-			table = append(table, []string{
-				g.ID,
-				// ⛔ A ROW THAT CANNOT SAY WHICH KIND IT IS HAS FOLDED THREE
-				// KINDS INTO ONE, which is the option B64 ruled against. It is
-				// named as a defect rather than rendered blank, because a blank
-				// cell reads as a kind called nothing.
-				briefCell(g.Kind, "(no kind - which is a defect, not a kind)"),
-				briefCell(g.Title, "(no title)"),
-			})
-		}
-		briefTable(&sb, st, []string{"ID", "KIND", "TITLE"}, table)
+		briefGoverningRows(&sb, st, shown)
 	}
 
 	// The counts print even when the list is empty, and the reverse: either
@@ -1134,12 +1254,139 @@ func briefGoverningSection(project string, rows []BriefGoverning, counts []Brief
 			// ⛔ THE EXIT IS PART OF THE CAP. A summary that cannot be
 			// expanded is a dead end, and a reader who cannot reach the other
 			// 438 is worse off than one who had to scroll past them.
-			fmt.Fprintf(&sb, "  %-12s %d   (last %d shown - %s)\n",
-				kind, c.Count, governingRowsPerKind,
-				governingQueryHint(project, c.Kind))
+			//
+			// ⛔ AND IT IS WRAPPED, BECAUSE IT WAS THE LAST OVERRUNNING LINE ON
+			// THE PAGE. Measured 2026-09-17 at 80 columns against the live
+			// production store: this line rendered at 84. The command it
+			// carries grows with the project slug and the kind, so the overrun
+			// is not bounded by anything - it is not a long line, it is an
+			// unwrapped one.
+			//
+			// The aligned prefix is the WRAPPER'S LEAD rather than part of the
+			// text, so the counts still line up with the rows that carry no
+			// hint - strings.Fields would have eaten the padding that does
+			// that.
+			sb.WriteString(briefWrapUnits(
+				strings.Fields(fmt.Sprintf("(last %d shown - %s)",
+					governingRowsPerKind, governingQueryHint(project, c.Kind))),
+				fmt.Sprintf("  %-12s %d   ", kind, c.Count),
+				"      ", st.Width))
 		}
 	}
 	return sb.String()
+}
+
+// briefGoverningKindCell is the kind of one governing row.
+//
+// ⛔ A ROW THAT CANNOT SAY WHICH KIND IT IS HAS FOLDED THREE KINDS INTO ONE,
+// which is the option B64 ruled against. It is named as a defect rather than
+// rendered blank, because a blank cell reads as a kind called nothing.
+func briefGoverningKindCell(kind string) string {
+	return briefCell(kind, "(no kind - which is a defect, not a kind)")
+}
+
+// briefGoverningRows lays out section 12, AND CHOOSES ITS LAYOUT FROM THE
+// LENGTH OF THE IDS RATHER THAN FROM A PREFERENCE.
+//
+// ⛔ THE IDS IN THIS SECTION ARE PROSE. §39's slug scheme derives a record's id
+// from its heading, so a decision imported from a document heading carries the
+// heading as its key: the longest in the live production store is 145
+// characters, a doc-key path of two headings joined by `/`. Three defects came
+// out of putting that in an aligned column, all measured 2026-09-17:
+//
+//   - THE WHOLE BRIEF WAS 263 COLUMNS WIDE through a pipe, and 233 of those
+//     were this table. The ID column is padded to the widest id, so a row
+//     whose id is 80 characters still started its KIND cell at column 147.
+//   - AT 80 COLUMNS FIVE OF SIX IDS RENDERED AS THE SAME 34-CHARACTER STUB.
+//     They shared a prefix, and the cut fell inside it.
+//   - AND A CUT ID CANNOT BE PASTED INTO `rig record get`, which is the one
+//     thing this section exists to make possible (B64).
+//
+// So when the ids fit, the three-column table stays and the ID column is
+// PINNED so the title pays for any squeeze. When they do not, the id moves to
+// its own line, in full: it overruns, and an overrun wraps and stays both
+// readable and selectable, which is the trade briefFit already makes for its
+// own floor.
+//
+// ⛔ NOTHING IS DISCARDED IN EITHER FORM, and that is what separates this from
+// eliding into a pipe. briefStyle's zero means unbounded because a pipe's
+// consumer reads every byte; a LAYOUT chosen for a default width takes no
+// bytes away, and briefDefaultWrap already governs this file's prose on
+// exactly that argument.
+func briefGoverningRows(sb *strings.Builder, st briefStyle, shown []BriefGoverning) {
+	budget := st.Width
+	if budget <= 0 {
+		budget = briefDefaultWrap
+	}
+
+	widest := len("ID")
+	for _, g := range shown {
+		if n := utf8.RuneCountInString(g.ID); n > widest {
+			widest = n
+		}
+	}
+	kind := len("KIND")
+	for _, g := range shown {
+		if n := utf8.RuneCountInString(briefGoverningKindCell(g.Kind)); n > kind {
+			kind = n
+		}
+	}
+
+	// The narrowest the three-column form can be without cutting an id: the
+	// ids at full width, the kinds at full width, and a title squeezed to the
+	// floor below which a cell is an ellipsis and a letter.
+	if widest+2+kind+2+briefMinCell <= budget {
+		table := make([][]string, 0, len(shown))
+		for _, g := range shown {
+			table = append(table, []string{
+				g.ID,
+				briefGoverningKindCell(g.Kind),
+				briefCell(g.Title, "(no title)"),
+			})
+		}
+		briefTableAround(sb, st, []string{"ID", "KIND", "TITLE"}, table,
+			map[int]bool{0: true})
+		return
+	}
+
+	sb.WriteString(briefWrap("An id here is longer than the page, so each is "+
+		"printed whole on its own line: a cut id cannot be pasted into "+
+		"`rig record get`, and these share a prefix long enough that cutting "+
+		"would make five of them identical.", budget))
+
+	// KIND and TITLE keep their table; only the key steps out of it, so the
+	// section is still scannable down a column.
+	table := make([][]string, 0, len(shown))
+	for _, g := range shown {
+		table = append(table, []string{
+			briefGoverningKindCell(g.Kind),
+			briefCell(g.Title, "(no title)"),
+		})
+	}
+
+	width := make([]int, 2)
+	width[0], width[1] = kind, len("TITLE")
+	for _, r := range table {
+		if n := utf8.RuneCountInString(r[1]); n > width[1] {
+			width[1] = n
+		}
+	}
+	// ⛔ st.Width AND NOT budget, AND THE DIFFERENCE IS THE WHOLE RULING. The
+	// default above CHOOSES A LAYOUT, which costs a reader nothing; only a
+	// real terminal may CUT a cell. Passing the default here instead put an
+	// ellipsis into a pipe on the first run of this code, against both the
+	// zero value's contract and the paragraph above it.
+	briefFit(width, st.Width)
+
+	indent := strings.Repeat(" ", width[0]+2)
+	sb.WriteString(st.strong("KIND"+strings.Repeat(" ", width[0]-len("KIND")+2)+"TITLE") + "\n")
+	for i, r := range table {
+		sb.WriteString(r[0] + strings.Repeat(" ", width[0]-utf8.RuneCountInString(r[0])+2))
+		sb.WriteString(briefElide(r[1], width[1]) + "\n")
+		// ⛔ THE ID IS NEVER PASSED THROUGH briefElide. It is the one cell on
+		// the page that must survive whole.
+		sb.WriteString(indent + shown[i].ID + "\n")
+	}
 }
 
 // governingRowsPerKind is how many rows of one governing kind the brief
@@ -1202,11 +1449,34 @@ func governingQueryHint(project, kind string) string {
 }
 
 // briefNotesSection is what has been attached for an agent to read.
+//
+// ⛔ ITS EMPTY SENTENCE USED TO BE A CLAIM ABOUT THE STORE AND IT IS A CLAIM
+// ABOUT A JOIN. Measured 2026-09-17 against the live production store: the
+// store holds EIGHT `note` records in project `rig` and this section printed
+// "Nothing has been attached to this one." Both are true at once, because
+// section 3 is defined (§39 row 3) as notes `part-of` the project or `part-of`
+// an open item, and not one of those eight has an outbound `part-of` edge -
+// they are the DESTINATIONS of six, written by the import as document
+// headings. The derivation is correct and the edges are wrong.
+//
+// Every other empty section on this page says what it looked for; this one
+// said what it found. NEXT UP's empty sentence is the model - "an item appears
+// here once its status is active and nothing it is blocked by is outstanding"
+// - and a reader who is given the rule can tell "nobody wrote one" from
+// "eight exist and nothing points at them", which is the same absent-versus-
+// empty distinction B76 is about, one level down.
+//
+// ⛔ THE SENTENCE IS NOT THE FIX AND MUST NOT BE MISTAKEN FOR IT. The eight
+// notes are unreachable until something writes the edges, and that is the
+// importer's repair rather than the renderer's.
 func briefNotesSection(notes []BriefNote, now time.Time, st briefStyle) string {
 	var sb strings.Builder
 	sb.WriteString("\n" + st.strong("NOTES") + "\n")
 	if len(notes) == 0 {
-		sb.WriteString("Nothing has been attached to this one.\n")
+		sb.WriteString(briefWrap("Nothing is attached to this one: a note "+
+			"appears here once it is part-of the project, or part-of an item "+
+			"in the open list. A note the store holds that nothing points at "+
+			"is not reachable from here, and is not counted here.", st.Width))
 		return sb.String()
 	}
 
