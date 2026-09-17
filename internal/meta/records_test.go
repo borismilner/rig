@@ -23,6 +23,29 @@ type holdsRecords struct {
 	stepSeen meta.ProgressStep
 	linked   [3]string
 	err      error
+
+	// ⛔ THE READ ARGUMENTS ARE RECORDED, AND UNTIL 2026-09-17 THEY WERE NOT.
+	// Query and Brief took their parameters and threw them away, so NO TEST
+	// IN THIS PACKAGE COULD HAVE GONE RED on a read that dropped what the
+	// caller asked for - whatever the real adapter did. Two defects lived
+	// behind that for their whole life: `project_brief` could not find any
+	// project at all, and `record_query` answered only when BOTH project and
+	// kind were supplied. Both were in internal/daemon, and this double is
+	// why nothing here noticed.
+	//
+	// A double that discards its arguments is not a simplification, it is a
+	// check that cannot fail - the eighth recorded instance of that shape in
+	// this project.
+	querySeen struct {
+		project string
+		kind    string
+		fields  map[string]string
+		calls   int
+	}
+	briefSeen struct {
+		project string
+		calls   int
+	}
 }
 
 func (h *holdsRecords) Invoke(context.Context, kernel.Principal, string, string, []byte) ([]byte, error) {
@@ -44,7 +67,9 @@ func (h *holdsRecords) Get(_ context.Context, id string, version uint64) (meta.R
 	return meta.RecordRow{ID: id, Version: version, Seat: "backend-1"}, h.err
 }
 
-func (h *holdsRecords) Query(context.Context, string, string, map[string]string) ([]meta.RecordRow, error) {
+func (h *holdsRecords) Query(_ context.Context, project, kind string, fields map[string]string) ([]meta.RecordRow, error) {
+	h.querySeen.project, h.querySeen.kind, h.querySeen.fields = project, kind, fields
+	h.querySeen.calls++
 	return h.rows, h.err
 }
 
@@ -66,7 +91,9 @@ func (h *holdsRecords) Refs(context.Context, string) ([]meta.RecordRef, error) {
 	return h.refs, h.err
 }
 
-func (h *holdsRecords) Brief(context.Context, string) (meta.BriefAnswer, error) {
+func (h *holdsRecords) Brief(_ context.Context, project string) (meta.BriefAnswer, error) {
+	h.briefSeen.project = project
+	h.briefSeen.calls++
 	return h.brief, h.err
 }
 
@@ -245,6 +272,55 @@ func TestEveryRecordArgumentReachesTheRecords(t *testing.T) {
 	if h.stepSeen.Item != "B75" || h.stepSeen.State != "done" ||
 		h.stepSeen.Note != "shipped" || h.stepSeen.Project != "rig" {
 		t.Errorf("step lost an argument: %+v", h.stepSeen)
+	}
+
+	// ⛔ THE TWO READS, WHICH THIS TEST DID NOT COVER AND WHICH THE DOUBLE
+	// COULD NOT HAVE FAILED. record_query and project_brief are the surface an
+	// agent resumes through, and both of them shipped a defect that reached
+	// the live door. Neither was a wiring fault here - both were in the
+	// adapter - but a double that discarded its arguments is what made
+	// internal/meta unable to say anything about either.
+	if _, err := s.Answer(context.Background(), agent(), meta.Request{
+		Tool: meta.RecordQueryTool, Project: "rig", Kind: "decision",
+		Fields: map[string]string{"owner": "read-path"},
+	}); err != nil {
+		t.Fatalf("record_query: %v", err)
+	}
+	if h.querySeen.calls != 1 {
+		t.Errorf("record_query reached the records %d times, want 1",
+			h.querySeen.calls)
+	}
+	if h.querySeen.project != "rig" || h.querySeen.kind != "decision" ||
+		h.querySeen.fields["owner"] != "read-path" {
+		t.Errorf("query lost an argument on the way through: %+v", h.querySeen)
+	}
+
+	// ⛔ AN EMPTY FILTER IS AN ARGUMENT TOO, AND IT IS THE ONE THAT BROKE.
+	// Both defects were an empty string being treated as a value rather than
+	// as "every". A route that silently substituted a default here would be
+	// invisible to the row above, where nothing is empty.
+	if _, err := s.Answer(context.Background(), agent(), meta.Request{
+		Tool: meta.RecordQueryTool, Project: "rig",
+	}); err != nil {
+		t.Fatalf("record_query with no kind: %v", err)
+	}
+	if h.querySeen.project != "rig" || h.querySeen.kind != "" {
+		t.Errorf("an omitted kind did not arrive as an empty one: %+v",
+			h.querySeen)
+	}
+
+	if _, err := s.Answer(context.Background(), agent(), meta.Request{
+		Tool: meta.ProjectBriefTool, Project: "rig",
+	}); err != nil {
+		t.Fatalf("project_brief: %v", err)
+	}
+	if h.briefSeen.calls != 1 {
+		t.Errorf("project_brief reached the records %d times, want 1",
+			h.briefSeen.calls)
+	}
+	if h.briefSeen.project != "rig" {
+		t.Errorf("brief was asked about %q, not the project requested",
+			h.briefSeen.project)
 	}
 }
 

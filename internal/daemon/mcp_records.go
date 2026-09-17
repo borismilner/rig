@@ -146,19 +146,35 @@ func (m *mcpCaller) Get(ctx context.Context, id string, version uint64) (meta.Re
 
 // Query answers by project and kind, and then by field.
 //
-// ⛔ THE FIELD FILTER IS APPLIED HERE RATHER THAN IN SQL, AND THAT IS A STATED
-// LIMIT RATHER THAN A DESIGN. `(*Store).Query` takes project and kind only;
-// B65's `--field` lives in the CLI and filters what comes back. Doing the same
-// here keeps ONE behaviour across the two surfaces, which is what stops an agent
-// and a terminal disagreeing about the same question. ⛔ IT READS THE KIND'S
-// WHOLE SET FIRST, so a field filter over a large kind is a full read - that is
-// a real cost and it belongs in a row, not in a silent comment.
+// ⛔ IT GOES THROUGH `(*Store).Find`, AND ROUTING IT THROUGH `(*Store).Query`
+// MADE THE TOOL ANSWER NOTHING UNLESS BOTH FILTERS WERE GIVEN. Query's SQL is
+// `WHERE r.project = ? AND r.kind = ?` - literal equality on both - so an
+// empty filter was not a wildcard there, it was a value no record can hold,
+// because Put refuses to write one. Measured against the live door: `project`
+// alone answered 0 rows where the terminal answered 3, `kind` alone 0 against
+// 2, and neither 0 against the whole census. Only both-supplied agreed.
+//
+// ⛔ AND NOTHING LOOKED WRONG, WHICH IS WHY IT SURVIVED. record_query's own
+// description says "an empty result means nothing matched - it is an answer,
+// not a failure", so the surface pre-told its reader to accept the defect.
+//
+// Find switches over all eight shapes and is what the CLI has always used -
+// which is why the two surfaces disagreed: one of them was already right.
+//
+// ⛔ THE FIELD FILTER STAYS HERE RATHER THAN MOVING INTO Find's PREDICATE, and
+// the reason is the SHAPE of the argument rather than a preference. Find takes
+// ONE field and value; this takes a map, and a map has no first element - so
+// choosing which key went into the SQL would make the query plan depend on Go
+// map iteration order. Filtering the whole map here is deterministic and
+// answers the same question. ⛔ IT READS THE MATCHING SET FIRST, so a field
+// filter with no project and no kind is a full read - a real cost, stated
+// rather than hidden.
 func (m *mcpCaller) Query(ctx context.Context, project, kind string, fields map[string]string) ([]meta.RecordRow, error) {
 	st, err := m.store()
 	if err != nil {
 		return nil, err
 	}
-	recs, err := st.Query(ctx, project, kind)
+	recs, err := st.Find(ctx, record.QueryFilter{Project: project, Kind: kind})
 	if err != nil {
 		return nil, err
 	}
@@ -283,11 +299,25 @@ func (m *mcpCaller) Brief(ctx context.Context, project string) (meta.BriefAnswer
 // its history. Keying existence on one privileged kind would report the live
 // project as absent, which is the failure this function exists to prevent
 // arriving through its own fix.
+//
+// ⛔ AND IT ARRIVED ANYWAY, WITH THE PRIVILEGED KIND SPELLED "". This asked
+// `(*Store).Query(ctx, project, "")`, whose SQL matches `r.kind = ?`
+// literally; Put refuses an empty kind, so no record could ever match and this
+// returned false for EVERY slug ever passed to it. `Brief` short-circuits on
+// it, so `project_brief` - section 39's resume mechanism and section 9's A6,
+// the one tool behind "use rig to work on rig" - answered `{"Found":false}`
+// for every project in the store, and looked correct doing it, because "this
+// project does not exist" is a well-formed answer.
+//
+// ⛔ THE DOC COMMENT ABOVE IS OLDER THAN THE DEFECT AND DESCRIBED IT EXACTLY.
+// Naming a failure is not preventing it; `Find` is what prevents it, because
+// there the empty filter is a wildcard by construction rather than by
+// intention.
 func projectExists(ctx context.Context, st *record.Store, project string) (bool, error) {
 	if project == "" {
 		return false, nil
 	}
-	recs, err := st.Query(ctx, project, "")
+	recs, err := st.Find(ctx, record.QueryFilter{Project: project})
 	if err != nil {
 		return false, err
 	}
