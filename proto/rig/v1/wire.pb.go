@@ -786,6 +786,17 @@ const (
 	BriefSection_BRIEF_SECTION_LOCAL_ONLY        BriefSection = 9
 	BriefSection_BRIEF_SECTION_FEATURES          BriefSection = 10
 	BriefSection_BRIEF_SECTION_CASE_NOTES        BriefSection = 11
+	// ⛔ THE TWELFTH IS NOT SECTION 39's. B64: decision, requirement and artefact
+	// are three of section 39's ten kinds and no brief section rendered any of
+	// them, so a ruling put into rig was reachable only by a caller who already
+	// knew to ask record.query for it. Nothing told a reader they existed.
+	//
+	// Boris delegated the choice between a twelfth section and folding these
+	// kinds into an existing row, 2026-09-17. A twelfth was chosen because the
+	// store's section ledger REFUSES a half-wired section and the whole brief
+	// then fails loudly, where a half-done fold renders and hides a decision
+	// inside another row's shape.
+	BriefSection_BRIEF_SECTION_GOVERNING BriefSection = 12
 )
 
 // Enum value maps for BriefSection.
@@ -803,6 +814,7 @@ var (
 		9:  "BRIEF_SECTION_LOCAL_ONLY",
 		10: "BRIEF_SECTION_FEATURES",
 		11: "BRIEF_SECTION_CASE_NOTES",
+		12: "BRIEF_SECTION_GOVERNING",
 	}
 	BriefSection_value = map[string]int32{
 		"BRIEF_SECTION_UNSPECIFIED":       0,
@@ -817,6 +829,7 @@ var (
 		"BRIEF_SECTION_LOCAL_ONLY":        9,
 		"BRIEF_SECTION_FEATURES":          10,
 		"BRIEF_SECTION_CASE_NOTES":        11,
+		"BRIEF_SECTION_GOVERNING":         12,
 	}
 )
 
@@ -5073,6 +5086,134 @@ func (x *BriefHealth) GetLocalOnlyReason() string {
 	return ""
 }
 
+// GoverningRecord is one row of section 12: a decision, a requirement or an
+// artefact recorded against a project.
+//
+// ⛔ EVERY FIELD HERE IS A STRING AND DECISION 6 THEREFORE BINDS EACH OF THEM:
+// protojson omits the empty string, so absent and unserved are the same bytes
+// and an empty-value mutation asserts nothing about liveness. Any test proving
+// these travel owes TWO mutations per field - empty, and a wrong non-empty
+// value.
+type GoverningRecord struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// ⛔ WHICH of the three governing kinds. See the field comment on
+	// `governing` for why this is the whole difference between a section and a
+	// fold.
+	Kind          string `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	Title         string `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GoverningRecord) Reset() {
+	*x = GoverningRecord{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[58]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GoverningRecord) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GoverningRecord) ProtoMessage() {}
+
+func (x *GoverningRecord) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[58]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GoverningRecord.ProtoReflect.Descriptor instead.
+func (*GoverningRecord) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{58}
+}
+
+func (x *GoverningRecord) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *GoverningRecord) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *GoverningRecord) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+// KindCount is how many records of one kind exist.
+//
+// A REPEATED MESSAGE AND NOT A map<string,uint64>, for StageCount's reason:
+// proto3 maps have no defined ordering on the wire, so a renderer would emit a
+// different order per call and a golden test would flake.
+type KindCount struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Count         uint64                 `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *KindCount) Reset() {
+	*x = KindCount{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[59]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KindCount) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KindCount) ProtoMessage() {}
+
+func (x *KindCount) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[59]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KindCount.ProtoReflect.Descriptor instead.
+func (*KindCount) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{59}
+}
+
+func (x *KindCount) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *KindCount) GetCount() uint64 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
 type ProjectBriefResponse struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Project string                 `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
@@ -5135,14 +5276,29 @@ type ProjectBriefResponse struct {
 	// HONEST. Without it every empty list above is ambiguous between "there is
 	// nothing" and "this is not built yet". A caller that renders a section
 	// without reading its status is the failure this field exists to prevent.
-	Sections      []*BriefSectionStatus `protobuf:"bytes,19,rep,name=sections,proto3" json:"sections,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Sections []*BriefSectionStatus `protobuf:"bytes,19,rep,name=sections,proto3" json:"sections,omitempty"`
+	// ⛔ SECTION 12, B64. What GOVERNS this project: its decisions, its
+	// requirements and its artefacts, each row carrying its own kind.
+	//
+	// ⛔ THE KIND ON EACH ROW IS LOAD-BEARING AND NOT DECORATION. One repeated
+	// field holding three kinds is only distinguishable from a fold because the
+	// row says which it is. A decision that arrives indistinguishable from a
+	// requirement has been hidden in a longer list rather than surfaced, which is
+	// the failure B64 exists to close.
+	Governing []*GoverningRecord `protobuf:"bytes,20,rep,name=governing,proto3" json:"governing,omitempty"`
+	// How many governing records of each kind, in the vocabulary's order.
+	//
+	// SEPARATELY SERVED FROM `governing` FOR THE REASON feature_stages GIVES: a
+	// total derived from a list starts describing the list the day somebody caps
+	// it, and the cap is the change nobody remembers was load-bearing.
+	GoverningCounts []*KindCount `protobuf:"bytes,21,rep,name=governing_counts,json=governingCounts,proto3" json:"governing_counts,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ProjectBriefResponse) Reset() {
 	*x = ProjectBriefResponse{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[58]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5154,7 +5310,7 @@ func (x *ProjectBriefResponse) String() string {
 func (*ProjectBriefResponse) ProtoMessage() {}
 
 func (x *ProjectBriefResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[58]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5167,7 +5323,7 @@ func (x *ProjectBriefResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectBriefResponse.ProtoReflect.Descriptor instead.
 func (*ProjectBriefResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{58}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *ProjectBriefResponse) GetProject() string {
@@ -5299,6 +5455,20 @@ func (x *ProjectBriefResponse) GetCaseNotes() []*BriefNote {
 func (x *ProjectBriefResponse) GetSections() []*BriefSectionStatus {
 	if x != nil {
 		return x.Sections
+	}
+	return nil
+}
+
+func (x *ProjectBriefResponse) GetGoverning() []*GoverningRecord {
+	if x != nil {
+		return x.Governing
+	}
+	return nil
+}
+
+func (x *ProjectBriefResponse) GetGoverningCounts() []*KindCount {
+	if x != nil {
+		return x.GoverningCounts
 	}
 	return nil
 }
@@ -5579,7 +5749,14 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x0fpending_entries\x18\x02 \x01(\x04R\x0ependingEntries\x12\x1d\n" +
 	"\n" +
 	"local_only\x18\x03 \x01(\bR\tlocalOnly\x12*\n" +
-	"\x11local_only_reason\x18\x04 \x01(\tR\x0flocalOnlyReason\"\xf1\x05\n" +
+	"\x11local_only_reason\x18\x04 \x01(\tR\x0flocalOnlyReason\"K\n" +
+	"\x0fGoverningRecord\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x14\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\"5\n" +
+	"\tKindCount\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x04R\x05count\"\xe6\x06\n" +
 	"\x14ProjectBriefResponse\x12\x18\n" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x12%\n" +
 	"\x04open\x18\x02 \x03(\v2\x11.rig.v1.ItemStateR\x04open\x12*\n" +
@@ -5601,7 +5778,9 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x0efeature_stages\x18\x11 \x03(\v2\x12.rig.v1.StageCountR\rfeatureStages\x120\n" +
 	"\n" +
 	"case_notes\x18\x12 \x03(\v2\x11.rig.v1.BriefNoteR\tcaseNotes\x126\n" +
-	"\bsections\x18\x13 \x03(\v2\x1a.rig.v1.BriefSectionStatusR\bsections*\xbc\x01\n" +
+	"\bsections\x18\x13 \x03(\v2\x1a.rig.v1.BriefSectionStatusR\bsections\x125\n" +
+	"\tgoverning\x18\x14 \x03(\v2\x17.rig.v1.GoverningRecordR\tgoverning\x12<\n" +
+	"\x10governing_counts\x18\x15 \x03(\v2\x11.rig.v1.KindCountR\x0fgoverningCounts*\xbc\x01\n" +
 	"\tFrameKind\x12\x1a\n" +
 	"\x16FRAME_KIND_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12FRAME_KIND_REQUEST\x10\x01\x12\x17\n" +
@@ -5671,7 +5850,7 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\tBriefView\x12\x1a\n" +
 	"\x16BRIEF_VIEW_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10BRIEF_VIEW_AGENT\x10\x01\x12\x14\n" +
-	"\x10BRIEF_VIEW_HUMAN\x10\x02*\xe2\x02\n" +
+	"\x10BRIEF_VIEW_HUMAN\x10\x02*\xff\x02\n" +
 	"\fBriefSection\x12\x1d\n" +
 	"\x19BRIEF_SECTION_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12BRIEF_SECTION_OPEN\x10\x01\x12\x19\n" +
@@ -5685,7 +5864,8 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x18BRIEF_SECTION_LOCAL_ONLY\x10\t\x12\x1a\n" +
 	"\x16BRIEF_SECTION_FEATURES\x10\n" +
 	"\x12\x1c\n" +
-	"\x18BRIEF_SECTION_CASE_NOTES\x10\v*\x8d\x01\n" +
+	"\x18BRIEF_SECTION_CASE_NOTES\x10\v\x12\x1b\n" +
+	"\x17BRIEF_SECTION_GOVERNING\x10\f*\x8d\x01\n" +
 	"\fSectionState\x12\x1d\n" +
 	"\x19SECTION_STATE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16SECTION_STATE_COMPUTED\x10\x01\x12\x1e\n" +
@@ -5705,7 +5885,7 @@ func file_proto_rig_v1_wire_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 14)
-var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 61)
+var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 63)
 var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(FrameKind)(0),                // 0: rig.v1.FrameKind
 	(Code)(0),                     // 1: rig.v1.Code
@@ -5779,9 +5959,11 @@ var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(*Feature)(nil),               // 69: rig.v1.Feature
 	(*StageCount)(nil),            // 70: rig.v1.StageCount
 	(*BriefHealth)(nil),           // 71: rig.v1.BriefHealth
-	(*ProjectBriefResponse)(nil),  // 72: rig.v1.ProjectBriefResponse
-	nil,                           // 73: rig.v1.Record.FieldsEntry
-	nil,                           // 74: rig.v1.RecordPutRequest.FieldsEntry
+	(*GoverningRecord)(nil),       // 72: rig.v1.GoverningRecord
+	(*KindCount)(nil),             // 73: rig.v1.KindCount
+	(*ProjectBriefResponse)(nil),  // 74: rig.v1.ProjectBriefResponse
+	nil,                           // 75: rig.v1.Record.FieldsEntry
+	nil,                           // 76: rig.v1.RecordPutRequest.FieldsEntry
 }
 var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	1,  // 0: rig.v1.Status.code:type_name -> rig.v1.Code
@@ -5812,9 +5994,9 @@ var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	9,  // 25: rig.v1.ActivityRequest.state:type_name -> rig.v1.SeatState
 	35, // 26: rig.v1.ActivityResponse.you:type_name -> rig.v1.Seat
 	35, // 27: rig.v1.PeersResponse.crew:type_name -> rig.v1.Seat
-	73, // 28: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
+	75, // 28: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
 	42, // 29: rig.v1.Record.prov:type_name -> rig.v1.Provenance
-	74, // 30: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
+	76, // 30: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
 	43, // 31: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
 	43, // 32: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
 	43, // 33: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
@@ -5840,11 +6022,13 @@ var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	70, // 53: rig.v1.ProjectBriefResponse.feature_stages:type_name -> rig.v1.StageCount
 	67, // 54: rig.v1.ProjectBriefResponse.case_notes:type_name -> rig.v1.BriefNote
 	66, // 55: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
-	56, // [56:56] is the sub-list for method output_type
-	56, // [56:56] is the sub-list for method input_type
-	56, // [56:56] is the sub-list for extension type_name
-	56, // [56:56] is the sub-list for extension extendee
-	0,  // [0:56] is the sub-list for field type_name
+	72, // 56: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
+	73, // 57: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
+	58, // [58:58] is the sub-list for method output_type
+	58, // [58:58] is the sub-list for method input_type
+	58, // [58:58] is the sub-list for extension type_name
+	58, // [58:58] is the sub-list for extension extendee
+	0,  // [0:58] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_wire_proto_init() }
@@ -5858,7 +6042,7 @@ func file_proto_rig_v1_wire_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_wire_proto_rawDesc), len(file_proto_rig_v1_wire_proto_rawDesc)),
 			NumEnums:      14,
-			NumMessages:   61,
+			NumMessages:   63,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

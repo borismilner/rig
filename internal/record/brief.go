@@ -506,6 +506,35 @@ func sortByPriority(ids []string, active map[string]ItemState) {
 }
 
 // Brief derives the answer to "what is going on here" for one project.
+// briefContainer reads the container record and copies its own metadata onto
+// the brief, answering the record itself for the derivations that need it.
+//
+// ⛔ A MISSING CONTAINER IS NOT AN ERROR AND THAT IS DELIBERATE. The brief
+// answers for the store as it is, and nextUpN has always fallen back to the
+// default rather than refusing - but it is no longer silently a PROJECT either:
+// Kind stays empty and the section ledger uses that to say section 11 cannot be
+// placed rather than guessing.
+//
+// ⛔ EXTRACTED FROM Brief BECAUSE B64's TWELFTH SECTION PUT IT AT gocyclo 26
+// AGAINST A CEILING OF 25. The ceiling was not raised: the same trade
+// serveRecord records about serveSelf, which crossed on ONE inline case. A
+// derivation that is one branch under a limit is one section away from being
+// over it, and the limit is doing its job when that is what forces the split.
+func (s *Store) briefContainer(ctx context.Context, project string, b *Brief) (Record, error) {
+	container, err := s.Get(ctx, project)
+	if err != nil {
+		if !errors.As(err, new(*NotFoundError)) {
+			return Record{}, err
+		}
+		return Record{}, nil
+	}
+	b.Kind = container.Kind
+	b.Title = container.Fields["title"]
+	b.Status = container.Fields["status"]
+	b.Semver = container.Fields["semver"]
+	return container, nil
+}
+
 func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 	if project == "" {
 		return Brief{}, errors.New("record: a brief needs a project")
@@ -518,15 +547,9 @@ func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 	// id it was handed. A MISSING CONTAINER IS NOT AN ERROR - the brief answers
 	// for the store as it is, and nextUpN has always fallen back to the default
 	// rather than refusing - but it is no longer silently a project either.
-	container, cerr := s.Get(ctx, project)
-	if cerr != nil && !errors.As(cerr, new(*NotFoundError)) {
-		return Brief{}, cerr
-	}
-	if cerr == nil {
-		b.Kind = container.Kind
-		b.Title = container.Fields["title"]
-		b.Status = container.Fields["status"]
-		b.Semver = container.Fields["semver"]
+	container, err := s.briefContainer(ctx, project, &b)
+	if err != nil {
+		return Brief{}, err
 	}
 	led := newSectionLedger(b.Kind)
 

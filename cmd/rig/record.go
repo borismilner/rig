@@ -403,6 +403,15 @@ func openRecordAPI() (RecordAPI, func(), error) {
 // three different words, which is what a second spelling here would assert.
 const titleKey = "title"
 
+// kindKey is the JSON key for a record's kind, for titleKey's reason and for
+// one more: B64 added two section-12 objects that each carry a kind, which took
+// the bare literal past goconst's ceiling of six in this package. ⛔ THE FLAG
+// NAMES AND THE POSITIONAL LABEL SPELLED "kind" ARE DELIBERATELY NOT THIS
+// CONSTANT. They are a different thing that happens to share a spelling - a
+// flag is part of a command's surface and a JSON key is part of an answer's -
+// and collapsing them would mean a rename of one silently renaming the other.
+const kindKey = "kind"
+
 // fieldFlag collects `--field key=value`, repeated.
 //
 // A REPEATED FLAG RATHER THAN ONE JSON BLOB, because section 39's whole

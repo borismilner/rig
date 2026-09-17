@@ -15,6 +15,7 @@ import (
 	"github.com/boris-milner/rig/client"
 	"github.com/boris-milner/rig/internal/instance"
 	"github.com/boris-milner/rig/internal/kernel"
+	"github.com/boris-milner/rig/internal/record"
 	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )
 
@@ -518,6 +519,13 @@ func TestNoServedRequestFieldIsSilentlyDropped(t *testing.T) {
 // same defect pointed the other way, and it needs its own walk. Raised by the
 // backend-record seat, which found `must_read` independently and correctly
 // refused to fix a file it does not own.
+//
+// ⛔ REWRITTEN FOR B64, AND IT NOW TESTS THE REAL PATH. It used to iterate a
+// hand-kept briefSections() in this package - a list whose own comment said
+// every row was "a claim that expires", and three of them did. That list is
+// gone; the store's ledger marks each section at the code that earns it and the
+// daemon maps them. So this walks the MAPPER, which is the only thing left in
+// this package that can be wrong about a section.
 func TestEveryBriefSectionReportsItsOwnState(t *testing.T) {
 	// EVERY section in the enum must be reported EXACTLY ONCE. A section that
 	// is simply absent is the original defect: the caller cannot tell it from
@@ -529,14 +537,51 @@ func TestEveryBriefSectionReportsItsOwnState(t *testing.T) {
 			want[n] = true
 		}
 	}
-	if len(want) != 11 {
-		t.Fatalf("BriefSection carries %d sections and section 39 specifies 11 - "+
-			"if the specification changed, this number moves with it deliberately",
+	if len(want) != 12 {
+		t.Fatalf("BriefSection carries %d sections and this wire serves 12 - "+
+			"section 39's eleven plus the governing section B64 added. If the "+
+			"specification changed, this number moves with it deliberately",
 			len(want))
 	}
 
+	// ⛔ THE STORE'S TWELVE, TRANSCRIBED, AS A SECOND INSTRUMENT. Feeding this
+	// mapper a list derived from the mapper's own switch would agree with it
+	// whatever it said - the cross-check-with-the-same-blind-spot this seam has
+	// already paid for. internal/record does not export its section list, and
+	// writing the names out here is the point rather than a workaround: a
+	// section added on the store side reaches this wire only when a person adds
+	// an arm, and this is where they find out.
+	from := []record.SectionStatus{
+		{Section: record.SectionOpen, State: record.SectionComputed},
+		{Section: record.SectionNextUp, State: record.SectionComputed},
+		{Section: record.SectionNotes, State: record.SectionComputed},
+		{Section: record.SectionBlocked, State: record.SectionComputed},
+		{Section: record.SectionDrift, State: record.SectionNotComputed, Reason: "r"},
+		{Section: record.SectionMustRead, State: record.SectionNotComputed, Reason: "r"},
+		{Section: record.SectionProjectionBehind, State: record.SectionNotComputed, Reason: "r"},
+		{Section: record.SectionPending, State: record.SectionNotComputed, Reason: "r"},
+		{Section: record.SectionLocalOnly, State: record.SectionNotComputed, Reason: "r"},
+		{Section: record.SectionFeatures, State: record.SectionComputed},
+		{Section: record.SectionCaseNotes, State: record.SectionNotComputed, Reason: "r"},
+		{Section: record.SectionGoverning, State: record.SectionComputed},
+	}
+	got, err := sectionStatuses(from)
+	if err != nil {
+		t.Fatalf("mapping the store's sections onto the wire: %v", err)
+	}
+
+	// ⛔ AND THE MAPPER MUST REFUSE WHAT IT CANNOT NAME, watched going red here
+	// rather than assumed from reading the default arm. A section travelling as
+	// UNSPECIFIED is section 21's rule broken in the quietest possible way.
+	if _, err := sectionStatuses([]record.SectionStatus{
+		{Section: record.Section("invented"), State: record.SectionComputed},
+	}); err == nil {
+		t.Error("the mapper accepted a section this wire has no member for and " +
+			"would have served it as UNSPECIFIED, which reads as an unset field")
+	}
+
 	seen := map[rigv1.BriefSection]int{}
-	for _, st := range briefSections() {
+	for _, st := range got {
 		seen[st.GetSection()]++
 
 		// ⛔ A REASON IS MANDATORY WHENEVER A SECTION CANNOT ANSWER. Without it
@@ -558,7 +603,7 @@ func TestEveryBriefSectionReportsItsOwnState(t *testing.T) {
 		switch seen[s] {
 		case 1:
 		case 0:
-			t.Errorf("%v is in the enum and briefSections() does NOT report it. "+
+			t.Errorf("%v is in the enum and the mapper does NOT report it. "+
 				"A missing section reads as covered, which is how seven of eleven "+
 				"were shipped absent", s)
 		default:
@@ -585,8 +630,8 @@ func TestTheBriefNeverAnswersWithoutItsSectionStates(t *testing.T) {
 		&rigv1.ProjectBriefRequest{Project: "rig"}, &resp); err != nil {
 		t.Fatalf("rig.project.brief: %v", err)
 	}
-	if len(resp.GetSections()) != 11 {
-		t.Fatalf("the brief answered with %d section states, want 11: an empty "+
+	if len(resp.GetSections()) != 12 {
+		t.Fatalf("the brief answered with %d section states, want 12: an empty "+
 			"health block is then indistinguishable from a healthy project",
 			len(resp.GetSections()))
 	}
@@ -1051,5 +1096,147 @@ func TestAnEmptyQueryFilterMeansEveryValueOverTheWire(t *testing.T) {
 	if got := query("rig", "a-kind-nobody-would-guess"); len(got) != 0 {
 		t.Errorf("a kind that exists only in another project returned %d "+
 			"records for rig, want 0: the filters are AND-ed, not OR-ed", len(got))
+	}
+}
+
+// TestTheBriefCarriesTheGoverningRecordsOverTheWire is B64's wire half, and it
+// is the acceptance test stated end to end: a decision written through
+// record.put comes back out of project.brief WITHOUT the caller knowing its id.
+//
+// ⛔ DECISION 6 BINDS EVERY STRING FIELD THIS ADDS - `id`, `kind` and `title` on
+// GoverningRecord, and `kind` on KindCount. protojson omits the empty string,
+// so absent and unserved are the same bytes and an empty-value mutation asserts
+// nothing about liveness. Each field is therefore asserted against a WRONG
+// NON-EMPTY VALUE it could not hold by accident, not merely against "not
+// empty".
+//
+// ⛔ AND THE NEGATIVE HALF IS WHY THIS IS A TEST RATHER THAN A DEMONSTRATION. A
+// daemon that put every record of the project into `governing` would satisfy
+// every positive assertion here. The work-item below is the assertion that
+// cannot be passed that way.
+func TestTheBriefCarriesTheGoverningRecordsOverTheWire(t *testing.T) {
+	sock := upRecordDaemon(t)
+	c := seated(t, sock, "team-lead")
+	ctx := recordCtx(t)
+
+	// ⛔ IT RETURNS NOTHING, AND THAT IS THE TEST'S WHOLE PREMISE RATHER THAN
+	// tidiness. The sibling helpers in this file hand back the new id because
+	// their subjects need linking; here, keeping an id would let the test reach
+	// a record the way a caller COULD BEFORE B64, and it would then pass
+	// against the store as it was. A helper that cannot return an id cannot
+	// accidentally be used that way.
+	put := func(what string, req *rigv1.RecordPutRequest) {
+		t.Helper()
+		var resp rigv1.RecordPutResponse
+		if err := c.Call(ctx, "rig.record.put", req, &resp); err != nil {
+			t.Fatalf("rig.record.put(%s): %v", what, err)
+		}
+	}
+
+	put("project", &rigv1.RecordPutRequest{
+		Id: "rig", Kind: "project", Project: "rig", Body: "rig itself",
+	})
+	put("decision", &rigv1.RecordPutRequest{
+		Kind: "decision", Project: "rig",
+		Body:   "the retention ladder governs observability, never records",
+		Fields: map[string]string{"title": "the ladder governs observability"},
+	})
+	put("requirement", &rigv1.RecordPutRequest{
+		Kind: "requirement", Project: "rig", Body: "storage does not reset",
+		Fields: map[string]string{"title": "storage survives a release"},
+	})
+	put("artefact", &rigv1.RecordPutRequest{
+		Kind: "artefact", Project: "rig", Body: "the attack synthesis",
+		Fields: map[string]string{"title": "SYNTHESIS.md"},
+	})
+	put("work-item", &rigv1.RecordPutRequest{
+		Id: "B1", Kind: "work-item", Project: "rig", Body: "an ordinary row",
+		Fields: map[string]string{"title": "not governing", "status": "active"},
+	})
+
+	var resp rigv1.ProjectBriefResponse
+	if err := c.Call(ctx, "rig.project.brief",
+		&rigv1.ProjectBriefRequest{Project: "rig"}, &resp); err != nil {
+		t.Fatalf("rig.project.brief: %v", err)
+	}
+
+	byKind := map[string]*rigv1.GoverningRecord{}
+	for _, g := range resp.GetGoverning() {
+		byKind[g.GetKind()] = g
+
+		// ⛔ THE ID IS RESOLVED, NOT MERELY CHECKED FOR EMPTINESS, AND THIS
+		// ASSERTION EXISTS BECAUSE THE WEAKER ONE LET A MUTATION THROUGH.
+		// The first version of this test asserted only `id != ""`, and setting
+		// every row's Id to a constant "x" SURVIVED it: the rows were keyed on
+		// kind, so nothing ever looked at an id's value. That is generation
+		// 11's own finding arriving in the test written to carry its lesson -
+		// every assertion was satisfiable by the broken code.
+		//
+		// Fetching it is the assertion that cannot be satisfied that way, and
+		// it is also the property a reader actually needs: an id in the brief
+		// is worth having only if it resolves. A wrong id fails here whatever
+		// it is, including one copied from a neighbouring row.
+		var got rigv1.RecordGetResponse
+		if err := c.Call(ctx, "rig.record.get",
+			&rigv1.RecordGetRequest{Id: g.GetId()}, &got); err != nil {
+			t.Errorf("the brief offers %s id %q and record.get cannot resolve "+
+				"it (%v) - an id that does not fetch is worse than no id, "+
+				"because a reader will spend a call finding out",
+				g.GetKind(), g.GetId(), err)
+			continue
+		}
+		if k := got.GetRecord().GetKind(); k != g.GetKind() {
+			t.Errorf("the brief says %q is a %s and the store says it is a %s - "+
+				"the row's id and its kind are describing different records",
+				g.GetId(), g.GetKind(), k)
+		}
+	}
+
+	// The positive half, with the wrong-non-empty-value assertion DECISION 6
+	// requires: the title is checked against what was stored, not against "".
+	for _, want := range []struct{ kind, title string }{
+		{"decision", "the ladder governs observability"},
+		{"requirement", "storage survives a release"},
+		{"artefact", "SYNTHESIS.md"},
+	} {
+		g, ok := byKind[want.kind]
+		if !ok {
+			t.Errorf("a %s was written through record.put and the brief does "+
+				"not carry it - it is reachable only by an id the caller would "+
+				"have to have kept, which is B64", want.kind)
+			continue
+		}
+		if g.GetTitle() != want.title {
+			t.Errorf("the %s's title is %q, want %q - an empty title would be "+
+				"the same bytes as an unserved field, so this asserts the value "+
+				"and not its presence", want.kind, g.GetTitle(), want.title)
+		}
+	}
+
+	// ⛔ THE NEGATIVE HALF.
+	if g, ok := byKind["work-item"]; ok {
+		t.Errorf("the brief serves work-item %q in `governing`; sections 1 and "+
+			"2 already carry it, and a daemon dumping every record passes every "+
+			"assertion above", g.GetId())
+	}
+	if n := len(resp.GetGoverning()); n != 3 {
+		t.Errorf("`governing` carries %d rows, want exactly 3", n)
+	}
+
+	counts := map[string]uint64{}
+	for _, c := range resp.GetGoverningCounts() {
+		if c.GetKind() == "" {
+			t.Error("a count arrived with NO kind, so a reader is told a number " +
+				"and not what it counts")
+		}
+		counts[c.GetKind()] = c.GetCount()
+	}
+	for _, k := range []string{"decision", "requirement", "artefact"} {
+		if counts[k] != 1 {
+			t.Errorf("governing_counts says %d %s, want 1", counts[k], k)
+		}
+	}
+	if counts["work-item"] != 0 {
+		t.Errorf("governing_counts counts work-items (%d)", counts["work-item"])
 	}
 }

@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os/user"
 	"strconv"
 
@@ -480,92 +481,112 @@ func itemToWire(i record.ItemState) *rigv1.ItemState {
 	return w
 }
 
-// briefSections reports the state of all ELEVEN of section 39's brief
-// sections, every time, whether or not each one can be answered.
+// governingRows maps section 12's rows onto the wire.
 //
-// ⛔ BORIS RULED ALL ELEVEN INTO THE MVP, 2026-09-16: "Cover all of them",
-// asked directly whether the four that shipped were enough. The seven missing
-// ones had been cut by one seat alone, and the cut is recorded in plan/39
-// along with why the argument for it did not hold: ship-nothing and
-// ship-an-always-empty-field were treated as the only two options, and the
-// third is a section that reports its own state.
-//
-// ⛔ WHY THIS LIVES HERE AND ONLY FOR NOW. The reason a section cannot be
-// answered is knowledge the DERIVATION has, not the wire - BACKLOG B46g gives
-// internal/record the job of carrying it. Until that lands, the daemon is the
-// only thing that knows which fields record.Brief actually has, and an empty
-// `sections` would be exactly the defect this commit's sibling guard exists to
-// catch: a served field nothing writes. When the store grows its own section
-// states, this function passes them through and stops deciding.
-//
-// ⛔ THIS COMMENT USED TO CLAIM THE ANSWER WAS "DERIVED FROM THE STORE'S OWN
-// STRUCT, not from a list of booleans kept in step by hand". IT IS NOT, AND IT
-// NEVER WAS. The list below is hand-kept, this function takes no arguments, and
-// nothing here reads record.Brief at all. The claim was false when it was
-// written and it is what let two rows go stale within a day: internal/record
-// grew Notes, Features and Stages, and these rows went on reporting
-// NOT_COMPUTED with a reason blaming a derivation that had landed.
-//
-// ⛔ AND THE CLAIM CANNOT BE MADE TRUE HERE, which is the argument for B46g
-// rather than for a cleverer function. Whether a section is computable is a
-// property of the CODE; whether a slice is populated is a property of the DATA.
-// A project with no notes returns an empty Notes, and a rule of "non-empty means
-// computed" would report that project's notes as NOT_COMPUTED - the
-// empty-reads-as-missing defect, arriving in the very mechanism built to
-// separate the two. Only the derivation knows which it is, which is exactly why
-// the states move into internal/record and this function stops deciding.
-//
-// KEEP THIS LIST IN STEP BY HAND UNTIL IT DOES, and treat every row as a claim
-// that expires.
-func briefSections() []*rigv1.BriefSectionStatus {
-	computed := func(s rigv1.BriefSection) *rigv1.BriefSectionStatus {
-		return &rigv1.BriefSectionStatus{
-			Section: s, State: rigv1.SectionState_SECTION_STATE_COMPUTED,
-		}
+// ⛔ `kind` IS COPIED AND NOT DERIVED FROM POSITION. The rows arrive grouped by
+// kind, so a mapper could infer each row's kind from where it sits in the
+// slice - and would then be correct until the day the derivation orders them
+// any other way, at which point every row would be mislabelled and nothing
+// would fail. The store already put the answer on the row.
+func governingRows(in []record.GoverningRecord) []*rigv1.GoverningRecord {
+	out := make([]*rigv1.GoverningRecord, 0, len(in))
+	for _, g := range in {
+		out = append(out, &rigv1.GoverningRecord{
+			Id: g.ID, Kind: g.Kind, Title: g.Title,
+		})
 	}
-	waiting := func(s rigv1.BriefSection, why string) *rigv1.BriefSectionStatus {
-		return &rigv1.BriefSectionStatus{
-			Section: s, State: rigv1.SectionState_SECTION_STATE_NOT_COMPUTED,
-			Reason: why,
-		}
-	}
+	return out
+}
 
-	const (
-		projection = "the git projection does not exist yet, so there is nothing " +
-			"to be behind. PLAN.md section 39's spine, and it is what makes the " +
-			"degraded path readable at all"
-		derivation = "the record store's brief derivation does not collect this " +
-			"kind yet. BACKLOG B46g, and it is the last thing between this brief " +
-			"and all eleven sections"
-	)
-
-	return []*rigv1.BriefSectionStatus{
-		computed(rigv1.BriefSection_BRIEF_SECTION_OPEN),
-		computed(rigv1.BriefSection_BRIEF_SECTION_NEXT_UP),
-		computed(rigv1.BriefSection_BRIEF_SECTION_NOTES),
-		computed(rigv1.BriefSection_BRIEF_SECTION_BLOCKED),
-		waiting(rigv1.BriefSection_BRIEF_SECTION_DRIFT,
-			"the standards register does not exist. standard.stamp and "+
-				"standard.drift are slice 7 and are deliberately off this wire, so "+
-				"nothing can be behind a standard rig cannot yet hold"),
-		// ⛔ SPECIFIED, DECLARED ON THE WIRE, AND NOT BUILT - which is why it is
-		// named here rather than left as two empty fields. plan/39 RULED that
-		// the slice-2 brief returns the must-read set AND marks it delivered,
-		// and `must_read`/`must_read_cleared` have been on this message since
-		// the wire landed with nothing writing either. A caller reading an empty
-		// list would conclude this project demands nothing.
-		waiting(rigv1.BriefSection_BRIEF_SECTION_MUST_READ,
-			"neither half of the must-read gate is built: the SET is records "+
-				"marked in the store, and the MARK is per-session state keyed on "+
-				"the session Token. Both are ruled for slice 2 in PLAN.md section "+
-				"39. Until they exist an empty must_read set means UNKNOWN, never "+
-				"\"this project requires nothing\""),
-		waiting(rigv1.BriefSection_BRIEF_SECTION_PROJECTION_BEHIND, projection),
-		waiting(rigv1.BriefSection_BRIEF_SECTION_PENDING, projection),
-		waiting(rigv1.BriefSection_BRIEF_SECTION_LOCAL_ONLY, projection),
-		computed(rigv1.BriefSection_BRIEF_SECTION_FEATURES),
-		waiting(rigv1.BriefSection_BRIEF_SECTION_CASE_NOTES, derivation),
+// governingCounts maps section 12's per-kind counts onto the wire.
+func governingCounts(in []record.KindCount) []*rigv1.KindCount {
+	out := make([]*rigv1.KindCount, 0, len(in))
+	for _, c := range in {
+		out = append(out, &rigv1.KindCount{Kind: c.Kind, Count: c.Count})
 	}
+	return out
+}
+
+// sectionStatuses maps the store's section states onto the wire.
+//
+// ⛔ IT PASSES THEM THROUGH AND DECIDES NOTHING, WHICH IS WHAT THE HAND-KEPT
+// LIST THAT STOOD HERE PROMISED IT WOULD BECOME. That list carried a row per
+// section with a reason written beside it, and its own comment said: "KEEP THIS
+// LIST IN STEP BY HAND UNTIL [the store grows its own section states], and
+// treat every row as a claim that expires." ⛔ **THE CLAIMS DID EXPIRE.** By the
+// time B64 arrived the list still reported `case_notes` as NOT_COMPUTED, citing
+// a derivation that had landed - the third row of that list to go stale in the
+// same way, and the defect BACKLOG B46g was filed for.
+//
+// ⛔ WHY THE STORE IS THE ONLY PLACE THIS CAN LIVE, restated because deleting
+// the list is the easy half and understanding why is the part that stops it
+// coming back: whether a section is computABLE is a property of the code, and
+// whether its slice is populated is a property of the data. A project with
+// genuinely no notes returns an empty Notes, so any rule the daemon could apply
+// from out here - "non-empty means computed" - reports that project's notes as
+// missing. Only the derivation knows which it is, and internal/record's ledger
+// now marks each section at the code that earns it.
+//
+// ⛔ THE SWITCH IS EXHAUSTIVE AND ITS default REFUSES. internal/record names its
+// sections rather than numbering them, deliberately, so that this
+// correspondence has to be written out where it can be read and tested - a cast
+// would be a mapping nobody can see going wrong. A section added to the store
+// with no arm here would otherwise travel as UNSPECIFIED, which section 21's
+// rule says must never be a decision.
+func sectionStatuses(in []record.SectionStatus) ([]*rigv1.BriefSectionStatus, error) {
+	out := make([]*rigv1.BriefSectionStatus, 0, len(in))
+	for _, st := range in {
+		var sec rigv1.BriefSection
+		switch st.Section {
+		case record.SectionOpen:
+			sec = rigv1.BriefSection_BRIEF_SECTION_OPEN
+		case record.SectionNextUp:
+			sec = rigv1.BriefSection_BRIEF_SECTION_NEXT_UP
+		case record.SectionNotes:
+			sec = rigv1.BriefSection_BRIEF_SECTION_NOTES
+		case record.SectionBlocked:
+			sec = rigv1.BriefSection_BRIEF_SECTION_BLOCKED
+		case record.SectionDrift:
+			sec = rigv1.BriefSection_BRIEF_SECTION_DRIFT
+		case record.SectionMustRead:
+			sec = rigv1.BriefSection_BRIEF_SECTION_MUST_READ
+		case record.SectionProjectionBehind:
+			sec = rigv1.BriefSection_BRIEF_SECTION_PROJECTION_BEHIND
+		case record.SectionPending:
+			sec = rigv1.BriefSection_BRIEF_SECTION_PENDING
+		case record.SectionLocalOnly:
+			sec = rigv1.BriefSection_BRIEF_SECTION_LOCAL_ONLY
+		case record.SectionFeatures:
+			sec = rigv1.BriefSection_BRIEF_SECTION_FEATURES
+		case record.SectionCaseNotes:
+			sec = rigv1.BriefSection_BRIEF_SECTION_CASE_NOTES
+		case record.SectionGoverning:
+			sec = rigv1.BriefSection_BRIEF_SECTION_GOVERNING
+		default:
+			return nil, fmt.Errorf("daemon: the record store reported section %q "+
+				"and this wire has no member for it - a section added on one side "+
+				"and not the other would travel as UNSPECIFIED, which section 21 "+
+				"rules may never be a decision", st.Section)
+		}
+
+		var state rigv1.SectionState
+		switch st.State {
+		case record.SectionComputed:
+			state = rigv1.SectionState_SECTION_STATE_COMPUTED
+		case record.SectionNotComputed:
+			state = rigv1.SectionState_SECTION_STATE_NOT_COMPUTED
+		case record.SectionWithheldByView:
+			state = rigv1.SectionState_SECTION_STATE_WITHHELD_BY_VIEW
+		default:
+			return nil, fmt.Errorf("daemon: section %q reported state %q, which "+
+				"this wire has no member for", st.Section, st.State)
+		}
+
+		out = append(out, &rigv1.BriefSectionStatus{
+			Section: sec, State: state, Reason: st.Reason,
+		})
+	}
+	return out, nil
 }
 
 // serveRecordRefs answers what points AT a record - section 39's "correlated",
@@ -658,6 +679,15 @@ func (d *Daemon) serveProjectBrief(ctx context.Context, c *conn, f *rigv1.Frame,
 		c.failErr(f.GetStreamId(), recordCode(err), err)
 		return
 	}
+	// ⛔ A SECTION THE WIRE CANNOT NAME FAILS THE WHOLE BRIEF RATHER THAN
+	// TRAVELLING AS UNSPECIFIED. Same argument as the store's own ledger one
+	// level down: an answer that is silently missing a section reads as an
+	// answer with nothing in that section.
+	sections, err := sectionStatuses(b.Sections)
+	if err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err.Error())
+		return
+	}
 	resp := &rigv1.ProjectBriefResponse{
 		Project: b.Project,
 
@@ -666,7 +696,15 @@ func (d *Daemon) serveProjectBrief(ctx context.Context, c *conn, f *rigv1.Frame,
 		// not exist - only the section status separates them, which is why it
 		// is never sent without one.
 		Health:   &rigv1.BriefHealth{},
-		Sections: briefSections(),
+		Sections: sections,
+
+		// ⛔ SECTION 12, B64, AND IT IS MAPPED FIELD BY FIELD RATHER THAN
+		// SPREAD. The store's GoverningRecord and the wire's have the same three
+		// fields today; writing the correspondence out is what makes it visible
+		// when they stop agreeing, which is the defect `briefFromWire` recorded
+		// against itself when it went on naming five unread fields of six.
+		Governing:       governingRows(b.Governing),
+		GoverningCounts: governingCounts(b.GoverningCounts),
 
 		// ⛔ THE PACKAGE COMPUTED THIS AND THIS FUNCTION THREW IT AWAY, SO THE
 		// FIRST BRIEF rig EVER GAVE OF ITSELF SAID "(not said)" ABOUT ITS OWN

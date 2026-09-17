@@ -1301,6 +1301,18 @@ enum BriefSection {
   BRIEF_SECTION_LOCAL_ONLY = 9;
   BRIEF_SECTION_FEATURES = 10;
   BRIEF_SECTION_CASE_NOTES = 11;
+
+  // ⛔ THE TWELFTH IS NOT SECTION 39's. B64: decision, requirement and artefact
+  // are three of section 39's ten kinds and no brief section rendered any of
+  // them, so a ruling put into rig was reachable only by a caller who already
+  // knew to ask record.query for it. Nothing told a reader they existed.
+  //
+  // Boris delegated the choice between a twelfth section and folding these
+  // kinds into an existing row, 2026-09-17. A twelfth was chosen because the
+  // store's section ledger REFUSES a half-wired section and the whole brief
+  // then fails loudly, where a half-done fold renders and hides a decision
+  // inside another row's shape.
+  BRIEF_SECTION_GOVERNING = 12;
 }
 
 // SectionState is whether a section's answer means anything.
@@ -1412,6 +1424,35 @@ message BriefHealth {
 }
 
 
+// GoverningRecord is one row of section 12: a decision, a requirement or an
+// artefact recorded against a project.
+//
+// ⛔ EVERY FIELD HERE IS A STRING AND DECISION 6 THEREFORE BINDS EACH OF THEM:
+// protojson omits the empty string, so absent and unserved are the same bytes
+// and an empty-value mutation asserts nothing about liveness. Any test proving
+// these travel owes TWO mutations per field - empty, and a wrong non-empty
+// value.
+message GoverningRecord {
+  string id = 1;
+
+  // ⛔ WHICH of the three governing kinds. See the field comment on
+  // `governing` for why this is the whole difference between a section and a
+  // fold.
+  string kind = 2;
+
+  string title = 3;
+}
+
+// KindCount is how many records of one kind exist.
+//
+// A REPEATED MESSAGE AND NOT A map<string,uint64>, for StageCount's reason:
+// proto3 maps have no defined ordering on the wire, so a renderer would emit a
+// different order per call and a golden test would flake.
+message KindCount {
+  string kind = 1;
+  uint64 count = 2;
+}
+
 message ProjectBriefResponse {
   string project = 1;
 
@@ -1513,4 +1554,21 @@ message ProjectBriefResponse {
   // nothing" and "this is not built yet". A caller that renders a section
   // without reading its status is the failure this field exists to prevent.
   repeated BriefSectionStatus sections = 19;
+
+  // ⛔ SECTION 12, B64. What GOVERNS this project: its decisions, its
+  // requirements and its artefacts, each row carrying its own kind.
+  //
+  // ⛔ THE KIND ON EACH ROW IS LOAD-BEARING AND NOT DECORATION. One repeated
+  // field holding three kinds is only distinguishable from a fold because the
+  // row says which it is. A decision that arrives indistinguishable from a
+  // requirement has been hidden in a longer list rather than surfaced, which is
+  // the failure B64 exists to close.
+  repeated GoverningRecord governing = 20;
+
+  // How many governing records of each kind, in the vocabulary's order.
+  //
+  // SEPARATELY SERVED FROM `governing` FOR THE REASON feature_stages GIVES: a
+  // total derived from a list starts describing the list the day somebody caps
+  // it, and the cap is the change nobody remembers was load-bearing.
+  repeated KindCount governing_counts = 21;
 }

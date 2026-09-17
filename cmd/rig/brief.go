@@ -140,6 +140,17 @@ type Brief struct {
 	Features      []BriefFeature
 	FeatureStages []BriefStageCount
 
+	// Governing and GoverningCounts are SECTION 12, B64: the decisions, the
+	// requirements and the artefacts recorded against this project.
+	//
+	// ⛔ THE ROW'S OWN KIND IS RENDERED AND NOT INFERRED FROM ITS POSITION. The
+	// rows arrive grouped, so a renderer could print a heading per run and drop
+	// the field - and would be right until the derivation's order changed, at
+	// which point every row would carry the wrong label and no test would see
+	// it. The wire puts the kind on the row; this prints what it was given.
+	Governing       []BriefGoverning
+	GoverningCounts []BriefKindCount
+
 	// Sections is the state of all ELEVEN of section 39's sections.
 	//
 	// ⛔ RENDERING A SECTION WITHOUT ITS STATE IS THE DEFECT BORIS RULED OUT,
@@ -236,6 +247,25 @@ type BriefFeature struct {
 // BriefStageCount is how many features sit at one stage.
 type BriefStageCount struct {
 	Stage string
+	Count uint64
+}
+
+// BriefGoverning is one row of section 12: a decision, a requirement or an
+// artefact recorded against this project.
+type BriefGoverning struct {
+	ID    string
+	Title string
+
+	// Kind is WHICH of the three. EMPTY IS A DEFECT rather than a kind: it is
+	// the only thing separating one section that carries three kinds from a
+	// fold that loses which is which, and the renderer says so rather than
+	// leaving the cell blank.
+	Kind string
+}
+
+// BriefKindCount is how many governing records of one kind exist.
+type BriefKindCount struct {
+	Kind  string
 	Count uint64
 }
 
@@ -370,6 +400,18 @@ func briefJSON(b Brief, now time.Time) map[string]any {
 			"session":  n.Prov.Session,
 		})
 	}
+	governing := make([]map[string]any, 0, len(b.Governing))
+	for _, g := range b.Governing {
+		governing = append(governing, map[string]any{
+			"id": g.ID, kindKey: g.Kind, titleKey: g.Title,
+		})
+	}
+	governingCounts := make([]map[string]any, 0, len(b.GoverningCounts))
+	for _, c := range b.GoverningCounts {
+		governingCounts = append(governingCounts, map[string]any{
+			kindKey: c.Kind, "count": c.Count,
+		})
+	}
 	cycles := make([]map[string]any, 0, len(b.Cycles))
 	for _, c := range b.Cycles {
 		items := c.Items
@@ -407,7 +449,7 @@ func briefJSON(b Brief, now time.Time) map[string]any {
 	}
 	return map[string]any{
 		"project": b.Project,
-		"kind":    b.Kind,
+		kindKey:   b.Kind,
 		titleKey:  b.Title,
 		"status":  b.Status,
 		"semver":  b.Semver,
@@ -420,6 +462,14 @@ func briefJSON(b Brief, now time.Time) map[string]any {
 		"notes":          notes,
 		"features":       features,
 		"feature_stages": stages,
+
+		// ⛔ SECTION 12, B64, AND THE KEYS ARE PRESENT AND EMPTY ON A PROJECT
+		// WITH NOTHING GOVERNING IT. Omitting them would make "rig holds no
+		// decisions for this project" indistinguishable from "this build does
+		// not serve section 12", which is the absent-versus-empty argument the
+		// whole brief is built on.
+		"governing":        governing,
+		"governing_counts": governingCounts,
 		// `blocked` IS WHAT WAITS ON WHAT. `cycles` IS THE CYCLE REPORT AND
 		// NOT A RESOLUTION - it carries the items and nothing that could be
 		// read as an edge to break. ⛔ THESE TWO KEYS WERE ONE, UNDER THE
@@ -566,6 +616,7 @@ func briefText(b Brief, now time.Time, st briefStyle) string {
 	sb.WriteString(briefOpenSection(b.Open, now, st))
 	sb.WriteString(briefNotesSection(b.Notes, now, st))
 	sb.WriteString(briefFeaturesSection(b.Features, b.FeatureStages, st))
+	sb.WriteString(briefGoverningSection(b.Governing, b.GoverningCounts, st))
 	sb.WriteString(briefUnavailableSection(b.Sections, st))
 	return sb.String()
 }
@@ -1034,6 +1085,52 @@ func briefFeaturesSection(features []BriefFeature, stages []BriefStageCount, st 
 	return sb.String()
 }
 
+// briefGoverningSection is what governs this project. Section 12, B64.
+//
+// ⛔ THE SECTION PRINTS ITS OWN ABSENCE AND THAT IS THE WHOLE REASON IT EXISTS.
+// Before B64 a decision, a requirement or an artefact put into rig appeared
+// NOWHERE in the brief, so a reader had no way to learn they were a thing rig
+// could hold - the records were reachable only by somebody who already knew to
+// ask record.query for them. An empty section that says "none recorded" teaches
+// a reader what to write next; a section that is simply absent teaches nothing,
+// which is section 39's own argument for the section states one layer up.
+func briefGoverningSection(rows []BriefGoverning, counts []BriefKindCount, st briefStyle) string {
+	var sb strings.Builder
+	sb.WriteString("\n" + st.strong("GOVERNING") + "\n")
+	if len(rows) == 0 && len(counts) == 0 {
+		sb.WriteString("No decisions, requirements or artefacts are recorded " +
+			"against this project.\n")
+		return sb.String()
+	}
+
+	if len(rows) > 0 {
+		table := make([][]string, 0, len(rows))
+		for _, g := range rows {
+			table = append(table, []string{
+				g.ID,
+				// ⛔ A ROW THAT CANNOT SAY WHICH KIND IT IS HAS FOLDED THREE
+				// KINDS INTO ONE, which is the option B64 ruled against. It is
+				// named as a defect rather than rendered blank, because a blank
+				// cell reads as a kind called nothing.
+				briefCell(g.Kind, "(no kind - which is a defect, not a kind)"),
+				briefCell(g.Title, "(no title)"),
+			})
+		}
+		briefTable(&sb, st, []string{"ID", "KIND", "TITLE"}, table)
+	}
+
+	// The counts print even when the list is empty, and the reverse: either
+	// arriving alone is a fact about the derivation, and one condition covering
+	// both would hide whichever half is missing. briefFeaturesSection's rule.
+	if len(counts) > 0 {
+		sb.WriteString("\n")
+		for _, c := range counts {
+			fmt.Fprintf(&sb, "  %-12s %d\n", briefCell(c.Kind, "(no kind)"), c.Count)
+		}
+	}
+	return sb.String()
+}
+
 // briefNotesSection is what has been attached for an agent to read.
 func briefNotesSection(notes []BriefNote, now time.Time, st briefStyle) string {
 	var sb strings.Builder
@@ -1285,6 +1382,16 @@ func briefFromWire(r *rigv1.ProjectBriefResponse) Brief {
 	for _, c := range r.GetFeatureStages() {
 		b.FeatureStages = append(b.FeatureStages, BriefStageCount{
 			Stage: c.GetStage(), Count: c.GetCount(),
+		})
+	}
+	for _, g := range r.GetGoverning() {
+		b.Governing = append(b.Governing, BriefGoverning{
+			ID: g.GetId(), Kind: g.GetKind(), Title: g.GetTitle(),
+		})
+	}
+	for _, c := range r.GetGoverningCounts() {
+		b.GoverningCounts = append(b.GoverningCounts, BriefKindCount{
+			Kind: c.GetKind(), Count: c.GetCount(),
 		})
 	}
 	for _, n := range r.GetNotes() {
