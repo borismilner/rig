@@ -373,6 +373,41 @@ without stopping unnecessarily"* and *"keep me in the loop once in a while"*.
 works silently for an hour is failing the second.** The report he is owed
 (`READINESS.txt`) is the formal one; this is the informal cadence alongside it.
 
+##### ✅ HE RESTATED THE 45% MARK THE SAME DAY. SCOPE UNSTATED, THEREFORE SESSION-ONLY. BORIS, 2026-09-17 LATE.
+
+> *"Don't warm-handoff until you get to 45% context."*
+
+**Said unprompted to team-lead generation 16, as the closing line of a message
+whose subject was the window screenshots, while that session's context guard was
+firing.** ⛔ **THE ENTRY ABOVE IS NOT RE-OPENED BY THIS.** The ruling there
+stands unchanged: the mark binds the session it was said in and no later seat
+inherits it. **This is the eighth number, not a seventh**, and the entry above
+forbids arguing from the series - so it is recorded for its SCOPE and for
+nothing else.
+
+⛔ **IT BOUND GENERATION 16 AND IT DOES NOT BIND GENERATION 17.** He said it
+to that session, about that session's guard, and did not say it was standing.
+By this section's own rule an unstated scope is session-only. Generation 17
+asked whether it was a new statement or a relay, was told it was new, and still
+did not adopt it. **That is the correct reading and it is recorded so the next
+seat does not have to re-derive it.**
+
+⛔ **THE FAILURE THIS CAUGHT IS A DIFFERENT ONE FROM THE ENTRY ABOVE, AND
+SHARPER: ACCURATE QUOTATION, WRONG SCOPE.** Generation 16 quoted him exactly and
+then carried the quotation into a successor's briefing as a constraint on the
+successor. **Nothing about the quotation was wrong. The propagation was.** The
+entry above was written about a rule whose scope was never asked; this one is
+about a rule whose scope was asked, answered, recorded - **and propagated anyway,
+by the same seat that had just read the answer.**
+
+⛔ **SO A SEAT MAY NOT CARRY A SESSION-SCOPED RULE INTO A BRIEFING, A HANDOFF
+DOCUMENT OR A SUCCESSOR'S SEED**, however verbatim the quotation. **A rule's
+scope travels with it or the rule does not travel.** Generation 16 identified
+its own upstream cause: a memory file holding *"the latest one wins and it is
+45%"* as a standing rule. **A durable store that drops the scope re-creates this
+every session**, which is why the scope is half the record and not a footnote to
+it.
+
 ##### ⛔ THE DUAL RUN IS BOUNDED BY rig's OWN DEVELOPMENT. BORIS, 2026-09-17.
 
 > *"We are using both logbook and rig just for the period of developing of `rig`
