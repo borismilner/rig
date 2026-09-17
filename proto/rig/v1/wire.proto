@@ -970,6 +970,37 @@ message Record {
   string body = 5;
   map<string, string> fields = 6;
   Provenance prov = 7;
+
+  // ⛔ SET WHEN THIS RECORD HAS BEEN WITHDRAWN, AND ABSENT OTHERWISE. B77,
+  // ruled by Boris 2026-09-17. `record.get` is the ONE verb that still answers
+  // about a retracted record - every list drops it - so this is the only
+  // message that ever carries the field, and a reader who got a Record out of
+  // a query never needs to check it.
+  //
+  // ⛔ A MESSAGE AND NOT A `bool retracted`. A retraction carries a reason, a
+  // survivor and its own provenance; a bool would make "withdrawn, nobody said
+  // why" and "not withdrawn" the same bytes, which is the absent-versus-empty
+  // failure this wire already refuses in four other places.
+  Retraction retraction = 8;
+}
+
+// Retraction is a record withdrawn: what was withdrawn, why, by whom, and what
+// replaced it when a replace did the withdrawing.
+//
+// ⛔ EVERY STRING FIELD HERE IS BOUND BY DECISION 6: protojson omits the empty
+// string, so absent and unserved are the same bytes and an empty-value mutation
+// asserts nothing about liveness. A test proving these travel owes TWO
+// mutations per field - empty, and a wrong non-empty value.
+message Retraction {
+  string id = 1;
+  string reason = 2;
+
+  // The survivor, when this retraction came from a replace. Empty for a plain
+  // retract. It is what lets a reader holding the OLD id learn where the fact
+  // went rather than only that it left.
+  string replaced_by = 3;
+
+  Provenance prov = 4;
 }
 
 message RecordPutRequest {
@@ -1122,6 +1153,129 @@ message Ref {
   // not through what, and the relationship the caller asked about is
   // unreadable.
   string via = 6;
+}
+
+// ⛔ B77, RULED BY BORIS 2026-09-17: "I want full controll over the records, so
+// everybody can delete/retract records and replace records".
+//
+// ⛔ RETRACT, DELETE AND REPLACE ARE THREE CAPABILITIES AND NOT THREE NAMES FOR
+// ONE, and his own two distinguishing questions are what keep them apart: does
+// the ID survive (retract yes, delete no), and does the HISTORY survive
+// (retract yes, delete no)? A daemon that served retract and called the
+// sentence satisfied would have served a third of it.
+//
+// ⛔ AND NONE OF THE THREE CARRIES A CALLER IDENTITY, WHICH IS THE POINT.
+// "Everybody" is his word - not the owner, not the writer, not an
+// administrator - and section 42's default is "absolutely without
+// restrictions". A permission field here would be building the wrong product.
+message RecordRetractRequest {
+  string id = 1;
+
+  // Why it was withdrawn. Optional, and empty is a real answer: a retraction
+  // nobody explained is still a retraction, and refusing one without a reason
+  // would be a policy this wire was not given.
+  string reason = 2;
+}
+
+message RecordRetractResponse {
+  Retraction retraction = 1;
+
+  // ⛔ TRUE WHEN THE RECORD WAS ALREADY WITHDRAWN AND THIS CALL CHANGED
+  // NOTHING, in which case `retraction` is the EARLIER one.
+  //
+  // A second retract is not an error - the caller is asserting a state - but
+  // the PROVENANCE of a withdrawal is evidence, and restamping it with the
+  // second caller's name would rewrite who decided what. This field is how the
+  // caller learns their reason was not the one recorded.
+  bool already = 2;
+}
+
+// Edge is one typed, directed link as a value a report can carry.
+message Edge {
+  string src = 1;
+  string type = 2;
+  string dst = 3;
+}
+
+message RecordDeleteRequest {
+  string id = 1;
+
+  // ⛔ COMPUTE THE WHOLE ANSWER AND WRITE NOTHING. Boris ruled that a dry run
+  // must be able to show the dropped edges first. It is the SAME code path as
+  // the act, deliberately: a preview computed by a different query is a preview
+  // of something else, and the day the two disagree the preview is the one that
+  // gets believed.
+  bool dry_run = 2;
+}
+
+// RecordDeleteResponse is the ACCOUNT a destructive verb owes.
+//
+// ⛔ THE REPORT IS OWED BECAUSE THE REFUSAL WAS RULED OUT. Boris chose "delete
+// and drop the edges" over "refuse and name the citers", with the cost stated
+// and accepted: deleting a parent leaves its children with no record that they
+// ever had one. So the obligation moved from the VERB to the REPORT. ⛔ **A
+// destructive verb that answers `deleted` and nothing else is B75's shape -
+// success reported over data loss - arriving through a verb whose job is to
+// lose data.**
+message RecordDeleteResponse {
+  string id = 1;
+
+  // How many versions went. ⛔ NOT "1": a record's history is the thing delete
+  // destroys that retract does not, and the count is how a caller sees it.
+  uint64 versions = 2;
+
+  // Every edge dropped, in BOTH directions, each one named. The outbound half
+  // is the one an implementation forgets: dropping only the inbound edges
+  // leaves the store asserting that a record which no longer exists is part of
+  // something.
+  repeated Edge edges = 3;
+
+  bool dry_run = 4;
+}
+
+// RecordReplaceRequest puts a DIFFERENT record in the place of an existing one.
+//
+// ⛔ SUPERSEDE CANNOT EXPRESS THIS, BECAUSE SUPERSEDE KEEPS THE ID. This is the
+// duplicate case - two ids holding one fact - and it is why replace is not
+// optional beside delete: it is the case where the edges genuinely must
+// survive, onto the survivor.
+message RecordReplaceRequest {
+  // The loser: its inbound edges move and it is withdrawn.
+  string old = 1;
+
+  // The survivor: a record that already exists and absorbs them.
+  string new = 2;
+
+  string reason = 3;
+}
+
+// RecordReplaceResponse accounts for every inbound edge in one of three
+// buckets, and the three are disjoint and exhaustive.
+//
+// ⛔ THREE BUCKETS AND NOT A COUNT, for RecordDeleteResponse's reason. A
+// replace that answers "moved 1" over three edges is the same reassuring lie:
+// two of them went somewhere and the caller cannot tell where.
+message RecordReplaceResponse {
+  string old = 1;
+  string new = 2;
+
+  // Now points at the survivor instead.
+  repeated Edge moved = 3;
+
+  // The survivor ALREADY had it. The fact is not lost, so this is a merge
+  // rather than a conflict - reported separately so it cannot read as a move.
+  repeated Edge merged = 4;
+
+  // An edge FROM the survivor to the loser, which would have become a
+  // self-edge. ⛔ REPORTED RATHER THAN SILENTLY REMOVED: it is the one bucket
+  // where a fact genuinely goes.
+  repeated Edge dropped = 5;
+
+  // ⛔ THE LOSER IS RETRACTED AND NOT DELETED, so a reader holding the old id
+  // is told where the fact went. Deleting it would answer the duplicate case by
+  // destroying the evidence that there ever was a duplicate, and `record.delete`
+  // already exists for a caller who wants exactly that.
+  Retraction retraction = 6;
 }
 
 message RecordRefsResponse {

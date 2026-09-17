@@ -207,7 +207,7 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 			// B86 filed 2026-09-17 by generation 15 the turn Boris ruled it: a
 			// CLI write mints a new session every time, so 783 sessions over 451
 			// decisions say nothing. OPEN, and designed rather than open-ended.
-			"B86", "B9",
+			"B86", "B87", "B88", "B9",
 		})
 
 	// B65 joins this set 2026-09-17: the field predicate landed at rig
@@ -225,7 +225,10 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 	// that does not exist is now NAMED and exits 1 (rig `072aea4`). Both were
 	// demonstrated and both rows were struck.
 	pin(t, "closed, struck", struck,
-		[]string{"B11", "B19", "B20", "B22", "B31", "B33", "B64", "B65", "B66", "B7", "B75", "B76", "B9"})
+		[]string{
+			"B11", "B19", "B20", "B22", "B31", "B33", "B64", "B65", "B66",
+			"B68", "B7", "B75", "B76", "B87", "B88", "B9",
+		})
 	pin(t, "closed by a terminal lead in the item cell", byLead, []string{"B21"})
 	pin(t, "claims a terminal state unstruck, seeded OPEN", claims,
 		[]string{"B15", "B24", "B25", "B44", "B46a", "B48", "B55", "B56"})
@@ -323,11 +326,14 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 		// apart. It has now been paid three times in one hour by one seat.
 		// That is B63 arriving at the GATE, and it is filed as B84.
 		// 90 -> 91 rows and 76 -> 77 open: B86 filed, nothing closed.
+		// 91 -> 93 rows, 14 -> 17 closed, 77 -> 76 open: B87 and B88 filed AND
+		// closed in the same session, and B68 closed. Two rows arriving already
+		// struck is why rows went up by 2 while open went DOWN by 1.
 		// ⛔ B83 IS DELIBERATELY STILL OPEN although its build landed - the
 		// LIVE store holds none of the 342 records, so the row is not done.
-		{"rows", len(items), 91},
-		{"closed", len(struck) + len(byLead), 14},
-		{"open", open, 77},
+		{"rows", len(items), 93},
+		{"closed", len(struck) + len(byLead), 17},
+		{"open", open, 76},
 	} {
 		if c.got != c.want {
 			t.Errorf("%s: %d, pinned at %d.\n"+

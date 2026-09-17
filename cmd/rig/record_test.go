@@ -41,6 +41,24 @@ type fakeRecord struct {
 	}
 	lastRefs RefsArgs
 
+	// B77's three, and each records what it was ASKED as well as what it
+	// answered: a test asserting that --dry-run reached the API is a different
+	// claim from one asserting the call happened.
+	lastDelete struct {
+		id     string
+		dryRun bool
+	}
+	lastReplace struct {
+		old, replacement, reason string
+	}
+	lastRetract struct {
+		id, reason string
+	}
+
+	retract func(string, string) (Retraction, bool, error)
+	del     func(string, bool) (Deletion, error)
+	replace func(string, string, string) (Replacement, error)
+
 	put   func(PutArgs) (Record, error)
 	get   func(string, uint64) (Record, error)
 	query func(QueryArgs) ([]Record, error)
@@ -102,6 +120,38 @@ func (f *fakeRecord) Link(_ context.Context, _, _, _ string) error {
 func (f *fakeRecord) Unlink(_ context.Context, _, _, _ string) error {
 	f.calls = append(f.calls, "unlink")
 	return f.linkErr
+}
+
+func (f *fakeRecord) Retract(_ context.Context, id, reason string) (Retraction, bool, error) {
+	f.calls = append(f.calls, "retract")
+	f.lastRetract.id, f.lastRetract.reason = id, reason
+	if f.retract != nil {
+		return f.retract(id, reason)
+	}
+	return Retraction{ID: id, Reason: reason}, false, nil
+}
+
+func (f *fakeRecord) Delete(_ context.Context, id string, dryRun bool) (Deletion, error) {
+	f.calls = append(f.calls, "delete")
+	f.lastDelete.id, f.lastDelete.dryRun = id, dryRun
+	if f.del != nil {
+		return f.del(id, dryRun)
+	}
+	return Deletion{ID: id, Versions: 1, DryRun: dryRun}, nil
+}
+
+func (f *fakeRecord) Replace(_ context.Context, old, replacement, reason string) (Replacement, error) {
+	f.calls = append(f.calls, "replace")
+	f.lastReplace.old = old
+	f.lastReplace.replacement = replacement
+	f.lastReplace.reason = reason
+	if f.replace != nil {
+		return f.replace(old, replacement, reason)
+	}
+	return Replacement{
+		Old: old, New: replacement,
+		Retraction: &Retraction{ID: old, Reason: reason, ReplacedBy: replacement},
+	}, nil
 }
 
 func (f *fakeRecord) Refs(_ context.Context, a RefsArgs) (Refs, error) {

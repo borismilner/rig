@@ -15,6 +15,41 @@ import (
 // A NAMED TYPE RATHER THAN AN ANONYMOUS CLOSURE, for Invoker's stated reason:
 // a double that can say what it is in a stack trace is one somebody can find
 // again.
+// B77's three, on the double. ⛔ EACH RETURNS A DISTINGUISHABLE VALUE rather
+// than a zero, because the reachability test below reads a value back on every
+// tool: a double answering zeros makes "dispatched and wired" and "dispatched
+// and silently empty" the same green.
+func (h *holdsRecords) Retract(_ context.Context, id, reason string) (meta.RecordRetraction, error) {
+	if h.err != nil {
+		return meta.RecordRetraction{}, h.err
+	}
+	return meta.RecordRetraction{ID: id, Reason: reason, Seat: "a-seat"}, nil
+}
+
+func (h *holdsRecords) Delete(_ context.Context, id string, dryRun bool) (meta.RecordDeletion, error) {
+	if h.err != nil {
+		return meta.RecordDeletion{}, h.err
+	}
+	return meta.RecordDeletion{
+		ID: id, Versions: 2, DryRun: dryRun,
+		Edges: []meta.RecordEdge{{Src: "B91", Type: "part-of", Dst: id}},
+	}, nil
+}
+
+func (h *holdsRecords) Replace(_ context.Context, old, replacement, reason string) (meta.RecordReplacement, meta.RecordRetraction, error) {
+	if h.err != nil {
+		return meta.RecordReplacement{}, meta.RecordRetraction{}, h.err
+	}
+	rep := meta.RecordReplacement{
+		Old: old, New: replacement,
+		Moved: []meta.RecordEdge{{Src: "B92", Type: "cites", Dst: old}},
+	}
+	ret := meta.RecordRetraction{
+		ID: old, Reason: reason, ReplacedBy: replacement, Seat: "a-seat",
+	}
+	return rep, ret, nil
+}
+
 type holdsRecords struct {
 	putSeen  meta.RecordPut
 	rows     []meta.RecordRow
@@ -132,6 +167,13 @@ func TestTheContinuityRecordIsReachableFromTheAgentSurface(t *testing.T) {
 		{"refs", meta.RecordRefsTool},
 		{"brief", meta.ProjectBriefTool},
 		{"step", meta.ProgressStepTool},
+
+		// ⛔ B77's THREE. An agent that can WRITE a record and cannot withdraw
+		// one has permanent mistakes, and the store accreting from a seat doing
+		// its job correctly is the receipt the row was filed on.
+		{"retract", meta.RecordRetractTool},
+		{"delete", meta.RecordDeleteTool},
+		{"replace", meta.RecordReplaceTool},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s := meta.New(estate(t, kernel.CoverageFull), &holdsRecords{})
@@ -369,4 +411,73 @@ func indexOf(h, n string) int {
 		}
 	}
 	return -1
+}
+
+// TestB77sThreeCarryTheirAnswersAndNotOnlyAPayload is the arm the loop above
+// promises in its caption and does not actually run.
+//
+// ⛔ THE CAPTION SAYS "EVERY CASE BELOW READS A VALUE BACK" AND THE LOOP CHECKS
+// ONLY THAT `Record` IS NON-NIL. That is the exact shape it warns about one
+// paragraph earlier - a mutation setting every id to a constant passed there in
+// September - so B77's three get the assertion rather than inheriting the gap.
+// Fixing the loop for the other nine is a separate change against a pinned
+// surface and is not smuggled in here.
+func TestB77sThreeCarryTheirAnswersAndNotOnlyAPayload(t *testing.T) {
+	s := meta.New(estate(t, kernel.CoverageFull), &holdsRecords{})
+	ctx := context.Background()
+
+	ret, err := s.Answer(ctx, agent(), meta.Request{
+		Tool: meta.RecordRetractTool, RecordID: "B90", Reason: "filed twice",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	switch got := ret.Record.Retraction; {
+	case got == nil:
+		t.Fatal("record_retract answered with no withdrawal, so an agent " +
+			"cannot tell it from a call that did nothing")
+	case got.ID != "B90" || got.Reason != "filed twice":
+		t.Errorf("the withdrawal is %+v, want the id and reason that were sent", got)
+	case got.Seat == "":
+		t.Error("the withdrawal carries no seat - a retraction nobody can " +
+			"attribute is a fact with no author")
+	}
+
+	del, err := s.Answer(ctx, agent(), meta.Request{
+		Tool: meta.RecordDeleteTool, RecordID: "B90", DryRun: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	switch got := del.Record.Deletion; {
+	case got == nil:
+		t.Fatal("record_delete answered with no account of what it took, " +
+			"which is the whole obligation the verb carries")
+	case got.Versions != 2:
+		t.Errorf("the version count is %d, want the double's 2", got.Versions)
+	case len(got.Edges) != 1:
+		t.Errorf("the dropped edges are %+v, want the double's one", got.Edges)
+	case !got.DryRun:
+		t.Error("dry_run did not survive to the answer, so a caller who " +
+			"previewed is told they deleted")
+	}
+
+	rep, err := s.Answer(ctx, agent(), meta.Request{
+		Tool: meta.RecordReplaceTool, RecordID: "B90", NewID: "B91",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := rep.Record.Replacement; got == nil || got.Old != "B90" || got.New != "B91" {
+		t.Fatalf("the replacement is %+v, want B90 replaced by B91", got)
+	}
+	if len(rep.Record.Replacement.Moved) != 1 {
+		t.Errorf("the moved edges are %+v, want the double's one",
+			rep.Record.Replacement.Moved)
+	}
+	// ⛔ BOTH HALVES TRAVEL. An agent told the edges moved and not told the
+	// loser is withdrawn has been told half of what the verb did.
+	if got := rep.Record.Retraction; got == nil || got.ReplacedBy != "B91" {
+		t.Errorf("the replacement carried no withdrawal naming the survivor: %+v", got)
+	}
 }

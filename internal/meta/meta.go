@@ -82,6 +82,19 @@ const (
 	RecordRefsTool    Tool = "record_refs"
 	ProjectBriefTool  Tool = "project_brief"
 	ProgressStepTool  Tool = "progress_step"
+
+	// ⛔ B77's THREE, RULED BY BORIS 2026-09-17: he asked for full control over
+	// the records, so that everybody can delete, retract and replace them. His
+	// sentence verbatim is in plan/39 and in internal/record/control.go.
+	//
+	// ⛔ THEY ARE ON THE AGENT'S DOOR AND NOT ONLY ON THE CLI, WHICH IS THE
+	// POINT OF "EVERYBODY". An agent that can WRITE a record and cannot
+	// withdraw one is an agent whose mistakes are permanent, and the store
+	// accreting from seats doing their job correctly is the receipt this row
+	// was filed on.
+	RecordRetractTool Tool = "record_retract"
+	RecordDeleteTool  Tool = "record_delete"
+	RecordReplaceTool Tool = "record_replace"
 )
 
 // Invoker runs one declared command as one principal. The daemon implements
@@ -212,6 +225,16 @@ type Request struct {
 	LinkKind string
 	Item     string
 	State    string
+
+	// B77's. Reason is retract's and replace's; DryRun is delete's; NewID is
+	// the survivor a replace puts in the loser's place.
+	//
+	// ⛔ NewID RATHER THAN REUSING `To`. `To` is an edge's far end and a
+	// replace is not an edge, and one field meaning two things is how a caller
+	// reading this struct learns the wrong model of the verb.
+	Reason string
+	DryRun bool
+	NewID  string
 }
 
 // Answer is what every meta tool returns, and what both --json and the MCP
@@ -361,6 +384,12 @@ func (s *Server) Answer(ctx context.Context, who kernel.Principal, r Request) (A
 		return s.recordUnlink(ctx, who, r)
 	case RecordRefsTool:
 		return s.recordRefs(ctx, who, r)
+	case RecordRetractTool:
+		return s.recordRetract(ctx, who, r)
+	case RecordDeleteTool:
+		return s.recordDelete(ctx, who, r)
+	case RecordReplaceTool:
+		return s.recordReplace(ctx, who, r)
 	case ProjectBriefTool:
 		return s.projectBrief(ctx, who, r)
 	case ProgressStepTool:

@@ -1,5 +1,5 @@
 $ rig record stamp
 exit 1
 --- stdout (0 bytes)
---- stderr (95 bytes)
-rig: "stamp" is not a record subcommand; they are put, get, query, history, link, unlink, refs
+--- stderr (121 bytes)
+rig: "stamp" is not a record subcommand; they are put, get, query, history, link, unlink, refs, retract, delete, replace

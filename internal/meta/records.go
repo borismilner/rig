@@ -62,6 +62,19 @@ type Records interface {
 	// implies completeness it has not got.
 	Query(ctx context.Context, project, kind string, fields map[string]string) ([]RecordRow, error)
 
+	// Retract, Delete and Replace are B77's three, and they are THREE
+	// CAPABILITIES rather than three names for one. Boris's distinguishing
+	// questions: does the id survive (retract yes, delete no), and does the
+	// HISTORY survive (retract yes, delete no)?
+	//
+	// ⛔ NONE OF THEM TAKES A CALLER IDENTITY BEYOND WHAT THE CONNECTION
+	// ALREADY GIVES. "Everybody" is his word and section 42's default is
+	// "absolutely without restrictions"; a permission argument here would be
+	// building the wrong product.
+	Retract(ctx context.Context, id, reason string) (RecordRetraction, error)
+	Delete(ctx context.Context, id string, dryRun bool) (RecordDeletion, error)
+	Replace(ctx context.Context, old, replacement, reason string) (RecordReplacement, RecordRetraction, error)
+
 	// History is every version of one record, oldest first.
 	//
 	// APPEND-ONLY IS THE POINT OF SECTION 39's RECORD: a superseded wording is
@@ -255,6 +268,7 @@ func allToolNames() []string {
 		string(RecordPutTool), string(RecordGetTool), string(RecordQueryTool),
 		string(RecordHistoryTool), string(RecordLinkTool), string(RecordUnlinkTool),
 		string(RecordRefsTool), string(ProjectBriefTool), string(ProgressStepTool),
+		string(RecordRetractTool), string(RecordDeleteTool), string(RecordReplaceTool),
 	}
 }
 
@@ -283,6 +297,63 @@ type RecordAnswer struct {
 	// ANSWER, because link and unlink otherwise return nothing at all and a
 	// caller cannot tell success from a surface that did not run.
 	Linked bool `json:"linked,omitempty"`
+
+	// Retraction is retract's answer and rides replace's too. B77.
+	Retraction *RecordRetraction `json:"retraction,omitempty"`
+
+	// Deletion is what a delete TOOK, and it is the verb's whole output.
+	//
+	// ⛔ Boris ruled that delete drops the edges rather than refusing while
+	// anything cites the record, so the obligation moved from the verb to the
+	// report. An agent that gets `deleted: true` and nothing else has been told
+	// success over data loss, which is this project's B75 arriving through a
+	// verb whose job is to lose data.
+	Deletion *RecordDeletion `json:"deletion,omitempty"`
+
+	// Replacement accounts for every inbound edge of the loser.
+	Replacement *RecordReplacement `json:"replacement,omitempty"`
+}
+
+// RecordRetraction is a withdrawal on the agent's door.
+type RecordRetraction struct {
+	ID         string `json:"id"`
+	Reason     string `json:"reason"`
+	ReplacedBy string `json:"replaced_by,omitempty"`
+	Seat       string `json:"seat"`
+	Session    string `json:"session"`
+	Written    string `json:"written"`
+
+	// Already is true when the record was ALREADY withdrawn and this call
+	// changed nothing, in which case every field above is the EARLIER
+	// withdrawal's. An agent that read this as its own would report a reason
+	// nobody recorded.
+	Already bool `json:"already,omitempty"`
+}
+
+// RecordEdge is one typed, directed link in a report.
+type RecordEdge struct {
+	Src  string `json:"src"`
+	Type string `json:"type"`
+	Dst  string `json:"dst"`
+}
+
+// RecordDeletion is the account a delete owes.
+type RecordDeletion struct {
+	ID       string       `json:"id"`
+	Versions uint64       `json:"versions"`
+	Edges    []RecordEdge `json:"edges"`
+	DryRun   bool         `json:"dry_run"`
+}
+
+// RecordReplacement accounts for every inbound edge in one of three disjoint
+// buckets. ⛔ THREE AND NOT A COUNT: a replace answering "moved 1" over three
+// edges leaves an agent unable to say where the other two went.
+type RecordReplacement struct {
+	Old     string       `json:"old"`
+	New     string       `json:"new"`
+	Moved   []RecordEdge `json:"moved"`
+	Merged  []RecordEdge `json:"merged"`
+	Dropped []RecordEdge `json:"dropped"`
 }
 
 func (s *Server) recordPut(ctx context.Context, who kernel.Principal, r Request) (Answer, error) {
@@ -348,6 +419,42 @@ func (s *Server) recordUnlink(ctx context.Context, who kernel.Principal, r Reque
 			return err
 		}
 		out.Record = &RecordAnswer{Linked: true}
+		return nil
+	})
+}
+
+func (s *Server) recordRetract(ctx context.Context, who kernel.Principal, r Request) (Answer, error) {
+	return s.recordTool(who, RecordRetractTool, func(rc Records, out *Answer) error {
+		got, err := rc.Retract(ctx, r.RecordID, r.Reason)
+		if err != nil {
+			return err
+		}
+		out.Record = &RecordAnswer{Retraction: &got}
+		return nil
+	})
+}
+
+func (s *Server) recordDelete(ctx context.Context, who kernel.Principal, r Request) (Answer, error) {
+	return s.recordTool(who, RecordDeleteTool, func(rc Records, out *Answer) error {
+		got, err := rc.Delete(ctx, r.RecordID, r.DryRun)
+		if err != nil {
+			return err
+		}
+		out.Record = &RecordAnswer{Deletion: &got}
+		return nil
+	})
+}
+
+func (s *Server) recordReplace(ctx context.Context, who kernel.Principal, r Request) (Answer, error) {
+	return s.recordTool(who, RecordReplaceTool, func(rc Records, out *Answer) error {
+		got, ret, err := rc.Replace(ctx, r.RecordID, r.NewID, r.Reason)
+		if err != nil {
+			return err
+		}
+		// ⛔ BOTH, AND THE WITHDRAWAL IS NOT OPTIONAL. An agent told the edges
+		// moved and not told the loser is now gone from every list has been
+		// told half of what the verb did.
+		out.Record = &RecordAnswer{Replacement: &got, Retraction: &ret}
 		return nil
 	})
 }

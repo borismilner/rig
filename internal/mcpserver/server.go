@@ -289,6 +289,54 @@ func New(m *meta.Server, who kernel.Principal, version string) *Server {
 		}))
 	})
 
+	// ⛔ B77, RULED BY BORIS 2026-09-17: "everybody can delete/retract records
+	// and replace records". EVERYBODY INCLUDES THE AGENTS, which is why these
+	// are here and not only on the CLI. The receipt the row was filed on is an
+	// agent's: the store's `extra` set grew from two ids to three during one
+	// session, from a seat exercising the write path correctly, and nothing
+	// could take it back out.
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "record_retract",
+		Description: "Withdraw a record you should not have written, or that " +
+			"stopped being true. It leaves every brief and every query, and " +
+			"NOTHING IS DESTROYED: the id and every version stay, and " +
+			"record_get still answers, saying it was retracted and why. Use " +
+			"this rather than record_delete unless you specifically need the " +
+			"history gone. Anyone may retract any record.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a recordRetractArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.RecordRetractTool, RecordID: a.ID, Reason: a.Reason,
+		}))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "record_delete",
+		Description: "DESTROY a record: it, every version of it, and every " +
+			"edge at either end of it. This is not reversible and there is no " +
+			"export. The answer names every edge dropped - a child whose " +
+			"parent you delete has no record that it ever had one. Set " +
+			"dry_run to see that list without writing. Prefer record_retract, " +
+			"which withdraws without destroying.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a recordDeleteArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.RecordDeleteTool, RecordID: a.ID, DryRun: a.DryRun,
+		}))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "record_replace",
+		Description: "Two ids hold one fact and you want to keep one. Every " +
+			"edge pointing at the duplicate moves onto the survivor, and the " +
+			"duplicate is withdrawn pointing at it, so anybody holding the old " +
+			"id still learns where the fact went. record_put with if_version " +
+			"cannot do this, because superseding keeps the id.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a recordReplaceArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.RecordReplaceTool, RecordID: a.Old, NewID: a.New,
+			Reason: a.Reason,
+		}))
+	})
+
 	mcp.AddTool(s, &mcp.Tool{
 		Name: "record_get",
 		Description: "Read one record. Omit version for the current one; give " +
@@ -737,6 +785,26 @@ type recordPutArgs struct {
 type recordGetArgs struct {
 	ID      string `json:"id" jsonschema:"the record id"`
 	Version uint64 `json:"version,omitempty" jsonschema:"omit for the current version; give one to read what the record said before"`
+}
+
+// ⛔ B77's THREE ARGUMENT SHAPES, RULED BY BORIS 2026-09-17. They are separate
+// structs because they are separate capabilities: a single `record_control`
+// tool with a mode would have put the distinguishing questions - does the id
+// survive, does the history survive - into a string an agent has to get right.
+type recordRetractArgs struct {
+	ID     string `json:"id" jsonschema:"the record to withdraw"`
+	Reason string `json:"reason,omitempty" jsonschema:"why it is being withdrawn. Optional, and worth giving: record_get keeps answering about this record and this is what it will say."`
+}
+
+type recordDeleteArgs struct {
+	ID     string `json:"id" jsonschema:"the record to destroy"`
+	DryRun bool   `json:"dry_run,omitempty" jsonschema:"true computes the whole answer and writes nothing, so you can see which edges would be dropped before dropping them"`
+}
+
+type recordReplaceArgs struct {
+	Old    string `json:"old" jsonschema:"the duplicate: its inbound edges move and it is withdrawn"`
+	New    string `json:"new" jsonschema:"the survivor: a record that already exists and absorbs them"`
+	Reason string `json:"reason,omitempty" jsonschema:"why. Defaults to naming the survivor."`
 }
 
 type recordQueryArgs struct {

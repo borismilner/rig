@@ -342,3 +342,91 @@ func (m *mcpCaller) Step(ctx context.Context, in meta.ProgressStep) (meta.Record
 	}
 	return rowOf(r), nil
 }
+
+// ---- B77: full control, through the agent's own door ----------------------
+//
+// ⛔ THEY GO THROUGH `writer()` LIKE EVERY OTHER WRITE, AND THAT IS NOT A
+// PERMISSION CHECK. "Everybody" is Boris's word and section 42's default is
+// "absolutely without restrictions" - nothing here asks who wrote the record or
+// whether this seat owns it. What `writer()` establishes is WHO ACTED, so the
+// withdrawal can be argued with; a retraction nobody can attribute is a fact
+// with no author, which is the property this store exists to keep.
+
+func retractionRow(r record.Retraction) meta.RecordRetraction {
+	return meta.RecordRetraction{
+		ID: r.ID, Reason: r.Reason, ReplacedBy: r.ReplacedBy,
+		Seat: r.Prov.Seat, Session: r.Prov.Session,
+		Written: r.Prov.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		Already: r.Already,
+	}
+}
+
+func edgeRows(in []record.Edge) []meta.RecordEdge {
+	out := make([]meta.RecordEdge, 0, len(in))
+	for _, e := range in {
+		out = append(out, meta.RecordEdge{Src: e.Src, Type: e.Type, Dst: e.Dst})
+	}
+	return out
+}
+
+func (m *mcpCaller) Retract(ctx context.Context, id, reason string) (meta.RecordRetraction, error) {
+	st, err := m.store()
+	if err != nil {
+		return meta.RecordRetraction{}, err
+	}
+	session, seat, epoch, err := m.writer()
+	if err != nil {
+		return meta.RecordRetraction{}, err
+	}
+	got, err := st.Retract(ctx, record.RetractRequest{
+		ID: id, Reason: reason, Session: session, Seat: seat, Epoch: epoch,
+	})
+	if err != nil {
+		return meta.RecordRetraction{}, err
+	}
+	return retractionRow(got), nil
+}
+
+func (m *mcpCaller) Delete(ctx context.Context, id string, dryRun bool) (meta.RecordDeletion, error) {
+	st, err := m.store()
+	if err != nil {
+		return meta.RecordDeletion{}, err
+	}
+	// ⛔ A DRY RUN IS ATTRIBUTED TOO. It writes nothing, and it is the step an
+	// agent takes immediately before the destructive one; a door that cannot
+	// name who is asking cannot name who then deleted.
+	if _, _, _, err := m.writer(); err != nil {
+		return meta.RecordDeletion{}, err
+	}
+	got, err := st.Delete(ctx, record.DeleteRequest{ID: id, DryRun: dryRun})
+	if err != nil {
+		return meta.RecordDeletion{}, err
+	}
+	return meta.RecordDeletion{
+		ID: got.ID, Versions: got.Versions,
+		Edges: edgeRows(got.Edges), DryRun: got.DryRun,
+	}, nil
+}
+
+func (m *mcpCaller) Replace(ctx context.Context, old, replacement, reason string) (meta.RecordReplacement, meta.RecordRetraction, error) {
+	st, err := m.store()
+	if err != nil {
+		return meta.RecordReplacement{}, meta.RecordRetraction{}, err
+	}
+	session, seat, epoch, err := m.writer()
+	if err != nil {
+		return meta.RecordReplacement{}, meta.RecordRetraction{}, err
+	}
+	got, err := st.Replace(ctx, record.ReplaceRequest{
+		Old: old, New: replacement, Reason: reason,
+		Session: session, Seat: seat, Epoch: epoch,
+	})
+	if err != nil {
+		return meta.RecordReplacement{}, meta.RecordRetraction{}, err
+	}
+	return meta.RecordReplacement{
+		Old: got.Old, New: got.New,
+		Moved: edgeRows(got.Moved), Merged: edgeRows(got.Merged),
+		Dropped: edgeRows(got.Dropped),
+	}, retractionRow(got.Retraction), nil
+}

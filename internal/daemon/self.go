@@ -226,6 +226,84 @@ func selfDeclaration() kernel.Declaration {
 				Returns:      "Nothing. The edge is absent afterwards either way.",
 			},
 
+			// ⛔ B77's THREE, AND THEIR EFFECTS DIFFER FROM EACH OTHER, which
+			// is the whole reason they are declared separately. A house rule
+			// denying destructive calls must catch `record.delete` and must NOT
+			// catch `record.retract` - a retraction destroys nothing - and a
+			// single declaration covering all three would have forced one
+			// answer onto two different facts. Same mistake this file already
+			// records about idempotence being picked per verb.
+			{
+				ID: "record.retract", Title: "Record retract",
+				Effects: kernel.EffectsWritesFiles,
+
+				// Idempotent: the record ends up withdrawn either way. The
+				// SECOND call keeps the first withdrawal's provenance and says
+				// so, which is about what the answer carries rather than about
+				// the state left behind.
+				Idempotent: kernel.Yes,
+
+				Sensitive:    []string{},
+				Interactive:  kernel.No,
+				Streams:      kernel.No,
+				NeedsDisplay: kernel.No,
+				Duration:     kernel.DurationInstant,
+				Confirms:     kernel.No,
+				Shape:        kernel.ShapeUnary,
+				Summary:      "Withdraw a record, keeping its id and its history",
+				Description:  "Marks a record withdrawn. It leaves every brief and every query; its id and every version of it survive, and record.get still answers, saying that it was retracted and why. Not a delete: nothing is destroyed. Anyone may retract any record.",
+				Returns:      "The withdrawal - reason, provenance, and whether the record was already withdrawn by somebody else.",
+			},
+			{
+				ID: "record.delete", Title: "Record delete",
+
+				// ⛔ DESTRUCTIVE, AND IT IS THE SECOND THING rig DECLARES THAT
+				// IS. It removes a record, every version of it, and every edge
+				// touching it, and Boris ruled the edges are dropped rather
+				// than the delete refused. Declaring this as a plain write
+				// would let a rule denying destructive calls pass the only verb
+				// in the record store that loses data.
+				Effects: kernel.EffectsDestructive,
+
+				// Idempotent about the state left behind: the record is absent
+				// either way. A second call is a NotFound refusal, which is a
+				// property of the answer rather than of the state.
+				Idempotent: kernel.Yes,
+
+				Sensitive:    []string{},
+				Interactive:  kernel.No,
+				Streams:      kernel.No,
+				NeedsDisplay: kernel.No,
+				Duration:     kernel.DurationInstant,
+				Confirms:     kernel.No,
+				Shape:        kernel.ShapeUnary,
+				Summary:      "Remove a record, its versions and every edge touching it",
+				Description:  "Destroys a record and its whole history, and drops every edge at either end of it - ruled by Boris over refusing while anything cites it. The answer names every edge dropped and counts the versions removed, and a dry run shows the same account without writing. Anyone may delete any record.",
+				Returns:      "What it took: the version count and every dropped edge, named.",
+			},
+			{
+				ID: "record.replace", Title: "Record replace",
+				Effects: kernel.EffectsWritesFiles,
+
+				// NOT idempotent: the first call moves the inbound edges and
+				// withdraws the loser; a second finds the loser already
+				// withdrawn and no edges left to move, so it leaves the same
+				// state but the two calls did different things. The honest
+				// answer for a verb whose report is its output.
+				Idempotent: kernel.No,
+
+				Sensitive:    []string{},
+				Interactive:  kernel.No,
+				Streams:      kernel.No,
+				NeedsDisplay: kernel.No,
+				Duration:     kernel.DurationInstant,
+				Confirms:     kernel.No,
+				Shape:        kernel.ShapeUnary,
+				Summary:      "Put a different record in the place of an existing one",
+				Description:  "The duplicate case: two ids hold one fact. Every edge pointing at the loser is moved onto the survivor, the loser is withdrawn pointing at it, and record.get on the old id still says where the fact went. A supersede cannot express this, because a supersede keeps the id.",
+				Returns:      "Every inbound edge in one of three buckets - moved, merged into an edge the survivor already had, or dropped as a would-be self-edge - and the withdrawal.",
+			},
+
 			// The first thing rig declares about itself that is not read-only,
 			// and the properties are the point rather than paperwork: this is
 			// the declaration a house rule matches on, so getting `effects`

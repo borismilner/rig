@@ -833,9 +833,13 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	// `record.refs` JOINED THEM 2026-09-16 late. Its reverse lookup is built
 	// (internal/record/refs.go), and its wire messages were grown to carry the
 	// three fields the store computes and they did not - record.go says why.
+	// ⛔ `record.retract`, `record.delete` AND `record.replace` JOINED THEM
+	// 2026-09-17. B77, ruled by Boris: "everybody can delete/retract records
+	// and replace records". Three capabilities, not three names for one.
 	case "record.put", "record.get", "record.query", "record.history",
-		"record.link", "record.unlink", "record.refs", "progress.step",
-		"project.brief":
+		"record.link", "record.unlink", "record.refs",
+		"record.retract", "record.delete", "record.replace",
+		"progress.step", "project.brief":
 		d.serveRecord(ctx, c, f, command)
 
 	case "down":

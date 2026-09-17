@@ -105,6 +105,12 @@ var valuedFlags = map[string]bool{
 	"body":    true,
 	"field":   true,
 
+	// B77's `--reason`, on `record retract` and `record replace`. It carries
+	// free prose a person typed, so it is the flag MOST likely to start with a
+	// character this map has to see: `--reason "-- filed twice"` is an ordinary
+	// thing to type.
+	"reason": true,
+
 	// `body-file` is the OTHER way to give a body, and it is here for the
 	// reason the paragraph above gives rather than as a companion to `body`:
 	// a path routinely starts with a character this map has to see, and a

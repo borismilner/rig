@@ -52,7 +52,7 @@ import (
 // daemon and a store move for different reasons, and one number for both makes
 // every wire change look like a migration. internal/coord carries its own for
 // the same reason, and the two are independent.
-const SchemaVersion = 1
+const SchemaVersion = 2
 
 // DBName is the store's file inside the estate's state directory.
 const DBName = "record.db"
@@ -335,6 +335,28 @@ CREATE TABLE links (
 	PRIMARY KEY (src, type, dst)
 ) STRICT;
 
+-- A RECORD WITHDRAWN, AND IT IS A TABLE OF ITS OWN FOR A CONTRACT REASON.
+-- B77, ruled by Boris 2026-09-17: a retraction keeps the id AND the history.
+-- Writing the mark into the record would mean a new VERSION, so the one
+-- mechanism expressing "withdrawn" would falsify the thing it asserts.
+--
+-- IT IS ALSO NOT A status FIELD. status is the closed section's vocabulary
+-- (B68) and a retraction is not a closing word: closed work happened and
+-- finished, a retracted record should never have been there.
+--
+-- replaced_by is the survivor when the retraction came from a replace, and
+-- empty otherwise. It is what lets record.get on the loser say WHERE THE FACT
+-- WENT rather than only that it left.
+CREATE TABLE retractions (
+	id          TEXT PRIMARY KEY,
+	reason      TEXT    NOT NULL,
+	replaced_by TEXT    NOT NULL,
+	session     TEXT    NOT NULL,
+	seat        TEXT    NOT NULL,
+	epoch       INTEGER NOT NULL,
+	created_at  INTEGER NOT NULL
+) STRICT;
+
 CREATE INDEX records_by_kind ON records (project, kind);
 CREATE INDEX links_by_dst ON links (dst, type);
 `
@@ -352,7 +374,28 @@ CREATE INDEX links_by_dst ON links (dst, type);
 // store it was not written for, and so "which of these has already run" is
 // answered by the stamped version rather than by a second ledger that can
 // disagree with it.
-var migrations = map[uint32]func(*sql.Tx) error{}
+var migrations = map[uint32]func(*sql.Tx) error{
+	// 1 -> 2: B77's retractions table.
+	//
+	// ⛔ ADDITIVE AND IDEMPOTENT, which the doc comment below requires of every
+	// step: `IF NOT EXISTS` so a crash between the step and the stamp leaves
+	// the next start able to run it again. Nothing in `records`, `heads` or
+	// `links` is touched, so a store that rolls forward carries every record it
+	// had and simply gains a verb.
+	1: func(tx *sql.Tx) error {
+		_, err := tx.Exec(`
+CREATE TABLE IF NOT EXISTS retractions (
+	id          TEXT PRIMARY KEY,
+	reason      TEXT    NOT NULL,
+	replaced_by TEXT    NOT NULL,
+	session     TEXT    NOT NULL,
+	seat        TEXT    NOT NULL,
+	epoch       INTEGER NOT NULL,
+	created_at  INTEGER NOT NULL
+) STRICT;`)
+		return err
+	},
+}
 
 // migrate runs the forward migrations from found up to SchemaVersion.
 //
@@ -533,15 +576,23 @@ func (s *Store) Find(ctx context.Context, f QueryFilter) ([]Record, error) {
 // means the leading key is constant and the order is by id, exactly as Query
 // always returned it - and is the only readable order for an unscoped one.
 const (
+	// ⛔ THE RETRACTION PREDICATE IS IN THE SELECT ITSELF AND NOT APPENDED PER
+	// SHAPE, WHICH IS B77's CONTRACT MADE UNFORGETTABLE. "It stops appearing in
+	// a brief or a query" has to hold for all EIGHT shapes below, and the
+	// unfiltered one - findEverything - is the one that would have been missed,
+	// because it is the only constant with no WHERE of its own to extend.
+	// Putting it here means every shape inherits it and a ninth cannot be
+	// written without it.
 	findSelect = `SELECT r.id, r.version, r.kind, r.project, r.body, r.fields,
 			r.session, r.seat, r.epoch, r.created_at
-		 FROM records r JOIN heads h ON h.id = r.id AND h.version = r.version`
+		 FROM records r JOIN heads h ON h.id = r.id AND h.version = r.version
+		 WHERE NOT EXISTS (SELECT 1 FROM retractions x WHERE x.id = r.id)`
 	findOrder = ` ORDER BY r.project, r.kind, r.id`
 
 	findEverything       = findSelect + findOrder
-	findByProject        = findSelect + ` WHERE r.project = ?` + findOrder
-	findByKind           = findSelect + ` WHERE r.kind = ?` + findOrder
-	findByProjectAndKind = findSelect + ` WHERE r.project = ? AND r.kind = ?` + findOrder
+	findByProject        = findSelect + ` AND r.project = ?` + findOrder
+	findByKind           = findSelect + ` AND r.kind = ?` + findOrder
+	findByProjectAndKind = findSelect + ` AND r.project = ? AND r.kind = ?` + findOrder
 
 	// ⛔ THE FIELD PREDICATE IS `json_each` AND NOT `json_extract`, AND THE
 	// REASON IS THAT A PATH IS A LITTLE LANGUAGE. json_extract wants `$.owner`,
@@ -568,13 +619,13 @@ const (
 	findWhereField = ` EXISTS (SELECT 1 FROM json_each(r.fields) je
 			WHERE je.key = ? AND je.value = ?)`
 
-	findByField           = findSelect + ` WHERE` + findWhereField + findOrder
-	findByProjectAndField = findSelect + ` WHERE r.project = ? AND` +
+	findByField           = findSelect + ` AND` + findWhereField + findOrder
+	findByProjectAndField = findSelect + ` AND r.project = ? AND` +
 		findWhereField + findOrder
-	findByKindAndField = findSelect + ` WHERE r.kind = ? AND` +
+	findByKindAndField = findSelect + ` AND r.kind = ? AND` +
 		findWhereField + findOrder
 	findByProjectKindAndField = findSelect +
-		` WHERE r.project = ? AND r.kind = ? AND` + findWhereField + findOrder
+		` AND r.project = ? AND r.kind = ? AND` + findWhereField + findOrder
 )
 
 // describe names what a filter asked for, in the words a caller would use.

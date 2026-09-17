@@ -51,6 +51,23 @@ type Record struct {
 	Body    string
 	Fields  map[string]string
 	Prov    Provenance
+
+	// Retraction is set when this record has been WITHDRAWN, and nil otherwise.
+	// B77, ruled by Boris 2026-09-17.
+	//
+	// ⛔ ONLY Get AND GetVersion FILL IT, AND THAT IS THE CONTRACT RATHER THAN
+	// AN OVERSIGHT. His sentence is that a retracted record "stops appearing in
+	// a brief or a query" and that `record.get` still explains what it was and
+	// that it was retracted - so the lists do not carry retracted records at
+	// all, and the one verb that still answers about them is the one that says
+	// so. A reader holding a record out of Find never needs to check this
+	// field, because a retracted one could not have come from there.
+	//
+	// ⛔ A POINTER AND NOT A BOOL PLUS FIELDS. A retraction carries a reason,
+	// a survivor and its own provenance, and a `Retracted bool` would have made
+	// "withdrawn, nobody said why" and "not withdrawn" the same zero value on
+	// every field that matters.
+	Retraction *Retraction
 }
 
 // PutRequest creates a record or supersedes one.
@@ -463,7 +480,18 @@ func (s *Store) Get(ctx context.Context, id string) (Record, error) {
 	if errors.Is(err, sql.ErrNoRows) {
 		return Record{}, &NotFoundError{ID: id}
 	}
-	return rec, err
+	if err != nil {
+		return Record{}, err
+	}
+	// ⛔ THE ONE VERB THAT STILL ANSWERS ABOUT A WITHDRAWN RECORD HAS TO SAY
+	// THAT IT IS ONE. B77's contract: the lists drop it, and `record.get` still
+	// explains what it was and that it was retracted. A Get that answered
+	// identically for a live and a withdrawn record would make retract
+	// indistinguishable from nothing at all to every reader.
+	if rec.Retraction, err = s.retractionOf(ctx, id); err != nil {
+		return Record{}, err
+	}
+	return rec, nil
 }
 
 // GetVersion returns one named version of a record.
@@ -484,7 +512,16 @@ func (s *Store) GetVersion(ctx context.Context, id string, version uint64) (Reco
 	if errors.Is(err, sql.ErrNoRows) {
 		return Record{}, &NotFoundError{ID: id, Version: version}
 	}
-	return rec, err
+	if err != nil {
+		return Record{}, err
+	}
+	// THE RETRACTION IS OF THE RECORD AND NOT OF A VERSION, so every version
+	// carries it. Reading version 1 of a withdrawn record must not look like
+	// reading a live one.
+	if rec.Retraction, err = s.retractionOf(ctx, id); err != nil {
+		return Record{}, err
+	}
+	return rec, nil
 }
 
 // Query returns the head of every record of a kind in a project.
@@ -497,6 +534,7 @@ func (s *Store) Query(ctx context.Context, project, kind string) ([]Record, erro
 			r.session, r.seat, r.epoch, r.created_at
 		 FROM records r JOIN heads h ON h.id = r.id AND h.version = r.version
 		 WHERE r.project = ? AND r.kind = ?
+		   AND NOT EXISTS (SELECT 1 FROM retractions x WHERE x.id = r.id)
 		 ORDER BY r.id`, project, kind)
 	if err != nil {
 		return nil, fmt.Errorf("record: querying %s/%s: %w", project, kind, err)

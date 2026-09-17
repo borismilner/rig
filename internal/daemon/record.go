@@ -56,6 +56,12 @@ func (d *Daemon) serveRecord(ctx context.Context, c *conn, f *rigv1.Frame, comma
 		d.serveRecordUnlink(ctx, c, f, st)
 	case "record.refs":
 		d.serveRecordRefs(ctx, c, f, st)
+	case "record.retract":
+		d.serveRecordRetract(ctx, c, f, st)
+	case "record.delete":
+		d.serveRecordDelete(ctx, c, f, st)
+	case "record.replace":
+		d.serveRecordReplace(ctx, c, f, st)
 	case "progress.step":
 		d.serveProgressStep(ctx, c, f, st)
 	case "project.brief":
@@ -227,6 +233,11 @@ func recordToWire(r record.Record) *rigv1.Record {
 			Epoch:      r.Prov.Epoch,
 			AtUnixNano: r.Prov.CreatedAt.UnixNano(),
 		},
+		// ⛔ B77. Only Get and GetVersion ever set this on the store side, so
+		// every other caller of this mapper passes nil and serves nothing -
+		// which is the contract rather than an accident: the lists do not carry
+		// retracted records at all.
+		Retraction: retractionToWire(r.Retraction),
 	}
 }
 
@@ -919,4 +930,130 @@ func recordCode(err error) rigv1.Code {
 		return rigv1.Code_CODE_CONFLICT
 	}
 	return rigv1.Code_CODE_INVALID
+}
+
+// ---- B77: full control over the records -----------------------------------
+//
+// ⛔ THREE HANDLERS AND NOT ONE WITH A MODE, because they are three
+// capabilities. Boris, 2026-09-17: "everybody can delete/retract records and
+// replace records". His two distinguishing questions keep them apart - does the
+// id survive, does the HISTORY survive - and a mode flag would have invited
+// exactly the collapse the plan names: shipping retract and reporting the
+// sentence satisfied.
+//
+// ⛔ NONE OF THEM CHECKS WHO IS ASKING BEYOND ATTRIBUTION. "Everybody" is his
+// word, and section 42's default is "absolutely without restrictions". The
+// provenance call below is not a permission check: it establishes WHO ACTED so
+// the withdrawal can be argued with, and it refuses only a connection the
+// daemon cannot name at all - the same bar record.put already sets.
+
+// retractionToWire is a withdrawal on the wire, or nil when there is none.
+//
+// ⛔ nil AND NOT AN EMPTY MESSAGE. An empty Retraction would decode as "this
+// record is withdrawn and every fact about the withdrawal is missing", which is
+// the reassuring-lie direction: a reader would treat a live record as gone.
+func retractionToWire(r *record.Retraction) *rigv1.Retraction {
+	if r == nil {
+		return nil
+	}
+	return &rigv1.Retraction{
+		Id:         r.ID,
+		Reason:     r.Reason,
+		ReplacedBy: r.ReplacedBy,
+		Prov: &rigv1.Provenance{
+			Session:    r.Prov.Session,
+			Seat:       r.Prov.Seat,
+			Epoch:      r.Prov.Epoch,
+			AtUnixNano: r.Prov.CreatedAt.UnixNano(),
+		},
+	}
+}
+
+// edgesToWire maps an account of dropped or moved edges.
+func edgesToWire(in []record.Edge) []*rigv1.Edge {
+	out := make([]*rigv1.Edge, 0, len(in))
+	for _, e := range in {
+		out = append(out, &rigv1.Edge{Src: e.Src, Type: e.Type, Dst: e.Dst})
+	}
+	return out
+}
+
+func (d *Daemon) serveRecordRetract(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
+	var req rigv1.RecordRetractRequest
+	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.retract: "+err.Error())
+		return
+	}
+	session, seat, epoch, ok := d.provenance(c)
+	if !ok {
+		d.refuseUnattributed(c, f, "record.retract")
+		return
+	}
+	out, err := st.Retract(ctx, record.RetractRequest{
+		ID: req.GetId(), Reason: req.GetReason(),
+		Session: session, Seat: seat, Epoch: epoch,
+	})
+	if err != nil {
+		c.failErr(f.GetStreamId(), recordCode(err), err)
+		return
+	}
+	c.reply(f.GetStreamId(), &rigv1.RecordRetractResponse{
+		Retraction: retractionToWire(&out), Already: out.Already,
+	})
+}
+
+func (d *Daemon) serveRecordDelete(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
+	var req rigv1.RecordDeleteRequest
+	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.delete: "+err.Error())
+		return
+	}
+	// ⛔ A DRY RUN IS STILL ATTRIBUTED. It writes nothing, but it is the step a
+	// caller takes before the destructive one, and a daemon that cannot name
+	// who is asking cannot name who then deleted.
+	if _, _, _, ok := d.provenance(c); !ok {
+		d.refuseUnattributed(c, f, "record.delete")
+		return
+	}
+	out, err := st.Delete(ctx, record.DeleteRequest{
+		ID: req.GetId(), DryRun: req.GetDryRun(),
+	})
+	if err != nil {
+		c.failErr(f.GetStreamId(), recordCode(err), err)
+		return
+	}
+	c.reply(f.GetStreamId(), &rigv1.RecordDeleteResponse{
+		Id: out.ID, Versions: out.Versions,
+		Edges: edgesToWire(out.Edges), DryRun: out.DryRun,
+	})
+}
+
+func (d *Daemon) serveRecordReplace(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
+	var req rigv1.RecordReplaceRequest
+	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.replace: "+err.Error())
+		return
+	}
+	session, seat, epoch, ok := d.provenance(c)
+	if !ok {
+		d.refuseUnattributed(c, f, "record.replace")
+		return
+	}
+	out, err := st.Replace(ctx, record.ReplaceRequest{
+		Old: req.GetOld(), New: req.GetNew(), Reason: req.GetReason(),
+		Session: session, Seat: seat, Epoch: epoch,
+	})
+	if err != nil {
+		c.failErr(f.GetStreamId(), recordCode(err), err)
+		return
+	}
+	c.reply(f.GetStreamId(), &rigv1.RecordReplaceResponse{
+		Old: out.Old, New: out.New,
+		Moved: edgesToWire(out.Moved), Merged: edgesToWire(out.Merged),
+		Dropped: edgesToWire(out.Dropped),
+		// ⛔ THE WITHDRAWAL TRAVELS WITH THE REPLACEMENT. Without it the caller
+		// is told the edges moved and not that the loser is now gone from every
+		// list, which is half of what the verb did.
+		Retraction: retractionToWire(&out.Retraction),
+	})
 }

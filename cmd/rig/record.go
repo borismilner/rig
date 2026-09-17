@@ -93,6 +93,14 @@ type RecordAPI interface {
 	Link(ctx context.Context, src, linkType, dst string) error
 	Unlink(ctx context.Context, src, linkType, dst string) error
 
+	// Retract, Delete and Replace are B77's three, and they are THREE
+	// CAPABILITIES rather than three names for one. Boris's distinguishing
+	// questions: does the id survive (retract yes, delete no), and does the
+	// history survive (retract yes, delete no)?
+	Retract(ctx context.Context, id, reason string) (Retraction, bool, error)
+	Delete(ctx context.Context, id string, dryRun bool) (Deletion, error)
+	Replace(ctx context.Context, old, replacement, reason string) (Replacement, error)
+
 	// Refs is what points AT a record: the direction files cannot go, and
 	// section 39's "correlated".
 	//
@@ -144,6 +152,61 @@ type Record struct {
 	Body    string
 	Fields  map[string]string
 	Prov    Provenance
+
+	// Retraction is set when this record has been WITHDRAWN, and nil
+	// otherwise. B77, ruled by Boris 2026-09-17.
+	//
+	// ⛔ ONLY `get` EVER CARRIES IT, AND THAT IS THE CONTRACT. A retracted
+	// record leaves every brief and every query, so a Record that came out of
+	// `query` could not be retracted and a renderer there has nothing to check.
+	// `get` is the one verb that still answers about a withdrawn record, and it
+	// has to say so or retract is invisible to every reader.
+	Retraction *Retraction
+}
+
+// Retraction is a record withdrawn: what, why, by whom, and what replaced it.
+type Retraction struct {
+	ID     string
+	Reason string
+
+	// ReplacedBy is the survivor when a replace did the withdrawing, and empty
+	// for a plain retract. It answers the question a reader HOLDING THE OLD ID
+	// actually has, which is where the fact went rather than that it left.
+	ReplacedBy string
+
+	Prov Provenance
+}
+
+// Edge is one typed, directed link, as a value a report carries.
+type Edge struct {
+	Src  string
+	Type string
+	Dst  string
+}
+
+// String is the arrow form `rig record link` already teaches.
+func (e Edge) String() string { return e.Src + " --" + e.Type + "--> " + e.Dst }
+
+// Deletion is what a delete took. ⛔ THE ACCOUNT IS THE OUTPUT: Boris ruled
+// that delete drops the edges rather than refusing, so the obligation moved
+// from the verb to the report, and a verb that answers "deleted" and nothing
+// else is B75's shape arriving through a verb whose job is to lose data.
+type Deletion struct {
+	ID       string
+	Versions uint64
+	Edges    []Edge
+	DryRun   bool
+}
+
+// Replacement accounts for every inbound edge of the loser in one of three
+// disjoint buckets, and carries the withdrawal that finished the job.
+type Replacement struct {
+	Old        string
+	New        string
+	Moved      []Edge
+	Merged     []Edge
+	Dropped    []Edge
+	Retraction *Retraction
 }
 
 // PutArgs creates a record or supersedes one. It mirrors
@@ -497,6 +560,8 @@ type recordFlags struct {
 	version      *uint64
 	depth        *int
 	crossProject *bool
+	reason       *string
+	dryRun       *bool
 }
 
 // recordFlagSet builds the set for one subcommand, or the bare set for a word
@@ -526,6 +591,16 @@ func recordFlagSet(sub string) *recordFlags {
 			"the version you believe is current; 0 creates")
 	case "get":
 		r.version = r.fs.Uint64("version", 0, "a version to read; 0 is the head")
+	case "retract", "replace":
+		r.reason = r.fs.String("reason", "",
+			"why it was withdrawn; empty is a real answer and is recorded as one")
+	case "delete":
+		// ⛔ THE DRY RUN IS THE SAFETY THIS VERB HAS INSTEAD OF A REFUSAL.
+		// Boris ruled delete drops the edges rather than refusing while
+		// anything cites the record, and ruled in the same turn that a dry run
+		// must be able to show them first. This is that flag.
+		r.dryRun = r.fs.Bool("dry-run", false,
+			"print exactly what would be removed and write nothing")
 	case "query":
 		// ⛔ BOTH FILTERS ARE OPTIONAL AND AN ABSENT ONE MEANS *EVERY* VALUE.
 		// Section 39 specifies record.query as "by kind, field and project" and
@@ -627,13 +702,19 @@ func (r *recordFlags) wasSet(name string) bool {
 
 // ---- dispatch --------------------------------------------------------------
 
-// recordSubcommands are the seven, in the order the usage line prints them.
+// recordSubcommands are the TEN, in the order the usage line prints them.
+//
+// ⛔ THE COUNT IS NOT IN THIS CAPTION ANY MORE THAN IT HAS TO BE, and the
+// reason is this repository's most-recorded defect: it read "the seven" while
+// B77 added three, at which point the sentence was asserting a number the slice
+// no longer held. len(recordSubcommands) is the only honest count.
 //
 // Read by complete.go and by the usage text below, so adding one is a line
 // here rather than three places that can disagree - the coupling complete.go
 // calls "one string in three places that MUST agree".
 var recordSubcommands = []string{
 	"put", "get", "query", "history", "link", "unlink", "refs",
+	"retract", "delete", "replace",
 }
 
 func recordUsage() string {
@@ -700,6 +781,12 @@ func cmdRecord(args []string) (err error) {
 		return recordLink(rf, rest, true)
 	case "refs":
 		return recordRefs(rf, rest)
+	case "retract":
+		return recordRetract(rf, rest)
+	case "delete":
+		return recordDelete(rf, rest)
+	case "replace":
+		return recordReplace(rf, rest)
 	default:
 		// Unreachable: the membership check above already refused every word
 		// that is not one of the seven. It is here so that adding a
@@ -1333,7 +1420,65 @@ func recordJSON(r Record, now time.Time) map[string]any {
 			"created_age_s":   provAge(r.Prov.CreatedAt, now),
 			"created_at_unix": provUnix(r.Prov.CreatedAt),
 		},
+
+		// ⛔ B77. null ON A LIVE RECORD AND AN OBJECT ON A WITHDRAWN ONE, and
+		// the key is ALWAYS PRESENT - unlike the text form, which prints
+		// nothing. A person skims and a `"retraction": null` on every record
+		// would be noise; a consumer cannot tell a build that serves this from
+		// one that does not unless the key is there to be read.
+		"retraction": retractionJSON(r.Retraction, now),
 	}
+}
+
+// retractionJSON is a withdrawal as an object, or nil.
+func retractionJSON(r *Retraction, now time.Time) map[string]any {
+	if r == nil {
+		return nil
+	}
+	return map[string]any{
+		"reason": r.Reason,
+		// Emitted even when empty, because "" and absent are the same bytes in
+		// JSON for a string and a consumer branching on presence would read a
+		// plain retract as a malformed replace.
+		"replaced_by": r.ReplacedBy,
+		"retracted_by": map[string]any{
+			"session":         r.Prov.Session,
+			"seat":            r.Prov.Seat,
+			"epoch":           r.Prov.Epoch,
+			"created_at":      provTime(r.Prov.CreatedAt),
+			"created_age_s":   provAge(r.Prov.CreatedAt, now),
+			"created_at_unix": provUnix(r.Prov.CreatedAt),
+		},
+	}
+}
+
+// retractionNotice is the block `record get` prints over a withdrawn record,
+// and nothing at all over a live one.
+//
+// ⛔ NOTHING AT ALL, rather than "not retracted". Every other section of this
+// renderer prints its own absence, and the reason is the absent-versus-empty
+// rule - but a retraction is not a section, it is a CONDITION. A line reading
+// "retracted: no" on every record in the store would train a reader to skip the
+// place the notice appears, which is the one outcome that makes the notice
+// worthless on the day it is there.
+func retractionNotice(r *Retraction, now time.Time) string {
+	if r == nil {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("\n⛔ RETRACTED - this record is withdrawn.\n")
+	fmt.Fprintf(&b, "  reason: %s\n", briefCell(r.Reason, "(none given)"))
+	if r.ReplacedBy != "" {
+		// ⛔ THE SURVIVOR IS NAMED AND THE COMMAND IS SPELLED OUT. A reader
+		// holding the old id is asking where the fact went, and an id with no
+		// verb beside it is one more thing to look up.
+		fmt.Fprintf(&b, "  replaced by: %s - `rig record get %s`\n",
+			r.ReplacedBy, r.ReplacedBy)
+	}
+	b.WriteString("  " + strings.TrimPrefix(provenanceLine(r.Prov, now), "written "))
+	b.WriteString("  it is gone from every brief and every query. " +
+		"Its history below is intact.\n")
+	return b.String()
 }
 
 // recordsJSON is a list of records, and it is ALWAYS AN ARRAY.
@@ -1388,6 +1533,14 @@ func recordText(r Record, now time.Time) string {
 	fmt.Fprintf(&b, "%s  version %d\n", r.ID, r.Version)
 	fmt.Fprintf(&b, "%s in %s\n", r.Kind, r.Project)
 	b.WriteString(provenanceLine(r.Prov, now))
+
+	// ⛔ THE WITHDRAWAL GOES FIRST, BEFORE THE CONTENT IT QUALIFIES. B77's
+	// contract is that `record.get` is the ONE verb still answering about a
+	// retracted record, so everything below this line is a record that is gone
+	// from every brief and every query - and a reader who took the fields as
+	// live because the notice was at the bottom has been told the truth in an
+	// order that made it useless.
+	b.WriteString(retractionNotice(r.Retraction, now))
 
 	// THE BODY AND THE FIELDS ARE LABELLED EVEN WHEN EMPTY. A record whose
 	// content is entirely in its typed fields is normal - section 39 says so
@@ -2281,6 +2434,79 @@ func (w wireRecord) Unlink(ctx context.Context, src, linkType, dst string) error
 	}, &rigv1.RecordUnlinkResponse{})
 }
 
+func (w wireRecord) Retract(ctx context.Context, id, reason string) (Retraction, bool, error) {
+	var resp rigv1.RecordRetractResponse
+	if err := call(ctx, w.c, "rig.record.retract",
+		&rigv1.RecordRetractRequest{Id: id, Reason: reason}, &resp); err != nil {
+		return Retraction{}, false, err
+	}
+	r := retractionFromWire(resp.GetRetraction())
+	if r == nil {
+		// ⛔ A SUCCESSFUL RETRACT THAT CARRIES NO WITHDRAWAL IS A SKEW AND NOT
+		// AN ANSWER. The zero value would read as "withdrawn, and nobody said
+		// anything about it", which is the reassuring direction: the caller
+		// would believe the record is gone from every list on the strength of
+		// a message that said nothing.
+		return Retraction{}, false, fmt.Errorf(
+			"rig: the daemon reported %s retracted and sent no withdrawal, so "+
+				"there is nothing to say who withdrew it or why", id)
+	}
+	return *r, resp.GetAlready(), nil
+}
+
+func (w wireRecord) Delete(ctx context.Context, id string, dryRun bool) (Deletion, error) {
+	var resp rigv1.RecordDeleteResponse
+	if err := call(ctx, w.c, "rig.record.delete",
+		&rigv1.RecordDeleteRequest{Id: id, DryRun: dryRun}, &resp); err != nil {
+		return Deletion{}, err
+	}
+	// ⛔ dry_run IS READ BACK OFF THE ANSWER RATHER THAN CARRIED FROM THE
+	// REQUEST. What the caller ASKED for and what the daemon DID are two facts,
+	// and a renderer that printed the request's flag would say "nothing was
+	// written" on the strength of its own intention.
+	return Deletion{
+		ID: resp.GetId(), Versions: resp.GetVersions(),
+		Edges: edgesFromWire(resp.GetEdges()), DryRun: resp.GetDryRun(),
+	}, nil
+}
+
+func (w wireRecord) Replace(ctx context.Context, old, replacement, reason string) (Replacement, error) {
+	var resp rigv1.RecordReplaceResponse
+	if err := call(ctx, w.c, "rig.record.replace", &rigv1.RecordReplaceRequest{
+		Old: old, New: replacement, Reason: reason,
+	}, &resp); err != nil {
+		return Replacement{}, err
+	}
+	return Replacement{
+		Old: resp.GetOld(), New: resp.GetNew(),
+		Moved:      edgesFromWire(resp.GetMoved()),
+		Merged:     edgesFromWire(resp.GetMerged()),
+		Dropped:    edgesFromWire(resp.GetDropped()),
+		Retraction: retractionFromWire(resp.GetRetraction()),
+	}, nil
+}
+
+func retractionFromWire(r *rigv1.Retraction) *Retraction {
+	if r == nil {
+		return nil
+	}
+	return &Retraction{
+		ID: r.GetId(), Reason: r.GetReason(), ReplacedBy: r.GetReplacedBy(),
+		Prov: provFromWire(r.GetProv()),
+	}
+}
+
+func edgesFromWire(es []*rigv1.Edge) []Edge {
+	if len(es) == 0 {
+		return nil
+	}
+	out := make([]Edge, 0, len(es))
+	for _, e := range es {
+		out = append(out, Edge{Src: e.GetSrc(), Type: e.GetType(), Dst: e.GetDst()})
+	}
+	return out
+}
+
 func (w wireRecord) Refs(ctx context.Context, a RefsArgs) (Refs, error) {
 	// THE DEPTH IS NOT CLAMPED ON THE WAY OUT. A depth above the store's
 	// maximum is REFUSED BY NAME there, because a caller that asked for 8, got
@@ -2423,6 +2649,10 @@ func recordFromWire(r *rigv1.Record) Record {
 		Body:    r.GetBody(),
 		Fields:  r.GetFields(),
 		Prov:    provFromWire(r.GetProv()),
+
+		// B77. Absent on every record that is not withdrawn, which is every
+		// record any verb but `get` can return.
+		Retraction: retractionFromWire(r.GetRetraction()),
 	}
 }
 
@@ -2458,4 +2688,194 @@ func provFromWire(p *rigv1.Provenance) Provenance {
 		out.CreatedAt = time.Unix(0, n).UTC()
 	}
 	return out
+}
+
+// ---- B77: retract, delete and replace --------------------------------------
+
+// recordRetract withdraws a record. The id and the history survive.
+func recordRetract(rf *recordFlags, rest []string) error {
+	if len(rest) != 1 {
+		return badArgumentf("usage: rig record retract <id> [--reason <why>]\n" +
+			"       the record leaves every brief and every query; its id and " +
+			"every version of it stay, and `rig record get` still answers")
+	}
+	id := rest[0]
+
+	return withRecordAPI(*rf.timeout, func(ctx context.Context, api RecordAPI) error {
+		r, already, err := api.Retract(ctx, id, *rf.reason)
+		if err != nil {
+			return err
+		}
+		if *rf.asJSON {
+			return json.NewEncoder(os.Stdout).Encode(map[string]any{
+				"id": r.ID, "reason": r.Reason, "already": already,
+				"retracted_by": map[string]any{
+					"session": r.Prov.Session, "seat": r.Prov.Seat,
+					"epoch": r.Prov.Epoch, "at": provTime(r.Prov.CreatedAt),
+				},
+			})
+		}
+		// ⛔ "ALREADY" IS A DIFFERENT SENTENCE AND NOT A QUIETER ONE. The
+		// caller's reason was NOT recorded, and a line reading "retracted" over
+		// somebody else's withdrawal would leave them believing theirs was.
+		if already {
+			fmt.Printf("%s was ALREADY retracted, and this call changed "+
+				"nothing.\n", id)
+			fmt.Printf("  withdrawn by %s (%s) at %s\n",
+				briefCell(r.Prov.Seat, "(no seat)"),
+				briefCell(r.Prov.Session, "(no session)"),
+				provTime(r.Prov.CreatedAt))
+			fmt.Printf("  reason: %s\n", briefCell(r.Reason, "(none given)"))
+			if *rf.reason != "" && *rf.reason != r.Reason {
+				fmt.Printf("  ⛔ YOUR REASON WAS NOT RECORDED: %q\n", *rf.reason)
+			}
+			return nil
+		}
+		fmt.Printf("retracted %s\n", id)
+		fmt.Printf("  reason: %s\n", briefCell(r.Reason, "(none given)"))
+		fmt.Printf("  it leaves every brief and query; `rig record get %s` "+
+			"still explains it\n", id)
+		return nil
+	})
+}
+
+// recordDelete removes a record, its versions and every edge touching it.
+//
+// ⛔ THE OUTPUT IS THE OBLIGATION. Boris ruled 2026-09-17, against the lead's
+// recommendation and with the cost stated, that delete DROPS the edges rather
+// than refusing while anything cites the record - so the account of what it
+// took is not a courtesy. A destructive verb that answers `deleted` and nothing
+// else is B75's shape, success reported over data loss.
+func recordDelete(rf *recordFlags, rest []string) error {
+	if len(rest) != 1 {
+		return badArgumentf("usage: rig record delete <id> [--dry-run]\n" +
+			"       DESTRUCTIVE: the record, every version of it and every " +
+			"edge touching it go.\n" +
+			"       --dry-run prints exactly that list and writes nothing")
+	}
+	id := rest[0]
+
+	return withRecordAPI(*rf.timeout, func(ctx context.Context, api RecordAPI) error {
+		d, err := api.Delete(ctx, id, *rf.dryRun)
+		if err != nil {
+			return err
+		}
+		if *rf.asJSON {
+			edges := make([]map[string]any, 0, len(d.Edges))
+			for _, e := range d.Edges {
+				edges = append(edges, map[string]any{
+					"src": e.Src, "type": e.Type, "dst": e.Dst,
+				})
+			}
+			return json.NewEncoder(os.Stdout).Encode(map[string]any{
+				"id": d.ID, "versions": d.Versions,
+				"edges": edges, "dry_run": d.DryRun,
+			})
+		}
+
+		lead := "deleted"
+		if d.DryRun {
+			lead = "DRY RUN - nothing was written. This would delete"
+		}
+		fmt.Printf("%s %s\n", lead, d.ID)
+		fmt.Printf("  %d version(s) of the record\n", d.Versions)
+
+		// ⛔ THE EDGES ARE LISTED AND NOT COUNTED, AND THE EMPTY CASE SAYS SO.
+		// "0 edges" printed as nothing at all is indistinguishable from a
+		// renderer that forgot the section, which is the absent-versus-empty
+		// failure this whole project is built against.
+		if len(d.Edges) == 0 {
+			fmt.Printf("  no edges: nothing pointed at it and it pointed at nothing\n")
+			return nil
+		}
+		fmt.Printf("  %d edge(s) dropped, in both directions:\n", len(d.Edges))
+		for _, e := range d.Edges {
+			fmt.Printf("    %s\n", e)
+		}
+		// ⛔ THE COST HE ACCEPTED, SAID OUT LOUD AT THE MOMENT IT IS PAID.
+		// Deleting a parent leaves its children with no record that they ever
+		// had one, and the next brief renders them as top-level items as though
+		// that were intended. He took that cost knowingly; the caller standing
+		// here may not have.
+		fmt.Printf("  ⛔ nothing records that these edges existed. A child " +
+			"whose parent went reads as top-level from here on.\n")
+		return nil
+	})
+}
+
+// recordReplace puts a DIFFERENT record in the place of an existing one.
+func recordReplace(rf *recordFlags, rest []string) error {
+	if len(rest) != 2 {
+		return badArgumentf("usage: rig record replace <old> <new> [--reason <why>]\n" +
+			"       the duplicate case: every edge pointing at <old> moves onto " +
+			"<new>,\n" +
+			"       and <old> is withdrawn pointing at it. A supersede cannot " +
+			"express this,\n" +
+			"       because a supersede keeps the id")
+	}
+	oldID, newID := rest[0], rest[1]
+
+	return withRecordAPI(*rf.timeout, func(ctx context.Context, api RecordAPI) error {
+		r, err := api.Replace(ctx, oldID, newID, *rf.reason)
+		if err != nil {
+			return err
+		}
+		if *rf.asJSON {
+			return json.NewEncoder(os.Stdout).Encode(map[string]any{
+				"old": r.Old, "new": r.New,
+				"moved":   edgesJSON(r.Moved),
+				"merged":  edgesJSON(r.Merged),
+				"dropped": edgesJSON(r.Dropped),
+				"retraction": map[string]any{
+					"reason": retractionReason(r.Retraction),
+				},
+			})
+		}
+
+		fmt.Printf("%s replaces %s\n", r.New, r.Old)
+		// ⛔ THREE BUCKETS, EACH PRINTED EVEN WHEN EMPTY, AND THAT IS THE WHOLE
+		// REPORT. They are disjoint and exhaustive over the loser's inbound
+		// edges: a replace that printed only what moved would leave a caller
+		// believing every edge survived, which is false for the two other
+		// buckets and is the same reassuring lie the delete report refuses.
+		edgeBucket("moved onto "+r.New, r.Moved,
+			"nothing pointed at "+r.Old)
+		edgeBucket("merged - "+r.New+" already had", r.Merged, "none")
+		edgeBucket("DROPPED - would have been a self-edge on "+r.New,
+			r.Dropped, "none")
+		fmt.Printf("  %s is withdrawn: %s\n", r.Old, retractionReason(r.Retraction))
+		fmt.Printf("  `rig record get %s` still says where the fact went\n", r.Old)
+		return nil
+	})
+}
+
+// edgeBucket prints one bucket of a replacement's account, INCLUDING when it
+// is empty: a section that vanishes reads as a renderer that forgot it.
+func edgeBucket(label string, es []Edge, empty string) {
+	if len(es) == 0 {
+		fmt.Printf("  %s: %s\n", label, empty)
+		return
+	}
+	fmt.Printf("  %s (%d):\n", label, len(es))
+	for _, e := range es {
+		fmt.Printf("    %s\n", e)
+	}
+}
+
+func edgesJSON(es []Edge) []map[string]any {
+	out := make([]map[string]any, 0, len(es))
+	for _, e := range es {
+		out = append(out, map[string]any{"src": e.Src, "type": e.Type, "dst": e.Dst})
+	}
+	return out
+}
+
+// retractionReason is what a withdrawal says, or a named absence.
+func retractionReason(r *Retraction) string {
+	if r == nil {
+		// Reachable only from a daemon that served a replacement without the
+		// withdrawal that finished it, which is a skew rather than a state.
+		return "(the daemon sent no withdrawal with this replacement)"
+	}
+	return briefCell(r.Reason, "(no reason given)")
 }
