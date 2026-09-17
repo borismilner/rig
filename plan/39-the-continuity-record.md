@@ -323,9 +323,53 @@ measured again on 2026-09-17: B65 was struck in the document and still read
 `active` in the store, and a seat then quoted the document's number as the
 store's.
 
-⛔ **WHAT THE DUAL RUN IS NOT: A LICENCE TO KEEP WRITING PROSE.** The point of
-the record is that a seat stops composing documents. **Keeping the logbook is a
-SAFETY NET he asked for, not a second place to author.**
+⛔ **AND THE DUAL RUN IS AN INSTRUMENT, NOT A BACKUP. THIS WAS RECORDED AS A
+SAFETY NET AND THAT UNDERSOLD IT; HE CORRECTED IT THE SAME DAY:**
+
+> *"The idea is to evaluate the state of `rig` development as it is reflected in
+> `rig` against what we know from `logbook` and by doing that maybe we'll find
+> needs in improvements, mistakes and required features and capabilities that we
+> may have left out."*
+
+⛔ **THE COMPARISON IS THE POINT. THE TWO STORES RUNNING IN PARALLEL ARE A
+MEASUREMENT APPARATUS, AND THE GAPS BETWEEN THEM ARE THE FINDINGS.** *"Just in
+case"* is why it is safe; **this is why it is worth doing.**
+
+| The difference, and it decides what a seat builds | |
+|---|---|
+| **a backup** | passive. You keep both so one can fail. Nobody looks until something breaks |
+| ⛔ **an evaluation** | **active. You look ON PURPOSE, and what rig CANNOT hold is the output** |
+
+⛔ **SO THE REPOPULATION IS AN EXPERIMENT AND ITS FAILURES ARE ITS RESULTS.**
+Every fact in the logbook that cannot be put into rig, or that comes back out
+poorer than it went in, is **a missing capability with a receipt** - which is
+exactly the class of evidence §37's ARMED rule says chooses what gets built next,
+and this time it arrives from the whole corpus at once rather than one seat's
+friction at a time.
+
+⛔ **WHAT TO LOOK FOR, AND ALL FOUR ARE HIS WORDS:** *improvements*, *mistakes*,
+*required features*, *capabilities we may have left out*. **A mistake is in
+scope** - this is not only a gap hunt. The logbook holds things that are WRONG,
+and a repopulation that copies them faithfully has found one.
+
+⛔ **THIS IS THE ATTACK'S QUESTION ASKED EMPIRICALLY.** The 2026-09-17
+nine-surface attack graded rig's model of itself against the logbook by
+READING - clause A *"superior"*, clause B *"doesn't miss anything"*. **This
+runs the same comparison by MOVING THE DATA**, which is the difference between
+an argument and a measurement, and it is the one thing that could overturn the
+attack's verdict in either direction.
+
+⛔ **B66's RETURNED SPECIFICATION IS ALREADY THE INSTRUMENT FOR IT, AND IT MUST
+NOT BE REINVENTED HERE.** S3+S8 ruled that a projection carries a field **iff an
+exact whole-set equality with the source can be computed by machine in one
+command with no human judging** - *"detectability comes before aperture"*.
+**That is precisely the machinery a differential evaluation needs**, and §38's
+rule binds: grep the plan first and prefer *"this planned capability would have
+solved it"* over proposing a new mechanism.
+
+⛔ **WHAT THE DUAL RUN IS STILL NOT: A LICENCE TO KEEP WRITING PROSE.** The point
+of the record is that a seat stops composing documents. **The logbook is kept to
+be COMPARED AGAINST, not to be authored in.**
 
 #### ⛔ HE IS OWED A REPORT THE MOMENT rig CAN BE USED ON rig. RULED BY BORIS 2026-09-17.
 
