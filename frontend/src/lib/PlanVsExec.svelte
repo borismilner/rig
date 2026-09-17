@@ -134,13 +134,15 @@
       {/if}
 
       <div class="reading">
-        <div class="pair">
-          <span class="n">{p.planned}</span>
-          <span class="l">planned and still open</span>
-        </div>
-        <div class="pair">
-          <span class="n" class:zero={p.recorded === 0}>{p.recorded}</span>
-          <span class="l">have any step recorded</span>
+        <div class="nums">
+          <div class="pair">
+            <span class="n">{p.planned}</span>
+            <span class="l">planned and still open</span>
+          </div>
+          <div class="pair">
+            <span class="n" class:zero={p.recorded === 0}>{p.recorded}</span>
+            <span class="l">have any step recorded</span>
+          </div>
         </div>
 
         <ul class="legend">
@@ -171,7 +173,8 @@
       <section class="cov">
         <h3>What rig can work out here</h3>
         <p class="covn">
-          <strong>{t.computed}</strong> of {t.total} sections are built.
+          <strong class="t-num">{t.computed}</strong>
+          of <span class="t-num">{t.total}</span> sections are built.
         </p>
         <div
           class="pips"
@@ -428,21 +431,55 @@
 
   /* ── the hero: the grid IS the headline ───────────────────────────────── */
 
-  /* The figure on top, the reading underneath as one row. Two columns put
-     240px of legend beside 40px of grid and left the rest of the box empty -
-     the "grid stretched short cards" defect in this project's own
-     readability notes, in a different shape. */
+  /* ⛔ THE FIGURE AND ITS READING SIDE BY SIDE, AND THIS REVERSES AN EARLIER
+     DECISION FOR A REASON THAT IS MEASURABLE RATHER THAN A PREFERENCE.
+
+     It was stacked, and the note here said two columns "put 240px of legend
+     beside 40px of grid". That was true of the OLD figure: a flex-wrapped
+     ragged band 40px tall. The figure is now a fixed 20-column grid, three
+     rows and ~77px tall for 59 items, so the two halves are within 10px of
+     each other's height and the stack instead left 780px of the box empty to
+     the right of the grid - the same defect, turned ninety degrees.
+
+     Re-measure before stacking it again; the right answer depends on the
+     figure's aspect ratio and that changed. */
   .hero {
     display: grid;
-    gap: calc(1.1rem * var(--den));
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: calc(1.1rem * var(--den)) 2.2rem;
     padding: calc(1.2rem * var(--den)) 1.25rem;
     background: var(--bg-2);
     border: 1px solid var(--border);
     border-radius: var(--radius);
   }
 
+  /* ⛔ 1200, NOT 900, AND BOTH NUMBERS IN THIS COMMENT WERE MEASURED RATHER
+     THAN CHOSEN.
+
+     At a 950px viewport the `auto` track was squeezed to nothing and the
+     figure collapsed into a 16px DOTTED LINE while every contrast ratio
+     still passed. Caught by screenshotting at 950; the gate cannot see it,
+     because a figure that is the wrong size is not a colour.
+
+     900 -> 1040 fixed that and introduced a worse one: the installed window
+     is 1080 CSS pixels wide, so the DEFAULT size sat just inside the
+     two-column branch and the figure was pushed to its 240px floor - 9px
+     cells where the stacked layout at 950 had 15px ones. A breakpoint that
+     makes the default window the worst case is the wrong breakpoint.
+
+     1200 is where both halves fit at full size. Below it they stack, which
+     gives the figure the whole width - the half that carries the data.
+     `min-width` on .fig is the second guard, so a future column change
+     cannot reproduce the collapse silently. */
+  @media (max-width: 1200px) {
+    .hero {
+      grid-template-columns: 1fr;
+    }
+  }
+
   .fig {
-    min-width: 0;
+    min-width: 240px;
   }
 
   .nofig {
@@ -451,13 +488,30 @@
     font-size: var(--fs--1);
   }
 
+  /* The two figures over the legend, against the grid rather than under it.
+     The rule is vertical now, because it separates two columns and no longer
+     two stacked rows. */
   .reading {
+    display: grid;
+    gap: 0.9rem;
+    align-content: center;
+    padding-inline-start: 2.2rem;
+    border-inline-start: 1px solid var(--border);
+  }
+
+  @media (max-width: 1200px) {
+    .reading {
+      padding: 0.9rem 0 0;
+      border-inline-start: 0;
+      border-top: 1px solid var(--border);
+    }
+  }
+
+  .nums {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
     gap: 0.6rem 2rem;
-    padding-top: 0.9rem;
-    border-top: 1px solid var(--border);
   }
 
   .pair {
@@ -468,7 +522,7 @@
 
   .pair .n {
     font-family: var(--mono);
-    font-size: var(--fs-2);
+    font-size: var(--fs-3);
     font-variant-numeric: tabular-nums;
     color: var(--fg);
     min-width: 2.6ch;
@@ -491,7 +545,6 @@
     list-style: none;
     margin: 0;
     padding: 0;
-    margin-inline-start: auto;
     display: flex;
     flex-wrap: wrap;
     gap: 0.35rem 1.15rem;
@@ -549,12 +602,14 @@
      nothing new is introduced. */
   .verdict {
     margin: 0;
+    padding: 0.1rem 0 0.1rem 0.9rem;
+    border-inline-start: 2px solid var(--border-2);
     font-family: var(--disp);
-    font-size: var(--fs-1);
-    line-height: 1.42;
+    font-size: var(--fs-2);
+    line-height: 1.32;
     letter-spacing: var(--tight-disp);
     color: var(--fg);
-    max-width: 62ch;
+    max-width: 46ch;
   }
 
   /* ── the two supporting blocks ────────────────────────────────────────── */
@@ -572,19 +627,33 @@
     }
   }
 
+  /* ⛔ THE DISPLAY FACE ON EVERY SECTION TITLE, AND IT IS THE WHOLE OF WHY
+     THIS SURFACE READ FLAT. A census of the shell's CSS found 48 of 66 type
+     declarations naming --fs--1 and one naming --fs-3: nearly the entire
+     product set at a single size one step BELOW body, with hierarchy left to
+     font-weight, which has two usable steps. ~/me/library/index.html carries
+     68 items on system fonts with no effect of any kind and stays walkable
+     because a serif titles everything and a sans says everything; the token
+     engine here already emits both and the shell spent --disp on one word.
+     .t-sec in app.css is the face and the tracking; the step is local. */
   h3 {
-    margin: 0 0 0.6rem;
-    font-size: var(--fs-0);
-    font-weight: 650;
+    margin: 0 0 0.7rem;
+    font-family: var(--disp);
+    font-size: var(--fs-1);
+    font-weight: 600;
+    letter-spacing: var(--tight-disp);
+    line-height: 1.15;
     color: var(--fg);
     display: flex;
     align-items: baseline;
-    gap: 0.5rem;
+    gap: 0.55rem;
   }
 
   .cnt {
     font-family: var(--mono);
     font-size: var(--fs--1);
+    font-weight: 400;
+    letter-spacing: 0;
     color: var(--fg-dim);
     font-variant-numeric: tabular-nums;
   }
@@ -597,21 +666,24 @@
 
   .spots dt {
     color: var(--fg);
-    font-size: var(--fs--1);
+    font-size: var(--fs-0);
     font-weight: 650;
   }
 
   .spots dd {
-    margin: 0.15rem 0 0;
+    margin: 0.2rem 0 0;
     color: var(--fg-dim);
-    font-size: var(--fs--1);
-    max-width: 70ch;
+    font-size: var(--fs-0);
+    line-height: 1.5;
+    max-width: 62ch;
   }
 
   .covn {
     margin: 0 0 0.6rem;
     color: var(--fg-dim);
-    font-size: var(--fs--1);
+    font-size: var(--fs-0);
+    line-height: 1.5;
+    max-width: 48ch;
   }
 
   .covn strong {
@@ -762,9 +834,10 @@
   .empty,
   .dark {
     margin: 0;
-    font-size: var(--fs--1);
+    font-size: var(--fs-0);
+    line-height: 1.5;
     color: var(--fg-dim);
-    max-width: 70ch;
+    max-width: 62ch;
   }
 
   /* An unbuilt section's reason gets the same hatched ground it gets on the

@@ -228,10 +228,21 @@ body {
   min-width: 0;
 }
 
+/* The bar is the window's masthead, so it wears the same display face the
+   pages under it wear. ~/me/library/index.html sets "Library" in its serif
+   and everything that follows in the sans, and that one pairing is what tells
+   a reader which line is the title without any other device. */
 .ctxbar .name {
-  font-weight: 700;
+  font-family: var(--disp);
+  font-weight: 600;
+  letter-spacing: var(--tight-disp);
+  /* 1.15, not the inherited 1.55: the bar is a fixed 36px row in .main's
+     grid and a 20px line at 1.55 is a 31px line box, which leaves 2px of
+     clearance and clips the descenders the moment the base size moves. The
+     chrome budget is section 11's and the row does not grow. */
+  line-height: 1.15;
   color: var(--hue);
-  font-size: var(--fs-0);
+  font-size: var(--fs-1);
   white-space: nowrap;
 }
 

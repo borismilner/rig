@@ -76,9 +76,9 @@
   }
 
   .scount {
-    margin: 0 0 0.75rem;
+    margin: 0 0 0.8rem;
     color: var(--fg-dim);
-    font-size: var(--fs--1);
+    font-size: var(--fs-0);
   }
 
   .scount strong {
@@ -177,9 +177,10 @@
 
   .reason {
     grid-column: 2 / -1;
-    margin: 0.3rem 0 0;
-    font-size: var(--fs--1);
+    margin: 0.35rem 0 0;
+    font-size: var(--fs-0);
+    line-height: 1.5;
     color: var(--fg-dim);
-    max-width: 68ch;
+    max-width: 62ch;
   }
 </style>

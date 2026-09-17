@@ -275,9 +275,10 @@
 
   .asked {
     margin: 0;
-    font-size: var(--fs--1);
+    font-size: var(--fs-0);
+    line-height: 1.5;
     color: var(--fg-dim);
-    max-width: 62ch;
+    max-width: 58ch;
   }
 
   .asked code {
@@ -335,8 +336,9 @@
   .none {
     margin: 0;
     color: var(--fg-dim);
-    font-size: var(--fs--1);
-    max-width: 68ch;
+    font-size: var(--fs-0);
+    line-height: 1.5;
+    max-width: 62ch;
   }
 
   .third {
@@ -345,6 +347,7 @@
     border-top: 1px solid var(--border);
     color: var(--fg-dim);
     font-size: var(--fs--1);
+    line-height: 1.5;
     max-width: 72ch;
   }
 </style>

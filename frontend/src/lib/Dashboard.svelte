@@ -59,11 +59,55 @@
   );
 
   let buildRows = $derived(Object.entries(build ?? {}));
+
+  /* ⛔ THE CENSUS, AND IT IS THE LIBRARY PAGE'S DEVICE RATHER THAN A NEW ONE.
+   *
+   * ~/me/library/index.html leads with "68 gold, 9 below the bar across 27
+   * topics" and repeats a count beside every rail entry, every filter and
+   * every section title. That is what makes a set of 68 feel walkable, and it
+   * is the thing the dashboard was missing: it had six numbers, all of them
+   * buried inside a panel at the same weight as their own labels.
+   *
+   * ⛔ EVERY FIGURE BELOW IS READ, NEVER DERIVED INTO A SCORE. There is no
+   * percentage, no ratio and no total-planned-ever, because the wire carries
+   * none of them - requirement 14's consequence, and the reason `recorded`
+   * sits next to `planned` as two separate figures rather than as "0%".
+   */
+  type Figure = {
+    n: string;
+    label: string;
+    /* True when the number IS the finding and must not be softened. Exactly
+       one figure may claim this, or the emphasis means nothing. */
+    loud?: boolean;
+  };
+
+  let figures: Figure[] = $derived([
+    { n: String(programs.length), label: "programs registered" },
+    { n: String(commands), label: "commands declared" },
+    ...(held.brief
+      ? [
+          {
+            n: String(p.planned),
+            label: "open work items in rig's own plan",
+          },
+          {
+            n: String(p.recorded),
+            label: "with any step recorded",
+            /* ⛔ ONLY WHEN THERE IS SOMETHING TO HAVE RECORDED. A project
+               with no open items reads 0 of 0, and lighting the warn hue
+               there would be the shell inventing an alarm out of an empty
+               plan - the opposite failure to the one requirement 15 names,
+               and just as dishonest. */
+            loud: p.planned > 0 && p.recorded === 0,
+          },
+        ]
+      : []),
+  ]);
 </script>
 
 <div class="dash">
   <header class="top">
-    <h1>rig</h1>
+    <h1 class="t-sec">rig</h1>
     <p class="state">
       <span class="dot" class:bad={!health.connected}></span>
       {#if health.connected}
@@ -73,14 +117,37 @@
       {/if}
     </p>
     {#if lastRead}
-      <span class="stamp">registry read at {lastRead}</span>
+      <span class="stamp t-num">registry read at {lastRead}</span>
     {/if}
   </header>
+
+  <!-- ── the census ─────────────────────────────────────────────────────
+       Four read figures at the top of the page, large, in the numeral face.
+       design/visual-system.html puts exactly this strip under its own hero
+       and calls the pattern built; the shell had never instantiated it. -->
+  {#if health.connected}
+    <dl class="figures">
+      {#each figures as f (f.label)}
+        <!-- dt is the label and dd the value, as everywhere else in this
+             file; the grid puts the value on the first row. Reversing the
+             elements to get the visual order would make a screen reader
+             announce a bare number with no term. -->
+        <div class="figure">
+          <dt class="fl">{f.label}</dt>
+          <dd class="fn t-num" class:loud={f.loud}>{f.n}</dd>
+        </div>
+      {/each}
+    </dl>
+  {/if}
 
   <div class="grid">
     <!-- ── the estate ───────────────────────────────────────────────────── -->
     <section class="block estate">
-      <h2>The estate</h2>
+      <h2 class="t-sec">
+        The estate
+        {#if health.connected}<span class="cnt t-num">{programs.length}</span
+          >{/if}
+      </h2>
       {#if !health.connected}
         <p class="muted">
           The registry cannot be read while rig is not answering. Nothing below
@@ -100,37 +167,36 @@
                   >{(pr.icon || pr.id.slice(0, 2)).slice(0, 2)}</span
                 >
                 <span class="pid">{pr.id}</span>
-                <span class="pv">{pr.version}</span>
+                {#if pr.version}<span class="pv">{pr.version}</span>{:else}<span
+                  ></span>{/if}
                 <span class="pd">{pr.description || ""}</span>
                 <span class="pc">{pr.commands} cmd</span>
               </button>
             </li>
           {/each}
         </ul>
+        <!-- ⛔ FOUR FIGURES HERE, NOT SIX, AND THE CUT IS A REDUNDANCY FIX.
+             `registered` and `commands declared` now lead the page in the
+             census strip above; printing them again ten centimetres lower is
+             the repetition `browsable-page` calls a bug, and the instruction
+             there is to delete it rather than shorten it. What is left is the
+             four nobody else says. -->
         <dl class="facts">
           <div>
-            <dt>registered</dt>
-            <dd>{programs.length}</dd>
-          </div>
-          <div>
             <dt>declared full coverage</dt>
-            <dd>{full}</dd>
-          </div>
-          <div>
-            <dt>commands declared</dt>
-            <dd>{commands}</dd>
+            <dd class="t-num">{full}</dd>
           </div>
           <div>
             <dt>serve their own pane</dt>
-            <dd>{ownPane}</dd>
+            <dd class="t-num">{ownPane}</dd>
           </div>
           <div>
             <dt>hosted by rig</dt>
-            <dd>{hosted}</dd>
+            <dd class="t-num">{hosted}</dd>
           </div>
           <div>
             <dt>distinct services</dt>
-            <dd>{services}</dd>
+            <dd class="t-num">{services}</dd>
           </div>
         </dl>
       {/if}
@@ -149,7 +215,7 @@
 
     <!-- ── the project and case record ──────────────────────────────────── -->
     <section class="block record">
-      <h2>{store.current}: plan against execution</h2>
+      <h2 class="t-sec">{store.current}: plan against execution</h2>
       {#if held.error}
         <p class="muted">{held.error}</p>
       {:else if !held.brief}
@@ -160,45 +226,51 @@
         <div class="rfig">
           <Waffle
             items={p.items}
-            dense
             summary={`${p.planned} open work items, ${p.recorded} with a step recorded`}
           />
         </div>
-        <p class="rnum">
-          <strong>{p.recorded}</strong> of <strong>{p.planned}</strong> open items
-          have any step recorded.
-        </p>
+        <!-- ⛔ THE SENTENCE IS THE POINT AND IT IS SET AS ONE. The numbers it
+             quotes are already the two loudest things on the page, so
+             repeating them in a small grey line above it was the same fact
+             three times. What is left is the reading. -->
         <p class="rverdict">{verdict(p)}</p>
         <button class="link" onclick={() => onopengui(PROJECT_CASE_GUI.id)}>
           Open {PROJECT_CASE_GUI.title}
         </button>
       {/if}
     </section>
-
-    <!-- ── the build ────────────────────────────────────────────────────── -->
-    <section class="block build">
-      <h2>This build</h2>
-      {#if buildRows.length === 0}
-        <p class="muted">The window could not read its own version stamps.</p>
-      {:else}
-        <table>
-          <tbody>
-            {#each buildRows as [k, v] (k)}
-              <tr><th scope="row">{k}</th><td>{v}</td></tr>
-            {/each}
-          </tbody>
-        </table>
-      {/if}
-    </section>
   </div>
+
+  <!-- ── the build ──────────────────────────────────────────────────────
+       ONE ROW, NOT A PANEL. Four version stamps in a bordered box of their
+       own took a third of the grid and left the page ending two thirds of
+       the way down the viewport - the "grid stretched short cards" defect
+       this project's readability notes list by name, in its other shape.
+       They are provenance, which the library page sets as one small line at
+       the foot of every card. -->
+  <footer class="prov">
+    <span class="plabel">This build</span>
+    {#if buildRows.length === 0}
+      <span class="muted">version stamps could not be read</span>
+    {:else}
+      <dl class="stamps">
+        {#each buildRows as [k, v] (k)}
+          <div>
+            <dt>{k}</dt>
+            <dd class="t-num">{v}</dd>
+          </div>
+        {/each}
+      </dl>
+    {/if}
+  </footer>
 
   <!-- ⛔ SAID OUT LOUD BECAUSE THE DEFERRAL IS HIS. Requirement 6 leaves this
        page's content to be defined later; a dashboard that looked finished
        would hide that, and the next person to work on it would not know what
        was decided and what was merely available. -->
   <p class="foot">
-    What belongs on this page is still being decided. These three are what the
-    window can answer today without asking rig for anything new.
+    What belongs on this page is still being decided. Everything above is what
+    the window can answer today without asking rig for anything new.
   </p>
 </div>
 
@@ -221,13 +293,11 @@
     border-bottom: 1px solid var(--border);
   }
 
+  /* The face and the tracking come from .t-sec in app.css; only the step is
+     local, because only this page knows which step it is. */
   h1 {
     margin: 0;
-    font-family: var(--disp);
     font-size: var(--fs-3);
-    font-weight: 600;
-    letter-spacing: var(--tight-disp);
-    color: var(--fg);
     line-height: 1;
   }
 
@@ -253,11 +323,63 @@
     white-space: nowrap;
   }
 
-  /* ── three blocks, and they are deliberately not three identical cards ── */
+  /* ── the census strip ─────────────────────────────────────────────────
+
+     Four figures at --fs-3 (32px at the default base) with their labels at
+     --fs--1. A measured census of the shell's own CSS is why: 48 of its 66
+     type declarations named --fs--1 and ONE named --fs-3, so nearly the whole
+     product was set at a single size one step BELOW body and hierarchy had
+     nothing to work with. Every ratio passed; nothing had a rank. */
+
+  .figures {
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: 0.9rem 1.6rem;
+    padding-bottom: calc(0.9rem * var(--den));
+    border-bottom: 1px solid var(--border);
+  }
+
+  .figure {
+    display: grid;
+    /* The value first and the label under it, while the DOM keeps dt before
+       dd so the pair is still announced as a term and its definition. */
+    grid-template-rows: auto auto;
+    gap: 0.1rem;
+    min-width: 0;
+  }
+
+  .fn {
+    grid-row: 1;
+    margin: 0;
+    font-size: var(--fs-3);
+    line-height: 1;
+    color: var(--fg);
+  }
+
+  /* ⛔ THE ONE LOUD FIGURE, AND IT IS THE ZERO. Requirement 15 makes an
+     honest ugly reading the job and a flattering one a failure, so the
+     number that carries the finding is the one that gets the hue - the same
+     treatment and the same token PlanVsExec already gives it, so the two
+     surfaces cannot disagree about which number matters. Amber is the warn
+     member: section 11's rule is that a hue appears only when something
+     wants you, and this is the thing that wants him. */
+  .fn.loud {
+    color: var(--sem-warn);
+  }
+
+  .fl {
+    grid-row: 2;
+    font-size: var(--fs--1);
+    color: var(--fg-dim);
+    line-height: 1.3;
+  }
+
+  /* ── two blocks, and they are deliberately not two identical cards ────── */
 
   .grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
     gap: calc(1.2rem * var(--den));
     /* Independent blocks, so a short one is short. A stretched card with 100px
        of content in a 700px box is a defect this project's own readability
@@ -271,24 +393,31 @@
     }
   }
 
-  .estate {
-    grid-row: span 2;
+  /* A section title is the display face, one step above body, with its count
+     beside it - the library page's device, where every rail entry, filter and
+     section header carries the number of things behind it. */
+  h2 {
+    margin: 0 0 0.75rem;
+    font-size: var(--fs-1);
+    display: flex;
+    align-items: baseline;
+    gap: 0.55rem;
   }
 
-  h2 {
-    margin: 0 0 0.7rem;
-    font-size: var(--fs-0);
-    font-weight: 650;
-    color: var(--fg);
+  .cnt {
+    font-size: var(--fs--1);
+    font-weight: 400;
+    letter-spacing: 0;
+    color: var(--fg-dim);
   }
 
   .block {
     min-width: 0;
   }
 
-  /* The estate is a list with a rule, the record is a figure, the build is a
-     table. Three structures because they hold three kinds of thing; one
-     rounded box repeated three times would say they were the same kind. */
+  /* The estate is a list, the record is a figure, the build stamps are a
+     footer rule. Three structures because they hold three kinds of thing;
+     one rounded box repeated three times would say they were the same. */
   .estate,
   .record {
     padding: calc(1rem * var(--den)) 1.1rem;
@@ -297,11 +426,15 @@
     background: var(--bg-2);
   }
 
+  /* Prose is body size and metadata is a step below it - the library page's
+     split, and the reason its cards read at a glance while carrying four
+     tiers of fact. The shell had one size for both. */
   .muted {
     margin: 0;
     color: var(--fg-dim);
-    font-size: var(--fs--1);
-    max-width: 62ch;
+    font-size: var(--fs-0);
+    line-height: 1.5;
+    max-width: 58ch;
   }
 
   /* ── the program list ─────────────────────────────────────────────────── */
@@ -319,7 +452,7 @@
     font-size: var(--fs--1);
     width: 100%;
     display: grid;
-    grid-template-columns: 2.2rem 7ch auto minmax(0, 1fr) auto;
+    grid-template-columns: 2.2rem minmax(7ch, auto) auto minmax(0, 1fr) auto;
     align-items: baseline;
     gap: 0.7rem;
     text-align: start;
@@ -352,18 +485,35 @@
     background: var(--panel);
   }
 
+  /* ── three tiers of chrome, and the library page is where they come from.
+     Its cards give the title a face of its own, the format and duration an
+     OUTLINED chip, and the tags no chrome at all - bare words in a dimmer
+     ink. Three weights let one row carry four facts without any of them
+     shouting. The row used to give all four the same size and colour. */
+
   .pid {
     font-family: var(--mono);
+    font-size: var(--fs-0);
     color: var(--fg);
   }
 
-  .pv,
+  .pv {
+    font-family: var(--mono);
+    color: var(--fg-dim);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0 0.45rem;
+    justify-self: start;
+  }
+
   .pc {
     font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
     color: var(--fg-dim);
   }
 
   .pd {
+    color: var(--fg-dim);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -371,13 +521,22 @@
 
   /* ── the declared facts ───────────────────────────────────────────────── */
 
+  /* Four across, declared rather than auto-fit: auto-fit wrapped the fourth
+     onto a row of its own at this width, and one orphan under three is the
+     ragged shape that makes a block look unfinished. */
   .facts {
     margin: 0;
     padding-top: 0.8rem;
     border-top: 1px solid var(--border);
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
-    gap: 0.7rem 1.1rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.7rem 1rem;
+  }
+
+  @media (max-width: 1100px) {
+    .facts {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
   }
 
   .facts div {
@@ -407,32 +566,30 @@
     border-top: 1px solid var(--border);
     color: var(--fg-dim);
     font-size: var(--fs--1);
+    line-height: 1.5;
     max-width: 62ch;
   }
 
   .rfig {
-    margin-bottom: 0.8rem;
+    margin-bottom: 1rem;
   }
 
-  .rnum {
-    margin: 0 0 0.5rem;
-    font-size: var(--fs--1);
-    color: var(--fg-dim);
-  }
-
-  .rnum strong {
-    font-family: var(--mono);
-    font-size: var(--fs-1);
-    color: var(--fg);
-  }
-
+  /* ⛔ THE READING, AND IT IS A PULL QUOTE RATHER THAN A CAPTION.
+     The library page marks its one editorial judgement per card with a left
+     rule and a quieter ground, which is the only second background any card
+     there gets. This sentence is the same kind of thing - the one line the
+     page exists to say - and it was set at body size in the middle of a
+     stack of body-sized lines. */
   .rverdict {
-    margin: 0 0 0.8rem;
+    margin: 0 0 0.9rem;
+    padding: 0.1rem 0 0.1rem 0.85rem;
+    border-inline-start: 2px solid var(--border-2);
     font-family: var(--disp);
-    font-size: var(--fs-0);
-    line-height: 1.45;
+    font-size: var(--fs-1);
+    line-height: 1.4;
+    letter-spacing: var(--tight-disp);
     color: var(--fg);
-    max-width: 44ch;
+    max-width: 40ch;
   }
 
   .link {
@@ -457,30 +614,42 @@
     border-radius: 4px;
   }
 
-  /* ── the build table ──────────────────────────────────────────────────── */
+  /* ── the build stamps, as provenance ──────────────────────────────────── */
 
-  .build {
-    padding: 0 0 0 1.1rem;
-    border-inline-start: 2px solid var(--border);
-  }
-
-  table {
-    border-collapse: collapse;
+  .prov {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem 1.4rem;
+    padding-top: calc(0.8rem * var(--den));
+    border-top: 1px solid var(--border);
     font-size: var(--fs--1);
   }
 
-  th {
-    text-align: start;
-    font-weight: 400;
+  .plabel {
     color: var(--fg-dim);
-    padding: 0.15rem 1.2rem 0.15rem 0;
-    white-space: nowrap;
   }
 
-  td {
-    font-family: var(--mono);
+  .stamps {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 1.4rem;
+  }
+
+  .stamps div {
+    display: flex;
+    align-items: baseline;
+    gap: 0.45rem;
+  }
+
+  .stamps dt {
+    color: var(--fg-dim);
+  }
+
+  .stamps dd {
+    margin: 0;
     color: var(--fg);
-    padding: 0.15rem 0;
   }
 
   .foot {

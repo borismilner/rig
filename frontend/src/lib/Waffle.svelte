@@ -63,10 +63,54 @@
     margin: 0;
   }
 
+  /* ⛔ A RECTANGLE IN DECADES, NOT A RAGGED BAND, AND THE REASON IS THAT A
+     RAGGED BAND IS NOT DATA.
+
+     It was `flex-wrap` at whatever width the box happened to be, so the run
+     re-flowed with the window, no two cells lined up vertically, and the
+     figure read as a TEXTURE - something to glance past rather than count.
+     `dataviz`'s rule is that a mark has to encode something; a wrapped row of
+     identical squares encodes only "there are some".
+
+     Twenty columns, fixed, with the tenth track widened so a gutter falls
+     halfway across every row. The grid is then a shape whose area is the
+     plan and whose rows can be counted in tens without reading a number.
+     59 items is two full rows and nine - visible at a glance, and visibly
+     nine short of the third, which is the sort of thing a count beside the
+     figure can only assert.
+
+     TWENTY COLUMNS IS FIXED AND NOT RESPONSIVE ON PURPOSE. A grid that
+     re-columns on resize gives two different pictures of the same data and
+     destroys the only thing this mark is for.
+
+     ⛔ THE COLUMN COUNT IS FIXED; THE CELL SIZE IS NOT, AND THAT DISTINCTION
+     IS A DEFECT FOUND BY LOOKING RATHER THAN BY MEASURING. Fixed 15px tracks
+     made the figure 387px wide, which fits at 1440 and CLIPS ITS LAST COLUMN
+     at 950 - the dashboard's two-column grid does not collapse until 900, so
+     between 900 and about 1010 the record panel is narrower than the figure
+     in it. Every contrast ratio passed; the picture was cut off. Screenshot
+     at 950 before changing any of the numbers below.
+
+     So the tracks are `fr` under a max-width equal to the natural size: at
+     full width 1fr resolves to exactly --cell, and under pressure every cell
+     shrinks together and stays square on `aspect-ratio`. The decade gutter is
+     the tenth track at 1.47fr with its cell at 68% of it, so the gap scales
+     with everything else instead of being the one fixed thing left. */
+  .waffle {
+    --cell: 15px;
+    --gap: 4px;
+  }
+
+  .waffle.dense {
+    --cell: 9px;
+  }
+
   .cells {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
+    display: grid;
+    grid-template-columns: repeat(9, 1fr) 1.47fr repeat(10, 1fr);
+    gap: var(--gap);
+    /* 20 cells, the gutter's 0.47 of one more, and 20 gaps. */
+    max-width: calc(20.47 * var(--cell) + 20 * var(--gap));
   }
 
   /* The boundary carries the meaning for an unrecorded item, so it is the one
@@ -75,21 +119,24 @@
      the ground this actually lands on. --border was measured at 3.03:1 on
      --panel in the token table and is too close to the line for a 14px mark. */
   .cell {
-    width: 15px;
-    height: 15px;
+    width: 100%;
+    aspect-ratio: 1;
     /* 2px, not 3: at 15px a 3px radius rounds the mark toward a control and
        the legend's own swatch already had to stop looking like a checkbox. */
     border-radius: 2px;
     border: 1.5px solid var(--border-2);
     background: transparent;
-    flex: none;
   }
 
   .dense .cell {
-    width: 9px;
-    height: 9px;
-    border-radius: 2px;
     border-width: 1px;
+  }
+
+  /* The tenth cell of every row sits in the wide track, left-aligned, so the
+     remaining 32% of that track is the decade gutter. */
+  .cell:nth-child(20n + 10) {
+    width: 68%;
+    justify-self: start;
   }
 
   /* A recorded state fills the cell AND keeps a boundary in the same hue, so
