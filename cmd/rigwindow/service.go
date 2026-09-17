@@ -156,3 +156,95 @@ func coverageName(c rigv1.Coverage) string {
 		return "unspecified"
 	}
 }
+
+// Deployment is what is actually RUNNING, artefact by artefact, and whether the
+// artefacts agree with each other.
+//
+// ⛔ IT EXISTS BECAUSE `make install` REPORTED SUCCESS OVER A WINDOW IT DOES NOT
+// TOUCH, AND NOBODY COULD SEE IT FOR THIRTEEN HOURS (B89). The Makefile's
+// install/install-window split is deliberate and right; the consequence nobody
+// accounted for is that a person who deploys and then looks at the window has
+// deployed the daemon and is looking at something else. Telling a stale window
+// from a current one took four separate commands and a screenshot's footer.
+//
+// ⛔ SO THE PANEL OWES THIS BEFORE IT OWES A BUTTON. Boris asked for a
+// management panel and said "redeployment should be trivial and automatic"
+// (plan/11, B90). Two buttons would have produced B89 again, because somebody
+// still has to know to press the second one. A redeploy control that cannot say
+// what is currently running is a button that reports success over the same
+// failure.
+//
+// WHAT IT DOES NOT DO: it does not compare against the SOURCE TREE. An installed
+// window has no tree to read, and a "built" column derived from one would be
+// absent on exactly the machine that needs it. This compares the artefacts that
+// are running to each other, which is the comparison B89 actually needed.
+type Deployment struct {
+	// WindowVersion and its siblings are this binary's own ldflags stamp.
+	WindowVersion string `json:"windowVersion"`
+	WindowCommit  string `json:"windowCommit"`
+	WindowBuilt   string `json:"windowBuilt"`
+
+	// DaemonVersion comes over the socket from the daemon that is answering
+	// right now, never from a file on disk.
+	DaemonVersion string `json:"daemonVersion"`
+	DaemonWire    string `json:"daemonWire"`
+	WindowWire    string `json:"windowWire"`
+	Epoch         uint64 `json:"epoch"`
+
+	// Reached is false when the daemon did not answer. ⛔ IT IS NOT A SKEW:
+	// "these disagree" and "I could not ask" are different facts and a panel
+	// that renders them the same way is the B89 defect in a new place.
+	Reached bool `json:"reached"`
+
+	// Agree is only meaningful when Reached. Verdict says why in a person's
+	// words, and it is the line the panel leads with.
+	Agree   bool   `json:"agree"`
+	Verdict string `json:"verdict"`
+}
+
+// Deployment never returns an error, for Health's reason: not reaching rig is a
+// state to draw, not a failure to handle.
+func (RigService) Deployment() Deployment {
+	d := Deployment{
+		WindowVersion: version,
+		WindowCommit:  sha,
+		WindowBuilt:   date,
+		WindowWire:    wire,
+	}
+
+	est, ok := estateSnapshot()
+	if !ok {
+		d.Verdict = "rig is not answering, so the window cannot say what is deployed beside it."
+		return d
+	}
+
+	d.Reached = true
+	d.DaemonVersion = est.GetDaemonVersion()
+	d.DaemonWire = est.GetWire()
+	d.Epoch = est.GetEpoch()
+
+	d.Agree, d.Verdict = deploymentVerdict(d.DaemonVersion, d.WindowVersion)
+	return d
+}
+
+// deploymentVerdict decides whether two running artefacts agree, and says why.
+//
+// ⛔ IT IS A SEPARATE FUNCTION SO IT CAN BE TESTED WITHOUT A DAEMON. The
+// comparison is the whole value of the panel and it would otherwise only ever
+// run against whatever happened to be on the developer's machine, which is the
+// arrangement that let B89 live for thirteen hours.
+//
+// ⛔ AN EMPTY DAEMON VERSION IS NOT A DISAGREEMENT. A daemon too old to stamp
+// itself cannot be compared, and reporting that as a skew would send a person
+// to reinstall a window that is already correct.
+func deploymentVerdict(daemonVersion, windowVersion string) (bool, string) {
+	switch {
+	case daemonVersion == "":
+		return false, "this daemon does not report a version, so the two cannot be compared."
+	case daemonVersion == windowVersion:
+		return true, "the daemon and the window are the same build."
+	default:
+		return false, "THE WINDOW AND THE DAEMON ARE DIFFERENT BUILDS. " +
+			"`make install` does not install the window: run `make install-window` and restart the tray."
+	}
+}

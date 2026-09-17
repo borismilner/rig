@@ -191,6 +191,105 @@ export class Brief {
 }
 
 /**
+ * Deployment is what is actually RUNNING, artefact by artefact, and whether the
+ * artefacts agree with each other.
+ * 
+ * ⛔ IT EXISTS BECAUSE `make install` REPORTED SUCCESS OVER A WINDOW IT DOES NOT
+ * TOUCH, AND NOBODY COULD SEE IT FOR THIRTEEN HOURS (B89). The Makefile's
+ * install/install-window split is deliberate and right; the consequence nobody
+ * accounted for is that a person who deploys and then looks at the window has
+ * deployed the daemon and is looking at something else. Telling a stale window
+ * from a current one took four separate commands and a screenshot's footer.
+ * 
+ * ⛔ SO THE PANEL OWES THIS BEFORE IT OWES A BUTTON. Boris asked for a
+ * management panel and said "redeployment should be trivial and automatic"
+ * (plan/11, B90). Two buttons would have produced B89 again, because somebody
+ * still has to know to press the second one. A redeploy control that cannot say
+ * what is currently running is a button that reports success over the same
+ * failure.
+ * 
+ * WHAT IT DOES NOT DO: it does not compare against the SOURCE TREE. An installed
+ * window has no tree to read, and a "built" column derived from one would be
+ * absent on exactly the machine that needs it. This compares the artefacts that
+ * are running to each other, which is the comparison B89 actually needed.
+ */
+export class Deployment {
+    /**
+     * WindowVersion and its siblings are this binary's own ldflags stamp.
+     */
+    "windowVersion": string;
+    "windowCommit": string;
+    "windowBuilt": string;
+
+    /**
+     * DaemonVersion comes over the socket from the daemon that is answering
+     * right now, never from a file on disk.
+     */
+    "daemonVersion": string;
+    "daemonWire": string;
+    "windowWire": string;
+    "epoch": number;
+
+    /**
+     * Reached is false when the daemon did not answer. ⛔ IT IS NOT A SKEW:
+     * "these disagree" and "I could not ask" are different facts and a panel
+     * that renders them the same way is the B89 defect in a new place.
+     */
+    "reached": boolean;
+
+    /**
+     * Agree is only meaningful when Reached. Verdict says why in a person's
+     * words, and it is the line the panel leads with.
+     */
+    "agree": boolean;
+    "verdict": string;
+
+    /** Creates a new Deployment instance. */
+    constructor($$source: Partial<Deployment> = {}) {
+        if (!("windowVersion" in $$source)) {
+            this["windowVersion"] = "";
+        }
+        if (!("windowCommit" in $$source)) {
+            this["windowCommit"] = "";
+        }
+        if (!("windowBuilt" in $$source)) {
+            this["windowBuilt"] = "";
+        }
+        if (!("daemonVersion" in $$source)) {
+            this["daemonVersion"] = "";
+        }
+        if (!("daemonWire" in $$source)) {
+            this["daemonWire"] = "";
+        }
+        if (!("windowWire" in $$source)) {
+            this["windowWire"] = "";
+        }
+        if (!("epoch" in $$source)) {
+            this["epoch"] = 0;
+        }
+        if (!("reached" in $$source)) {
+            this["reached"] = false;
+        }
+        if (!("agree" in $$source)) {
+            this["agree"] = false;
+        }
+        if (!("verdict" in $$source)) {
+            this["verdict"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Deployment instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Deployment {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Deployment($$parsedSource as Partial<Deployment>);
+    }
+}
+
+/**
  * Health is what the status strip renders.
  * 
  * Detached is section 5g's fourth state: the window is up and the daemon is

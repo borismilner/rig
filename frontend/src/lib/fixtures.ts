@@ -81,6 +81,30 @@ export const PROGRAMS: Program[] = [
   },
 ];
 
+/* ⛔ THE DEPLOYMENT FIXTURE IS THE SKEW STATE, AND THAT IS DELIBERATE.
+ *
+ * It carries B89's two REAL version strings - the daemon Boris installed at
+ * 21:17 and the window that stayed thirteen hours behind it. The skew state is
+ * the only loud one on the panel (a rust border and a bolder line), so it is
+ * the state the contrast gate most needs on screen. A fixture showing the calm
+ * "they agree" case would leave the loud one unmeasured, which is this
+ * project's own named defect: a check that cannot fail reads as a pass.
+ */
+export const DEPLOYMENT = {
+  windowVersion: "v0.0.0-m0-409-g57c99ca-dirty",
+  windowCommit: "57c99ca-dirty",
+  windowBuilt: "2026-09-17T08:07:24Z",
+  daemonVersion: "v0.0.0-m0-471-g8c4d195",
+  daemonWire: "v1",
+  windowWire: "v1",
+  epoch: 21,
+  reached: true,
+  agree: false,
+  verdict:
+    "THE WINDOW AND THE DAEMON ARE DIFFERENT BUILDS. `make install` does not " +
+    "install the window: run `make install-window` and restart the tray.",
+};
+
 export const BUILD: Record<string, string> = {
   rig: "v0.0.0-m0-388-gfixture",
   wire: "v1",

@@ -34,6 +34,7 @@
   import { onMount } from "svelte";
   import * as RigService from "../bindings/github.com/boris-milner/rig/cmd/rigwindow/rigservice.js";
   import type {
+    Deployment,
     Health,
     Program,
   } from "../bindings/github.com/boris-milner/rig/cmd/rigwindow/models.js";
@@ -49,7 +50,7 @@
   import ProjectCaseGui from "./lib/ProjectCaseGui.svelte";
   import { INTERNAL_GUIS, internalGui, PROJECT_CASE_GUI } from "./lib/guis";
   import { createRigStore } from "./lib/rigstore.svelte";
-  import { PROGRAMS, BUILD, BRIEF } from "./lib/fixtures";
+  import { PROGRAMS, BUILD, BRIEF, DEPLOYMENT } from "./lib/fixtures";
 
   /* ── the fixtures, and none of them is a mock of the product path ────────
    *
@@ -95,6 +96,10 @@
       : { connected: false, socket: "", detail: "", programs: 0 },
   );
   let build: Record<string, string> | null = $state(fixture ? BUILD : null);
+  // What is running, artefact by artefact. Read once beside Build, for the
+  // same reason: it does not change while the window is open, and a poll would
+  // be asking the daemon a question whose answer only a redeploy can move.
+  let deployment: Deployment | null = $state(fixture ? DEPLOYMENT : null);
 
   // WHERE YOU ARE, as two pieces rather than one. `atHome` is not
   // `selected === null`: the dashboard is a destination in its own right, and
@@ -323,6 +328,9 @@
     RigService.Build()
       .then((b) => (build = b))
       .catch(() => (build = null));
+    RigService.Deployment()
+      .then((d) => (deployment = d))
+      .catch(() => (deployment = null));
     startPolling();
     document.addEventListener("visibilitychange", onvisibility);
     return () => {
@@ -362,7 +370,7 @@
           {build}
           store={rig}
           {lastRead}
-          onopengui={(id) => pick(id)}
+          {deployment}
           onselect={pick}
         />
       </div>

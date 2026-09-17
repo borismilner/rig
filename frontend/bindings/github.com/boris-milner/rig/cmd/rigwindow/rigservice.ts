@@ -41,12 +41,22 @@ export function Build(): $CancellablePromise<{ [_ in string]?: string }> {
 }
 
 /**
+ * Deployment never returns an error, for Health's reason: not reaching rig is a
+ * state to draw, not a failure to handle.
+ */
+export function Deployment(): $CancellablePromise<$models.Deployment> {
+    return $Call.ByID(69816036).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
  * Health never returns an error: not reaching rig is a state the strip draws,
  * not a failure the window has to handle.
  */
 export function Health(): $CancellablePromise<$models.Health> {
     return $Call.ByID(2625630141).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
@@ -57,7 +67,7 @@ export function Health(): $CancellablePromise<$models.Health> {
  */
 export function Programs(): $CancellablePromise<$models.Program[]> {
     return $Call.ByID(1823204778).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
@@ -76,15 +86,16 @@ export function Programs(): $CancellablePromise<$models.Program[]> {
  */
 export function Projects(): $CancellablePromise<$models.ProjectRef[]> {
     return $Call.ByID(2659636225).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType7($result);
     });
 }
 
 // Private type creation functions
 const $$createType0 = $models.Brief.createFrom;
 const $$createType1 = $Create.Map($Create.Any, $Create.Any);
-const $$createType2 = $models.Health.createFrom;
-const $$createType3 = $models.Program.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $models.ProjectRef.createFrom;
-const $$createType6 = $Create.Array($$createType5);
+const $$createType2 = $models.Deployment.createFrom;
+const $$createType3 = $models.Health.createFrom;
+const $$createType4 = $models.Program.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = $models.ProjectRef.createFrom;
+const $$createType7 = $Create.Array($$createType6);

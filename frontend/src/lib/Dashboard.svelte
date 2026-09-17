@@ -15,13 +15,14 @@
      with no data behind it is worse on a dashboard than a gap. -->
 <script lang="ts">
   import type {
+    Deployment as DeploymentState,
     Health,
     Program,
   } from "../../bindings/github.com/boris-milner/rig/cmd/rigwindow/models.js";
   import type { RigStore } from "./rigstore.svelte";
-  import { planVsExec, verdict } from "./brief";
-  import Waffle from "./Waffle.svelte";
-  import { INTERNAL_GUIS, PROJECT_CASE_GUI } from "./guis";
+  import { planVsExec } from "./brief";
+  import { INTERNAL_GUIS } from "./guis";
+  import Deployment from "./Deployment.svelte";
 
   interface Props {
     health: Health;
@@ -29,13 +30,16 @@
     build: Record<string, string> | null;
     store: RigStore;
     lastRead: string;
-    /** Opens an internal GUI, the same door the rail opens. */
-    onopengui: (id: string) => void;
+    /* ⛔ WHAT IS RUNNING, AND IT REPLACED A CARD THAT RESTATED THE PROJECT
+       VIEW. The rail already lands on that view directly, so this page linking
+       to it was duplicating its own destination - the "strange partial
+       dashboard" Boris named on 2026-09-17. */
+    deployment: DeploymentState | null;
     /** Selects a registered program, also the rail's door. */
     onselect: (id: string) => void;
   }
 
-  let { health, programs, build, store, lastRead, onopengui, onselect }: Props =
+  let { health, programs, build, store, lastRead, deployment, onselect }: Props =
     $props();
 
   // Read once when the dashboard is first shown. The store keeps what it
@@ -213,32 +217,10 @@
       </p>
     </section>
 
-    <!-- ── the project and case record ──────────────────────────────────── -->
-    <section class="block record">
-      <h2 class="t-sec">{store.current}: plan against execution</h2>
-      {#if held.error}
-        <p class="muted">{held.error}</p>
-      {:else if !held.brief}
-        <p class="muted">
-          {store.loading ? "Reading the project record." : "Not read yet."}
-        </p>
-      {:else}
-        <div class="rfig">
-          <Waffle
-            items={p.items}
-            summary={`${p.planned} open work items, ${p.recorded} with a step recorded`}
-          />
-        </div>
-        <!-- ⛔ THE SENTENCE IS THE POINT AND IT IS SET AS ONE. The numbers it
-             quotes are already the two loudest things on the page, so
-             repeating them in a small grey line above it was the same fact
-             three times. What is left is the reading. -->
-        <p class="rverdict">{verdict(p)}</p>
-        <button class="link" onclick={() => onopengui(PROJECT_CASE_GUI.id)}>
-          Open {PROJECT_CASE_GUI.title}
-        </button>
-      {/if}
-    </section>
+    <!-- what is deployed, and it replaced a card that restated the project
+         view. The rail already lands on that view directly, so this page
+         linking to it was duplicating its own destination. -->
+    <Deployment {deployment} />
   </div>
 
   <!-- ── the build ──────────────────────────────────────────────────────
@@ -418,8 +400,7 @@
   /* The estate is a list, the record is a figure, the build stamps are a
      footer rule. Three structures because they hold three kinds of thing;
      one rounded box repeated three times would say they were the same. */
-  .estate,
-  .record {
+  .estate {
     padding: calc(1rem * var(--den)) 1.1rem;
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -568,50 +549,6 @@
     font-size: var(--fs--1);
     line-height: 1.5;
     max-width: 62ch;
-  }
-
-  .rfig {
-    margin-bottom: 1rem;
-  }
-
-  /* ⛔ THE READING, AND IT IS A PULL QUOTE RATHER THAN A CAPTION.
-     The library page marks its one editorial judgement per card with a left
-     rule and a quieter ground, which is the only second background any card
-     there gets. This sentence is the same kind of thing - the one line the
-     page exists to say - and it was set at body size in the middle of a
-     stack of body-sized lines. */
-  .rverdict {
-    margin: 0 0 0.9rem;
-    padding: 0.1rem 0 0.1rem 0.85rem;
-    border-inline-start: 2px solid var(--border-2);
-    font-family: var(--disp);
-    font-size: var(--fs-1);
-    line-height: 1.4;
-    letter-spacing: var(--tight-disp);
-    color: var(--fg);
-    max-width: 40ch;
-  }
-
-  .link {
-    font: inherit;
-    font-size: var(--fs--1);
-    background: none;
-    border: 0;
-    border-bottom: 1px solid var(--border-2);
-    padding: 0.1rem 0;
-    color: var(--fg-dim);
-    cursor: pointer;
-  }
-
-  .link:hover {
-    color: var(--fg);
-    border-color: var(--hue);
-  }
-
-  .link:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 var(--ring-w) var(--hue);
-    border-radius: 4px;
   }
 
   /* ── the build stamps, as provenance ──────────────────────────────────── */

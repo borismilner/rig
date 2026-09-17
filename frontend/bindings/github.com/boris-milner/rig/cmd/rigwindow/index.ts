@@ -10,6 +10,7 @@ export {
     Blocked,
     Blocker,
     Brief,
+    Deployment,
     Health,
     Item,
     Note,
