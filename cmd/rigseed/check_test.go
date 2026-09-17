@@ -55,10 +55,10 @@ func TestADivergenceOfEqualSizeIsSeenBecauseTheAnswerIsASet(t *testing.T) {
 	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{
 		{ID: "B1", Title: "in both"},
 		{ID: "B2", Title: "in the document only"},
-	}})
-	store := map[string]map[string]string{
-		"B1": fieldsOf(intentFor(t, p, "B1")),
-		"B3": {"title": "in the store only"},
+	}}, record.DecisionParse{})
+	store := map[string]held{
+		"B1": heldOf(intentFor(t, p, "B1")),
+		"B3": {kind: record.KindWorkItem, body: "in the store only", fields: map[string]string{"title": "in the store only"}},
 	}
 
 	d := diff(p, store)
@@ -75,14 +75,18 @@ func TestADivergenceOfEqualSizeIsSeenBecauseTheAnswerIsASet(t *testing.T) {
 	}
 }
 
-// fieldsOf copies what the seeder would write, so a fixture store can hold a
+// heldOf copies what the seeder would write, so a fixture store can hold a
 // record that is genuinely up to date rather than one that merely exists.
-func fieldsOf(in intent) map[string]string {
-	out := make(map[string]string, len(in.fields))
+//
+// ⛔ IT COPIES THE KIND AND THE BODY TOO, NOT ONLY THE FIELDS. A fixture that
+// carried the fields alone would be reported stale on `kind` and `body` in
+// every test that uses it, which is a fixture lying about the thing under test.
+func heldOf(in intent) held {
+	f := make(map[string]string, len(in.fields))
 	for k, v := range in.fields {
-		out[k] = v
+		f[k] = v
 	}
-	return out
+	return held{kind: in.kind, body: in.body, fields: f}
 }
 
 // ⛔ A RECORD THAT IS PRESENT AND WRONG IS NOT A CLEAN ANSWER.
@@ -95,12 +99,12 @@ func TestARecordWhoseStoredFieldsContradictTheDocumentIsStale(t *testing.T) {
 	o := options{project: "rig", backlog: "BACKLOG.md"}
 	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{
 		{ID: "B65", Title: "struck in the document", Done: true, Struck: true},
-	}})
+	}}, record.DecisionParse{})
 
-	stored := fieldsOf(intentFor(t, p, "B65"))
-	stored[fieldStatus] = record.StatusActive
+	stored := heldOf(intentFor(t, p, "B65"))
+	stored.fields[fieldStatus] = record.StatusActive
 
-	d := diff(p, map[string]map[string]string{"B65": stored})
+	d := diff(p, map[string]held{"B65": stored})
 	if len(d.missing) != 0 || len(d.extra) != 0 {
 		t.Fatalf("membership must agree for this test to mean anything: missing=%v extra=%v",
 			d.missing, d.extra)
@@ -123,7 +127,7 @@ func TestAnIdStatedInAHeadingBecomesARecord(t *testing.T) {
 			Label: "⛔ B46 - THE MVP ACCEPTANCE TEST",
 			Title: "THE MVP ACCEPTANCE TEST", Line: 137,
 		}},
-	})
+	}, record.DecisionParse{})
 
 	if !has(ids(p.want), "B46") {
 		t.Fatalf("B46 is stated in a heading and was not planned; the plan holds %v", ids(p.want))
@@ -177,7 +181,7 @@ func TestAHeadingsParentComesFromTheIdAndNotFromWhereItSits(t *testing.T) {
 			{Kind: record.UnimportedHeading, ID: "B46d", Label: "a real sub-heading", Line: 183, Under: "B46"},
 			{Kind: record.UnimportedHeading, ID: "B70", Label: "unrelated work filed under B46", Line: 400, Under: "B46"},
 		},
-	})
+	}, record.DecisionParse{})
 
 	if got := intentFor(t, p, "B46d").partOf; got != "B46" {
 		t.Errorf("B46d part-of = %q, want B46 - the id agrees with the nesting", got)
@@ -206,7 +210,7 @@ func TestAnUnknownUnimportedKindIsReportedAndNeverImported(t *testing.T) {
 		Unimported: []record.Unimported{
 			{Kind: future, ID: "B99", Label: "something new", Line: 7},
 		},
-	})
+	}, record.DecisionParse{})
 
 	if has(ids(p.want), "B99") {
 		t.Fatalf("a kind this file does not know was IMPORTED; the plan holds %v", ids(p.want))
@@ -216,7 +220,7 @@ func TestAnUnknownUnimportedKindIsReportedAndNeverImported(t *testing.T) {
 	}
 
 	var b bytes.Buffer
-	reportUnimported(&b, "BACKLOG.md", p.unimported)
+	reportUnimported(&b, p.unimported)
 	for _, want := range []string{string(future), "B99", "BACKLOG.md:7"} {
 		if !strings.Contains(b.String(), want) {
 			t.Errorf("the report does not name %q:\n%s", want, b.String())
@@ -234,7 +238,7 @@ func TestAnIdStatedAtBothGrainsIsWrittenOnceAndReported(t *testing.T) {
 		Unimported: []record.Unimported{
 			{Kind: record.UnimportedHeading, ID: "B46", Label: "the heading's title", Line: 137},
 		},
-	})
+	}, record.DecisionParse{})
 
 	if n := len(p.want); n != 1 {
 		t.Fatalf("B46 was planned %d times, want once: %v", n, ids(p.want))
@@ -292,7 +296,7 @@ func TestTheEdgeDiffIsASetOnBothSides(t *testing.T) {
 		{ID: "B46a", Title: "stated and held", PartOf: "B46"},
 		{ID: "B46b", Title: "stated and absent", PartOf: "B46"},
 		{ID: "B46", Title: "the parent"},
-	}})
+	}}, record.DecisionParse{})
 
 	d := divergence{}
 	err := d.compareEdges(p, func(parent string) (map[string]bool, error) {
@@ -317,8 +321,8 @@ func TestTheEdgeDiffIsASetOnBothSides(t *testing.T) {
 // repository's most-recorded defect class.
 func TestAnEmptySetIsPrintedAsEmpty(t *testing.T) {
 	o := options{project: "rig", backlog: "BACKLOG.md"}
-	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "x"}}})
-	d := diff(p, map[string]map[string]string{"B1": fieldsOf(intentFor(t, p, "B1"))})
+	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "x"}}}, record.DecisionParse{})
+	d := diff(p, map[string]held{"B1": heldOf(intentFor(t, p, "B1"))})
 
 	var b bytes.Buffer
 	d.report(&b, o, p, "production")
@@ -347,8 +351,8 @@ func TestTheRefusalNamesWhichSetsDiverged(t *testing.T) {
 		Unimported: []record.Unimported{
 			{Kind: record.UnimportedRowWithoutID, Label: "6a", Line: 131},
 		},
-	})
-	d := diff(p, map[string]map[string]string{})
+	}, record.DecisionParse{})
+	d := diff(p, map[string]held{})
 
 	got := strings.Join(d.nonEmpty(), " ")
 	if got != "missing unimported" {
@@ -371,7 +375,7 @@ func TestRigsOwnBacklogPlansBothGrains(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading %s: %v", live, err)
 	}
-	p := planFor(options{project: "rig", backlog: live}, doc)
+	p := planFor(options{project: "rig", backlog: live}, doc, record.DecisionParse{})
 
 	// POSITIVE CONTROL. An empty document would pass every assertion below in
 	// silence, which is how this project's checks have failed nine times.
@@ -413,7 +417,7 @@ func TestAPartOfTowardsAnUndefinedIdIsReportedAndNeverAttempted(t *testing.T) {
 	o := options{project: "rig", backlog: "BACKLOG.md"}
 	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{
 		{ID: "B99a", Title: "a child of a parent nobody wrote", PartOf: "B99"},
-	}})
+	}}, record.DecisionParse{})
 
 	if got := intentFor(t, p, "B99a").partOf; got != "" {
 		t.Errorf("B99a still carries part-of %q; the link would abort the run", got)
@@ -422,7 +426,7 @@ func TestAPartOfTowardsAnUndefinedIdIsReportedAndNeverAttempted(t *testing.T) {
 		t.Errorf("orphaned = {%s}, want {B99a -part-of-> B99}", got)
 	}
 
-	d := diff(p, map[string]map[string]string{"B99a": fieldsOf(intentFor(t, p, "B99a"))})
+	d := diff(p, map[string]held{"B99a": heldOf(intentFor(t, p, "B99a"))})
 	if !has(d.nonEmpty(), "part-of-towards-an-undefined-id") {
 		t.Errorf("nonEmpty = %v; an edge the document states and nothing can carry "+
 			"must not exit clean", d.nonEmpty())
@@ -448,7 +452,7 @@ func TestAStruckHeadingIsSeededClosed(t *testing.T) {
 			Label: "⛔ ~~B46 - THE MVP ACCEPTANCE TEST~~",
 			Title: "THE MVP ACCEPTANCE TEST", Struck: true, Line: 137,
 		}},
-	})
+	}, record.DecisionParse{})
 
 	in := intentFor(t, p, "B46")
 	if got := in.fields[fieldStatus]; got != record.StatusClosed {

@@ -95,6 +95,19 @@ func main() {
 
 type options struct {
 	backlog string
+
+	// decisions is the second document this seeder reads, and it is NOT
+	// optional.
+	//
+	// ⛔ AN OPTIONAL PATH THAT DEFAULTS TO SKIPPING IS THE CHECK THAT NEVER
+	// RAN, WHICH THIS REPOSITORY HAS RECORDED TEN TIMES. `--check` over the
+	// backlog alone prints a full page of empty sets while several hundred
+	// rulings sit in no record, and nothing on that page says the second
+	// document was never opened. So it is required, it refuses a zero-entry
+	// parse exactly as the backlog does, and a run that cannot reach it fails
+	// loudly rather than narrowing its own aperture in silence.
+	decisions string
+
 	project string
 	title   string
 	estate  string
@@ -106,6 +119,7 @@ type options struct {
 func run() error {
 	var o options
 	flag.StringVar(&o.backlog, "backlog", "BACKLOG.md", "the backlog document to read")
+	flag.StringVar(&o.decisions, "decisions", "DECISIONS.md", "the decisions document to read")
 	flag.StringVar(&o.project, "project", "rig", "the project every record belongs to")
 	flag.StringVar(&o.title, "title", "rig", "the project record's title")
 	flag.StringVar(&o.estate, "estate", "production", "the estate this MUST be pointed at")
@@ -143,7 +157,15 @@ func run() error {
 		return fmt.Errorf("%s parsed to zero work items, which is never right for this "+
 			"document - the parser or the path is wrong, and writing nothing is the safe answer", o.backlog)
 	}
-	p := planFor(o, doc)
+	dec, err := readDecisions(o.decisions)
+	if err != nil {
+		return err
+	}
+	if len(dec.Decisions) == 0 {
+		return fmt.Errorf("%s parsed to zero entries, which is never right for this "+
+			"document - the parser or the path is wrong, and writing nothing is the safe answer", o.decisions)
+	}
+	p := planFor(o, doc, dec)
 
 	// ⛔ THE CHECK READS THE SAME PLAN THE SEEDER WOULD WRITE, AND THAT IS WHAT
 	// MAKES IT AN ANSWER RATHER THAN A SECOND OPINION. A detector with its own
@@ -153,8 +175,8 @@ func run() error {
 		return runCheck(o, p, name)
 	}
 
-	fmt.Printf("%s -> %d records (%s), into the %s estate as project %q\n\n",
-		o.backlog, len(p.want), p.grains(), name, o.project)
+	fmt.Printf("%s + %s -> %d records (%s), into the %s estate as project %q\n\n",
+		o.backlog, o.decisions, len(p.want), p.grains(), name, o.project)
 
 	// ⛔ THE PROJECT IS ITS OWN RECORD AND WITHOUT IT THE BRIEF HAS NO HEADER.
 	//
@@ -191,7 +213,7 @@ func run() error {
 	}
 
 	r.report(os.Stdout, o)
-	p.report(os.Stdout, o.backlog)
+	p.report(os.Stdout)
 	return nil
 }
 
@@ -304,10 +326,10 @@ func putArgs(o options, it record.BacklogItem, version uint64) []string {
 func intentArgs(o options, in intent, version uint64) []string {
 	args := []string{
 		"record", "put",
-		"--kind", "work-item",
+		"--kind", in.kind,
 		"--project", o.project,
 		"--id", in.id,
-		"--body", in.title,
+		"--body", in.body,
 	}
 	// ⛔ SORTED, SO TWO RUNS OVER ONE DOCUMENT BUILD THE SAME CALL. Go
 	// randomises map iteration on purpose, and an argument list that reordered
@@ -535,6 +557,17 @@ type result struct {
 	// them, so they are NAMED on every run rather than folded into a total.
 	headings []string
 
+	// notes is the ids written at kind `note` - the decisions document's
+	// standing sections.
+	//
+	// ⛔ THEY ARE NAMED ON EVERY RUN BECAUSE `kind` REFUSES NOTHING. A ruling
+	// written at the wrong kind is accepted silently and is reachable only by
+	// a caller who already knows to ask for it, so the one place the choice
+	// can be caught is a report that says out loud which records were not
+	// written as decisions. Eight today, and the set is what makes a ninth
+	// visible.
+	notes []string
+
 	// linked is every part-of edge asserted, written whole - src, type, dst -
 	// because a column of ids gives a reader no way to know which side of the
 	// arrow they are on.
@@ -563,6 +596,9 @@ func (r *result) count(exists, dryRun bool, before, after uint64) {
 func (r *result) collect(in intent) {
 	if in.grain == grainHeading {
 		r.headings = append(r.headings, in.id)
+	}
+	if in.kind == record.KindNote {
+		r.notes = append(r.notes, in.id)
 	}
 	it := in.row
 
@@ -622,6 +658,12 @@ func (r *result) report(w *os.File, o options) {
 		"the document gives these an id but no table row, so they have NO STATE\n"+
 			"      CELL and this seeder writes no status for them. tags=heading-borne\n"+
 			"      is what makes the absence readable rather than lost.")
+	name("WRITTEN AS A NOTE RATHER THAN AS A DECISION", r.notes,
+		"a standing section of the decisions document: what rig is, what is still\n"+
+			"      open, what has not been done. It is a record attached to the project\n"+
+			"      rather than a ruling, which is section 39's own definition of a note.\n"+
+			"      ⛔ THE BRIEF CANNOT REACH THESE: its notes section joins on a part-of\n"+
+			"      edge and a standing section has no parent to point at.")
 	name("PART-OF EDGES ASSERTED", r.linked,
 		"the sub-letter in the id is the document stating a parent. The store's\n"+
 			"      Link is idempotent by contract, so a re-run asserts the same fact.")
@@ -640,9 +682,25 @@ func (r *result) report(w *os.File, o options) {
 // this file's header names as the project's most expensive, and a guard that
 // drifts from the thing it guards is worse than no guard.
 type intent struct {
-	id    string
+	id string
+
+	// kind is the record kind this becomes: one of section 39's ten, never a
+	// value invented here.
+	//
+	// ⛔ IT IS A FIELD BECAUSE `kind` REFUSES NOTHING. `Put` accepts any
+	// string, so a kind that is not one of the ten is written silently and is
+	// reachable only by a caller who already knows to ask for it. Carrying it
+	// on the intent puts every kind this seeder writes in one place a reader
+	// can enumerate, instead of in a literal inside the argument builder.
+	kind string
+
 	grain string
 	title string
+
+	// body is what goes to `--body`. On a backlog row it is the title, which
+	// is all the document gives; on a decisions entry it is the entry's prose,
+	// which is the substance of the ruling.
+	body string
 
 	// fields is the typed fields this record carries, by name. A map rather
 	// than a built argument list because the store answers with a map, and a
@@ -663,9 +721,9 @@ type plan struct {
 	// want is every record to write, at both grains, in document order.
 	want []intent
 
-	// unimported is everything the document addresses that this seeder does
-	// NOT write.
-	unimported []record.Unimported
+	// unimported is everything EITHER document addresses that this seeder does
+	// NOT write, each carrying the document it came from.
+	unimported []docUnimported
 
 	// collided is an id the document states at BOTH grains. Reported, never
 	// written twice.
@@ -687,7 +745,7 @@ type plan struct {
 // A new UnimportedKind added in internal/record must land somewhere LOUD. B66
 // is precisely a class being invisible by construction, and a switch that
 // silently accepted a new member would be that same defect one layer up.
-func planFor(o options, doc record.BacklogParse) plan {
+func planFor(o options, doc record.BacklogParse, dec record.DecisionParse) plan {
 	var p plan
 	stated := make(map[string]bool, len(doc.Items))
 
@@ -698,7 +756,7 @@ func planFor(o options, doc record.BacklogParse) plan {
 
 	for _, u := range doc.Unimported {
 		if u.Kind != record.UnimportedHeading {
-			p.unimported = append(p.unimported, u)
+			p.unimported = append(p.unimported, docUnimported{doc: o.backlog, Unimported: u})
 			continue
 		}
 		// ⛔ AN ID STATED AT BOTH GRAINS IS REPORTED, NEVER WRITTEN TWICE. Two
@@ -719,6 +777,13 @@ func planFor(o options, doc record.BacklogParse) plan {
 		p.want = append(p.want, headingIntent(o, u, parent))
 	}
 
+	// ⛔ THE DECISIONS DOCUMENT IS FOLDED IN BEFORE THE EDGE SWEEP BELOW, NOT
+	// AFTER IT. Its sub-headings state a part-of towards a parent in the SAME
+	// document, and a sweep that had already run would leave 292 edges pointing
+	// at ids it never saw declared - every one of them reported as orphaned and
+	// silently dropped. One plan, one `stated` set, one sweep.
+	p.addDecisions(o, dec, stated)
+
 	// ⛔ AN EDGE TOWARDS AN ID THE DOCUMENT NEVER DEFINES IS REPORTED, NEVER
 	// ATTEMPTED. internal/record's checkEdge refuses a link with a missing end,
 	// so asserting one would abort a seeding run half-written - and it is a
@@ -738,16 +803,28 @@ func planFor(o options, doc record.BacklogParse) plan {
 }
 
 // grains says how many records came from each grain, for the one header line.
+//
+// ⛔ IT COUNTS WHAT THE PLAN ACTUALLY HOLDS RATHER THAN A FIXED LIST OF TWO.
+// The old form asked "is it a heading, else it is a row", so a third grain
+// added to this seeder would have been counted as rows and been invisible in
+// the one line a reader sees first. A whole grain being invisible by
+// construction is B66, and a header that cannot name a new one is that defect
+// one layer up.
 func (p plan) grains() string {
-	rows, heads := 0, 0
+	n := map[string]int{}
 	for _, in := range p.want {
-		if in.grain == grainHeading {
-			heads++
-			continue
-		}
-		rows++
+		n[in.grain]++
 	}
-	return fmt.Sprintf("%d %s, %d %s", rows, grainRow, heads, grainHeading)
+	names := make([]string, 0, len(n))
+	for g := range n {
+		names = append(names, g)
+	}
+	sort.Strings(names)
+	parts := make([]string, 0, len(names))
+	for _, g := range names {
+		parts = append(parts, fmt.Sprintf("%d %s", n[g], g))
+	}
+	return strings.Join(parts, ", ")
 }
 
 // rowIntent is the record one table row becomes.
@@ -765,7 +842,10 @@ func rowIntent(o options, it record.BacklogItem) intent {
 	if tags := tagsFor(it); tags != "" {
 		f["tags"] = tags
 	}
-	return intent{id: it.ID, grain: grainRow, title: it.Title, fields: f, partOf: it.PartOf, row: it}
+	return intent{
+		id: it.ID, kind: record.KindWorkItem, grain: grainRow,
+		title: it.Title, body: it.Title, fields: f, partOf: it.PartOf, row: it,
+	}
 }
 
 // headingIntent is the record an id stated in a HEADING becomes.
@@ -810,8 +890,10 @@ func headingIntent(o options, u record.Unimported, parent string) intent {
 	}
 	return intent{
 		id:    u.ID,
+		kind:  record.KindWorkItem,
 		grain: grainHeading,
 		title: title,
+		body:  title,
 		fields: map[string]string{
 			"title":             title,
 			"description_short": title,
@@ -850,26 +932,39 @@ func headingParent(u record.Unimported) (parent string, agreed bool) {
 // report names everything the document addresses that this seeder did not
 // write. It is printed after a SEEDING run for the same reason --check prints
 // it: a row nobody can see is a row nobody fixes.
-func (p plan) report(w io.Writer, backlog string) {
-	namedSet(w, "ID STATED AT BOTH GRAINS, WRITTEN ONCE", p.collided,
-		"a heading and a table row give the same id. The row won; the heading\n"+
-			"      was not written over it.")
+func (p plan) report(w io.Writer) {
+	namedSet(w, "ID STATED TWICE, WRITTEN ONCE", p.collided,
+		"two places state the same id - a heading and a row, or the backlog and\n"+
+			"      the decisions document. The first read won and the second was not\n"+
+			"      written over it, because two puts against one id in one run\n"+
+			"      supersede each other and document order would decide the content.")
 	namedSet(w, "HEADING NESTING THE ID CONTRADICTS, NO EDGE WRITTEN", p.unnested,
 		"the enclosing heading is not a prefix of this id, so the two\n"+
 			"      derivations disagree and no part-of was invented.")
 	namedSet(w, "PART-OF TOWARDS AN ID THE DOCUMENT NEVER DEFINES, NOT ASSERTED", p.orphaned,
 		"the parent is in no row and no heading, so the edge was not attempted:\n"+
 			"      the store refuses a link with a missing end.")
-	reportUnimported(w, backlog, p.unimported)
+	reportUnimported(w, p.unimported)
 }
 
-// reportUnimported prints the things in the document that are not even
-// candidates, ONE PER LINE WITH ITS LINE NUMBER.
+// docUnimported is one Unimported with the document it was read from.
+//
+// ⛔ THE DOCUMENT IS CARRIED RATHER THAN PASSED IN ONCE, BECAUSE THERE ARE TWO
+// OF THEM NOW. A report that printed one file name over a list drawn from two
+// would resolve every line to the wrong place in the wrong document - a
+// file:line that is precise and false, which is worse than none at all.
+type docUnimported struct {
+	doc string
+	record.Unimported
+}
+
+// reportUnimported prints the things the documents address that are not even
+// candidates, ONE PER LINE WITH ITS FILE AND LINE NUMBER.
 //
 // ⛔ A COUNT IS NOT AN ANSWER HERE AND NEVER WAS. A census whose total did not
 // move while two rows did is exactly what a count cannot see, and an
 // arithmetically impossible one reached Boris once already.
-func reportUnimported(w io.Writer, backlog string, us []record.Unimported) {
+func reportUnimported(w io.Writer, us []docUnimported) {
 	const label = "UNIMPORTED - the document addresses it and it is not even a candidate"
 	if len(us) == 0 {
 		fmt.Fprintf(w, "\n  %s\n      {}\n", label)
@@ -880,7 +975,7 @@ func reportUnimported(w io.Writer, backlog string, us []record.Unimported) {
 		// file:line, so a report resolves to a PLACE in the document rather than
 		// to the document. A reader who has to go and find the row is a reader
 		// who does not.
-		fmt.Fprintf(w, "      %-14s %-34s %s:%d\n", u.Kind, unimportedName(u), backlog, u.Line)
+		fmt.Fprintf(w, "      %-14s %-34s %s:%d\n", u.Kind, unimportedName(u.Unimported), u.doc, u.Line)
 	}
 }
 
@@ -963,7 +1058,7 @@ type divergence struct {
 	missingEdges []string
 	extraEdges   []string
 
-	unimported []record.Unimported
+	unimported []docUnimported
 	collided   []string
 	orphaned   []string
 	unnested   []string
@@ -972,7 +1067,7 @@ type divergence struct {
 // runCheck is the whole of --check: read the store, diff it against the plan,
 // print the sets, and refuse to call a divergence a success.
 func runCheck(o options, p plan, estate string) error {
-	store, err := storeRecords(o)
+	store, err := storeRecords(o, p.kinds())
 	if err != nil {
 		return err
 	}
@@ -989,35 +1084,79 @@ func runCheck(o options, p plan, estate string) error {
 
 	if names := d.nonEmpty(); len(names) > 0 {
 		return &divergedError{what: fmt.Sprintf(
-			"%s and the %s store are not set-equal: %s. The SETS are printed above; "+
+			"%s + %s and the %s store are not set-equal: %s. The SETS are printed above; "+
 				"this line is not a summary of them",
-			o.backlog, estate, strings.Join(names, ", "))}
+			o.backlog, o.decisions, estate, strings.Join(names, ", "))}
 	}
 	return nil
 }
 
-// storeRecords is every work item this project already holds, by id.
-func storeRecords(o options) (map[string]map[string]string, error) {
-	out, err := capture(o, "record", "query", o.project, "work-item", "--json")
-	if err != nil {
-		return nil, fmt.Errorf("listing the work items already in the store failed: %w\n%s", err, out)
-	}
-	var rs []struct {
-		ID     string            `json:"id"`
-		Fields map[string]string `json:"fields"`
-	}
-	if err := json.Unmarshal(out, &rs); err != nil {
-		return nil, fmt.Errorf("rig record query --json did not parse: %w", err)
-	}
-	byID := make(map[string]map[string]string, len(rs))
-	for _, r := range rs {
-		byID[r.ID] = r.Fields
+// held is one record as the store holds it: everything a reader can observe
+// that a document also states.
+//
+// ⛔ IT IS NOT JUST THE FIELD MAP ANY MORE, AND THE TWO ADDITIONS ARE BOTH
+// HOLES THE DETECTOR HAD. `kind` is not compared by a membership test - an id
+// held at the wrong kind is present, so `missing` and `extra` are both empty
+// and the fields can agree perfectly. `body` was invisible for the same
+// reason, and on a work item that cost nothing because the body IS the title;
+// on a decision the body is the ruling, up to three and a half thousand bytes
+// of it, so an edited ruling would have read as clean for ever.
+type held struct {
+	kind   string
+	body   string
+	fields map[string]string
+}
+
+// storeRecords is every record this project already holds at the kinds the
+// plan writes, by id.
+//
+// ⛔ ONE QUERY PER KIND RATHER THAN ONE UNFILTERED QUERY, AND THE KINDS COME
+// FROM THE PLAN. An unfiltered read would return the project record and every
+// progress step, and each of them would land in `extra` - a detector that
+// reports the store's own bookkeeping as a divergence is one nobody reads.
+// Taking the kinds from the plan is also what stops a kind added to the seeder
+// and forgotten here: it would be written and then reported missing on the very
+// next check, loudly, instead of never being compared at all.
+func storeRecords(o options, kinds []string) (map[string]held, error) {
+	byID := map[string]held{}
+	for _, kind := range kinds {
+		out, err := capture(o, "record", "query", o.project, kind, "--json")
+		if err != nil {
+			return nil, fmt.Errorf("listing the %s records already in the store failed: %w\n%s", kind, err, out)
+		}
+		var rs []struct {
+			ID     string            `json:"id"`
+			Kind   string            `json:"kind"`
+			Body   string            `json:"body"`
+			Fields map[string]string `json:"fields"`
+		}
+		if err := json.Unmarshal(out, &rs); err != nil {
+			return nil, fmt.Errorf("rig record query %s --json did not parse: %w", kind, err)
+		}
+		for _, r := range rs {
+			byID[r.ID] = held{kind: r.Kind, body: r.Body, fields: r.Fields}
+		}
 	}
 	return byID, nil
 }
 
+// kinds is every record kind this plan writes, sorted, with no duplicates.
+func (p plan) kinds() []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, in := range p.want {
+		if seen[in.kind] {
+			continue
+		}
+		seen[in.kind] = true
+		out = append(out, in.kind)
+	}
+	sort.Strings(out)
+	return out
+}
+
 // diff is the set arithmetic, and it is the whole answer for the record grain.
-func diff(p plan, store map[string]map[string]string) divergence {
+func diff(p plan, store map[string]held) divergence {
 	d := divergence{
 		unimported: p.unimported,
 		collided:   p.collided,
@@ -1057,10 +1196,21 @@ func diff(p plan, store map[string]map[string]string) divergence {
 // hand-annotated record read as drift. The cost is named here so nobody reads a
 // clean `stale` as "the store matches the document in every respect": a field
 // the store carries and the document never mentions is invisible to this check.
-func staleFields(in intent, got map[string]string) []string {
+func staleFields(in intent, got held) []string {
 	var out []string
+	// ⛔ kind AND body ARE COMPARED UNDER THEIR OWN NAMES AND NOT FOLDED INTO
+	// A BARE "different". The whole contract of `stale` is that the brackets
+	// name WHICH field moved, so a reader knows whether a title was retyped or
+	// a whole ruling rewritten. Two of the three are not typed fields at all,
+	// which is exactly why they were being skipped.
+	if got.kind != in.kind {
+		out = append(out, "kind")
+	}
+	if got.body != in.body {
+		out = append(out, "body")
+	}
 	for name, want := range in.fields {
-		if got[name] != want {
+		if got.fields[name] != want {
 			out = append(out, name)
 		}
 	}
@@ -1179,7 +1329,7 @@ func (d divergence) nonEmpty() []string {
 		{"missing-edges", len(d.missingEdges)},
 		{"extra-edges", len(d.extraEdges)},
 		{"unimported", len(d.unimported)},
-		{"id-stated-at-both-grains", len(d.collided)},
+		{"id-stated-twice", len(d.collided)},
 		{"heading-nesting-the-id-contradicts", len(d.unnested)},
 		{"part-of-towards-an-undefined-id", len(d.orphaned)},
 	} {
@@ -1192,7 +1342,7 @@ func (d divergence) nonEmpty() []string {
 
 // report prints every set, empty ones included.
 func (d divergence) report(w io.Writer, o options, p plan, estate string) {
-	fmt.Fprintf(w, "%s against the %s estate, project %q\n", o.backlog, estate, o.project)
+	fmt.Fprintf(w, "%s + %s against the %s estate, project %q\n", o.backlog, o.decisions, estate, o.project)
 	fmt.Fprintf(w, "the document asks for %d records (%s)\n", len(p.want), p.grains())
 
 	namedSet(w, "MISSING - the document states it and no record carries it", d.missing,
@@ -1205,14 +1355,15 @@ func (d divergence) report(w io.Writer, o options, p plan, estate string) {
 		"re-run rigseed without --check to assert them.")
 	namedSet(w, "EXTRA EDGES - the store holds a part-of the document does not state", d.extraEdges,
 		"rigseed never removes an edge, so these were asserted by something else.")
-	namedSet(w, "ID STATED AT BOTH GRAINS", d.collided,
-		"a heading and a table row give the same id; the row is what was written.")
+	namedSet(w, "ID STATED TWICE", d.collided,
+		"two places state the same id - a heading and a row, or the backlog and\n"+
+			"      the decisions document. The first read is what was written.")
 	namedSet(w, "HEADING NESTING THE ID CONTRADICTS", d.unnested,
 		"the enclosing heading is not a prefix of this id, so no part-of was invented.")
 	namedSet(w, "PART-OF TOWARDS AN ID THE DOCUMENT NEVER DEFINES, NOT ASSERTED", d.orphaned,
 		"the parent is in no row and no heading, so the edge was not attempted:\n"+
 			"      the store refuses a link with a missing end.")
-	reportUnimported(w, o.backlog, d.unimported)
+	reportUnimported(w, d.unimported)
 
 	// ⛔ WHAT THIS CHECK DOES NOT COMPARE, PRINTED ON EVERY RUN INCLUDING A
 	// CLEAN ONE. A green here means the ID SETS agree and the fields this
