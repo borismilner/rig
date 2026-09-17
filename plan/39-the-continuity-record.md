@@ -284,6 +284,30 @@ that number was read as the cost of the whole thing. **The MVP is slices 1, 2
 and 4** - and a number for that subset is owed rather than assumed, because
 the sizing was never cut that way.
 
+#### ⛔ HE IS OWED A REPORT THE MOMENT rig CAN BE USED ON rig. RULED BY BORIS 2026-09-17.
+
+**His words, to the eleventh lead generation, instructing the handover:**
+
+> *"have the successor tell me when we are ready to start working on `rig`
+> using `rig`"*
+
+⛔ **THIS IS A STANDING OBLIGATION ON THE TEAM-LEAD SEAT, NOT A ONE-OFF, AND IT
+SURVIVES EVERY HANDOVER.** Each generation inherits it until it is discharged.
+The report goes to him **directly and unprompted** the moment the bar is met -
+he does not ask again, and waiting to be asked is the failure.
+
+| | |
+|---|---|
+| **the bar** | his own MVP definition, verbatim: *"being able to use `rig` to work on `rig` with respect to the project/case management"* |
+| **who owns it** | the **team-lead**, through `READINESS.txt`, which is the only artefact allowed to answer "how much longer" |
+| **what it is NOT** | ⛔ **not the AgentBox-GUI readiness report**, which is a separate standing report in the same file with a different bar. **Two reports, two bars, and answering one with the other is the defect §39 already names about the two MVP questions** |
+| **what blocks it today** | **B64 alone.** Three of section 39's ten kinds are write-only, so rig reads its own backlog and cannot hold its own rulings |
+
+⛔ **AND THE REPORT CARRIES ITS CONFIDENCE, UNPROMPTED.** Two items in this
+project have ever been executed against an estimate. A "we are ready" that
+rests on a number nobody ran is the shape this section spends its longest
+passages warning about.
+
 #### ⛔ THE WARM-HANDOFF MARK IS 40% OF THE CONTEXT WINDOW. RULED BY BORIS 2026-09-17, SECOND STATEMENT.
 
 **His words, later the same day, to the eleventh lead generation:**
