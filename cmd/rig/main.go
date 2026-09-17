@@ -57,8 +57,16 @@ func partition(args []string) (flags, positional []string) {
 			flags = append(flags, a)
 			// A flag written as `--timeout 5s` takes the next argument, while
 			// `--timeout=5s` and a boolean do not.
+			//
+			// ⛔ A LONE `-` IS A VALUE, NOT A FLAG, and the case above already
+			// says so for the argument itself. Without the same exception
+			// here, `--body-file -` loses its `-` to the positionals and the
+			// command dies with "flag needs an argument: -body-file" - a
+			// refusal for the one spelling every tool uses for standard
+			// input. Found by running it.
 			if !strings.Contains(a, "=") && i+1 < len(args) &&
-				!strings.HasPrefix(args[i+1], "-") && takesValue(a) {
+				(args[i+1] == "-" || !strings.HasPrefix(args[i+1], "-")) &&
+				takesValue(a) {
 				i++
 				flags = append(flags, args[i])
 			}
@@ -96,6 +104,14 @@ var valuedFlags = map[string]bool{
 	"project": true,
 	"body":    true,
 	"field":   true,
+
+	// `body-file` is the OTHER way to give a body, and it is here for the
+	// reason the paragraph above gives rather than as a companion to `body`:
+	// a path routinely starts with a character this map has to see, and a
+	// missing entry sends the path to the positionals, where `record put`
+	// reads it as a stray argument and prints its usage line. The caller then
+	// has a usage error naming everything except the flag they typed.
+	"body-file": true,
 
 	// `value` is `record query --value`, the other half of the field
 	// predicate (BACKLOG.md B65). ⛔ IT IS THE ONE ENTRY HERE WHOSE VALUE IS

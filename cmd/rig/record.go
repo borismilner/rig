@@ -14,8 +14,15 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/boris-milner/rig/client"
+	// ALIASED, AND NOT BY PREFERENCE. `wire` is already a package-level
+	// identifier here - main.go's `wire = "v1"`, the wire VERSION this build
+	// speaks - and Go refuses an import whose name collides with one, in any
+	// file of the package. The alias follows rigv1's spelling below so the
+	// two rig packages read as a pair.
+	rigwire "github.com/boris-milner/rig/internal/wire"
 	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )
 
@@ -482,6 +489,7 @@ type recordFlags struct {
 	kind         *string
 	project      *string
 	body         *string
+	bodyFile     *string
 	fields       *fieldFlag
 	field        *string
 	value        *string
@@ -510,6 +518,8 @@ func recordFlagSet(sub string) *recordFlags {
 		r.kind = r.fs.String("kind", "", "what the record is")
 		r.project = r.fs.String("project", "", "the project or case it belongs to")
 		r.body = r.fs.String("body", "", "the record's prose")
+		r.bodyFile = r.fs.String("body-file", "",
+			"a file to read the record's prose from; - is standard input")
 		r.fields = &fieldFlag{}
 		r.fs.Var(r.fields, "field", "a typed field, key=value; repeatable")
 		r.ifVersion = r.fs.Uint64("if-version", 0,
@@ -724,6 +734,177 @@ func withRecordAPI(timeout time.Duration, call func(context.Context, RecordAPI) 
 	return call(ctx, api)
 }
 
+// ---- the body --------------------------------------------------------------
+
+// maxBodyBytes is the largest body this surface will read from a file or from
+// standard input.
+//
+// ⛔ THE CEILING IS THE WIRE'S RATHER THAN A TASTE. internal/wire.MaxFrameSize
+// is 1 MiB and one put is ONE frame, so a body at the frame limit cannot fit:
+// the same frame carries the id, the kind, the project and every typed field.
+// 64 KiB is left for them, which is half the largest argv a shell on this
+// machine will pass and so wider than the flags can be in practice.
+//
+// IT IS DERIVED AND NOT COPIED, because two places holding one ceiling is two
+// places to disagree from - the reason internal/daemon/record.go already gives
+// about the refs depth. Raising MaxFrameSize raises this with it.
+//
+// AND IT IS A BOUND ON AN ALLOCATION, not only a courtesy. The path comes from
+// the caller, and reading whatever is at it into memory with no limit is the
+// unchecked-bounds failure the standing rules name. The largest body this
+// project has actually written is 3,502 bytes.
+const maxBodyBytes = rigwire.MaxFrameSize - 64*1024
+
+// bodyFileStdin is the --body-file value meaning standard input.
+//
+// `-` IS THE SPELLING EVERY OTHER TOOL USES for this, so it is the one a
+// caller guesses first, and it cannot collide with a real path: a file called
+// `-` is reachable as `./-` and is not a thing this project has.
+const bodyFileStdin = "-"
+
+// stdinSource is standard input, indirected so the rules below are testable.
+//
+// A test needs three different standard inputs - a pipe carrying prose, a pipe
+// carrying nothing, and a character device standing in for a terminal - and
+// the process only has one. Nothing else in this file reaches for os.Stdin.
+var stdinSource = func() *os.File { return os.Stdin }
+
+// putBody is where a record's prose comes from, and the whole of B75 is the
+// second-to-last case below.
+//
+// ⛔ PROSE OFFERED ON A ROUTE RIG DOES NOT READ IS REFUSED, NOT DISCARDED, AND
+// THE CHOICE WAS BETWEEN THOSE TWO. `echo prose | rig record put --kind
+// working-note --project a0-survey` answered `created ... at version 1`, exited
+// 0, and stored an empty body. A create that destroys what it was handed and
+// reports success is the worse half of B75: the id is real, so nothing the
+// caller can see says to look.
+//
+// CONSUMING IT SILENTLY WAS THE OTHER ANSWER AND IT WAS REJECTED FOR THREE
+// REASONS, one of which is decisive:
+//
+//  1. It makes rig guess. Two hundred lines above, recordPut already refuses
+//     an omitted --if-version, an empty --project and a --value with no
+//     --field, each with the same sentence: rig will not guess which you
+//     meant. A fourth behaviour that guesses contradicts the other three.
+//  2. ⛔ IT WOULD BLOCK. A put whose standard input is an inherited pipe that
+//     nobody ever writes to would wait for EOF forever, and a hung CLI reads
+//     as a hung DAEMON. The refusal below reads the file MODE and never reads
+//     a byte, so it cannot hang. This is the reason that decides it.
+//  3. It needs a precedence rule for --body plus a pipe that nobody has asked
+//     for.
+//
+// A refusal naming the flag is one keystroke from fixed. A silent success is
+// not discoverable at all.
+func putBody(rf *recordFlags) (string, error) {
+	bodyNamed, fileNamed := rf.wasSet("body"), rf.wasSet("body-file")
+	switch {
+	case bodyNamed && fileNamed:
+		// TWO BODIES AND NO RULE FOR PICKING ONE, which is the duplicate
+		// --field refusal one noun over: last-one-wins is silent, and the
+		// caller never learns which of the two they are reading back.
+		return "", badArgumentf(
+			"--body and --body-file both say what the record's prose is, and " +
+				"rig will not pick one for you.\n" +
+				"       --body <text>      the prose is here on the command line\n" +
+				"       --body-file <path> the prose is in a file, or on " +
+				"standard input as -")
+
+	case fileNamed && *rf.bodyFile == "":
+		// The same accident every other flag on this surface guards: a shell
+		// variable that expanded to nothing. An empty path is not the current
+		// directory and it is not standard input.
+		return "", badArgumentf(
+			"--body-file was given an empty path, which is what a shell " +
+				"variable that expanded to nothing looks like.\n" +
+				"       --body-file <path> read the prose from a file\n" +
+				"       --body-file -      read it from standard input")
+
+	case fileNamed && *rf.bodyFile == bodyFileStdin:
+		return readBody(stdinSource(), "standard input")
+
+	case fileNamed:
+		// THE PATH IS THE CALLER'S OWN AND IS OPENED AS THEY TYPED IT. Nothing
+		// is joined onto a base here, so there is no traversal to validate:
+		// this process has exactly the caller's own privileges and they could
+		// have read the file with `cat`. What IS checked is the SIZE, in
+		// readBody, because an unbounded read of a caller-named path is an
+		// allocation nobody limits.
+		f, err := os.Open(*rf.bodyFile)
+		if err != nil {
+			// The error already names the path - "open /x/y: no such file or
+			// directory" - so naming it again would print it twice.
+			return "", badArgumentf("--body-file could not be read: %v", err)
+		}
+		defer func() { _ = f.Close() }()
+		return readBody(f, *rf.bodyFile)
+
+	case !bodyNamed && stdinIsOffering():
+		// ⛔ THIS IS B75. Nothing is read; the mode alone says that something
+		// is there, and something being there with no flag to route it is the
+		// one case where creating the record is the wrong answer.
+		return "", badArgumentf(
+			"rig record put was given no body, and standard input is not a "+
+				"terminal - something is piped in and nothing here would "+
+				"read it.\n"+
+				"       rig will not create a record that silently drops "+
+				"prose it was handed.\n"+
+				"       %-18s use what is on standard input as the body\n"+
+				"       %-18s give the prose on the command line\n"+
+				"       %-18s create the record with an empty body, on purpose",
+			"--body-file -", "--body <text>", "--body ''")
+	}
+	return *rf.body, nil
+}
+
+// stdinIsOffering reports whether standard input is a stream that could be
+// carrying bytes nobody has asked rig to read.
+//
+// ⛔ THE TEST IS THE FILE MODE AND NOT `TIOCGWINSZ`. briefStyleFor asks the
+// ioctl because it needs a WIDTH, and that call fails on /dev/null exactly as
+// it fails on a pipe - correct for layout and wrong here, because
+// `rig record put < /dev/null` offers nothing and must not be refused. A
+// character device covers both a terminal and /dev/null; a pipe and a
+// redirected regular file are the two shapes that carry bytes.
+//
+// A CLOSED DESCRIPTOR IS NOT AN OFFER EITHER. Stat fails on one, and the
+// answer is false rather than a panic.
+func stdinIsOffering() bool {
+	st, err := stdinSource().Stat()
+	if err != nil {
+		return false
+	}
+	return st.Mode()&os.ModeCharDevice == 0
+}
+
+// readBody reads a body from a file or from standard input, bounded.
+//
+// ⛔ THE TRAILING NEWLINE IS DROPPED, AND THAT IS ABOUT TWO ROUTES STORING ONE
+// VALUE. `echo prose |` ends in a newline because that is what a line is, and
+// a file ends in one because that is what a text file is; `--body prose`
+// cannot express a trailing newline at all. Left in, the same intent would
+// store two bodies differing by an invisible byte, and the store is where that
+// difference gets compared later by something that cannot see it either.
+// Leading and interior whitespace is the caller's and is untouched.
+func readBody(r io.Reader, name string) (string, error) {
+	// ONE BYTE OVER THE CEILING IS READ ON PURPOSE: it is how a body AT the
+	// limit is told from one OVER it without reading the rest of the file.
+	raw, err := io.ReadAll(io.LimitReader(r, maxBodyBytes+1))
+	if err != nil {
+		return "", badArgumentf("the body could not be read from %s: %v", name, err)
+	}
+	if len(raw) > maxBodyBytes {
+		return "", badArgumentf(
+			"the body from %s is larger than %d bytes, which is more than "+
+				"one record.put can carry: the whole request travels in a "+
+				"single %d-byte frame and the id, the kind, the project and "+
+				"every typed field share it.\n"+
+				"       a record that large is a file, and a record that "+
+				"points at the file is the shape rig has for it",
+			name, maxBodyBytes, rigwire.MaxFrameSize)
+	}
+	return strings.TrimRight(string(raw), "\r\n"), nil
+}
+
 // ---- put -------------------------------------------------------------------
 
 // recordPut writes a record.
@@ -742,8 +923,8 @@ func withRecordAPI(timeout time.Duration, call func(context.Context, RecordAPI) 
 func recordPut(rf *recordFlags, rest []string) error {
 	if len(rest) != 0 {
 		return badArgumentf("usage: rig record put --kind <kind> --project " +
-			"<project> [--id <id>] [--body <text>] [--field k=v] " +
-			"[--if-version <n>]")
+			"<project> [--id <id>] [--body <text> | --body-file <path>] " +
+			"[--field k=v] [--if-version <n>]")
 	}
 	if *rf.kind == "" || *rf.project == "" {
 		return badArgumentf("rig record put needs --kind and --project: a " +
@@ -776,13 +957,22 @@ func recordPut(rf *recordFlags, rest []string) error {
 			*rf.ifVersion)
 	}
 
+	// THE BODY IS RESOLVED BEFORE ANYTHING IS DIALLED, which is this file's
+	// stated ordering and not a preference: a caller with a malformed command
+	// must be told what is wrong with it rather than what is wrong with the
+	// daemon. It also means a body that cannot be read never mints an id.
+	body, err := putBody(rf)
+	if err != nil {
+		return err
+	}
+
 	return withRecordAPI(*rf.timeout, func(ctx context.Context, api RecordAPI) error {
 		rec, err := api.Put(ctx, PutArgs{
 			ID:        *rf.id,
 			IfVersion: *rf.ifVersion,
 			Kind:      *rf.kind,
 			Project:   *rf.project,
-			Body:      *rf.body,
+			Body:      body,
 			Fields:    rf.fields.values(),
 		})
 		if err != nil {
@@ -954,7 +1144,7 @@ func recordQuery(rf *recordFlags, rest []string) error {
 		if *rf.asJSON {
 			return json.NewEncoder(os.Stdout).Encode(recordsJSON(recs, time.Now()))
 		}
-		fmt.Print(queryText(a, recs))
+		fmt.Print(queryText(a, recs, briefStyleFor(os.Stdout).Width))
 		return nil
 	})
 }
@@ -1360,7 +1550,7 @@ func queryScope(a QueryArgs, n int) string {
 }
 
 // queryText is a listing of the records a filter matched.
-func queryText(a QueryArgs, rs []Record) string {
+func queryText(a QueryArgs, rs []Record, width int) string {
 	var b strings.Builder
 	scope := queryScope(a, len(rs))
 	project, kind := a.Project, a.Kind
@@ -1408,9 +1598,128 @@ func queryText(a QueryArgs, rs []Record) string {
 		)
 		rows = append(rows, row)
 	}
-	writeTable(&b, header, rows)
+	queryTable(&b, header, rows, width)
 	fmt.Fprintf(&b, "\n%d %s.\n", len(rs), scope)
 	return b.String()
+}
+
+// mintedIDWidth is the width of an id the store mints for itself: section 39's
+// scheme is UUIDv7, which is 36 columns with its hyphens.
+const mintedIDWidth = 36
+
+// queryTable lays the listing out in aligned columns AND FITS IT TO THE
+// TERMINAL, with the id column exempt from the fitting.
+//
+// ⛔ MEASURED, NOT SUSPECTED. `rig record query` with no filter answered 568
+// lines on 2026-09-17 whose longest was 413 columns, against a store whose
+// widest id is 161 characters and whose commonest id - a backlog item, 70 of
+// them - is three. writeTable sizes every column to its widest cell, so all
+// 568 rows were padded out to 161 before their project was printed, and a
+// terminal showed a quarter of the result.
+//
+// IT REUSES THE BRIEF'S RULE RATHER THAN INVENTING A SECOND ONE. briefFit,
+// briefElide and briefMinCell are brief.go's, and briefTable's own comment
+// named the condition for this: "teaching writeTable about width would change
+// four surfaces at once and only one of them has been measured. The two
+// converge the day somebody measures the others." This is that measurement.
+//
+// ⛔ AND IT DIFFERS IN EXACTLY ONE CLAUSE: AN ID IS NEVER ELIDED. briefFit
+// shrinks the WIDEST column first, which is right for the brief - where the
+// id is `B75` and the 223-column title is what has to give - and wrong here,
+// where the id IS the widest column. An elided id cannot be handed back to
+// `rig record get`, which is the only reason the column is printed at all; an
+// elided title can still be read. So the id column is sized to the widest id
+// that FITS, and an id longer than that takes a line of its own with its row
+// continuing beneath it in the same columns.
+//
+// A WIDTH OF ZERO IS A PIPE AND NOTHING IS CUT, which is briefStyle.Width's
+// own rule: "discarding bytes it was going to read in full is destruction
+// rather than legibility". A redirected query is exactly that reader, so it
+// gets writeTable's layout unchanged.
+func queryTable(b *strings.Builder, header []string, rows [][]string, width int) {
+	if width <= 0 || len(header) == 0 {
+		writeTable(b, header, rows)
+		return
+	}
+
+	// Every column but the id takes its natural width first.
+	cols := make([]int, len(header))
+	for i, h := range header {
+		cols[i] = utf8.RuneCountInString(h)
+	}
+	for _, r := range rows {
+		for i := 1; i < len(r) && i < len(cols); i++ {
+			if n := utf8.RuneCountInString(r[i]); n > cols[i] {
+				cols[i] = n
+			}
+		}
+	}
+
+	// idCap is the most the id column may be PADDED to, and the id column is
+	// then sized to the widest id that fits under it. That is the whole
+	// repair: a three-character id is three characters wide, and a
+	// hundred-character one changes nothing for the rows that do not share it.
+	//
+	// ⛔ THE CAP IS mintedIDWidth AND IT IS DERIVED RATHER THAN CHOSEN.
+	// Section 39's id scheme is UUIDv7, so every id the store mints for itself
+	// fits in 36 columns, and every id WIDER than that is a slug a caller
+	// typed - a project, a case, or a document key. A slug's length is that
+	// caller's business, and letting it set the column width spends every
+	// other row's terminal on one row's naming decision. That sentence is the
+	// 413-column measurement.
+	//
+	// A terminal too narrow to afford even that gets less, down to the same
+	// floor every other column has.
+	rest := cols[1:]
+	idCap := min(mintedIDWidth, width-(briefMinCell+2)*len(rest))
+	if idCap < briefMinCell {
+		idCap = briefMinCell
+	}
+	for _, r := range rows {
+		if n := utf8.RuneCountInString(r[0]); n > cols[0] && n <= idCap {
+			cols[0] = n
+		}
+	}
+	briefFit(rest, width-cols[0]-2)
+
+	// tail is every column after the id, laid out at the fitted widths. The
+	// last is never padded, for writeTable's reason: a summary otherwise drags
+	// a run of trailing spaces across the terminal.
+	tail := func(cells []string) string {
+		var out strings.Builder
+		for i := 1; i < len(cells); i++ {
+			cell := briefElide(cells[i], cols[i])
+			if i == len(cells)-1 {
+				out.WriteString(cell)
+				break
+			}
+			out.WriteString(cell)
+			if pad := cols[i] - utf8.RuneCountInString(cell); pad > 0 {
+				out.WriteString(strings.Repeat(" ", pad))
+			}
+			out.WriteString("  ")
+		}
+		return out.String()
+	}
+	indent := strings.Repeat(" ", cols[0]+2)
+	line := func(cells []string) {
+		id := cells[0]
+		if n := utf8.RuneCountInString(id); n > cols[0] {
+			// THE ID GETS THE LINE AND THE ROW CONTINUES BENEATH IT, in the
+			// same columns as every row that fitted - which is what keeps the
+			// table scannable instead of leaving one ragged row per long id.
+			b.WriteString(id + "\n" + indent + tail(cells) + "\n")
+			return
+		} else if pad := cols[0] - n; pad > 0 {
+			id += strings.Repeat(" ", pad)
+		}
+		b.WriteString(id + "  " + tail(cells) + "\n")
+	}
+
+	line(header)
+	for _, r := range rows {
+		line(r)
+	}
 }
 
 // recordSummary is the one line a listing shows for a record.

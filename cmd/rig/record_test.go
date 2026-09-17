@@ -587,7 +587,7 @@ func TestTheJSONRowCarriesBothTheStampAndTheAge(t *testing.T) {
 // what was asked - the project and the kind - because a kind spelled
 // differently is a different kind and that is the likeliest cause.
 func TestAnEmptyQueryIsASentenceNamingWhatWasAsked(t *testing.T) {
-	got := queryText(QueryArgs{Project: "rig", Kind: "requirement"}, nil)
+	got := queryText(QueryArgs{Project: "rig", Kind: "requirement"}, nil, 0)
 
 	if strings.Contains(got, "ID") && strings.Contains(got, "VERSION") {
 		t.Errorf("an empty query printed a table header, which reads as a "+
@@ -2353,7 +2353,7 @@ func TestAQueryFilterGivenBothWaysIsRefused(t *testing.T) {
 // ONE. The old wording formatted straight through both filters, so no kind
 // and no project printed "no  records in .", which reads as a broken command.
 func TestAnEmptyUnfilteredQueryIsStillASentence(t *testing.T) {
-	got := queryText(QueryArgs{}, nil)
+	got := queryText(QueryArgs{}, nil, 0)
 	if strings.Contains(got, "in .") || strings.Contains(got, "no  ") {
 		t.Errorf("an unfiltered empty query formatted its missing filters "+
 			"into the sentence:\n%s", got)
@@ -2369,14 +2369,14 @@ func TestAnEmptyUnfilteredQueryIsStillASentence(t *testing.T) {
 // until both filters became optional there was no command that could tell
 // them either.
 func TestAFilteredEmptyQueryNamesTheUnfilteredOne(t *testing.T) {
-	got := queryText(QueryArgs{Project: "rig", Kind: "requirement"}, nil)
+	got := queryText(QueryArgs{Project: "rig", Kind: "requirement"}, nil, 0)
 	if !strings.Contains(got, "rig record query") {
 		t.Errorf("an empty filtered answer does not name the unfiltered "+
 			"query, which is the only way to find a kind spelled "+
 			"differently:\n%s", got)
 	}
 
-	unfiltered := queryText(QueryArgs{}, nil)
+	unfiltered := queryText(QueryArgs{}, nil, 0)
 	if strings.Contains(unfiltered, "rig record query` with no filter") {
 		t.Errorf("the unfiltered answer advised itself:\n%s", unfiltered)
 	}
@@ -2391,7 +2391,7 @@ func TestTheProjectColumnAppearsOnlyWhenTheProjectWasNotFiltered(t *testing.T) {
 		record(func(r *Record) { r.ID = "b"; r.Project = "standards" }),
 	}
 
-	unscoped := queryText(QueryArgs{}, rs)
+	unscoped := queryText(QueryArgs{}, rs, 0)
 	if !strings.Contains(unscoped, "PROJECT") {
 		t.Errorf("an unscoped listing has no PROJECT column, so two records "+
 			"from two projects render identically:\n%s", unscoped)
@@ -2400,7 +2400,7 @@ func TestTheProjectColumnAppearsOnlyWhenTheProjectWasNotFiltered(t *testing.T) {
 		t.Errorf("an unscoped listing does not print the projects:\n%s", unscoped)
 	}
 
-	scoped := queryText(QueryArgs{Project: "rig"}, rs[:1])
+	scoped := queryText(QueryArgs{Project: "rig"}, rs[:1], 0)
 	if strings.Contains(scoped, "PROJECT") {
 		t.Errorf("a listing scoped to one project printed a PROJECT column of "+
 			"one repeated word:\n%s", scoped)
@@ -2410,11 +2410,11 @@ func TestTheProjectColumnAppearsOnlyWhenTheProjectWasNotFiltered(t *testing.T) {
 // THE NOUN AGREES WITH THE COUNT. `1 records in rig` is the same defect as
 // `1 edge point at B9`, caught here rather than shipped.
 func TestTheListingFooterAgreesWithItsCount(t *testing.T) {
-	one := queryText(QueryArgs{Project: "rig"}, []Record{record()})
+	one := queryText(QueryArgs{Project: "rig"}, []Record{record()}, 0)
 	if !strings.Contains(one, "1 record in rig") {
 		t.Errorf("a listing of one says:\n%s", one)
 	}
-	two := queryText(QueryArgs{Project: "rig"}, []Record{record(), record()})
+	two := queryText(QueryArgs{Project: "rig"}, []Record{record(), record()}, 0)
 	if !strings.Contains(two, "2 records in rig") {
 		t.Errorf("a listing of two says:\n%s", two)
 	}
