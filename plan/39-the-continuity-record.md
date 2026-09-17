@@ -284,17 +284,27 @@ that number was read as the cost of the whole thing. **The MVP is slices 1, 2
 and 4** - and a number for that subset is owed rather than assumed, because
 the sizing was never cut that way.
 
-#### ⛔ THE WARM-HANDOFF MARK IS 45% OF THE CONTEXT WINDOW. RULED BY BORIS 2026-09-17.
+#### ⛔ THE WARM-HANDOFF MARK IS 40% OF THE CONTEXT WINDOW. RULED BY BORIS 2026-09-17, SECOND STATEMENT.
 
-**His words, typed 2026-09-17 as the closing line of the message that gave the
-dashboard / program / tabs / settings architecture:**
+**His words, later the same day, to the eleventh lead generation:**
 
-> *"Don't warm-handoff before you are at 45% context"*
+> *"Keep working towards our goal of a perfect MVP until you get to 40% context"*
 
-**45 SUPERSEDES 40, AND 40 SUPERSEDED 35.** He has now given five numbers in
-two days and **the latest always wins**. At 45% of the context window: spawn a
-successor and brief it live. Do not ask permission first - asking stalls the
-work.
+⛔ **40 SUPERSEDES THE 45 RECORDED EARLIER THE SAME DAY**, which superseded 40,
+which superseded 35. **He has now given SIX numbers in two days and the latest
+always wins.** At 40% of the context window: spawn a successor and brief it
+live. Do not ask permission first - asking stalls the work.
+
+⛔ **DO NOT "RECONCILE" THE TWO. There is nothing to reconcile and the number is
+not converging on anything** - it has been 35, 40, 45, 40, 45, 40. **Treat this
+row as a value he sets, read it fresh, and never argue from the trend.** The
+only durable rule here is *the latest wins*, which is why the mark lives in this
+section rather than in a seat's memory.
+
+**The earlier statement, kept because the supersession is the point:** *"Don't
+warm-handoff before you are at 45% context"*, typed 2026-09-17 as the closing
+line of the message that gave the dashboard / program / tabs / settings
+architecture.
 
 ⛔ **THE `PostToolUse` GUARD FIRES AT 35% AND IS STALE AGAINST THIS.** Global
 `CLAUDE.md` says 35% too. When it fires below his mark: get to a clean
