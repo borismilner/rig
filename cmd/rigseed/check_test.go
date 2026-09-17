@@ -118,9 +118,11 @@ func TestAnIdStatedInAHeadingBecomesARecord(t *testing.T) {
 	o := options{project: "rig", backlog: "BACKLOG.md"}
 	p := planFor(o, record.BacklogParse{
 		Items: []record.BacklogItem{{ID: "B46a", Title: "a child row", PartOf: "B46"}},
-		Unimported: []record.Unimported{
-			{Kind: record.UnimportedHeading, ID: "B46", Label: "THE MVP ACCEPTANCE TEST", Line: 137},
-		},
+		Unimported: []record.Unimported{{
+			Kind: record.UnimportedHeading, ID: "B46",
+			Label: "⛔ B46 - THE MVP ACCEPTANCE TEST",
+			Title: "THE MVP ACCEPTANCE TEST", Line: 137,
+		}},
 	})
 
 	if !has(ids(p.want), "B46") {
@@ -130,14 +132,26 @@ func TestAnIdStatedInAHeadingBecomesARecord(t *testing.T) {
 	if in.grain != grainHeading {
 		t.Errorf("B46 was planned at grain %q, want %q", in.grain, grainHeading)
 	}
+	// ⛔ THE DERIVED TITLE, NOT THE VERBATIM LABEL. Seeded from `Label` this
+	// read `⛔ B46 - THE MVP ACCEPTANCE TEST` - decoration and its own id -
+	// where every row title goes through `titleOf`.
 	if in.fields["title"] != "THE MVP ACCEPTANCE TEST" {
-		t.Errorf("B46 title = %q, want the heading's own text", in.fields["title"])
+		t.Errorf("B46 title = %q, want the parser's derived title", in.fields["title"])
 	}
-	// ⛔ NO STATE, BECAUSE A HEADING HAS NO STATE CELL. `active` here would be
-	// the seeder inventing the one fact the row grain reads from the document.
-	if got, set := in.fields[fieldStatus]; set {
-		t.Errorf("B46 was given status=%q; a heading has no state cell and the "+
-			"document said nothing, so no status may be written", got)
+	// ⛔ THIS ASSERTION IS THE REVERSE OF WHAT IT WAS, AND THE REVERSAL IS
+	// THE FINDING. It required NO status, on the reasoning that a heading has
+	// no state cell so the document says nothing. **The document does say it,
+	// at a grain that is not a cell:** its own closure convention is the
+	// strikethrough - B7's state cell reads "done, struck not deleted" - and
+	// `BacklogItem.Done` reads that same mark on a row. Overturned by the lead
+	// 2026-09-17, in the session that wrote it.
+	//
+	// ⛔ THE OLD ANSWER COST THE ROW ITS POINT: a record with no `status` is
+	// absent from the brief's open list, so B46 was imported into invisibility
+	// and B66's complaint stood while its row read as closed.
+	if got := in.fields[fieldStatus]; got != record.StatusActive {
+		t.Errorf("B46 status = %q, want %q - the heading is not struck, and "+
+			"unstruck is what this document means by open", got, record.StatusActive)
 	}
 	if in.fields["tags"] != tagHeadingBorne {
 		t.Errorf("B46 tags = %q, want %q - without it, a status that is absent "+
@@ -417,5 +431,32 @@ func TestAPartOfTowardsAnUndefinedIdIsReportedAndNeverAttempted(t *testing.T) {
 	d.report(&b, o, p, "production")
 	if !strings.Contains(b.String(), "B99a -part-of-> B99") {
 		t.Errorf("the report never names the orphaned edge:\n%s", b.String())
+	}
+}
+
+// AND A STRUCK HEADING IS CLOSED, BY THE SAME CONVENTION READ THE OTHER WAY.
+//
+// ⛔ NOTHING IN rig's OWN BACKLOG EXERCISES THIS. No heading there is
+// struck, so the live document only ever produces `active` and this fixture is
+// the whole of the evidence for the other branch. A predicate seen from one
+// side is half-tested, and saying so is cheaper than discovering it.
+func TestAStruckHeadingIsSeededClosed(t *testing.T) {
+	o := options{project: "rig", backlog: "BACKLOG.md"}
+	p := planFor(o, record.BacklogParse{
+		Unimported: []record.Unimported{{
+			Kind: record.UnimportedHeading, ID: "B46",
+			Label: "⛔ ~~B46 - THE MVP ACCEPTANCE TEST~~",
+			Title: "THE MVP ACCEPTANCE TEST", Struck: true, Line: 137,
+		}},
+	})
+
+	in := intentFor(t, p, "B46")
+	if got := in.fields[fieldStatus]; got != record.StatusClosed {
+		t.Errorf("a struck heading was seeded status=%q, want %q", got, record.StatusClosed)
+	}
+	// The control: the title must survive the strike rather than being eaten
+	// with it, which is what a naive trim of the decoration set does.
+	if in.fields["title"] != "THE MVP ACCEPTANCE TEST" {
+		t.Errorf("the strike took the title with it: %q", in.fields["title"])
 	}
 }

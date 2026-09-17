@@ -465,6 +465,37 @@ type Unimported struct {
 	// place in the document rather than to the document.
 	Line int
 
+	// Title is a heading-borne id's title with the document's decoration and
+	// its own id removed - what a row of the same work would have carried.
+	//
+	// ⛔ IT IS A SECOND FIELD RATHER THAN A CLEANED-UP Label, AND THE REASON
+	// IS THAT Label's CONTRACT IS TO BE VERBATIM. A report that says "the
+	// document wrote this here" has to quote what the document wrote. The
+	// defect was real and reached a live store: B46 was seeded with the title
+	// `⛔ B46 - THE MVP ACCEPTANCE TEST, AND IT EXISTED IN NO DOCUMENT AT
+	// ALL`, decoration and id included, where every row grain title goes
+	// through titleOf. Two grains rendering one document two ways is the
+	// thing this file exists to stop.
+	//
+	// Empty for everything that is not a heading: there is no title to derive
+	// from a rank, an irregular token or a row of another table.
+	Title string
+
+	// Struck is a heading whose text the document has struck through.
+	//
+	// ⛔ IT IS THE DOCUMENT'S OWN CLOSURE CONVENTION READ AT A SECOND GRAIN,
+	// NOT A NEW ONE. B7's state cell says it in as many words - "done, struck
+	// not deleted" - and BacklogItem.Done reads exactly this mark on a row.
+	// Applying a stated convention to a heading is reading the document; it is
+	// the alternative, inferring a parent's state from its children's, that
+	// would be a seat judging.
+	//
+	// ⛔ AND NO HEADING IN rig's OWN BACKLOG IS STRUCK TODAY, so the true
+	// branch is covered by a synthetic test and by nothing in the live
+	// document. Said out loud because a pin that only ever sees one side of a
+	// predicate is half a pin.
+	Struck bool
+
 	// Under is the enclosing id-bearing heading, where there is one.
 	//
 	// ⛔ IT IS DELIBERATELY NOT CALLED `PartOf`, AND THE NAME IS THE FINDING.
@@ -629,7 +660,11 @@ func (s *backlogScan) heading(line string) {
 		// thing being reported.
 		u := Unimported{Kind: UnimportedIrregularID, Label: tok, Line: s.line, Under: parent}
 		if backlogIDLegal.MatchString(tok) {
-			u = Unimported{Kind: UnimportedHeading, ID: tok, Label: text, Line: s.line, Under: parent}
+			u = Unimported{
+				Kind: UnimportedHeading, ID: tok, Label: text,
+				Title: headingTitle(text, tok), Struck: struckThrough(text),
+				Line: s.line, Under: parent,
+			}
 			carry = tok
 		}
 		s.accounted[tok] = true
@@ -872,4 +907,42 @@ func (s *backlogScan) reconcile(text string) error {
 			"found in a first cell: it never saw %v", len(s.items), len(missing), missing)
 	}
 	return nil
+}
+
+// decorationNoStrike is `decoration` WITHOUT the tilde.
+//
+// ⛔ IT EXISTS BECAUSE `decoration` EATS THE MARK IT IS BEING USED TO FIND.
+// `decoration` lists `~` so that a struck title trims to its words; trimming
+// with it before testing for `~~` therefore always answers false, silently and
+// for every input. Caught by the test the first time it ran, which is the only
+// reason it is not in the store.
+const decorationNoStrike = "⛔✅* \t"
+
+// struckThrough is whether a heading's text is struck through, which is this
+// document's own mark for a closed thing.
+func struckThrough(text string) bool {
+	return strings.HasPrefix(strings.Trim(text, decorationNoStrike), "~~")
+}
+
+// headingTitle is a heading's title: its text with the document's decoration,
+// its strikethrough, its own id and the separator after the id removed.
+//
+// ⛔ THE ID IS REMOVED BECAUSE IT IS ALREADY THE RECORD'S ID. A row's id
+// cell and its item cell are different cells, so a row title never repeats the
+// id; a heading states both in one line, and carrying it through leaves every
+// heading-borne record titled with its own name twice.
+func headingTitle(text, id string) string {
+	t := strings.Trim(text, decoration)
+	t = strings.TrimSpace(strings.TrimPrefix(t, "~~"))
+	t = strings.TrimSpace(strings.TrimPrefix(t, id))
+	// The separators this document uses between a heading's id and its title.
+	// A heading that uses none simply keeps its text.
+	for _, sep := range []string{"-", "–", "—", ":", "."} {
+		if rest := strings.TrimPrefix(t, sep); rest != t {
+			t = strings.TrimSpace(rest)
+			break
+		}
+	}
+	t = strings.TrimSuffix(strings.TrimSpace(t), "~~")
+	return strings.Trim(strings.TrimSpace(t), decoration)
 }

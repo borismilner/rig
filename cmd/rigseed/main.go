@@ -487,10 +487,36 @@ func (o options) write(args []string) error {
 	return nil
 }
 
+// capture runs one `rig` call and returns ITS STDOUT, with stderr folded into
+// the error and nowhere else.
+//
+// ⛔ IT WAS `CombinedOutput` AND THAT PUT rig's DIAGNOSTICS INSIDE ITS DATA.
+// Measured 2026-09-17: `rigseed --check` died with
+// `rig estate --json did not parse: invalid character 'r'`, because `rig` had
+// correctly written a build-skew warning to STDERR and this merged the two
+// streams before the JSON decoder saw them. **Nothing was wrong with `rig`** -
+// it separates them exactly as it should, and `rig estate --json 2>/dev/null`
+// is clean.
+//
+// ⛔ THE TRIGGER IS THE NORMAL CASE, NOT AN EDGE ONE. A build-skew warning
+// is what an unstamped or mismatched client prints, which is precisely the
+// state a machine is in while rig is being developed - so the parse broke on
+// the day somebody seeded from a working tree, and would have kept working in
+// every test, where the binary under test prints nothing.
+//
+// On failure the two are joined deliberately: an operator reading a failed
+// call wants whatever rig said, on either stream.
 func capture(o options, args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), callTimeout)
 	defer cancel()
-	return exec.CommandContext(ctx, o.rigBin, args...).CombinedOutput()
+	cmd := exec.CommandContext(ctx, o.rigBin, args...)
+	var errOut strings.Builder
+	cmd.Stderr = &errOut
+	out, err := cmd.Output()
+	if err != nil && errOut.Len() > 0 {
+		return append(out, errOut.String()...), err
+	}
+	return out, err
 }
 
 // result is what the operator is told, and the three lists exist because a
@@ -744,26 +770,52 @@ func rowIntent(o options, it record.BacklogItem) intent {
 
 // headingIntent is the record an id stated in a HEADING becomes.
 //
-// ⛔ IT WRITES NO `status`, AND THAT IS THE ANSWER RATHER THAN AN OMISSION. A
-// heading has no state cell. The document says nothing about whether B46 is
-// open, and `active` would be this seeder inventing the one fact the row grain
-// gets from the document rather than from its reader. `tags=heading-borne` is
-// what makes the absence readable: a field that is not there cannot otherwise
-// be told from a field something lost.
+// ⛔ IT WRITES `status`, AND THE PREVIOUS ANSWER - THAT A HEADING HAS NO
+// STATE CELL SO THE DOCUMENT SAYS NOTHING - WAS OVERTURNED THE SAME DAY IT WAS
+// WRITTEN, BY THE LEAD, ON EVIDENCE. **The document does say it, at a grain
+// that is not a cell.** Its own closure convention is the strikethrough - B7's
+// state cell reads "done, struck not deleted" - and `BacklogItem.Done` reads
+// exactly that mark on a row. Applying a convention the document states to a
+// second grain is READING the document. The thing correctly refused was
+// different: inferring a parent's state from its children's, which is a seat
+// judging and is still refused.
 //
-// ⛔ AND IT IS A DECISION SOMEBODY MAY OVERTURN, SO IT SAYS SO. It keeps B46
-// out of the brief's open list, which selects on `status == "active"`
-// (internal/record/brief.go). The alternative is to infer a state from the row
-// grain's children, and reading a parent's state out of its children is a human
-// judging - the one thing the projection criterion forbids.
+// ⛔ THE COST OF THE OLD ANSWER WAS THE ROW'S WHOLE POINT. B66 exists
+// because B46 - Boris's own MVP acceptance test - is in no record; a record
+// with no `status` is absent from the brief's open list (`brief.go` selects
+// `status == "active"`), so it was imported into invisibility and the row
+// would have read as closed while its complaint stood.
+//
+// ⛔ AND THE CLOSED BRANCH IS PINNED SYNTHETICALLY AND BY NOTHING LIVE: no
+// heading in rig's own backlog is struck today, so the live document exercises
+// `active` and never `closed`. Said out loud, because a predicate only ever
+// seen from one side is half-tested.
 func headingIntent(o options, u record.Unimported, parent string) intent {
+	// ⛔ THE TITLE IS THE PARSER'S DERIVED ONE, NOT ITS VERBATIM LABEL. It
+	// was `u.Label` and it seeded B46 as `⛔ B46 - THE MVP ACCEPTANCE TEST,
+	// AND IT EXISTED IN NO DOCUMENT AT ALL`, decoration and its own id
+	// included, where every row title goes through `titleOf`. Two grains
+	// rendering one document two ways. `Label` stays verbatim because a report
+	// quoting the document has to quote it; `Title` is the derived one.
+	title := u.Title
+	if title == "" {
+		// A heading that is only an id has no title to give, and its own id
+		// is the honest stand-in - the same id the record is keyed on, which
+		// reads as "the document wrote no title here".
+		title = u.ID
+	}
+	status := record.StatusActive
+	if u.Struck {
+		status = record.StatusClosed
+	}
 	return intent{
 		id:    u.ID,
 		grain: grainHeading,
-		title: u.Label,
+		title: title,
 		fields: map[string]string{
-			"title":             u.Label,
-			"description_short": u.Label,
+			"title":             title,
+			"description_short": title,
+			fieldStatus:         status,
 			"source":            o.backlog,
 			"tags":              tagHeadingBorne,
 		},

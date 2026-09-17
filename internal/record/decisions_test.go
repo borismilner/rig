@@ -8,11 +8,13 @@ import (
 	"github.com/boris-milner/rig/internal/record"
 )
 
-// theDecisionsDocument is rig's own DECISIONS.md. The real-document tests are
-// skipped when it is absent, and RIG_RECORD_REQUIRE_DECISIONS=1 turns the skip
-// into a failure - the same shape B46e forced on the backlog pins, because a
-// pin that silently skips is a pin that stopped being one.
-const theDecisionsDocument = "../../../logbook/projects/rig/DECISIONS.md"
+// theDecisionsDocument is rig's own DECISIONS.md, reached through the
+// repo-root symlink for backlogPath's reason: the symlink is gitignored, so
+// the test skips wherever the logbook is not checked out beside rig - a fresh
+// clone, a detached gate worktree, CI. RIG_RECORD_REQUIRE_DECISIONS=1 turns
+// that skip into a failure, because a pin that silently skips is a pin that
+// stopped being one. B46e.
+const theDecisionsDocument = "../../DECISIONS.md"
 
 func openTheDecisionsDocument(t *testing.T) *os.File {
 	t.Helper()
