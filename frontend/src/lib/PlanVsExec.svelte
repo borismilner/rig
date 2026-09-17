@@ -25,7 +25,10 @@
      poll wearing an event API's name is the trap section 11 names by name. -->
 <script lang="ts">
   import ItemRow from "./ItemRow.svelte";
-  import type { Brief } from "../../bindings/github.com/boris-milner/rig/cmd/rigwindow/models.js";
+  import type {
+    Brief,
+    Item,
+  } from "../../bindings/github.com/boris-milner/rig/cmd/rigwindow/models.js";
   import {
     planVsExec,
     verdict,
@@ -58,6 +61,70 @@
     $props();
 
   let p = $derived(planVsExec(brief));
+
+  /* ⛔ SEARCH AND FILTER. BORIS, 2026-09-17: "I'm missing search/filter
+     functionality... Should probably be able to filter by tags or aspects or
+     by searching."
+
+     ⛔ IT FILTERS WHAT THE WINDOW ALREADY HOLDS, AND THAT IS THE HONEST
+     SCOPE. The brief is read once and kept, so matching over it costs no dial
+     and answers instantly. What this CANNOT do is search the full prose of a
+     record's body: the brief carries a cut, not the body, and nothing in the
+     store does substring or full-text over a record's text at all. That is
+     B28, it is open, and the empty state below says so rather than letting a
+     reader conclude a word is absent from the project when it is only absent
+     from this page. */
+  /* ⛔ THE FIXTURE SEEDS A QUERY THAT MATCHES EVERYTHING, AND THAT IS THE
+     POINT. `clear` and the "n of m shown" count only exist while a filter is
+     active, so under the gate's unfiltered load they would never render and
+     their colours would ship unmeasured. "b" matches every id in the fixture,
+     so the filtering CHROME is on screen while no row is hidden - the gate
+     reads the same page plus two controls, rather than a smaller one. */
+  let query = $state(openRows ? "b" : "");
+  let ownerFilter = $state("");
+  let tagFilter = $state("");
+
+  let filtering = $derived(
+    query.trim() !== "" || ownerFilter !== "" || tagFilter !== "",
+  );
+
+  // Every owner and tag actually present, so the controls offer what exists
+  // rather than a vocabulary a seat invented.
+  let allItems = $derived(
+    brief ? [...brief.nextUp, ...brief.open] : [],
+  );
+  let owners = $derived(
+    [...new Set(allItems.map((i) => i.owner).filter(Boolean))].sort(),
+  );
+  let tags = $derived(
+    [...new Set(allItems.flatMap((i) => i.tags ?? []))].sort(),
+  );
+
+  function matches(it: Item): boolean {
+    if (ownerFilter && it.owner !== ownerFilter) return false;
+    if (tagFilter && !(it.tags ?? []).includes(tagFilter)) return false;
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    // id, title and the short description - everything the row can actually
+    // show. Matching a field the row cannot display would hide the reason a
+    // row survived the filter.
+    return (
+      it.id.toLowerCase().includes(q) ||
+      it.title.toLowerCase().includes(q) ||
+      (it.descriptionShort ?? "").toLowerCase().includes(q) ||
+      (it.owner ?? "").toLowerCase().includes(q) ||
+      (it.tags ?? []).some((t) => t.toLowerCase().includes(q))
+    );
+  }
+
+  let shownNextUp = $derived(brief ? brief.nextUp.filter(matches) : []);
+  let shownOpen = $derived(brief ? brief.open.filter(matches) : []);
+
+  function clearFilters() {
+    query = "";
+    ownerFilter = "";
+    tagFilter = "";
+  }
   let t = $derived(sectionTally(brief));
   let blockedSection = $derived(sectionView(brief, "BLOCKED"));
   let notesSection = $derived(sectionView(brief, "NOTES"));
@@ -200,11 +267,58 @@
       </section>
     </div>
 
+    <!-- ⛔ THE FILTER BAR. It sits ABOVE both lists and never reorders them:
+         a control that rearranges the page under the reader loses their place,
+         and the lists' order is rig's own answer about what to do next. It
+         only ever REMOVES rows. -->
+    <div class="filters">
+      <label class="fsearch">
+        <span class="flabel">search</span>
+        <input
+          type="search"
+          bind:value={query}
+          placeholder="id, title, description, owner or tag"
+        />
+      </label>
+
+      {#if owners.length > 0}
+        <label>
+          <span class="flabel">owner</span>
+          <select bind:value={ownerFilter}>
+            <option value="">any</option>
+            {#each owners as o (o)}<option value={o}>{o}</option>{/each}
+          </select>
+        </label>
+      {/if}
+
+      {#if tags.length > 0}
+        <label>
+          <span class="flabel">tag</span>
+          <select bind:value={tagFilter}>
+            <option value="">any</option>
+            {#each tags as t (t)}<option value={t}>{t}</option>{/each}
+          </select>
+        </label>
+      {/if}
+
+      {#if filtering}
+        <button type="button" class="fclear" onclick={clearFilters}>
+          clear
+        </button>
+        <span class="fcount">
+          {shownNextUp.length + shownOpen.length} of {brief.nextUp.length +
+            brief.open.length} shown
+        </span>
+      {/if}
+    </div>
+
     <div class="lists">
       <section>
         <h3>
           Next up
-          <span class="cnt">{brief.nextUp.length}</span>
+          <span class="cnt">{filtering
+            ? `${shownNextUp.length}/${brief.nextUp.length}`
+            : brief.nextUp.length}</span>
         </h3>
         {#if !p.nextUpComputed}
           {@const v = sectionView(brief, "NEXT_UP")}
@@ -215,8 +329,16 @@
             empty.
           </p>
         {:else}
+          {#if shownNextUp.length === 0}
+            <p class="empty">
+              Nothing here matches. <strong>This filtered the titles, short
+              descriptions, owners and tags this page holds - not the full text
+              of any record.</strong> Nothing in the store searches a record's
+              prose yet (B28), so a word absent here may still be in the project.
+            </p>
+          {/if}
           <ul class="items">
-            {#each brief.nextUp as it, i (it.id)}
+            {#each shownNextUp as it, i (it.id)}
               <ItemRow
                 item={it}
                 startOpen={openRows && i === 0}
@@ -234,7 +356,9 @@
       <section>
         <h3>
           Open
-          <span class="cnt">{brief.open.length}</span>
+          <span class="cnt">{filtering
+            ? `${shownOpen.length}/${brief.open.length}`
+            : brief.open.length}</span>
         </h3>
         {#if !p.openComputed}
           {@const v = sectionView(brief, "OPEN")}
@@ -244,8 +368,11 @@
             Nothing is open. rig computed this, so the list is genuinely empty.
           </p>
         {:else}
+          {#if shownOpen.length === 0}
+            <p class="empty">Nothing here matches the filter.</p>
+          {/if}
           <ul class="items">
-            {#each brief.open as it, i (it.id)}
+            {#each shownOpen as it, i (it.id)}
               <ItemRow
                 item={it}
                 startOpen={openRows && i === 0}
@@ -808,6 +935,70 @@
     margin-inline-start: 0.5rem;
   }
 
+
+  /* ── the filter bar ─────────────────────────────────────── */
+
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 0.6rem 1.1rem;
+    padding: 0.6rem 0 0.9rem;
+  }
+
+  .filters label {
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  .flabel {
+    color: var(--fg-dim);
+    font-size: 0.75rem;
+  }
+
+  .filters input,
+  .filters select {
+    font: inherit;
+    font-size: var(--fs--1);
+    color: var(--fg);
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.25rem 0.45rem;
+  }
+
+  .fsearch input {
+    min-width: 24ch;
+  }
+
+  .filters input:focus-visible,
+  .filters select:focus-visible,
+  .fclear:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 var(--ring-w) var(--hue);
+    border-color: var(--hue);
+  }
+
+  .fclear {
+    font: inherit;
+    font-size: var(--fs--1);
+    color: var(--fg-dim);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.25rem 0.6rem;
+    cursor: pointer;
+  }
+
+  .fclear:hover {
+    color: var(--fg);
+    border-color: var(--hue);
+  }
+
+  .fcount {
+    color: var(--fg-dim);
+    font-size: var(--fs--1);
+  }
 
   .secs {
     padding-top: calc(0.6rem * var(--den));
