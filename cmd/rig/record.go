@@ -75,15 +75,7 @@ type RecordAPI interface {
 
 	// Query returns the head of every record matching the filters. This is
 	// section 39's "indexed".
-	//
-	// ⛔ AN EMPTY project OR kind MEANS *EVERY* ONE, NOT "THE EMPTY ONE". A
-	// record cannot have either empty - the store refuses both by name - so
-	// there is no value the empty string could collide with. Section 39
-	// specifies the verb as "by kind, field and project" and makes none of
-	// them mandatory; two of them were required here, and since `kind` is not
-	// a closed set, that made every census of the store incomplete by
-	// construction.
-	Query(ctx context.Context, project, kind string) ([]Record, error)
+	Query(ctx context.Context, a QueryArgs) ([]Record, error)
 
 	// History returns every version of one record, oldest first, with its
 	// provenance.
@@ -149,6 +141,38 @@ type Record struct {
 
 // PutArgs creates a record or supersedes one. It mirrors
 // internal/record.PutRequest.
+// QueryArgs is section 39's three filters for `record.query`: "by kind, field
+// and project". EVERY ONE IS OPTIONAL.
+//
+// ⛔ IT IS A STRUCT RATHER THAN FOUR STRINGS FOR THE REASON RefsArgs ALREADY
+// RECORDS: adjacent parameters of the same type can be swapped with no
+// compiler complaint, and a swapped project and kind returns zero rows, which
+// reads as "the store holds none of those" rather than as a typo. With a field
+// and a value beside them that is four swappable strings, and two of them are
+// arbitrary user text.
+type QueryArgs struct {
+	// Project and Kind narrow by container and by what the record IS.
+	//
+	// ⛔ EMPTY MEANS *EVERY* ONE, NOT "THE EMPTY ONE". A record cannot have
+	// either empty - the store refuses both by name - so there is no value
+	// the empty string could collide with. Both were once REQUIRED here, and
+	// since `kind` is not a closed set, that made every census of the store
+	// incomplete by construction: a record under an unguessed kind was
+	// invisible to every question anybody could write.
+	Project string
+	Kind    string
+
+	// Field and Value are the third filter, missing until BACKLOG.md B65.
+	//
+	// ⛔ AND THE EMPTY RULE ABOVE DOES NOT EXTEND TO Value. An empty Field
+	// means no predicate; an empty Value means THE EMPTY STRING, because a
+	// record may legitimately carry one and asking for it is a real question.
+	// A Value with no Field is refused by the store rather than dropped,
+	// because dropping it widens the answer silently.
+	Field string
+	Value string
+}
+
 type PutArgs struct {
 	// ID is the record to write. Empty means the store mints one - UUIDv7,
 	// section 39's id scheme - except for a `project` or a `case`, whose id
@@ -450,6 +474,8 @@ type recordFlags struct {
 	project      *string
 	body         *string
 	fields       *fieldFlag
+	field        *string
+	value        *string
 	ifVersion    *uint64
 	version      *uint64
 	depth        *int
@@ -500,6 +526,19 @@ func recordFlagSet(sub string) *recordFlags {
 			"the project to look in; unset means every project")
 		r.kind = r.fs.String("kind", "",
 			"the kind to look for; unset means every kind")
+
+		// ⛔ THE THIRD FILTER, AND IT HAS NO POSITIONAL SPELLING ON PURPOSE.
+		// A field query is a PAIR, and a positional pair would put two pieces
+		// of arbitrary user text next to a project and a kind in one
+		// unlabelled list - four strings whose order is the only thing saying
+		// what they are. Section 39's own metadata table is what these select
+		// on, and until B65 nothing could: every field it describes was
+		// storable and not selectable.
+		r.field = r.fs.String("field", "",
+			"a field the record must carry; unset means no field predicate")
+		r.value = r.fs.String("value", "",
+			"the exact value --field must have; empty means the EMPTY STRING, "+
+				"not every value")
 	case "refs":
 		// ⛔ ZERO MEANS "THE DAEMON'S DEFAULT", AND THE DEFAULT USED TO BE 1
 		// HERE WHILE THE STORE'S WAS 4.
@@ -800,9 +839,12 @@ func verbS(n int) string {
 }
 
 const queryUsage = "usage: rig record query [<project> [<kind>]]\n" +
-	"       rig record query [--project <p>] [--kind <k>]\n" +
-	"       both filters are optional and an omitted one means EVERY value, " +
-	"so\n       `rig record query` on its own is the whole store"
+	"       rig record query [--project <p>] [--kind <k>] " +
+	"[--field <f> --value <v>]\n" +
+	"       every filter is optional and an omitted one means EVERY value, " +
+	"so\n       `rig record query` on its own is the whole store.\n" +
+	"       --field and --value go together: a value with no field is refused, " +
+	"and\n       an empty --value means the EMPTY STRING, not every value"
 
 // recordQuery lists records, filtered by nothing, by one thing or by both.
 //
@@ -868,15 +910,42 @@ func recordQuery(rf *recordFlags, rest []string) error {
 		kind = rest[1]
 	}
 
+	// ⛔ A --value WITH NO --field IS REFUSED HERE AS WELL AS IN THE STORE, AND
+	// THE TWO REFUSALS ARE NOT REDUNDANT. The store's is the invariant and
+	// catches every caller including the daemon's own; this one can say what
+	// was TYPED, which the store cannot see. `--value "$S"` with S unset is a
+	// shell variable that expanded to nothing, and it is byte-identical on the
+	// wire to a deliberate ask for the empty string.
+	field, value := *rf.field, *rf.value
+	if field == "" && rf.wasSet("value") {
+		return badArgumentf(
+			"--value was given with no --field to match it against. rig will "+
+				"not drop the predicate and answer with every record, because "+
+				"that is a WIDER answer than you asked for and nothing would "+
+				"say so.\n"+
+				"       %-26s ask for one field's value\n"+
+				"       %-26s ask for every record",
+			"--field <name> --value <v>", "(drop both flags)")
+	}
+	if rf.wasSet("field") && field == "" {
+		return badArgumentf(
+			"--field was given an empty value, which is what a shell variable " +
+				"that expanded to nothing looks like. An OMITTED --field means " +
+				"no field predicate at all; rig will not guess which happened.\n" +
+				"       (drop the flag)           ask without a field predicate\n" +
+				"       --field <name>            narrow by a field")
+	}
+
+	a := QueryArgs{Project: project, Kind: kind, Field: field, Value: value}
 	return withRecordAPI(*rf.timeout, func(ctx context.Context, api RecordAPI) error {
-		recs, err := api.Query(ctx, project, kind)
+		recs, err := api.Query(ctx, a)
 		if err != nil {
 			return err
 		}
 		if *rf.asJSON {
 			return json.NewEncoder(os.Stdout).Encode(recordsJSON(recs, time.Now()))
 		}
-		fmt.Print(queryText(project, kind, recs))
+		fmt.Print(queryText(a, recs))
 		return nil
 	})
 }
@@ -1254,24 +1323,38 @@ func provWhen(t, now time.Time) string {
 // is the same defect as refsText's "1 edge point at B9", caught here before it
 // shipped rather than after; an empty answer takes n=0, which is plural in
 // English ("no records in rig").
-func queryScope(project, kind string, n int) string {
+func queryScope(a QueryArgs, n int) string {
 	noun := "record" + plural(n)
+	var scope string
 	switch {
-	case project == "" && kind == "":
-		return noun + ", across all projects"
-	case project == "":
-		return kind + " " + noun + ", across all projects"
-	case kind == "":
-		return noun + " in " + project
+	case a.Project == "" && a.Kind == "":
+		scope = noun + ", across all projects"
+	case a.Project == "":
+		scope = a.Kind + " " + noun + ", across all projects"
+	case a.Kind == "":
+		scope = noun + " in " + a.Project
 	default:
-		return kind + " " + noun + " in " + project
+		scope = a.Kind + " " + noun + " in " + a.Project
 	}
+
+	// ⛔ THE FIELD PREDICATE IS NAMED IN THE ANSWER, AND THE EMPTY RESULT IS
+	// WHY. "no work-item records in rig" and "no work-item records in rig with
+	// status=\"closed\"" are different facts, and a reader who narrowed by a
+	// field and got nothing cannot otherwise tell which of the three filters
+	// emptied the answer. The value is QUOTED because an empty one is a real
+	// query: `with status=` reads as a truncated line, `with status=""` reads
+	// as the question that was asked.
+	if a.Field != "" {
+		scope += " with " + a.Field + "=" + strconv.Quote(a.Value)
+	}
+	return scope
 }
 
 // queryText is a listing of the records a filter matched.
-func queryText(project, kind string, rs []Record) string {
+func queryText(a QueryArgs, rs []Record) string {
 	var b strings.Builder
-	scope := queryScope(project, kind, len(rs))
+	scope := queryScope(a, len(rs))
+	project, kind := a.Project, a.Kind
 
 	// AN EMPTY RESULT IS A SENTENCE, NOT A BLANK TABLE, and it names what was
 	// asked. peersText's rule: a bare header over nothing reads as a broken
@@ -1282,7 +1365,7 @@ func queryText(project, kind string, rs []Record) string {
 		b.WriteString("A row appears when something calls record.put with " +
 			"that kind and project;\nboth are matched exactly, so a kind " +
 			"spelled differently is a different kind.\n")
-		if project != "" || kind != "" {
+		if project != "" || kind != "" || a.Field != "" {
 			// ⛔ THE WAY OUT IS PRINTED, because the reader of an empty answer
 			// has no way to tell a store with nothing in it from a filter that
 			// does not match anything - and until both filters became
@@ -1696,11 +1779,13 @@ func (w wireRecord) Get(ctx context.Context, id string, version uint64) (Record,
 	return recordFromWire(resp.GetRecord()), nil
 }
 
-func (w wireRecord) Query(ctx context.Context, project, kind string) ([]Record, error) {
+func (w wireRecord) Query(ctx context.Context, a QueryArgs) ([]Record, error) {
 	resp := &rigv1.RecordQueryResponse{}
 	if err := call(ctx, w.c, "rig.record.query", &rigv1.RecordQueryRequest{
-		Project: project,
-		Kind:    kind,
+		Project: a.Project,
+		Kind:    a.Kind,
+		Field:   a.Field,
+		Value:   a.Value,
 	}, resp); err != nil {
 		return nil, err
 	}

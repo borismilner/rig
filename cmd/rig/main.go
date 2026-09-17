@@ -91,11 +91,21 @@ var valuedFlags = map[string]bool{
 	// TestEveryFlagThatTakesAValueIsDeclaredToThePartitioner was written for,
 	// and TestEveryRecordFlagThatTakesAValueIsDeclaredToThePartitioner walks
 	// the record verbs' own sets against it.
-	"id":         true,
-	"kind":       true,
-	"project":    true,
-	"body":       true,
-	"field":      true,
+	"id":      true,
+	"kind":    true,
+	"project": true,
+	"body":    true,
+	"field":   true,
+
+	// `value` is `record query --value`, the other half of the field
+	// predicate (BACKLOG.md B65). ⛔ IT IS THE ONE ENTRY HERE WHOSE VALUE IS
+	// ROUTINELY A WORD THAT LOOKS LIKE A SUBCOMMAND - `--value closed`,
+	// `--value active` - so a missing entry does not merely lose the value,
+	// it hands a plausible noun to the positionals, where `record query`
+	// reads it as a PROJECT. That fails as "no records in closed" rather than
+	// as a parse error, which is wrong in the reassuring direction.
+	"value": true,
+
 	"if-version": true,
 	"version":    true,
 	"state":      true,

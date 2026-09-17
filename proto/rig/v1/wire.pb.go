@@ -3537,10 +3537,31 @@ func (x *RecordGetResponse) GetRecord() *Record {
 	return nil
 }
 
+// RecordQueryRequest narrows a query. EVERY FILTER IS OPTIONAL and an omitted
+// one means EVERY VALUE - section 39 specifies record.query as "by kind, field
+// and project" and never made any of the three mandatory.
 type RecordQueryRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Project       string                 `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
-	Kind          string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Project string                 `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	Kind    string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	// field and value are section 39's THIRD filter, and it was missing until
+	// BACKLOG.md B65. Without it every field the specification's metadata table
+	// describes was write-only: storable and not selectable, so `owner`,
+	// `status` and `priority` were decoration.
+	//
+	// ⛔ field EMPTY MEANS NO PREDICATE. value EMPTY MEANS THE EMPTY STRING, AND
+	// THAT ASYMMETRY WITH project/kind IS DELIBERATE. A record cannot have an
+	// empty project or kind, so there is no stored value for those wildcards to
+	// collide with; a FIELD may legitimately carry an empty value, and matching
+	// it is a real question. Collapsing the two rules would make
+	// `field: "owner", value: ""` silently mean "every record that has an
+	// owner", which is a different question wearing the same bytes.
+	//
+	// ⛔ A value WITH NO field IS REFUSED rather than ignored, because ignoring
+	// it WIDENS the answer: a caller whose field name expanded to nothing would
+	// get every record back and nothing would say its predicate had vanished.
+	Field         string `protobuf:"bytes,3,opt,name=field,proto3" json:"field,omitempty"`
+	Value         string `protobuf:"bytes,4,opt,name=value,proto3" json:"value,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3585,6 +3606,20 @@ func (x *RecordQueryRequest) GetProject() string {
 func (x *RecordQueryRequest) GetKind() string {
 	if x != nil {
 		return x.Kind
+	}
+	return ""
+}
+
+func (x *RecordQueryRequest) GetField() string {
+	if x != nil {
+		return x.Field
+	}
+	return ""
+}
+
+func (x *RecordQueryRequest) GetValue() string {
+	if x != nil {
+		return x.Value
 	}
 	return ""
 }
@@ -5451,10 +5486,12 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x04R\aversion\";\n" +
 	"\x11RecordGetResponse\x12&\n" +
-	"\x06record\x18\x01 \x01(\v2\x0e.rig.v1.RecordR\x06record\"B\n" +
+	"\x06record\x18\x01 \x01(\v2\x0e.rig.v1.RecordR\x06record\"n\n" +
 	"\x12RecordQueryRequest\x12\x18\n" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x12\x12\n" +
-	"\x04kind\x18\x02 \x01(\tR\x04kind\"?\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x14\n" +
+	"\x05field\x18\x03 \x01(\tR\x05field\x12\x14\n" +
+	"\x05value\x18\x04 \x01(\tR\x05value\"?\n" +
 	"\x13RecordQueryResponse\x12(\n" +
 	"\arecords\x18\x01 \x03(\v2\x0e.rig.v1.RecordR\arecords\"&\n" +
 	"\x14RecordHistoryRequest\x12\x0e\n" +

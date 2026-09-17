@@ -1004,9 +1004,31 @@ message RecordGetResponse {
   Record record = 1;
 }
 
+// RecordQueryRequest narrows a query. EVERY FILTER IS OPTIONAL and an omitted
+// one means EVERY VALUE - section 39 specifies record.query as "by kind, field
+// and project" and never made any of the three mandatory.
 message RecordQueryRequest {
   string project = 1;
   string kind = 2;
+
+  // field and value are section 39's THIRD filter, and it was missing until
+  // BACKLOG.md B65. Without it every field the specification's metadata table
+  // describes was write-only: storable and not selectable, so `owner`,
+  // `status` and `priority` were decoration.
+  //
+  // ⛔ field EMPTY MEANS NO PREDICATE. value EMPTY MEANS THE EMPTY STRING, AND
+  // THAT ASYMMETRY WITH project/kind IS DELIBERATE. A record cannot have an
+  // empty project or kind, so there is no stored value for those wildcards to
+  // collide with; a FIELD may legitimately carry an empty value, and matching
+  // it is a real question. Collapsing the two rules would make
+  // `field: "owner", value: ""` silently mean "every record that has an
+  // owner", which is a different question wearing the same bytes.
+  //
+  // ⛔ A value WITH NO field IS REFUSED rather than ignored, because ignoring
+  // it WIDENS the answer: a caller whose field name expanded to nothing would
+  // get every record back and nothing would say its predicate had vanished.
+  string field = 3;
+  string value = 4;
 }
 
 message RecordQueryResponse {

@@ -41,14 +41,19 @@ type fakeRecord struct {
 	}
 	lastRefs RefsArgs
 
-	put     func(PutArgs) (Record, error)
-	get     func(string, uint64) (Record, error)
-	query   func(string, string) ([]Record, error)
-	history func(string) ([]Record, error)
-	refs    func(RefsArgs) (Refs, error)
-	step    func(StepArgs) (Record, error)
-	brief   func(string) (Brief, error)
-	linkErr error
+	put   func(PutArgs) (Record, error)
+	get   func(string, uint64) (Record, error)
+	query func(QueryArgs) ([]Record, error)
+	// lastFilter is the whole filter Query was handed, so a test can assert
+	// that the flags reached the API rather than only that it was called.
+	// Named apart from the `queried` helper below, which returns only the
+	// project and the kind and predates the field predicate.
+	lastFilter QueryArgs
+	history    func(string) ([]Record, error)
+	refs       func(RefsArgs) (Refs, error)
+	step       func(StepArgs) (Record, error)
+	brief      func(string) (Brief, error)
+	linkErr    error
 }
 
 func (f *fakeRecord) Put(_ context.Context, a PutArgs) (Record, error) {
@@ -72,10 +77,11 @@ func (f *fakeRecord) Get(_ context.Context, id string, version uint64) (Record, 
 	return record(), nil
 }
 
-func (f *fakeRecord) Query(_ context.Context, project, kind string) ([]Record, error) {
+func (f *fakeRecord) Query(_ context.Context, a QueryArgs) ([]Record, error) {
 	f.calls = append(f.calls, "query")
+	f.lastFilter = a
 	if f.query != nil {
-		return f.query(project, kind)
+		return f.query(a)
 	}
 	return nil, nil
 }
@@ -581,7 +587,7 @@ func TestTheJSONRowCarriesBothTheStampAndTheAge(t *testing.T) {
 // what was asked - the project and the kind - because a kind spelled
 // differently is a different kind and that is the likeliest cause.
 func TestAnEmptyQueryIsASentenceNamingWhatWasAsked(t *testing.T) {
-	got := queryText("rig", "requirement", nil)
+	got := queryText(QueryArgs{Project: "rig", Kind: "requirement"}, nil)
 
 	if strings.Contains(got, "ID") && strings.Contains(got, "VERSION") {
 		t.Errorf("an empty query printed a table header, which reads as a "+
@@ -1100,7 +1106,7 @@ func TestEveryRecordMethodNamesItselfWithTheRigPrefix(t *testing.T) {
 			return err
 		}},
 		{"rig.record.query", func(ctx context.Context, a RecordAPI) error {
-			_, err := a.Query(ctx, "rig", "note")
+			_, err := a.Query(ctx, QueryArgs{Project: "rig", Kind: "note"})
 			return err
 		}},
 		{"rig.record.history", func(ctx context.Context, a RecordAPI) error {
@@ -2221,8 +2227,8 @@ func wireCoverage(t *testing.T, message string, fields protoreflect.FieldDescrip
 func queried(t *testing.T, argv ...string) (string, string, error) {
 	t.Helper()
 	var gotProject, gotKind string
-	serving(t, &fakeRecord{query: func(p, k string) ([]Record, error) {
-		gotProject, gotKind = p, k
+	serving(t, &fakeRecord{query: func(a QueryArgs) ([]Record, error) {
+		gotProject, gotKind = a.Project, a.Kind
 		return nil, nil
 	}})
 	err := run(append([]string{"record", "query"}, argv...))
@@ -2303,10 +2309,13 @@ func TestAskingForEveryProjectIsHowTheProjectsAreEnumerated(t *testing.T) {
 // and a typed empty value is what a shell variable that expanded to nothing
 // looks like.
 func TestAFlagTypedEmptyIsRefusedRatherThanReadAsEverything(t *testing.T) {
-	for _, flagName := range []string{"project", "kind"} {
+	// ⛔ `field` IS IN THIS LIST NOW. It is the third filter and it has the
+	// same accident: `--field "$F"` with F unset expands to nothing and is
+	// byte-identical to a deliberate ask for no predicate at all.
+	for _, flagName := range []string{"project", "kind", "field"} {
 		t.Run(flagName, func(t *testing.T) {
 			var reached bool
-			serving(t, &fakeRecord{query: func(string, string) ([]Record, error) {
+			serving(t, &fakeRecord{query: func(QueryArgs) ([]Record, error) {
 				reached = true
 				return nil, nil
 			}})
@@ -2344,7 +2353,7 @@ func TestAQueryFilterGivenBothWaysIsRefused(t *testing.T) {
 // ONE. The old wording formatted straight through both filters, so no kind
 // and no project printed "no  records in .", which reads as a broken command.
 func TestAnEmptyUnfilteredQueryIsStillASentence(t *testing.T) {
-	got := queryText("", "", nil)
+	got := queryText(QueryArgs{}, nil)
 	if strings.Contains(got, "in .") || strings.Contains(got, "no  ") {
 		t.Errorf("an unfiltered empty query formatted its missing filters "+
 			"into the sentence:\n%s", got)
@@ -2360,14 +2369,14 @@ func TestAnEmptyUnfilteredQueryIsStillASentence(t *testing.T) {
 // until both filters became optional there was no command that could tell
 // them either.
 func TestAFilteredEmptyQueryNamesTheUnfilteredOne(t *testing.T) {
-	got := queryText("rig", "requirement", nil)
+	got := queryText(QueryArgs{Project: "rig", Kind: "requirement"}, nil)
 	if !strings.Contains(got, "rig record query") {
 		t.Errorf("an empty filtered answer does not name the unfiltered "+
 			"query, which is the only way to find a kind spelled "+
 			"differently:\n%s", got)
 	}
 
-	unfiltered := queryText("", "", nil)
+	unfiltered := queryText(QueryArgs{}, nil)
 	if strings.Contains(unfiltered, "rig record query` with no filter") {
 		t.Errorf("the unfiltered answer advised itself:\n%s", unfiltered)
 	}
@@ -2382,7 +2391,7 @@ func TestTheProjectColumnAppearsOnlyWhenTheProjectWasNotFiltered(t *testing.T) {
 		record(func(r *Record) { r.ID = "b"; r.Project = "standards" }),
 	}
 
-	unscoped := queryText("", "", rs)
+	unscoped := queryText(QueryArgs{}, rs)
 	if !strings.Contains(unscoped, "PROJECT") {
 		t.Errorf("an unscoped listing has no PROJECT column, so two records "+
 			"from two projects render identically:\n%s", unscoped)
@@ -2391,7 +2400,7 @@ func TestTheProjectColumnAppearsOnlyWhenTheProjectWasNotFiltered(t *testing.T) {
 		t.Errorf("an unscoped listing does not print the projects:\n%s", unscoped)
 	}
 
-	scoped := queryText("rig", "", rs[:1])
+	scoped := queryText(QueryArgs{Project: "rig"}, rs[:1])
 	if strings.Contains(scoped, "PROJECT") {
 		t.Errorf("a listing scoped to one project printed a PROJECT column of "+
 			"one repeated word:\n%s", scoped)
@@ -2401,11 +2410,11 @@ func TestTheProjectColumnAppearsOnlyWhenTheProjectWasNotFiltered(t *testing.T) {
 // THE NOUN AGREES WITH THE COUNT. `1 records in rig` is the same defect as
 // `1 edge point at B9`, caught here rather than shipped.
 func TestTheListingFooterAgreesWithItsCount(t *testing.T) {
-	one := queryText("rig", "", []Record{record()})
+	one := queryText(QueryArgs{Project: "rig"}, []Record{record()})
 	if !strings.Contains(one, "1 record in rig") {
 		t.Errorf("a listing of one says:\n%s", one)
 	}
-	two := queryText("rig", "", []Record{record(), record()})
+	two := queryText(QueryArgs{Project: "rig"}, []Record{record(), record()})
 	if !strings.Contains(two, "2 records in rig") {
 		t.Errorf("a listing of two says:\n%s", two)
 	}
@@ -2609,7 +2618,7 @@ func TestAnEmptyPositionalIsRefusedTheSameWayAnEmptyFlagIs(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var reached bool
-			serving(t, &fakeRecord{query: func(string, string) ([]Record, error) {
+			serving(t, &fakeRecord{query: func(QueryArgs) ([]Record, error) {
 				reached = true
 				return nil, nil
 			}})
@@ -2624,5 +2633,77 @@ func TestAnEmptyPositionalIsRefusedTheSameWayAnEmptyFlagIs(t *testing.T) {
 				t.Errorf("%v reached the daemon before it was refused", tc.argv)
 			}
 		})
+	}
+}
+
+// TestTheFieldPredicateReachesTheAPI is B65 at the prompt: the store gained a
+// field filter and the question is whether anything a person types can reach
+// it.
+//
+// ⛔ IT ASSERTS THE WHOLE FILTER, NOT THAT Query WAS CALLED. A flag wired to
+// the wrong struct member, or dropped between the flag set and QueryArgs,
+// still calls Query - and every existing query test would stay green, because
+// they only ever looked at the project and the kind.
+func TestTheFieldPredicateReachesTheAPI(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		argv []string
+		want QueryArgs
+	}{
+		{
+			"field and value alone",
+			[]string{"--field", "status", "--value", "closed"},
+			QueryArgs{Field: "status", Value: "closed"},
+		},
+		{
+			"all three filters at once",
+			[]string{"rig", "work-item", "--field", "owner", "--value", "boris"},
+			QueryArgs{Project: "rig", Kind: "work-item", Field: "owner", Value: "boris"},
+		},
+		{
+			// ⛔ AN EMPTY --value IS A REAL QUERY AND MUST SURVIVE THE TRIP.
+			// It is the one place the empty-means-every rule does NOT apply,
+			// and a layer that "helpfully" drops it turns "records whose
+			// status is empty" into "records with any status".
+			"an explicitly empty value is carried, not dropped",
+			[]string{"--field", "closure_note", "--value", ""},
+			QueryArgs{Field: "closure_note", Value: ""},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := &fakeRecord{}
+			serving(t, f)
+			if err := run(append([]string{"record", "query"}, tc.argv...)); err != nil {
+				t.Fatalf("rig record query %v: %v", tc.argv, err)
+			}
+			if f.lastFilter != tc.want {
+				t.Errorf("the CLI asked for %+v, want %+v", f.lastFilter, tc.want)
+			}
+		})
+	}
+}
+
+// TestAValueWithNoFieldIsRefusedAtThePrompt is the CLI half of the refusal.
+// The store refuses it too, and the two are not redundant: only this layer can
+// tell a value that was TYPED from one the daemon simply received, because on
+// the wire an unset field and an empty one are the same bytes.
+func TestAValueWithNoFieldIsRefusedAtThePrompt(t *testing.T) {
+	var reached bool
+	serving(t, &fakeRecord{query: func(QueryArgs) ([]Record, error) {
+		reached = true
+		return nil, nil
+	}})
+	err := run([]string{"record", "query", "--value", "closed"})
+	if err == nil {
+		t.Fatal("--value with no --field was accepted. Dropping the predicate " +
+			"answers with EVERY record, which is wider than what was asked and " +
+			"nothing in the output would say so")
+	}
+	if !strings.Contains(err.Error(), "--field") {
+		t.Errorf("the refusal is %q and does not name --field, so it does not "+
+			"say how to fix it", err)
+	}
+	if reached {
+		t.Error("the refusal still called the API; it must refuse before the round trip")
 	}
 }

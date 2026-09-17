@@ -33,9 +33,11 @@ package record
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	// The pure-Go SQLite driver, registered for its side effect. Ruled by B28:
 	// no cgo, so the daemon cross-compiles and ships as one static binary.
@@ -336,7 +338,49 @@ type QueryFilter struct {
 	// the store holds could be complete. That cost a real attack specialist 13
 	// round trips and a hedge on a finding that should have been flat.
 	Kind string
+
+	// Field and Value are section 39's THIRD filter, and it was missing.
+	//
+	// ⛔ THIS IS B65. Section 39 defines record.query as "by kind, field and
+	// project" and justifies its longest passage - the exhaustive metadata
+	// table - with "a typed field an agent queries with record.query". Until
+	// this existed, every one of those fields was write-only: they could be
+	// stored and they could not be selected on, so `owner`, `status` and
+	// `priority` were decoration. The 2026-09-17 attack graded clause B a
+	// FAILURE partly on this.
+	//
+	// Field empty means NO field predicate. Field set means: this record has
+	// this key, and its value is exactly Value.
+	//
+	// ⛔ AND THE EMPTY-MEANS-EVERY RULE ABOVE DOES NOT EXTEND TO Value, WHICH
+	// IS THE ONE ASYMMETRY IN THIS TYPE AND IS DELIBERATE. Project and Kind
+	// can treat empty as "every value" because Put refuses to write an empty
+	// one, so there is no stored value for the wildcard to collide with. A
+	// FIELD value has no such guarantee - a record may legitimately carry
+	// `closure_note: ""` - so an empty Value here means the empty string, and
+	// matching it is a real question somebody may ask. Collapsing the two
+	// rules would make `Field: "owner", Value: ""` silently return every
+	// record that has an owner, which is a different question wearing the same
+	// bytes.
+	Field string
+
+	// Value is the exact value Field must have. See Field: empty means the
+	// empty string, not "any value".
+	Value string
 }
+
+// ErrValueWithoutField refuses a filter that names a value and no field.
+//
+// ⛔ IT IS REFUSED RATHER THAN IGNORED BECAUSE IGNORING IT WIDENS THE ANSWER.
+// A caller whose field name expanded to nothing but whose value did not has
+// asked a question it cannot have meant, and the silent reading - drop the
+// predicate - returns MORE records than intended while looking like a
+// successful narrow query. That is the failure this package has recorded
+// repeatedly: a result that is wrong in the reassuring direction.
+var ErrValueWithoutField = errors.New(
+	"record: a query filter names a value with no field to match it against, " +
+		"which cannot be what was meant - dropping the predicate would widen " +
+		"the answer silently. Name the field, or clear the value")
 
 // Find returns the head of every record matching the filter, with the filter's
 // empty fields meaning "every value".
@@ -363,17 +407,35 @@ type QueryFilter struct {
 // `return s.Find(ctx, QueryFilter{Project: project, Kind: kind})` is owed, and
 // is a one-line change the moment that file is free.
 func (s *Store) Find(ctx context.Context, f QueryFilter) ([]Record, error) {
+	if f.Field == "" && f.Value != "" {
+		return nil, ErrValueWithoutField
+	}
+
 	var q string
 	var args []any
 	switch {
-	case f.Project == "" && f.Kind == "":
+	case f.Project == "" && f.Kind == "" && f.Field == "":
 		q = findEverything
-	case f.Kind == "":
+	case f.Kind == "" && f.Field == "":
 		q, args = findByProject, []any{f.Project}
-	case f.Project == "":
+	case f.Project == "" && f.Field == "":
 		q, args = findByKind, []any{f.Kind}
-	default:
+	case f.Field == "":
 		q, args = findByProjectAndKind, []any{f.Project, f.Kind}
+
+	// From here the field predicate is present, and the four shapes above
+	// repeat with it appended. Eight constants rather than four, written out,
+	// because the alternative is the run-time assembly this function's own
+	// doc comment refuses.
+	case f.Project == "" && f.Kind == "":
+		q, args = findByField, []any{f.Field, f.Value}
+	case f.Kind == "":
+		q, args = findByProjectAndField, []any{f.Project, f.Field, f.Value}
+	case f.Project == "":
+		q, args = findByKindAndField, []any{f.Kind, f.Field, f.Value}
+	default:
+		q, args = findByProjectKindAndField,
+			[]any{f.Project, f.Kind, f.Field, f.Value}
 	}
 
 	rows, err := s.db.QueryContext(ctx, q, args...)
@@ -409,6 +471,39 @@ const (
 	findByProject        = findSelect + ` WHERE r.project = ?` + findOrder
 	findByKind           = findSelect + ` WHERE r.kind = ?` + findOrder
 	findByProjectAndKind = findSelect + ` WHERE r.project = ? AND r.kind = ?` + findOrder
+
+	// ⛔ THE FIELD PREDICATE IS `json_each` AND NOT `json_extract`, AND THE
+	// REASON IS THAT A PATH IS A LITTLE LANGUAGE. json_extract wants `$.owner`,
+	// so a bound field name has to be concatenated into a path - `'$.' || ?` -
+	// and at that point a field named `a.b` navigates two levels and a field
+	// with a quote in it is a parse error or worse. Quoting it (`'$."' || ? ||
+	// '"'`) moves the problem rather than solving it. json_each binds the KEY
+	// as an ordinary parameter compared with `=`, so there is no path, no
+	// escaping rule, and no field name that means something other than itself.
+	//
+	// ⛔ AND IT IS AN `EXISTS` SUBQUERY RATHER THAN A JOIN. A join against
+	// json_each multiplies the row by every key in the document and then needs
+	// a DISTINCT to put it back, which is a correctness bug waiting for the
+	// first caller who adds another predicate. EXISTS is a semi-join: one row
+	// in, at most one row out, whatever the document holds.
+	//
+	// THE COST, NAMED RATHER THAN HIDDEN: this predicate cannot use an index -
+	// there is none on `fields` and SQLite cannot build one over json_each - so
+	// a field query is a scan of whatever project and kind have already
+	// narrowed to. At rig's own 85 records that is nothing. IT IS ORDERED LAST
+	// in every constant below so the indexed predicates cut first. If a field
+	// query ever becomes hot, the answer is a generated column plus an index on
+	// it, not a different query shape here.
+	findWhereField = ` EXISTS (SELECT 1 FROM json_each(r.fields) je
+			WHERE je.key = ? AND je.value = ?)`
+
+	findByField           = findSelect + ` WHERE` + findWhereField + findOrder
+	findByProjectAndField = findSelect + ` WHERE r.project = ? AND` +
+		findWhereField + findOrder
+	findByKindAndField = findSelect + ` WHERE r.kind = ? AND` +
+		findWhereField + findOrder
+	findByProjectKindAndField = findSelect +
+		` WHERE r.project = ? AND r.kind = ? AND` + findWhereField + findOrder
 )
 
 // describe names what a filter asked for, in the words a caller would use.
@@ -418,14 +513,27 @@ const (
 // different facts, and a reader who typed nothing needs to be told that
 // nothing is what was asked.
 func (f QueryFilter) describe() string {
+	var what string
 	switch {
 	case f.Project == "" && f.Kind == "":
-		return "every record in every project"
+		what = "every record in every project"
 	case f.Project == "":
-		return f.Kind + " records in every project"
+		what = f.Kind + " records in every project"
 	case f.Kind == "":
-		return "every record in " + f.Project
+		what = "every record in " + f.Project
 	default:
-		return f.Kind + " records in " + f.Project
+		what = f.Kind + " records in " + f.Project
 	}
+
+	// ⛔ THE FIELD PREDICATE IS NAMED TOO, AND IT IS QUOTED. "no requirement
+	// records in rig with status=closed" and "no requirement records in rig"
+	// are different facts, and a reader who narrowed by a field and got
+	// nothing needs to see the narrowing in the answer - otherwise the field
+	// predicate is the one part of the question that can silently not have
+	// happened. The value is quoted because an EMPTY one is a real query, and
+	// `with status=` reads like a truncation while `with status=""` does not.
+	if f.Field != "" {
+		what += " with " + f.Field + "=" + strconv.Quote(f.Value)
+	}
+	return what
 }

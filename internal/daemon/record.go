@@ -318,9 +318,19 @@ func (d *Daemon) serveRecordQuery(ctx context.Context, c *conn, f *rigv1.Frame, 
 	//  3. The place a typo actually originates is the prompt, and the CLI CAN
 	//     tell "not typed" from "typed empty" through flag.Visit. It refuses
 	//     `--project ""` by name for exactly this reason. See cmd/rig/record.go.
+	//
+	// ⛔ AND THE FIELD PREDICATE DOES NOT INHERIT THAT REASONING, WHICH IS WHY
+	// IT IS SPELLED OUT IN wire.proto RATHER THAN LEFT TO THIS COMMENT. An
+	// empty `value` means the EMPTY STRING, not "every value": a record may
+	// legitimately carry `closure_note: ""`, so there is a stored value for
+	// the wildcard to collide with, which is exactly what project and kind do
+	// not have. A `value` with no `field` is REFUSED by the store rather than
+	// dropped, and the refusal travels back as an INVALID.
 	recs, err := st.Find(ctx, record.QueryFilter{
 		Project: req.GetProject(),
 		Kind:    req.GetKind(),
+		Field:   req.GetField(),
+		Value:   req.GetValue(),
 	})
 	if err != nil {
 		c.failErr(f.GetStreamId(), recordCode(err), err)
