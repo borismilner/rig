@@ -422,6 +422,38 @@ add a filter to the same work - **it removes the work**:
 | depth 5 | **990.0 ms** | 16.33 ms |
 | distinct nodes visited | 62,007 | 706 |
 
+⛔ **AND AS OF 2026-09-17 THE DEFAULT PATH PAYS THE UNSCOPED COLUMN, BECAUSE
+THE PRUNE WAS WRONG.** This block is not withdrawn - every number in it stands
+and the reasoning was sound - **but it described a prune that also silently
+dropped records in the SUBJECT'S OWN PROJECT**, which is a correctness defect,
+not a performance choice.
+
+**What S5 demonstrated at rig `945e3ca`:** with `C(rig) <-cites- B(standards)
+<-cites- A(rig)`, `record.refs C` returned **0 refs and `truncated: false`** -
+an answer of *"nothing points at this"* about a record its own project points
+at. The prune ran per hop, `continue`ing before `visited` and before the
+frontier append, so **the whole subtree behind a foreign node was unreachable**;
+and `moreBeyond` applied the same filter, so nothing ever raised the flag.
+
+✅ **RULED BY THE LEAD AND BUILT (rig `7f66f67`): TRAVERSE THROUGH, FILTER THE
+RESULT.** Three reasons, in order. **(1)** Boris's gate clause is *"doesn't miss
+anything"*, and a traversal that omits records in the subject's own project
+fails it directly; flag-as-truncated says something is missing without saying
+what. **(2)** The store holds 78 records in nine disjoint two-node components,
+so correctness is free TODAY. **(3)** It gives `--cross-project` ONE meaning: it
+controls what is RETURNED, never what is WALKED. **Two meanings on one flag is
+how this defect happened.**
+
+⛔ **SO THE TRADE IS NOW EXPLICIT AND IT IS OWED A DECISION BEFORE 100x, NOT
+AFTER.** Correctness is free at 78 records and **is not free at the projected
+100x** - this block's own numbers say the default path would move from 5.79 ms
+to 307.3 ms at depth 4. The cost is written into `RefsRequest.CrossProject`'s
+own doc comment so the code and this section cannot silently diverge again.
+**The options when it stops being free are a project-aware index, a cheaper
+reachability pre-pass, or a bounded walk that raises `Truncated` honestly - and
+NOT a return to the prune, which was never a performance feature that happened
+to be wrong; it was a wrong answer that happened to be fast.**
+
 **Unscoped traversal at 100x is 15x over R2.3's budget. Scoped-by-default is
 what makes that budget reachable at all**, which is a stronger reason than the
 semantic one this ruling was taken for.
