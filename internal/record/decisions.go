@@ -184,14 +184,29 @@ func ParseDecisionsDocument(r io.Reader) (DecisionParse, error) {
 	out := DecisionParse{}
 	taken := map[string]bool{}
 	parent := ""
+	// ⛔ Unimported.Section WAS EMPTY ON ALL THREE OF THIS FILE'S KINDS, AND A
+	// FIELD POPULATED ON FOUR KINDS AND EMPTY ON THREE IS INDISTINGUISHABLE
+	// FROM ONE THAT WAS LOST. The backlog grain added it and could not reach
+	// here; the stack is the backlog grain's own type rather than a second pop
+	// loop, so the two files cannot drift on what "enclosing" means.
+	//
+	// ⛔ EVERY HEADING PUSHES A FRAME, INCLUDING THE ONES THIS LOOP DECLINES.
+	// A level-4 heading is not an entry and it still encloses whatever follows
+	// it, and the H1 the loop skips is what a top-level heading sits under.
+	var sections sectionStack
 	for i, h := range heads {
+		sections.popTo(h.level)
+		section := sections.section()
+		sections = append(sections, headingFrame{level: h.level, section: sectionSlug(h.text)})
+
 		// ⛔ THE H1 IS THE DOCUMENT'S OWN TITLE AND IS NOT AN ENTRY. Levels
 		// below 3 are not used by this document; carrying them would invent a
 		// grain nobody writes.
 		if h.level < 2 || h.level > 3 {
 			if h.level > 3 {
 				out.Unimported = append(out.Unimported, Unimported{
-					Kind: UnimportedHeadingTooDeep, Label: h.text, Line: h.line, Under: parent,
+					Kind: UnimportedHeadingTooDeep, Label: h.text, Line: h.line,
+					Under: parent, Section: section,
 				})
 			}
 			continue
@@ -200,7 +215,8 @@ func ParseDecisionsDocument(r io.Reader) (DecisionParse, error) {
 		title := decisionTitle(h.text)
 		if title == "" {
 			out.Unimported = append(out.Unimported, Unimported{
-				Kind: UnimportedHeadingNoTitle, Label: h.text, Line: h.line, Under: parent,
+				Kind: UnimportedHeadingNoTitle, Label: h.text, Line: h.line,
+				Under: parent, Section: section,
 			})
 			continue
 		}
@@ -234,7 +250,8 @@ func ParseDecisionsDocument(r io.Reader) (DecisionParse, error) {
 
 		if taken[e.Key] {
 			out.Unimported = append(out.Unimported, Unimported{
-				Kind: UnimportedDuplicateKey, ID: e.Key, Label: title, Line: h.line, Under: parent,
+				Kind: UnimportedDuplicateKey, ID: e.Key, Label: title, Line: h.line,
+				Under: parent, Section: section,
 			})
 			continue
 		}

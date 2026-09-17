@@ -465,8 +465,32 @@ type Unimported struct {
 	// place in the document rather than to the document.
 	Line int
 
-	// Title is a heading-borne id's title with the document's decoration and
-	// its own id removed - what a row of the same work would have carried.
+	// Cells is the row's content cells, verbatim and in the document's order,
+	// for anything this grain found in a TABLE ROW. The outer empty strings a
+	// markdown row's leading and trailing pipes produce are not cells and are
+	// not here, so Cells[0] is the first cell a reader sees.
+	//
+	// ⛔ IT EXISTS BECAUSE THE GRAIN KEPT ONE CELL AND THREW THE ROW AWAY.
+	// Measured over the eleven ordered rows of rig's own critical path on
+	// 2026-09-17: 34 bytes kept - Label, the rank - and 4,656 bytes dropped.
+	// The live consequence reached the production store: all eleven records
+	// were titled `0`..`9` and `6a`, body and all, because the rank was the
+	// only thing that survived the parse.
+	//
+	// ⛔ AND IT IS VERBATIM, WHICH IS THE POINT RATHER THAN A SHORTCUT. The
+	// alternative was to project every cell into a named field, and that needs
+	// a ruling about what a rank-keyed row MEANS that Label's own comment says
+	// this parser does not own. Cells asserts nothing: it is the evidence, and
+	// a consumer that wants a column can name it without this file guessing
+	// which columns the next table will have.
+	//
+	// Empty for a heading, which has no cells. `Body` is the heading's
+	// equivalent and the two never both apply.
+	Cells []string
+
+	// Title is the title of the work, with the document's decoration removed:
+	// a heading's own text less its id, or a row's item cell through the same
+	// titleOf every imported row's title goes through.
 	//
 	// ⛔ IT IS A SECOND FIELD RATHER THAN A CLEANED-UP Label, AND THE REASON
 	// IS THAT Label's CONTRACT IS TO BE VERBATIM. A report that says "the
@@ -477,23 +501,31 @@ type Unimported struct {
 	// through titleOf. Two grains rendering one document two ways is the
 	// thing this file exists to stop.
 	//
-	// Empty for everything that is not a heading: there is no title to derive
-	// from a rank, an irregular token or a row of another table.
+	// ⛔ AND IT IS DERIVED HERE RATHER THAN LEFT TO THE CONSUMER FOR EXACTLY
+	// THAT REASON. Handing over Cells alone would leave a seeder to locate the
+	// bold run itself - a SECOND title derivation over one document, which is
+	// the B46 failure verbatim one kind over.
+	//
+	// Empty where this parser does not know which text is the title: a row of
+	// a table whose shape it does not recognise has no item column to read,
+	// and an irregular token in a heading is not an id to strip.
 	Title string
 
-	// Struck is a heading whose text the document has struck through.
+	// Struck is the document's own strikethrough mark: on a heading, its text
+	// struck through; on a row, a struck item cell.
 	//
 	// ⛔ IT IS THE DOCUMENT'S OWN CLOSURE CONVENTION READ AT A SECOND GRAIN,
 	// NOT A NEW ONE. B7's state cell says it in as many words - "done, struck
-	// not deleted" - and BacklogItem.Done reads exactly this mark on a row.
+	// not deleted" - and BacklogItem.Struck reads exactly this mark on a row.
 	// Applying a stated convention to a heading is reading the document; it is
 	// the alternative, inferring a parent's state from its children's, that
 	// would be a seat judging.
 	//
-	// ⛔ AND NO HEADING IN rig's OWN BACKLOG IS STRUCK TODAY, so the true
-	// branch is covered by a synthetic test and by nothing in the live
-	// document. Said out loud because a pin that only ever sees one side of a
-	// predicate is half a pin.
+	// ⛔ AND NOTHING IN rig's OWN BACKLOG IS STRUCK AT THIS GRAIN TODAY -
+	// no heading, and none of the eleven ordered rows - so the true branch is
+	// covered by a synthetic test and by nothing in the live document. Said
+	// out loud because a pin that only ever sees one side of a predicate is
+	// half a pin.
 	Struck bool
 
 	// Under is the enclosing id-bearing heading, where there is one.
@@ -531,14 +563,41 @@ type Unimported struct {
 	// thing on a row and another on a heading would be worse than either
 	// answer.
 	//
-	// ⛔ AND IT IS EMPTY ON THE THREE KINDS `decisions.go` REPORTS, WHICH IS A
-	// GAP AND NOT A DECISION. Unimported is shared: duplicate-key,
-	// heading-too-deep and heading-no-title are built in that file, which the
-	// seat that added this field does not own. Said out loud here because a
-	// field populated on four kinds and empty on three is indistinguishable
-	// from one that was lost, and that is the exact failure this grain keeps
-	// paying for.
+	// ⛔ AND IT IS POPULATED ON ALL SEVEN KINDS, INCLUDING THE THREE
+	// `decisions.go` REPORTS. It was empty on those three for one commit, and
+	// that is recorded here rather than forgotten: Unimported is SHARED
+	// between two grains, so a field one grain adds is a field the other grain
+	// silently lacks, and a field populated on four kinds and empty on three
+	// is indistinguishable from one that was lost. Both files now take the
+	// enclosing heading from `sectionStack`, so there is one rule and not two.
 	Section string
+
+	// Body is the PROSE beneath a heading-borne id, down to the next heading
+	// of any level, with the runs of blank lines a removed table leaves
+	// collapsed to one. Empty for everything that is not a heading, and for a
+	// heading with no prose under it.
+	//
+	// ⛔ IT EXISTS BECAUSE A HEADING'S RECORD ASSERTED ITS OWN TITLE AS ITS
+	// BODY. `cmd/rigseed` sets `body: title` and says so; that is a consumer
+	// papering over an absence with a stand-in, which is the same shape as
+	// `title = u.ID`, and under `## ⛔ B46` the prose it stands in for IS the
+	// statement of the MVP acceptance test.
+	//
+	// ⛔ AND IT IS PROSE RATHER THAN EVERY LINE, WHICH IS WHERE IT PARTS
+	// COMPANY WITH DecisionEntry.Body - measured, not preferred. A decisions
+	// heading encloses paragraphs; a backlog heading encloses TABLES. Over
+	// rig's own document on 2026-09-17, `## ⛔ B46` holds 65,187 bytes to the
+	// next heading and 695 of them are prose: the other 64,492 are work-item
+	// rows THIS SAME PARSE already returns, as Items or as Unimported. Copying
+	// them in would duplicate the row grain inside the heading grain, grow
+	// without bound as the table grows, and bury the 695 bytes that are
+	// carried nowhere else.
+	//
+	// ⛔ AND THE SPLIT IS NOT A NEW RULE. `read` already partitions every line
+	// into table - a leading `|` - and prose, and decides the parse on it.
+	// Body reuses that partition rather than inventing a second reading of
+	// what a table is.
+	Body string
 }
 
 // BacklogParse is one pass over a backlog document: what it imported, and
@@ -568,6 +627,44 @@ type headingFrame struct {
 	section string
 }
 
+// sectionStack is the heading stack, and BOTH grains in this package keep one.
+//
+// ⛔ IT IS A TYPE RATHER THAN A POP LOOP IN EACH FILE BECAUSE THE RULE IS ONE
+// RULE. `Section` means the same thing on an Unimported the backlog grain
+// reports and on one the decisions grain reports, and two files each running
+// their own three-line pop loop is how the two meanings drift apart - which is
+// the drift this package spends its time correcting.
+type sectionStack []headingFrame
+
+// popTo drops every frame at or below level, so the top is then the frame
+// ENCLOSING a heading about to be entered at that level.
+//
+// ⛔ CALLED BEFORE THE HEADING'S OWN FRAME IS PUSHED, WHICH IS WHAT MAKES
+// carry AND section EXCLUSIVE OF THE HEADING ITSELF. A heading sits under its
+// PARENT heading; it does not enclose itself.
+func (st *sectionStack) popTo(level int) {
+	for len(*st) > 0 && (*st)[len(*st)-1].level >= level {
+		*st = (*st)[:len(*st)-1]
+	}
+}
+
+// carry is the nearest id-bearing heading at or above the top of the stack.
+func (st sectionStack) carry() string {
+	if n := len(st); n > 0 {
+		return st[n-1].carry
+	}
+	return ""
+}
+
+// section is the nearest heading of ANY level, slugged. Empty only where the
+// document has not opened a heading yet.
+func (st sectionStack) section() string {
+	if n := len(st); n > 0 {
+		return st[n-1].section
+	}
+	return ""
+}
+
 // backlogScan is one pass's state. It is a type rather than a pile of locals
 // because the heading stack, the table roles and the accounting maps all have
 // to survive a line, and a single function holding all of them was already at
@@ -583,7 +680,15 @@ type backlogScan struct {
 	seen      map[string]bool
 	accounted map[string]bool
 
-	heads []headingFrame
+	heads sectionStack
+
+	// bodyAt is the index in unimported of the heading whose prose is being
+	// collected, and -1 when no heading is open for one. It is an INDEX rather
+	// than a pointer because unimported is appended to while the body is being
+	// read, and a pointer into a slice that grows is a pointer into the old
+	// array.
+	bodyAt  int
+	bodyBuf []string
 
 	idCol, itemCol, stateCol int
 	inTable                  bool
@@ -623,7 +728,7 @@ func ParseBacklogDocument(r io.Reader) (BacklogParse, error) {
 	}
 	text := string(raw)
 
-	s := &backlogScan{seen: map[string]bool{}, accounted: map[string]bool{}}
+	s := &backlogScan{seen: map[string]bool{}, accounted: map[string]bool{}, bodyAt: -1}
 	sc := bufio.NewScanner(strings.NewReader(text))
 	sc.Buffer(make([]byte, 1<<20), 1<<20)
 	for sc.Scan() {
@@ -635,6 +740,11 @@ func ParseBacklogDocument(r io.Reader) (BacklogParse, error) {
 	if err := sc.Err(); err != nil {
 		return BacklogParse{}, err
 	}
+	// ⛔ THE LAST HEADING'S BODY IS CLOSED BY THE END OF THE DOCUMENT AND BY
+	// NOTHING ELSE, so it has to be closed here. Closing it inside reconcile
+	// would put it after reconcile's own filter, which rewrites the slice this
+	// index points into.
+	s.closeBody()
 	if err := s.reconcile(text); err != nil {
 		return BacklogParse{}, err
 	}
@@ -662,11 +772,20 @@ func (s *backlogScan) read(line string) error {
 	// what a reader sees: the roles persist until a line of PROSE, which is
 	// where a new heading or a new table begins.
 	if strings.TrimSpace(line) == "" {
+		// A blank line is kept for the body, where it is the only thing
+		// separating one paragraph from the next.
+		s.bodyLine(line)
 		return nil
 	}
 	if !strings.HasPrefix(line, "|") {
 		s.inTable = false
-		s.heading(line)
+		// ⛔ THE SAME PARTITION THAT DECIDES THE PARSE DECIDES THE BODY, which
+		// is why Body is not a second reading of what a table is: anything
+		// reaching here is not a table row, and anything that is not a heading
+		// either is the prose under the heading above it.
+		if !s.heading(line) {
+			s.bodyLine(line)
+		}
 		return nil
 	}
 	if i, it, st, ok := tableFor(line); ok {
@@ -685,21 +804,26 @@ func (s *backlogScan) read(line string) error {
 // criterion it EARNS a record. Writing one is `cmd/rigseed`'s act and the
 // acceptance pin that would move is in another file; this parser derives the
 // id, its text and its parent, and hands them over ready to use.
-func (s *backlogScan) heading(line string) {
+//
+// It returns whether the line was a heading at all, because the caller has to
+// know: a line that is neither a table row nor a heading is body prose.
+func (s *backlogScan) heading(line string) bool {
 	m := mdHeading.FindStringSubmatch(line)
 	if m == nil {
-		return
+		return false
 	}
+	// ⛔ BEFORE ANYTHING IS APPENDED. A heading of any level ends the previous
+	// heading's body, and closing after the append would file this heading's
+	// body onto this heading.
+	s.closeBody()
 	level, text := len(m[1]), strings.TrimSpace(m[2])
-	for len(s.heads) > 0 && s.heads[len(s.heads)-1].level >= level {
-		s.heads = s.heads[:len(s.heads)-1]
-	}
-	parent := s.enclosing()
+	s.heads.popTo(level)
+	parent := s.heads.carry()
 	// ⛔ READ BEFORE THE PUSH, WHICH IS WHAT MAKES Section EXCLUSIVE OF THE
 	// HEADING ITSELF - exactly as `parent` above is. A heading sits under its
 	// PARENT heading; it does not enclose itself, and a field that meant one
 	// thing on a row and another on a heading would be worse than either.
-	parentSection := s.enclosingSection()
+	parentSection := s.heads.section()
 	carry := parent
 	if tok := backlogIDish.FindString(text); tok != "" {
 		// An irregular id is labelled by its TOKEN wherever it is found, so
@@ -720,27 +844,61 @@ func (s *backlogScan) heading(line string) {
 		}
 		s.accounted[tok] = true
 		s.unimported = append(s.unimported, u)
+		// Only a heading that carries a legal id becomes a record, so only
+		// that one has a body anybody can read. An irregular token in a
+		// heading is not an id and is reported as a shape, not as a thing.
+		if u.Kind == UnimportedHeading {
+			s.bodyAt = len(s.unimported) - 1
+		}
 	}
 	s.heads = append(s.heads, headingFrame{
 		level: level, carry: carry, section: sectionSlug(text),
 	})
+	return true
 }
 
-// enclosing is the nearest id-bearing heading above the current line.
-func (s *backlogScan) enclosing() string {
-	if n := len(s.heads); n > 0 {
-		return s.heads[n-1].carry
+// bodyLine takes one line of prose for the heading whose body is open, and
+// drops it where none is.
+func (s *backlogScan) bodyLine(line string) {
+	if s.bodyAt < 0 {
+		return
 	}
-	return ""
+	s.bodyBuf = append(s.bodyBuf, line)
 }
 
-// enclosingSection is the nearest heading of ANY level above the current line,
-// slugged. Empty only where the document has not opened a heading yet.
-func (s *backlogScan) enclosingSection() string {
-	if n := len(s.heads); n > 0 {
-		return s.heads[n-1].section
+// closeBody files the collected prose on the heading it belongs to and opens
+// no new one. It is safe to call with nothing open, which is what makes the
+// two call sites - every heading, and the end of the document - the only two
+// places that have to know about it.
+func (s *backlogScan) closeBody() {
+	if s.bodyAt >= 0 && s.bodyAt < len(s.unimported) {
+		s.unimported[s.bodyAt].Body = proseBody(s.bodyBuf)
 	}
-	return ""
+	s.bodyAt, s.bodyBuf = -1, nil
+}
+
+// proseBody joins a heading's prose lines, collapsing every run of blank lines
+// to one.
+//
+// ⛔ THE COLLAPSE IS BECAUSE THE TABLES ARE GONE, NOT BECAUSE THE DOCUMENT IS
+// UNTIDY. Removing a table from between two paragraphs leaves the blank line
+// before it and the blank line after it adjacent, so a verbatim join would put
+// a hole in the prose exactly where a reader would look for the table.
+func proseBody(lines []string) string {
+	out := make([]string, 0, len(lines))
+	gap := false
+	for _, l := range lines {
+		if strings.TrimSpace(l) == "" {
+			gap = true
+			continue
+		}
+		if gap && len(out) > 0 {
+			out = append(out, "")
+		}
+		gap = false
+		out = append(out, l)
+	}
+	return strings.TrimSpace(strings.Join(out, "\n"))
 }
 
 // sectionSlug is the key component for one heading, and it is THE SAME RULE
@@ -777,19 +935,24 @@ func (s *backlogScan) row(line string) error {
 		// READS - they are not lost to an unknown header, they are lost at the
 		// id. The whole-file scan cannot help, because there is no id to find.
 		if s.inTable && !separatorRow(c) {
-			s.unimported = append(s.unimported, Unimported{
+			u := Unimported{
 				Kind:  UnimportedRowWithoutID,
 				Label: strings.TrimSpace(c[1]),
-				Line:  s.line, Under: s.enclosing(), Section: s.enclosingSection(),
-			})
+				Cells: contentCells(c),
+				Line:  s.line, Under: s.heads.carry(), Section: s.heads.section(),
+			}
+			s.readWorkCell(&u, c)
+			s.unimported = append(s.unimported, u)
 		}
 		return nil
 	case !backlogIDLegal.MatchString(tok):
 		s.accounted[tok] = true
-		s.unimported = append(s.unimported, Unimported{
-			Kind: UnimportedIrregularID, Label: tok, Line: s.line,
-			Under: s.enclosing(), Section: s.enclosingSection(),
-		})
+		u := Unimported{
+			Kind: UnimportedIrregularID, Label: tok, Cells: contentCells(c),
+			Line: s.line, Under: s.heads.carry(), Section: s.heads.section(),
+		}
+		s.readWorkCell(&u, c)
+		s.unimported = append(s.unimported, u)
 		return nil
 	}
 
@@ -800,10 +963,16 @@ func (s *backlogScan) row(line string) error {
 		// in two-column rows. Refusing them would kill the parse on rows that
 		// were never work items; dropping them silently is what left the set
 		// guard unable to tell them from rows that went missing.
+		//
+		// ⛔ NO Title AND NO Struck, AND THE REASON IS IN THE KIND'S NAME.
+		// This is a table whose header this parser does not recognise, so it
+		// has no item column: there is no cell it can call the title without
+		// guessing which column the next such table will put it in. Cells
+		// carries the row whole and asserts nothing.
 		s.unimported = append(s.unimported, Unimported{
 			Kind: UnimportedOtherTable, ID: id,
-			Label: strings.TrimSpace(c[1]), Line: s.line,
-			Under: s.enclosing(), Section: s.enclosingSection(),
+			Label: strings.TrimSpace(c[1]), Cells: contentCells(c),
+			Line: s.line, Under: s.heads.carry(), Section: s.heads.section(),
 		})
 		return nil
 	}
@@ -818,6 +987,44 @@ func (s *backlogScan) row(line string) error {
 	}
 	s.items = append(s.items, s.item(id, c))
 	return nil
+}
+
+// contentCells is a row's cells without the two empty strings its leading and
+// trailing pipes produce, copied so that nothing a caller does to the result
+// can reach back into the parse.
+//
+// ⛔ THE BOUNDS ARE CHECKED RATHER THAN ASSUMED. Every caller today has passed
+// `len(c) < 3` first, which is a fact about the callers and not about this
+// function; a row with no content cells at all returns none.
+func contentCells(c []string) []string {
+	if len(c) < 3 {
+		return nil
+	}
+	out := make([]string, len(c)-2)
+	copy(out, c[1:len(c)-1])
+	return out
+}
+
+// readWorkCell fills in the fields that need this table's ITEM column - the
+// title and the document's strikethrough - for a row this grain is reporting
+// rather than importing.
+//
+// ⛔ IT IS THE SAME DERIVATION AN IMPORTED ROW GETS AND NOT A SECOND ONE.
+// `item` reads titleOf and `HasPrefix(item, "~~")` off the same cell; a row
+// that lost its id is still a row of the same table, written by the same hand,
+// and a grain that derived its title differently would be the two-readings
+// defect this file exists to stop.
+//
+// It does nothing where the column roles are unknown - outside a recognised
+// table - or where the row is too short to have the cell, because a title
+// invented from whichever cell happens to be last is worse than none.
+func (s *backlogScan) readWorkCell(u *Unimported, c []string) {
+	if !s.inTable || s.itemCol < 1 || s.itemCol >= len(c) {
+		return
+	}
+	item := c[s.itemCol]
+	u.Title = titleOf(item)
+	u.Struck = strings.HasPrefix(item, "~~")
 }
 
 // item builds the record for one well-formed row of a recognised table.

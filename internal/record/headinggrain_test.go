@@ -237,3 +237,152 @@ func onlyHeading(t *testing.T, p record.BacklogParse) record.Unimported {
 	}
 	return out[0]
 }
+
+// ⛔ A HEADING'S RECORD ASSERTED ITS OWN TITLE AS ITS BODY, WHICH IS A RECORD
+// SAYING SOMETHING THE DOCUMENT DOES NOT SAY.
+//
+// `cmd/rigseed`'s `headingIntent` sets `body: title` and there was nothing
+// else to give it: the grain reported seven fields about a heading and none of
+// the prose underneath it. Under `## ⛔ B46` that prose IS the statement of the
+// MVP acceptance test, which is the one thing B46 exists to carry.
+//
+// ⛔ AND THE BODY IS PROSE, NOT EVERY LINE - the one place this grain parts
+// company with `DecisionEntry.Body`, and it is measured rather than preferred.
+// A decisions heading encloses paragraphs; a backlog heading encloses TABLES.
+// `## ⛔ B46` holds 65,187 bytes to the next heading and 695 of them are prose.
+func TestAHeadingsBodyIsTheProseBeneathItAndNotItsTableAndNotItsTitle(t *testing.T) {
+	const doc = `# b
+
+## ⛔ B46 - THE MVP ACCEPTANCE TEST
+
+the first paragraph, which is what this heading says.
+
+| # | Work | Seat | State |
+|---|---|---|---|
+| B46a | **a child row** | record | **DONE** |
+
+the second paragraph, on the far side of the table.
+
+### something else
+`
+	p, err := record.ParseBacklogDocument(strings.NewReader(doc))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	u := onlyHeading(t, p)
+
+	want := "the first paragraph, which is what this heading says.\n\n" +
+		"the second paragraph, on the far side of the table."
+	if u.Body != want {
+		t.Errorf("Body = %q\nwant %q", u.Body, want)
+	}
+	if u.Body == u.Title {
+		t.Errorf("Body is the Title repeated, which is the stand-in this field replaces")
+	}
+	// ⛔ THE ROW IS NOT LOST BY BEING LEFT OUT. It is carried at the ROW
+	// grain, by this same parse, which is the whole argument for excluding it.
+	if len(p.Items) != 1 || p.Items[0].ID != "B46a" {
+		t.Fatalf("the row under the heading must still be an item: %+v", p.Items)
+	}
+}
+
+// A heading with nothing but a table under it has no prose, and an empty Body
+// is the honest answer rather than the table flattened into one.
+func TestAHeadingWithNoProseUnderItHasAnEmptyBody(t *testing.T) {
+	const doc = `# b
+
+## ⛔ B46 - THE MVP ACCEPTANCE TEST
+
+| # | Work | Seat | State |
+|---|---|---|---|
+| B46a | **a child row** | record | **DONE** |
+`
+	p, err := record.ParseBacklogDocument(strings.NewReader(doc))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if u := onlyHeading(t, p); u.Body != "" {
+		t.Errorf("Body = %q, want empty - there is no prose under that heading", u.Body)
+	}
+}
+
+// THE REAL DOCUMENT, because the two above are fixtures and rig's own backlog
+// is what gets seeded.
+func TestTheRealBacklogsHeadingsCarryTheProseUnderThem(t *testing.T) {
+	f := openTheBacklogDocument(t)
+	p, err := record.ParseBacklogDocument(f)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	var heads int
+	for _, u := range p.Unimported {
+		if u.Kind != record.UnimportedHeading {
+			continue
+		}
+		heads++
+		if u.Body == "" {
+			t.Errorf("%s (line %d) carries no body, and the prose under it is "+
+				"carried nowhere else in this parse", u.ID, u.Line)
+		}
+		if u.Body == u.Title {
+			t.Errorf("%s (line %d) has its own title as its body: %q", u.ID, u.Line, u.Body)
+		}
+		// ⛔ NO TABLE ROW IN THE BODY. Those rows are this same parse's Items
+		// and Unimported; copying them in would put the row grain inside the
+		// heading grain and grow without bound as the table grows.
+		for _, line := range strings.Split(u.Body, "\n") {
+			if strings.HasPrefix(line, "|") {
+				t.Errorf("%s (line %d) carries a table row in its body: %q", u.ID, u.Line, line)
+			}
+		}
+		// ⛔ AND NO HOLE WHERE THE TABLE WAS. Removing a table from between
+		// two paragraphs leaves the blank line before it next to the blank
+		// line after it, and B46d in rig's own document is exactly that shape.
+		if strings.Contains(u.Body, "\n\n\n") {
+			t.Errorf("%s (line %d) has a run of blank lines where a table was removed", u.ID, u.Line)
+		}
+	}
+	// The positive control: without it this passes over a parse that found no
+	// headings at all, which is the absence B66 is about.
+	if heads == 0 {
+		t.Fatalf("no heading-borne ids were found, so nothing above was checked")
+	}
+	// ⛔ AND A SECOND CONTROL, BY VALUE. Every assertion above is satisfiable
+	// by a Body holding one stray word, and B46's prose is the statement of
+	// the MVP acceptance test - the sentence this whole field exists for.
+	var b46 string
+	for _, u := range p.Unimported {
+		if u.ID == "B46" {
+			b46 = u.Body
+		}
+	}
+	if !strings.Contains(b46, "THIS IS THE TEST BORIS NAMED") {
+		t.Errorf("B46's body does not carry the sentence that states the acceptance "+
+			"test; got %d bytes: %.200s", len(b46), b46)
+	}
+}
+
+// ⛔ THE LAST HEADING'S BODY IS CLOSED BY THE END OF THE DOCUMENT AND BY
+// NOTHING ELSE, AND THAT PATH WAS UNPINNED UNTIL THIS TEST.
+//
+// Found by mutation while the change was still uncommitted: deleting the flush
+// after the scan loop left every fixture and the live document GREEN, because
+// in all of them the id-bearing heading is followed by another heading that
+// closes it. A body is a buffer, and a buffer nobody flushes at the end is the
+// oldest defect in the trade.
+func TestTheLastHeadingsBodyIsClosedByTheEndOfTheDocument(t *testing.T) {
+	const doc = `# b
+
+## ⛔ B46 - THE MVP ACCEPTANCE TEST
+
+the prose that runs to the end of the file, with no heading after it.
+`
+	p, err := record.ParseBacklogDocument(strings.NewReader(doc))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	u := onlyHeading(t, p)
+	if want := "the prose that runs to the end of the file, with no heading after it."; u.Body != want {
+		t.Errorf("Body = %q, want %q", u.Body, want)
+	}
+}

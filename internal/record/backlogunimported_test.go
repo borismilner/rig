@@ -68,9 +68,20 @@ func sameSet(t *testing.T, what string, got, want []string) {
 // level and says which table they came from. A render that printed one of
 // them would let the other go wrong with no signal, which is this file's own
 // subject.
+//
+// ⛔ AND IT CARRIES `title` BESIDE `label` FOR THE SAME REASON. On the eleven
+// ordered rows Label is the RANK and Title is the work, and the live store had
+// eleven records titled `0`..`9` because only one of the two existed. A render
+// printing Label alone would go green over that again.
+//
+// `cells` is a COUNT rather than the cells, because a row's cells are the
+// document's own prose and a set of expected lines carrying them would be
+// unreadable. The count separates "the row is here" from "the row arrived
+// empty", which is the failure that happened; the cells themselves are pinned
+// by value in TestAnOrderedRowCarriesTheWholeRowAndNotJustItsRank.
 func render(u Unimported) string {
-	return fmt.Sprintf("%s id=%q label=%q under=%q section=%q",
-		u.Kind, u.ID, u.Label, u.Under, u.Section)
+	return fmt.Sprintf("%s id=%q label=%q title=%q under=%q section=%q cells=%d",
+		u.Kind, u.ID, u.Label, u.Title, u.Under, u.Section, len(u.Cells))
 }
 
 func renderAll(us []Unimported) []string {
@@ -125,7 +136,9 @@ func TestAnIrregularIdBesideAnOccupiedRowIsReportedRatherThanDropped(t *testing.
 	}
 	sameSet(t, "the records read", ids, []string{"B60"})
 	sameSet(t, "what the parser reports it did not take", renderAll(p.Unimported),
-		[]string{`irregular-id id="" label="B60-2" under="" section=""`})
+		[]string{
+			"irregular-id id=\"\" label=\"B60-2\" title=\"the invented shape, which must not vanish into B60\" under=\"\" section=\"\" cells=4",
+		})
 	for _, it := range p.Items {
 		if it.ID == "B60" && strings.Contains(it.Title, "invented") {
 			t.Errorf("B60's record took the INVENTED row's title, which is a silent "+
@@ -159,8 +172,8 @@ func TestARowInsideAWorkItemTableWithNoIdIsReportedAndSeparatorsAreNot(t *testin
 	sameSet(t, "the records read", ids, []string{"B60"})
 	sameSet(t, "the ordered rows the parser reports it did not take", renderAll(p.Unimported),
 		[]string{
-			`row-without-id id="" label="0" under="" section="the-critical-path-to-the-gate"`,
-			`row-without-id id="" label="6a" under="" section="the-critical-path-to-the-gate"`,
+			"row-without-id id=\"\" label=\"0\" title=\"the first rank\" under=\"\" section=\"the-critical-path-to-the-gate\" cells=4",
+			"row-without-id id=\"\" label=\"6a\" title=\"a rank that is not a number\" under=\"\" section=\"the-critical-path-to-the-gate\" cells=4",
 		})
 	for _, u := range p.Unimported {
 		if strings.HasPrefix(u.Label, "-") || u.Label == "---" {
@@ -192,8 +205,8 @@ func TestAHeadingBorneIdIsReportedWithTheParentTheDocumentNestsItUnder(t *testin
 	}
 	sameSet(t, "the heading-borne ids the parser reports it did not take", renderAll(p.Unimported),
 		[]string{
-			`heading id="B46" label="⛔ B46 - THE MVP ACCEPTANCE TEST" under="" section=""`,
-			`heading id="B46d" label="⛔ B46d - A CHILD THAT IS ITSELF A HEADING" under="B46" section="b46-the-mvp-acceptance-test"`,
+			"heading id=\"B46\" label=\"⛔ B46 - THE MVP ACCEPTANCE TEST\" title=\"THE MVP ACCEPTANCE TEST\" under=\"\" section=\"\" cells=0",
+			"heading id=\"B46d\" label=\"⛔ B46d - A CHILD THAT IS ITSELF A HEADING\" title=\"A CHILD THAT IS ITSELF A HEADING\" under=\"B46\" section=\"b46-the-mvp-acceptance-test\" cells=0",
 		})
 	if len(p.Items) != 1 || p.Items[0].ID != "B46a" {
 		t.Fatalf("the row grain must be unchanged, got %d items: %+v", len(p.Items), p.Items)
@@ -222,7 +235,15 @@ func TestAnIdInATableThatIsNotAWorkItemTableIsReported(t *testing.T) {
 		t.Errorf("a two-column adopter row is not a work item, got %+v", p.Items)
 	}
 	sameSet(t, "the other-table ids the parser reports it did not take", renderAll(p.Unimported),
-		[]string{`other-table id="B6" label="B6" under="" section=""`})
+		[]string{
+			"other-table id=\"B6\" label=\"B6\" title=\"\" under=\"\" section=\"\" cells=2",
+		})
+	// ⛔ THE SECOND CELL IS THE FACT THIS TABLE EXISTS TO STATE, and Label -
+	// the first cell - is the id it is stated ABOUT. A grain keeping only the
+	// first cell of an adopter table keeps the subject and drops the claim.
+	if got := p.Unimported[0].Cells; len(got) != 2 || got[1] != "`backend-record`" {
+		t.Errorf("the adopter cell is what this table says and it is not carried: %q", got)
+	}
 }
 
 // backlogDocument reads rig's REAL document through the same gitignored
@@ -262,24 +283,24 @@ func TestRigsOwnBacklogSaysExactlyWhatItDidNotImport(t *testing.T) {
 
 	sameSet(t, "every id and ordered row rig's own backlog addresses and no record carries",
 		renderAll(p.Unimported), []string{
-			`row-without-id id="" label="0" under="" section="the-critical-path-to-the-gate"`,
-			`row-without-id id="" label="1" under="" section="the-critical-path-to-the-gate"`,
-			`row-without-id id="" label="2" under="" section="the-critical-path-to-the-gate"`,
-			`row-without-id id="" label="3" under="" section="the-critical-path-to-the-gate"`,
-			`row-without-id id="" label="4" under="" section="the-critical-path-to-the-gate"`,
-			`row-without-id id="" label="5" under="" section="the-critical-path-to-the-gate"`,
-			`row-without-id id="" label="6" under="" section="the-critical-path-to-the-gate"`,
-			`row-without-id id="" label="6a" under="" section="the-critical-path-to-the-gate"`,
-			`row-without-id id="" label="7" under="" section="the-critical-path-to-the-gate"`,
-			`row-without-id id="" label="8" under="" section="the-critical-path-to-the-gate"`,
-			`row-without-id id="" label="9" under="" section="the-critical-path-to-the-gate"`,
-			`heading id="B46" label="⛔ B46 - THE MVP ACCEPTANCE TEST, AND IT EXISTED IN NO DOCUMENT AT ALL" under="" section="rig-s-development-plan"`,
-			`heading id="B46d" label="⛔ B46d - THE CYCLE IS CONSTRUCTED, AND THE RELAY SAID OTHERWISE" under="B46" section="b46-the-mvp-acceptance-test-and-it-existed-in-no-document-at-all"`,
-			"other-table id=\"B6\" label=\"**B6** two shipped-output changes, one migration\" under=\"\" section=\"the-adopter-column-holds-a-role-never-a-session-name\"",
-			"other-table id=\"B10\" label=\"**B10** `--json` renders in the daemon\" under=\"\" section=\"the-adopter-column-holds-a-role-never-a-session-name\"",
-			"other-table id=\"B18\" label=\"**B18** the session token has no consumer\" under=\"\" section=\"the-adopter-column-holds-a-role-never-a-session-name\"",
-			"other-table id=\"B20\" label=\"**B20** the stub surface\" under=\"\" section=\"the-adopter-column-holds-a-role-never-a-session-name\"",
-			"other-table id=\"B21\" label=\"**B21** `wire.proto`'s `request_id` comment\" under=\"\" section=\"the-adopter-column-holds-a-role-never-a-session-name\"",
+			"row-without-id id=\"\" label=\"0\" title=\"M2's agent front door\" under=\"\" section=\"the-critical-path-to-the-gate\" cells=4",
+			"row-without-id id=\"\" label=\"1\" title=\"§37.6 a named estate refuses a held name\" under=\"\" section=\"the-critical-path-to-the-gate\" cells=4",
+			"row-without-id id=\"\" label=\"2\" title=\"§37.1 estate identity in the protocol\" under=\"\" section=\"the-critical-path-to-the-gate\" cells=4",
+			"row-without-id id=\"\" label=\"3\" title=\"§37.3 build and semantic skew detected\" under=\"\" section=\"the-critical-path-to-the-gate\" cells=4",
+			"row-without-id id=\"\" label=\"4\" title=\"§37.2 storage keyed by estate\" under=\"\" section=\"the-critical-path-to-the-gate\" cells=4",
+			"row-without-id id=\"\" label=\"5\" title=\"§37.5 systemd manages production only\" under=\"\" section=\"the-critical-path-to-the-gate\" cells=4",
+			"row-without-id id=\"\" label=\"6\" title=\"M7 Peers - THE MINIMUM SET ONLY\" under=\"\" section=\"the-critical-path-to-the-gate\" cells=4",
+			"row-without-id id=\"\" label=\"6a\" title=\"§38b: the library search for rows 2, 3 and the WAL\" under=\"\" section=\"the-critical-path-to-the-gate\" cells=4",
+			"row-without-id id=\"\" label=\"7\" title=\"The FIRST cutover, and the gate\" under=\"\" section=\"the-critical-path-to-the-gate\" cells=4",
+			"row-without-id id=\"\" label=\"8\" title=\"The remaining cutovers, one capability at a time\" under=\"\" section=\"the-critical-path-to-the-gate\" cells=4",
+			"row-without-id id=\"\" label=\"9\" title=\"§39 THE CONTINUITY RECORD - and this row is BORIS'S ORDER, not a seat's reading\" under=\"\" section=\"the-critical-path-to-the-gate\" cells=4",
+			"heading id=\"B46\" label=\"⛔ B46 - THE MVP ACCEPTANCE TEST, AND IT EXISTED IN NO DOCUMENT AT ALL\" title=\"THE MVP ACCEPTANCE TEST, AND IT EXISTED IN NO DOCUMENT AT ALL\" under=\"\" section=\"rig-s-development-plan\" cells=0",
+			"heading id=\"B46d\" label=\"⛔ B46d - THE CYCLE IS CONSTRUCTED, AND THE RELAY SAID OTHERWISE\" title=\"THE CYCLE IS CONSTRUCTED, AND THE RELAY SAID OTHERWISE\" under=\"B46\" section=\"b46-the-mvp-acceptance-test-and-it-existed-in-no-document-at-all\" cells=0",
+			"other-table id=\"B6\" label=\"**B6** two shipped-output changes, one migration\" title=\"\" under=\"\" section=\"the-adopter-column-holds-a-role-never-a-session-name\" cells=2",
+			"other-table id=\"B10\" label=\"**B10** `--json` renders in the daemon\" title=\"\" under=\"\" section=\"the-adopter-column-holds-a-role-never-a-session-name\" cells=2",
+			"other-table id=\"B18\" label=\"**B18** the session token has no consumer\" title=\"\" under=\"\" section=\"the-adopter-column-holds-a-role-never-a-session-name\" cells=2",
+			"other-table id=\"B20\" label=\"**B20** the stub surface\" title=\"\" under=\"\" section=\"the-adopter-column-holds-a-role-never-a-session-name\" cells=2",
+			"other-table id=\"B21\" label=\"**B21** `wire.proto`'s `request_id` comment\" title=\"\" under=\"\" section=\"the-adopter-column-holds-a-role-never-a-session-name\" cells=2",
 		})
 
 	// ⛔ THE ELEVEN ARE ORDERED AND THE ORDER IS THE DOCUMENT'S OWN.
@@ -495,4 +516,160 @@ func TestRigsOwnBacklogSaysWhichWordClosedEachRow(t *testing.T) {
 	// done" and "this was withdrawn because it was wrong".
 	sameSet(t, "the rows this document closes without naming a word where the "+
 		"closing clause reads", closedWithNoWord, []string{"B11", "B7"})
+}
+
+// ⛔ THE GRAIN KEPT ONE CELL OUT OF FOUR AND THREW THE ROW AWAY.
+//
+// Measured over rig's own critical path on 2026-09-17, before this test
+// existed: 34 bytes kept - the eleven ranks - and 4,656 bytes dropped. The
+// live production store held all eleven records titled `0`..`9` and `6a`,
+// body and all, because the RANK was the only part of the row that survived
+// the parse. `rig record get the-critical-path-to-the-gate/0` answered
+// `title 0` and `body 0`.
+//
+// ⛔ AND THE ASYMMETRY WAS ALREADY WRITTEN DOWN IN THE CONSUMER. `cmd/rigseed`
+// calls its `row record.BacklogItem` field "the EVIDENCE; fields is the
+// projection of it, and the report that names irregular rows reads the
+// evidence rather than re-deriving it" - and for these eleven there WAS no
+// evidence, so that sentence was false for every one of them.
+func TestAnOrderedRowCarriesTheWholeRowAndNotJustItsRank(t *testing.T) {
+	p := backlogDocument(t)
+
+	var ranked int
+	for _, u := range p.Unimported {
+		if u.Kind != UnimportedRowWithoutID {
+			continue
+		}
+		ranked++
+		// `| # | Work | Seat | State |` - four content cells, and the parser
+		// declined the row at the id rather than at the shape.
+		if len(u.Cells) != 4 {
+			t.Errorf("rank %q (line %d) carries %d cells, want 4 - the row this "+
+				"grain declined has four and a seeder cannot re-derive them "+
+				"without opening the document again", u.Label, u.Line, len(u.Cells))
+			continue
+		}
+		if u.Cells[0] != u.Label {
+			t.Errorf("rank %q (line %d): Cells[0] is %q, and Label's contract is to "+
+				"BE the first cell verbatim", u.Label, u.Line, u.Cells[0])
+		}
+		// ⛔ THE STATE CELL IS THE ONE THE BRIEF IS BLOCKED ON. Every one of
+		// the eleven leads its State cell with a terminal word, and nothing
+		// could read it. Asserted as non-empty rather than parsed, because
+		// what a state cell MEANS on a rank-keyed row is a ruling this parser
+		// does not own.
+		if strings.TrimSpace(u.Cells[3]) == "" {
+			t.Errorf("rank %q (line %d) has an empty State cell: %q", u.Label, u.Line, u.Cells)
+		}
+		// ⛔ BOTH HALVES TOGETHER. A Title equal to the Label is the defect
+		// that reached the store, and a Title that is merely non-empty would
+		// pass over it.
+		if u.Title == "" || u.Title == u.Label {
+			t.Errorf("rank %q (line %d) has Title %q - the rank is not the work, and "+
+				"a record titled with its own rank is what shipped", u.Label, u.Line, u.Title)
+		}
+	}
+	// The positive control. Without it this passes over a parse that found no
+	// ranked rows at all, which is the absence the whole grain exists for.
+	if ranked != 11 {
+		t.Fatalf("the critical path has %d ranked rows, want 11 - either the document "+
+			"moved, in which case update this number in a commit that says so, or "+
+			"nothing above was checked", ranked)
+	}
+
+	// ⛔ ONE ROW PINNED BY VALUE, because the loop above checks SHAPE and a
+	// grain that carried four cells of the wrong row would satisfy every
+	// assertion in it. `6a` is the row whose rank is not a number, which is
+	// the one a rank-keyed instrument is most likely to mishandle.
+	var six []string
+	for _, u := range p.Unimported {
+		if u.Kind == UnimportedRowWithoutID && u.Label == "6a" {
+			six = u.Cells
+		}
+	}
+	if len(six) != 4 {
+		t.Fatalf("rank 6a was not found with four cells: %q", six)
+	}
+	if want := "**§38b: the library search for rows 2, 3 and the WAL**"; six[1] != want {
+		t.Errorf("rank 6a's Work cell is %q, want %q", six[1], want)
+	}
+	if want := "either worker"; six[2] != want {
+		t.Errorf("rank 6a's Seat cell is %q, want %q", six[2], want)
+	}
+	if !strings.HasPrefix(six[3], "**DONE 2026-09-12, and row 6 is unblocked.**") {
+		t.Errorf("rank 6a's State cell is %q, and it is supposed to lead with its "+
+			"terminal word the way every row of this table does", six[3])
+	}
+}
+
+// ⛔ A ROW'S CELLS ARE CARRIED VERBATIM, DECORATION AND ALL, and that is the
+// same contract Label already has. The test is written over a fixture because
+// no row of rig's own document exercises the interesting edge: a cell that is
+// empty, and a cell that holds a pipe inside code markers.
+const cellsVerbatimDoc = "## a section\n" +
+	"\n" +
+	"| # | Work | Seat | State |\n" +
+	"|---|---|---|---|\n" +
+	"| 0 | **the work** ⛔ *emphasis kept* | | **OPEN** |\n"
+
+func TestARowsCellsAreCarriedVerbatimIncludingTheEmptyOnes(t *testing.T) {
+	p, err := ParseBacklogDocument(strings.NewReader(cellsVerbatimDoc))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(p.Unimported) != 1 {
+		t.Fatalf("want one reported row, got %d: %+v", len(p.Unimported), p.Unimported)
+	}
+	u := p.Unimported[0]
+	want := []string{"0", "**the work** ⛔ *emphasis kept*", "", "**OPEN**"}
+	if strings.Join(u.Cells, "|") != strings.Join(want, "|") {
+		t.Errorf("Cells = %q, want %q\n⛔ AN EMPTY CELL IS A CELL: dropping it "+
+			"shifts every cell after it, which is the defect B21 already cost "+
+			"this parser once", u.Cells, want)
+	}
+	// The leading and trailing pipes are not cells and must not be carried as
+	// two empty strings a consumer has to know to skip.
+	if len(u.Cells) != 4 {
+		t.Errorf("Cells has %d entries and the row has four cells: %q", len(u.Cells), u.Cells)
+	}
+}
+
+// ⛔ THE TRUE BRANCH OF `Struck` ON A ROW, WHICH THE LIVE DOCUMENT NEVER
+// EXERCISES. `grep -c '~~'` over the eleven ordered rows returns 0, so without
+// this fixture `Struck` would be pinned only where it is false - and false
+// means both "the document did not strike it" and "nothing looked", which is
+// B46's failure verbatim one kind over.
+const struckRowDoc = "## a section\n" +
+	"\n" +
+	"| # | Work | Seat | State |\n" +
+	"|---|---|---|---|\n" +
+	"| 0 | ~~**the closed work**~~ **DONE** | lead | **DONE** |\n" +
+	"| 1 | **the open work** | lead | **OPEN** |\n"
+
+func TestARowWithoutAnIdReportsTheDocumentsOwnStrikethrough(t *testing.T) {
+	p, err := ParseBacklogDocument(strings.NewReader(struckRowDoc))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	got := map[string]bool{}
+	titles := map[string]string{}
+	for _, u := range p.Unimported {
+		got[u.Label] = u.Struck
+		titles[u.Label] = u.Title
+	}
+	if len(got) != 2 {
+		t.Fatalf("want both rows reported, got %d: %+v", len(got), p.Unimported)
+	}
+	if !got["0"] {
+		t.Errorf("a struck row reports Struck=false, so a closed row reads as open")
+	}
+	if got["1"] {
+		t.Errorf("an unstruck row reports Struck=true")
+	}
+	// ⛔ AND THE TITLE COMES OFF THE SAME CELL BY THE SAME RULE AN IMPORTED
+	// ROW USES. `titleOf` takes the first bolded run, struck or not, so a
+	// struck row's title is its work and not its terminal word.
+	if want := "the closed work"; titles["0"] != want {
+		t.Errorf("the struck row's Title is %q, want %q", titles["0"], want)
+	}
 }
