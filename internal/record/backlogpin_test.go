@@ -171,8 +171,11 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 			"B8", "B9",
 		})
 
+	// B65 joins this set 2026-09-17: the field predicate landed at rig
+	// `1c3a8c4` and the row was struck, which is this document's own closure
+	// mark. The SET is what says which row closed; the count alone would not.
 	pin(t, "closed, struck", struck,
-		[]string{"B11", "B19", "B20", "B22", "B31", "B33", "B7", "B9"})
+		[]string{"B11", "B19", "B20", "B22", "B31", "B33", "B65", "B7", "B9"})
 	pin(t, "closed by a terminal lead in the item cell", byLead, []string{"B21"})
 	pin(t, "claims a terminal state unstruck, seeded OPEN", claims,
 		[]string{"B15", "B24", "B25", "B44", "B46a", "B48", "B55", "B56"})
@@ -213,9 +216,12 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 		// test was GREEN at this commit and the SET pin reported exactly one
 		// added id, {B71}, which is the assertion that would have caught a swap
 		// and the one a previous generation moved the counts without checking.
+		// 9 -> 10 closed and 67 -> 66 open, same day: B65 was struck when the
+		// field predicate landed. `rows` is UNMOVED at 76, which is the check
+		// that says a row was closed rather than added or removed.
 		{"rows", len(items), 76},
-		{"closed", len(struck) + len(byLead), 9},
-		{"open", open, 67},
+		{"closed", len(struck) + len(byLead), 10},
+		{"open", open, 66},
 	} {
 		if c.got != c.want {
 			t.Errorf("%s: %d, pinned at %d.\n"+

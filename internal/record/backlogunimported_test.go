@@ -466,8 +466,10 @@ func TestRigsOwnBacklogSaysWhichWordClosedEachRow(t *testing.T) {
 	}
 	sameSet(t, "RETRACTED", by["RETRACTED"], []string{"B19"})
 	sameSet(t, "CLOSED", by["CLOSED"], []string{"B15", "B21", "B48", "B55", "B56"})
+	// B65 joins 2026-09-17: the field predicate landed at rig `1c3a8c4` and
+	// the row was struck with DONE after the strike.
 	sameSet(t, "DONE", by["DONE"],
-		[]string{"B20", "B22", "B24", "B25", "B31", "B33", "B44", "B46a", "B9"})
+		[]string{"B20", "B22", "B24", "B25", "B31", "B33", "B44", "B46a", "B65", "B9"})
 	sameSet(t, "REJECTED", by["REJECTED"], nil)
 
 	// ⛔ B19 IS THE ROW THE WHOLE FIELD EXISTS FOR. It was RETRACTED as
