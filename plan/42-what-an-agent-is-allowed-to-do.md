@@ -56,22 +56,52 @@ policy keyed on seat cannot express a rule about a caller that has no seat**, an
 today the MCP door does not require one. **That is a precondition of this
 section, not a detail of it.**
 
-### ⛔ WHAT THIS IS, AND WHAT IT IS NOT - FLAGGED AS THE SEAT'S READING
+### ✅ WHAT THIS IS - ASKED AND ANSWERED BY BORIS, 2026-09-17
 
-⛔ **THIS IS BORIS CONFIGURING HIS OWN AGENTS. IT IS NOT A SECURITY BOUNDARY
-AGAINST A HOSTILE ONE, AND THE TWO BUILD COMPLETELY DIFFERENT THINGS.** A policy
-surface is a table he edits; a security boundary needs a threat model,
-sandboxing, and an assumption that the caller lies. **He said *"configure"* and
-*"grant"*, which are the words of the first.**
+**The seat's reading was put to him and he confirmed it:**
 
-⛔ **THIS READING IS THE SEAT'S AND HAS NOT BEEN PUT TO HIM. ASK BEFORE
-BUILDING** - it is the difference between a configuration file and a quarter of
-work, and getting it wrong in the expensive direction looks responsible.
+> *"Is this me configuring your my agents. Avoiding being hacked by a hostile
+> agent is something we'll defer to late in our development program. Our
+> development must produce safe code, but we don't have a threat model yet so no
+> point it doing premature optimizations."*
 
-**What is untouched either way:** §14's `scoped` boolean and §15's redaction
-invariant. **What `secrets.get` returned is never recorded, only the key name** -
-a policy that granted an agent secret-reading would still not make secrets
-introspectable, because that is a different ruling.
+| | |
+|---|---|
+| ✅ **what §42 IS** | **Boris configuring HIS OWN agents.** A policy table he edits. **Build this** |
+| ⛔ **what it is NOT, and it is DEFERRED rather than refused** | defence against a **hostile** agent. *"Late in our development program"* - **a schedule position, so it is NOT a non-goal and nothing here may be built in a way that forecloses it** |
+| **why now** | *"we don't have a threat model yet so no point in doing premature optimizations"* |
+
+#### ⛔ THE ONE DISTINCTION IN THAT ANSWER, AND A SEAT WILL COLLAPSE IT IN ONE OF TWO DIRECTIONS
+
+> ***"Our development must produce safe code, but we don't have a threat model
+> yet."***
+
+**Two different things, and both collapses are wrong:**
+
+| Collapse | What it produces |
+|---|---|
+| *"security is deferred"* | ⛔ **unsafe code, written on a licence he did not give.** He said the OPPOSITE in the same sentence |
+| *"must produce safe code"* | ⛔ **a threat model and a sandbox, now** - the premature optimisation he named |
+
+⛔ **SAFE CODE IS A STANDING QUALITY BAR AND IT IS NOT PART OF THIS SECTION'S
+DEFERRAL.** It is craft, and it applies to every line: no injection-shaped string
+building, no unchecked bounds, no secret in a log, no path taken from a caller
+and joined without validation. **None of that needs a threat model - it is what
+competent code looks like.** ⛔ **Recorded as a standing rule at §38, because it
+binds all development and not only this section.**
+
+⛔ **AND IT IS ALREADY LIVE IN THIS TREE RATHER THAN ASPIRATIONAL:** B65's field
+predicate uses `json_each` and not a concatenated `json_extract` path precisely
+so a caller's field name is never interpreted, and `TestAFieldNameIsNeverInterpreted`
+pins it. **That is safe code written with no threat model, which is the proof
+the two are separable.**
+
+#### What stays untouched under either answer
+
+§14's `scoped` boolean and §15's redaction invariant. **What `secrets.get`
+returned is never recorded, only the key name** - a policy granting an agent
+secret-reading would still not make secrets introspectable, because that is a
+different ruling and this section does not reach it.
 
 ### ⛔ THE MECHANISM MUST COST NOTHING WHEN IT IS EMPTY
 

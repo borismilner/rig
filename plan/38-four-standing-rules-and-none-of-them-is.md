@@ -1,6 +1,7 @@
-## 38. Three standing rules, and none of them is a preference
+## 38. Four standing rules, and none of them is a preference
 
-**All three are Boris's, stated 2026-09-12, and they bind every milestone rather
+**The first three are Boris's, stated 2026-09-12; the fourth is his, stated
+2026-09-17. They bind every milestone rather
 than any one of them.** They are here rather than folded into §22 or §29 because a
 rule that applies to all future work needs an address a seat can be pointed at.
 
@@ -112,3 +113,34 @@ in the same section**, stated the same day: the requirements every project must
 uphold, held once and improved over time instead of copied into each project and
 diverging. **38b above is the worked example of the divergence.**
 
+### 38d. Our development must produce safe code, and that is separate from a threat model
+
+**Boris, 2026-09-17, answering whether §42 is a defence against hostile agents:**
+
+> *"Avoiding being hacked by a hostile agent is something we'll defer to late in
+> our development program. Our development must produce safe code, but we don't
+> have a threat model yet so no point it doing premature optimizations."*
+
+⛔ **TWO THINGS IN ONE SENTENCE, AND COLLAPSING THEM EITHER WAY IS WRONG.**
+
+| Collapse | What it produces |
+|---|---|
+| *"security is deferred, so relax"* | ⛔ **unsafe code on a licence he did not give.** He said the opposite in the same breath |
+| *"safe code, so model the threat"* | ⛔ **a threat model and a sandbox NOW** - the premature optimisation he named |
+
+⛔ **SAFE CODE IS CRAFT AND NEEDS NO THREAT MODEL.** No injection-shaped string
+building, no unchecked bounds, no secret in a log, no caller-supplied path joined
+without validation, no parser trusting its input's length. **That is what
+competent code looks like and it is owed on every line regardless of who is
+attacking.**
+
+⛔ **THE THREAT MODEL IS DEFERRED, NOT REFUSED.** *"Late in our development
+program"* is a schedule position. **So nothing built now may FORECLOSE it** - a
+design that can never be given an authorisation boundary has spent a decision
+he explicitly kept.
+
+**ALREADY LIVE IN THIS TREE, WHICH IS THE PROOF THE TWO ARE SEPARABLE:** B65's
+field predicate uses `json_each` rather than a concatenated `json_extract` path
+so a caller's field name is never interpreted, and
+`TestAFieldNameIsNeverInterpreted` pins it. **Written with no threat model, and
+it is the right code either way.**
