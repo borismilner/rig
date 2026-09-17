@@ -22,7 +22,7 @@ laptop, see section 4).
 
 ## Map - this file is the INDEX. The sections live in `plan/`.
 
-**The specification is 9792 lines across 40 files and nobody reads it
+**The specification is 9904 lines across 41 files and nobody reads it
 whole.** It is a reference to query, and it is queried with two questions:
 *"what is rig supposed to do"* and *"what did he already rule on this"*.
 **This index exists so a requirement cannot hide**, which is the failure this
@@ -101,6 +101,7 @@ the original byte for byte before writing anything.
 |---|---|---|---|
 | 39 | The continuity record | 2815 | [`plan/39-the-continuity-record.md`](plan/39-the-continuity-record.md) |
 | 40 | The knowledge-sharing section | 104 | [`plan/40-the-knowledge-sharing-section.md`](plan/40-the-knowledge-sharing-section.md) |
+| 41 | Export and import a project or a case | 112 | [`plan/41-export-and-import-a-project-or-a-case.md`](plan/41-export-and-import-a-project-or-a-case.md) |
 
 ### The four questions a seat actually arrives with
 
@@ -111,8 +112,8 @@ the original byte for byte before writing anything.
 | **what do agents get, and when?** | §16 for the coordination primitives, **§39 for the continuity record**, §37 for the minimum set and the staged migration |
 | **has he already ruled on this?** | `logbook/projects/rig/DECISIONS.md` first, then §31-38. **Grep before proposing** - proposing what already exists is this project's named failure mode |
 
-**§31-38 ARE A CHANGELOG INSIDE A SPECIFICATION** - 4722 of 9792 lines,
-48%. Splitting the file did not fix that; it made it visible and
+**§31-38 ARE A CHANGELOG INSIDE A SPECIFICATION** - 4834 of 9904 lines,
+49%. Splitting the file did not fix that; it made it visible and
 cheap to act on, since those eight sections are now eight files that can move to
 the logbook in one commit. `BACKLOG.md` B24. **Until they do, a reader after the
 current rule prefers the numbered section over the pass that changed it.**
