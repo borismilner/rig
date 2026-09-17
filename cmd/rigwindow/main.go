@@ -140,7 +140,7 @@ func run() error {
 	// The tray (section 11) is a separate goroutine because both it and
 	// app.Run() block. fyne.io/systray, not Wails' own SystemTray - see the
 	// comment on runTraySupervisor.
-	go runTraySupervisor(app, win)
+	go runTraySupervisor(win)
 
 	return app.Run()
 }

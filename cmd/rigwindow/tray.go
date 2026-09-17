@@ -71,7 +71,11 @@ var (
 // on this machine's GNOME session, no error logged either side. AgentBox
 // registers fine with fyne.io/systray in the same session, so this package
 // uses that instead of chasing the beta bug.
-func runTraySupervisor(app *application.App, win application.Window) {
+// ⛔ IT TAKES NO *application.App ANY MORE. The only thing it ever used the
+// app for was app.Quit() behind the tray's quit row, and that row is gone
+// because a tray that can remove itself is not "always available". Keeping the
+// parameter would leave the capability one line from returning.
+func runTraySupervisor(win application.Window) {
 	systray.Run(func() {
 		systray.SetTooltip("rig")
 
@@ -89,7 +93,26 @@ func runTraySupervisor(app *application.App, win application.Window) {
 		systray.AddSeparator()
 		menuWindow = systray.AddMenuItem("Show rig", "Open or hide the rig window")
 		systray.AddSeparator()
-		quit := systray.AddMenuItem("Quit rig window", "Close the window and its tray icon. The daemon keeps running")
+
+		// ⛔ THERE IS NO QUIT ROW, AND ITS ABSENCE IS THE REQUIREMENT.
+		// Boris, 2026-09-17: "Rig system-tray icon should always be
+		// available." A row that removes the icon contradicts that in one
+		// click, and it did: `Quit rig window` called app.Quit(), which ends
+		// the process the tray lives in, and the tray was gone for 2h42m
+		// before he asked whether it was there at all.
+		//
+		// ⛔ THE ROW WAS ALSO MIS-NAMED, WHICH IS WHY IT COST HIM THE ICON.
+		// It said WINDOW and its tooltip said "Close the window and its tray
+		// icon", so the truth was in the tooltip nobody hovers. Closing a
+		// window is an ordinary act; ending the one thing whose job is to be
+		// visible is not, and the menu offered them as the same gesture.
+		//
+		// Stopping it is still possible and is now where it belongs: the unit
+		// that starts it. The row below says so rather than leaving him to
+		// find out that nothing in the menu stops it.
+		stop := systray.AddMenuItem("systemctl --user stop rigwindow.service",
+			"the tray is always on by design; this is how to stop it")
+		stop.Disable()
 
 		// Left-click still toggles, so the gesture that worked before this
 		// menu existed keeps working. The menu is an addition, not a
@@ -98,20 +121,13 @@ func runTraySupervisor(app *application.App, win application.Window) {
 		// for the other.
 		systray.SetOnTapped(func() { toggleWindow(win) })
 
+		// One receiver, because there is one clickable row. It stays a
+		// goroutine with a loop rather than collapsing to a single receive:
+		// ClickedCh fires on EVERY click, and a one-shot receive would make
+		// the menu work once.
 		go func() {
-			for {
-				select {
-				case <-menuWindow.ClickedCh:
-					toggleWindow(win)
-				case <-quit.ClickedCh:
-					// Quits the WINDOW PROCESS, which is what owns this tray.
-					// rigd is a separate process and is deliberately left
-					// running - the menu entry says so, because "Quit rig"
-					// next to a tray icon reads as "stop rig" and that is the
-					// one thing this must not be mistaken for.
-					app.Quit()
-					return
-				}
+			for range menuWindow.ClickedCh {
+				toggleWindow(win)
 			}
 		}()
 
@@ -158,27 +174,35 @@ func retitleWindowItem(win application.Window) {
 // is deliberate: a stale icon is ambiguous, a stale VERSION is a lie, so the
 // rows say the daemon is gone while the icon holds.
 func pollEstate(win application.Window) {
-	named := false
 	for {
 		est, connected := estateSnapshot()
 		switch {
 		case connected && est.GetRole() == rigv1.EstateRole_ESTATE_ROLE_PRODUCTION:
 			setTrayIcon("production.png", "rig - production")
 			setFacts(est)
-			named = true
 		case connected && est.GetRole() == rigv1.EstateRole_ESTATE_ROLE_DEVELOPMENT:
 			setTrayIcon("development.png", "rig - development")
 			setFacts(est)
-			named = true
 		case connected:
-			// Unnamed or unspecified: no tray, by section 11's own rule. The
-			// tray having been created to reach this branch at all, quitting
-			// it is the closest fyne.io/systray gets to "never existed" -
-			// there is no re-create-on-demand hook like Wails' SystemTray.New.
-			if named {
-				systray.Quit()
-				return
-			}
+			// Unnamed or unspecified. ⛔ THIS USED TO QUIT THE TRAY AND NOW
+			// LABELS IT, BECAUSE "ALWAYS AVAILABLE" OUTRANKS THE RULE IT WAS
+			// SERVING. Boris, 2026-09-17: "Rig system-tray icon should always
+			// be available."
+			//
+			// ⛔ THE OLD RULE'S CONCERN WAS REAL AND IS NOT BEING DISMISSED:
+			// every test and reproduction recipe starts a daemon, and an icon
+			// per test run is worse than no icon. But an unnamed estate is a
+			// reason to SAY "unnamed" on the icon, not a reason to have none -
+			// the same argument §11 already makes about the detached state,
+			// one level up. And the concern does not reach here anyway:
+			// `make ci` starts daemons, never this window, which needs a
+			// graphical session it does not have.
+			//
+			// The icon is left on its last-known glyph deliberately. There is
+			// no unnamed artwork and inventing one to cover a branch rigd
+			// refuses to produce - it validates the estate vocabulary by name
+			// - would be drawing for a state nobody can reach today.
+			setUnnamed()
 		default:
 			// Detached: BADGE the icon, and say how long in the text.
 			//
@@ -290,6 +314,23 @@ func downIcon(last string) string {
 		base = strings.TrimSuffix(strings.TrimSuffix(last, ".png"), "-down")
 	}
 	return base + "-down.png"
+}
+
+// setUnnamed says the estate has no name rather than taking the icon away.
+//
+// The version row still carries whatever the daemon reported: it IS answering,
+// so its version is a fact, unlike the detached case where it is a memory.
+func setUnnamed() {
+	if menuEstate == nil {
+		return
+	}
+	menuEstate.SetTitle("estate: unnamed")
+	menuEstate.SetTooltip("the daemon is answering and reports no estate name")
+	detachedSince = time.Time{}
+	if menuDetail != nil {
+		menuDetail.SetTitle("")
+		menuDetail.Hide()
+	}
 }
 
 func setTrayIcon(icon, tooltip string) {
