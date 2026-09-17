@@ -54,6 +54,17 @@ const fieldStatus = "status"
 const (
 	grainRow     = "row"
 	grainHeading = "heading"
+
+	// grainRanked is a row of the critical-path table: inside a work-item
+	// table this parser reads, and carrying a RANK where the id goes.
+	//
+	// ⛔ IT IS ITS OWN GRAIN BECAUSE THE EVIDENCE BEHIND IT IS THINNER THAN
+	// EITHER OF THE OTHER TWO, AND A READER WHO CANNOT TELL WILL TRUST IT
+	// EQUALLY. A row grain has a state cell and a title; this one reaches
+	// neither through `Unimported`, so it arrives with a rank, a line and
+	// nothing else. Folding it into `row` would put eleven records with no
+	// status in the same set as seventy-eight that have one.
+	grainRanked = "ranked-row"
 )
 
 // tagHeadingBorne marks a record whose id the document states in a HEADING.
@@ -64,6 +75,25 @@ const (
 // reader who cannot tell the two apart cannot tell a status the document never
 // gave from one something lost.
 const tagHeadingBorne = "heading-borne"
+
+// tagRankOnly marks a record the document states with a RANK and nothing this
+// seeder can reach.
+//
+// ⛔ IT IS THE ABSENCE MADE READABLE, WHICH IS THE ONLY HONEST ANSWER WHILE
+// `Unimported` CARRIES NO WORK CELL. The eleven rows sit in
+// `| # | Work | Seat | State |` and the parser exports the first cell only, so
+// the title and the state are not available to this file - and re-deriving
+// them by reading BACKLOG.md here would be the second reader of one document
+// that this file's header names as the project's most expensive failure. The
+// tag is what stops a record with a rank for a title reading as a record whose
+// work is called "9".
+const tagRankOnly = "rank-only"
+
+// The fields a ranked row carries, named once.
+const (
+	fieldRank    = "rank"
+	fieldSection = "section"
+)
 
 // exitDiverged is what --check exits with when the store and the document are
 // not set-equal.
@@ -557,6 +587,10 @@ type result struct {
 	// them, so they are NAMED on every run rather than folded into a total.
 	headings []string
 
+	// ranked is the ids of the ordered table's rows, which carry a rank and
+	// no state.
+	ranked []string
+
 	// notes is the ids written at kind `note` - the decisions document's
 	// standing sections.
 	//
@@ -596,6 +630,9 @@ func (r *result) count(exists, dryRun bool, before, after uint64) {
 func (r *result) collect(in intent) {
 	if in.grain == grainHeading {
 		r.headings = append(r.headings, in.id)
+	}
+	if in.grain == grainRanked {
+		r.ranked = append(r.ranked, in.id)
 	}
 	if in.kind == record.KindNote {
 		r.notes = append(r.notes, in.id)
@@ -658,6 +695,14 @@ func (r *result) report(w *os.File, o options) {
 		"the document gives these an id but no table row, so they have NO STATE\n"+
 			"      CELL and this seeder writes no status for them. tags=heading-borne\n"+
 			"      is what makes the absence readable rather than lost.")
+	name("A RANK WHERE AN ID GOES, AND NO STATE CELL THIS SEEDER CAN REACH", r.ranked,
+		"the ordered table states a rank, not a `B` id, and no `B` id was minted.\n"+
+			"      The id names its table so a second unnumbered table cannot collide\n"+
+			"      with it silently, and the rank is carried as a field rather than\n"+
+			"      mapped onto blocks or priority.\n"+
+			"      ⛔ THEY CARRY NO status: `Unimported` does not export the State cell,\n"+
+			"      so writing one would be a guess. The brief's open list selects\n"+
+			"      status == \"active\" and therefore CANNOT SHOW THESE ELEVEN.")
 	name("WRITTEN AS A NOTE RATHER THAN AS A DECISION", r.notes,
 		"a standing section of the decisions document: what rig is, what is still\n"+
 			"      open, what has not been done. It is a record attached to the project\n"+
@@ -741,10 +786,12 @@ type plan struct {
 // planFor splits everything the document addresses into what this seeder writes
 // and what it leaves alone.
 //
-// ⛔ THE SPLIT IS "A HEADING, ELSE REPORT IT" AND NOT A LIST OF KINDS TO SKIP.
-// A new UnimportedKind added in internal/record must land somewhere LOUD. B66
-// is precisely a class being invisible by construction, and a switch that
-// silently accepted a new member would be that same defect one layer up.
+// ⛔ THE SWITCH BELOW REPORTS IN ITS `default`, AND THAT IS THE PROPERTY TO
+// KEEP RATHER THAN THE SHAPE. A new UnimportedKind added in internal/record
+// must land somewhere LOUD, so the arms name what this seeder WRITES and
+// everything else falls through to the report. B66 is precisely a class being
+// invisible by construction, and a switch that silently accepted a new member
+// would be that same defect one layer up.
 func planFor(o options, doc record.BacklogParse, dec record.DecisionParse) plan {
 	var p plan
 	stated := make(map[string]bool, len(doc.Items))
@@ -755,26 +802,29 @@ func planFor(o options, doc record.BacklogParse, dec record.DecisionParse) plan 
 	}
 
 	for _, u := range doc.Unimported {
-		if u.Kind != record.UnimportedHeading {
+		switch u.Kind {
+		case record.UnimportedHeading:
+			// ⛔ AN ID STATED AT BOTH GRAINS IS REPORTED, NEVER WRITTEN TWICE.
+			// Two puts against one id in one run supersede each other and the
+			// store keeps whichever went last, so which content wins would be
+			// decided by document order - a silent wrong answer. The parser's
+			// own reconcile already drops this case; this is the belt that says
+			// so out loud the day it stops.
+			if stated[u.ID] {
+				p.collided = append(p.collided, u.ID)
+				continue
+			}
+			stated[u.ID] = true
+			parent, agreed := headingParent(u)
+			if !agreed {
+				p.unnested = append(p.unnested, u.ID+" sits under "+u.Under)
+			}
+			p.want = append(p.want, headingIntent(o, u, parent))
+		case record.UnimportedRowWithoutID:
+			p.addRankedRow(o, u, stated)
+		default:
 			p.unimported = append(p.unimported, docUnimported{doc: o.backlog, Unimported: u})
-			continue
 		}
-		// ⛔ AN ID STATED AT BOTH GRAINS IS REPORTED, NEVER WRITTEN TWICE. Two
-		// puts against one id in one run supersede each other and the store
-		// keeps whichever went last, so which content wins would be decided by
-		// document order - a silent wrong answer. The parser's own reconcile
-		// already drops this case; this is the belt that says so out loud the
-		// day it stops.
-		if stated[u.ID] {
-			p.collided = append(p.collided, u.ID)
-			continue
-		}
-		stated[u.ID] = true
-		parent, agreed := headingParent(u)
-		if !agreed {
-			p.unnested = append(p.unnested, u.ID+" sits under "+u.Under)
-		}
-		p.want = append(p.want, headingIntent(o, u, parent))
 	}
 
 	// ⛔ THE DECISIONS DOCUMENT IS FOLDED IN BEFORE THE EDGE SWEEP BELOW, NOT
@@ -927,6 +977,95 @@ func headingParent(u record.Unimported) (parent string, agreed bool) {
 	default:
 		return u.Under, true
 	}
+}
+
+// rankedID is the record id one ranked row gets, and the bool is false when
+// the document does not give this seeder enough to key it safely.
+//
+// ⛔ THE ID NAMES ITS TABLE AND NOT JUST ITS RANK, AND THAT IS THE WHOLE
+// REASON `Unimported.Section` EXISTS. The labels are `0`, `6a`, `9` - unique
+// in this document today, and unique only by luck. A second unnumbered table
+// anywhere in BACKLOG.md would land eleven rows in the same bare `rank`
+// namespace, overwrite the first eleven records and report nothing, because
+// both halves of the instrument would agree about a set of ids that was wrong.
+//
+// ⛔ AND A ROW WITH NO SECTION IS REFUSED RATHER THAN KEYED ON THE RANK ALONE.
+// The parser's own note says Section is empty on three of the seven kinds and
+// calls that a gap; a seeder that fell back to the bare rank would turn that
+// gap into exactly the silent collision the field was added to prevent. It is
+// reported instead, which is the status quo for that row and not a regression.
+//
+// The shape is `<section>/<rank>`, which is the same `parent/child` key the
+// decisions document already writes - ONE id convention in this store rather
+// than two, because a reader who has to learn which document an id came from
+// before they can read it has been given two conventions and no rule.
+func rankedID(u record.Unimported) (string, bool) {
+	if u.Section == "" || u.Label == "" {
+		return "", false
+	}
+	return u.Section + "/" + u.Label, true
+}
+
+// rankedIntent is the record one ranked row becomes.
+//
+// ⛔ NO `status`, AND IT IS THE DOCUMENT BEING UNREACHABLE RATHER THAN THE
+// DOCUMENT BEING SILENT. These rows have a State cell and `Unimported` does
+// not carry it. `active` would be the store contradicting its own document on
+// every row the State cell calls built - which is the B19 inversion, and the
+// reason this seeder stopped writing `active` unconditionally in the first
+// place. So the field is absent, the absence is tagged, and the report names
+// all eleven with the consequence: the brief's open list selects
+// `status == "active"` and cannot show them.
+//
+// ⛔ AND NO `part-of` EITHER. `Under` is empty on these rows - the enclosing
+// heading carries no id - so there is nothing to point at, and heading
+// enclosure alone is the derivation the parser's own notes record as
+// falsified.
+func rankedIntent(o options, u record.Unimported, id string) intent {
+	// The rank is the stand-in until `Unimported` carries the work cell. When
+	// it does, this picks the real title up with no other change, and the run
+	// in between reports `stale(title)` - which is the instrument working.
+	title := u.Title
+	if title == "" {
+		title = u.Label
+	}
+	return intent{
+		id:    id,
+		kind:  record.KindWorkItem,
+		grain: grainRanked,
+		title: title,
+		body:  title,
+		fields: map[string]string{
+			"title":      title,
+			"source":     o.backlog,
+			fieldRank:    u.Label,
+			fieldSection: u.Section,
+			fieldDocLine: strconv.Itoa(u.Line),
+			"tags":       tagRankOnly,
+		},
+	}
+}
+
+// addRankedRow plans one row of an ordered table, or reports it.
+//
+// ⛔ THE RANK IS A FIELD AND IS NOT MAPPED ONTO `blocks` OR `priority`. RULED
+// 2026-09-17 by the team-lead and it is not this seat's to revisit: `blocks`
+// asserts a dependency nobody stated and `priority` has three buckets for
+// eleven ranks. A total order has no faithful home in section 39's model, so
+// the gap is REPORTED in a field a reader can see rather than papered over
+// with a mapping that would read as the document's own claim.
+func (p *plan) addRankedRow(o options, u record.Unimported, stated map[string]bool) {
+	id, ok := rankedID(u)
+	if !ok {
+		p.unimported = append(p.unimported, docUnimported{doc: o.backlog, Unimported: u})
+		return
+	}
+	if stated[id] {
+		p.collided = append(p.collided, id)
+		return
+	}
+	stated[id] = true
+	p.want = append(p.want, rankedIntent(o, u, id))
 }
 
 // report names everything the document addresses that this seeder did not

@@ -398,12 +398,15 @@ func TestRigsOwnBacklogPlansBothGrains(t *testing.T) {
 				u.ID, u.Line)
 		}
 	}
-	// ⛔ AND THE OTHER KINDS MUST STILL BE REPORTED, NOT QUIETLY ADOPTED. The
-	// eleven ordered rows and the five adopter-table ids are a RULING nobody
-	// here may take.
+	// ⛔ THE FIVE adopter-table IDS MUST STILL BE REPORTED, NOT QUIETLY
+	// ADOPTED. The eleven ordered rows WERE adopted, by the team-lead's ruling
+	// of 2026-09-17 and keyed on their table - see
+	// TestRigsOwnOrderedTableIsKeyedAndTheAdopterTableIsNot. Nothing has ruled
+	// on the adopter table, and importing it would supersede five real records
+	// with a two-cell shape.
 	if len(p.unimported) == 0 {
-		t.Error("everything was imported, which would mean the ranked rows and the " +
-			"adopter table were adopted without a ruling")
+		t.Error("everything was imported, which would mean the adopter table was " +
+			"adopted without a ruling")
 	}
 }
 

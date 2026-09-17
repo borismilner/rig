@@ -11,6 +11,7 @@ package main
 import (
 	"bytes"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -385,5 +386,164 @@ func TestRigsOwnDecisionsDocumentPlansEveryEntry(t *testing.T) {
 		t.Errorf("edges=%d notes=%d dated=%d; every one of the three is stated by "+
 			"this document, so a zero means the projection dropped a whole class",
 			edges, notes, dated)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// THE ORDERED TABLE - B73
+// ---------------------------------------------------------------------------
+
+// rankedRow is one row of an ordered table as the parser reports it.
+func rankedRow(rank, section string, line int) record.Unimported {
+	return record.Unimported{
+		Kind: record.UnimportedRowWithoutID, Label: rank, Section: section, Line: line,
+	}
+}
+
+// ⛔ THE ID NAMES ITS TABLE, AND A BARE RANK NAMESPACE IS THE FAILURE.
+//
+// RULED 2026-09-17 by the team-lead: the eleven ordered rows are work-items
+// keyed on their rank and no `B` id is minted. `0`, `6a` and `9` are unique in
+// this document today and unique only by luck, so the key is qualified by the
+// enclosing heading - which is the whole reason `Unimported.Section` exists.
+func TestARankedRowIsKeyedOnItsTableAndCarriesItsRank(t *testing.T) {
+	o := options{project: "rig", backlog: "BACKLOG.md", decisions: "DECISIONS.md"}
+	p := planFor(o, record.BacklogParse{
+		Items:      []record.BacklogItem{{ID: "B1", Title: "a row"}},
+		Unimported: []record.Unimported{rankedRow("9", "the-critical-path-to-the-gate", 135)},
+	}, record.DecisionParse{})
+
+	const want = "the-critical-path-to-the-gate/9"
+	in := intentFor(t, p, want)
+	if in.kind != record.KindWorkItem {
+		t.Errorf("kind = %q, want %q", in.kind, record.KindWorkItem)
+	}
+	for name, w := range map[string]string{
+		fieldRank:    "9",
+		fieldSection: "the-critical-path-to-the-gate",
+		fieldDocLine: "135",
+		"tags":       tagRankOnly,
+	} {
+		if got := in.fields[name]; got != w {
+			t.Errorf("%s = %q, want %q", name, got, w)
+		}
+	}
+	// ⛔ NO status. `Unimported` does not export the State cell, so `active`
+	// would be the store contradicting its own document on every row the table
+	// calls built - the B19 inversion, one grain over.
+	if got, held := in.fields[fieldStatus]; held {
+		t.Errorf("a ranked row was given status=%q, and the document's State cell "+
+			"does not reach this grain at all", got)
+	}
+	// ⛔ NO part-of. `Under` is empty on these rows and heading enclosure alone
+	// is the derivation the parser's notes record as falsified.
+	if in.partOf != "" {
+		t.Errorf("part-of = %q, want empty", in.partOf)
+	}
+	if got := strings.Join(p.orphaned, " "); got != "" {
+		t.Errorf("orphaned = {%s}, want {}", got)
+	}
+}
+
+// ⛔ TWO UNNUMBERED TABLES MUST NOT COLLIDE, WHICH IS THE ONE PROPERTY THE
+// QUALIFIER BUYS.
+//
+// Keyed on the bare rank, the second table's row 0 would overwrite the first
+// table's row 0 and every set in the report would agree about it - a wrong
+// answer both halves of the instrument reach together.
+func TestTwoOrderedTablesDoNotCollideBecauseTheIdNamesTheTable(t *testing.T) {
+	o := options{project: "rig", backlog: "BACKLOG.md", decisions: "DECISIONS.md"}
+	p := planFor(o, record.BacklogParse{
+		Items: []record.BacklogItem{{ID: "B1", Title: "a row"}},
+		Unimported: []record.Unimported{
+			rankedRow("0", "the-critical-path-to-the-gate", 125),
+			rankedRow("0", "a-second-unnumbered-table", 600),
+		},
+	}, record.DecisionParse{})
+
+	for _, want := range []string{"the-critical-path-to-the-gate/0", "a-second-unnumbered-table/0"} {
+		if !has(ids(p.want), want) {
+			t.Errorf("%s was not planned; the plan holds %v", want, ids(p.want))
+		}
+	}
+	if got := strings.Join(p.collided, " "); got != "" {
+		t.Errorf("collided = {%s}, want {} - the two ranks are in different tables", got)
+	}
+}
+
+// ⛔ A ROW WITH NO SECTION IS REPORTED, NEVER KEYED ON THE RANK ALONE.
+//
+// The parser's own note says Section is empty on three of the seven kinds and
+// calls that a gap rather than a decision. A fallback to the bare rank would
+// turn that gap into the silent collision the field was added to prevent, so
+// the row stays exactly where it was: reported, unimported, visible.
+func TestARankedRowWithNoSectionIsReportedRatherThanKeyedOnItsRankAlone(t *testing.T) {
+	o := options{project: "rig", backlog: "BACKLOG.md", decisions: "DECISIONS.md"}
+	p := planFor(o, record.BacklogParse{
+		Items:      []record.BacklogItem{{ID: "B1", Title: "a row"}},
+		Unimported: []record.Unimported{rankedRow("0", "", 125)},
+	}, record.DecisionParse{})
+
+	for _, in := range p.want {
+		if in.grain == grainRanked {
+			t.Fatalf("%s was keyed from a row whose table has no name", in.id)
+		}
+	}
+	if len(p.unimported) != 1 || p.unimported[0].Label != "0" {
+		t.Errorf("the row was not reported; unimported = %v", p.unimported)
+	}
+	// The control: the same row WITH a section is keyed, so the refusal above
+	// is a decision rather than a path nothing reaches.
+	q := planFor(o, record.BacklogParse{
+		Items:      []record.BacklogItem{{ID: "B1", Title: "a row"}},
+		Unimported: []record.Unimported{rankedRow("0", "a-named-table", 125)},
+	}, record.DecisionParse{})
+	if !has(ids(q.want), "a-named-table/0") {
+		t.Errorf("a row with a section was not keyed either, so this test proves nothing")
+	}
+}
+
+// rig's OWN eleven, which is the only place the ranks and the adopter table
+// exist together.
+func TestRigsOwnOrderedTableIsKeyedAndTheAdopterTableIsNot(t *testing.T) {
+	const live = "../../BACKLOG.md"
+	if _, err := os.Stat(live); err != nil {
+		t.Skipf("%s does not resolve on this machine (%v)", live, err)
+	}
+	doc, err := readBacklog(live)
+	if err != nil {
+		t.Fatalf("reading %s: %v", live, err)
+	}
+	o := options{project: "rig", backlog: live, decisions: "DECISIONS.md"}
+	p := planFor(o, doc, record.DecisionParse{})
+
+	var ranked []string
+	for _, in := range p.want {
+		if in.grain == grainRanked {
+			ranked = append(ranked, in.fields[fieldRank])
+		}
+	}
+	sort.Strings(ranked)
+	if got := strings.Join(ranked, " "); got != "0 1 2 3 4 5 6 6a 7 8 9" {
+		t.Errorf("the ranks planned = {%s}, want {0 1 2 3 4 5 6 6a 7 8 9}", got)
+	}
+	if !has(ids(p.want), "the-critical-path-to-the-gate/9") {
+		t.Errorf("row 9 - Boris's own order - is not keyed on its table; the plan holds %v",
+			ids(p.want))
+	}
+
+	// ⛔ THE FIVE other-table IDS STAY UNIMPORTED. They are real rows elsewhere
+	// in the document, and importing them would supersede five real records
+	// with a two-cell shape. Nothing has ruled on them.
+	var left []string
+	for _, u := range p.unimported {
+		left = append(left, string(u.Kind)+" "+unimportedName(u.Unimported))
+		if u.Kind == record.UnimportedRowWithoutID {
+			t.Errorf("a ranked row is still unimported at %s:%d", u.doc, u.Line)
+		}
+	}
+	if len(left) != 5 {
+		t.Errorf("unimported = {%s}; the five other-table ids and nothing else were "+
+			"expected to remain", strings.Join(left, ", "))
 	}
 }
