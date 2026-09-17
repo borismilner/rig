@@ -123,6 +123,45 @@ const KindNote = "note"
 // Boris asked for by name.
 const KindFeature = "feature"
 
+// KindDecision, KindRequirement and KindArtefact are the three of section 39's
+// ten kinds that nothing could RENDER until B64.
+//
+// ⛔ NAMING THEM IS NOT THE FIX AND MUST NOT BE REPORTED AS ONE. `kind` has
+// never been a closed set and `Put` has never refused a value, so three more
+// constants change nothing a caller can observe: `record put --kind decision`
+// worked before this line existed, and `record query --kind decision` answered.
+// What was missing is that NOTHING TOLD A READER THEY WERE THERE - the brief's
+// sections were a closed eleven and none of them mentioned a decision, so the
+// records were reachable only by a caller who already knew to ask for them.
+// The twelfth section is the fix; these are the spelling it shares with it.
+//
+// THEY ARE HERE FOR THE REASON KindNote GIVES ABOVE: two derivations asking the
+// same question with a literal each is one typo away from a silent miss, and a
+// typo in a kind is invisible by construction because an unknown kind is a
+// legal kind.
+const (
+	KindDecision    = "decision"
+	KindRequirement = "requirement"
+	KindArtefact    = "artefact"
+)
+
+// KindWorkItem and KindStandard complete section 39's ten.
+//
+// ⛔ THE NAMES LAND HERE AND THE LITERALS ARE NOT CHASED IN THE SAME CHANGE.
+// `work-item` is a bare string in brief.go, in cmd/rigseed and across the
+// tests; replacing them is a wide mechanical diff, and putting one beside a
+// behaviour change makes the behaviour change unreviewable. The names exist so
+// the next writer has something to reach for.
+//
+// KindStandard has no consumer at all yet - the standards register is slice 7
+// and nothing is built. It is named with the others so that the ten kinds are
+// countable in one place, which is the property whose absence let three of them
+// go unrendered for four generations.
+const (
+	KindWorkItem = "work-item"
+	KindStandard = "standard"
+)
+
 // KindProject and KindCase are section 39's two CONTAINERS.
 //
 // A case is "for what is ongoing and never ships" - Boris, 2026-09-15: "we have

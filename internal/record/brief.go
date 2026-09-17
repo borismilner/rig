@@ -117,6 +117,32 @@ type Brief struct {
 	// read Sections to tell that from a case with no notes.
 	CaseNotes []Note
 
+	// Governing is SECTION 12: every decision, requirement and artefact
+	// recorded against this project.
+	//
+	// ⛔ B64. Three of section 39's ten kinds had no section, so a decision put
+	// into rig could be read back only by a caller who already knew its id, or
+	// who already knew to ask record.query for kind=decision. Nothing told a
+	// reader they were there at all - which is the same "reachable only if you
+	// already know" failure the brief exists to end, one level up from the one
+	// it was built for.
+	//
+	// ⛔ EACH ROW CARRIES ITS OWN KIND AND THAT IS THE POINT OF THE SHAPE. One
+	// section holding three kinds is not a fold: a fold loses which kind a row
+	// is, and a decision that renders as a note has been hidden rather than
+	// surfaced.
+	Governing []GoverningRecord
+
+	// GoverningCounts is how many of each governing kind exist, in the
+	// vocabulary's order.
+	//
+	// SEPARATELY DERIVED FROM Governing FOR SECTION 10's REASON, restated
+	// because the pair is the same pair: the list is capped by nothing today
+	// and the counts are a total, so deriving one from the other works right up
+	// until somebody adds a cap, at which point the counts quietly start
+	// describing the capped list instead of the store.
+	GoverningCounts []KindCount
+
 	// Kind is the container's own kind, `project` or `case`, and it decides
 	// which sections mean anything. Empty when the container has no record.
 	Kind string
@@ -369,6 +395,47 @@ type StageCount struct {
 	Count uint64
 }
 
+// GoverningRecord is one row of section 12: what governs this project.
+//
+// ⛔ Kind IS NOT OPTIONAL AND IS NOT DECORATION. It is what makes one section
+// carrying three kinds different from a fold. A reader has to be able to tell a
+// ruling from a requirement from a file that exists, because they are answers
+// to three different questions, and a row that cannot say which it is has
+// hidden the distinction rather than rendered it.
+type GoverningRecord struct {
+	ID    string
+	Kind  string
+	Title string
+}
+
+// KindCount is how many records of one kind exist.
+//
+// A SLICE AND NOT A MAP, for StageCount's reason above: Go randomises map
+// iteration, so a map renders differently on every call and a golden test over
+// the brief would flake.
+type KindCount struct {
+	Kind  string
+	Count uint64
+}
+
+// governingKinds is section 12's vocabulary, IN THE ORDER OF CONSEQUENCE:
+// what was ruled, what is required, what exists.
+//
+// ⛔ THE ORDER IS THE SAME ARGUMENT featureStages MAKES AND IT IS WORTH
+// RESTATING RATHER THAN CROSS-REFERENCING, BECAUSE THE ALPHABETICAL ANSWER IS
+// SO MUCH CHEAPER TO REACH FOR. artefact/decision/requirement reads as nothing.
+// decision/requirement/artefact reads as a project: here is what was settled,
+// here is what it must do, here is what came out.
+//
+// ⛔ IT IS CLOSED, AND UNLIKE featureStages A VALUE OUTSIDE IT IS NOT REPORTED
+// HERE. That is not an inconsistency: a stage outside the vocabulary is a typo
+// in a field on a record that IS a feature, so the brief shows it. A kind
+// outside this set is a different kind entirely and already has its own section
+// or none - appending it would make section 12 a dump of everything the other
+// eleven do not claim, which is the failure the negative half of
+// TestSectionTwelveCarriesTheGoverningKindsAndNothingElse exists to catch.
+var governingKinds = []string{KindDecision, KindRequirement, KindArtefact}
+
 // featureStages is section 39's closed stage vocabulary, IN LIFECYCLE ORDER.
 //
 // The order is the point: counts rendered planned/building/shipped/deprecated
@@ -559,6 +626,12 @@ func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 		return Brief{}, err
 	}
 	led.did(SectionFeatures)
+
+	// SECTION 12, B64.
+	if b.Governing, b.GoverningCounts, err = s.governing(ctx, project); err != nil {
+		return Brief{}, err
+	}
+	led.did(SectionGoverning)
 
 	// SECTION 11, and only for a case. A project's notes are section 3 above;
 	// this is the case's own attention list, capped and ordered by importance.
@@ -940,6 +1013,51 @@ func (s *Store) caseNotes(ctx context.Context, container Record) ([]Note, error)
 		notes = notes[:n]
 	}
 	return notes, nil
+}
+
+// governing answers section 12: every decision, requirement and artefact in
+// this project, and how many of each.
+//
+// ⛔ ONE QUERY PER KIND RATHER THAN ONE UNFILTERED QUERY FILTERED IN Go, AND
+// THAT IS DELIBERATE. Query takes an exact kind, so asking for everything and
+// discarding what does not match would read the whole project - every
+// work-item, every progress step - to return three kinds. On rig's own store
+// that is 85 rows read to answer about zero. The loop is over a CLOSED
+// three-element vocabulary, so it is three statements and not an unbounded fan.
+//
+// ⛔ AND IT IS WHY THE COUNTS ARE FREE. Each query already returns the whole set
+// for its kind, so the count is len() of something already in hand - there is
+// no second read, and no opportunity for the list and the count to be answers
+// about two different moments.
+func (s *Store) governing(ctx context.Context, project string) ([]GoverningRecord, []KindCount, error) {
+	var rows []GoverningRecord
+	var counts []KindCount
+
+	for _, kind := range governingKinds {
+		recs, err := s.Query(ctx, project, kind)
+		if err != nil {
+			return nil, nil, err
+		}
+		// ⛔ NO ROW FOR A KIND WITH NOTHING IN IT. A zero is a different claim
+		// from an absence: "0 decisions" asserts the project was asked and has
+		// none, which is exactly what section 12's COMPUTED state already says
+		// for the whole section. Rendering both says it twice and invites a
+		// reader to wonder which one is load-bearing.
+		if len(recs) == 0 {
+			continue
+		}
+		counts = append(counts, KindCount{Kind: kind, Count: uint64(len(recs))})
+		for _, r := range recs {
+			rows = append(rows, GoverningRecord{
+				ID: r.ID, Kind: r.Kind, Title: r.Fields["title"],
+			})
+		}
+	}
+
+	// Query orders by project, kind and id, so the rows within one kind arrive
+	// sorted and the kinds arrive in the loop's order. Nothing more is needed
+	// and a re-sort here would be a second ordering rule nobody could see.
+	return rows, counts, nil
 }
 
 // features answers section 10: the features at stage `building`, and the count

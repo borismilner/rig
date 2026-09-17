@@ -29,9 +29,29 @@ const (
 	SectionLocalOnly        Section = "local_only"
 	SectionFeatures         Section = "features"
 	SectionCaseNotes        Section = "case_notes"
+
+	// SectionGoverning is the TWELFTH, and it is the only one section 39 did
+	// not specify. B64: three of section 39's ten kinds - decision,
+	// requirement, artefact - had no section, so a decision put into rig was
+	// reachable only by a caller who already knew to ask for kind=decision.
+	//
+	// ⛔ TWELVE RATHER THAN A FOLD INTO AN EXISTING ROW, AND THE ARGUMENT IS
+	// MECHANICAL. Boris delegated the choice - "I don't care twelfth section or
+	// fold - I trust you to make the best decision" - and statuses() below is
+	// what decides it: a section added without both halves makes every brief
+	// FAIL, loudly, including the one the window polls. A half-done fold has no
+	// such property; it renders, and a decision arrives disguised as a note.
+	// The failure mode that cannot be missed beats the one that cannot be seen.
+	//
+	// ⛔ IT DOES NOT CONTRADICT "Cover all of them". That ruling is that no
+	// section may be SILENTLY ABSENT. A twelfth that declares its own state
+	// obeys it; a fold that hides one kind inside another's row is the thing it
+	// was made against.
+	SectionGoverning Section = "governing"
 )
 
-// briefSections is section 39's eleven, in the section's own order.
+// briefSections is section 39's eleven, in the section's own order, plus the
+// twelfth that B64 added.
 //
 // EVERY BRIEF ANSWERS ALL ELEVEN. Boris, 2026-09-16, asked directly whether the
 // four that shipped were enough: "Cover all of them." A section that cannot be
@@ -41,6 +61,7 @@ var briefSections = []Section{
 	SectionOpen, SectionNextUp, SectionNotes, SectionBlocked,
 	SectionDrift, SectionMustRead, SectionProjectionBehind,
 	SectionPending, SectionLocalOnly, SectionFeatures, SectionCaseNotes,
+	SectionGoverning,
 }
 
 // SectionState is whether a section's answer means anything.
@@ -210,9 +231,16 @@ func (l *sectionLedger) statuses() ([]SectionStatus, error) {
 				Section: s, State: SectionNotComputed, Reason: why,
 			})
 		default:
+			// ⛔ THE COUNTS ARE DERIVED, NOT WRITTEN. This message read "ten
+			// of eleven ... the eleventh" until B64 made it twelve, at which
+			// point it was a caption asserting a number the code no longer
+			// held - this repository's most-recorded defect class, produced
+			// here by the change that added the twelfth section. A sentence
+			// that cannot go stale is cheaper than one more instance.
 			return nil, fmt.Errorf("record: section %q has no state - it is "+
 				"neither derived nor listed as waiting on anything, so a brief "+
-				"would answer ten of eleven and say nothing about the eleventh", s)
+				"would answer %d of %d and say nothing about the %dth",
+				s, len(briefSections)-1, len(briefSections), len(briefSections))
 		}
 	}
 	return out, nil

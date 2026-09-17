@@ -210,9 +210,16 @@ func TestSectionTenOnAProjectWithNothingToSay(t *testing.T) {
 // ⛔ ALL ELEVEN, EVERY TIME. Boris, 2026-09-16, asked directly whether the four
 // that shipped were enough: "Cover all of them."
 //
-// The count and the SET are asserted separately on purpose. A count of eleven
-// with one section reported twice and another missing is the shape a bare
-// len() check cannot see, and it is the one a hand-kept list actually produces.
+// The count and the SET are asserted separately on purpose. A count with one
+// section reported twice and another missing is the shape a bare len() check
+// cannot see, and it is the one a hand-kept list actually produces.
+//
+// ⛔ TWELVE SINCE B64, AND THE TWO SETS ARE KEPT APART IN THIS TEST RATHER THAN
+// MERGED INTO ONE LIST OF TWELVE. Eleven are section 39's, transcribed from the
+// specification; the twelfth is this project's own addition, taken under a
+// delegation from Boris. Merging them would lose exactly the distinction that
+// makes the transcription worth having - the next reader could no longer tell
+// which rows answer to the spec and which answer to a seat.
 func TestABriefAnswersAllElevenSectionsExactlyOnce(t *testing.T) {
 	s := openStore(t, estate(t, sectProject))
 	project(t, s, "5")
@@ -222,8 +229,9 @@ func TestABriefAnswersAllElevenSectionsExactlyOnce(t *testing.T) {
 		t.Fatalf("brief: %v", err)
 	}
 
-	if len(b.Sections) != 11 {
-		t.Fatalf("the brief reports %d sections, want 11", len(b.Sections))
+	if len(b.Sections) != 12 {
+		t.Fatalf("the brief reports %d sections, want 12 - section 39's "+
+			"eleven plus the governing section B64 added", len(b.Sections))
 	}
 	seen := map[Section]int{}
 	for _, st := range b.Sections {
@@ -249,14 +257,28 @@ func TestABriefAnswersAllElevenSectionsExactlyOnce(t *testing.T) {
 		"pending": true, "local_only": true, "features": true,
 		"case_notes": true,
 	}
+	// ⛔ NOT SECTION 39's, AND SEPARATELY LISTED SO THAT STAYS VISIBLE. B64's
+	// twelfth, added under Boris's delegation of the choice between a twelfth
+	// section and a fold. Anything else appearing here is an addition nobody
+	// ruled on.
+	ours := map[Section]bool{"governing": true}
+
 	for got := range seen {
-		if !eleven[got] {
-			t.Errorf("section %q is reported and is not one of the eleven", got)
+		if !eleven[got] && !ours[got] {
+			t.Errorf("section %q is reported and is neither one of section "+
+				"39's eleven nor one this project has ruled on", got)
 		}
 	}
 	for want := range eleven {
 		if seen[want] == 0 {
 			t.Errorf("section %q is one of section 39's eleven and is not reported", want)
+		}
+	}
+	for want := range ours {
+		if seen[want] == 0 {
+			t.Errorf("section %q was added by this project and is not reported "+
+				"- a section that stops being answered is the absence failure "+
+				"arriving from the other direction", want)
 		}
 	}
 }
