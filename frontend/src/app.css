@@ -54,20 +54,6 @@ body {
   position: relative;
 }
 
-.rail .brand {
-  width: 28px;
-  height: 28px;
-  margin-bottom: 0.5rem;
-  border-radius: 8px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--border-2);
-  color: var(--fg);
-  font-size: var(--fs--1);
-  font-weight: 700;
-  font-family: var(--mono);
-}
-
 .mark {
   width: 56px;
   height: 44px;
@@ -254,6 +240,18 @@ kbd {
   background: var(--panel);
   padding: calc(1rem * var(--den)) 1.15rem;
   overflow: auto;
+  min-height: 0;
+}
+
+/* An internal GUI draws its own internal layout - a toggle, a tab strip and a
+   scrolling panel (section 11 requirement 18) - so the shell hands it the
+   whole area and keeps none of the padding for itself. The GUI owns the
+   scroll from here down; .pane must not also scroll, or a person gets two
+   scrollbars for one list. */
+.pane.bleed {
+  padding: 0;
+  overflow: hidden;
+  display: grid;
   min-height: 0;
 }
 
