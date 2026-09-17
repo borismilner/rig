@@ -28,6 +28,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/boris-milner/rig/internal/record"
 )
@@ -1004,11 +1005,32 @@ func (p plan) grains() string {
 
 // rowIntent is the record one table row becomes.
 func rowIntent(o options, it record.BacklogItem) intent {
+	// ⛔ THREE FIELDS HELD ONE STRING UNTIL 2026-09-17, AND THAT IS WHY THE
+	// WINDOW WAS UNREADABLE. `title`, `description_short` and the body were all
+	// `it.Title` - measured on the live production store, B62's three are the
+	// same 161 characters - so a row was a truncated shout and clicking it
+	// could only ever show the same shout again.
+	//
+	// ⛔ BORIS RULED HUMAN-FRIENDLY FIELDS OBLIGATORY, plan/11, 2026-09-17:
+	// "the information must be stored in a way that helps the human reviewers",
+	// and "the AI agent populating it should have no problem setting proper
+	// fields for that". So each of the three now says something different, and
+	// every one of them is a DETERMINISTIC READING OF THE DOCUMENT rather than
+	// prose a seat composed - a field fillable only by writing new text arrives
+	// empty or invented, which is the failure plan/11 names.
+	//
+	//	title              the row's item cell, as the document wrote it
+	//	description_short  a short cut of it, for a LIST
+	//	body               the STATE CELL'S OWN PROSE, for a reader who opened it
+	//	owner              the Seat or Adopter column, never read before
 	f := map[string]string{
 		"title":             it.Title,
-		"description_short": it.Title,
+		"description_short": shortOf(it.Title),
 		fieldStatus:         statusFor(it),
 		"source":            o.backlog,
+	}
+	if it.Owner != "" {
+		f["owner"] = it.Owner
 	}
 	// HOW the document closed it, which the coarsened status cannot carry.
 	if note := closureNote(it); note != "" {
@@ -1017,10 +1039,49 @@ func rowIntent(o options, it record.BacklogItem) intent {
 	if tags := tagsFor(it); tags != "" {
 		f["tags"] = tags
 	}
+	// ⛔ THE BODY IS THE STATE CELL AND FALLS BACK TO THE TITLE. A row whose
+	// state cell is empty is a real shape in this document, and writing an
+	// empty body there would replace "the same text twice" with "no text at
+	// all" - worse, and harder to notice.
+	body := it.State
+	if body == "" {
+		body = it.Title
+	}
 	return intent{
 		id: it.ID, kind: record.KindWorkItem, grain: grainRow,
-		title: it.Title, body: it.Title, fields: f, partOf: it.PartOf, row: it,
+		title: it.Title, body: body, fields: f, partOf: it.PartOf, row: it,
 	}
+}
+
+// shortOf is a LIST-LENGTH cut of a title, and it is a cut rather than a
+// summary on purpose.
+//
+// ⛔ A SUMMARY WOULD BE A SEAT COMPOSING CONTENT, which plan/11 refuses by
+// name: "a field that can only be filled by composing new prose is a field that
+// will arrive empty or invented". So this only ever REMOVES, and the same input
+// always gives the same output.
+//
+// ⛔ IT CUTS AT A WORD BOUNDARY AND SAYS SO WITH AN ELLIPSIS. The window
+// truncates too, mid-word and silently, which is half of what Boris called not
+// user friendly; a reader who can see the cut knows to open the row.
+func shortOf(title string) string {
+	const width = 72
+	// The same decoration set the parser strips: the markers are the
+	// document's emphasis, not part of what the row says.
+	t := strings.TrimSpace(strings.Trim(title, "⛔✅*~ \t"))
+	if utf8.RuneCountInString(t) <= width {
+		return t
+	}
+	// Cut at the last space inside the budget, so a word is never split.
+	r := []rune(t)
+	cut := width
+	for i := width; i > width/2; i-- {
+		if r[i] == ' ' {
+			cut = i
+			break
+		}
+	}
+	return strings.TrimRight(string(r[:cut]), " ,;:-") + "..."
 }
 
 // headingIntent is the record an id stated in a HEADING becomes.

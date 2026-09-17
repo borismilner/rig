@@ -22,6 +22,7 @@ import (
 	"io"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 // backlogRowAnywhere is the SECOND instrument, and it exists to disagree.
@@ -154,6 +155,25 @@ type BacklogItem struct {
 	// `cmd/rigseed`'s act and this file does not own it. It is carried so the
 	// seeder needs no second derivation of a relation the document states.
 	PartOf string
+
+	// State is the STATE CELL'S OWN PROSE, whole, and it is the only place a
+	// reader learns what the row is actually about.
+	//
+	// ⛔ IT WAS PARSED AND THROWN AWAY. `Done`, `ClaimsDone` and `Disposition`
+	// are all read OUT of this cell and the cell itself was dropped, so a
+	// record carried three booleans derived from thousands of characters that
+	// reached no store. Measured on the live production store 2026-09-17: B62's
+	// `title`, `description_short` and `body` are the SAME 161-character
+	// string, which is why clicking a row in the window shows nothing new.
+	//
+	// ⛔ BORIS, 2026-09-17, ON EXACTLY THAT: "clicking them doesn't show the
+	// full description. The information must be stored in a way that helps the
+	// human reviewers." This field is what there is to store.
+	State string
+
+	// Owner is who the row belongs to, from the table's `Seat` or `Adopter`
+	// column. Section 39 declares `owner` and nothing has ever written it.
+	Owner string
 }
 
 // cells splits a markdown table row and trims every cell. The table is
@@ -275,6 +295,66 @@ var terminalDispositions = map[string]bool{
 	"DONE": true, "CLOSED": true, "REJECTED": true, "RETRACTED": true,
 }
 
+// ownerOf reads a NAME out of an owner cell, or nothing.
+//
+// ⛔ THE CELL IS PROSE AS OFTEN AS IT IS A NAME, AND STORING IT RAW MAKES THE
+// FIELD USELESS FOR THE THING IT WAS ASKED FOR. Measured 2026-09-17 over rig's
+// own 106 work items: 42 read `team-lead`, and the rest include a 400-character
+// paragraph about a seat name that decayed. Boris asked for rows "grouped or at
+// least tagged so the user can see what relates to what", and an owner field
+// holding a paragraph groups exactly one row with itself.
+//
+// ⛔ AND AN OWNER IT CANNOT READ IS LEFT ABSENT RATHER THAN GUESSED. A wrong
+// owner sends a reader to the wrong seat and looks authoritative doing it; an
+// absent one is a fact about the document that record.query can find. The cut
+// is a LENGTH: a name is short, and anything long is the cell explaining itself.
+func ownerOf(cell string) string {
+	name := strings.TrimSpace(cell)
+	// A bold run leads most of these cells and is where the document puts the
+	// name when the cell goes on to explain itself.
+	if b := boldLead(name); b != "" {
+		name = b
+	}
+	name = strings.TrimSpace(strings.Trim(name, decoration+"`"))
+
+	// The name ends where the cell starts qualifying it.
+	//
+	// ⛔ A BARE HYPHEN IS NOT A SEPARATOR HERE AND CUTTING ON ONE IS A BUG THIS
+	// FUNCTION SHIPPED AND HAD MEASURED BACK AT IT: `team-lead` came out as
+	// `team` and `backend-record` as `backend`, which is 52 of 106 rows filed
+	// under seats that do not exist. Every seat name in this project is
+	// hyphenated. Only a SPACED dash separates a name from its explanation.
+	if i := strings.IndexAny(name, ",(:;."); i > 0 {
+		name = strings.TrimSpace(name[:i])
+	}
+	for _, dash := range []string{" - ", " \u2013 ", " \u2014 "} {
+		if i := strings.Index(name, dash); i > 0 {
+			name = strings.TrimSpace(name[:i])
+		}
+	}
+	name = strings.TrimSpace(strings.Trim(name, decoration+"`"))
+
+	// ⛔ A PLACEHOLDER IS NOT AN OWNER. The document writes `-` for a row
+	// nobody has taken, and storing that would make "unowned" look like a seat
+	// called "-".
+	switch {
+	case name == "" || name == "-":
+		return ""
+	case utf8.RuneCountInString(name) > ownerNameMax:
+		// Still a sentence: the cell is explaining rather than naming.
+		return ""
+	}
+	return name
+}
+
+// ownerNameMax is the longest thing this parser will call a name.
+//
+// ⛔ A LENGTH AND NOT A VOCABULARY. A closed set of seat names would need
+// maintaining in this file and would silently drop the day a seat is added.
+// Section 39 closes the LINK-TYPE set deliberately; nobody has closed the set
+// of owners, so a length is the honest test.
+const ownerNameMax = 24
+
 // firstWord returns a cell's first word, upper-cased and stripped of the
 // punctuation these rows attach to it - "DONE," and "DONE." both mean DONE.
 func firstWord(s string) string {
@@ -379,16 +459,28 @@ var backlogTables = []struct {
 	id     int
 	item   int
 	state  int
+
+	// owner is the column naming WHO the row belongs to, and it was read by
+	// nothing until 2026-09-17.
+	//
+	// ⛔ BORIS RULED HUMAN-FRIENDLY FIELDS OBLIGATORY (plan/11) AND `owner` IS
+	// ONE SECTION 39 ALREADY DECLARES. Both of these tables have carried the
+	// answer in a column of their own since they were written - `Adopter` in
+	// one, `Seat` in the other - and the parser walked past it, so every record
+	// in the store says nothing about whose work it is. That is the cheapest
+	// half of "grouped or at least tagged so the user can see what relates to
+	// what": the document already grouped them.
+	owner int
 }{
-	{header: []string{"#", "Item", "Evidence", "Adopter", "State"}, id: 1, item: 2, state: 5},
-	{header: []string{"#", "Work", "Seat", "State"}, id: 1, item: 2, state: 4},
+	{header: []string{"#", "Item", "Evidence", "Adopter", "State"}, id: 1, item: 2, state: 5, owner: 4},
+	{header: []string{"#", "Work", "Seat", "State"}, id: 1, item: 2, state: 4, owner: 3},
 }
 
 // tableFor returns the column roles for a header row, and whether it is a work
 // item table at all. A header it does not recognise is not an error: the
 // document holds tables about other things and they are allowed to mention a
 // backlog id.
-func tableFor(line string) (id, item, state int, ok bool) {
+func tableFor(line string) (id, item, state, owner int, ok bool) {
 	c := cells(line)
 	for _, t := range backlogTables {
 		if len(c) != len(t.header)+2 {
@@ -402,10 +494,10 @@ func tableFor(line string) (id, item, state int, ok bool) {
 			}
 		}
 		if match {
-			return t.id, t.item, t.state, true
+			return t.id, t.item, t.state, t.owner, true
 		}
 	}
-	return 0, 0, 0, false
+	return 0, 0, 0, 0, false
 }
 
 // UnimportedKind names WHY something the document addresses is in no record.
@@ -690,9 +782,9 @@ type backlogScan struct {
 	bodyAt  int
 	bodyBuf []string
 
-	idCol, itemCol, stateCol int
-	inTable                  bool
-	line                     int
+	idCol, itemCol, stateCol, ownerCol int
+	inTable                            bool
+	line                               int
 }
 
 // ParseBacklog reads a backlog document and returns one item per work-item row.
@@ -788,8 +880,9 @@ func (s *backlogScan) read(line string) error {
 		}
 		return nil
 	}
-	if i, it, st, ok := tableFor(line); ok {
-		s.idCol, s.itemCol, s.stateCol, s.inTable = i, it, st, true
+	if i, it, st, ow, ok := tableFor(line); ok {
+		s.idCol, s.itemCol, s.stateCol, s.ownerCol = i, it, st, ow
+		s.inTable = true
 		return nil
 	}
 	return s.row(line)
@@ -1064,6 +1157,14 @@ func (s *backlogScan) item(id string, c []string) BacklogItem {
 		PartOf:    partOf(id),
 	}
 	it.ClaimsDone = !it.Done && terminalDispositions[firstWord(boldLead(c[s.stateCol]))]
+	it.State = strings.TrimSpace(c[s.stateCol])
+	// ⛔ BOUNDS-CHECKED RATHER THAN ASSUMED. `stateCol` is checked by the
+	// caller and `ownerCol` is not, and a table shape added later with no owner
+	// column would index past the row. An absent owner is an honest empty
+	// string; a panic in a document parser is not.
+	if s.ownerCol > 0 && s.ownerCol < len(c) {
+		it.Owner = ownerOf(c[s.ownerCol])
+	}
 	// ⛔ THE THIRD CLOSURE CONVENTION, REPORTED RATHER THAN COLLAPSED INTO THE
 	// OTHER TWO. This document closes a row three ways: a struck title, a
 	// terminal bold lead in the item cell, and - for a row closed by a RULING
