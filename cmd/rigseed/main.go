@@ -16,12 +16,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"sort"
@@ -156,6 +158,23 @@ type options struct {
 	// was never opened.
 	planDir string
 
+	// readme is the FOURTH document this seeder reads, and it is read for one
+	// reason: the project record's description.
+	//
+	// ⛔ THE DESCRIPTION IS COPIED, NEVER COMPOSED. Boris ruled the fields
+	// "obligatory" and said the writer "should have no problem setting proper
+	// fields for that", which plan/11 records as the constraint that a field
+	// fillable only by writing new prose "will arrive empty or invented, and
+	// both outcomes fail this". README.md already states both halves under
+	// headings of its own - "What it is" and "The idea, in one line" - so the
+	// seeder quotes the document rather than describing the project itself.
+	//
+	// OPTIONAL, UNLIKE THE OTHER THREE. A missing README is a project with no
+	// description, which is a real state; a missing backlog is a run that
+	// cannot do its job. The two failures are not the same and are not treated
+	// the same.
+	readme string
+
 	project string
 	title   string
 	estate  string
@@ -170,6 +189,8 @@ func run() error {
 	flag.StringVar(&o.decisions, "decisions", "DECISIONS.md", "the decisions document to read")
 	flag.StringVar(&o.planDir, "plan-dir", "plan",
 		"the directory of plan/NN-*.md section files to read. NEVER PLAN.md, which is generated")
+	flag.StringVar(&o.readme, "readme", "README.md",
+		"the document the project's description is copied from, by heading")
 	flag.StringVar(&o.project, "project", "rig", "the project every record belongs to")
 	flag.StringVar(&o.title, "title", "rig", "the project record's title")
 	flag.StringVar(&o.estate, "estate", "production", "the estate this MUST be pointed at")
@@ -340,6 +361,17 @@ func seedProject(o options) error {
 	if err != nil {
 		return err
 	}
+	short, long, err := projectDescription(o)
+	if err != nil {
+		return err
+	}
+	// `source` names every document this record was built from, and the README
+	// is now one of them. A record citing only the backlog while carrying prose
+	// from another file states a provenance that is not true.
+	source := o.backlog
+	if short != "" || long != "" {
+		source = o.backlog + " + " + o.readme
+	}
 	return o.write([]string{
 		"record", "put",
 		"--kind", "project",
@@ -347,12 +379,73 @@ func seedProject(o options) error {
 		"--id", o.project,
 		"--body", o.title,
 		fieldFlag, "title=" + o.title,
-		fieldFlag, "description_short=" + o.title,
+		fieldFlag, "description_short=" + short,
+		fieldFlag, "description_long=" + long,
 		fieldFlag, "status=active",
-		fieldFlag, "source=" + o.backlog,
+		fieldFlag, "source=" + source,
 		"--if-version", strconv.FormatUint(version, 10),
 	})
 }
+
+// projectDescription copies the project's description out of its own README.
+//
+// ⛔ IT USED TO BE THE TITLE. `description_short` was seeded as `o.title`,
+// which for this project made the short description of rig the word "rig" - a
+// field that is present, non-empty, passes every check, and tells a reader
+// nothing. Boris asked for "some description of the project to remind what it
+// is about" and that value could never have been one.
+//
+// ⛔ AN ABSENT README IS NOT A FAILURE AND IS NOT SILENT EITHER. It answers
+// empty and says so on stderr, because a description that quietly does not
+// arrive is how this field stays empty for another five generations.
+func projectDescription(o options) (short, long string, err error) {
+	body, err := os.ReadFile(o.readme)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			fmt.Fprintf(os.Stderr,
+				"rigseed: %s does not exist, so the project record gets no description\n",
+				o.readme)
+			return "", "", nil
+		}
+		return "", "", fmt.Errorf("reading %s: %w", o.readme, err)
+	}
+
+	idea, err := record.MarkdownSection(bytes.NewReader(body), readmeShortHeading)
+	if err != nil {
+		return "", "", fmt.Errorf("%s: %w", o.readme, err)
+	}
+	// The one-line form is the FIRST paragraph of that section and never the
+	// whole of it: the section also carries the diagram's caption prose.
+	if i := strings.Index(idea, "\n\n"); i >= 0 {
+		idea = idea[:i]
+	}
+
+	what, err := record.MarkdownSection(bytes.NewReader(body), readmeLongHeading)
+	if err != nil {
+		return "", "", fmt.Errorf("%s: %w", o.readme, err)
+	}
+
+	for name, got := range map[string]string{
+		readmeShortHeading: idea,
+		readmeLongHeading:  what,
+	} {
+		if strings.TrimSpace(got) == "" {
+			fmt.Fprintf(os.Stderr,
+				"rigseed: %s has no %q section, so that half of the description is empty\n",
+				o.readme, name)
+		}
+	}
+	return strings.TrimSpace(idea), strings.TrimSpace(what), nil
+}
+
+// The two headings the description is copied from. ⛔ NAMED CONSTANTS BECAUSE
+// THEY ARE A CONTRACT WITH A DOCUMENT NOBODY EDITS WITH THIS IN MIND: renaming
+// a README heading silently empties a stored field, and a grep for the constant
+// is the only thing that connects the two.
+const (
+	readmeShortHeading = "The idea, in one line"
+	readmeLongHeading  = "What it is"
+)
 
 // readBacklog reads the whole document, not only the rows it could import.
 //

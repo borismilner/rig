@@ -1336,3 +1336,114 @@ func TestTheBriefCarriesTheGoverningRecordsOverTheWire(t *testing.T) {
 		t.Errorf("governing_counts counts work-items (%d)", counts["work-item"])
 	}
 }
+
+// ⛔ THE CONTAINER'S DESCRIPTION CROSSES THE WIRE, AND DECISION 6 IS WHY THIS
+// TEST HAS THE SHAPE IT HAS.
+//
+// A new string field on this wire owes TWO mutations, not one: protojson omits
+// the empty string, so "the daemon never set it" and "the daemon set it to
+// empty" are the SAME BYTES. An empty-value mutation therefore asserts nothing
+// about liveness, and a test written with only one is a test that passes
+// against a handler which dropped the field - which is exactly how
+// ProgressStepRequest.evidence and ProjectBriefRequest.view both shipped on the
+// wire, read by nothing, with a green test beside them (B48).
+//
+// So each of the two fields is asserted with a WRONG NON-EMPTY value in the
+// store as well: if the handler dropped it, the response carries "" and the
+// non-empty assertion fails loudly instead of matching a zero.
+//
+// ⛔ AND THE FIELDS ARE SECTION 39'S OWN, NOT NEW VOCABULARY. Its field table
+// gives `description_short` and `description_long` to `project`, and its case
+// table repeats both for `case`. What was missing was a derivation that read
+// them, a wire that carried them, and a writer that set them - never the names.
+func TestTheBriefCarriesTheContainersDescription(t *testing.T) {
+	sock := upRecordDaemon(t)
+	c := seated(t, sock, "team-lead")
+	ctx := recordCtx(t)
+
+	const (
+		short = "an app declares what it can do, once"
+		long  = "every program in the estate needs the same infrastructure, " +
+			"and today each one carries its own copy, badly."
+	)
+
+	var proj rigv1.RecordPutResponse
+	if err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
+		Id: "rig", Kind: "project", Project: "rig", Body: "rig itself",
+		Fields: map[string]string{
+			"title":             "rig",
+			"status":            "active",
+			"description_short": short,
+			"description_long":  long,
+		},
+	}, &proj); err != nil {
+		t.Fatalf("rig.record.put(project): %v", err)
+	}
+
+	var brief rigv1.ProjectBriefResponse
+	if err := c.Call(ctx, "rig.project.brief", &rigv1.ProjectBriefRequest{
+		Project: "rig",
+	}, &brief); err != nil {
+		t.Fatalf("rig.project.brief: %v", err)
+	}
+
+	// MUTATION 1 of each pair: a wrong NON-EMPTY value. A dropped field answers
+	// "" here and this fails; an empty-only assertion would not.
+	if got := brief.GetDescriptionShort(); got != short {
+		t.Errorf("description_short came back %q, want %q - the store holds it "+
+			"and this response dropped it", got, short)
+	}
+	if got := brief.GetDescriptionLong(); got != long {
+		t.Errorf("description_long came back %q, want %q - the store holds it "+
+			"and this response dropped it", got, long)
+	}
+
+	// ⛔ AND THEY MUST NOT BE THE SAME FIELD READ TWICE. A handler mapping both
+	// wire fields from one store field passes every assertion above.
+	if brief.GetDescriptionShort() == brief.GetDescriptionLong() {
+		t.Error("the short and long descriptions are identical, so one of them " +
+			"is being mapped from the other's source")
+	}
+}
+
+// MUTATION 2 of each pair: the EMPTY case, and it is a separate test because it
+// needs a container that carries neither field.
+//
+// ⛔ A PROJECT WITH NO DESCRIPTION IS A REAL STATE AND NOT A DEFECT. Section 39
+// makes both fields optional, so this asserts the daemon answers empty rather
+// than refusing, inventing, or falling back to the title - which is what the
+// seeder did for five generations: `description_short` was seeded as the
+// project's own TITLE, so rig's short description was the word "rig".
+func TestABriefWithNoDescriptionAnswersEmptyRatherThanInventing(t *testing.T) {
+	sock := upRecordDaemon(t)
+	c := seated(t, sock, "team-lead")
+	ctx := recordCtx(t)
+
+	var proj rigv1.RecordPutResponse
+	if err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
+		Id: "rig", Kind: "project", Project: "rig", Body: "rig itself",
+		Fields: map[string]string{"title": "rig", "status": "active"},
+	}, &proj); err != nil {
+		t.Fatalf("rig.record.put(project): %v", err)
+	}
+
+	var brief rigv1.ProjectBriefResponse
+	if err := c.Call(ctx, "rig.project.brief", &rigv1.ProjectBriefRequest{
+		Project: "rig",
+	}, &brief); err != nil {
+		t.Fatalf("rig.project.brief: %v", err)
+	}
+
+	if got := brief.GetDescriptionShort(); got != "" {
+		t.Errorf("a project with no description_short answered %q", got)
+	}
+	if got := brief.GetDescriptionLong(); got != "" {
+		t.Errorf("a project with no description_long answered %q", got)
+	}
+	// The positive control: this brief is a real one. Without it the two
+	// assertions above pass against a daemon that answered nothing at all.
+	if brief.GetTitle() != "rig" {
+		t.Fatalf("the brief itself did not answer, so the empty assertions "+
+			"above prove nothing: title %q", brief.GetTitle())
+	}
+}

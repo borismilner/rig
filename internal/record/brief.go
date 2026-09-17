@@ -243,6 +243,35 @@ type Brief struct {
 	Title  string
 	Status string
 
+	// DescriptionShort and DescriptionLong are the container's own description,
+	// and BOTH ARE SECTION 39'S OWN FIELD NAMES rather than anything invented
+	// here: section 39's field table gives `description_short` ("one line, for
+	// lists and briefs") and `description_long` ("the prose `body` was going to
+	// carry - typed and separate rather than one blob") to `project` as well as
+	// to `work-item`, and section 39's case table repeats both for `case`.
+	//
+	// ⛔ THEY EXIST BECAUSE BORIS ASKED THE WINDOW FOR SOMETHING IT COULD NOT
+	// RENDER. 2026-09-17: "Each project should start with the name of the
+	// project, the overall state something similar to what there is now, some
+	// description of the project to remind what it is about." The name is
+	// Title and the state is the counts below; the REMINDER had nothing behind
+	// it. plan/11 records the finding as "a STORAGE gap and not a layout one".
+	//
+	// ⛔ NOTHING NEW WAS ADDED TO THE STORE TO CARRY THEM, and that is plan/11's
+	// order being followed rather than a shortcut: "TRY THE EXISTING FIELDS
+	// FIRST", with dedicated fields authorised only if the existing ones will
+	// not do. A Record already has a free-form Fields map, so both names were
+	// storable the whole time and the gap was ONLY ever this derivation, the
+	// wire, and the absence of a writer. The authorisation to add a dedicated
+	// field was not needed and so was not used.
+	//
+	// EMPTY IS HONEST AND IS NOT A DEFECT. A project whose record carries no
+	// description reads empty, exactly as a missing title does, for the reason
+	// already given above: giving the pipeline defect its own rendering would
+	// teach every reader that there are two normal kinds of blank.
+	DescriptionShort string
+	DescriptionLong  string
+
 	// Semver is empty on a case BECAUSE NOTHING WROTE ONE, not because this
 	// derivation suppresses it. Section 39 rules that a case has no semver -
 	// "a case does not ship, so it has no version to advance" - and the wire
@@ -752,6 +781,8 @@ func (s *Store) briefContainer(ctx context.Context, project string, b *Brief) (R
 	b.Title = container.Fields["title"]
 	b.Status = container.Fields["status"]
 	b.Semver = container.Fields["semver"]
+	b.DescriptionShort = container.Fields["description_short"]
+	b.DescriptionLong = container.Fields["description_long"]
 	return container, nil
 }
 

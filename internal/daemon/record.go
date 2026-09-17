@@ -839,6 +839,17 @@ func (d *Daemon) serveProjectBrief(ctx context.Context, c *conn, f *rigv1.Frame,
 		Status: b.Status,
 		Semver: b.Semver,
 
+		// The container's own description, section 39's two field names.
+		// ⛔ THEY ARE MAPPED HERE AND NOT ONLY DERIVED BECAUSE THIS FUNCTION IS
+		// WHERE THE LAST SEVEN FIELDS WENT MISSING: itemToWire computed
+		// description_short, priority, status, owner, tags, target_date and
+		// semver and carried none of them, and nothing failed - it took a
+		// screenshot from Boris to surface it. A field the store computes and
+		// this file drops ANSWERS rather than refuses, which is worse than the
+		// wire-that-lies section 39 already refuses elsewhere.
+		DescriptionShort: b.DescriptionShort,
+		DescriptionLong:  b.DescriptionLong,
+
 		// ⛔ B76 AS A FACT ON THE WIRE, WHICH IS THE HALF THE FIX ABOVE LEFT
 		// OUT. The derivation has carried `ContainerFound` since rig 072aea4
 		// and this function dropped it, so the CLI re-derived the condition

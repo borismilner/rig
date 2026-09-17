@@ -1768,6 +1768,26 @@ message ProjectBriefResponse {
   // Empty on a case, which does not ship and so has no version to advance.
   string semver = 12;
 
+  // The container's own description, and BOTH ARE SECTION 39'S FIELD NAMES.
+  // Its field table gives `description_short` ("one line, for lists and
+  // briefs") and `description_long` ("the prose `body` was going to carry -
+  // typed and separate rather than one blob") to `project`, and its case table
+  // repeats both for `case`. Nothing here is new vocabulary.
+  //
+  // THE NUMBERS JUMP TO 26/27 BECAUSE 13-25 ARE TAKEN. They are placed beside
+  // the other container metadata rather than at the foot of the message: field
+  // numbers are wire identity and file order is for readers, and a reader
+  // looking for what a project carries should find all six in one block.
+  //
+  // ⛔ TWO MUTATIONS EACH, PER DECISION 6, AND NEITHER IS OPTIONAL: protojson
+  // omits an empty string, so "absent" and "served but dropped" are the same
+  // bytes and an empty-value mutation asserts nothing about liveness. Each
+  // needs an EMPTY case and a WRONG NON-EMPTY case. This is exactly how
+  // ProgressStepRequest.evidence and ProjectBriefRequest.view were both on the
+  // wire, read by nothing, and passing their own tests (B48).
+  string description_short = 26;
+  string description_long = 27;
+
   // ---- the seven that were cut, RULED BACK IN BY BORIS 2026-09-16 --------
   //
   // ⛔ THIS BLOCK REPLACES A COMMENT ARGUING THE OPPOSITE, AND THE ARGUMENT IS

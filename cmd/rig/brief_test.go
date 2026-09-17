@@ -200,6 +200,7 @@ func TestTheBriefObjectCarriesEverySectionEvenWhenEmpty(t *testing.T) {
 	got := string(b)
 	for _, want := range []string{
 		`"semver":""`, `"title":""`, `"status":""`,
+		`"description_short":""`, `"description_long":""`,
 		`"next_up":[]`, `"notes":[]`, `"blocked":[]`,
 	} {
 		if !strings.Contains(got, want) {
@@ -807,5 +808,58 @@ func TestEveryFieldOnTheBriefWireIsRenderedOrSaysWhyNot(t *testing.T) {
 				"field on ProjectBriefResponse any more. Delete the row: an "+
 				"exemption must not outlive what it excused", name)
 		}
+	}
+}
+
+// ⛔ THE PROJECT'S DESCRIPTION IS THE THIRD THING BORIS ASKED A PROJECT TO OPEN
+// WITH, AND THE HEADING HAD NOTHING TO PRINT UNTIL NOW. 2026-09-17: "Each
+// project should start with the name of the project, the overall state
+// something similar to what there is now, some description of the project to
+// remind what it is about." plan/11 records the finding that this was a STORAGE
+// gap and not a layout one.
+func TestTheHeadingCarriesTheProjectsDescription(t *testing.T) {
+	b := Brief{
+		Project:          "rig",
+		Kind:             "project",
+		ContainerFound:   rigv1.Tristate_TRISTATE_YES,
+		Title:            "rig",
+		Status:           "active",
+		DescriptionShort: "An app declares what it can do, once.",
+		DescriptionLong:  "Every program in the estate needs the same infrastructure.",
+	}
+	got := briefHeading(b, briefStyle{})
+	for _, want := range []string{b.DescriptionShort, b.DescriptionLong} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the heading dropped %q:\n%s", want, got)
+		}
+	}
+	// The short form is a subtitle and the long form is prose. Run together
+	// they read as one broken sentence, so a writer who filled both gets a
+	// blank line between them.
+	if !strings.Contains(got, b.DescriptionShort+"\n\n"+b.DescriptionLong) {
+		t.Errorf("the two descriptions are not separated by a blank line:\n%q", got)
+	}
+}
+
+// ⛔ AN ABSENT DESCRIPTION PRINTS NOTHING, AND THAT IS THE OPPOSITE OF THE
+// TITLE'S RULE ONE LINE ABOVE IT IN THE RENDERER. Section 39 makes the
+// description OPTIONAL, so "(no description)" would report a defect on every
+// project that simply has not got one - and a reader who learns to ignore one
+// parenthesised blank learns to ignore the other, which is the one that matters.
+func TestAnAbsentDescriptionSaysNothingAtAll(t *testing.T) {
+	got := briefHeading(Brief{
+		Project: "rig", Kind: "project", ContainerFound: rigv1.Tristate_TRISTATE_YES,
+		Title: "rig", Status: "active",
+	}, briefStyle{})
+	if strings.Contains(strings.ToLower(got), "description") {
+		t.Errorf("an absent description announced itself:\n%s", got)
+	}
+	// The positive control: the title's missing-value rule is UNCHANGED, so
+	// this test cannot pass by the renderer having stopped saying anything.
+	blank := briefHeading(Brief{
+		Project: "rig", Kind: "project", ContainerFound: rigv1.Tristate_TRISTATE_YES, Status: "active",
+	}, briefStyle{})
+	if !strings.Contains(blank, "(no title)") {
+		t.Errorf("the title's own missing-value rule went with it:\n%s", blank)
 	}
 }

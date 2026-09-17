@@ -6098,6 +6098,25 @@ type ProjectBriefResponse struct {
 	Status string `protobuf:"bytes,11,opt,name=status,proto3" json:"status,omitempty"`
 	// Empty on a case, which does not ship and so has no version to advance.
 	Semver string `protobuf:"bytes,12,opt,name=semver,proto3" json:"semver,omitempty"`
+	// The container's own description, and BOTH ARE SECTION 39'S FIELD NAMES.
+	// Its field table gives `description_short` ("one line, for lists and
+	// briefs") and `description_long` ("the prose `body` was going to carry -
+	// typed and separate rather than one blob") to `project`, and its case table
+	// repeats both for `case`. Nothing here is new vocabulary.
+	//
+	// THE NUMBERS JUMP TO 26/27 BECAUSE 13-25 ARE TAKEN. They are placed beside
+	// the other container metadata rather than at the foot of the message: field
+	// numbers are wire identity and file order is for readers, and a reader
+	// looking for what a project carries should find all six in one block.
+	//
+	// ⛔ TWO MUTATIONS EACH, PER DECISION 6, AND NEITHER IS OPTIONAL: protojson
+	// omits an empty string, so "absent" and "served but dropped" are the same
+	// bytes and an empty-value mutation asserts nothing about liveness. Each
+	// needs an EMPTY case and a WRONG NON-EMPTY case. This is exactly how
+	// ProgressStepRequest.evidence and ProjectBriefRequest.view were both on the
+	// wire, read by nothing, and passing their own tests (B48).
+	DescriptionShort string `protobuf:"bytes,26,opt,name=description_short,json=descriptionShort,proto3" json:"description_short,omitempty"`
+	DescriptionLong  string `protobuf:"bytes,27,opt,name=description_long,json=descriptionLong,proto3" json:"description_long,omitempty"`
 	// Section 3.
 	Notes []*BriefNote `protobuf:"bytes,13,rep,name=notes,proto3" json:"notes,omitempty"`
 	// Section 5.
@@ -6304,6 +6323,20 @@ func (x *ProjectBriefResponse) GetStatus() string {
 func (x *ProjectBriefResponse) GetSemver() string {
 	if x != nil {
 		return x.Semver
+	}
+	return ""
+}
+
+func (x *ProjectBriefResponse) GetDescriptionShort() string {
+	if x != nil {
+		return x.DescriptionShort
+	}
+	return ""
+}
+
+func (x *ProjectBriefResponse) GetDescriptionLong() string {
+	if x != nil {
+		return x.DescriptionLong
 	}
 	return ""
 }
@@ -6743,7 +6776,7 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\fclosing_word\x18\x03 \x01(\tR\vclosingWord\"5\n" +
 	"\tWordCount\x12\x12\n" +
 	"\x04word\x18\x01 \x01(\tR\x04word\x12\x14\n" +
-	"\x05count\x18\x02 \x01(\x04R\x05count\"\xac\b\n" +
+	"\x05count\x18\x02 \x01(\x04R\x05count\"\x84\t\n" +
 	"\x14ProjectBriefResponse\x12\x18\n" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x12%\n" +
 	"\x04open\x18\x02 \x03(\v2\x11.rig.v1.ItemStateR\x04open\x12*\n" +
@@ -6757,7 +6790,9 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x05title\x18\n" +
 	" \x01(\tR\x05title\x12\x16\n" +
 	"\x06status\x18\v \x01(\tR\x06status\x12\x16\n" +
-	"\x06semver\x18\f \x01(\tR\x06semver\x12'\n" +
+	"\x06semver\x18\f \x01(\tR\x06semver\x12+\n" +
+	"\x11description_short\x18\x1a \x01(\tR\x10descriptionShort\x12)\n" +
+	"\x10description_long\x18\x1b \x01(\tR\x0fdescriptionLong\x12'\n" +
 	"\x05notes\x18\r \x03(\v2\x11.rig.v1.BriefNoteR\x05notes\x12#\n" +
 	"\x05drift\x18\x0e \x03(\v2\r.rig.v1.DriftR\x05drift\x12+\n" +
 	"\x06health\x18\x0f \x01(\v2\x13.rig.v1.BriefHealthR\x06health\x12+\n" +

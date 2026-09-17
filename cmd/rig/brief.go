@@ -73,6 +73,25 @@ type Brief struct {
 	// not ship and so has no version to advance.
 	Semver string
 
+	// DescriptionShort and DescriptionLong are the container's own
+	// description. Section 39's field table gives both names to `project`,
+	// and its case table repeats both for `case`, so neither is new
+	// vocabulary and neither is a work-item field borrowed upward.
+	//
+	// ⛔ THIS IS WHAT BORIS ASKED THE OPENING OF A PROJECT TO CARRY.
+	// 2026-09-17: "Each project should start with the name of the project,
+	// the overall state something similar to what there is now, some
+	// description of the project to remind what it is about." The name is
+	// Title, the state is the counts, and the REMINDER is DescriptionLong.
+	//
+	// ⛔ DescriptionLong BELONGS ON THIS HEADING AND NOWHERE IN A LIST. The
+	// compact item card is explicitly never description_long - a list meant
+	// to be scanned in one pass fails its own readability requirement the
+	// moment it carries a paragraph per row. A heading is read once, at the
+	// top, and is the one place the prose is not a cost.
+	DescriptionShort string
+	DescriptionLong  string
+
 	// Open is every work item that is open. Section 39 row 1.
 	//
 	// ⛔ Open AND NextUp ARE DISJOINT BY CONSTRUCTION AND ARE NOT TO BE
@@ -610,6 +629,13 @@ func briefJSON(b Brief, now time.Time) map[string]any {
 		titleKey:  b.Title,
 		"status":  b.Status,
 		"semver":  b.Semver,
+
+		// ⛔ EMITTED EVEN WHEN EMPTY, the same contract `semver` already has
+		// two lines up: a consumer needs to tell a daemon that cannot answer
+		// from a project that has no description, and an omitted key makes
+		// those identical. This is DECISION 6's reasoning on the read side.
+		"description_short": b.DescriptionShort,
+		"description_long":  b.DescriptionLong,
 		// ⛔ `open` AND `next_up` ARE DISJOINT AND ARE NOT TO BE MERGED. The
 		// wire cuts them that way so an item never gets two incompatible
 		// rules for rendering its notes, and a consumer concatenating them
@@ -819,6 +845,32 @@ func briefHeading(b Brief, st briefStyle) string {
 		sb.WriteString("(no title)\n")
 	} else {
 		sb.WriteString(b.Title + "\n")
+	}
+
+	// ⛔ THE REMINDER, AND IT IS THE THIRD THING BORIS ASKED A PROJECT TO OPEN
+	// WITH. "Each project should start with the name of the project, the
+	// overall state ... some description of the project to remind what it is
+	// about." The first two were already here; this was a storage gap and not
+	// a layout one, so the heading had nothing to print.
+	//
+	// ⛔ ABSENT RATHER THAN "(none)", WHICH IS THE OPPOSITE OF THE TITLE'S
+	// RULE ONE LINE UP, AND THE DIFFERENCE IS DELIBERATE. A project with no
+	// title is a defect worth naming on the screen, because every project has
+	// one and an empty one means the pipeline dropped it. A description is
+	// OPTIONAL in section 39's table, so printing "(no description)" would
+	// report a defect on every project that simply has not got one - and a
+	// reader who learns to ignore one blank learns to ignore the other.
+	if d := strings.TrimSpace(b.DescriptionShort); d != "" {
+		sb.WriteString(d + "\n")
+	}
+	if d := strings.TrimSpace(b.DescriptionLong); d != "" {
+		// Separated by a blank line: the short form is a subtitle and the long
+		// form is prose, and running them together reads as one broken
+		// sentence when a writer has filled both.
+		if strings.TrimSpace(b.DescriptionShort) != "" {
+			sb.WriteString("\n")
+		}
+		sb.WriteString(d + "\n")
 	}
 	return sb.String()
 }
@@ -1884,6 +1936,9 @@ func briefFromWire(r *rigv1.ProjectBriefResponse) Brief {
 		Title:   r.GetTitle(),
 		Status:  r.GetStatus(),
 		Semver:  r.GetSemver(),
+
+		DescriptionShort: r.GetDescriptionShort(),
+		DescriptionLong:  r.GetDescriptionLong(),
 
 		// ⛔ CARRIED THROUGH UNTRANSLATED, INCLUDING THE ZERO. A daemon that
 		// does not set field 22 is a fact about that daemon, and folding it
