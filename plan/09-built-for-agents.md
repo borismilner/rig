@@ -4,6 +4,32 @@ An agent is a first-class user of rig, not an afterthought bolted onto the CLI. 
 agents constantly, so the estate being legible to one is worth as much as it being legible to
 him.
 
+### ⛔ EVERY FACILITY AN AGENT NEEDS, AND FINDING OUT WHAT THEY ARE IS AN ASSIGNMENT
+
+**BORIS, 2026-09-17, verbatim:** *"AI agents will have all the facilities they
+need or may need for their conveninence in `rig` - and you are responsible on
+finding out what those facilities are and consolidate them into our development
+plan."*
+
+⛔ **THIS IS AN OPEN-ENDED ASSIGNMENT TO THE TEAM-LEAD SEAT, NOT A FEATURE
+REQUEST, AND IT IS THE FIRST OF ITS KIND IN THIS PROJECT.** He has not named the
+facilities; he has made naming them somebody's job. **So the deliverable is a
+SURVEY consolidated into this section**, and an empty answer is a failure of the
+assignment rather than an absence of requirements.
+
+**WHAT IT IS NOT: a licence to invent.** §38's standing rule still binds - grep
+the plan first, and *"this planned capability would have solved it"* beats
+proposing a new mechanism. **The evidence base this project already has is
+better than a brainstorm:** every seat is ARMED (§37), and the 2026-09-17 attack
+alone produced armed reports naming the argv cliff on prose, the missing
+enumeration, the four-copy step vocabulary, the `in`-versus-`refs` key, the
+shared destructive scratchpad and the unqueryable field set. **Those are
+measured agent friction, with receipts. Start there, not from imagination.**
+
+| # | Requirement | Whose |
+|---|---|---|
+| **A0** | **AGENTS GET EVERY FACILITY THEY NEED OR MAY NEED, and the lead OWNS discovering what those are and consolidating them HERE** | **his** |
+
 ### ⛔ AN AGENT'S WORKING NOTES LIVE IN rig, AND NOTHING IS EVER LOST
 
 **BORIS, 2026-09-17, verbatim, recorded the turn he said it:** *"The AI agent

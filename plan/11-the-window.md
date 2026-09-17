@@ -224,6 +224,41 @@
   unqueryable. **So the toggle is renderable today and the sub-division is not.
   Say so rather than inventing a field.**
 
+- ⛔ **BORIS, 2026-09-17, verbatim - A GUI FOR THE AGENTS' AREA, AND ITS DEFAULT
+  IS THAT HE IS NOT LOOKING:** *"The user will be able to introspect into agents
+  area through the GUI but it will usually be of no interest to him so only if
+  he want so; There should be a GUI that lets him see all interactions of the
+  agents with `rig`."*
+
+  | # | Requirement |
+  |---|---|
+  | **19** | **AN AGENTS GUI EXISTS IN THE RAIL** - another internal GUI under requirement 16, not a program |
+  | ⛔ **20** | ⛔ **ITS DEFAULT IS OUT OF THE WAY.** *"Usually of no interest to him so only if he want so."* **It must not push, badge, notify or occupy the dashboard.** This is a requirement ABOUT ATTENTION and it is as binding as the content one |
+  | ⛔ **21** | ⛔ **IT SHOWS *ALL* INTERACTIONS OF THE AGENTS WITH rig** - every call, not a curated summary. *"All"* is his word |
+
+  ⛔ **REQUIREMENT 21 IS THE ONE WITH A COST, AND IT IS A STORAGE COST BEFORE IT
+  IS A UI ONE.** *"All interactions"* is the highest-volume stream this product
+  will have - §15 already sizes history at **500 MB holding 10.56M records** and
+  §9 already warns about a program emitting **tens of thousands of frames**.
+  **So requirement 21 is the first real customer of §7's retention ladder** (his
+  one-month compress, three-month delete), and the two were stated within
+  minutes of each other. **Build them as one thing or the GUI ships a surface
+  that grows without bound.**
+
+  ✅ **AND THE GOOD NEWS, WHICH IS THAT MOST OF THIS IS SPECIFIED ALREADY:** §8
+  specifies *"Events: a live tap on the bus - publisher, topic, payload, who
+  received, who was denied"*, and §15 is *"who is using rig and what they did"*
+  with retention by size, age AND rate. **Requirement 21 is those two pointed at
+  agents and given a pane** - it is largely a RENDERING job over a stream that
+  is already designed, which is the cheapest shape a new requirement can have.
+  ⛔ **Do not design a new capture path. Grep §8 and §15 first.**
+
+  ⛔ **ONE THING REQUIREMENT 20 FORBIDS THAT A BUILDER WILL WANT TO DO ANYWAY:**
+  an agent-activity feed is the single most tempting thing to put on the
+  dashboard, because it moves and looks alive. **He has ruled it usually of no
+  interest.** A dashboard that fills with agent chatter has broken requirement
+  20 while satisfying 21.
+
 The UI shell inside rig. Its visual system is a separate piece of work (§23 M1a) because for a
 program whose whole job is presenting other programs, the visual design *is* the product. It is
 built and measured: `design/visual-system.html`, engine at `design/theme.js`.
