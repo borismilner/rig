@@ -27,6 +27,18 @@ const LinkPartOf = "part-of"
 // progress.step, not a second field to keep in sync."
 var stepStates = map[string]bool{"started": true, "blocked": true, "done": true}
 
+// IsStepState reports whether a state is one the store will accept.
+//
+// ⛔ IT IS EXPORTED BECAUSE THE VOCABULARY HAS FOUR COPIES AND NOTHING LET A
+// CALLER CHECK AGAINST ONE. `stepStates` here, `stepStateSpellings` in
+// cmd/rig/progress.go, `stepStateWire` in internal/daemon/record.go, and the
+// `StepState` enum in wire.proto. rigseed was written to file a disposition
+// the store would have taken and the CLI refuses, and it got as far as row
+// B55 of a live run before anything said so. A predicate does not merge the
+// four copies; it means a caller deciding what to file can ask instead of
+// assuming.
+func IsStepState(state string) bool { return stepStates[state] }
+
 // StepRequest appends one step to a work item's stream.
 type StepRequest struct {
 	// Item is the record id of the work item this step is about.

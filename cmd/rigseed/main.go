@@ -185,6 +185,26 @@ func seedOne(o options, it record.BacklogItem, r *result) error {
 		return err
 	}
 
+	after, err := o.putRow(putArgs(o, it, version))
+	if err != nil {
+		return err
+	}
+	r.count(exists, o.dryRun, version, after)
+
+	// ⛔ A ROW THE DOCUMENT CLOSED GETS NO progress.step, AND stepStateFor
+	// CARRIES THE ARGUMENT. The closure is in `status` and its reason is in
+	// `closure_note`, both written by the put above, so this loop has exactly
+	// one write per row and re-running it changes nothing.
+	if disposition(it) != "" {
+		r.closed = append(r.closed, it.ID)
+	}
+	r.collect(it)
+	return nil
+}
+
+// putArgs is the whole CLI call one row becomes, built in one place so a test
+// can read it without a daemon.
+func putArgs(o options, it record.BacklogItem, version uint64) []string {
 	args := []string{
 		"record", "put",
 		"--kind", "work-item",
@@ -193,56 +213,105 @@ func seedOne(o options, it record.BacklogItem, r *result) error {
 		"--body", it.Title,
 		fieldFlag, "title=" + it.Title,
 		fieldFlag, "description_short=" + it.Title,
-		fieldFlag, "status=active",
+		fieldFlag, "status=" + statusFor(it),
 		fieldFlag, "source=" + o.backlog,
+	}
+	// HOW the document closed it, which the coarsened status cannot carry.
+	if note := closureNote(it); note != "" {
+		args = append(args, fieldFlag, "closure_note="+note)
 	}
 	if tags := tagsFor(it); tags != "" {
 		args = append(args, fieldFlag, "tags="+tags)
 	}
-	args = append(args, "--if-version", strconv.FormatUint(version, 10))
+	return append(args, "--if-version", strconv.FormatUint(version, 10))
+}
 
-	if err := o.write(args); err != nil {
-		return err
+// disposition is how the DOCUMENT closed a row, or "" for a row it left open.
+//
+// ⛔ THIS IS THE LINE THAT INVERTED B19. It read `status=active` for every row,
+// unconditionally, so a claim the lead RETRACTED as falsified was published as
+// live work with the falsified sentence as its title, and B55 and B56 - closed
+// by a ruling - stood in the brief's open list. A store that says the opposite
+// of its own document about the two rows where trust is decided is worse than
+// no store.
+//
+// ⛔ AND IT COARSENS RATHER THAN GUESSES. `backlog.go` reads four terminal
+// words - DONE, CLOSED, REJECTED, RETRACTED - and `BacklogItem` exports none
+// of them: it exports five booleans, and B19's RETRACTED is a SECOND bold run
+// in the item cell that `boldLead` never reaches. So the honest answer here is
+// `closed`, which is true of all four and asserts only that the work is over.
+// Recovering which word it was needs one exported field on the PARSER; reading
+// it back out of the title in this file would be the second parser of
+// BACKLOG.md that this file's own header forbids.
+func disposition(it record.BacklogItem) string {
+	switch {
+	// A ruling first, because it is the more specific fact. The parser cannot
+	// set both today - RuledClosed implies ClaimsDone implies !Done - and the
+	// order is here so that a later parser change cannot silently downgrade a
+	// ruling into a plain closure.
+	case it.RuledClosed:
+		return record.StatusClosedByRuling
+	case it.Done:
+		return record.StatusClosed
+	default:
+		return ""
 	}
-	if exists {
-		r.superseded++
-	} else {
-		r.created++
-	}
+}
 
-	// ⛔ CLOSURE IS A progress.step, NEVER A FIELD, AND SECTION 39 SAYS SO IN
-	// ITS OWN WORDS: "Once active, the live state (started/blocked/done) is the
-	// latest progress.step, not a second field to keep in sync." A status field
-	// carrying "done" beside a progress stream saying otherwise is the drift
-	// that rule exists to prevent.
-	//
-	// ⛔ AND THE STEP IS APPENDED ONLY ON A RECORD THIS RUN CREATED, WHICH IS
-	// THE ONE PLACE THIS SEEDER IS NOT IDEMPOTENT AND CANNOT BE MADE SO TODAY.
-	// A record put supersedes, so re-running rewrites version n+1 and nothing
-	// accumulates. A progress stream is APPEND-ONLY BY DESIGN, so a second run
-	// would file a second "done" against every closed row - nine duplicate
-	// steps, each one honestly recorded and none of them true.
-	//
-	// The check that would fix it does not exist: `rig progress` dispatches
-	// `step` and nothing else, so THERE IS NO CLI PATH THAT READS A PROGRESS
-	// STREAM, and a caller cannot ask what the latest state already is. Guarding
-	// on "did I just create this record" is the honest approximation - it costs
-	// a re-run after a run that failed BETWEEN the put and the step, which
-	// leaves that row open and visible, rather than silently doubling a stream
-	// on every ordinary re-run. BACKLOG.md carries the missing read path.
-	if it.Done && !exists {
-		if err := o.write([]string{
-			"progress", "step", it.ID,
-			"--project", o.project,
-			"--state", "done",
-			"--note", closureNote(it),
-		}); err != nil {
-			return err
-		}
-		r.closed = append(r.closed, it.ID)
+// statusFor is the stored status one row gets: its disposition, or active.
+func statusFor(it record.BacklogItem) string {
+	if d := disposition(it); d != "" {
+		return d
 	}
-	r.collect(it)
-	return nil
+	return record.StatusActive
+}
+
+// stepStateFor is the progress state one row gets, and a row this seeder
+// IMPORTS rather than WORKS gets none.
+//
+// ⛔ IT RETURNS "" FOR EVERY SHAPE, AND THAT IS THE ANSWER RATHER THAN A STUB.
+// It filed `done` against every closed row, which asserts the work was
+// COMPLETED - false for B19, RETRACTED as falsified, and for anything the
+// document REJECTED. The honest word cannot be sent: `StepState` in wire.proto
+// is STARTED, BLOCKED, DONE, and cmd/rig refuses anything else before the call
+// leaves. A live seeding run against a throwaway estate stopped on B55 proving
+// it. So the disposition goes to `status`, its reason goes to `closure_note`,
+// and the stream stays what section 39 says it is: the live state of an item
+// somebody is WORKING. A row that arrived already closed was never picked up
+// here and has no live state to report.
+//
+// ⛔ AND IT MAKES THE SEEDER IDEMPOTENT. The step was the one append-only
+// write in a re-runnable program, so a second run filed a second closure
+// against every closed row. That whole paragraph of caveat goes with it.
+func stepStateFor(_ record.BacklogItem) string { return "" }
+
+// putRow writes one row and returns the version the store ended up at.
+//
+// ⛔ IT ASKS, RATHER THAN ASSUMING head+1. Since the store stopped minting a
+// version for a put whose content already matches the head, "I wrote it" and
+// "it changed" are different answers, and a seeder that printed "superseded
+// 68" over 68 no-ops would be making exactly the kind of false statement in
+// print that this seeder was just repaired for.
+func (o options) putRow(args []string) (uint64, error) {
+	if o.dryRun {
+		fmt.Printf("  %s %s\n", o.rigBin, strings.Join(args, " "))
+		return 0, nil
+	}
+	withJSON := make([]string, 0, len(args)+1)
+	withJSON = append(withJSON, args...)
+	withJSON = append(withJSON, "--json")
+
+	out, err := capture(o, withJSON...)
+	if err != nil {
+		return 0, fmt.Errorf("%s %s\n%s", o.rigBin, strings.Join(withJSON, " "), out)
+	}
+	var rec struct {
+		Version uint64 `json:"version"`
+	}
+	if err := json.Unmarshal(out, &rec); err != nil {
+		return 0, fmt.Errorf("rig record put --json did not parse: %w\n%s", err, out)
+	}
+	return rec.Version, nil
 }
 
 // currentVersion probes for an existing record. A missing id is a normal
@@ -288,11 +357,19 @@ func tagsFor(it record.BacklogItem) string {
 	return strings.Join(t, ",")
 }
 
+// closureNote says HOW the document closed a row, which is the one thing the
+// coarsened disposition cannot carry. It is "" for a row still open.
 func closureNote(it record.BacklogItem) string {
-	if it.Struck {
-		return "closed in " + "BACKLOG.md" + " by a struck title"
+	switch {
+	case it.RuledClosed:
+		return "closed in BACKLOG.md by a ruling rather than by work"
+	case !it.Done:
+		return ""
+	case it.Struck:
+		return "closed in BACKLOG.md by a struck title"
+	default:
+		return "closed in BACKLOG.md by a terminal disposition in its item cell"
 	}
-	return "closed in BACKLOG.md by a terminal disposition in its item cell"
 }
 
 // write runs one CLI call, or prints it under --dry-run.
@@ -319,14 +396,38 @@ func capture(o options, args ...string) ([]byte, error) {
 type result struct {
 	created    int
 	superseded int
+	unchanged  int
 	closed     []string
 	claimsDone []string
 	ruled      []string
 	malformed  []string
 }
 
+// count records what one put DID, which since the store stopped versioning a
+// no-op is no longer the same question as whether a call was made.
+//
+// A DRY RUN CANNOT KNOW AND SAYS SO BY STAYING COARSE. It never reaches the
+// store, so it has no `after` to compare; reporting the finer answer from a
+// call that did not happen would be a guess printed as a measurement.
+func (r *result) count(exists, dryRun bool, before, after uint64) {
+	switch {
+	case !exists:
+		r.created++
+	case dryRun:
+		r.superseded++
+	case after == before:
+		r.unchanged++
+	default:
+		r.superseded++
+	}
+}
+
 func (r *result) collect(it record.BacklogItem) {
-	if it.ClaimsDone {
+	// ⛔ A RULED ROW IS NOT SEEDED OPEN ANY MORE, SO IT IS NOT IN THE LIST
+	// LABELLED "SEEDED OPEN". The parser sets ClaimsDone on a ruled row too,
+	// and reporting it under both labels would make one of them a false
+	// caption - the defect backlog.go's Struck field exists to record.
+	if it.ClaimsDone && !it.RuledClosed {
 		r.claimsDone = append(r.claimsDone, it.ID)
 	}
 	if it.RuledClosed {
@@ -349,8 +450,13 @@ func (r *result) report(w *os.File, o options) {
 	if o.dryRun {
 		verb = "would write"
 	}
-	fmt.Fprintf(w, "\n%s %d new and superseded %d, and closed %d with a progress step.\n",
+	fmt.Fprintf(w, "\n%s %d new and superseded %d, and %d arrived already closed.\n",
 		verb, r.created, r.superseded, len(r.closed))
+	if r.unchanged > 0 {
+		fmt.Fprintf(w, "  %d row(s) were already exactly what this run would have written,\n"+
+			"      so the store minted no version for them. That is the seeder being\n"+
+			"      idempotent rather than simulating it.\n", r.unchanged)
+	}
 
 	name := func(label string, ids []string, why string) {
 		if len(ids) == 0 {
@@ -364,7 +470,8 @@ func (r *result) report(w *os.File, o options) {
 			"      The document decides, not the parser, so they are OPEN until it says otherwise.")
 	name("CLOSED BY A RULING RATHER THAN BY WORK", r.ruled,
 		"a tick in the id cell and a terminal state, with the item cell open.\n"+
-			"      No work was finished; a decision was taken.")
+			"      No work was finished; a decision was taken, and they are seeded\n"+
+			"      closed-by-ruling rather than as live work.")
 	name("IRREGULAR MARKUP, IMPORTED ANYWAY AND FLAGGED", r.malformed,
 		"the row's markdown is irregular enough that its cells ran together.\n"+
 			"      Imported with tags=malformed so the document's owner can mend it.")

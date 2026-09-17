@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"time"
 
@@ -141,6 +142,50 @@ const (
 	StageDeprecated = "deprecated"
 )
 
+// The values a work item's `status` field may carry.
+//
+// ⛔ THE SET HAS A TERMINAL HALF BECAUSE WITHOUT ONE THE STORE INVERTS ITS OWN
+// DOCUMENT. `status` was idea-or-active, which has no way to say "this is
+// over", so rigseed wrote `active` over every row it imported - including B19,
+// RETRACTED as falsified, which the store then published as live work with the
+// falsified sentence as its title, and B55 and B56, closed by a ruling, which
+// stood in the brief's open list. Measured on the live production store,
+// 2026-09-17.
+//
+// ⛔ AND THE DISPOSITION IS HERE RATHER THAN IN THE PROGRESS STREAM, WHICH IS
+// WHERE SECTION 39 WOULD PUT IT, FOR A MEASURED REASON. A step's state travels
+// as the `StepState` enum in wire.proto, which has exactly STARTED, BLOCKED
+// and DONE; cmd/rig refuses anything else before it sends. A live seeding run
+// against a throwaway estate stopped on B55 saying so. Until that enum gains
+// members, `done` is the only terminal word the stream can carry, and `done`
+// asserts the work was COMPLETED - which is the opposite of what happened to a
+// retracted item. Nothing is served by a mechanism that can only lie.
+//
+// ⛔ THEY ARE NOT ENFORCED IN Put YET, AND THAT IS DELIBERATE RATHER THAN
+// FORGOTTEN. A container's status is `open` today (a case's, in the brief's
+// own tests), so a closed set enforced here would refuse records the store
+// already holds. Naming the words in one place is the half that costs nothing;
+// the guard needs a decision about containers first.
+const (
+	// StatusIdea means the item has not been picked up. Section 39: no
+	// progress stream is expected yet.
+	StatusIdea = "idea"
+
+	// StatusActive means the item is in hand. It is the ONLY value the brief
+	// treats as open work.
+	StatusActive = "active"
+
+	// StatusClosed means the work is over WITHOUT the claim that it was
+	// finished. It is what a row closed in a document gets when the document
+	// did not say which of DONE, CLOSED, REJECTED or RETRACTED it was.
+	StatusClosed = "closed"
+
+	// StatusClosedByRuling is backlog.go's third closure convention, kept
+	// apart for the reason its own comment gives: "Collapsing it into Done
+	// would assert that a ruling completed the work."
+	StatusClosedByRuling = "closed-by-ruling"
+)
+
 // slugIDKinds are the kinds whose id is a caller-supplied SLUG rather than a
 // generated UUIDv7.
 //
@@ -217,6 +262,55 @@ func (s *Store) Put(ctx context.Context, r PutRequest) (Record, error) {
 		return Record{}, &ConflictError{ID: r.ID, Named: r.IfVersion, Current: head}
 	}
 
+	// ⛔ A PUT WHOSE CONTENT IS ALREADY THE HEAD IS A NO-OP, NOT A NEW VERSION.
+	//
+	// MEASURED ON THE LIVE PRODUCTION STORE, 2026-09-17: 68 records, 263
+	// stored versions, and 195 of them (74%) byte-identical to the version
+	// before. Not one record in the store has ever had a content change
+	// between two of its versions. Every supersession rig has performed was a
+	// no-op, because the seeder probes the head and writes head+1 without ever
+	// comparing what it is about to write.
+	//
+	// That is not untidiness. This file's own argument for append-only is that
+	// "what did this say before" becomes a query; over a chain of copies the
+	// query answers and the answer is empty. Section 39's slice 1 acceptance -
+	// a requirement superseded twice whose FIRST WORDING is read back - passes
+	// vacuously when the first wording and the last are the same bytes. And
+	// section 39's lossless projection is one file per record so that a diff
+	// is readable, which spends the readable diff on 195 empty commits.
+	//
+	// ⛔ WHAT "IDENTICAL" MEANS, AND THE PERMISSIVE DIRECTION IS THE DANGEROUS
+	// ONE. Every part of a Record a reader can observe is compared - kind,
+	// project, body, and the whole field map, key set included. Missing one
+	// would silently DROP a real edit, which is far worse than the duplicate
+	// versions this removes.
+	//
+	// ⛔ PROVENANCE IS DELIBERATELY NOT PART OF IT. A new session, a new seat,
+	// a new epoch and a later clock are not a change to the record: the version
+	// chain answers "what did this SAY", provenance answers "who wrote THIS
+	// version". Counting them would make this comparison do nothing at all -
+	// the four re-runs that produced four identical versions of B1 each ran
+	// under a different session id, which is the whole measurement. If the
+	// audit trail of "the seeder ran and confirmed no change" is wanted, it is
+	// a RUN record, not a version of every row the run touched.
+	//
+	// IT IS BELOW THE COMPARE-AND-SWAP AND NOT ABOVE IT. A caller naming a
+	// stale version has not seen what is there, whatever its content happens
+	// to be, and answering "nothing changed" would tell them their read was
+	// current when it was not.
+	if head > 0 {
+		cur, err := versionInTx(ctx, tx, r.ID, head)
+		if err != nil {
+			return Record{}, err
+		}
+		if err := checkIdentity(cur, r); err != nil {
+			return Record{}, err
+		}
+		if sameContent(cur, r) {
+			return cur, nil
+		}
+	}
+
 	next := head + 1
 	stamped := Provenance{
 		Session:   r.Session,
@@ -237,6 +331,86 @@ func (s *Store) Put(ctx context.Context, r PutRequest) (Record, error) {
 		ID: r.ID, Version: next, Kind: r.Kind, Project: r.Project,
 		Body: r.Body, Fields: r.Fields, Prov: stamped,
 	}, nil
+}
+
+// checkIdentity refuses a supersede that changes what the record IS.
+//
+// ⛔ AN ID IS GLOBAL IN THIS SCHEMA AND NOTHING ELSE GUARDS IT. `heads` is
+// keyed on `id` alone and `records` on `(id, version)`, so Put's head lookup
+// has no project predicate and cannot be given one without a schema change.
+// A put that names an existing id with a different project therefore ANNEXES
+// that record: the head moves, and the record's own project queries EMPTY,
+// which every read surface reports as "no such work" rather than as an error.
+//
+// ⛔ IT IS REACHABLE BY AN IMPORTER, NOT ONLY BY MALICE. The store holds
+// `B1`..`B63` as ids, which plan/39:800 forbids and :796 rules should be
+// UUIDv7 - so two documents in two projects numbering their rows from one is
+// all it takes. Demonstrated, not argued: `B1` moved from rig/work-item to
+// logbook/requirement in a single put, `Query(rig, work-item)` then returned
+// 0, and `History(B1)` interleaved both projects.
+//
+// ⛔ AND IT COMPOSES WITH THE TRAVERSAL PRUNE. A global id plus a per-hop
+// cross-project prune means `refs` says nothing points at the annexed record
+// either. Every instrument gives a clean, empty, wrong answer, and none of
+// them goes red.
+//
+// The message names both what was attempted and why it is not a version,
+// because the caller that reaches it is a seeder or an importer and the
+// person reading it is deciding whether their ID SCHEME is wrong.
+func checkIdentity(cur Record, r PutRequest) error {
+	const why = "a new version of an id keeps its project and its kind; " +
+		"changing either makes it a different record, not a version of this one. " +
+		"If two projects number their rows from one, the id scheme is what to " +
+		"change: section 39 rules a work item's id is a UUIDv7"
+	if cur.Project != r.Project {
+		return fmt.Errorf("record: %s is in project %q at version %d and this put says "+
+			"project %q: %s", r.ID, cur.Project, cur.Version, r.Project, why)
+	}
+	if cur.Kind != r.Kind {
+		return fmt.Errorf("record: %s is a %q at version %d and this put says kind %q: %s",
+			r.ID, cur.Kind, cur.Version, r.Kind, why)
+	}
+	return nil
+}
+
+// versionInTx reads one version of a record INSIDE the caller's transaction.
+//
+// GetVersion asks the same question of s.db, and that is the wrong connection
+// here: the whole point of the no-op check is that it sees what the
+// compare-and-swap just read, under the same write lock.
+func versionInTx(ctx context.Context, tx *sql.Tx, id string, version uint64) (Record, error) {
+	col, err := toColumn("version", version)
+	if err != nil {
+		return Record{}, err
+	}
+	rec, err := scanRecord(tx.QueryRowContext(ctx,
+		`SELECT id, version, kind, project, body, fields,
+			session, seat, epoch, created_at
+		 FROM records WHERE id = ? AND version = ?`, id, col))
+	if errors.Is(err, sql.ErrNoRows) {
+		return Record{}, &NotFoundError{ID: id, Version: version}
+	}
+	return rec, err
+}
+
+// sameContent reports whether a put would write exactly what is already there.
+//
+// A nil field map and an empty one are the same record - `len(Fields)` is 0
+// either way and no reader can tell them apart - so maps.Equal's treatment of
+// them as equal is the answer this wants rather than an accident of it. That
+// is the ONE place this is looser than byte equality, and it is loose in a
+// direction nothing can observe.
+//
+// KIND AND PROJECT STAY IN THE COMPARISON THOUGH checkIdentity ALREADY
+// REFUSES A PUT THAT CHANGES EITHER. This predicate is the definition of
+// "identical" on its own terms, and the day that refusal is relaxed - a
+// deliberate rename, a migration - the no-op must not be the thing that
+// silently swallows the change.
+func sameContent(cur Record, r PutRequest) bool {
+	return cur.Kind == r.Kind &&
+		cur.Project == r.Project &&
+		cur.Body == r.Body &&
+		maps.Equal(cur.Fields, r.Fields)
 }
 
 // Get returns a record at its head.
