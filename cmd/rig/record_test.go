@@ -2563,3 +2563,66 @@ func TestATruncatedAnswerNamesBothWaysOut(t *testing.T) {
 		}
 	}
 }
+
+// ⛔ A TRUNCATED EMPTY ANSWER MUST NOT SAY "NOTHING POINTS AT THIS".
+//
+// That sentence is the strongest claim the verb makes, and a truncated walk
+// is exactly the case where it is false: a record past the depth bound, or
+// one the project scope crossed and left out, DOES point at the subject. The
+// truncation qualifier arrives two lines later, and a correction after the
+// claim is how a reader keeps the claim.
+//
+// This is the defect the traversal repair was about, one layer up, and it was
+// found by an adversarial pass over the diff rather than by a test.
+func TestATruncatedEmptyAnswerDoesNotClaimTheRecordIsUncited(t *testing.T) {
+	cut := refsText(Refs{ID: "r39", Depth: 4, Truncated: true})
+	if strings.Contains(cut, "nothing points at") {
+		t.Errorf("a truncated empty answer still claims nothing points at the "+
+			"record:\n%s", cut)
+	}
+	if !strings.Contains(strings.ToUpper(cut), "TRUNCATED") {
+		t.Errorf("a truncated empty answer does not say so:\n%s", cut)
+	}
+
+	// AND THE UNTRUNCATED ONE STILL MAKES THE CLAIM, because an uncited
+	// record is what this verb exists to make visible and hedging every
+	// answer would destroy the one it is for.
+	whole := refsText(Refs{ID: "r39", Depth: 4})
+	if !strings.Contains(whole, "nothing points at r39") {
+		t.Errorf("a complete empty answer no longer states the absence:\n%s", whole)
+	}
+}
+
+// ⛔ AN EMPTY POSITIONAL IS THE SAME ACCIDENT AS AN EMPTY FLAG.
+//
+// `rig record query "$P" note` with P unset reaches the parser as a
+// positional, so the flag guard never sees it and the store would be asked
+// for every project. Found by an adversarial pass over the diff.
+func TestAnEmptyPositionalIsRefusedTheSameWayAnEmptyFlagIs(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		argv []string
+		want string
+	}{
+		{"an empty project", []string{""}, "project"},
+		{"an empty kind", []string{"rig", ""}, "kind"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var reached bool
+			serving(t, &fakeRecord{query: func(string, string) ([]Record, error) {
+				reached = true
+				return nil, nil
+			}})
+			err := run(append([]string{"record", "query"}, tc.argv...))
+			if err == nil {
+				t.Fatalf("%v was accepted and read as every %s", tc.argv, tc.want)
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("the refusal does not name the %s:\n%s", tc.want, err)
+			}
+			if reached {
+				t.Errorf("%v reached the daemon before it was refused", tc.argv)
+			}
+		})
+	}
+}

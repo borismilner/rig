@@ -838,6 +838,22 @@ func recordQuery(rf *recordFlags, rest []string) error {
 				"(drop the flag)", f.name,
 				"--"+f.name+" <name>")
 		}
+		if len(rest) > f.positional && rest[f.positional] == "" {
+			// THE SAME ACCIDENT ONE ARGUMENT OVER. `rig record query "$P" note`
+			// with P unset is a variable that expanded to nothing, and it
+			// reaches here as a positional rather than as a flag - so the
+			// guard above would never see it and the store would be asked for
+			// every project.
+			return badArgumentf(
+				"the %s was given as an empty argument. Leave it out to ask "+
+					"for every %s; rig will not read an argument that expanded "+
+					"to nothing as a request for everything.\n"+
+					"       %-18s ask for every %s\n"+
+					"       %-18s ask for one",
+				f.name, f.name,
+				"rig record query", f.name,
+				"--"+f.name+" <name>")
+		}
 		if len(rest) > f.positional && rf.wasSet(f.name) {
 			return badArgumentf(
 				"the %s was given twice, as %q and as --%s %q. One of them is "+
@@ -1463,10 +1479,26 @@ func refsText(r Refs) string {
 	// reader checking whether a requirement is cited anywhere is looking for,
 	// and a blank table would read as a failed call.
 	if len(r.In) == 0 {
-		fmt.Fprintf(&b, "nothing points at %s within %d hop%s.\n",
-			r.ID, r.Depth, plural(r.Depth))
-		b.WriteString("This is an answer, not a failure: an uncited record " +
-			"is exactly what\n`record.refs` exists to make visible.\n")
+		// ⛔ THE STRONGEST CLAIM THIS VERB MAKES IS NOT MADE WHEN IT WOULD
+		// BE FALSE. "Nothing points at this" is what a reader checking whether
+		// a requirement is cited anywhere came for, and a truncated walk is
+		// precisely the case where something DOES point at it - a record past
+		// the depth bound, or one the project scope crossed and left out. The
+		// qualifier two lines below is a correction, and a correction arriving
+		// after the claim is how a reader keeps the claim.
+		if r.Truncated {
+			fmt.Fprintf(&b, "no record within %d hop%s points at %s that this "+
+				"answer may show.\n", r.Depth, plural(r.Depth), r.ID)
+			b.WriteString("THIS IS NOT AN ABSENCE. The walk was cut short, " +
+				"so something outside\nit may well point here. Read the " +
+				"qualifier below before concluding\nthe record is uncited.\n")
+		} else {
+			fmt.Fprintf(&b, "nothing points at %s within %d hop%s.\n",
+				r.ID, r.Depth, plural(r.Depth))
+			b.WriteString("This is an answer, not a failure: an uncited " +
+				"record is exactly what\n`record.refs` exists to make " +
+				"visible.\n")
+		}
 		// ⛔ BOTH QUALIFIERS PRINT ON THE EMPTY PATH TOO, AND THIS IS WHERE
 		// THEY MATTER MOST. The sentence above is the strongest claim this
 		// verb makes - nothing points at this - and a truncated walk or a
