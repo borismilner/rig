@@ -1,5 +1,54 @@
 ## 11. The window
 
+- ⛔ **BORIS, 2026-09-17, verbatim - THE WINDOW IS TAB-BASED, AND THE FIRST TAB
+  IS PROJECT/CASE MANAGEMENT. RECORDED THE TURN HE SAID IT:** *"alongside working
+  on `rig` lets add tab-based content to the GUI for `rig` itself. How about we
+  start with project/case management tab in which I'll be able to see
+  project/cases managed in `rig` with all the most important and relevant and
+  useful details. Things should update in real-time as the details change,
+  probably by utilizing the in-process bus or some other notification/live-update
+  mechanism."*
+
+  **THREE REQUIREMENTS, NUMBERED ON FROM THE TRAY'S FIVE.**
+
+  | # | Requirement |
+  |---|---|
+  | **6** | **THE WINDOW'S CONTENT IS TAB-BASED.** Not one pane with a rail switching it - **tabs**, his word, and the shape he expects to add content into |
+  | **7** | **THE FIRST TAB IS PROJECT/CASE MANAGEMENT** - the projects and cases rig itself manages, *"with all the most important and relevant and useful details"* |
+  | ⛔ **8** | ⛔ **IT UPDATES IN REAL TIME AS THE DETAILS CHANGE.** Not on open, not on a refresh button. **This is the requirement that decides the architecture**, and it is the reason he named a mechanism at all |
+
+  ⛔ **HIS NAMED MECHANISM IS NOT BUILT, AND SAYING SO IS THE POINT OF RECORDING
+  IT HERE RATHER THAN ACTING ON IT.** *"the in-process bus"* is §5h, it is
+  specified, and §26 puts it at **M13** - *"it lands at M13 with the bus
+  (§5h)"*. §13 already writes capability rules against it (*"The bus refuses a
+  subscription without a grant"*) and §8 specifies a live tap on it. **None of
+  that exists.** His own wording leaves the door open - *"or some other
+  notification/live-update mechanism"* - **so this is a STEER, not a ruling, and
+  building M13's bus to paint one tab would be the tail wagging the dog.**
+
+  **WHAT ACTUALLY EXISTS TO CARRY REQUIREMENT 8 TODAY, so the choice is made on
+  facts rather than on the word "bus":**
+
+  | Option | What it costs | What it is |
+  |---|---|---|
+  | **the frontend polls through `RigService`** | nothing new | what the tray already does - `pollEstate` on a 5s tick. **Honest, ugly, and it is real-time only in the sense a clock is** |
+  | **a Go-side watcher emitting a Wails event** | one goroutine | the window polls the daemon once and pushes to the webview. **Real-time to the viewer; still a poll at the seam** |
+  | ⛔ **a subscription on the WIRE** | a new wire verb, §21 versioning | **the only one that is actually event-driven**, and the only one that makes the window a consumer of the same signal any other program would get. §5h's bus is this, generalised |
+
+  ⛔ **THE TRAP TO NAME BEFORE ANYBODY BUILDS THIS: A POLL BEHIND AN EVENT API
+  IS THE HARDEST KIND OF CLAIM TO FALSIFY LATER.** If the window emits
+  `records-changed` from a 1s poll, every consumer written against it believes it
+  is event-driven, and the day the bus lands nothing tells anyone which callers
+  were only ever getting a tick. **If the seam is a poll, the API's own name and
+  doc comment must say so**, exactly as §11 already requires of the tray's
+  last-known icon versus its text.
+
+  **AND A SCOPE NOTE HE HAS ALREADY RULED ONCE, so it is not re-opened here:**
+  porting AgentBox's GUI into rig is *"one of the original reasons rig exists"*
+  and is explicitly NOT priority until the groundwork is done (§01). **Tabs are
+  that groundwork arriving**, which is why this is additive to the MVP rather
+  than a new front - but the AgentBox panes are still not this tab.
+
 The UI shell inside rig. Its visual system is a separate piece of work (§23 M1a) because for a
 program whose whole job is presenting other programs, the visual design *is* the product. It is
 built and measured: `design/visual-system.html`, engine at `design/theme.js`.
