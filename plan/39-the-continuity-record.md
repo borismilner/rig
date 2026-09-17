@@ -304,6 +304,82 @@ TRANSITION, which is now specified:**
 | **2. at the MVP** | ⛔ **REPOPULATE rig FROM SCRATCH**, then **BOTH are kept** |
 | **3. when HE says so** | *"absolutely comfortable"* - **HIS words and HIS call.** The logbook goes |
 
+##### ✅ B63 IS ANSWERED. rig IS THE SOURCE OF TRUTH, AND THE LOGBOOK IS WHAT IT REPLACES. BORIS, 2026-09-17.
+
+> *"At the end - `rig` is going to be the source of truth instead of logbook;
+> Making it clear in case you didn't get it from my definitions and
+> requirements."*
+
+⛔ **THIS SETTLES THE QUESTION THREE GENERATIONS CARRIED AS OPEN.** B63's row
+offers three readings - *sync the document into rig*, *stop filing in the
+document*, or *rig holds a different grain* - and says the attack must rule on
+direction before anybody builds a hook. **He has ruled it himself, and it is the
+second: rig is where the truth lives, and the logbook stops being it.**
+
+⛔ **IT IS THE END STATE AND NOT A LICENCE TO SWITCH TODAY.** *"At the end"* is
+his phrase and phase 3 above is still his call, gated on *"absolutely
+comfortable"*. **What the ruling removes is the uncertainty about which way the
+transition points**, which is what a seat needed before choosing a grain: every
+projection built from here is built towards rig holding the original, not
+towards rig holding a copy.
+
+⛔ **AND IT INVERTS WHAT "STALE" MEANS.** While the logbook is authoritative, a
+divergence is rig being behind. Once rig is, the same divergence is **the
+logbook being behind** - so `rigseed --check` is a migration instrument with a
+retirement date, not a permanent sync. **Nothing may be built that assumes the
+document is the original for ever.**
+
+##### ⛔ THE DUAL RUN IS BOUNDED BY rig's OWN DEVELOPMENT. BORIS, 2026-09-17.
+
+> *"We are using both logbook and rig just for the period of developing of `rig`
+> and ironing out all the bugs and problems."*
+
+⛔ **THIS PUTS AN END ON PHASE 2 AND NAMES WHAT ENDS IT.** The phase table says
+phase 3 is *"when HE says so"*, gated on *"absolutely comfortable"*, which reads
+as open-ended. **It is not: the dual run lasts exactly as long as rig is being
+developed and its bugs ironed out.** His comfort is still the trigger; this is
+what he will be judging.
+
+⛔ **"JUST FOR THE PERIOD" IS A COST STATEMENT AND IT BINDS WHAT MAY BE BUILT.**
+Keeping two stores is overhead he is paying deliberately and temporarily.
+**So nothing permanent may be built on the pair existing** - no feature that
+needs both, no derivation that reads the logbook at runtime, no document whose
+correctness depends on a second copy. **Everything built for the dual run is
+built to be deleted**, and `rigseed --check` is the clearest case: a migration
+instrument with a retirement date.
+
+⛔ **AND IT CONFIRMS THE DUAL RUN IS AN INSTRUMENT AND NOT A BACKUP, WHICH HE
+HAD ALREADY CORRECTED ONCE.** *"Ironing out all the bugs and problems"* is the
+same sentence as *"maybe we'll find needs in improvements, mistakes and required
+features and capabilities that we may have left out"*. **The comparison is the
+product of the arrangement.** A seat that runs the pair quietly and reports no
+gaps has not done the work; it has only kept two copies.
+
+##### ⛔ FILL EVERYTHING IN FIRST, AND AGENTS GET PERFECT CONTROL. BORIS, 2026-09-17.
+
+> *"As I said, you and all AI agents must have perfect control over `rig`. You
+> are to fill everything in before we start working on `rig` using `rig`."*
+
+**Two requirements in one sentence and they are not the same requirement.**
+
+| | What it binds |
+|---|---|
+| **perfect control** | **every AI agent**, not this seat. It is the same bar as §09 A0's *"full and total access and introspection into ALL aspects"* - **wider than his own** *"everything of importance"*. He has now said it twice, unprompted, which is what makes it a floor rather than an aspiration |
+| **fill everything in FIRST** | ⛔ **THE REPOPULATION MOVES BEFORE THE CUTOVER, NOT AFTER IT.** The phase table above put it at phase 2, *"at the MVP"*. **He has reordered it: the store is filled, and THEN work on rig using rig begins** |
+
+⛔ **"EVERYTHING" IS MEASURED, NOT ESTIMATED, AND THE GAP WAS 3 OF 454.** On the
+day he said it the store held **80 work-items and three governing records**,
+while `DECISIONS.md` alone held **451 entries** - 443 rulings and 8 standing
+sections - none of which rig carried. **A store that answers about the backlog
+and nothing else is not a source of truth; it is an index of one document.**
+
+⛔ **AND "PERFECT CONTROL" IS A CAPABILITY CLAIM THAT NOTHING HAS MEASURED.**
+§09 A0's survey of what an agent may reach has **zero written after four
+generations**. *"The agents can do everything"* is asserted in this plan and
+demonstrated nowhere, which is the same shape as the three write-only kinds B64
+found: present in the specification, absent from the product, and invisible
+because nothing asks.
+
 ⛔ **"FROM SCRATCH" IS THE OPERATIVE PHRASE AND IT IS NOT A RE-RUN OF
 `rigseed`.** Today's store is an INCREMENTAL projection of one document,
 `BACKLOG.md`, at a grain the parser happened to reach - **4.13% of it, and B46
