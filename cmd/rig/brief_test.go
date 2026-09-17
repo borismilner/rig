@@ -58,7 +58,7 @@ func brief(mut ...func(*Brief)) Brief {
 func TestACycleIsReportedByNameAndTheOtherItemsKeepTheirPlace(t *testing.T) {
 	got := briefText(brief(func(b *Brief) {
 		b.Cycles = []BriefCycle{{Items: []string{"01927-x", "01927-y", "01927-z"}}}
-	}), now)
+	}), now, briefStyle{})
 
 	for _, item := range []string{"01927-x", "01927-y", "01927-z"} {
 		if !strings.Contains(got, item) {
@@ -85,7 +85,7 @@ func TestACycleIsReportedByNameAndTheOtherItemsKeepTheirPlace(t *testing.T) {
 // THE CYCLE IS PRINTED AS A CYCLE. A flat list reads as a chain, and a reader
 // has to be told that the last item points back at the first.
 func TestTheCycleIsPrintedAsClosingRatherThanAsAChain(t *testing.T) {
-	got := briefBlockedSection([]BriefCycle{{Items: []string{"a", "b"}}})
+	got := briefBlockedSection([]BriefCycle{{Items: []string{"a", "b"}}}, briefStyle{})
 
 	if strings.Count(got, "a") < 2 {
 		t.Errorf("the first item does not reappear at the end, so the cycle "+
@@ -102,7 +102,7 @@ func TestTheCycleIsPrintedAsClosingRatherThanAsAChain(t *testing.T) {
 func TestTheBlockedConditionIsPrintedBeforeTheNextUpList(t *testing.T) {
 	got := briefText(brief(func(b *Brief) {
 		b.Cycles = []BriefCycle{{Items: []string{"01927-x", "01927-y"}}}
-	}), now)
+	}), now, briefStyle{})
 
 	blocked := strings.Index(got, "BLOCKED CONDITION")
 	next := strings.Index(got, "NEXT UP")
@@ -127,7 +127,7 @@ func TestTheBlockedConditionIsPrintedBeforeTheNextUpList(t *testing.T) {
 // section collapses them. Two different claims had been resting on one
 // substring, and the narrower probe is the one this test always meant.
 func TestABriefWithNoCycleHasNoCycleReportAtAll(t *testing.T) {
-	got := briefText(brief(), now)
+	got := briefText(brief(), now, briefStyle{})
 
 	if strings.Contains(got, "BLOCKED CONDITION") {
 		t.Errorf("a clean brief carries a cycle report, which teaches a "+
@@ -145,7 +145,7 @@ func TestABriefWithNoCycleHasNoCycleReportAtAll(t *testing.T) {
 // that reports nothing is worse than no report: it tells a reader something is
 // wrong and gives them nowhere to look.
 func TestACycleWithNoItemsSaysTheItemsAreMissing(t *testing.T) {
-	got := briefBlockedSection([]BriefCycle{{}})
+	got := briefBlockedSection([]BriefCycle{{}}, briefStyle{})
 
 	if !strings.Contains(got, "did not reach") {
 		t.Errorf("an empty cycle rendered as a bare warning:\n%s", got)
@@ -209,7 +209,7 @@ func TestTheBriefObjectCarriesEverySectionEvenWhenEmpty(t *testing.T) {
 // everything still an idea - and an arriving session has to be able to tell it
 // from a derivation that failed.
 func TestAnEmptyNextUpIsASentenceAndNotABlankTable(t *testing.T) {
-	got := briefNextUpSection(nil, now)
+	got := briefNextUpSection(nil, now, briefStyle{})
 
 	if strings.Contains(got, "STATE") {
 		t.Errorf("an empty next-up printed a table header:\n%s", got)
@@ -225,7 +225,7 @@ func TestAnEmptyNextUpIsASentenceAndNotABlankTable(t *testing.T) {
 }
 
 func TestAnEmptyNotesSectionSaysSo(t *testing.T) {
-	got := briefNotesSection(nil, now)
+	got := briefNotesSection(nil, now, briefStyle{})
 
 	if strings.Contains(got, "PRIORITY") {
 		t.Errorf("an empty notes section printed a table header:\n%s", got)
@@ -240,7 +240,7 @@ func TestAnEmptyNotesSectionSaysSo(t *testing.T) {
 // reading "3 of 5" teaches a reader that two rows are missing when the truth
 // is that there are three.
 func TestTheNextUpCountReportsWhatIsThereAndNotAShortfall(t *testing.T) {
-	got := briefNextUpSection(brief().NextUp, now)
+	got := briefNextUpSection(brief().NextUp, now, briefStyle{})
 
 	if !strings.Contains(got, "2 items") {
 		t.Errorf("the count line does not report the rows it printed:\n%s", got)
@@ -260,7 +260,7 @@ func TestTheNextUpCountReportsWhatIsThereAndNotAShortfall(t *testing.T) {
 // cannot weigh, and there is no status field to fall back on - section 39
 // refuses one on purpose.
 func TestANoteCarriesWhoWroteIt(t *testing.T) {
-	got := briefNotesSection(brief().Notes, now)
+	got := briefNotesSection(brief().Notes, now, briefStyle{})
 
 	if !strings.Contains(got, "boris") {
 		t.Errorf("the note does not say who wrote it:\n%s", got)
@@ -275,7 +275,7 @@ func TestANoteCarriesWhoWroteIt(t *testing.T) {
 // anonymous note - and an anonymous note is exactly what an agent would then
 // weigh wrongly.
 func TestANoteWithNoAuthorRendersAsADefect(t *testing.T) {
-	got := briefNotesSection([]BriefNote{{ID: "n", Body: "something"}}, now)
+	got := briefNotesSection([]BriefNote{{ID: "n", Body: "something"}}, now, briefStyle{})
 
 	if !strings.Contains(got, "(not said)") {
 		t.Errorf("a note with no seat rendered its author as a blank:\n%s", got)
@@ -334,7 +334,7 @@ func TestTheBriefAsksAboutTheProjectThatWasNamed(t *testing.T) {
 // section has to be present and say so - the reader knows nothing and cannot
 // tell a missing section from an empty one.
 func TestABriefWithNothingInItStillPrintsEverySection(t *testing.T) {
-	got := briefText(Brief{Project: "fresh", Kind: "project"}, now)
+	got := briefText(Brief{Project: "fresh", Kind: "project"}, now, briefStyle{})
 
 	for _, want := range []string{
 		"fresh", "NEXT UP", "NOTES", "(no title)",
@@ -395,13 +395,13 @@ func TestASectionWithheldByTheViewIsNotReportedAsUnbuilt(t *testing.T) {
 	}
 	// ⛔ AND IT MUST NOT REACH THE NOT-ANSWERED LIST, which is the rendering
 	// where the collapse would actually be read by somebody.
-	if got := briefUnavailableSection(b.Sections); strings.Contains(got, "section 6") {
+	if got := briefUnavailableSection(b.Sections, briefStyle{}); strings.Contains(got, "section 6") {
 		t.Errorf("the must-read set was reported as not built, when the "+
 			"derivation ran and this caller is simply not being shown it:\n%s", got)
 	}
 	// The control: a genuinely unbuilt section MUST appear there, or the
 	// assertion above passes against a renderer that lists nothing at all.
-	if got := briefUnavailableSection(b.Sections); !strings.Contains(got, "slice 6") {
+	if got := briefUnavailableSection(b.Sections, briefStyle{}); !strings.Contains(got, "slice 6") {
 		t.Errorf("a section that is not built did not reach the not-answered "+
 			"list, so the assertion above proves nothing:\n%s", got)
 	}
@@ -440,7 +440,7 @@ func TestAnItemNobodyHasSteppedReportsNoAgeRatherThanAHugeOne(t *testing.T) {
 			b.NextUp[1].State)
 	}
 
-	got := briefNextUpSection(b.NextUp, now)
+	got := briefNextUpSection(b.NextUp, now, briefStyle{})
 	if !strings.Contains(got, "not stepped") {
 		t.Errorf("the unstepped item rendered as a blank rather than as the "+
 			"state it is:\n%s", got)
@@ -483,7 +483,7 @@ func TestABlockerNobodyHasStartedKeepsTheEmptyStateTheRendererSpellsOut(t *testi
 		t.Errorf("a started blocker came back as %q, so the state is not "+
 			"travelling", s)
 	}
-	got := briefBlockageSection(b.Blocked)
+	got := briefBlockageSection(b.Blocked, briefStyle{})
 	if !strings.Contains(got, "nobody has picked it up") {
 		t.Errorf("the `idea` blocker rendered as a blank:\n%s", got)
 	}
@@ -504,7 +504,7 @@ func TestASectionComputedAndNotRenderedIsReportedAsTheClientsGap(t *testing.T) {
 	// starts computing it would silently drop it here.
 	got := briefUnavailableSection([]BriefSectionState{
 		{Section: 5, Computed: true},
-	})
+	}, briefStyle{})
 
 	if got == "" {
 		t.Fatal("a section the daemon computed and this build cannot render " +
@@ -533,7 +533,7 @@ func TestTheTwoNotShownReasonsAreReportedAsDifferentLists(t *testing.T) {
 	got := briefUnavailableSection([]BriefSectionState{
 		{Section: 5, Computed: true},
 		{Section: 7, Computed: false, Reason: "the git projection does not exist yet"},
-	})
+	}, briefStyle{})
 
 	if !strings.Contains(got, "the git projection does not exist yet") {
 		t.Errorf("the unbuilt section lost its reason:\n%s", got)
@@ -589,7 +589,7 @@ func TestEverySectionThisBuildRendersPrintsSomethingWhenItIsEmpty(t *testing.T) 
 		empty := Brief{Project: "rig", Sections: []BriefSectionState{
 			{Section: section, Computed: true},
 		}}
-		got := briefText(empty, now)
+		got := briefText(empty, now, briefStyle{})
 		if !strings.Contains(got, heading) {
 			t.Errorf("section %d is reported COMPUTED and this build claims "+
 				"to render it, and %q is nowhere in the output. An empty "+
@@ -598,7 +598,7 @@ func TestEverySectionThisBuildRendersPrintsSomethingWhenItIsEmpty(t *testing.T) 
 		}
 		// And it must NOT appear in either not-shown list, because it IS
 		// shown.
-		if u := briefUnavailableSection(empty.Sections); u != "" {
+		if u := briefUnavailableSection(empty.Sections, briefStyle{}); u != "" {
 			t.Errorf("section %d rendered AND was reported as not shown:\n%s",
 				section, u)
 		}
@@ -618,7 +618,7 @@ func TestOpenAndNextUpAreRenderedAsTwoListsAndNotOne(t *testing.T) {
 		t.Fatalf("open=%d next_up=%d, want 1 and 1", len(b.Open), len(b.NextUp))
 	}
 
-	got := briefText(b, now)
+	got := briefText(b, now, briefStyle{})
 	if !strings.Contains(got, "01927-o") {
 		t.Errorf("the open item is nowhere in the brief:\n%s", got)
 	}
@@ -654,7 +654,7 @@ func TestTheFeaturesSectionCarriesBothTheListAndTheCounts(t *testing.T) {
 		},
 	})
 
-	got := briefFeaturesSection(b.Features, b.FeatureStages)
+	got := briefFeaturesSection(b.Features, b.FeatureStages, briefStyle{})
 	for _, want := range []string{
 		"01927-f", "the continuity record", "building", "shipped", "4",
 	} {
@@ -665,7 +665,7 @@ func TestTheFeaturesSectionCarriesBothTheListAndTheCounts(t *testing.T) {
 
 	// AN EMPTY ONE IS A SENTENCE, because row 10 is COMPUTED and a silent
 	// section cannot be told from one this build cannot render.
-	empty := briefFeaturesSection(nil, nil)
+	empty := briefFeaturesSection(nil, nil, briefStyle{})
 	if !strings.Contains(empty, "no features recorded") {
 		t.Errorf("an empty features section printed no sentence:\n%s", empty)
 	}
@@ -690,7 +690,7 @@ func TestANotesAuthorIsRenderedForAHumanRatherThanAsAStoredSeat(t *testing.T) {
 		Prov: Provenance{
 			Session: "s-1", Seat: "terminal:boris-milner", CreatedAt: now.Add(-time.Hour),
 		},
-	}}, now)
+	}}, now, briefStyle{})
 
 	if !strings.Contains(got, "boris-milner") {
 		t.Errorf("the note does not say who wrote it:\n%s", got)

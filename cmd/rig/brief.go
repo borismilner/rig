@@ -6,9 +6,13 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
+
+	"golang.org/x/sys/unix"
 
 	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )
@@ -78,9 +82,29 @@ type Brief struct {
 	// a reader adding them up gets the real total.
 	Open []BriefItem
 
-	// NextUp is up to the container's `next_up_n` work items, in expected
-	// execution order. NEVER PADDED TO N - section 39 says so twice, once for
-	// a project's next-up and once for a case's notes.
+	// NextUp is up to the container's `next_up_n` work items, IN THE ORDER
+	// rigd SENT THEM AND NOTHING MORE. NEVER PADDED TO N - section 39 says so
+	// twice, once for a project's next-up and once for a case's notes.
+	//
+	// ⛔ THIS FIELD USED TO PROMISE THE ORDER THE WORK WAS EXPECTED TO BE DONE
+	// IN, AND THAT WAS NOT TRUE - the exact wording is gone from this file on
+	// purpose, and a test keeps it gone, so a reader grepping for the old
+	// claim finds nothing that still makes it.
+	//
+	// `ItemState` on the wire carries id, title, state, since and note;
+	// there is no priority on it, so nothing that reaches this client ranks
+	// the work. Measured against the live estate on 2026-09-17, 0 of 68 work
+	// items carried a priority, the derivation's priority-then-id sort
+	// therefore degenerated to a string sort, and the printed head was
+	// `B1 B10 B12 B13 B14` - exactly the first five sorted ids, with B8
+	// printing 59th of 59. The doc was the worst of the three sites, because
+	// it is where the next reader learns what the field means and writes the
+	// printed claim back.
+	//
+	// THE SORT IS NOT THE DEFECT. It is correct and the store has nothing for
+	// it to sort on; inventing an order here would put a ranking in front of
+	// a reader that nobody decided. The renderer says what the order IS, and
+	// briefOrderLine derives that from the ids it was handed.
 	NextUp []BriefItem
 
 	// Notes are what Boris attached to this container and its items. A case
@@ -289,7 +313,7 @@ func cmdBrief(args []string) (err error) {
 		if *bf.asJSON {
 			return json.NewEncoder(os.Stdout).Encode(briefJSON(brief, time.Now()))
 		}
-		fmt.Print(briefText(brief, time.Now()))
+		fmt.Print(briefText(brief, time.Now(), briefStyleFor(os.Stdout)))
 		return nil
 	})
 }
@@ -432,8 +456,95 @@ func briefItemsJSON(items []BriefItem, now time.Time) []map[string]any {
 	return out
 }
 
+// ---- the output device -----------------------------------------------------
+
+// briefStyle is everything about the DEVICE the brief is being painted on,
+// and it is a PARAMETER rather than a package variable so one process can
+// render the same brief for an 80-column terminal, a 200-column one and a
+// pipe without any of the three seeing the others' answer.
+//
+// ⛔ THE ZERO VALUE IS A PIPE, and that is the safe default. Unbounded width,
+// no escapes: every consumer that is not a person - `| grep`, `> file`, a
+// capture in another program - gets exactly the bytes it got before this
+// type existed.
+type briefStyle struct {
+	// Width is the terminal's column count, and ZERO MEANS UNBOUNDED rather
+	// than zero-wide. Nothing is cut at zero: a pipe has no width to fit, and
+	// discarding bytes it was going to read in full is destruction rather
+	// than legibility.
+	Width int
+
+	// Bold is whether the device can carry SGR attributes.
+	//
+	// ⛔ IT IS BOLD AND NOT COLOUR, AND THAT IS A MEASUREMENT DECISION RATHER
+	// THAN A TASTE ONE. A colour's contrast ratio depends on the terminal's
+	// palette and its background, neither of which this process can read, so
+	// a colour here is a change nobody can put a number on and this
+	// repository does not make those. SGR 1 changes the WEIGHT of a glyph and
+	// leaves the foreground pair the terminal already chose, so the ratio is
+	// unchanged by construction and the only thing that moves is how many
+	// visual levels the page has.
+	Bold bool
+}
+
+// briefStyleFor asks a file descriptor what it is, in ONE ioctl.
+//
+// ⛔ `TIOCGWINSZ` ANSWERS BOTH QUESTIONS AT ONCE. It fails with ENOTTY on a
+// pipe, on a regular file and on /dev/null, and succeeds on a terminal
+// carrying its size - so "is anybody watching" and "how wide are they" come
+// from one call and cannot disagree with each other.
+//
+// THE LIBRARY WAS SEARCHED FOR RATHER THAN SKIPPED, which section 38
+// requires. `golang.org/x/term` (`term.GetSize`) and
+// `github.com/mattn/go-isatty` both do this, and both would arrive as a NEW
+// DIRECT dependency needing a section 22 row. `golang.org/x/sys/unix` is
+// already direct, already has its row, and carries the same ioctl wrapper -
+// so the syscall plumbing here is the library's and only the policy is ours.
+//
+// $COLUMNS WAS REJECTED WITH A REASON. Most shells keep it as a shell
+// variable and never export it, so a child process reads it as absent on a
+// terminal that is plainly there.
+//
+// (no-color.org). It is an identifier, not a word this repository spells.
+//
+//nolint:misspell // NO_COLOR is the environment variable's actual name
+func briefStyleFor(f *os.File) briefStyle {
+	// A closed handle reports ^uintptr(0) as its descriptor, the ioctl comes
+	// back EBADF, and this returns the pipe answer rather than panicking.
+	ws, err := unix.IoctlGetWinsize(int(f.Fd()), unix.TIOCGWINSZ)
+	if err != nil {
+		return briefStyle{}
+	}
+	st := briefStyle{
+		// NO_COLOR IS HONOURED AND IT DOES NOT TAKE THE WIDTH WITH IT. The
+		// convention (no-color.org) is that any non-empty value turns
+		// decoration off. It says nothing about layout, and the layout is the
+		// larger of the two repairs, so collapsing the two would throw away
+		// the bigger fix to honour the smaller one.
+		Bold: os.Getenv("NO_COLOR") == "" && os.Getenv("TERM") != "dumb",
+	}
+	// A terminal that reports no size is still a terminal. It keeps the
+	// attribute and renders unbounded, which is what it did before.
+	if ws.Col > 0 {
+		st.Width = int(ws.Col)
+	}
+	return st
+}
+
+// strong is the ONE attribute this renderer emits.
+//
+// It closes with SGR 22 (normal intensity) rather than SGR 0 (reset
+// everything): a full reset turns off attributes this renderer never turned
+// on, and those belong to whoever set them.
+func (s briefStyle) strong(text string) string {
+	if !s.Bold {
+		return text
+	}
+	return "\x1b[1m" + text + "\x1b[22m"
+}
+
 // briefText is the brief a person reads.
-func briefText(b Brief, now time.Time) string {
+func briefText(b Brief, now time.Time, st briefStyle) string {
 	var sb strings.Builder
 	sb.WriteString(briefHeading(b))
 
@@ -442,8 +553,8 @@ func briefText(b Brief, now time.Time) string {
 	// keep their place, so both are printed - and a reader who stops after the
 	// next-up table must not be the one who misses that the ordering has a
 	// hole in it.
-	sb.WriteString(briefBlockedSection(b.Cycles))
-	sb.WriteString(briefNextUpSection(b.NextUp, now))
+	sb.WriteString(briefBlockedSection(b.Cycles, st))
+	sb.WriteString(briefNextUpSection(b.NextUp, now, st))
 	// ⛔ ROW 4 SITS AFTER THE LIST IT EXPLAINS, AND THE CYCLE REPORT ABOVE
 	// DOES NOT. They moved apart when row 4 started printing on an empty
 	// list: a cycle puts a HOLE in the next-up ordering, so a reader who
@@ -451,11 +562,11 @@ func briefText(b Brief, now time.Time) string {
 	// ordinary blockage explains why an item is ABSENT from that table, and
 	// it is only readable once the reader has seen the table. Leading every
 	// brief with "Nothing is blocked" buries the answer the reader came for.
-	sb.WriteString(briefBlockageSection(b.Blocked))
-	sb.WriteString(briefOpenSection(b.Open, now))
-	sb.WriteString(briefNotesSection(b.Notes, now))
-	sb.WriteString(briefFeaturesSection(b.Features, b.FeatureStages))
-	sb.WriteString(briefUnavailableSection(b.Sections))
+	sb.WriteString(briefBlockageSection(b.Blocked, st))
+	sb.WriteString(briefOpenSection(b.Open, now, st))
+	sb.WriteString(briefNotesSection(b.Notes, now, st))
+	sb.WriteString(briefFeaturesSection(b.Features, b.FeatureStages, st))
+	sb.WriteString(briefUnavailableSection(b.Sections, st))
 	return sb.String()
 }
 
@@ -503,10 +614,14 @@ func briefStatusWord(status string) string {
 	return status
 }
 
-// briefNextUpSection is the work in expected execution order.
-func briefNextUpSection(items []BriefItem, now time.Time) string {
+// briefNextUpSection is the work rigd put at the front, in the order it sent.
+//
+// ⛔ IT MAY NOT PROMISE AN ORDER IT CANNOT SEE. See `Brief.NextUp`: the wire
+// carries no priority, so the only order this client knows about is the one
+// it was handed, and the caption says exactly that and no more.
+func briefNextUpSection(items []BriefItem, now time.Time, st briefStyle) string {
 	var sb strings.Builder
-	sb.WriteString("\nNEXT UP\n")
+	sb.WriteString("\n" + st.strong("NEXT UP") + "\n")
 
 	// AN EMPTY NEXT-UP IS A SENTENCE. It is a real state - everything is done,
 	// or everything is still an idea - and it is one an arriving session has
@@ -519,14 +634,40 @@ func briefNextUpSection(items []BriefItem, now time.Time) string {
 		return sb.String()
 	}
 
-	sb.WriteString(briefItemTable(items, now))
+	sb.WriteString(briefItemTable(items, now, st))
 
 	// THE COUNT IS NOT COMPARED AGAINST next_up_n, ON PURPOSE. Section 39:
 	// "Never padded to N". A line reading "3 of 5" would teach a reader that
 	// two rows are missing when the truth is that there are three.
-	fmt.Fprintf(&sb, "\n%d item%s, in expected execution order.\n",
-		len(items), plural(len(items)))
+	sb.WriteString("\n" + briefWrap(fmt.Sprintf("%d item%s, %s",
+		len(items), plural(len(items)), briefOrderLine(items)), st.Width))
 	return sb.String()
+}
+
+// briefOrderLine says what the printed order ACTUALLY IS.
+//
+// ⛔ IT IS DERIVED, NEVER ASSERTED, AND THAT IS THE WHOLE REPAIR. This client
+// holds the ids it was handed and can compare their order against those same
+// ids sorted. That comparison is a fact it owns; anything about WHY rigd
+// chose the order is not, because no field carrying a reason reaches here.
+//
+// AND IT RETIRES ITSELF. The day work items carry priorities the derivation's
+// order stops matching the string sort, the second sentence stops printing,
+// and no line of this file has to be found and changed by whoever lands them.
+func briefOrderLine(items []BriefItem) string {
+	const sent = "in the order rigd sent them"
+	if len(items) < 2 {
+		return sent + "."
+	}
+	ids := make([]string, 0, len(items))
+	for _, it := range items {
+		ids = append(ids, it.ID)
+	}
+	if !slices.IsSorted(ids) {
+		return sent + "."
+	}
+	return sent + ", which here is exactly the ids sorted - alphabetical, " +
+		"and not a judgement about what to do first."
 }
 
 // briefOpenSection is every open work item. Section 39 row 1.
@@ -538,15 +679,15 @@ func briefNextUpSection(items []BriefItem, now time.Time) string {
 // ⛔ IT PRINTS EVEN WHEN EMPTY, because the daemon reports row 1 COMPUTED and
 // a computed section that renders nothing cannot be told from one this build
 // has no renderer for.
-func briefOpenSection(items []BriefItem, now time.Time) string {
+func briefOpenSection(items []BriefItem, now time.Time, st briefStyle) string {
 	var sb strings.Builder
-	sb.WriteString("\nALSO OPEN\n")
+	sb.WriteString("\n" + st.strong("ALSO OPEN") + "\n")
 	if len(items) == 0 {
 		sb.WriteString("Nothing else is open: every open item is in the " +
 			"next-up list above.\n")
 		return sb.String()
 	}
-	sb.WriteString(briefItemTable(items, now))
+	sb.WriteString(briefItemTable(items, now, st))
 	fmt.Fprintf(&sb, "\n%d open item%s beyond the next-up list.\n",
 		len(items), plural(len(items)))
 	return sb.String()
@@ -554,7 +695,21 @@ func briefOpenSection(items []BriefItem, now time.Time) string {
 
 // briefItemTable is the rows shared by next-up and open, so the two sections
 // cannot drift into rendering one noun two ways.
-func briefItemTable(items []BriefItem, now time.Time) string {
+//
+// ⛔ THREE OF ITS FIVE COLUMNS HELD ONE DISTINCT VALUE ACROSS 54 ROWS. Against
+// the live estate on 2026-09-17: STATE was `not stepped` on every row, AGE was
+// `-` on every row, LATEST NOTE was `-` on every row. 29 characters of screen
+// per row times 54 rows is 1,566 characters spent repeating three constants,
+// on a table whose one discriminating stored field - `tags`, four values on
+// eight of those rows - the wire does not carry at all.
+//
+// So a constant column is now STATED ONCE instead of printed per row, and
+// the decision is taken from the DATA on every render rather than from a list
+// of columns somebody judged dead. That is what makes it survive the repair
+// going on in parallel: the write path currently flattens every terminal
+// disposition to `active`, and the day it stops, STATE varies, and the column
+// comes back here with no change to this file.
+func briefItemTable(items []BriefItem, now time.Time, st briefStyle) string {
 	rows := make([][]string, 0, len(items))
 	for _, it := range items {
 		rows = append(rows, []string{
@@ -572,9 +727,269 @@ func briefItemTable(items []BriefItem, now time.Time) string {
 			briefCell(firstLine(strings.TrimSpace(it.Note)), "-"),
 		})
 	}
+	// ⛔ ID AND TITLE ARE NOT IN THE COLLAPSIBLE SET, and that is what
+	// guarantees a table is left over. The id is the only thing on the row a
+	// reader can act on and the title is the only thing that says what it is;
+	// neither may vanish because today's rows happen to agree.
+	header, rows, constants := briefCollapse(
+		[]string{"ID", "STATE", "AGE", "TITLE", "LATEST NOTE"}, rows,
+		map[int]bool{1: true, 2: true, 4: true})
+
 	var sb strings.Builder
-	writeTable(&sb, []string{"ID", "STATE", "AGE", "TITLE", "LATEST NOTE"}, rows)
+	// The constants go ABOVE the table. A reader who has already scanned the
+	// rows has spent the scan; the sentence has to arrive before the eye
+	// reaches the columns it is explaining.
+	//
+	// ⛔ EACH `COLUMN "value"` PAIR IS ONE WRAPPING UNIT. Broken across a
+	// line, `STATE "not` and `stepped"` is neither greppable nor readable,
+	// and it was the first thing the test caught.
+	if len(constants) > 0 {
+		units := strings.Fields(fmt.Sprintf("The same on all %d rows, so "+
+			"stated here once rather than %d times:", len(rows), len(rows)))
+		for i, c := range constants {
+			if i == len(constants)-1 {
+				units = append(units, c+".")
+				continue
+			}
+			units = append(units, c+",")
+		}
+		sb.WriteString(briefWrapUnits(units, "", "", st.Width))
+	}
+	briefTable(&sb, st, header, rows)
 	return sb.String()
+}
+
+// briefMinCell is the narrowest a column may be squeezed to when the terminal
+// cannot hold the natural layout. Below this a cell is an ellipsis and a
+// letter, which carries less than the space it costs.
+const briefMinCell = 8
+
+// briefTable lays out a header and its rows in aligned columns AND FITS THE
+// RESULT TO THE TERMINAL.
+//
+// ⛔ IT IS NOT `writeTable` AND THE DUPLICATION IS DELIBERATE, not an
+// oversight. `writeTable` in peers.go also serves `rig peers` and three
+// `rig record` tables; teaching it about width would change four surfaces at
+// once and only one of them has been measured. The two converge the day
+// somebody measures the others, and until then the brief carries its own.
+//
+// text/tabwriter stays rejected for the reason writeTable already gives: it
+// pads the final cell, and every row here ends in free text.
+//
+// ⛔ WIDTH IS COUNTED IN RUNES, WHICH IS NOT THE SAME AS COLUMNS. A
+// double-width glyph occupies two cells and is counted here as one, so a row
+// carrying one can overrun by a column. Measuring display width properly
+// needs `github.com/mattn/go-runewidth` as a new direct dependency and a
+// section 22 row; rune counting is strictly better than the byte counting it
+// replaces and the residual error is bounded by the number of wide glyphs in
+// a title.
+func briefTable(sb *strings.Builder, st briefStyle, header []string, rows [][]string) {
+	if len(header) == 0 {
+		return
+	}
+	width := make([]int, len(header))
+	for i, h := range header {
+		width[i] = utf8.RuneCountInString(h)
+	}
+	for _, r := range rows {
+		for i, cell := range r {
+			if n := utf8.RuneCountInString(cell); n > width[i] {
+				width[i] = n
+			}
+		}
+	}
+	briefFit(width, st.Width)
+
+	line := func(cells []string) string {
+		var out strings.Builder
+		for i, cell := range cells {
+			cell = briefElide(cell, width[i])
+			// THE LAST COLUMN IS NEVER PADDED, which is what keeps a title
+			// from dragging a run of trailing spaces across the terminal.
+			if i == len(cells)-1 {
+				out.WriteString(cell)
+				break
+			}
+			out.WriteString(cell)
+			if pad := width[i] - utf8.RuneCountInString(cell); pad > 0 {
+				out.WriteString(strings.Repeat(" ", pad))
+			}
+			out.WriteString("  ")
+		}
+		return out.String()
+	}
+
+	sb.WriteString(st.strong(line(header)) + "\n")
+	for _, r := range rows {
+		sb.WriteString(line(r) + "\n")
+	}
+}
+
+// briefFit shrinks the widest column until the row fits the budget, IN PLACE.
+//
+// ⛔ THE WIDEST COLUMN PAYS FIRST, which is the whole of the rule. The
+// measured table was ID 6, STATE 13, AGE 5, TITLE 223, LATEST NOTE 11: one
+// column held 87% of the row and the other four held nothing worth cutting.
+// Taking a share from every column would have cut the id to make room for a
+// title.
+//
+// A budget of zero or less is a pipe and nothing is touched. Nothing is ever
+// squeezed below briefMinCell, so a budget narrower than the table's floor
+// leaves the row overrunning rather than rendering a line of ellipses - an
+// overrun wraps and is still readable, and a row of stubs is not.
+//
+// One column per pass is O(the deficit), which is at most a few hundred
+// iterations on a table nobody can read anyway. It is written this way
+// because it is obviously right.
+func briefFit(width []int, budget int) {
+	if budget <= 0 || len(width) == 0 {
+		return
+	}
+	total := 2 * (len(width) - 1)
+	for _, w := range width {
+		total += w
+	}
+	for total > budget {
+		widest, at := briefMinCell, -1
+		for i, w := range width {
+			if w > widest {
+				widest, at = w, i
+			}
+		}
+		if at < 0 {
+			return
+		}
+		width[at]--
+		total--
+	}
+}
+
+// briefElide cuts a cell to a column count and SAYS THAT IT DID.
+//
+// The marker is the whole signal: without it a title cut at the terminal's
+// edge cannot be told from a title that ends there, which is a worse defect
+// than the wrapping it replaces.
+func briefElide(cell string, columns int) string {
+	if columns <= 0 || utf8.RuneCountInString(cell) <= columns {
+		return cell
+	}
+	if columns == 1 {
+		return "…"
+	}
+	return string([]rune(cell)[:columns-1]) + "…"
+}
+
+// briefCollapse drops every COLLAPSIBLE column holding one value on every
+// row, and returns the line that states what it dropped and what the value
+// was.
+//
+// ⛔ NOTHING IS DELETED. The constant is printed once instead of once per
+// row, so a reader gains room and loses no fact - and the column returns by
+// itself the moment two rows disagree, because the test is the data rather
+// than a judgement about which columns are dead.
+//
+// ONE ROW IS NOT A PATTERN. Every column of a one-row table is trivially
+// constant and collapsing them all would trade a table for a sentence.
+func briefCollapse(header []string, rows [][]string, collapsible map[int]bool) (
+	[]string, [][]string, []string,
+) {
+	if len(rows) < 2 {
+		return header, rows, nil
+	}
+	drop := make([]bool, len(header))
+	stated := make([]string, 0, len(header))
+	for i := range header {
+		if !collapsible[i] {
+			continue
+		}
+		same := true
+		for _, r := range rows[1:] {
+			if r[i] != rows[0][i] {
+				same = false
+				break
+			}
+		}
+		if !same {
+			continue
+		}
+		drop[i] = true
+		// Quoted, because several of these constants ARE punctuation - `-`
+		// on its own in a sentence reads as a dash rather than as a value.
+		stated = append(stated, header[i]+" "+strconv.Quote(rows[0][i]))
+	}
+	if len(stated) == 0 {
+		return header, rows, nil
+	}
+
+	keep := func(cells []string) []string {
+		out := make([]string, 0, len(cells))
+		for i, c := range cells {
+			if !drop[i] {
+				out = append(out, c)
+			}
+		}
+		return out
+	}
+	trimmed := make([][]string, 0, len(rows))
+	for _, r := range rows {
+		trimmed = append(trimmed, keep(r))
+	}
+	return keep(header), trimmed, stated
+}
+
+// briefDefaultWrap is where generated prose wraps when there is no terminal
+// to wrap it to. It matches the hand-wrapped sentences elsewhere in this
+// file, so a piped brief does not have one paragraph running three times the
+// width of its neighbours.
+const briefDefaultWrap = 76
+
+// briefWrap breaks generated prose on word boundaries.
+//
+// ⛔ ONLY GENERATED SENTENCES GO THROUGH THIS. Every other paragraph in this
+// file is hand-wrapped in the source, where the break points were chosen;
+// re-wrapping those would move a break to a worse place at every width.
+func briefWrap(text string, columns int) string {
+	return briefWrapUnits(strings.Fields(text), "", "", columns)
+}
+
+// briefWrapUnits is briefWrap where the CALLER decides three things the
+// default cannot know.
+//
+//   - WHAT MAY NOT BE SPLIT. A column name and its value are one unit,
+//     because `STATE "not` on one line and `stepped"` on the next is worse
+//     than the repetition it replaced.
+//   - WHAT THE LINE OPENS WITH. `  section 6: ` is part of the first line's
+//     budget, and a wrapper that does not know about it overruns by exactly
+//     the length of the label.
+//   - ⛔ WHAT A CONTINUATION LOOKS LIKE. This is the half that is about
+//     reading rather than arithmetic: 55 of the lines the old renderer
+//     painted at 80 columns began mid-word in column 0, the same column the
+//     `Bnn` anchor lives in, so the one landmark on the page competed with
+//     wrapped prose for the left margin. An indent says "this is the same
+//     thought" without costing a glyph of ink.
+func briefWrapUnits(units []string, lead, indent string, columns int) string {
+	if columns <= 0 {
+		columns = briefDefaultWrap
+	}
+	var out strings.Builder
+	out.WriteString(lead)
+	line := utf8.RuneCountInString(lead)
+	for i, word := range units {
+		n := utf8.RuneCountInString(word)
+		switch {
+		case i == 0:
+			out.WriteString(word)
+			line += n
+		case line+1+n > columns:
+			out.WriteString("\n" + indent + word)
+			line = utf8.RuneCountInString(indent) + n
+		default:
+			out.WriteString(" " + word)
+			line += 1 + n
+		}
+	}
+	out.WriteString("\n")
+	return out.String()
 }
 
 // briefFeaturesSection is what this project has. Section 39 row 10.
@@ -583,9 +998,9 @@ func briefItemTable(items []BriefItem, now time.Time) string {
 // its own cannot be acted on - "three at `shipped`" does not say which three -
 // and a list on its own makes a reader tally the stages by eye. Section 39
 // carries both fields, so both are printed.
-func briefFeaturesSection(features []BriefFeature, stages []BriefStageCount) string {
+func briefFeaturesSection(features []BriefFeature, stages []BriefStageCount, st briefStyle) string {
 	var sb strings.Builder
-	sb.WriteString("\nFEATURES\n")
+	sb.WriteString("\n" + st.strong("FEATURES") + "\n")
 	if len(features) == 0 && len(stages) == 0 {
 		sb.WriteString("This one has no features recorded.\n")
 		return sb.String()
@@ -603,7 +1018,7 @@ func briefFeaturesSection(features []BriefFeature, stages []BriefStageCount) str
 				briefCell(f.Title, "(no title)"),
 			})
 		}
-		writeTable(&sb, []string{"ID", "STAGE", "TITLE"}, rows)
+		briefTable(&sb, st, []string{"ID", "STAGE", "TITLE"}, rows)
 	}
 
 	// ⛔ THE COUNTS PRINT EVEN WHEN THE LIST IS EMPTY, AND THE REVERSE. Either
@@ -620,9 +1035,9 @@ func briefFeaturesSection(features []BriefFeature, stages []BriefStageCount) str
 }
 
 // briefNotesSection is what has been attached for an agent to read.
-func briefNotesSection(notes []BriefNote, now time.Time) string {
+func briefNotesSection(notes []BriefNote, now time.Time, st briefStyle) string {
 	var sb strings.Builder
-	sb.WriteString("\nNOTES\n")
+	sb.WriteString("\n" + st.strong("NOTES") + "\n")
 	if len(notes) == 0 {
 		sb.WriteString("Nothing has been attached to this one.\n")
 		return sb.String()
@@ -641,7 +1056,7 @@ func briefNotesSection(notes []BriefNote, now time.Time) string {
 			firstLine(strings.TrimSpace(n.Body)),
 		})
 	}
-	writeTable(&sb, []string{"WHO", "PRIORITY", "AGE", "NOTE"}, rows)
+	briefTable(&sb, st, []string{"WHO", "PRIORITY", "AGE", "NOTE"}, rows)
 	fmt.Fprintf(&sb, "\n%d note%s.\n", len(notes), plural(len(notes)))
 	return sb.String()
 }
@@ -652,12 +1067,13 @@ func briefNotesSection(notes []BriefNote, now time.Time) string {
 // here that may be silent: a blocked condition is an exception, and a line
 // saying "no cycles" on every brief would train a reader to skip the place the
 // real one appears.
-func briefBlockedSection(cycles []BriefCycle) string {
+func briefBlockedSection(cycles []BriefCycle, st briefStyle) string {
 	if len(cycles) == 0 {
 		return ""
 	}
 	var sb strings.Builder
-	sb.WriteString("\nBLOCKED CONDITION: the `blocks` graph has a cycle\n")
+	sb.WriteString("\n" + st.strong("BLOCKED CONDITION") +
+		": the `blocks` graph has a cycle\n")
 	for _, c := range cycles {
 		if len(c.Items) == 0 {
 			// A cycle with no items is a report that reports nothing, and it
@@ -683,9 +1099,9 @@ func briefBlockedSection(cycles []BriefCycle) string {
 // SEPARATE FROM THE CYCLE SECTION ABOVE, because they are different news. A
 // cycle is a defect in the graph that rig refuses to resolve; a blockage is the
 // work behaving normally, and the reader's question is only "on what".
-func briefBlockageSection(blocked []BriefBlockage) string {
+func briefBlockageSection(blocked []BriefBlockage, st briefStyle) string {
 	var sb strings.Builder
-	sb.WriteString("\nBLOCKED\n")
+	sb.WriteString("\n" + st.strong("BLOCKED") + "\n")
 
 	// ⛔ IT PRINTS WHEN THERE IS NOTHING, AND THAT IS A CORRECTION. This
 	// function used to return "" on an empty list, borrowing the cycle
@@ -759,7 +1175,7 @@ var briefRenderedSections = map[int]bool{1: true, 2: true, 3: true, 4: true, 10:
 // IT GOES LAST, DELIBERATELY. The answer a reader came for is the work; this is
 // the confidence interval on it. Printing it first would make every brief open
 // with an apology.
-func briefUnavailableSection(sections []BriefSectionState) string {
+func briefUnavailableSection(sections []BriefSectionState, st briefStyle) string {
 	var notComputed, notRendered []BriefSectionState
 	for _, s := range sections {
 		switch {
@@ -781,21 +1197,28 @@ func briefUnavailableSection(sections []BriefSectionState) string {
 
 	var sb strings.Builder
 	if len(notComputed) > 0 {
-		sb.WriteString("\nNOT ANSWERED BY THIS BRIEF - " +
-			"these sections are specified and not yet built,\nso their absence " +
-			"above is NOT a statement that there is nothing to report:\n")
+		sb.WriteString("\n" + st.strong("NOT ANSWERED BY THIS BRIEF") +
+			" - these sections are specified and not yet built,\nso their " +
+			"absence above is NOT a statement that there is nothing to " +
+			"report:\n")
 		for _, s := range notComputed {
-			sb.WriteString("  section " + strconv.Itoa(s.Section) + ": " +
-				briefCell(s.Reason, "no reason was given, which is itself a defect") +
-				"\n")
+			// ⛔ THE REASON IS THE DAEMON'S PROSE AND IT IS UNBOUNDED. The
+			// longest one on the live estate is 302 characters, which painted
+			// four screen lines at 80 columns with the last three starting
+			// mid-word in column 0.
+			sb.WriteString(briefWrapUnits(
+				strings.Fields(briefCell(s.Reason,
+					"no reason was given, which is itself a defect")),
+				"  section "+strconv.Itoa(s.Section)+": ", "    ", st.Width))
 		}
 	}
 	if len(notRendered) > 0 {
 		// ⛔ THE SENTENCE NAMES WHICH HALF IS AT FAULT, because the repair is
 		// in a different file from the one above and a reader sent to rigd
 		// for a client-side gap finds nothing wrong there.
-		sb.WriteString("\n⛔ COMPUTED BY rigd AND NOT SHOWN BY THIS BUILD OF " +
-			"rig - the answer EXISTS\nand this client has no renderer for it. " +
+		sb.WriteString("\n⛔ " + st.strong("COMPUTED BY rigd AND NOT SHOWN BY "+
+			"THIS BUILD OF rig") + " - the answer EXISTS\nand this client " +
+			"has no renderer for it. " +
 			"That is a gap in rig's CLI, not in\nthe derivation, and upgrading " +
 			"rig is what fixes it:\n")
 		for _, s := range notRendered {
