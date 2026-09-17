@@ -1,5 +1,72 @@
 ## 6. Configuration
 
+### ⛔ EVERY SETTING IS UNDER AGENT CONTROL, AND HE IS RIGHT THAT HE ASKED BEFORE - PARTLY
+
+**BORIS, 2026-09-17, verbatim, recorded the turn he said it:** *"All settings
+are to be exposed to AI agent control efficiently, probably using MCP, and as
+much as possible should take effect in real-time so for example I can have an
+AI agent help me configuring my rig and see the effects in real-time as I talk
+to it. I think I already asked that, but all aspects of rig must be
+configurable and `rig` should use the best of the art libraries and
+configuration management techniques, so that everything is configurable and
+very convenient."*
+
+⛔ **HE SAID *"I think I already asked that"* AND THE HONEST ANSWER IS THAT HE
+ASKED TWO OF THE THREE PARTS AND NOT THE THIRD.** Checked rather than assumed,
+because four requirements have been found in this project living only in a
+volatile document, and *"I already asked"* is exactly how the fifth would hide.
+
+| Part | Already recorded? | Where |
+|---|---|---|
+| **everything is configurable** | ✅ **YES, and it is his own brief** | §03: *"maximally expandable, maximally configurable"* |
+| **changes take effect live** | ✅ **YES** | §6 below: *"Changes apply live: rig validates, pushes, and shows accepted, rejected with the program's own reason, or needs-restart"* |
+| ⛔ **settings are on the AGENT surface** | ⛔ **NO. NOWHERE. THIS IS NEW** | nothing in §6, §9 or §13 puts a single config key in front of an agent |
+
+⛔ **SO THE NEW REQUIREMENT IS PRECISELY THE AGENT SURFACE, AND IT IS NOT A
+RESTATEMENT.** §6 has always described a settings UI generated from the schema
+and a `rig config origin` a person runs. **An agent has no route to any of it.**
+The MCP door serves four meta tools - `list`, `describe`, `invoke`, `query` -
+and not one of them reaches configuration.
+
+| # | Requirement |
+|---|---|
+| **C1** | **EVERY SETTING IS READABLE AND WRITABLE BY AN AGENT**, efficiently. *"Probably using MCP"* is his steer and the door already exists, so MCP is the presumption unless something specific defeats it |
+| **C2** | **THE EFFECT IS VISIBLE WHILE HE IS STILL TALKING.** The use he named is conversational: *"help me configuring my rig and see the effects in real-time as I talk to it"* - so the loop that matters is agent writes, screen changes, he reacts. **A write that needs a restart to be seen has failed this** for the keys where live is achievable |
+| **C3** | **BEST-OF-ART CONFIGURATION MANAGEMENT**, and see below - this one is largely already banked |
+
+✅ **C3 IS MOSTLY DISCHARGED ALREADY AND MUST NOT BE RE-SEARCHED.** §38's
+standing rule is never to reinvent what a good Go library does, and §22 already
+names **`knadh/koanf/v2` v2.3.6** as the config library, chosen with the search
+recorded. §6's own machinery - layered resolution with the winner recorded per
+key, a schema-declared key set that GENERATES the settings UI, `config origin`
+naming every loser with file and line, whole-change-set validation before
+anything is sent, a merged on-disk snapshot with provenance, and `loose-ends`
+reporting a renamed key's orphans - **is already a stronger configuration story
+than most programs have.** ⛔ **Proposing a config library here is the named
+failure mode: proposing what exists.**
+
+⛔ **AND THE ONE THING C1 CANNOT BE BUILT WITHOUT, WHICH IS A TRUST QUESTION
+AND NOT A PLUMBING ONE.** §6 already rules that reproducing the whole machine is
+an estate-wide READ and therefore needs `introspect` (§14). **Nothing anywhere
+specifies what a WRITE needs.** An agent that can set any key can change the
+theme, and it can also change a capability grant, a trust setting, or a path.
+
+**So C1 owes a grant model before it owes a verb**, and §13's existing shape is
+the precedent to follow rather than invent: *"the bus refuses a subscription
+without a grant"*. **The question that must be answered first is whether
+config-write is one capability or a partition** - a *"let an agent retheme my
+window"* grant and a *"let an agent rewrite my trust settings"* grant are not
+the same grant, and shipping one capability that covers both is how the
+convenient thing becomes the dangerous one.
+
+⛔ **C2 SHARES ITS MECHANISM WITH §11's REQUIREMENT 8 AND MUST NOT BE SOLVED
+TWICE.** The window's project tab wants live updates, he deferred those to
+§5h's bus at M13, and this is the same seam from the other side: a change
+lands, and a surface that is already open finds out. **§6's *"changes apply
+live"* is the push half and it is specified; §5h's bus is the general
+mechanism.** Building a config-specific notification path would be the second
+half-built live-update mechanism in one product.
+
 Layers, lowest to highest, with the winner recorded per key:
 
 ```
