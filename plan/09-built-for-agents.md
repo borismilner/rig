@@ -4,6 +4,90 @@ An agent is a first-class user of rig, not an afterthought bolted onto the CLI. 
 agents constantly, so the estate being legible to one is worth as much as it being legible to
 him.
 
+### ⛔ AN AGENT'S WORKING NOTES LIVE IN rig, AND NOTHING IS EVER LOST
+
+**BORIS, 2026-09-17, verbatim, recorded the turn he said it:** *"The AI agent
+working with `rig` should manage its scratch-pads in `rig` so that nothing is
+ever lost. It can associate its scratch-pads to anything in `rig` it wants, for
+example a work-item, a project, a task, anything it wants, it can also set any
+tags it wants for scratchpats for concenience and you can expand this
+requirement of mine to make it as convenient as possible for agents to work
+with, it can even be called more properly than a scratch-pad. I want to make AI
+agents first-class-citizens."*
+
+⛔ **HE INVITED THE EXPANSION EXPLICITLY, SO WHAT FOLLOWS IS PART HIS AND PART
+THE LEAD'S, AND THE SPLIT IS MARKED.** The name, the shape and the conveniences
+below are the lead's proposal; **A1 to A4 are his.**
+
+| # | Requirement | Whose |
+|---|---|---|
+| **A1** | **AN AGENT'S WORKING NOTES ARE RECORDS IN rig.** *"So that nothing is ever lost"* is the acceptance test, not the motivation | **his** |
+| **A2** | **A NOTE ASSOCIATES TO ANYTHING** - a work-item, a project, a task, *"anything it wants"* | **his** |
+| **A3** | **AN AGENT SETS ANY TAGS IT WANTS** | **his** |
+| **A4** | **AGENTS ARE FIRST-CLASS CITIZENS**, which is the clause the other three serve | **his** |
+| **A5** | **THE NAME IS `working-note`, NOT `scratchpad`** | lead's, and it is his call to overrule |
+| **A6** | **THE AGENT ASKS FOR ITS OWN NOTES BACK ON RESUME** | lead's expansion |
+
+**WHY `working-note` RATHER THAN `scratchpad`**, since he invited a better
+name: a scratchpad is by definition the thing you throw away, and his acceptance
+test is that **nothing is ever lost**. The word fights the requirement. ⛔ **And
+it must NOT reuse §39's existing `note` kind**, which is a PROJECT note with
+`priority` and `about`, rendered in the brief's section 3 and a case's
+`attention_n` list. **An agent's working notes are high-volume and would flood
+the surface a human reads** - same word, different lifecycle, and merging them
+is how the brief becomes unreadable.
+
+### ⛔ THIS REQUIREMENT SITS ON TOP OF FOUR DEFECTS THE 2026-09-17 ATTACK FILED, AND IT CANNOT BE BUILT WELL OVER ANY OF THEM
+
+**This is the honest state, not a reason to defer: his requirement is the best
+forcing function the attack's findings have.** Every one of these is filed.
+
+| Blocker | Why it lands exactly here |
+|---|---|
+| ⛔ **B60** - `record put` takes its body through **argv only** | **A working note is PROSE.** The one input path is the one that cannot carry it. This is A1's hard blocker |
+| ⛔ **B65** - query has **no field predicate** | **So A3's tags are DECORATION.** An agent can set any tag and nothing can select on one. Tags that cannot be queried are worse than no tags, because they look like an index |
+| ⛔ **B64** - three of ten kinds are **write-only** | A new kind inherits the same fate: nothing renders it, so a note is reachable only by an id you already have |
+| ⛔ **SWEEP-4** - ids are **global and unscoped** | Human ids (`B1`) collide with generated note ids by construction. **A note must mint its own id**, never take a human one |
+
+⛔ **AND THE ONE NOBODY HAS FILED, WHICH IS THE MOST DIRECTLY FATAL TO A4.**
+S1+S4 measured the live store: **78 records, ONE distinct seat, SEVENTY-EIGHT
+distinct sessions.** Every `record put` minted its own session. **So *"show me
+everything I wrote this session"* - the single most natural question an agent
+asks of its own notes - is unanswerable by construction.** Provenance records a
+login and a moment, and can group neither. **First-class citizenship means the
+WHO and the WHEN-TOGETHER work, and today neither does.**
+
+### THE CONVENIENCES, WHICH ARE THE PART HE ASKED ME TO EXPAND
+
+- **Write must accept prose from a file or stdin**, not argv. B60, and it is the
+  first thing.
+- ⛔ **APPEND MUST BE CHEAPER THAN SUPERSEDE.** An agent adds to a note many
+  times in one task. `Put`'s versioning now suppresses identical content (rig
+  `0ed7324`), but an append that rewrites the whole body still mints a version
+  per keystroke-sized change. **Decide whether a working note is a growing
+  document or a stream of small records BEFORE building it** - the two answer
+  *"what did I think at 14:00"* completely differently.
+- **Association is `part-of` to any id**, which §39 already has and already
+  uses. **A2 needs no new link type**, which is the right answer under §38.
+- ⛔ **RETRIEVAL IS THE HALF THAT MAKES IT WORTH ANYTHING.** *"Nothing is ever
+  lost"* is satisfied by a write-only pit; **what he means is that he can get it
+  back.** That needs the field predicate (B65) and it probably needs full text -
+  which is **B28, the store search, where `bleve` and SQLite FTS5 are both
+  already named as candidates and no search has been run.**
+- **A6, on resume:** §39 already specifies a delivery mechanism - the
+  `must_read` set, which a brief returns AND marks delivered. **An agent being
+  handed its own prior working notes on resume is that mechanism pointed at the
+  agent rather than at the project**, and it is how *"nothing is ever lost"*
+  closes the loop rather than just filling a table.
+
+✅ ⛔ **AND THE THING WORTH SAYING PLAINLY: THIS REQUIREMENT IS THE PRODUCER THE
+ATTACK SAID WAS MISSING.** B64's finding is that **nothing in the workflow
+produces records** - eleven rulings on 2026-09-17 and zero in rig. **An agent
+writing its working notes into rig as it works is a producer that runs
+continuously and needs no discipline to remember**, which is exactly what a
+ruling-per-decision does not. **If one thing on this list gets built, this is
+the one that changes the eleven-to-zero.**
+
 ### The scaling problem, solved first
 
 Fifteen programs with twenty commands each is three hundred tools. Handing an agent three
