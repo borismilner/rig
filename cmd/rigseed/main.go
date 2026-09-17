@@ -520,7 +520,11 @@ func (o options) putRow(args []string) (uint64, error) {
 
 	out, err := capture(o, withJSON...)
 	if err != nil {
-		return 0, fmt.Errorf("%s %s\n%s", o.rigBin, strings.Join(withJSON, " "), out)
+		// err CARRIES THE STDERR and `out` carries whatever the refusal put on
+		// stdout. Both are printed because they are different halves: the
+		// refusal body says what rig refused, the stderr says what it warned.
+		return 0, fmt.Errorf("%s %s: %w\n%s",
+			o.rigBin, strings.Join(withJSON, " "), err, out)
 	}
 	var rec struct {
 		Version uint64 `json:"version"`
@@ -597,7 +601,8 @@ func (o options) write(args []string) error {
 	}
 	out, err := capture(o, args...)
 	if err != nil {
-		return fmt.Errorf("%s %s\n%s", o.rigBin, strings.Join(args, " "), out)
+		return fmt.Errorf("%s %s: %w\n%s",
+			o.rigBin, strings.Join(args, " "), err, out)
 	}
 	return nil
 }
@@ -621,6 +626,23 @@ func (o options) write(args []string) error {
 //
 // On failure the two are joined deliberately: an operator reading a failed
 // call wants whatever rig said, on either stream.
+// ⛔ STDOUT COMES BACK ALONE AND STDERR RIDES THE ERROR, WHICH IS NOT A TIDYING
+// UP. This returned stdout and stderr CONCATENATED on any non-zero exit, and
+// every caller here passes --json and then unmarshals what it gets back - so a
+// single line on stderr made the JSON unparseable and defeated the two callers
+// whose whole job is to recognise a CODE_NOT_FOUND refusal.
+//
+// ⛔ IT ONLY EVER BIT AN UNSTAMPED BUILD, WHICH IS WHY IT SURVIVED. `rig` warns
+// on stderr that it cannot check build skew when it is not a stamped build -
+// so a seeder driven by an installed rig was fine, and a seeder driven by a
+// `go build` binary could not seed an EMPTY estate at all: the first probe for
+// a record that does not exist yet came back as a hard failure. That is the
+// exact path the store-isolation procedure requires before production is
+// touched, so the defect was reachable only by the people being careful.
+//
+// Measured 2026-09-17: `rigseed -estate=development` against a fresh isolated
+// store, "probing for an existing record failed: exit status 1" with a
+// well-formed CODE_NOT_FOUND body printed directly underneath it.
 func capture(o options, args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), callTimeout)
 	defer cancel()
@@ -629,7 +651,7 @@ func capture(o options, args ...string) ([]byte, error) {
 	cmd.Stderr = &errOut
 	out, err := cmd.Output()
 	if err != nil && errOut.Len() > 0 {
-		return append(out, errOut.String()...), err
+		return out, fmt.Errorf("%w\n%s", err, errOut.String())
 	}
 	return out, err
 }
