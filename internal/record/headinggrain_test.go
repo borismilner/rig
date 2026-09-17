@@ -128,6 +128,85 @@ func TestTheRealBacklogsHeadingsCarryCleanTitles(t *testing.T) {
 	}
 }
 
+// ⛔ SECTION IS THE FIELD THE SEEDER MINTS AN ID FROM, SO THE CONTRACT IS
+// ASSERTED FROM OUTSIDE THE PACKAGE, WHERE A CONSUMER STANDS.
+//
+// The eleven ranked rows of the critical path sit under `## The critical path
+// to the gate`, which carries NO ID - so `Under` is empty for all eleven and
+// nothing in the report said which table they came from. An id minted from
+// the bare rank `0`, `6a`, `9` is unique in this document by luck, and would
+// collide silently the day a second unnumbered table appears.
+//
+// Both halves are asserted together on purpose: `Section` non-empty while
+// `Under` is empty is the whole claim that the two are different facts, and a
+// test that checked one of them would pass over a `Section` quietly widened
+// into a second `Under`.
+func TestTheRankedRowsSayWhichSectionTheyCameFromAndStillNameNoId(t *testing.T) {
+	f := openTheBacklogDocument(t)
+	p, err := record.ParseBacklogDocument(f)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	const critical = "the-critical-path-to-the-gate"
+	var ranked int
+	for _, u := range p.Unimported {
+		if u.Kind != record.UnimportedRowWithoutID {
+			continue
+		}
+		ranked++
+		if u.Section != critical {
+			t.Errorf("rank %q (line %d) has Section %q, want %q - a seeder keying "+
+				"on the bare rank has nothing to qualify it with",
+				u.Label, u.Line, u.Section, critical)
+		}
+		if u.Under != "" {
+			t.Errorf("rank %q (line %d) has Under %q: that heading carries no id, "+
+				"so Under has been widened into Section and the two fields no "+
+				"longer say different things", u.Label, u.Line, u.Under)
+		}
+	}
+	// The positive control. Without it this passes over a parse that found no
+	// ranked rows at all, which is the absence the whole grain exists for.
+	if ranked != 11 {
+		t.Fatalf("the critical path has %d ranked rows, want 11 - either the "+
+			"document moved, in which case update this number in a commit that "+
+			"says so, or nothing above was checked", ranked)
+	}
+}
+
+// ⛔ EVERY Unimported THIS GRAIN REPORTS CARRIES A SECTION, BECAUSE A FIELD
+// PRESENT ON ONE KIND AND EMPTY ON OTHERS IS INDISTINGUISHABLE FROM ONE THAT
+// WAS LOST. That is how `Title` and `Struck` were both found missing by a
+// CONSUMER rather than by this package.
+//
+// The claim is about rig's own document, not about markdown: a row before the
+// first heading of a file would have no enclosing heading and an empty Section
+// would be the honest answer. rig's backlog opens with a level-1 heading, so
+// there is no such row and the assertion is exact here.
+func TestEveryThingTheBacklogGrainReportsSaysWhereItSits(t *testing.T) {
+	f := openTheBacklogDocument(t)
+	p, err := record.ParseBacklogDocument(f)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	byKind := map[record.UnimportedKind]int{}
+	for _, u := range p.Unimported {
+		byKind[u.Kind]++
+		if u.Section == "" {
+			t.Errorf("%s %q (line %d) says nothing about where it sits", u.Kind, u.Label, u.Line)
+		}
+	}
+	// The positive control, and it is per KIND rather than a total: a total
+	// green over a parse that stopped finding one whole kind would say nothing.
+	for _, k := range []record.UnimportedKind{
+		record.UnimportedHeading, record.UnimportedRowWithoutID, record.UnimportedOtherTable,
+	} {
+		if byKind[k] == 0 {
+			t.Errorf("no %s was found at all, so nothing of that kind was checked", k)
+		}
+	}
+}
+
 // openTheBacklogDocument reaches rig's real backlog through the same
 // gitignored repo-root symlink acceptance_test.go uses, and honours the same
 // off switch - this file is the external test package, so it cannot share

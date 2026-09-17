@@ -61,8 +61,16 @@ func sameSet(t *testing.T, what string, got, want []string) {
 
 // render is one unimported thing as a single comparable line, so a set
 // comparison can carry every field rather than just the id.
+//
+// ⛔ IT CARRIES `section` AS WELL AS `under`, AND THE TWO DIFFERING ON THE
+// SAME LINE IS THE POINT. Under is the nearest ID-BEARING heading and is
+// empty on all eleven ordered rows; Section is the nearest heading of any
+// level and says which table they came from. A render that printed one of
+// them would let the other go wrong with no signal, which is this file's own
+// subject.
 func render(u Unimported) string {
-	return fmt.Sprintf("%s id=%q label=%q under=%q", u.Kind, u.ID, u.Label, u.Under)
+	return fmt.Sprintf("%s id=%q label=%q under=%q section=%q",
+		u.Kind, u.ID, u.Label, u.Under, u.Section)
 }
 
 func renderAll(us []Unimported) []string {
@@ -117,7 +125,7 @@ func TestAnIrregularIdBesideAnOccupiedRowIsReportedRatherThanDropped(t *testing.
 	}
 	sameSet(t, "the records read", ids, []string{"B60"})
 	sameSet(t, "what the parser reports it did not take", renderAll(p.Unimported),
-		[]string{`irregular-id id="" label="B60-2" under=""`})
+		[]string{`irregular-id id="" label="B60-2" under="" section=""`})
 	for _, it := range p.Items {
 		if it.ID == "B60" && strings.Contains(it.Title, "invented") {
 			t.Errorf("B60's record took the INVENTED row's title, which is a silent "+
@@ -151,8 +159,8 @@ func TestARowInsideAWorkItemTableWithNoIdIsReportedAndSeparatorsAreNot(t *testin
 	sameSet(t, "the records read", ids, []string{"B60"})
 	sameSet(t, "the ordered rows the parser reports it did not take", renderAll(p.Unimported),
 		[]string{
-			`row-without-id id="" label="0" under=""`,
-			`row-without-id id="" label="6a" under=""`,
+			`row-without-id id="" label="0" under="" section="the-critical-path-to-the-gate"`,
+			`row-without-id id="" label="6a" under="" section="the-critical-path-to-the-gate"`,
 		})
 	for _, u := range p.Unimported {
 		if strings.HasPrefix(u.Label, "-") || u.Label == "---" {
@@ -184,8 +192,8 @@ func TestAHeadingBorneIdIsReportedWithTheParentTheDocumentNestsItUnder(t *testin
 	}
 	sameSet(t, "the heading-borne ids the parser reports it did not take", renderAll(p.Unimported),
 		[]string{
-			`heading id="B46" label="⛔ B46 - THE MVP ACCEPTANCE TEST" under=""`,
-			`heading id="B46d" label="⛔ B46d - A CHILD THAT IS ITSELF A HEADING" under="B46"`,
+			`heading id="B46" label="⛔ B46 - THE MVP ACCEPTANCE TEST" under="" section=""`,
+			`heading id="B46d" label="⛔ B46d - A CHILD THAT IS ITSELF A HEADING" under="B46" section="b46-the-mvp-acceptance-test"`,
 		})
 	if len(p.Items) != 1 || p.Items[0].ID != "B46a" {
 		t.Fatalf("the row grain must be unchanged, got %d items: %+v", len(p.Items), p.Items)
@@ -214,7 +222,7 @@ func TestAnIdInATableThatIsNotAWorkItemTableIsReported(t *testing.T) {
 		t.Errorf("a two-column adopter row is not a work item, got %+v", p.Items)
 	}
 	sameSet(t, "the other-table ids the parser reports it did not take", renderAll(p.Unimported),
-		[]string{`other-table id="B6" label="B6" under=""`})
+		[]string{`other-table id="B6" label="B6" under="" section=""`})
 }
 
 // backlogDocument reads rig's REAL document through the same gitignored
@@ -254,24 +262,24 @@ func TestRigsOwnBacklogSaysExactlyWhatItDidNotImport(t *testing.T) {
 
 	sameSet(t, "every id and ordered row rig's own backlog addresses and no record carries",
 		renderAll(p.Unimported), []string{
-			`row-without-id id="" label="0" under=""`,
-			`row-without-id id="" label="1" under=""`,
-			`row-without-id id="" label="2" under=""`,
-			`row-without-id id="" label="3" under=""`,
-			`row-without-id id="" label="4" under=""`,
-			`row-without-id id="" label="5" under=""`,
-			`row-without-id id="" label="6" under=""`,
-			`row-without-id id="" label="6a" under=""`,
-			`row-without-id id="" label="7" under=""`,
-			`row-without-id id="" label="8" under=""`,
-			`row-without-id id="" label="9" under=""`,
-			`heading id="B46" label="⛔ B46 - THE MVP ACCEPTANCE TEST, AND IT EXISTED IN NO DOCUMENT AT ALL" under=""`,
-			`heading id="B46d" label="⛔ B46d - THE CYCLE IS CONSTRUCTED, AND THE RELAY SAID OTHERWISE" under="B46"`,
-			"other-table id=\"B6\" label=\"**B6** two shipped-output changes, one migration\" under=\"\"",
-			"other-table id=\"B10\" label=\"**B10** `--json` renders in the daemon\" under=\"\"",
-			"other-table id=\"B18\" label=\"**B18** the session token has no consumer\" under=\"\"",
-			"other-table id=\"B20\" label=\"**B20** the stub surface\" under=\"\"",
-			"other-table id=\"B21\" label=\"**B21** `wire.proto`'s `request_id` comment\" under=\"\"",
+			`row-without-id id="" label="0" under="" section="the-critical-path-to-the-gate"`,
+			`row-without-id id="" label="1" under="" section="the-critical-path-to-the-gate"`,
+			`row-without-id id="" label="2" under="" section="the-critical-path-to-the-gate"`,
+			`row-without-id id="" label="3" under="" section="the-critical-path-to-the-gate"`,
+			`row-without-id id="" label="4" under="" section="the-critical-path-to-the-gate"`,
+			`row-without-id id="" label="5" under="" section="the-critical-path-to-the-gate"`,
+			`row-without-id id="" label="6" under="" section="the-critical-path-to-the-gate"`,
+			`row-without-id id="" label="6a" under="" section="the-critical-path-to-the-gate"`,
+			`row-without-id id="" label="7" under="" section="the-critical-path-to-the-gate"`,
+			`row-without-id id="" label="8" under="" section="the-critical-path-to-the-gate"`,
+			`row-without-id id="" label="9" under="" section="the-critical-path-to-the-gate"`,
+			`heading id="B46" label="⛔ B46 - THE MVP ACCEPTANCE TEST, AND IT EXISTED IN NO DOCUMENT AT ALL" under="" section="rig-s-development-plan"`,
+			`heading id="B46d" label="⛔ B46d - THE CYCLE IS CONSTRUCTED, AND THE RELAY SAID OTHERWISE" under="B46" section="b46-the-mvp-acceptance-test-and-it-existed-in-no-document-at-all"`,
+			"other-table id=\"B6\" label=\"**B6** two shipped-output changes, one migration\" under=\"\" section=\"the-adopter-column-holds-a-role-never-a-session-name\"",
+			"other-table id=\"B10\" label=\"**B10** `--json` renders in the daemon\" under=\"\" section=\"the-adopter-column-holds-a-role-never-a-session-name\"",
+			"other-table id=\"B18\" label=\"**B18** the session token has no consumer\" under=\"\" section=\"the-adopter-column-holds-a-role-never-a-session-name\"",
+			"other-table id=\"B20\" label=\"**B20** the stub surface\" under=\"\" section=\"the-adopter-column-holds-a-role-never-a-session-name\"",
+			"other-table id=\"B21\" label=\"**B21** `wire.proto`'s `request_id` comment\" under=\"\" section=\"the-adopter-column-holds-a-role-never-a-session-name\"",
 		})
 
 	// ⛔ THE ELEVEN ARE ORDERED AND THE ORDER IS THE DOCUMENT'S OWN.

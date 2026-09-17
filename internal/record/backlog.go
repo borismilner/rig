@@ -504,6 +504,41 @@ type Unimported struct {
 	// `partOf` below, where heading enclosure produced twenty-four edges
 	// nobody stated. Under says where the thing sits and asserts nothing else.
 	Under string
+
+	// Section is the nearest enclosing heading of ANY level, id-bearing or
+	// not, as a slug.
+	//
+	// ⛔ IT IS NOT A WIDER `Under` AND THE TWO ARE DIFFERENT FACTS. Under is
+	// the nearest heading that CARRIES AN ID, and its doc comment above says
+	// why that narrowness is load-bearing. Section says WHERE THE THING SITS
+	// in the document and names no id at all. Both are true of the same
+	// Unimported and neither can be derived from the other: `## The critical
+	// path to the gate` has no id, so the eleven ordered rows beneath it have
+	// an empty Under and a Section of `the-critical-path-to-the-gate`.
+	//
+	// ⛔ IT EXISTS BECAUSE NOTHING SAID WHICH TABLE THE ELEVEN CAME FROM, AND
+	// AN ID MINTED FROM THE BARE RANK WOULD COLLIDE SILENTLY. Label on those
+	// rows is `0`, `6a`, `9` - unique in this document today, and unique only
+	// by luck. The day a second unnumbered table appears, a seeder keyed on
+	// the rank alone overwrites eleven records and nothing reports it. Section
+	// is the qualifier that makes the key safe, which is why it is a SLUG: it
+	// becomes part of a record id, and a raw heading carries the document's
+	// decoration, its markdown emphasis and its punctuation.
+	//
+	// ⛔ IT IS EXCLUSIVE OF THE THING IT DESCRIBES, EXACTLY AS Under IS. A
+	// heading's Section is its PARENT heading, never itself - `heading` reads
+	// the stack before it pushes its own frame, and a field that meant one
+	// thing on a row and another on a heading would be worse than either
+	// answer.
+	//
+	// ⛔ AND IT IS EMPTY ON THE THREE KINDS `decisions.go` REPORTS, WHICH IS A
+	// GAP AND NOT A DECISION. Unimported is shared: duplicate-key,
+	// heading-too-deep and heading-no-title are built in that file, which the
+	// seat that added this field does not own. Said out loud here because a
+	// field populated on four kinds and empty on three is indistinguishable
+	// from one that was lost, and that is the exact failure this grain keeps
+	// paying for.
+	Section string
 }
 
 // BacklogParse is one pass over a backlog document: what it imported, and
@@ -519,10 +554,18 @@ type BacklogParse struct {
 
 // headingFrame is one level of the heading stack. carry is the nearest
 // id-bearing heading at or above this level, which is what a row underneath is
-// part-of.
+// part-of. section is this frame's OWN heading, slugged, and it is tracked for
+// every heading rather than only for the id-bearing ones.
+//
+// ⛔ THE TWO FIELDS CANNOT BE ONE. carry SKIPS a heading that states no id, so
+// it survives the pop as the grandparent's value; section never skips, because
+// its whole job is to name the heading a thing literally sits under. `## The
+// critical path to the gate` is the heading where they differ and it is the
+// heading the eleven ordered rows are in.
 type headingFrame struct {
-	level int
-	carry string
+	level   int
+	carry   string
+	section string
 }
 
 // backlogScan is one pass's state. It is a type rather than a pile of locals
@@ -652,25 +695,35 @@ func (s *backlogScan) heading(line string) {
 		s.heads = s.heads[:len(s.heads)-1]
 	}
 	parent := s.enclosing()
+	// ⛔ READ BEFORE THE PUSH, WHICH IS WHAT MAKES Section EXCLUSIVE OF THE
+	// HEADING ITSELF - exactly as `parent` above is. A heading sits under its
+	// PARENT heading; it does not enclose itself, and a field that meant one
+	// thing on a row and another on a heading would be worse than either.
+	parentSection := s.enclosingSection()
 	carry := parent
 	if tok := backlogIDish.FindString(text); tok != "" {
 		// An irregular id is labelled by its TOKEN wherever it is found, so
 		// one Kind means one thing. A heading's own text is only the Label
 		// when the heading carries a legal id and the whole line is the
 		// thing being reported.
-		u := Unimported{Kind: UnimportedIrregularID, Label: tok, Line: s.line, Under: parent}
+		u := Unimported{
+			Kind: UnimportedIrregularID, Label: tok, Line: s.line,
+			Under: parent, Section: parentSection,
+		}
 		if backlogIDLegal.MatchString(tok) {
 			u = Unimported{
 				Kind: UnimportedHeading, ID: tok, Label: text,
 				Title: headingTitle(text, tok), Struck: struckThrough(text),
-				Line: s.line, Under: parent,
+				Line: s.line, Under: parent, Section: parentSection,
 			}
 			carry = tok
 		}
 		s.accounted[tok] = true
 		s.unimported = append(s.unimported, u)
 	}
-	s.heads = append(s.heads, headingFrame{level: level, carry: carry})
+	s.heads = append(s.heads, headingFrame{
+		level: level, carry: carry, section: sectionSlug(text),
+	})
 }
 
 // enclosing is the nearest id-bearing heading above the current line.
@@ -679,6 +732,29 @@ func (s *backlogScan) enclosing() string {
 		return s.heads[n-1].carry
 	}
 	return ""
+}
+
+// enclosingSection is the nearest heading of ANY level above the current line,
+// slugged. Empty only where the document has not opened a heading yet.
+func (s *backlogScan) enclosingSection() string {
+	if n := len(s.heads); n > 0 {
+		return s.heads[n-1].section
+	}
+	return ""
+}
+
+// sectionSlug is the key component for one heading, and it is THE SAME RULE
+// the decisions grain keys its headings by rather than a second one.
+//
+// ⛔ NAMING IT HERE IS THE WHOLE POINT. `decisionSlug` and `decisionTitle` sit
+// in decisions.go, in this package, so the backlog grain can call them without
+// copying anything - and two slug rules over one repository's headings is the
+// drift this package spends its time correcting. The names are
+// decisions-flavoured for what is now a package-wide job; moving them to a
+// neutral home is a rename in a file this grain does not own, so it is
+// reported rather than taken.
+func sectionSlug(text string) string {
+	return decisionSlug(decisionTitle(text))
 }
 
 // row takes one table row.
@@ -704,14 +780,15 @@ func (s *backlogScan) row(line string) error {
 			s.unimported = append(s.unimported, Unimported{
 				Kind:  UnimportedRowWithoutID,
 				Label: strings.TrimSpace(c[1]),
-				Line:  s.line, Under: s.enclosing(),
+				Line:  s.line, Under: s.enclosing(), Section: s.enclosingSection(),
 			})
 		}
 		return nil
 	case !backlogIDLegal.MatchString(tok):
 		s.accounted[tok] = true
 		s.unimported = append(s.unimported, Unimported{
-			Kind: UnimportedIrregularID, Label: tok, Line: s.line, Under: s.enclosing(),
+			Kind: UnimportedIrregularID, Label: tok, Line: s.line,
+			Under: s.enclosing(), Section: s.enclosingSection(),
 		})
 		return nil
 	}
@@ -725,7 +802,8 @@ func (s *backlogScan) row(line string) error {
 		// guard unable to tell them from rows that went missing.
 		s.unimported = append(s.unimported, Unimported{
 			Kind: UnimportedOtherTable, ID: id,
-			Label: strings.TrimSpace(c[1]), Line: s.line, Under: s.enclosing(),
+			Label: strings.TrimSpace(c[1]), Line: s.line,
+			Under: s.enclosing(), Section: s.enclosingSection(),
 		})
 		return nil
 	}
