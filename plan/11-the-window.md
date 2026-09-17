@@ -158,6 +158,72 @@
   the MVP's critical path and it is pointed at the same target** - which is why
   it runs alongside rather than after.
 
+- ⛔ **BORIS, 2026-09-17, verbatim - THE RAIL LISTS *GUIs*, NOT PROGRAMS, AND
+  THIS RESOLVES THE PROMOTION TENSION RATHER THAN INHERITING IT:** *"About rig's
+  own capabilities in the GUI, we can probably think of a better way showing it.
+  Maybe the things that can be selected from the left are not only the different
+  programs but we can generalize it into different GUIs. So a GUI can be a GUI
+  of a program but it could also be a GUI of some internal `rig` functionality
+  like project management and things like that. I'd also like these selectables
+  on the left to have icons and maybe colors so that they are easily
+  distinguishable. This way we can have for example a GUI for AgentBox, a GUI
+  for lets say library, and so on, but also a GUI for project/case management
+  and other GUIs. The GUI for project/case management internally can have its
+  own layout, for example a tab for each project/case and maybe even toggling
+  between cases and projects and inside cases maybe even sub-division by are of
+  interest, for example health, finances, and so on."*
+
+  | # | Requirement |
+  |---|---|
+  | ⛔ **16 (SUPERSEDES 12)** | ⛔ **THE RAIL'S UNIT IS A *GUI*.** A GUI is **either** a registered program's **or** an internal rig capability's. Requirement 12 said *"rig is a program in its own shell"*; **it is not, and it does not need to be** |
+  | **17** | **A RAIL ENTRY CARRIES AN ICON AND A COLOUR**, so entries are distinguishable at a glance rather than by reading |
+  | ⛔ **18** | ⛔ **THE PROJECT/CASE GUI HAS ITS OWN INTERNAL LAYOUT, AND THE TABS LIVE HERE.** A tab per project or case; a toggle between **cases** and **projects**; and within a case, an optional sub-division **by area of interest** - his examples, *health*, *finances* |
+
+  ✅ ⛔ **REQUIREMENT 16 ANSWERS THE OPEN DESIGN QUESTION THIS SECTION RAISED
+  ONE HOUR EARLIER, AND IT ANSWERS IT BETTER THAN EITHER OPTION ON THE TABLE.**
+  The question was: requirement 12 asked for *"the `rig` program we already have
+  there"*, while §5's **PROMOTION IS DEAD** closed four independent doors - rig
+  is in no `CapabilityMap`, `meta` refuses `"rig"` as an invoke target,
+  `d.call` routes through `d.programs[program]` and rig has no connection to
+  itself, and putting rig in the map would place `rig.down` on the agent invoke
+  surface. **The two options were: fake a registry entry, or register rig with
+  itself and reopen a namespace reservation refused twice.**
+
+  ⛔ **HE TOOK NEITHER. A GUI IS NOT A PROGRAM**, so a project/case GUI in the
+  rail asserts nothing about the registry, needs no `CapabilityMap` entry, and
+  leaves every one of the four closures standing. **The promotion ruling is
+  untouched and requirement 12's problem simply stops existing.** Recorded at
+  this length because the next seat will find the promotion ruling and think it
+  blocks the rail.
+
+  ⛔ **REQUIREMENT 17 LANDS ON A GAP THIS PROJECT ALREADY FOUND AND COULD NOT
+  CLOSE**, and the two halves now have different answers:
+
+  | | |
+  |---|---|
+  | **an INTERNAL GUI's colour** | **free.** It is rig's own surface, so rig declares it. §6's theme already computes a hue set (`--h-*`) and the contrast gate already measures every member |
+  | ⛔ **a PROGRAM's colour** | ⛔ **NOT AVAILABLE ON THE WIRE.** `cmd/rigwindow/service.go` records it: §11 gives a program one ownable hue and says a program without one leaves the shell achromatic, but **`rigv1.Identity` carries id, name, version, icon and description and no hue at all** - so every program is achromatic today, and not by choice. **Deriving one from the id would fake a declaration the program never made** |
+
+  **So requirement 17 is satisfiable NOW for the internal GUIs and needs a wire
+  field for the program ones.** A build that quietly invents program hues to
+  make the rail look finished has broken §5e's declaration model to win a
+  screenshot.
+
+  ⛔ **AND REQUIREMENT 18 MOVES THE TABS FOR THE SECOND TIME TODAY, SO READ THE
+  CURRENT POSITION RATHER THAN A REMEMBERED ONE.** They began as the shell's top
+  level, moved down into rig's program GUI, and now sit inside the
+  **project/case GUI**, one per project or case. **The area-of-interest
+  sub-division is a THIRD level** and he marked it *"maybe"* twice - treat it as
+  a shape to leave room for, not a thing to build now.
+
+  ⛔ **A MODEL QUESTION FALLS OUT OF 18 AND IT IS NOT THE WINDOW'S TO ANSWER:**
+  `project` and `case` are already a distinction the wire carries
+  (`ProjectBriefResponse.kind`, and a case has no semver and a different status
+  vocabulary). **"Area of interest" is not** - nothing in §39 holds it, and the
+  2026-09-17 attack found `kind` unconstrained while every other axis is
+  unqueryable. **So the toggle is renderable today and the sub-division is not.
+  Say so rather than inventing a field.**
+
 The UI shell inside rig. Its visual system is a separate piece of work (§23 M1a) because for a
 program whose whole job is presenting other programs, the visual design *is* the product. It is
 built and measured: `design/visual-system.html`, engine at `design/theme.js`.
