@@ -725,3 +725,84 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
   parameters and whether anything animates are declared, layered and live-pushed, and rig
   refuses a token set that fails its contrast targets. Built and measured:
   `design/visual-system.html`, with `design/theme.js` as the engine.
+
+## ⛔ THE TRAY IS HOW HE KNOWS rig IS RUNNING, AND IT OWES A DOWN STATE. RULED BY BORIS 2026-09-17.
+
+> *"I want to know about the presence of the background process of `rig` by the
+> system-tray icon and I'm not sure this is the case. If I don't have it I don't
+> have any visual way of knowing whether it's up or not, if the daemon is down
+> it can also indicate it with a red dot and details when clicked. ... I want as
+> I said to see the `rig` system-tray icon whenever it is relevant."*
+
+⛔ **"AS I SAID" IS THE LOAD-BEARING PHRASE. THIS IS THE SECOND TIME, AND THE
+FIRST TIME IT WAS FOUND LIVING ONLY IN A HANDOFF.** `CLAUDE.md` names the tray
+icon as one of four requirements of his that survived several sessions in a
+volatile document. **It is in the specification now.**
+
+### What he measured, and it was not there
+
+`[ran it]` 2026-09-17, on his machine, while he was asking:
+
+| | |
+|---|---|
+| `systemctl --user status rigwindow.service` | ⛔ **`inactive (dead)` for 2h42m**, `status=0/SUCCESS` |
+| the StatusNotifier watcher | **ten registered items, none of them rig's.** AgentBox's was there |
+
+⛔ **HE WAS RIGHT AND THE ICON WAS SIMPLY GONE.** Nothing reported it, which is
+the whole of his complaint: **the icon is the only readout, so when the readout
+is absent there is no second way to look.**
+
+⛔ **THE CAUSE IS A DESIGN DECISION, NOT A CRASH.** `rigwindow.service` carries
+`Restart=on-failure`, and the unit's own comment explains why: *"A window the
+user CLOSED is not a failure and must stay closed."* The process exited **0**,
+so systemd correctly did nothing. **But `Quit rig window` quits the PROCESS, and
+the process owns the tray** - so an action about the WINDOW silently takes the
+TRAY with it. Those are two different things to him and the menu conflates them.
+
+### The three states the icon owes
+
+| State | Icon |
+|---|---|
+| **rigd answering, named estate** | today's `production.png` / `development.png` |
+| ⛔ **rigd down or unreachable** | ⛔ **A RED DOT. HIS WORD.** Today the icon does not change at all - `pollEstate`'s detached branch keeps the last-known glyph and changes only the menu TEXT |
+| **unnamed estate** | no tray, unchanged (§11's existing rule) |
+
+⛔ **THE DETACHED GLYPH WAS ALREADY OWED AND WAS DEFERRED FOR WANT OF A
+DECISION.** `cmd/rigwindow/tray.go` says so in as many words: *"A dedicated
+detached glyph is one of the three dimensions section 11 still owes and is not
+decided here."* **He has now decided it.**
+
+⛔ **AND "DETAILS WHEN CLICKED" IS A REQUIREMENT ON THE MENU, NOT ONLY ON THE
+GLYPH.** A red dot that opens a menu saying `no daemon answering` and nothing
+else tells him it is down and not why, when, or what to do. **The menu owes
+what the window cannot say while it is detached.**
+
+### ⛔ "WHENEVER IT IS RELEVANT" IS A PRESENCE REQUIREMENT AND IT IS THE HARD HALF
+
+The glyph is the easy part. **His sentence is about the icon BEING THERE**, and
+today three separate things remove it: quitting the window, an unnamed estate,
+and the process dying with `Restart=on-failure` declining to bring it back.
+
+⛔ **THE ANSWER IS NOT `Restart=always`.** That would make the close button do
+nothing, which is the scar `rigd.service` spends thirty lines on. **The answer
+is to stop the WINDOW's lifecycle from owning the TRAY's** - closing a window
+must not end a process whose job is to be visible.
+
+⛔ **AND IT COMPOSES WITH HIS MVP ACCEPTANCE TEST, WHICH IS THE SAME SENTENCE
+ONE DAY EARLIER:** *"I'll know we reached MVP when I'll see the production icon
+on my system-tray both during this session and after I reboot the machine."*
+**A tray that can vanish mid-session fails the first half of that test**, and
+the first half is the one that looked settled.
+
+## ⛔ AgentBox's TRAY ICON BECOMES "AB". RULED BY BORIS 2026-09-17.
+
+> *"Replace the icon for AgentBox with \"AB\" so that it doesn't look like the
+> rig icon and we'll redeploy agentbox."*
+
+**It is a rig requirement even though the change is in another repository**,
+because the thing being protected is rig's: **two icons a glance apart make the
+rig tray icon unreadable as rig's**, and the icon is his only readout.
+
+⛔ **THE TEST IS A GLANCE, NOT A DIFF.** They are adjacent in one strip at one
+size. **Distinguishable when compared side by side is not the bar**; telling
+them apart without comparing is.
