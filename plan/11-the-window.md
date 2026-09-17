@@ -49,6 +49,36 @@
   that groundwork arriving**, which is why this is additive to the MVP rather
   than a new front - but the AgentBox panes are still not this tab.
 
+  ⛔ **AMENDED BY BORIS THE SAME DAY, MINUTES LATER, AND IT CHANGES WHAT GETS
+  BUILT. VERBATIM:** *"The GUI parts I've mentioned are not part of the MVP. We
+  can have the data displayed without live updates until the mechanism is ready.
+  I want to remind you that the GUI and the visuals must be top of the art, the
+  best of the best the technology offers, best of CSS, best of JS or TS, best of
+  HTML and best of all components, making use of the best visualization
+  mechanisms."*
+
+  | What it changes | |
+  |---|---|
+  | ⛔ **requirement 6 and 7 are OFF THE MVP PATH** | The MVP's three conditions are unchanged and tabs are not a fourth. **A seat told to converge on the MVP does not build this**, and a seat told to build this does not report it as MVP progress |
+  | ⛔ **requirement 8 is DEFERRED, NOT DROPPED** | *"without live updates UNTIL the mechanism is ready"* - **the mechanism, not the tab, is what is waited on.** So the tab ships reading its data once, and §5h's bus at M13 is what turns it live |
+  | ✅ **the three-option table above is SETTLED by this** | **Do not build the Go-side watcher and do not build a wire subscription for this tab.** Both were only ever there to fake requirement 8 early, and the poll-behind-an-event-API trap named above is now a trap nobody needs to walk into |
+  | ⛔ **NEW REQUIREMENT 9: THE VISUAL BAR, AND IT IS HIS OWN WORDS** | *"top of the art, the best of the best the technology offers"* - CSS, JS/TS, HTML, components, **and specifically *"the best visualization mechanisms"***, which names charts and data display rather than chrome |
+
+  ⛔ **REQUIREMENT 9 IS NOT A STYLE PREFERENCE AND MUST NOT BE FILED AS ONE.**
+  §23 M1a already says that *"for a program whose whole job is presenting other
+  programs, the visual design IS the product"*, and `readable-output`'s standing
+  rule binds it: **"hard to read" is a measurement, not taste.** So this
+  requirement is DISCHARGED BY NUMBERS - measured contrast at real sizes on both
+  themes, not by admiring a screenshot. **The reason it needs saying is that
+  "make it beautiful" is the one requirement a seat will always believe it has
+  met.**
+
+  ⛔ **AND THE ORDER THAT FALLS OUT, because two of his instructions could look
+  like they compete:** the MVP keeps its priority, *"strive toward the perfect
+  MVP"* is still standing, and **this is the work that runs ALONGSIDE it** -
+  *"alongside working on `rig`"* is his own framing in the sentence that opened
+  this requirement. It is not a front that pauses the MVP and it is not filler.
+
 The UI shell inside rig. Its visual system is a separate piece of work (§23 M1a) because for a
 program whose whole job is presenting other programs, the visual design *is* the product. It is
 built and measured: `design/visual-system.html`, engine at `design/theme.js`.
