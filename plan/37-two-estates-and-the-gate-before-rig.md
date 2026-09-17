@@ -789,40 +789,59 @@ development experience.**
 courtesy it extends when it has spare time. The bar does not drop: an armed seat
 reports more, not worse.
 
-#### ⛔ ARMED MEANS HUNTING, NOT ONLY REPORTING. AND THE CAPABILITY IT DEMANDS. RULED BY BORIS 2026-09-17.
+#### ⛔ CHECK THE SURFACE YOUR MISSION ALREADY TOUCHES. DO NOT STRAY. RULED BY BORIS 2026-09-17.
+
+**Two statements, and the second NARROWS the first. A seat reading only the
+first will go off and spend a day auditing rig.**
 
 > *"All the agents, you included, should be on the lookout to identify problems
 > with `rig` during its development. That's why it's essential that AI agents
 > will have full and total access and introspection into all aspects of `rig`."*
 
-⛔ **THIS WIDENS ARMED AND IT IS A REAL WIDENING, NOT A RESTATEMENT.** The rule
-above says: when coordination pain costs you time, that is a report. **This says:
-be ON THE LOOKOUT.** A seat that hit no friction today has still not discharged
-this - **it is an active posture, and "nothing bit me" is not a report.**
+> *"Agents should not stray from their missions, they just need to verify that
+> their interaction with `rig` which is required for their work on `rig` doesn't
+> lack of capabilities that would be of benefit either for them or for my
+> introspection abilities; Or maybe things that are inferior compared to using
+> the logbook and we need to consolidate the gaps closure in our development
+> plan for `rig`."*
 
-| Before | Now |
+⛔ **THE SCOPE IS THE SURFACE YOUR MISSION ALREADY MADE YOU TOUCH, AND NOTHING
+ELSE.** This costs a seat almost nothing, which is the design: you were already
+using that surface to do the work. **An audit you went looking for is straying.**
+
+| ⛔ NOT this | ⛔ THIS |
 |---|---|
-| **report the friction you HIT** | ⛔ **also GO LOOKING for rig's own defects** |
-| passive, triggered by pain | **active, part of every session** |
-| *"you included"* | ⛔ **the LEAD is not exempt. He named it** |
+| a survey of rig | **the rig surface your assignment required** |
+| going looking for defects | **noticing what was missing while you used it** |
+| a mission of its own | **a by-product of the mission you have** |
+| "nothing bit me" is a failure | **"nothing was missing on what I touched" is a complete answer** |
 
-⛔ **THE BAR DOES NOT DROP AND THIS MUST NOT BECOME A LICENCE TO SPECULATE.**
-§37's ARMED bar is **evidence, never a wish**, and §38's is **grep the plan
-first**. A hunt that returns *"it would be nice if"* has produced nothing.
-**Hunting raises the volume of real findings; it does not lower the bar for
-what counts as one.**
+⛔ **THREE THINGS TO VERIFY, AND ALL THREE ARE HIS WORDS:**
 
-##### ⛔ AND THE SECOND HALF IS A CAPABILITY REQUIREMENT, DERIVED BY HIM FROM THE FIRST
+1. **does it lack a capability that would benefit the AGENT?**
+2. **does it lack one that would benefit HIS INTROSPECTION?** ⛔ **A seat is
+   asked to notice this ON HIS BEHALF** - he is not at the keyboard while a seat
+   works, and a gap in what he can see is invisible to him by construction.
+3. ⛔ **is anything INFERIOR TO USING THE LOGBOOK?** **This is clause A of his
+   three-clause bar arriving as a standing per-seat duty** rather than as a
+   one-off attack, and it is the same question the dual run answers in bulk.
 
-**His word is *"essential"*, and the logic is his: agents cannot find what they
-cannot see.**
+**WHERE IT GOES: *"consolidate the gaps closure in our development plan."***
+Findings reach the plan through the team-lead, as §37's ARMED path already
+specifies. **The bar is unchanged - evidence, never a wish, and grep the plan
+first.**
+
+##### ⛔ AND THE CAPABILITY HE DERIVED FROM THE FIRST STATEMENT STANDS UNNARROWED
 
 > **AI agents get FULL AND TOTAL access and introspection into ALL ASPECTS of
 > rig.**
 
+**The narrowing above is about what a seat SPENDS TIME ON. It is not a narrowing
+of what rig must EXPOSE** - the two are different, and collapsing them would
+answer a capability requirement with a scheduling rule.
+
 ⛔ **NOTE THE ASYMMETRY, BECAUSE IT IS DELIBERATE AND A SEAT WILL OTHERWISE
-COLLAPSE IT.** §1 records his ordering, and the two halves are not the same
-size:
+COLLAPSE IT.** §1 records his ordering:
 
 | Who | What they get |
 |---|---|
@@ -830,22 +849,36 @@ size:
 | **AI agents** | ⛔ ***"full and total access and introspection into ALL aspects"*** |
 
 **The agent scope is WIDER - all aspects, not the important ones.** So **a
-surface built for the human view does not discharge this**, and building the
-window first and calling introspection done would invert it.
+surface built for the human view does not discharge this.**
 
-⛔ **THIS IS A NAMED ENTRY IN `plan/09` A0's UNDISCHARGED SURVEY.** A0 is his -
-*"agents get every facility they need or may need, and the LEAD owns discovering
-what those are"* - **zero written, four generations.** This is him naming one of
-those facilities directly rather than leaving it to the survey, and it is the
-second time in one day he has pushed on A0. **The survey is overdue and this
-row is now part of its answer rather than a substitute for it.**
+⛔ **THIS IS A NAMED ENTRY IN `plan/09` A0's UNDISCHARGED SURVEY** - *"agents get
+every facility they need or may need, and the LEAD owns discovering what those
+are"*, **zero written after four generations.** He named one of those facilities
+directly rather than leaving it to the survey; **the survey is still owed.**
 
 ⛔ **WHAT IT DOES NOT MEAN: A WRITE SURFACE, OR A SECURITY MODEL CHANGE.** He
-said *access and introspection* - the ability to SEE all of rig. §14's
-authorisation model and §15's redaction invariant are untouched: **what
-`secrets.get` returned is still never recorded, only the key name.** A capability
-that made secrets introspectable would be obeying this sentence and breaking a
-ruling that predates it.
+said *access and introspection*. §14's authorisation model and §15's redaction
+invariant are untouched: **what `secrets.get` returned is still never recorded,
+only the key name.** A capability that made secrets introspectable would be
+obeying this sentence and breaking a ruling that predates it.
+
+##### ⛔ RECORDED AGAINST THE SEAT: THIS IS THE THIRD SCOPE INFLATION IN ONE DAY
+
+**Team-lead generation 12 wrote all three of these down wider than he said them,
+and he corrected all three:**
+
+| He said | The seat wrote | Corrected |
+|---|---|---|
+| wind down at 97% **this session** | a standing rule in §39 | *"only for the current session"* |
+| agents first **in project/case handling** | agents primary, globally | *"the actual goal is to serve me as its creator and user"* |
+| **verify the surface you touch** | *"be on the lookout"*, hunting | *"agents should not stray from their missions"* |
+
+⛔ **THE RULE, AND IT IS WORTH MORE THAN THE THREE INSTANCES: RECORD WHAT HE SAID
+THE TURN HE SAYS IT, AND RECORD ITS SCOPE WITH IT. WHEN THE SCOPE IS NOT STATED,
+ASK.** One line, and it is cheaper than a false requirement sitting in the
+specification reading as settled. **All three inflations ran in the same
+direction - bigger, more standing, more general - which is the direction that
+makes a seat look diligent.**
 
 #### ⛔ AND IT IS NOT ONLY THE SEATS BUILDING rig. EVERY AGENT **USING** rig IS ARMED TOO. RULED BY BORIS 2026-09-16.
 
