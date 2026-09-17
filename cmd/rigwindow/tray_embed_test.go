@@ -32,7 +32,15 @@ func TestTrayIconsAreEmbedded(t *testing.T) {
 		t.Skip("icons holds only .gitkeep, so nothing has been copied yet: run make build-rigwindow")
 	}
 
-	for _, want := range []string{"icons/development.png", "icons/production.png"} {
+	// ⛔ THE -down PAIR IS HERE BECAUSE IT FAILS EXACTLY LIKE THE OTHER TWO
+	// AND IS LESS LIKELY TO BE NOTICED. A missing estate icon shows up the
+	// moment the tray starts; a missing down icon shows up only when the
+	// daemon stops, which is the one moment Boris is relying on it - "if the
+	// daemon is down it can also indicate it with a red dot", 2026-09-17.
+	for _, want := range []string{
+		"icons/development.png", "icons/production.png",
+		"icons/development-down.png", "icons/production-down.png",
+	} {
 		if _, err := fs.Stat(trayIcons, want); err != nil {
 			t.Errorf("icons has been copied (%v) but %s is missing, so the "+
 				"tray would fail to set that estate's icon: %v", names, want, err)

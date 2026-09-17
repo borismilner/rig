@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"embed"
+	"fmt"
 	"io/fs"
+	"strings"
 	"time"
 
 	"fyne.io/systray"
@@ -35,6 +37,30 @@ var (
 	menuVersion *systray.MenuItem
 	menuEstate  *systray.MenuItem
 	menuWindow  *systray.MenuItem
+
+	// menuDetail is the third fact row and it is EMPTY while the daemon
+	// answers. Boris, 2026-09-17, on the down state: "it can also indicate it
+	// with a red dot and details when clicked."
+	//
+	// ⛔ A RED DOT WITHOUT THIS ROW SAYS "SOMETHING IS WRONG" AND STOPS.
+	// The two rows above can only say `no daemon answering`, which tells him
+	// it is down and not since when, not which estate it was, and not what to
+	// run. The badge is the alarm; this is the answer to it.
+	menuDetail *systray.MenuItem
+
+	// detachedSince is when the daemon last stopped answering, so the detail
+	// row can say HOW LONG. Zero while it is answering.
+	//
+	// ⛔ A DURATION IS WHAT SEPARATES A RESTART FROM AN OUTAGE. `make
+	// install` stops rigd and starts it again, and the tray notices: eight
+	// seconds detached is a deploy, forty minutes is something he has to look
+	// at. Without the clock both render identically and he learns to ignore
+	// the badge, which is the worst outcome for an alarm.
+	detachedSince time.Time
+
+	// lastIcon is the icon last set from a NAMED estate, so the down badge can
+	// be that estate's own rather than a generic one.
+	lastIcon string
 )
 
 // fyne.io/systray, not Wails' own application.SystemTray: the Wails beta.19
@@ -56,6 +82,9 @@ func runTraySupervisor(app *application.App, win application.Window) {
 		menuVersion.Disable()
 		menuEstate = systray.AddMenuItem("looking for a daemon", "which estate this tray is attached to")
 		menuEstate.Disable()
+		menuDetail = systray.AddMenuItem("", "what to do when the daemon is not answering")
+		menuDetail.Disable()
+		menuDetail.Hide()
 
 		systray.AddSeparator()
 		menuWindow = systray.AddMenuItem("Show rig", "Open or hide the rig window")
@@ -151,7 +180,16 @@ func pollEstate(win application.Window) {
 				return
 			}
 		default:
-			// Detached: keep the icon, say so in the text.
+			// Detached: BADGE the icon, and say how long in the text.
+			//
+			// ⛔ THIS USED TO KEEP THE ICON UNCHANGED, and the comment above
+			// recorded the missing glyph as one of the three dimensions
+			// section 11 still owed. Boris ruled it 2026-09-17: a red dot.
+			// ⛔ THE BADGE GOES ON THE ESTATE'S OWN GLYPH rather than on a
+			// shared down icon, so the tray does not answer "rig is not
+			// running" by forgetting which estate it was - that is the fact
+			// the tray exists to carry.
+			setTrayIcon(downIcon(lastIcon), "rig - no daemon answering")
 			setDetached()
 		}
 		retitleWindowItem(win)
@@ -183,6 +221,16 @@ func setFacts(est *rigv1.EstateResponse) {
 	}
 	menuEstate.SetTitle("estate: " + name)
 	menuEstate.SetTooltip("which estate this tray is attached to")
+
+	// ⛔ THE RECOVERY IS AS LOAD-BEARING AS THE ALARM. A detail row left on
+	// screen after the daemon came back is a stale alarm, and one stale alarm
+	// is all it takes for him to stop reading the row. The clock is reset with
+	// it so the next outage is measured from ITS start.
+	detachedSince = time.Time{}
+	if menuDetail != nil {
+		menuDetail.SetTitle("")
+		menuDetail.Hide()
+	}
 }
 
 // setDetached says the daemon is gone rather than leaving the last version on
@@ -194,9 +242,60 @@ func setDetached() {
 	}
 	menuVersion.SetTitle("rig " + version + " (window)")
 	menuEstate.SetTitle("no daemon answering")
+
+	if detachedSince.IsZero() {
+		detachedSince = time.Now()
+	}
+	if menuDetail == nil {
+		return
+	}
+	// ⛔ THE ROW NAMES THE COMMAND. "The daemon is down" is a fact he
+	// already has from the badge; what he does not have at that moment is the
+	// one line that fixes it, and the window cannot run it for him - starting
+	// a daemon is a decision, and section 28 keeps "replace what is deployed"
+	// and "decide to deploy" apart deliberately.
+	menuDetail.SetTitle(fmt.Sprintf("down for %s - systemctl --user start rigd.service",
+		roundedSince(detachedSince)))
+	menuDetail.SetTooltip("the daemon has not answered since " +
+		detachedSince.Format("15:04:05"))
+	menuDetail.Show()
+}
+
+// roundedSince is how long ago something was, at a grain a person reads.
+//
+// ⛔ SECONDS ARE THE POINT BELOW A MINUTE AND NOISE ABOVE IT. `make install`
+// stops rigd and starts it again inside a few seconds, so "down for 4s" is
+// what tells him he is watching a deploy rather than an outage; at forty
+// minutes the seconds are a number nobody reads and a row that changes every
+// five seconds forever.
+func roundedSince(t time.Time) time.Duration {
+	d := time.Since(t)
+	if d < time.Minute {
+		return d.Round(time.Second)
+	}
+	return d.Round(time.Minute)
+}
+
+// downIcon is the badged variant of an estate icon, or the plain badged
+// production glyph when no estate has ever answered.
+//
+// ⛔ THE FALLBACK IS A CHOICE AND NOT A DEFAULT. A window started while rigd
+// is already down has no last-known estate, and showing nothing would leave
+// him with the thing he complained about: no visual way of knowing. Production
+// is the estate his tray runs, so its badged glyph is the honest guess - and
+// the menu's detail row says the estate is unknown rather than asserting one.
+func downIcon(last string) string {
+	base := "production"
+	if last != "" {
+		base = strings.TrimSuffix(strings.TrimSuffix(last, ".png"), "-down")
+	}
+	return base + "-down.png"
 }
 
 func setTrayIcon(icon, tooltip string) {
+	if !strings.HasSuffix(icon, "-down.png") {
+		lastIcon = icon
+	}
 	if b := iconBytes(icon); b != nil {
 		systray.SetIcon(b)
 	}
