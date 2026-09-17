@@ -1,5 +1,44 @@
 ## 1. The idea, in one line
 
+### ⛔ WHO rig IS FOR, AND IN WHICH ORDER. RULED BY BORIS 2026-09-17.
+
+> *"What is important about `rig` is that it perfectly serve the AI agents, and
+> the secondary objective is me being able to introspect everything."*
+
+⛔ **THIS IS A PRIORITY ORDERING AND NOTHING IN THE PLAN HAD ONE.** §39 has said
+since 2026-09-15 that the record has *"two consumers"* - an agent resuming, and
+Boris reading - and it has never said **which wins when they pull apart.** They
+do pull apart, and this settles it:
+
+| | |
+|---|---|
+| **PRIMARY** | **the AI agents, served PERFECTLY.** Not adequately, not alongside - it is the thing rig is for |
+| **SECONDARY** | **Boris introspecting everything.** A real objective, and it yields when the two conflict |
+
+⛔ **WHAT THIS CHANGES, CONCRETELY, BECAUSE A PRIORITY NOBODY CAN APPLY IS A
+SLOGAN.** Every one of these has come up already and was decided by taste:
+
+- **a surface that is cheap for an agent and plain for a human BEATS a
+  surface that is handsome for a human and expensive for an agent.** §40's
+  knowledge-sharing index is exactly this shape: he specified it as *"very
+  efficiently indexed and exposed to the AI agents so that they don't waste
+  tokens"*, with human use named second in the same breath.
+- **token cost is a FIRST-ORDER design constraint, not an optimisation.** An
+  answer an agent cannot afford to read has not served it.
+- ⛔ **AND THE SECOND OBJECTIVE IS "INTROSPECT EVERYTHING", WHICH IS A
+  COMPLETENESS BAR, NOT A BEAUTY ONE.** It is not satisfied by a nicer GUI and
+  it is not violated by a plain one. **He must be able to see everything;
+  nothing says he must enjoy looking at it.** The GUI beauty requirement at
+  §11 is his and stands on its own - **it is not this**, and reading this row
+  as a licence to let the GUI rot inverts it.
+
+⛔ **IT DOES NOT DEMOTE HIM AND MUST NOT BE READ THAT WAY.** He is the only one
+who sets direction, and *"introspect everything"* is a hard requirement with
+teeth - a capability an agent can use and he cannot see is a failure of the
+second objective, not an acceptable trade. **The ordering decides ties, not
+whose project this is.**
+
+
 **An app declares what it can do, once. rig projects that onto every way anyone might reach it.**
 
 ```
