@@ -127,6 +127,37 @@
   9's visual bar still binds, and **the whole of this is still OFF THE MVP
   PATH** by his ruling minutes earlier.
 
+  ⛔ **AND THEN HE GAVE IT ITS PURPOSE, WHICH IS THE THING A SPECIFICATION
+  USUALLY LACKS. BORIS, 2026-09-17, verbatim:** *"The GUI is to be built
+  alongside working on `rig`. It will help me get a grip on the usability of
+  [rig] and get a feel of the product while it's being built. At the very least
+  it will let me overview the planning vs execution of `rig` itself which is
+  basically what our MVP does."*
+
+  | # | Requirement |
+  |---|---|
+  | ⛔ **14** | ⛔ **THE FIRST TAB'S SUBJECT IS PLANNING VERSUS EXECUTION.** This retires the *"we'll define in the future"* deferral for THIS tab - he has now named what the useful details are. It is not a record browser and it is not a table of the store; **it is the answer to "what did we say we would do, and what has actually happened"** |
+  | **15** | **THE GUI IS ALSO AN INSTRUMENT ON rig ITSELF** - *"get a grip on the usability"*, *"get a feel of the product while it's being built"*. **So an ugly truth rendered honestly serves this requirement and a flattering summary defeats it** |
+
+  ⛔ **REQUIREMENT 14 HAS A CONSEQUENCE THAT MUST NOT BE SOFTENED IN THE BUILD,
+  AND IT IS THE WHOLE VALUE OF THE TAB.** Measured against live `production`
+  2026-09-17: **all 68 records read `status: active`**, **every one of the 59
+  rendered rows reads `not stepped`**, and **the 9 items that ARE closed are
+  expressed only by their ABSENCE from the list.** So a truthful
+  planning-versus-execution view today shows **a full plan and almost no
+  recorded execution** - and three of those facts are live defects the
+  2026-09-17 attack filed (S2-1, S6-1, S1+S4-1).
+
+  ⛔ **A TAB THAT SMOOTHS THAT OVER HAS FAILED REQUIREMENT 15 WHILE APPEARING TO
+  SATISFY 14.** He asked for a feel of the product; the product's current feel
+  is that execution is not being recorded. **Render it.**
+
+  **AND IT SETTLES THE "IS THIS A DISTRACTION" QUESTION WITH HIS OWN
+  REASONING:** *"which is basically what our MVP does"*. The MVP is rig managing
+  rig's own project; this tab is that capability with a face on it. **It is off
+  the MVP's critical path and it is pointed at the same target** - which is why
+  it runs alongside rather than after.
+
 The UI shell inside rig. Its visual system is a separate piece of work (§23 M1a) because for a
 program whose whole job is presenting other programs, the visual design *is* the product. It is
 built and measured: `design/visual-system.html`, engine at `design/theme.js`.
