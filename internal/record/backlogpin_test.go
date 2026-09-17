@@ -172,7 +172,11 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 			// challenge: two processes both call themselves the production
 			// estate and rig's singleton is per runtime dir, so neither is
 			// told the other exists. OPEN.
-			"B72", "B8", "B9",
+			// B73 filed 2026-09-17 by team-lead generation 13: the eleven
+			// ranked rows of the critical path are in no record, and one of
+			// them is Boris's own order. OPEN, and it is B66's named
+			// remainder rather than a new finding.
+			"B72", "B73", "B8", "B9",
 		})
 
 	// B65 joins this set 2026-09-17: the field predicate landed at rig
@@ -181,8 +185,12 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 	// B64 joins this set 2026-09-17: the twelfth brief section landed at rig
 	// `22faf89` and the row was struck. The SET is what says WHICH row
 	// closed; the count alone would have accepted a swap.
+	// B66 joins this set 2026-09-17: the heading grain reached the store with
+	// its title and status (rig `f970106`), `rigseed --check` computes the
+	// whole-set equality the row's own bar names, and B46 is in `rig brief
+	// rig` on the live production daemon. The row was struck.
 	pin(t, "closed, struck", struck,
-		[]string{"B11", "B19", "B20", "B22", "B31", "B33", "B64", "B65", "B7", "B9"})
+		[]string{"B11", "B19", "B20", "B22", "B31", "B33", "B64", "B65", "B66", "B7", "B9"})
 	pin(t, "closed by a terminal lead in the item cell", byLead, []string{"B21"})
 	pin(t, "claims a terminal state unstruck, seeded OPEN", claims,
 		[]string{"B15", "B24", "B25", "B44", "B46a", "B48", "B55", "B56"})
@@ -233,8 +241,19 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 		// move `open` in opposite directions and it lands back on 66 - a count
 		// that is unchanged while two rows moved is exactly the shape a count
 		// pin cannot see, and the struck SET above is what catches it.
-		{"rows", len(items), 77},
-		{"closed", len(struck) + len(byLead), 11},
+		// 2026-09-17, generation 13, TWO changes and the SET pins are what
+		// separate them: B66 was STRUCK (closed 11 -> 12) and B73 was FILED
+		// (rows 77 -> 78, open +1). `open` therefore lands back on 66
+		// unmoved, which is exactly the shape a count pin cannot see - the
+		// struck SET and the every-item SET above are what catch it.
+		//
+		// ⛔ B73 EXISTS BECAUSE THE INSTRUMENT DEMANDED IT. B66's closing
+		// text cited B73 before the row was written, and
+		// TestEveryBacklogIdInTheDocumentIsEitherARecordOrReported went RED
+		// on a dangling id the same minute - a cross-reference check this
+		// project has said twice it does not have, working.
+		{"rows", len(items), 78},
+		{"closed", len(struck) + len(byLead), 12},
 		{"open", open, 66},
 	} {
 		if c.got != c.want {
