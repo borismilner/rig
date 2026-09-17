@@ -162,7 +162,9 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 			"B39", "B4", "B40", "B41", "B42", "B43", "B44", "B45",
 			"B46a", "B46b", "B46c", "B46e", "B46f", "B46g", "B47", "B48",
 			"B49", "B5", "B50", "B51", "B52", "B53", "B54", "B55",
-			"B56", "B57", "B58", "B59", "B6", "B60", "B61", "B62", "B63", "B7",
+			"B56", "B57", "B58", "B59", "B6", "B60", "B61", "B62", "B63",
+			// B64-B70 filed 2026-09-17 by the nine-surface attack, all OPEN.
+			"B64", "B65", "B66", "B67", "B68", "B69", "B7", "B70",
 			"B8", "B9",
 		})
 
