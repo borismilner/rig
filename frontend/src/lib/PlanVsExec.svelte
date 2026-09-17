@@ -24,6 +24,7 @@
      timer in this file. Section 5h's bus at M13 is what makes it live, and a
      poll wearing an event API's name is the trap section 11 names by name. -->
 <script lang="ts">
+  import ItemRow from "./ItemRow.svelte";
   import type { Brief } from "../../bindings/github.com/boris-milner/rig/cmd/rigwindow/models.js";
   import {
     planVsExec,
@@ -48,9 +49,13 @@
     /** Local clock time of the last successful read, or "". */
     readAt: string;
     onrefresh: () => void;
+    /** Opens the first row of each list, so the contrast gate can measure the
+        opened panel - it cannot click. initialSide's precedent. */
+    openRows?: boolean;
   }
 
-  let { brief, project, loading, error, readAt, onrefresh }: Props = $props();
+  let { brief, project, loading, error, readAt, onrefresh, openRows = false }: Props =
+    $props();
 
   let p = $derived(planVsExec(brief));
   let t = $derived(sectionTally(brief));
@@ -211,15 +216,16 @@
           </p>
         {:else}
           <ul class="items">
-            {#each brief.nextUp as it (it.id)}
-              <li>
-                <span class="dotm" data-tone={stepTone(it.state)}></span>
-                <span class="iid">{it.id}</span>
-                <span class="it">{it.title}</span>
-                <span class="ist" class:none={it.state === NOT_STEPPED}>
-                  {it.state === NOT_STEPPED ? age(it.sinceUnixNano) : it.state}
-                </span>
-              </li>
+            {#each brief.nextUp as it, i (it.id)}
+              <ItemRow
+                item={it}
+                startOpen={openRows && i === 0}
+                tone={stepTone(it.state)}
+                trailing={it.state === NOT_STEPPED
+                  ? age(it.sinceUnixNano)
+                  : it.state}
+                unstepped={it.state === NOT_STEPPED}
+              />
             {/each}
           </ul>
         {/if}
@@ -239,15 +245,16 @@
           </p>
         {:else}
           <ul class="items">
-            {#each brief.open as it (it.id)}
-              <li>
-                <span class="dotm" data-tone={stepTone(it.state)}></span>
-                <span class="iid">{it.id}</span>
-                <span class="it">{it.title}</span>
-                <span class="ist" class:none={it.state === NOT_STEPPED}>
-                  {it.state === NOT_STEPPED ? age(it.sinceUnixNano) : it.state}
-                </span>
-              </li>
+            {#each brief.open as it, i (it.id)}
+              <ItemRow
+                item={it}
+                startOpen={openRows && i === 0}
+                tone={stepTone(it.state)}
+                trailing={it.state === NOT_STEPPED
+                  ? age(it.sinceUnixNano)
+                  : it.state}
+                unstepped={it.state === NOT_STEPPED}
+              />
             {/each}
           </ul>
         {/if}
@@ -776,21 +783,12 @@
     align-self: center;
   }
 
-  .dotm[data-tone="good"] {
-    background: var(--sem-good);
-    border-color: var(--sem-good);
-  }
-  .dotm[data-tone="progress"] {
-    background: var(--sem-progress);
-    border-color: var(--sem-progress);
-  }
+  /* Only `bad` and the unset default are drawn here now: the work-item rows
+     moved to ItemRow and took the good/progress/warn tones with them. The
+     blocked list is bad by definition and the notes list carries no tone. */
   .dotm[data-tone="bad"] {
     background: var(--sem-bad);
     border-color: var(--sem-bad);
-  }
-  .dotm[data-tone="warn"] {
-    background: var(--sem-warn);
-    border-color: var(--sem-warn);
   }
 
   .iid {
@@ -810,21 +808,6 @@
     margin-inline-start: 0.5rem;
   }
 
-  .ist {
-    font-family: var(--mono);
-    color: var(--fg-dim);
-    white-space: nowrap;
-  }
-
-  /* ⛔ NOT AMBER, AND THE REASON IS A COUNT. It was --sem-warn, and the real
-     window showed 54 rows of identical amber text down one column - the hue
-     stopped meaning "this wants you" and became the list's background noise.
-     Section 11's rule is that a hue appears only when something wants you, so
-     the warn hue is spent ONCE, on the headline zero, and the per-row state
-     stays neutral. The finding is not weakened: every row still says it. */
-  .ist.none {
-    color: var(--fg-dim);
-  }
 
   .secs {
     padding-top: calc(0.6rem * var(--den));

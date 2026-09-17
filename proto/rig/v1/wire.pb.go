@@ -5011,6 +5011,38 @@ type ItemState struct {
 	// signal, not above it.
 	SinceUnixNano int64  `protobuf:"varint,4,opt,name=since_unix_nano,json=sinceUnixNano,proto3" json:"since_unix_nano,omitempty"`
 	Note          string `protobuf:"bytes,5,opt,name=note,proto3" json:"note,omitempty"`
+	// ROW 2's OWN FIELDS, AND THEY WERE COMPUTED AND THEN DROPPED.
+	//
+	// The store's ItemState has carried description_short, priority, status,
+	// owner and tags since section 39 row 2; itemToWire copied five fields and
+	// left these behind, so the window rendered a truncated title and had nothing
+	// else to show. Boris, 2026-09-17, with a screenshot: "I'm not sure if what
+	// I'm seeing is the short descriptions in this GUI but they are not user
+	// friendly and clicking them doesn't show the full description... I'm sure
+	// they can be grouped or at least tagged so that the user can see what
+	// relates to what."
+	//
+	// AN EMPTY STRING HERE IS NOT AMBIGUOUS THE WAY A BOOL WOULD BE. A daemon too
+	// old to send these and a record that genuinely has none both mean "there is
+	// nothing to show", and the reader's correct action is identical in both
+	// cases - unlike container_found, where a false read as "not found" turned a
+	// loud skew into a silent one. So these are plain strings and not Tristates.
+	DescriptionShort string `protobuf:"bytes,6,opt,name=description_short,json=descriptionShort,proto3" json:"description_short,omitempty"`
+	Priority         string `protobuf:"bytes,7,opt,name=priority,proto3" json:"priority,omitempty"`
+	// The RECORD's status - `idea` or `active` - and it is NOT `state`, which is
+	// the latest step's. Two different questions that have been confused before.
+	Status string `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
+	Owner  string `protobuf:"bytes,9,opt,name=owner,proto3" json:"owner,omitempty"`
+	// Free-form grouping. Repeated rather than comma-joined, for the reason the
+	// store gives: a joined string cannot be queried without LIKE, and LIKE
+	// matches 'ops' when asked for 'op'.
+	Tags []string `protobuf:"bytes,10,rep,name=tags,proto3" json:"tags,omitempty"`
+	// Also computed by the store and also dropped until now. A target date is a
+	// human-friendly field by any reading of Boris's "human-friendly fields are
+	// obligatory", and leaving it behind while fixing the other five would be the
+	// same defect with a shorter list.
+	TargetDate    string `protobuf:"bytes,11,opt,name=target_date,json=targetDate,proto3" json:"target_date,omitempty"`
+	Semver        string `protobuf:"bytes,12,opt,name=semver,proto3" json:"semver,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5076,6 +5108,55 @@ func (x *ItemState) GetSinceUnixNano() int64 {
 func (x *ItemState) GetNote() string {
 	if x != nil {
 		return x.Note
+	}
+	return ""
+}
+
+func (x *ItemState) GetDescriptionShort() string {
+	if x != nil {
+		return x.DescriptionShort
+	}
+	return ""
+}
+
+func (x *ItemState) GetPriority() string {
+	if x != nil {
+		return x.Priority
+	}
+	return ""
+}
+
+func (x *ItemState) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ItemState) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *ItemState) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+func (x *ItemState) GetTargetDate() string {
+	if x != nil {
+		return x.TargetDate
+	}
+	return ""
+}
+
+func (x *ItemState) GetSemver() string {
+	if x != nil {
+		return x.Semver
 	}
 	return ""
 }
@@ -6571,13 +6652,22 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x05state\x18\x02 \x01(\x0e2\x11.rig.v1.StepStateR\x05state\x12\x12\n" +
 	"\x04note\x18\x03 \x01(\tR\x04noteJ\x04\b\x04\x10\x05R\bevidence\":\n" +
 	"\x14ProgressStepResponse\x12\"\n" +
-	"\x04step\x18\x01 \x01(\v2\x0e.rig.v1.RecordR\x04step\"\x96\x01\n" +
+	"\x04step\x18\x01 \x01(\v2\x0e.rig.v1.RecordR\x04step\"\xda\x02\n" +
 	"\tItemState\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12'\n" +
 	"\x05state\x18\x03 \x01(\x0e2\x11.rig.v1.StepStateR\x05state\x12&\n" +
 	"\x0fsince_unix_nano\x18\x04 \x01(\x03R\rsinceUnixNano\x12\x12\n" +
-	"\x04note\x18\x05 \x01(\tR\x04note\"X\n" +
+	"\x04note\x18\x05 \x01(\tR\x04note\x12+\n" +
+	"\x11description_short\x18\x06 \x01(\tR\x10descriptionShort\x12\x1a\n" +
+	"\bpriority\x18\a \x01(\tR\bpriority\x12\x16\n" +
+	"\x06status\x18\b \x01(\tR\x06status\x12\x14\n" +
+	"\x05owner\x18\t \x01(\tR\x05owner\x12\x12\n" +
+	"\x04tags\x18\n" +
+	" \x03(\tR\x04tags\x12\x1f\n" +
+	"\vtarget_date\x18\v \x01(\tR\n" +
+	"targetDate\x12\x16\n" +
+	"\x06semver\x18\f \x01(\tR\x06semver\"X\n" +
 	"\aBlocker\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12'\n" +

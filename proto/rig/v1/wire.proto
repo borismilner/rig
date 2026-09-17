@@ -1364,6 +1364,48 @@ message ItemState {
   int64 since_unix_nano = 4;
 
   string note = 5;
+
+  // ROW 2's OWN FIELDS, AND THEY WERE COMPUTED AND THEN DROPPED.
+  //
+  // The store's ItemState has carried description_short, priority, status,
+  // owner and tags since section 39 row 2; itemToWire copied five fields and
+  // left these behind, so the window rendered a truncated title and had nothing
+  // else to show. Boris, 2026-09-17, with a screenshot: "I'm not sure if what
+  // I'm seeing is the short descriptions in this GUI but they are not user
+  // friendly and clicking them doesn't show the full description... I'm sure
+  // they can be grouped or at least tagged so that the user can see what
+  // relates to what."
+  //
+  // AN EMPTY STRING HERE IS NOT AMBIGUOUS THE WAY A BOOL WOULD BE. A daemon too
+  // old to send these and a record that genuinely has none both mean "there is
+  // nothing to show", and the reader's correct action is identical in both
+  // cases - unlike container_found, where a false read as "not found" turned a
+  // loud skew into a silent one. So these are plain strings and not Tristates.
+  string description_short = 6;
+  string priority = 7;
+
+  // The RECORD's status - `idea` or `active` - and it is NOT `state`, which is
+  // the latest step's. Two different questions that have been confused before.
+  string status = 8;
+
+  string owner = 9;
+
+  // Free-form grouping. Repeated rather than comma-joined, for the reason the
+  // store gives: a joined string cannot be queried without LIKE, and LIKE
+  // matches 'ops' when asked for 'op'.
+  repeated string tags = 10;
+
+  // Also computed by the store and also dropped until now. A target date is a
+  // human-friendly field by any reading of Boris's "human-friendly fields are
+  // obligatory", and leaving it behind while fixing the other five would be the
+  // same defect with a shorter list.
+  string target_date = 11;
+  string semver = 12;
+
+  // ⛔ has_note IS DELIBERATELY NOT HERE. The store carries it as a bool, and
+  // it is exactly `note != ""` - a reader already holding `note` can answer it
+  // without being told. Putting a derived bool on the wire is the shape that
+  // goes stale against the field it was derived from.
 }
 
 // Blockage is one item and what it waits on.

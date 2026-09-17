@@ -50,6 +50,24 @@ type Item struct {
 	// must not do.
 	SinceUnixNano int64  `json:"sinceUnixNano"`
 	Note          string `json:"note"`
+
+	// ⛔ WHAT MAKES A ROW READABLE, AND IT REACHED THE WINDOW FOR THE FIRST
+	// TIME ON 2026-09-17. The store computed all of these and the daemon's
+	// itemToWire dropped them, so every row here was a truncated title with
+	// nothing behind it - which is exactly what Boris called not user
+	// friendly, and why clicking a row could only ever show the same line
+	// again.
+	DescriptionShort string `json:"descriptionShort"`
+	Priority         string `json:"priority"`
+
+	// The RECORD's status (`idea`, `active`), NOT the latest step's State.
+	Status string `json:"status"`
+
+	Owner string   `json:"owner"`
+	Tags  []string `json:"tags"`
+
+	TargetDate string `json:"targetDate"`
+	Semver     string `json:"semver"`
 }
 
 // Blocked is an item that cannot proceed, with what is holding it.
@@ -239,11 +257,18 @@ func itemsFrom(in []*rigv1.ItemState) []Item {
 	out := make([]Item, 0, len(in))
 	for _, i := range in {
 		out = append(out, Item{
-			ID:            i.GetId(),
-			Title:         i.GetTitle(),
-			State:         stepStateName(i.GetState()),
-			SinceUnixNano: i.GetSinceUnixNano(),
-			Note:          i.GetNote(),
+			ID:               i.GetId(),
+			Title:            i.GetTitle(),
+			State:            stepStateName(i.GetState()),
+			SinceUnixNano:    i.GetSinceUnixNano(),
+			Note:             i.GetNote(),
+			DescriptionShort: i.GetDescriptionShort(),
+			Priority:         i.GetPriority(),
+			Status:           i.GetStatus(),
+			Owner:            i.GetOwner(),
+			Tags:             i.GetTags(),
+			TargetDate:       i.GetTargetDate(),
+			Semver:           i.GetSemver(),
 		})
 	}
 	return out

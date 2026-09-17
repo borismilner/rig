@@ -382,6 +382,7 @@
         <ProjectCaseGui
           store={rig}
           initialSide={guiParam === "cases" ? "cases" : "projects"}
+          openRows={guiFixture}
         />
       </div>
     {:else}

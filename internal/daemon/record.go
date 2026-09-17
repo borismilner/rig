@@ -496,6 +496,18 @@ func itemToWire(i record.ItemState) *rigv1.ItemState {
 		Title: i.Title,
 		State: stepStateWire[i.State],
 		Note:  i.Note,
+		// ⛔ ROW 2's FIELDS, WHICH THIS FUNCTION USED TO COMPUTE AND DROP.
+		// The store filled every one of them and only five crossed the wire,
+		// so the window had a truncated title and nothing behind it. That is
+		// the whole of "the rows are not user friendly and clicking them
+		// doesn't show the full description".
+		DescriptionShort: i.DescriptionShort,
+		Priority:         i.Priority,
+		Status:           i.Status,
+		Owner:            i.Owner,
+		Tags:             i.Tags,
+		TargetDate:       i.TargetDate,
+		Semver:           i.Semver,
 	}
 	// A ZERO Since IS "NOBODY HAS STEPPED THIS YET", and it must not become a
 	// 1970 timestamp on the wire - a reader sorting by age would put it above

@@ -118,6 +118,41 @@ const unstepped = (id: string, title: string): Item => ({
   state: "not stepped",
   sinceUnixNano: 0,
   note: "",
+  descriptionShort: "",
+  priority: "",
+  status: "",
+  owner: "",
+  tags: [],
+  targetDate: "",
+  semver: "",
+});
+
+/* ⛔ ONE ROW WITH ITS RECORD FILLED, AND ONE WITHOUT, BECAUSE BOTH STATES
+ * SHIP AND BOTH MUST BE MEASURED.
+ *
+ * A row that opens and a row that cannot are different renders - different
+ * cursor, different affordance, a whole detail panel with its own colours -
+ * and a fixture carrying only bare rows would leave the opened panel
+ * unmeasured by the contrast gate. That is this project's named defect: a
+ * check that cannot fail reads as a pass.
+ *
+ * The values are the shape the real store holds after rig dd6d102, not invented
+ * prose: description_short is a deterministic cut of the row's own words, owner
+ * is read from the Seat/Adopter column, and tags are the section a row sits
+ * under. Nothing here is a summary a seat composed. */
+const described = (
+  id: string,
+  title: string,
+  short: string,
+  owner: string,
+  tags: string[],
+): Item => ({
+  ...unstepped(id, title),
+  descriptionShort: short,
+  owner,
+  tags,
+  status: "active",
+  priority: "high",
 });
 
 // Five real next-up titles and fifty-four real open ones would cost more than
@@ -141,13 +176,19 @@ export const BRIEF: Brief = {
   status: "active",
   semver: "",
   nextUp: [
-    unstepped(
+    described(
       "B1",
       "`confirms` is ruled and unbuilt, so rig tells a user something false today",
+      "`confirms` is ruled and unbuilt, so rig tells a user something...",
+      "team-lead",
+      ["wire", "honesty"],
     ),
-    unstepped(
+    described(
       "B10",
       "`--json` converges by the DAEMON rendering the bytes, not by the client importing a renderer",
+      "`--json` converges by the DAEMON rendering the bytes, not by the...",
+      "backend-record",
+      ["wire", "cli"],
     ),
     unstepped(
       "B12",

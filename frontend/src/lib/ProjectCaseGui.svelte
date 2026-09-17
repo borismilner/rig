@@ -33,9 +33,12 @@
     /** Which side of the toggle to open on, so the contrast gate can reach
         the cases side, which has no data to click its way into. */
     initialSide?: "projects" | "cases";
+    /** Same fixture idea one level down: open the first work-item row so the
+        gate can read the opened panel's colours. */
+    openRows?: boolean;
   }
 
-  let { store, initialSide = "projects" }: Props = $props();
+  let { store, initialSide = "projects", openRows = false }: Props = $props();
 
   type Entry = {
     id: string;
@@ -195,6 +198,7 @@
         error={held.error || store.rosterError}
         readAt={held.readAt}
         onrefresh={() => void store.refresh()}
+        {openRows}
       />
 
       <!-- The third level, named rather than mocked. -->

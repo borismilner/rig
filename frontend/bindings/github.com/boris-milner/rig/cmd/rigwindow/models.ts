@@ -346,6 +346,26 @@ export class Item {
     "sinceUnixNano": number;
     "note": string;
 
+    /**
+     * ⛔ WHAT MAKES A ROW READABLE, AND IT REACHED THE WINDOW FOR THE FIRST
+     * TIME ON 2026-09-17. The store computed all of these and the daemon's
+     * itemToWire dropped them, so every row here was a truncated title with
+     * nothing behind it - which is exactly what Boris called not user
+     * friendly, and why clicking a row could only ever show the same line
+     * again.
+     */
+    "descriptionShort": string;
+    "priority": string;
+
+    /**
+     * The RECORD's status (`idea`, `active`), NOT the latest step's State.
+     */
+    "status": string;
+    "owner": string;
+    "tags": string[];
+    "targetDate": string;
+    "semver": string;
+
     /** Creates a new Item instance. */
     constructor($$source: Partial<Item> = {}) {
         if (!("id" in $$source)) {
@@ -363,6 +383,27 @@ export class Item {
         if (!("note" in $$source)) {
             this["note"] = "";
         }
+        if (!("descriptionShort" in $$source)) {
+            this["descriptionShort"] = "";
+        }
+        if (!("priority" in $$source)) {
+            this["priority"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("owner" in $$source)) {
+            this["owner"] = "";
+        }
+        if (!("tags" in $$source)) {
+            this["tags"] = [];
+        }
+        if (!("targetDate" in $$source)) {
+            this["targetDate"] = "";
+        }
+        if (!("semver" in $$source)) {
+            this["semver"] = "";
+        }
 
         Object.assign(this, $$source);
     }
@@ -371,7 +412,11 @@ export class Item {
      * Creates a new Item instance from a string or object.
      */
     static createFrom($$source: any = {}): Item {
+        const $$createField9_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("tags" in $$parsedSource) {
+            $$parsedSource["tags"] = $$createField9_0($$parsedSource["tags"]);
+        }
         return new Item($$parsedSource as Partial<Item>);
     }
 }

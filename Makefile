@@ -405,6 +405,7 @@ contrast-window: contrast-selftest build-frontend ## Measure the shell's own pag
 	    'http://127.0.0.1:$(CONTRAST_PORT)/index.html?fixture=1' \
 	    'http://127.0.0.1:$(CONTRAST_PORT)/index.html?pane=1' \
 	    'http://127.0.0.1:$(CONTRAST_PORT)/index.html?dash=1' \
+	    'http://127.0.0.1:$(CONTRAST_PORT)/index.html?gui=projects' \
 	    'http://127.0.0.1:$(CONTRAST_PORT)/index.html?settings=1'
 
 theme-gate: ## Prove the palette engine refuses an unreadable token set
