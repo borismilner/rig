@@ -893,3 +893,72 @@ and says so.**
 relates to what"* is answered first by what the documents ALREADY assert - the
 section a row sits under, the `part-of` parent, the owner column - before any
 new classification is invented.
+
+## ⛔ THE RAIL MUST LAND ON THE THING IT NAMES. BORIS, 2026-09-17.
+
+> *"The 'Open Projects and cases' way of navigation seems strange and not
+> natural. I'm guessing the left button says 'Projects and cases' so I expect to
+> see a tabbed display of projects and cases and not this strange partial
+> dashboard or whatever it is... Basically I expect to see what I see after I
+> click 'Open Projects and cases' with relevant information for each
+> project/case."*
+
+⛔ **A RAIL ENTRY IS A DESTINATION AND NOT A TEASER.** Today the rail entry
+called *Projects and cases* opens a summary card whose own content is a count
+and a paragraph, carrying a LINK called *Open Projects and cases* - so the
+answer he asked for is two clicks away behind a page that restates the question.
+**He named the smell exactly: the intermediate page has no job of its own.**
+
+| | |
+|---|---|
+| **what he clicks** | a rail entry named `Projects and cases` |
+| **what he must get** | the projects and cases, tabbed, with each one's information |
+| ⛔ **what he gets today** | a card that says how many there are, and a link |
+
+**THE TEST IS HIS SENTENCE:** *"I expect to see what I see after I click 'Open
+Projects and cases'."* The second page's content is right; its POSITION is the
+defect. **A page reachable only by clicking through a page that says nothing new
+is a page the rail lied about.**
+
+### What each project must open with, and it is three things
+
+> *"Each project should start with the name of the project, the overall state
+> something similar to what there is now, some description of the project to
+> remind what it is about."*
+
+| # | On the project | Where it comes from |
+|---|---|---|
+| 1 | **the NAME** | the container record's `title` |
+| 2 | **the overall STATE** | ⛔ *"something similar to what there is now"* - the counts and the unstepped/unbuilt lines already rendered. **He is keeping this, not replacing it** |
+| 3 | ⛔ **a DESCRIPTION reminding him what the project is about** | **nothing holds this today.** The project record carries `title` and `status` |
+
+⛔ **ITEM 3 IS A STORAGE GAP AND NOT A LAYOUT ONE**, which is the same finding
+the work-item rows produced an hour earlier in this section. **The window cannot
+render a reminder nobody stored.**
+
+### ⛔ HUMAN-FRIENDLY FIELDS ARE OBLIGATORY, AND HE RULED THE FORK
+
+> *"The content should be user-friendly, the AI agent populating it should have
+> no problem setting proper fields for that, in fact human-friendly fields are
+> obligatory. I thought the existing ones can be more friendly and
+> understandable but if it's not efficient then we can add dedicated fields."*
+
+**This closes the question the previous entry left open.** The order is his:
+
+1. ⛔ **TRY THE EXISTING FIELDS FIRST.** `description_short`, `tags`, `priority`
+   and `owner` are already §39's and nothing writes them. *"I thought the
+   existing ones can be more friendly and understandable."*
+2. ✅ **ADDING DEDICATED FIELDS IS AUTHORISED** when the existing ones will not
+   carry it. *"if it's not efficient then we can add dedicated fields."* **A
+   seat does not need to come back and ask for this.**
+
+⛔ **AND "OBLIGATORY" IS THE WORD THAT BINDS.** Human-friendly content is not a
+quality bar a seat may trade against effort or against schema tidiness. **A
+record a person cannot read is not a record that met this requirement**, however
+well it serves a query.
+
+⛔ **THE AGENT IS NAMED AS THE POPULATOR AND THAT IS PART OF THE REQUIREMENT:**
+*"the AI agent populating it should have no problem setting proper fields for
+that."* So the fields must be ones a writer can fill from what the source
+DOCUMENT already says. **A field that can only be filled by composing new prose
+is a field that will arrive empty or invented**, and both outcomes fail this.
