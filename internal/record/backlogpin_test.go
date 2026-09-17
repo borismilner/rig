@@ -207,7 +207,7 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 			// B86 filed 2026-09-17 by generation 15 the turn Boris ruled it: a
 			// CLI write mints a new session every time, so 783 sessions over 451
 			// decisions say nothing. OPEN, and designed rather than open-ended.
-			"B86", "B87", "B88", "B9",
+			"B86", "B87", "B88", "B89", "B9",
 		})
 
 	// B65 joins this set 2026-09-17: the field predicate landed at rig
@@ -331,9 +331,10 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 		// struck is why rows went up by 2 while open went DOWN by 1.
 		// ⛔ B83 IS DELIBERATELY STILL OPEN although its build landed - the
 		// LIVE store holds none of the 342 records, so the row is not done.
-		{"rows", len(items), 93},
+		// 93 -> 94 rows and 76 -> 77 open: B89 filed, nothing closed.
+		{"rows", len(items), 94},
 		{"closed", len(struck) + len(byLead), 17},
-		{"open", open, 76},
+		{"open", open, 77},
 	} {
 		if c.got != c.want {
 			t.Errorf("%s: %d, pinned at %d.\n"+
