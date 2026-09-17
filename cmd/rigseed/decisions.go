@@ -86,7 +86,7 @@ func kindFor(e record.DecisionEntry) string {
 // statement and it is written as the record's body. A second copy of the title
 // under a field name nothing reads is a field a later reader has to work out
 // the meaning of.
-func decisionIntent(o options, e record.DecisionEntry) intent {
+func decisionIntent(o options, e record.DecisionEntry, notes map[string]bool) intent {
 	f := map[string]string{
 		"title":      e.Title,
 		"source":     o.decisions,
@@ -113,7 +113,59 @@ func decisionIntent(o options, e record.DecisionEntry) intent {
 		title:  e.Title,
 		body:   e.Body,
 		fields: f,
-		partOf: e.PartOf,
+		partOf: partOfFor(o, e, notes),
+	}
+}
+
+// notesIn is every key this document states at kind `note`, read in one pass
+// before any intent is built.
+//
+// ⛔ ONE PASS FIRST, BECAUSE THE PARENT IS NOT ALWAYS BEHIND THE CHILD. Document
+// order puts a level-2 heading above its level-3 children today, so a map built
+// as the loop goes would happen to be right; it would stop being right the day
+// the parser learned to read a second document, and nothing would say so. The
+// set is what the DOCUMENT states, not what the loop has reached.
+func notesIn(dec record.DecisionParse) map[string]bool {
+	out := map[string]bool{}
+	for _, e := range dec.Decisions {
+		if kindFor(e) == record.KindNote {
+			out[e.Key] = true
+		}
+	}
+	return out
+}
+
+// partOfFor is the edge one entry states, which is not always the one the parser
+// read off the document's nesting.
+//
+// ⛔ A NOTE IS `part-of` THE PROJECT, AND WITHOUT THAT EDGE IT IS IN NO BRIEF.
+// `notesAbout` in internal/record/brief.go selects
+// `l.type='part-of' AND n.kind='note' AND d.project=?` with the note as
+// `l.src`, and keeps the row only where `l.dst` is in the subject set - which
+// is seeded with the project id. Section 39 states the same derivation in as
+// many words: "any notes part-of the project itself, or part-of a work-item in
+// list 1". A standing section has no parent in the DOCUMENT, so the parser
+// leaves PartOf empty and every note arrived attached to nothing.
+//
+// ⛔ THE SPECIFICATION WAS BLAMED FOR THIS THROUGH FOUR GENERATIONS AND WAS
+// RIGHT EVERY TIME. Measured against the production store on 2026-09-17:
+// `rig record refs what-rig-is` answered "nothing points at what-rig-is within
+// 4 hops", no note was the source of any edge, and six RULINGS pointed at one
+// of them. The derivation was correct and the data was backwards.
+//
+// ⛔ AND A RULING UNDER A STANDING SECTION ASSERTS NOTHING. RULED by the
+// team-lead, 2026-09-17: those six edges are to be unlinked rather than left
+// beside the note's own edge to the project. It costs those six rulings their
+// document-stated parent, which is why `plan.detached` names every one of them
+// on every run rather than dropping them in silence.
+func partOfFor(o options, e record.DecisionEntry, notes map[string]bool) string {
+	switch {
+	case kindFor(e) == record.KindNote:
+		return o.project
+	case notes[e.PartOf]:
+		return ""
+	default:
+		return e.PartOf
 	}
 }
 
@@ -128,13 +180,23 @@ func decisionIntent(o options, e record.DecisionEntry) intent {
 // the point is that it would be REPORTED the day it happens rather than
 // discovered as a record whose content nobody can account for.
 func (p *plan) addDecisions(o options, dec record.DecisionParse, stated map[string]bool) {
+	notes := notesIn(dec)
 	for _, e := range dec.Decisions {
 		if stated[e.Key] {
 			p.collided = append(p.collided, e.Key)
 			continue
 		}
 		stated[e.Key] = true
-		p.want = append(p.want, decisionIntent(o, e))
+		in := decisionIntent(o, e, notes)
+
+		// ⛔ AN EDGE THE DOCUMENT STATES AND THIS SEEDER DOES NOT ASSERT IS
+		// NAMED, NEVER DROPPED IN SILENCE. It is read off the intent rather
+		// than re-derived from `notes`, so there is one statement of the rule
+		// and not two that can disagree.
+		if e.PartOf != "" && in.partOf != e.PartOf {
+			p.detached = append(p.detached, edgeName(e.Key, e.PartOf))
+		}
+		p.want = append(p.want, in)
 	}
 
 	// Everything the decisions document addresses and no entry carries. It is

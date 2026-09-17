@@ -8,6 +8,7 @@ package main
 import (
 	"bytes"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -308,10 +309,10 @@ func TestTheEdgeDiffIsASetOnBothSides(t *testing.T) {
 	if err != nil {
 		t.Fatalf("comparing edges: %v", err)
 	}
-	if got := strings.Join(d.missingEdges, " "); got != "B46b -part-of-> B46" {
+	if got := strings.Join(edgeNames(d.missingEdges), " "); got != "B46b -part-of-> B46" {
 		t.Errorf("missingEdges = {%s}", got)
 	}
-	if got := strings.Join(d.extraEdges, " "); got != "B46z -part-of-> B46" {
+	if got := strings.Join(edgeNames(d.extraEdges), " "); got != "B46z -part-of-> B46" {
 		t.Errorf("extraEdges = {%s}", got)
 	}
 }
@@ -465,5 +466,130 @@ func TestAStruckHeadingIsSeededClosed(t *testing.T) {
 	// with it, which is what a naive trim of the decoration set does.
 	if in.fields["title"] != "THE MVP ACCEPTANCE TEST" {
 		t.Errorf("the strike took the title with it: %q", in.fields["title"])
+	}
+}
+
+// ⛔ EVERY NOTE IS ASKED ABOUT, EVEN WHERE NOTHING IS PART-OF IT.
+//
+// The aperture used to be "the parents the documents state today", which is
+// blind exactly where this seeder's own wrong edges landed: it wrote six
+// `decision -part-of-> note` edges, then stopped stating them, and a detector
+// built from today's parents would never look at a note again. A check that
+// stops covering the thing that was just fixed is the pass-versus-no-run class
+// in its most expensive form.
+func TestEveryNoteIsAskedAboutEvenWhereNothingIsPartOfIt(t *testing.T) {
+	o := options{project: "rig", backlog: "BACKLOG.md", decisions: "DECISIONS.md"}
+	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}},
+		record.DecisionParse{Decisions: []record.DecisionEntry{
+			entryFor("the-attack", "Decisions taken during the attack", record.EntrySection),
+			entryFor("2026-09-17-a-ruling", "2026-09-17 a ruling", record.EntryDecision),
+		}})
+
+	asked := map[string]bool{}
+	var d divergence
+	err := d.compareEdges(p, func(parent string) (map[string]bool, error) {
+		asked[parent] = true
+		if parent == "the-attack" {
+			// The store still holds the wrong-way edge an earlier generation
+			// wrote, and no document states it any more.
+			return map[string]bool{"2026-09-17-a-ruling": true}, nil
+		}
+		return map[string]bool{"the-attack": true}, nil
+	})
+	if err != nil {
+		t.Fatalf("comparing edges: %v", err)
+	}
+
+	if !asked["the-attack"] {
+		t.Errorf("the note was never asked about, so an edge pointing at it is "+
+			"invisible to this check; asked = %v", asked)
+	}
+	if !asked[o.project] {
+		t.Errorf("the project was never asked about, so the note's own edge is "+
+			"unverified; asked = %v", asked)
+	}
+	if got := strings.Join(edgeNames(d.extraEdges), " "); got != "2026-09-17-a-ruling -part-of-> the-attack" {
+		t.Errorf("extraEdges = {%s}, want the wrong-way edge towards the note", got)
+	}
+	if got := strings.Join(edgeNames(d.missingEdges), " "); got != "" {
+		t.Errorf("missingEdges = {%s}, want {} - the note's edge to the project is held", got)
+	}
+}
+
+// ⛔ ONLY AN EDGE THIS SEEDER WROTE BOTH ENDS OF IS TAKEN BACK, AND THE
+// NARROWING IS THE SAFETY ARGUMENT RATHER THAN AN OPTIMISATION.
+//
+// A note somebody attached to a work item by hand has a SOURCE no document
+// states. A seeder that unlinked every edge it did not recognise would undo a
+// person's work silently, on every run, against the store whose whole argument
+// is that things stop disappearing.
+func TestOnlyAnEdgeThisSeederWroteBothEndsOfIsTakenBack(t *testing.T) {
+	o := options{project: "rig", backlog: "BACKLOG.md", decisions: "DECISIONS.md"}
+	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}},
+		record.DecisionParse{Decisions: []record.DecisionEntry{
+			entryFor("the-attack", "Decisions taken during the attack", record.EntrySection),
+			entryFor("2026-09-17-a-ruling", "2026-09-17 a ruling", record.EntryDecision),
+		}})
+
+	got := p.retractable(o, []edge{
+		{src: "2026-09-17-a-ruling", dst: "the-attack"}, // both ends written here
+		{src: "a-note-boris-wrote", dst: "B1"},          // a source no document states
+		{src: "2026-09-17-a-ruling", dst: "some-case"},  // a destination no document states
+		{src: "the-attack", dst: "rig"},                 // the project counts as this seeder's
+	})
+
+	want := []edge{
+		{src: "2026-09-17-a-ruling", dst: "the-attack"},
+		{src: "the-attack", dst: "rig"},
+	}
+	if !slices.Equal(edgeNames(got), edgeNames(want)) {
+		t.Errorf("retractable = {%s}, want {%s}",
+			strings.Join(edgeNames(got), " "), strings.Join(edgeNames(want), " "))
+	}
+}
+
+// ⛔ A RULED EXCLUSION IS PRINTED AND DOES NOT FAIL THE CHECK.
+//
+// RULED by the team-lead, 2026-09-17, on the five other-table ids: they are
+// cross-references into a table that is not a work-item table, they stay
+// unimported, and `--check` is to say so. A check that can never go green is a
+// check nobody runs, and an exclusion nobody prints is one nobody can question.
+func TestARuledExclusionIsPrintedAndDoesNotFailTheCheck(t *testing.T) {
+	o := options{project: "rig", backlog: "BACKLOG.md", decisions: "DECISIONS.md"}
+	p := planFor(o, record.BacklogParse{
+		Items: []record.BacklogItem{{ID: "B1", Title: "a row"}},
+		Unimported: []record.Unimported{
+			{Kind: record.UnimportedOtherTable, ID: "B6", Line: 527},
+			{Kind: record.UnimportedIrregularID, ID: "B60-2", Line: 400},
+		},
+	}, record.DecisionParse{})
+	div := diff(p, map[string]held{"B1": heldOf(intentFor(t, p, "B1"))})
+
+	if has(div.nonEmpty(), "unimported") {
+		// The irregular id is still open, so this arm has something to be
+		// wrong about: it must fail on that one and not on the ruled one.
+		if len(openUnimported(div.unimported)) != 1 {
+			t.Errorf("openUnimported = %v, want only the irregular id", openUnimported(div.unimported))
+		}
+	} else {
+		t.Error("an open unimported kind stopped failing the check")
+	}
+
+	clean := diff(planFor(o, record.BacklogParse{
+		Items: []record.BacklogItem{{ID: "B1", Title: "a row"}},
+		Unimported: []record.Unimported{
+			{Kind: record.UnimportedOtherTable, ID: "B6", Line: 527},
+		},
+	}, record.DecisionParse{}), map[string]held{"B1": heldOf(intentFor(t, p, "B1"))})
+	if got := strings.Join(clean.nonEmpty(), " "); got != "" {
+		t.Errorf("nonEmpty = {%s}, want {} - a ruled exclusion is not a divergence", got)
+	}
+
+	var b bytes.Buffer
+	clean.report(&b, o, p, "production")
+	for _, want := range []string{"DELIBERATELY NOT IMPORTED", "other-table", "B6", "BACKLOG.md:527"} {
+		if !strings.Contains(b.String(), want) {
+			t.Errorf("the report does not name %q:\n%s", want, b.String())
+		}
 	}
 }

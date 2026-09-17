@@ -257,6 +257,15 @@ func run() error {
 		}
 	}
 
+	// ⛔ THE EDGE SET IS CONVERGED AND NOT ONLY EXTENDED, AND IT RUNS AFTER THE
+	// LINKING PASS SO THE STORE IT READS IS THE ONE THIS RUN JUST LEFT. Edges
+	// are the only thing B77 leaves this seeder able to take back, so an edge
+	// an earlier generation wrote and the documents no longer state is the one
+	// class of wrong fact it can actually clear.
+	if err := o.retractEdges(p, r); err != nil {
+		return fmt.Errorf("taking back the edges the documents no longer state: %w", err)
+	}
+
 	r.report(os.Stdout, o)
 	p.report(os.Stdout)
 	return nil
@@ -621,6 +630,16 @@ type result struct {
 	// because a column of ids gives a reader no way to know which side of the
 	// arrow they are on.
 	linked []string
+
+	// unlinked is every part-of edge TAKEN BACK, written the same way.
+	//
+	// ⛔ IT IS THE ONE THING B77 LEAVES THIS SEEDER ABLE TO UNDO. rig can unlink
+	// an edge and cannot retract a record, so a record the document stops
+	// stating survives as EXTRA for ever while an edge it stops stating can be
+	// removed. Naming them is not tidiness: an unlink is the only destructive
+	// thing a seeding run does, and a run that did it silently would be a run
+	// nobody could audit.
+	unlinked []string
 }
 
 // count records what one put DID, which since the store stopped versioning a
@@ -722,11 +741,17 @@ func (r *result) report(w *os.File, o options) {
 		"a standing section of the decisions document: what rig is, what is still\n"+
 			"      open, what has not been done. It is a record attached to the project\n"+
 			"      rather than a ruling, which is section 39's own definition of a note.\n"+
-			"      ⛔ THE BRIEF CANNOT REACH THESE: its notes section joins on a part-of\n"+
-			"      edge and a standing section has no parent to point at.")
+			"      Each one is part-of the project, which is the edge section 3 of the\n"+
+			"      brief joins on - so these ARE in `rig brief "+o.project+"`.")
 	name("PART-OF EDGES ASSERTED", r.linked,
-		"the sub-letter in the id is the document stating a parent. The store's\n"+
-			"      Link is idempotent by contract, so a re-run asserts the same fact.")
+		"the sub-letter in the id is the document stating a parent, or a note\n"+
+			"      naming the project it is attached to. The store's Link is idempotent\n"+
+			"      by contract, so a re-run asserts the same fact and changes nothing.")
+	name("PART-OF EDGES TAKEN BACK", r.unlinked,
+		"the store held these and neither document states them. Both ends are\n"+
+			"      records this seeder writes, so they are its own earlier work and\n"+
+			"      nobody else's. An edge with an end this seeder does not write is\n"+
+			"      left exactly where it is.")
 }
 
 // ---------------------------------------------------------------------------
@@ -796,6 +821,18 @@ type plan struct {
 	// orphaned is a part-of the document states towards an id the document
 	// never defines. Reported, and the edge is NOT attempted.
 	orphaned []string
+
+	// detached is a part-of the document states that this seeder deliberately
+	// does not assert, written whole.
+	//
+	// ⛔ IT IS A RULED EXCLUSION AND NOT A DIVERGENCE, which is why it is its
+	// own set rather than another line in `orphaned`. An orphan names a defect
+	// in the DOCUMENT - a parent nothing defines - and wants mending; this one
+	// names a decision the team-lead took about a parent that exists. Folding
+	// the two together would make a standing ruling read as an open fault on
+	// every run, and a report whose faults never clear is a report nobody
+	// reads.
+	detached []string
 }
 
 // planFor splits everything the document addresses into what this seeder writes
@@ -855,15 +892,22 @@ func planFor(o options, doc record.BacklogParse, dec record.DecisionParse) plan 
 	// defect in the DOCUMENT, not a failure of this program. Before B46 became
 	// a record its six children named exactly such a parent, so this is the
 	// shape the run is walking out of rather than a hypothetical.
+	//
+	// ⛔ THE PROJECT RECORD IS DEFINED AND IS IN NO INTENT. `seedProject` writes
+	// it before any row, so it is a real record, but it never enters `stated`
+	// because nothing in either document states it. Without this arm the sweep
+	// would strip every note's edge to the project the moment it was given one,
+	// and report nine orphans against a record that is right there.
 	for i := range p.want {
 		parent := p.want[i].partOf
-		if parent == "" || stated[parent] {
+		if parent == "" || parent == o.project || stated[parent] {
 			continue
 		}
 		p.orphaned = append(p.orphaned, edgeName(p.want[i].id, parent))
 		p.want[i].partOf = ""
 	}
 	sort.Strings(p.orphaned)
+	sort.Strings(p.detached)
 	return p
 }
 
@@ -1098,8 +1142,21 @@ func (p plan) report(w io.Writer) {
 	namedSet(w, "PART-OF TOWARDS AN ID THE DOCUMENT NEVER DEFINES, NOT ASSERTED", p.orphaned,
 		"the parent is in no row and no heading, so the edge was not attempted:\n"+
 			"      the store refuses a link with a missing end.")
+	namedSet(w, "DELIBERATELY NOT ASSERTED - ruled, and not a divergence", p.detached,
+		detachedWhy)
 	reportUnimported(w, p.unimported)
 }
+
+// detachedWhy is the one statement of why a stated edge is not asserted,
+// written once because the seeding run and `--check` both print it and two
+// wordings of one ruling is how a ruling starts drifting.
+const detachedWhy = "the parent is a NOTE. RULED by the team-lead, 2026-09-17: a note is\n" +
+	"      part-of the PROJECT - that is the edge section 3 of the brief joins\n" +
+	"      on - and a ruling is not part-of a note. The store's own six edges\n" +
+	"      of this shape are taken back by a seeding run rather than left\n" +
+	"      beside the new ones.\n" +
+	"      ⛔ IT COSTS THESE RULINGS THEIR DOCUMENT-STATED PARENT, which is why\n" +
+	"      every one is named here on every run."
 
 // docUnimported is one Unimported with the document it was read from.
 //
@@ -1119,7 +1176,50 @@ type docUnimported struct {
 // move while two rows did is exactly what a count cannot see, and an
 // arithmetically impossible one reached Boris once already.
 func reportUnimported(w io.Writer, us []docUnimported) {
-	const label = "UNIMPORTED - the document addresses it and it is not even a candidate"
+	var open, ruled []docUnimported
+	for _, u := range us {
+		if deliberate(u.Unimported) {
+			ruled = append(ruled, u)
+			continue
+		}
+		open = append(open, u)
+	}
+	unimportedSet(w, "UNIMPORTED - the document addresses it and it is not even a candidate", open, "")
+	unimportedSet(w, "DELIBERATELY NOT IMPORTED - ruled, and not a divergence", ruled,
+		"an id in the first cell of a table that is NOT a work-item table: a\n"+
+			"      cross-reference to work that is tracked elsewhere, not a work item\n"+
+			"      of its own. RULED by the team-lead, 2026-09-17 - these stay\n"+
+			"      unimported and --check does not fail on them.")
+}
+
+// deliberate says whether one unimported thing is a RULED exclusion rather than
+// an open failure.
+//
+// ⛔ IT IS A KIND TEST AND NOT A LIST OF THE FIVE IDS. B6 B10 B18 B20 B21 are
+// what the document holds today; an allow-list would go stale the moment it
+// gains a sixth cross-reference, and the sixth would then read as an open
+// failure while the other five read as ruled - two answers to one question,
+// decided by when somebody last edited this file. The parser's own definition
+// of the kind IS the ruling: a first cell in a table that is not a work-item
+// table.
+func deliberate(u record.Unimported) bool {
+	return u.Kind == record.UnimportedOtherTable
+}
+
+// openUnimported is the half that is still a divergence.
+func openUnimported(us []docUnimported) []docUnimported {
+	var out []docUnimported
+	for _, u := range us {
+		if !deliberate(u.Unimported) {
+			out = append(out, u)
+		}
+	}
+	return out
+}
+
+// unimportedSet prints one labelled block, ONE PER LINE WITH ITS FILE AND LINE
+// NUMBER, and prints an EMPTY one as {}.
+func unimportedSet(w io.Writer, label string, us []docUnimported, why string) {
 	if len(us) == 0 {
 		fmt.Fprintf(w, "\n  %s\n      {}\n", label)
 		return
@@ -1130,6 +1230,9 @@ func reportUnimported(w io.Writer, us []docUnimported) {
 		// to the document. A reader who has to go and find the row is a reader
 		// who does not.
 		fmt.Fprintf(w, "      %-14s %-34s %s:%d\n", u.Kind, unimportedName(u.Unimported), u.doc, u.Line)
+	}
+	if why != "" {
+		fmt.Fprintf(w, "      %s\n", why)
 	}
 }
 
@@ -1181,6 +1284,82 @@ func edgeName(src, dst string) string {
 	return src + " -" + record.LinkPartOf + "-> " + dst
 }
 
+// edge is one part-of edge with its two ends still apart.
+//
+// ⛔ THE DIFF CARRIES THE PAIR AND RENDERS IT LATE, RATHER THAN CARRYING THE
+// RENDERED STRING. The extra edges are now acted on - a seeding run unlinks the
+// ones it wrote - and a caller that had to split `a -part-of-> b` back into two
+// ids would be parsing this program's own report format. A report format that
+// something re-reads is a format that cannot be improved.
+type edge struct{ src, dst string }
+
+func (e edge) String() string { return edgeName(e.src, e.dst) }
+
+// edgeNames renders a set of edges for a report, in the order it was given.
+func edgeNames(es []edge) []string {
+	out := make([]string, 0, len(es))
+	for _, e := range es {
+		out = append(out, e.String())
+	}
+	return out
+}
+
+// retractEdges removes the part-of edges the store holds and neither document
+// states.
+//
+// ⛔ B77 IS WHY THIS EXISTS AND WHY IT IS ONLY ABOUT EDGES. rig can unlink an
+// edge and cannot retract a record, so a record the documents stop stating
+// survives as EXTRA for ever, while an edge they stop stating can be taken
+// back. Six `decision -part-of-> note` edges written by an earlier generation
+// are exactly that case: the note now points at the project instead, and
+// leaving the old six beside the new nine would be two derivations of one
+// relationship sitting in one table.
+//
+// ⛔ AND THE ANSWER TO B77 IS NEVER A DELETE. Retraction is a separate
+// capability that rig has not got; nothing here removes a record.
+func (o options) retractEdges(p plan, r *result) error {
+	var d divergence
+	if err := d.compareEdges(p, func(parent string) (map[string]bool, error) {
+		return storePartOfChildren(o, parent)
+	}); err != nil {
+		return err
+	}
+	for _, e := range p.retractable(o, d.extraEdges) {
+		if err := o.write([]string{"record", "unlink", e.src, record.LinkPartOf, e.dst}); err != nil {
+			return fmt.Errorf("taking back %s: %w", e, err)
+		}
+		r.unlinked = append(r.unlinked, e.String())
+	}
+	return nil
+}
+
+// retractable narrows the extra edges to the ones this seeder is entitled to
+// remove: both ends are records it writes.
+//
+// ⛔ THE NARROWING IS THE WHOLE SAFETY ARGUMENT AND NOT AN OPTIMISATION. A note
+// somebody attached to a work item by hand has a SOURCE no document states, and
+// a seeder that unlinked every edge it did not recognise would silently undo a
+// person's work on every run - once a day, against the store whose whole
+// argument is that things stop disappearing. An edge with one end outside this
+// plan is somebody else's fact and is left exactly where it is.
+func (p plan) retractable(o options, extra []edge) []edge {
+	mine := make(map[string]bool, len(p.want)+1)
+	for _, in := range p.want {
+		mine[in.id] = true
+	}
+	// The project record is this seeder's too - `seedProject` writes it - and it
+	// is the destination every note points at.
+	mine[o.project] = true
+
+	var out []edge
+	for _, e := range extra {
+		if mine[e.src] && mine[e.dst] {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
 // ---------------------------------------------------------------------------
 // THE DIVERGENCE DETECTOR
 // ---------------------------------------------------------------------------
@@ -1208,14 +1387,19 @@ type divergence struct {
 	// each named with the fields that differ.
 	stale []string
 
-	// missingEdges and extraEdges are the part-of edges, whole.
-	missingEdges []string
-	extraEdges   []string
+	// missingEdges and extraEdges are the part-of edges, with their two ends
+	// still apart so a caller can act on them.
+	missingEdges []edge
+	extraEdges   []edge
 
 	unimported []docUnimported
 	collided   []string
 	orphaned   []string
 	unnested   []string
+
+	// detached is a part-of the documents state that this seeder deliberately
+	// does not assert. Printed, and never counted as a divergence.
+	detached []string
 }
 
 // runCheck is the whole of --check: read the store, diff it against the plan,
@@ -1316,6 +1500,7 @@ func diff(p plan, store map[string]held) divergence {
 		collided:   p.collided,
 		unnested:   p.unnested,
 		orphaned:   p.orphaned,
+		detached:   p.detached,
 	}
 
 	want := make(map[string]bool, len(p.want))
@@ -1377,16 +1562,35 @@ func staleFields(in intent, got held) []string {
 // ⛔ `rig record refs` ANSWERS WHAT POINTS AT A RECORD, NOT WHAT A RECORD POINTS
 // AT, so the question is asked once per PARENT rather than once per child -
 // seven children become one call today.
+//
+// ⛔ AND EVERY NOTE IS ASKED ABOUT TOO, EVEN WHERE NOTHING IS PART-OF IT. The
+// aperture used to be "the parents the documents state TODAY", and that is
+// precisely blind where this seeder's own wrong edges landed: it wrote six
+// `decision -part-of-> note` edges, then stopped stating them, and a detector
+// built from today's parents would never look at a note again. A check that
+// stops covering the thing that was just fixed is the pass-versus-no-run class
+// in its most expensive form. Nine extra calls at about 3 ms each, measured.
+//
+// ⛔ WHAT IS STILL OUTSIDE IT, SAID OUT LOUD: an edge towards a record that is
+// neither a stated parent nor a note is invisible here. Nothing writes one
+// today - every edge this seeder asserts ends at a parent or at the project -
+// but a clean `extraEdges` is a statement about parents and notes, not about
+// every edge in the store.
 func (d *divergence) compareEdges(p plan, childrenOf func(string) (map[string]bool, error)) error {
 	children := map[string][]string{}
+	asked := map[string]bool{}
 	for _, in := range p.want {
 		if in.partOf != "" {
 			children[in.partOf] = append(children[in.partOf], in.id)
+			asked[in.partOf] = true
+		}
+		if in.kind == record.KindNote {
+			asked[in.id] = true
 		}
 	}
 
-	parents := make([]string, 0, len(children))
-	for parent := range children {
+	parents := make([]string, 0, len(asked))
+	for parent := range asked {
 		parents = append(parents, parent)
 	}
 	sort.Strings(parents)
@@ -1400,18 +1604,29 @@ func (d *divergence) compareEdges(p plan, childrenOf func(string) (map[string]bo
 		for _, child := range children[parent] {
 			want[child] = true
 			if !have[child] {
-				d.missingEdges = append(d.missingEdges, edgeName(child, parent))
+				d.missingEdges = append(d.missingEdges, edge{src: child, dst: parent})
 			}
 		}
 		for child := range have {
 			if !want[child] {
-				d.extraEdges = append(d.extraEdges, edgeName(child, parent))
+				d.extraEdges = append(d.extraEdges, edge{src: child, dst: parent})
 			}
 		}
 	}
-	sort.Strings(d.missingEdges)
-	sort.Strings(d.extraEdges)
+	sortEdges(d.missingEdges)
+	sortEdges(d.extraEdges)
 	return nil
+}
+
+// sortEdges orders a set of edges by how they are printed, so the report reads
+// the same way twice.
+func sortEdges(es []edge) {
+	sort.Slice(es, func(i, j int) bool {
+		if es[i].src != es[j].src {
+			return es[i].src < es[j].src
+		}
+		return es[i].dst < es[j].dst
+	})
 }
 
 // storePartOfChildren is every record the store says is part-of one parent.
@@ -1482,7 +1697,11 @@ func (d divergence) nonEmpty() []string {
 		{"stale", len(d.stale)},
 		{"missing-edges", len(d.missingEdges)},
 		{"extra-edges", len(d.extraEdges)},
-		{"unimported", len(d.unimported)},
+		// ⛔ ONLY THE OPEN HALF. A ruled exclusion counted here would keep
+		// `--check` at exit 2 for ever over a question somebody has already
+		// answered, and a check that can never go green is a check nobody
+		// runs. `d.detached` is absent for the same reason.
+		{"unimported", len(openUnimported(d.unimported))},
 		{"id-stated-twice", len(d.collided)},
 		{"heading-nesting-the-id-contradicts", len(d.unnested)},
 		{"part-of-towards-an-undefined-id", len(d.orphaned)},
@@ -1505,10 +1724,12 @@ func (d divergence) report(w io.Writer, o options, p plan, estate string) {
 		"either the document dropped a row or something else wrote into this project.")
 	namedSet(w, "STALE - held, but its stored fields are not what the document says", d.stale,
 		"the differing field names are in the brackets. Re-running rigseed supersedes them.")
-	namedSet(w, "MISSING EDGES - the document states this part-of and the store has not got it", d.missingEdges,
+	namedSet(w, "MISSING EDGES - the document states this part-of and the store has not got it", edgeNames(d.missingEdges),
 		"re-run rigseed without --check to assert them.")
-	namedSet(w, "EXTRA EDGES - the store holds a part-of the document does not state", d.extraEdges,
-		"rigseed never removes an edge, so these were asserted by something else.")
+	namedSet(w, "EXTRA EDGES - the store holds a part-of the document does not state", edgeNames(d.extraEdges),
+		"a seeding run TAKES BACK the ones whose two ends are both records it\n"+
+			"      writes. Anything still listed after one has an end this seeder does\n"+
+			"      not write, so it is somebody else's edge and is left alone.")
 	namedSet(w, "ID STATED TWICE", d.collided,
 		"two places state the same id - a heading and a row, or the backlog and\n"+
 			"      the decisions document. The first read is what was written.")
@@ -1517,6 +1738,8 @@ func (d divergence) report(w io.Writer, o options, p plan, estate string) {
 	namedSet(w, "PART-OF TOWARDS AN ID THE DOCUMENT NEVER DEFINES, NOT ASSERTED", d.orphaned,
 		"the parent is in no row and no heading, so the edge was not attempted:\n"+
 			"      the store refuses a link with a missing end.")
+	namedSet(w, "DELIBERATELY NOT ASSERTED - ruled, and not a divergence", d.detached,
+		detachedWhy)
 	reportUnimported(w, d.unimported)
 
 	// ⛔ WHAT THIS CHECK DOES NOT COMPARE, PRINTED ON EVERY RUN INCLUDING A

@@ -144,19 +144,24 @@ func TestAnEntryCarriesItsCoordinatesAndAnUndatedOneCarriesNoDate(t *testing.T) 
 // the thing B66 found missing on the backlog side: six children there named a
 // parent that was in no record. An edge whose parent is missing is not written
 // at all - the store refuses it and the run aborts half-done.
+// ⛔ THE PARENT HERE IS A RULING AND NOT A STANDING SECTION, AND THAT IS THE
+// FIX RATHER THAN A TIDY-UP. It used to be `what-rig-is`, which is a NOTE, and
+// a note parent is now the one shape whose edge is deliberately not asserted -
+// see TestARulingUnderAStandingSectionAssertsNoPartOf. What this test is about
+// is the 292 edges that DO stand, so it names a parent of that kind.
 func TestASubHeadingsParentIsAnEntryAndTheEdgeIsEmitted(t *testing.T) {
 	o := options{project: "rig", decisions: "DECISIONS.md"}
 	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}},
 		record.DecisionParse{Decisions: []record.DecisionEntry{
-			entryFor("what-rig-is", "What rig is", record.EntrySection),
+			entryFor("2026-09-10-the-attack", "2026-09-10 the attack", record.EntryDecision),
 			{
-				Key: "what-rig-is/the-ruling", Title: "The ruling", Kind: record.EntryDecision,
-				Level: 3, PartOf: "what-rig-is", Line: 12, Body: "prose",
+				Key: "2026-09-10-the-attack/the-ruling", Title: "The ruling", Kind: record.EntryDecision,
+				Level: 3, PartOf: "2026-09-10-the-attack", Line: 12, Body: "prose",
 			},
 		}})
 
-	if got := intentFor(t, p, "what-rig-is/the-ruling").partOf; got != "what-rig-is" {
-		t.Errorf("part-of = %q, want what-rig-is", got)
+	if got := intentFor(t, p, "2026-09-10-the-attack/the-ruling").partOf; got != "2026-09-10-the-attack" {
+		t.Errorf("part-of = %q, want 2026-09-10-the-attack", got)
 	}
 	if got := strings.Join(p.orphaned, " "); got != "" {
 		t.Errorf("orphaned = {%s}, want {} - the parent is an entry and the edge stands", got)
@@ -595,4 +600,121 @@ func d(p plan) divergence {
 		store[in.id] = heldOf(in)
 	}
 	return diff(p, store)
+}
+
+// ⛔ A NOTE IS `part-of` THE PROJECT, AND NOTHING ELSE PUTS IT IN A BRIEF.
+//
+// `notesAbout` in internal/record/brief.go selects
+// `l.type='part-of' AND n.kind='note' AND d.project=?` with the NOTE as
+// `l.src`, and then keeps the row only where `l.dst` is in the subject set -
+// which is seeded with the project id. So a note with no outgoing part-of is in
+// no brief, and a note that is only ever an edge's DESTINATION is in no brief
+// either.
+//
+// ⛔ THE STORE HELD THE ARROW THE OTHER WAY ROUND FOR FOUR GENERATIONS AND THE
+// SPECIFICATION WAS BLAMED THREE TIMES. Measured against the production store
+// on 2026-09-17: `rig record refs what-rig-is` answered "nothing points at
+// what-rig-is within 4 hops", every note was the source of no edge at all, and
+// six RULINGS pointed at one of them. plan/39's derivation was right and the
+// data was wrong.
+func TestANoteIsPartOfTheProjectSoTheBriefCanReachIt(t *testing.T) {
+	o := options{project: "rig", decisions: "DECISIONS.md"}
+	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}},
+		record.DecisionParse{Decisions: []record.DecisionEntry{
+			entryFor("what-rig-is", "What rig is", record.EntrySection),
+			entryFor("2026-09-17-a-ruling", "2026-09-17 a ruling", record.EntryDecision),
+		}})
+
+	if got := intentFor(t, p, "what-rig-is").partOf; got != o.project {
+		t.Errorf("a note states part-of %q, want %q - a note attached to nothing "+
+			"is invisible to every brief", got, o.project)
+	}
+
+	// ⛔ AND A TOP-LEVEL RULING STATES NONE. Section 12 lists every decision
+	// the project holds without joining on an edge, so a part-of here would be
+	// a claim no derivation reads and one more edge to keep true.
+	if got := intentFor(t, p, "2026-09-17-a-ruling").partOf; got != "" {
+		t.Errorf("a top-level ruling states part-of %q, want none", got)
+	}
+
+	// The project record is written by seedProject and is in no intent, so the
+	// undefined-parent sweep must know about it or it would strip the edge it
+	// was just given and report it as a document defect.
+	if got := strings.Join(p.orphaned, " "); got != "" {
+		t.Errorf("orphaned = {%s}, want {} - the project record exists", got)
+	}
+}
+
+// ⛔ A RULING UNDER A STANDING SECTION ASSERTS NO part-of. RULED by the
+// team-lead, 2026-09-17, on the six edges the decisions import had written the
+// wrong way round: they are to be UNLINKED rather than left beside the note's
+// own edge to the project.
+//
+// ⛔ THE SECOND HALF IS WHAT STOPS THIS BEING A BLANKET RULE. A sub-heading
+// under a RULING still states its parent, and that is 292 edges of this
+// document: only a parent that is a NOTE loses the edge.
+func TestARulingUnderAStandingSectionAssertsNoPartOf(t *testing.T) {
+	o := options{project: "rig", decisions: "DECISIONS.md"}
+	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}},
+		record.DecisionParse{Decisions: []record.DecisionEntry{
+			entryFor("the-attack", "Decisions taken during the attack", record.EntrySection),
+			{
+				Key: "the-attack/5-gap-is-cut", Title: "5. gap is cut", Kind: record.EntryDecision,
+				Level: 3, PartOf: "the-attack", Line: 173, Body: "prose",
+			},
+			entryFor("2026-09-17-a-ruling", "2026-09-17 a ruling", record.EntryDecision),
+			{
+				Key: "2026-09-17-a-ruling/the-detail", Title: "The detail", Kind: record.EntryDecision,
+				Level: 3, PartOf: "2026-09-17-a-ruling", Line: 200, Body: "prose",
+			},
+		}})
+
+	if got := intentFor(t, p, "the-attack/5-gap-is-cut").partOf; got != "" {
+		t.Errorf("a ruling under a standing section states part-of %q, want none - "+
+			"that edge is the one the lead ruled unlinked", got)
+	}
+	if got := intentFor(t, p, "2026-09-17-a-ruling/the-detail").partOf; got != "2026-09-17-a-ruling" {
+		t.Errorf("a sub-heading under a RULING states part-of %q, want "+
+			"2026-09-17-a-ruling - only a note parent loses the edge", got)
+	}
+}
+
+// ⛔ AN EDGE THE DOCUMENT STATES AND THIS SEEDER DOES NOT ASSERT IS NAMED.
+//
+// It is a RULED exclusion rather than a defect, so it is not in `orphaned` -
+// an orphan names a parent nothing defines and wants mending, this names a
+// parent that exists and a decision taken about it. Dropping it in silence
+// would be the only way a reader could not tell the two apart.
+func TestAnEdgeTheSeederDoesNotAssertIsNamedRatherThanDropped(t *testing.T) {
+	o := options{project: "rig", decisions: "DECISIONS.md"}
+	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}},
+		record.DecisionParse{Decisions: []record.DecisionEntry{
+			entryFor("the-attack", "Decisions taken during the attack", record.EntrySection),
+			{
+				Key: "the-attack/5-gap-is-cut", Title: "5. gap is cut", Kind: record.EntryDecision,
+				Level: 3, PartOf: "the-attack", Line: 173, Body: "prose",
+			},
+		}})
+
+	if got := strings.Join(p.detached, " "); got != "the-attack/5-gap-is-cut -part-of-> the-attack" {
+		t.Errorf("detached = {%s}, want the one edge the ruling drops", got)
+	}
+	if got := strings.Join(p.orphaned, " "); got != "" {
+		t.Errorf("orphaned = {%s}, want {} - the parent exists, so this is not a "+
+			"defect in the document", got)
+	}
+
+	// It reaches BOTH reports, because a seeding run and --check are read by
+	// the same person asking the same question.
+	var seed, check bytes.Buffer
+	p.report(&seed)
+	d(p).report(&check, o, p, "production")
+	for name, b := range map[string]*bytes.Buffer{"the seeding report": &seed, "--check": &check} {
+		if !strings.Contains(b.String(), "the-attack/5-gap-is-cut -part-of-> the-attack") {
+			t.Errorf("%s does not name the edge it dropped:\n%s", name, b.String())
+		}
+		if !strings.Contains(b.String(), "DELIBERATELY NOT ASSERTED") {
+			t.Errorf("%s does not label it a ruled exclusion:\n%s", name, b.String())
+		}
+	}
 }
