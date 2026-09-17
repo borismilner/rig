@@ -1035,6 +1035,69 @@ func TestTheBriefCarriesItsContainersOwnHeaderFields(t *testing.T) {
 	}
 }
 
+// ⛔ B76 CROSSES THE WIRE AS A FACT, AND BOTH ANSWERS ARE ASSERTED.
+//
+// `record.Brief.ContainerFound` has existed since rig 072aea4 and this
+// response dropped it, so cmd/rig re-derived the condition from an empty
+// `kind`. That inference was correct only because fields 9-12 happen to be
+// served: against any daemon older than rig af7715d every brief arrives with
+// an empty kind and every brief reads as a missing container.
+//
+// ⛔ THE FOUND CASE IS HALF THE TEST AND IS NOT A COURTESY. A handler that
+// hard-coded TRISTATE_NO would pass a missing-container assertion on its own,
+// and a handler that never set the field would pass nothing while looking
+// like it passed - which is the third row.
+//
+// ⛔ THE THIRD ROW IS WHAT MAKES THE OTHER TWO MEAN ANYTHING: UNSPECIFIED IS
+// UNREACHABLE FROM THIS DAEMON. The zero is reserved for a peer that does not
+// carry field 22, so if this end ever spends it, a reader loses the ability to
+// tell "I did not look" from "I looked and found nothing" - which is the exact
+// distinction B76 is about.
+func TestTheBriefStatesWhetherTheContainerExists(t *testing.T) {
+	sock := upRecordDaemon(t)
+	c := seated(t, sock, "team-lead")
+	ctx := recordCtx(t)
+
+	var put rigv1.RecordPutResponse
+	if err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
+		Id: "rig", Kind: "project", Project: "rig", Body: "rig itself",
+	}, &put); err != nil {
+		t.Fatalf("rig.record.put(project): %v", err)
+	}
+
+	for _, tc := range []struct {
+		name    string
+		project string
+		want    rigv1.Tristate
+	}{
+		{"a container that exists", "rig", rigv1.Tristate_TRISTATE_YES},
+		{
+			"an id nothing was created under", "zzz-no-such-project-42",
+			rigv1.Tristate_TRISTATE_NO,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var brief rigv1.ProjectBriefResponse
+			if err := c.Call(ctx, "rig.project.brief",
+				&rigv1.ProjectBriefRequest{Project: tc.project}, &brief); err != nil {
+				t.Fatalf("rig.project.brief: %v", err)
+			}
+			got := brief.GetContainerFound()
+			if got == rigv1.Tristate_TRISTATE_UNSPECIFIED {
+				t.Fatalf("container_found came back UNSPECIFIED for %q. This "+
+					"daemon HAS read the container, so the zero is a value it "+
+					"must never spend: it is reserved for a peer that does not "+
+					"carry field 22, and a reader cannot tell that from a "+
+					"container that is genuinely absent", tc.project)
+			}
+			if got != tc.want {
+				t.Errorf("container_found for %q came back %v, want %v",
+					tc.project, got, tc.want)
+			}
+		})
+	}
+}
+
 // ⛔ AN EMPTY project OR kind ON THE WIRE MEANS EVERY ONE, AND A WRONG ONE
 // STILL MEANS NOTHING.
 //

@@ -16,6 +16,13 @@ func brief(mut ...func(*Brief)) Brief {
 		Title:   "the swiss knife and the record under it",
 		Status:  "active",
 		Semver:  "0.4.1",
+
+		// ⛔ THE FIXTURE IS WHAT A DAEMON THAT CARRIES FIELD 22 SENDS, and
+		// leaving this at the zero would have made every test in the package
+		// pass through `ContainerMissing`'s legacy fallback instead of the
+		// path production takes. A fixture that exercises the wrong branch is
+		// green for the wrong reason.
+		ContainerFound: rigv1.Tristate_TRISTATE_YES,
 		NextUp: []BriefItem{
 			{
 				ID:    "01927-a",
@@ -736,6 +743,13 @@ var briefWireFieldsNotRendered = map[string]string{
 	"drift":      "section 39 row 8, NOT_COMPUTED by today's daemon",
 	"health":     "section 39 row 9, NOT_COMPUTED by today's daemon",
 	"case_notes": "section 39 row 11, NOT_COMPUTED by today's daemon",
+	"container_found": "B76, AND IT IS READ RATHER THAN DROPPED - " +
+		"`briefFromWire` carries it and `ContainerMissing` decides on it. It " +
+		"is not a KEY because in --json the REFUSAL is the rendering: " +
+		"brief.go returns RIG_NO_SUCH_CONTAINER instead of the brief when the " +
+		"container is missing, so a key emitted beside a brief that exists " +
+		"could only ever read true. A field with one reachable value teaches " +
+		"a consumer to stop reading it",
 }
 
 // ⛔ EVERY FIELD THE BRIEF WIRE CARRIES IS EITHER RENDERED OR HAS A WRITTEN

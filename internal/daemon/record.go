@@ -521,6 +521,20 @@ func governingCounts(in []record.KindCount) []*rigv1.KindCount {
 	return out
 }
 
+// containerFoundOnTheWire spells B76's condition as a Tristate.
+//
+// ⛔ THE POINT OF THE FUNCTION IS THAT IT NEVER RETURNS UNSPECIFIED. A `bool`
+// on the wire would have made the zero mean both "no container" and "this
+// daemon does not answer that", and those are the two things B76 was about
+// telling apart. Spelling the mapping here rather than inline is what keeps
+// the zero unreachable from this end: there is one expression to read.
+func containerFoundOnTheWire(found bool) rigv1.Tristate {
+	if found {
+		return rigv1.Tristate_TRISTATE_YES
+	}
+	return rigv1.Tristate_TRISTATE_NO
+}
+
 // sectionStatuses maps the store's section states onto the wire.
 //
 // ⛔ IT PASSES THEM THROUGH AND DECIDES NOTHING, WHICH IS WHAT THE HAND-KEPT
@@ -763,6 +777,19 @@ func (d *Daemon) serveProjectBrief(ctx context.Context, c *conn, f *rigv1.Frame,
 		Title:  b.Title,
 		Status: b.Status,
 		Semver: b.Semver,
+
+		// ⛔ B76 AS A FACT ON THE WIRE, WHICH IS THE HALF THE FIX ABOVE LEFT
+		// OUT. The derivation has carried `ContainerFound` since rig 072aea4
+		// and this function dropped it, so the CLI re-derived the condition
+		// from an empty Kind - correct only because these four fields happen
+		// to be served, and wrong against every daemon that predates their
+		// being served at all.
+		//
+		// ⛔ IT IS NEVER UNSPECIFIED FROM HERE. This daemon has read the
+		// container, so it knows; UNSPECIFIED is reserved for a daemon that
+		// does not carry the field, and a reader cannot tell "I did not look"
+		// from "I looked and found nothing" if this end ever spends the zero.
+		ContainerFound: containerFoundOnTheWire(b.ContainerFound),
 	}
 
 	// A NEGATIVE COUNT IS A BUG, AND ZERO IS THE HONEST ANSWER TO ONE. The

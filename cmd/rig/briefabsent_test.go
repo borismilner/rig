@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )
 
 // B76: A BRIEF FOR A CONTAINER THAT DOES NOT EXIST.
@@ -31,6 +33,7 @@ import (
 func TestAMissingContainerIsNamedInTheHeadingAndNotSpelledAsAbsentMetadata(t *testing.T) {
 	got := briefText(brief(func(b *Brief) {
 		b.Project = "zzz-no-such-project-42"
+		b.ContainerFound = rigv1.Tristate_TRISTATE_NO
 		b.Kind = ""
 		b.Title = ""
 		b.Status = ""
@@ -74,7 +77,10 @@ func TestAContainerThatExistsKeepsItsOrdinaryHeading(t *testing.T) {
 // measured 2026-09-17. A fix that emptied the page would replace one wrong
 // answer with another, and this is the guard that stops it.
 func TestAMissingContainerStillRendersTheRecordsThatNameIt(t *testing.T) {
-	got := briefText(brief(func(b *Brief) { b.Kind = "" }), now, briefStyle{})
+	got := briefText(brief(func(b *Brief) {
+		b.ContainerFound = rigv1.Tristate_TRISTATE_NO
+		b.Kind = ""
+	}), now, briefStyle{})
 	if !strings.Contains(got, "wire the record verbs") {
 		t.Errorf("the work recorded under this id vanished with the "+
 			"container, which hides real records behind a naming defect:\n%s", got)
@@ -86,33 +92,82 @@ func TestAMissingContainerStillRendersTheRecordsThatNameIt(t *testing.T) {
 
 // ---- the predicate --------------------------------------------------------
 
-// ContainerMissing is an INFERENCE from the one symptom the wire carries, and
-// this states the rule it infers from so a later reader does not have to
-// reconstruct it. The derivation knows directly - record.Brief.ContainerFound -
-// and ProjectBriefResponse has no field for it.
-func TestTheMissingContainerTestIsTheKindAndNothingElse(t *testing.T) {
+// ⛔ ContainerMissing READS `container_found` AND DOES NOT INFER, AND THE ROWS
+// THAT PROVE IT ARE THE ONES WHERE THE FIELD AND THE OLD INFERENCE DISAGREE.
+//
+// The old predicate was `b.Kind == ""`, which was correct and was not the
+// fact: the derivation has known directly since rig 072aea4
+// (record.Brief.ContainerFound) and the wire dropped it until field 22. A test
+// that only ever showed the two AGREEING would pass against either predicate
+// and could not tell which one this build uses - which is why the first two
+// rows below set a kind that contradicts the field.
+func TestTheMissingContainerTestIsTheWireFieldAndNotTheKind(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		mut  func(*Brief)
 		want bool
 	}{
-		{"no kind", func(b *Brief) { b.Kind = "" }, true},
-		{"a project", func(b *Brief) { b.Kind = "project" }, false},
-		{"a case", func(b *Brief) { b.Kind = "case" }, false},
+		// ⛔ THE TWO DISCRIMINATING ROWS. Each is green under the field and
+		// RED under `Kind == ""`, so between them they pin the mechanism.
+		{"said missing, and still carries a kind", func(b *Brief) {
+			b.ContainerFound = rigv1.Tristate_TRISTATE_NO
+			b.Kind = "project"
+		}, true},
+		{"said found, and carries no kind", func(b *Brief) {
+			b.ContainerFound = rigv1.Tristate_TRISTATE_YES
+			b.Kind = ""
+		}, false},
+
+		{"said missing", func(b *Brief) {
+			b.ContainerFound = rigv1.Tristate_TRISTATE_NO
+			b.Kind = ""
+		}, true},
+		{"a project", func(b *Brief) {
+			b.ContainerFound = rigv1.Tristate_TRISTATE_YES
+			b.Kind = "project"
+		}, false},
+		{"a case", func(b *Brief) {
+			b.ContainerFound = rigv1.Tristate_TRISTATE_YES
+			b.Kind = "case"
+		}, false},
+
 		// ⛔ AN EMPTY BRIEF ABOUT A REAL PROJECT IS NOT MISSING. This is the
 		// pair the whole defect turns on: emptiness and absence are different
 		// answers, and a predicate keyed on emptiness would say true here.
 		{"a real project with nothing in it", func(b *Brief) {
+			b.ContainerFound = rigv1.Tristate_TRISTATE_YES
 			b.Kind = "project"
 			b.NextUp, b.Open, b.Notes = nil, nil, nil
 			b.Title, b.Status, b.Semver = "", "", ""
 		}, false},
 		// And the mirror: a container that is missing but carries work.
-		{"missing, with work under its name", func(b *Brief) { b.Kind = "" }, true},
+		{"missing, with work under its name", func(b *Brief) {
+			b.ContainerFound = rigv1.Tristate_TRISTATE_NO
+		}, true},
+
+		// ---- UNSPECIFIED: A DAEMON THAT DOES NOT CARRY FIELD 22 ------------
+		//
+		// ⛔ THE FALLBACK IS DELIBERATE AND IS NOT DEAD CODE. Against a daemon
+		// between rig af7715d and field 22, `kind` IS served and the old
+		// inference IS correct, so spending the zero on "found" would re-open
+		// B76 for exactly that range, quietly. Spending it on "missing" would
+		// refuse every brief from every older daemon. These two rows are the
+		// only place the inference is still reachable.
+		{"not said, and a kind - the old inference stands", func(b *Brief) {
+			b.ContainerFound = rigv1.Tristate_TRISTATE_UNSPECIFIED
+			b.Kind = "project"
+		}, false},
+		{"not said, and no kind - the old inference stands", func(b *Brief) {
+			b.ContainerFound = rigv1.Tristate_TRISTATE_UNSPECIFIED
+			b.Kind = ""
+		}, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := brief(tc.mut).ContainerMissing(); got != tc.want {
-				t.Errorf("ContainerMissing() = %v, want %v", got, tc.want)
+			b := brief(tc.mut)
+			if got := b.ContainerMissing(); got != tc.want {
+				t.Errorf("ContainerMissing() = %v, want %v "+
+					"(container_found=%v, kind=%q)",
+					got, tc.want, b.ContainerFound, b.Kind)
 			}
 		})
 	}
@@ -248,3 +303,44 @@ func firstLineOf(s string) string {
 }
 
 var _ = time.Time{}
+
+// ---- the seam -------------------------------------------------------------
+
+// ⛔ `briefFromWire` CARRIES `container_found`, AND THIS TEST EXISTS BECAUSE
+// NOTHING ELSE IN THIS PACKAGE NOTICES IF IT STOPS.
+//
+// MEASURED, not assumed: with `ContainerFound: r.GetContainerFound()` deleted
+// from briefFromWire, `go test ./cmd/rig -count=1` was GREEN over the whole
+// package. Every other guard on this condition builds a `Brief` directly and
+// never crosses the wire, so the one line that joins the two ends was covered
+// by nothing.
+//
+// ⛔ IT IS THE SEAM THIS TEAM KEEPS LOSING THINGS IN, THIRD INSTANCE.
+// internal/record derives, internal/daemon maps, cmd/rig renders, and a field
+// added at one end and dropped at another is invisible from both. Notes,
+// Features and the four header fields were each exactly that.
+//
+// ⛔ THE ZERO IS A ROW. A wire that did not set the field must arrive as
+// UNSPECIFIED and not as a translated false, because UNSPECIFIED is the only
+// thing that still licenses the legacy inference in ContainerMissing.
+func TestTheClientCarriesWhatTheWireSaidAboutTheContainer(t *testing.T) {
+	for _, want := range []rigv1.Tristate{
+		rigv1.Tristate_TRISTATE_YES,
+		rigv1.Tristate_TRISTATE_NO,
+		rigv1.Tristate_TRISTATE_UNSPECIFIED,
+	} {
+		t.Run(want.String(), func(t *testing.T) {
+			got := briefFromWire(&rigv1.ProjectBriefResponse{
+				Project:        "rig",
+				Kind:           "project",
+				ContainerFound: want,
+			})
+			if got.ContainerFound != want {
+				t.Errorf("the wire said container_found=%v and the client "+
+					"holds %v. The one line joining the daemon's fact to this "+
+					"client's predicate is gone, and B76 is back to being an "+
+					"inference", want, got.ContainerFound)
+			}
+		})
+	}
+}

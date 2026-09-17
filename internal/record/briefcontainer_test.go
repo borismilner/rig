@@ -101,10 +101,19 @@ func TestAMissingContainerStillCarriesTheWorkRecordedUnderItsName(t *testing.T) 
 	}
 }
 
-// ⛔ THE KIND AND THE FLAG ARE ONE FACT AND MUST NOT DRIFT APART. Kind carried
-// this condition alone until ContainerFound existed, and the CLI still infers
-// it from Kind because the wire has no field for it. The day those two
-// disagree, the client's inference is wrong and nothing else would say so.
+// ⛔ THE KIND AND THE FLAG ARE ONE FACT AND MUST NOT DRIFT APART, AND WHAT
+// THIS GUARDS HAS NARROWED RATHER THAN GONE.
+//
+// It used to guard the CLI's whole predicate: Kind carried this condition
+// alone, the wire had no field for it, and cmd/rig re-derived the missing
+// container from an empty kind. `ProjectBriefResponse.container_found`
+// (Tristate, field 22) ended that, so a matched pair now exchanges the fact.
+//
+// ⛔ IT IS NOT OBSOLETE, BECAUSE THE INFERENCE IS STILL REACHABLE. cmd/rig
+// falls back to `Kind == ""` on TRISTATE_UNSPECIFIED - a daemon that predates
+// field 22 - and that fallback is only correct while these two agree here.
+// The day they disagree, every older daemon starts answering B76 wrongly and
+// nothing else in the tree would say so.
 func TestAnEmptyKindAndAMissingContainerAreTheSameAnswer(t *testing.T) {
 	s := openStore(t, estate(t, "development"))
 	project(t, s, "")
@@ -115,9 +124,10 @@ func TestAnEmptyKindAndAMissingContainerAreTheSameAnswer(t *testing.T) {
 			t.Fatalf("%s: %v", id, err)
 		}
 		if (b.Kind == "") != b.ContainerMissing() {
-			t.Errorf("%s: kind=%q but ContainerMissing=%v - the CLI infers "+
-				"the missing container from an empty kind and that inference "+
-				"is now wrong", id, b.Kind, b.ContainerMissing())
+			t.Errorf("%s: kind=%q but ContainerMissing=%v - cmd/rig falls "+
+				"back to an empty kind against a daemon with no "+
+				"container_found field, and that fallback is now wrong",
+				id, b.Kind, b.ContainerMissing())
 		}
 	}
 }

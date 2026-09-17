@@ -5292,8 +5292,34 @@ type ProjectBriefResponse struct {
 	// total derived from a list starts describing the list the day somebody caps
 	// it, and the cap is the change nobody remembers was load-bearing.
 	GoverningCounts []*KindCount `protobuf:"bytes,21,rep,name=governing_counts,json=governingCounts,proto3" json:"governing_counts,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// ⛔ B76: WHETHER THE ID THIS BRIEF IS ABOUT HAS A RECORD IN THE STORE AT
+	// ALL. The derivation has known this since rig 072aea4 -
+	// `record.Brief.ContainerFound`, set where the container read returns
+	// NotFound - and until this field existed the wire dropped it, so the CLI
+	// re-derived it from the one symptom that did cross: an empty `kind`.
+	//
+	// ⛔ AN INFERENCE FROM `kind` IS NOT THE SAME FACT, AND THE DIFFERENCE IS A
+	// SKEW RATHER THAN A PURITY ARGUMENT. Fields 9-12 were not served at all
+	// before rig af7715d, so against any daemon older than that EVERY brief
+	// arrives with an empty kind and EVERY brief is reported as a missing
+	// container. The symptom is load-bearing for one condition and merely
+	// correlated with the other.
+	//
+	// ⛔ IT IS A Tristate AND NOT A bool, FOR THE REASON THE Tristate COMMENT
+	// ALREADY GIVES: "a proto3 bool cannot express 'the program never declared
+	// this'". A bool here reads FALSE on every daemon that predates it, which
+	// turns the loud, visible skew above into a silent one - the same failure,
+	// moved somewhere nobody looks. UNSPECIFIED means this daemon does not carry
+	// the field, and a reader that has one is the only reader entitled to stop
+	// inferring.
+	//
+	// ⛔ NO IS NOT "A PROJECT WITH NOTHING IN IT". The sections still render: a
+	// record carries its own `project` field, so work can exist under an id that
+	// has no container record. Suppressing them would replace one wrong answer
+	// with another.
+	ContainerFound Tristate `protobuf:"varint,22,opt,name=container_found,json=containerFound,proto3,enum=rig.v1.Tristate" json:"container_found,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ProjectBriefResponse) Reset() {
@@ -5471,6 +5497,13 @@ func (x *ProjectBriefResponse) GetGoverningCounts() []*KindCount {
 		return x.GoverningCounts
 	}
 	return nil
+}
+
+func (x *ProjectBriefResponse) GetContainerFound() Tristate {
+	if x != nil {
+		return x.ContainerFound
+	}
+	return Tristate_TRISTATE_UNSPECIFIED
 }
 
 var File_proto_rig_v1_wire_proto protoreflect.FileDescriptor
@@ -5756,7 +5789,7 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x05title\x18\x03 \x01(\tR\x05title\"5\n" +
 	"\tKindCount\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x14\n" +
-	"\x05count\x18\x02 \x01(\x04R\x05count\"\xe6\x06\n" +
+	"\x05count\x18\x02 \x01(\x04R\x05count\"\xa1\a\n" +
 	"\x14ProjectBriefResponse\x12\x18\n" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x12%\n" +
 	"\x04open\x18\x02 \x03(\v2\x11.rig.v1.ItemStateR\x04open\x12*\n" +
@@ -5780,7 +5813,8 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"case_notes\x18\x12 \x03(\v2\x11.rig.v1.BriefNoteR\tcaseNotes\x126\n" +
 	"\bsections\x18\x13 \x03(\v2\x1a.rig.v1.BriefSectionStatusR\bsections\x125\n" +
 	"\tgoverning\x18\x14 \x03(\v2\x17.rig.v1.GoverningRecordR\tgoverning\x12<\n" +
-	"\x10governing_counts\x18\x15 \x03(\v2\x11.rig.v1.KindCountR\x0fgoverningCounts*\xbc\x01\n" +
+	"\x10governing_counts\x18\x15 \x03(\v2\x11.rig.v1.KindCountR\x0fgoverningCounts\x129\n" +
+	"\x0fcontainer_found\x18\x16 \x01(\x0e2\x10.rig.v1.TristateR\x0econtainerFound*\xbc\x01\n" +
 	"\tFrameKind\x12\x1a\n" +
 	"\x16FRAME_KIND_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12FRAME_KIND_REQUEST\x10\x01\x12\x17\n" +
@@ -6024,11 +6058,12 @@ var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	66, // 55: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
 	72, // 56: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
 	73, // 57: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
-	58, // [58:58] is the sub-list for method output_type
-	58, // [58:58] is the sub-list for method input_type
-	58, // [58:58] is the sub-list for extension type_name
-	58, // [58:58] is the sub-list for extension extendee
-	0,  // [0:58] is the sub-list for field type_name
+	6,  // 58: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
+	59, // [59:59] is the sub-list for method output_type
+	59, // [59:59] is the sub-list for method input_type
+	59, // [59:59] is the sub-list for extension type_name
+	59, // [59:59] is the sub-list for extension extendee
+	0,  // [0:59] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_wire_proto_init() }

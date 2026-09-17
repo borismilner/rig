@@ -1571,4 +1571,31 @@ message ProjectBriefResponse {
   // total derived from a list starts describing the list the day somebody caps
   // it, and the cap is the change nobody remembers was load-bearing.
   repeated KindCount governing_counts = 21;
+
+  // ⛔ B76: WHETHER THE ID THIS BRIEF IS ABOUT HAS A RECORD IN THE STORE AT
+  // ALL. The derivation has known this since rig 072aea4 -
+  // `record.Brief.ContainerFound`, set where the container read returns
+  // NotFound - and until this field existed the wire dropped it, so the CLI
+  // re-derived it from the one symptom that did cross: an empty `kind`.
+  //
+  // ⛔ AN INFERENCE FROM `kind` IS NOT THE SAME FACT, AND THE DIFFERENCE IS A
+  // SKEW RATHER THAN A PURITY ARGUMENT. Fields 9-12 were not served at all
+  // before rig af7715d, so against any daemon older than that EVERY brief
+  // arrives with an empty kind and EVERY brief is reported as a missing
+  // container. The symptom is load-bearing for one condition and merely
+  // correlated with the other.
+  //
+  // ⛔ IT IS A Tristate AND NOT A bool, FOR THE REASON THE Tristate COMMENT
+  // ALREADY GIVES: "a proto3 bool cannot express 'the program never declared
+  // this'". A bool here reads FALSE on every daemon that predates it, which
+  // turns the loud, visible skew above into a silent one - the same failure,
+  // moved somewhere nobody looks. UNSPECIFIED means this daemon does not carry
+  // the field, and a reader that has one is the only reader entitled to stop
+  // inferring.
+  //
+  // ⛔ NO IS NOT "A PROJECT WITH NOTHING IN IT". The sections still render: a
+  // record carries its own `project` field, so work can exist under an id that
+  // has no container record. Suppressing them would replace one wrong answer
+  // with another.
+  Tristate container_found = 22;
 }

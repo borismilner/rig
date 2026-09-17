@@ -159,6 +159,14 @@ type Brief struct {
 	// to tell. Whatever this client does with the rest, it must not present a
 	// section as answered when the daemon said it was not.
 	Sections []BriefSectionState
+
+	// ContainerFound is B76 AS THE DAEMON STATED IT, and its three values are
+	// three different answers rather than a boolean with a spare.
+	//
+	// ⛔ UNSPECIFIED IS "THIS DAEMON DOES NOT CARRY THE FIELD" AND IS THE ONLY
+	// REASON THE INFERENCE BELOW STILL EXISTS. Read ContainerMissing, never
+	// this field: the rule for reading it is written once, down there.
+	ContainerFound rigv1.Tristate
 }
 
 // ContainerMissing is B76: this brief is about an id the store has no record
@@ -171,22 +179,39 @@ type Brief struct {
 // a complete brief, and reported sections 1-4 computed. A seat resuming on the
 // wrong slug was told in rig's own voice that there was nothing to do.
 //
-// ⛔ THE TEST IS THE KIND, AND THE WIRE DOES NOT CARRY A BETTER ONE. The
-// derivation knows this directly - `record.Brief.ContainerFound`, set where
-// the container read returns NotFound - and `ProjectBriefResponse` has no
-// field for it, so the client re-derives it from the one symptom that does
-// cross: a record always has a kind, so an empty kind on a served brief means
-// the container was never read. THE DAEMON SHOULD CARRY THE FIELD and this
-// comment is the reason; until it does, this is an inference and is written
-// down as one.
+// ⛔ IT READS THE WIRE FIELD AND NO LONGER INFERS, WHICH IS THE WHOLE OF THE
+// CHANGE. The derivation has known this directly since rig 072aea4 -
+// `record.Brief.ContainerFound`, set where the container read returns NotFound
+// - and `ProjectBriefResponse` did not carry it, so this client re-derived it
+// from the one symptom that did cross: a record always has a kind, so an empty
+// kind on a served brief meant the container was never read. That inference
+// was correct and it was not the fact.
 //
-// ⛔ THE SKEW HAZARD, NAMED RATHER THAN DISCOVERED. Against a daemon older
-// than rig af7715d - which is when the four header fields started being served
-// at all - EVERY brief arrives with an empty kind and every brief would be
-// reported as a missing container. That is loud and wrong rather than quiet
-// and wrong, which is the right way round, but it is a real skew and the
-// remedy is the wire field above, not a softer test here.
-func (b Brief) ContainerMissing() bool { return b.Kind == "" }
+// ⛔ THE SKEW IT REMOVES, WHICH IS WHY IT WAS A DEFECT AND NOT A TIDY-UP. The
+// four header fields were not served at all before rig af7715d, so against any
+// daemon older than that EVERY brief arrives with an empty kind and EVERY
+// brief would be reported as a missing container. The symptom is load-bearing
+// for one condition and merely correlated with the other; a daemon that
+// carries the field ends the correlation.
+//
+// ⛔ THE INFERENCE SURVIVES ONLY FOR UNSPECIFIED, AND DELETING IT WOULD HAVE
+// BEEN WORSE THAN KEEPING IT. Against a daemon between af7715d and the commit
+// that added field 22, kind IS served and the inference IS correct; treating
+// UNSPECIFIED as "found" would re-open B76 for exactly that range and do it
+// quietly. Treating UNSPECIFIED as "missing" would refuse every brief from
+// every older daemon. So the zero falls through to the old test, which is no
+// better and no worse than this client has ever been - and is now reached only
+// by a daemon that genuinely cannot answer.
+func (b Brief) ContainerMissing() bool {
+	switch b.ContainerFound {
+	case rigv1.Tristate_TRISTATE_YES:
+		return false
+	case rigv1.Tristate_TRISTATE_NO:
+		return true
+	default:
+		return b.Kind == ""
+	}
+}
 
 // BriefBlockage is one item and everything it waits on. Section 39 row 4.
 type BriefBlockage struct {
@@ -1718,6 +1743,13 @@ func briefFromWire(r *rigv1.ProjectBriefResponse) Brief {
 		Title:   r.GetTitle(),
 		Status:  r.GetStatus(),
 		Semver:  r.GetSemver(),
+
+		// ⛔ CARRIED THROUGH UNTRANSLATED, INCLUDING THE ZERO. A daemon that
+		// does not set field 22 is a fact about that daemon, and folding it
+		// into a bool here would throw it away at the only point where it can
+		// still be seen. ContainerMissing is the one place the three values
+		// are turned into an answer.
+		ContainerFound: r.GetContainerFound(),
 	}
 	for _, it := range r.GetOpen() {
 		b.Open = append(b.Open, itemFromWire(it))
