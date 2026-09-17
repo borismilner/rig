@@ -408,6 +408,38 @@ its own upstream cause: a memory file holding *"the latest one wins and it is
 every session**, which is why the scope is half the record and not a footnote to
 it.
 
+##### ✅ FULL DECISION AUTONOMY, AND A 40% STOP. BORIS, 2026-09-17 LATE, TO GENERATION 17.
+
+> *"You do all decisions and work until all gaps are covered or you come to 40%
+> context; Don't stop because it wastes time; I'll judge the final results."*
+
+⛔ **SCOPE UNSTATED, THEREFORE SESSION-ONLY**, by the rule two entries above.
+**It binds generation 17 and no later seat inherits it.** Recorded the turn he
+said it, with its scope, which is the whole point of the two entries above.
+
+**THREE THINGS, AND THEY ARE NOT ONE THING:**
+
+| # | What he granted or set | What it changes |
+|---|---|---|
+| 1 | ⛔ **"You do all decisions"** | **a seat stops bringing him choices it can make.** The open question at the moment he said it - whether the management panel owes a STATE before it owes a button - **became the seat's to decide** |
+| 2 | **"work until all gaps are covered or you come to 40% context"** | the gap list in `READINESS.txt` is the work queue **and its exhaustion is a stop condition** |
+| 3 | **"Don't stop because it wastes time"** | **stopping to ask, to confirm, or to report is the named waste.** Consistent with his earlier *"proceed without stopping unnecessarily"* |
+
+⛔ **THE 40% IS A TRIGGER AND NOT A FLOOR, WHICH IS THE OPPOSITE OF THE 45%
+TWO ENTRIES ABOVE - DO NOT COLLAPSE THEM.** *"work until... you come to 40%"*
+sets a point at which the work STOPS. The 45% was *"not to warm-handoff
+before"*, which forbade stopping early. **Same shape of number, opposite
+direction, and a seat reading one as the other gets it exactly backwards.**
+This is a ninth number and **arguing from the series is still forbidden.**
+
+⛔ **"I'LL JUDGE THE FINAL RESULTS" DOES NOT REPEAL THE PER-STEP GAP REPORT,
+AND A SEAT MUST NOT READ IT AS RELIEF.** The standing requirement is that
+`READINESS.txt` is updated **in the same commit as the step**. That is a write,
+not an interruption, and nothing about it costs him time. **What he is refusing
+is the STOPPING, not the recording.** So: keep the file current every step, and
+put it in front of him at a milestone rather than after each one. **The durable
+half is unconditional; only the cadence of showing it moved.**
+
 ##### ⛔ THE DUAL RUN IS BOUNDED BY rig's OWN DEVELOPMENT. BORIS, 2026-09-17.
 
 > *"We are using both logbook and rig just for the period of developing of `rig`
