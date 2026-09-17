@@ -79,6 +79,54 @@
   *"alongside working on `rig`"* is his own framing in the sentence that opened
   this requirement. It is not a front that pauses the MVP and it is not filler.
 
+- ⛔ **BORIS, 2026-09-17, verbatim - THE WHOLE INFORMATION ARCHITECTURE, AND IT
+  RELOCATES THE TABS. RECORDED THE TURN HE SAID IT:** *"I think the main GUI
+  show show a general-purpose dashboard with all the most important information
+  we'll define in the future. Choosing a registered program we'll see the GUI of
+  that program but we can always go back to the main dashboard from all places
+  conveniently. For the `rig` program we already have there, its GUI contains
+  different tabs for each interesting functionality that I can observe and
+  interact with using the GUI. `rig` settings is a separate GUI and can be
+  accessed both from a dedicated GUI button and from the system-tray."*
+
+  ⛔ **THIS SUPERSEDES REQUIREMENT 6 AS IT WAS WRITTEN ABOVE.** Requirement 6
+  said *"the window's content is tab-based"*. **It is not - the tabs are one
+  level DOWN.** The window is dashboard-or-program; **rig is one of the
+  programs**, and the tabs are inside rig's own program GUI. A seat that built
+  a tab bar across the top of the shell would have built the wrong thing, and
+  that is what the previous wording asked for.
+
+  | # | Requirement |
+  |---|---|
+  | ⛔ **6 (REPLACED)** | **THE MAIN GUI IS A GENERAL-PURPOSE DASHBOARD.** It is a destination in its own right, not the empty state before a program is picked. **Its CONTENT is deliberately unspecified** - *"all the most important information we'll define in the future"* - so it is a named surface with a deferred payload, and filling it is not a seat's call |
+  | **10** | **CHOOSING A REGISTERED PROGRAM SHOWS THAT PROGRAM'S GUI.** Already the shape the rail and the pane implement (§11's three tiers), now stated as the top-level navigation rather than as pane behaviour |
+  | ⛔ **11** | ⛔ **BACK TO THE DASHBOARD FROM EVERYWHERE, CONVENIENTLY.** *"from all places"* is the operative phrase: it is a global affordance, not a control that lives on one screen. **A program's own pane draws its own chrome, so the way home must not depend on the program cooperating** - which is the constraint that decides where it can live |
+  | ⛔ **12** | ⛔ **rig IS A PROGRAM IN ITS OWN SHELL, AND ITS GUI IS TABBED** - *"different tabs for each interesting functionality"*. The project/case tab (requirement 7) is the FIRST of those tabs, not the whole of rig's GUI |
+  | ⛔ **13** | ⛔ **SETTINGS IS A SEPARATE GUI WITH TWO DOORS** - a dedicated button in the GUI, **and** the system tray. Not a tab, not a pane |
+
+  ⛔ **REQUIREMENT 12 HAS A CONSEQUENCE NOBODY HAS PRICED, AND IT IS THE
+  INTERESTING ONE.** §5's promotion ruling established that **rig is not in
+  `CapabilityMap`, has no connection to itself, and `meta` refuses `"rig"` as an
+  invoke target** - four independent closures, recorded under *"PROMOTION IS
+  DEAD"*. So *"the `rig` program we already have there"* describes something
+  that, on the registry's own terms, **is not a registered program at all.**
+  Either the rail carries a rig entry the registry does not serve, or rig
+  registers with itself and reopens a namespace reservation refused twice.
+  **This is a real design question and it is not a seat's to settle** - but it
+  must not be discovered halfway through the build.
+
+  ✅ **REQUIREMENT 13 ANSWERS AN OPEN ITEM THIS SECTION ALREADY CARRIED.** M1a
+  step 5 shipped settings as keyboard-only - opened with `,`, closed with Esc -
+  and the recorded reason was *"the panel is reachable without a pointer, which
+  is the only way it is reachable at all while the context bar has no room for
+  another control"*. **He has now ruled that it gets a control.** So the room
+  has to be found; the keyboard path stays, because it was never the problem.
+
+  **WHAT IS UNCHANGED BY ALL OF THIS, so nobody re-reads it as a reversal:**
+  requirement 8 is still deferred (no live updates until §5h's bus), requirement
+  9's visual bar still binds, and **the whole of this is still OFF THE MVP
+  PATH** by his ruling minutes earlier.
+
 The UI shell inside rig. Its visual system is a separate piece of work (§23 M1a) because for a
 program whose whole job is presenting other programs, the visual design *is* the product. It is
 built and measured: `design/visual-system.html`, engine at `design/theme.js`.
