@@ -292,12 +292,27 @@
 
   /* ── one tab per project or case ──────────────────────────────────────── */
 
+  /* ⛔ overflow-y MUST BE STATED, AND THIS IS A MEASURED DEFECT RATHER THAN
+     TIDYING. Boris, 2026-09-17, with an arrow drawn on the screenshot: "These
+     scrolls are unnecessary."
+
+     CSS computes `overflow-y: visible` to `auto` the moment the other axis is
+     not `visible`. So `overflow-x: auto` alone gave this one-row tab strip a
+     VERTICAL scrollbar as well. Measured in the real bundle: computed
+     overflowY "auto", clientHeight 37 against scrollHeight 38 - a one-pixel
+     phantom, drawn as a full set of arrows above the panel's real bar.
+
+     `hidden` is honest HERE and only here: the strip is a single row of tabs
+     with nothing below the fold, so no content becomes unreachable. Where a
+     bar is doing real work the fix is to stop creating the container, never to
+     hide the bar. */
   .tabs {
     display: flex;
     gap: 0.15rem;
     border-bottom: 1px solid var(--border);
     padding: 0 0.8rem;
     overflow-x: auto;
+    overflow-y: hidden;
   }
 
   [role="tab"] {
@@ -332,7 +347,8 @@
   }
 
   .panel {
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
     min-height: 0;
     padding: calc(1.1rem * var(--den)) 1.15rem calc(2rem * var(--den));
   }

@@ -436,7 +436,12 @@
     font-family: var(--mono);
     font-size: var(--fs--1);
     white-space: pre-wrap;
+    /* Both axes stated: `overflow-x` alone computes overflow-y to `auto` and
+       draws a vertical bar this pre-wrapped block never needs. Same class as
+       the tab strip's phantom bar, found by sweeping for the pattern rather
+       than by hitting it a second time. */
     overflow-x: auto;
+    overflow-y: hidden;
   }
 
   dl {

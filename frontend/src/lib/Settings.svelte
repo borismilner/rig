@@ -288,7 +288,11 @@
     transform: translate(-50%, -50%);
     width: min(34rem, calc(100vw - 2rem));
     max-height: min(46rem, calc(100vh - 2rem));
+    /* The dialog grows downward only. Stating overflow-x keeps CSS from
+       computing it to `auto` and hanging a horizontal bar under a panel whose
+       width is already clamped. */
     overflow-y: auto;
+    overflow-x: hidden;
     box-sizing: border-box;
     padding: 1.1rem 1.25rem 1.4rem;
     background: var(--panel);
