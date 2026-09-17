@@ -10,6 +10,7 @@
 import { describe, it, expect } from "vitest";
 import {
   SECTION_ORDER,
+  splitByKind,
   NOT_STEPPED,
   sectionView,
   sectionViews,
@@ -289,5 +290,35 @@ describe("age", () => {
 
   it("does not render a negative age as a huge one", () => {
     expect(age(ago(-60_000), now)).toBe("in the future");
+  });
+});
+
+describe("projects against cases", () => {
+  const e = (id: string, kind: string) => ({ id, kind });
+
+  it("splits on the kind the wire carries", () => {
+    const { projects, cases } = splitByKind([
+      e("rig", "project"),
+      e("tax-2026", "case"),
+      e("shelf", "project"),
+    ]);
+    expect(projects.map((x) => x.id)).toEqual(["rig", "shelf"]);
+    expect(cases.map((x) => x.id)).toEqual(["tax-2026"]);
+  });
+
+  // ⛔ A record must not fall out of both buckets and become unreachable.
+  it("puts an empty kind on the projects side rather than nowhere", () => {
+    const { projects, cases } = splitByKind([e("mystery", "")]);
+    expect(projects).toHaveLength(1);
+    expect(cases).toHaveLength(0);
+  });
+
+  it("puts a kind this build has never heard of on the projects side", () => {
+    const { projects } = splitByKind([e("future", "dossier")]);
+    expect(projects.map((x) => x.id)).toEqual(["future"]);
+  });
+
+  it("answers both sides empty for an empty roster", () => {
+    expect(splitByKind([])).toEqual({ projects: [], cases: [] });
   });
 });

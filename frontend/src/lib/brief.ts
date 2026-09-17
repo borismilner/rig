@@ -276,3 +276,27 @@ export function age(sinceUnixNano: number, now: number = Date.now()): string {
   if (h < 24) return `${Math.floor(h)}h ago`;
   return `${Math.floor(h / 24)}d ago`;
 }
+
+/* ── projects against cases ─────────────────────────────────────────────── */
+
+/* The toggle's two buckets (section 11 requirement 18).
+ *
+ * `kind` is a real field on the wire - ProjectBriefResponse.kind, and a case
+ * has no semver and a different status vocabulary - so this split is read
+ * rather than invented. "Area of interest", the third level he asked about,
+ * is NOT on the wire and deliberately has no function here.
+ *
+ * ⛔ ANYTHING THAT IS NOT A CASE IS A PROJECT, not "anything that says
+ * project". A record whose kind the daemon left empty, or one from a newer
+ * daemon with a kind this build has never heard of, has to land somewhere a
+ * person can reach it, and silently dropping it from both buckets is how a
+ * record becomes invisible. The default side is the one that is always shown.
+ */
+export function splitByKind<T extends { kind: string }>(
+  entries: T[],
+): { projects: T[]; cases: T[] } {
+  return {
+    projects: entries.filter((e) => e.kind !== "case"),
+    cases: entries.filter((e) => e.kind === "case"),
+  };
+}

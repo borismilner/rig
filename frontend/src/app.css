@@ -32,6 +32,38 @@ body {
   height: 100vh;
 }
 
+/* ── three faces, three jobs, and this is why the shell read flat ─────────
+
+   design/theme.js emits --disp, --sans and --mono. The shell used --sans for
+   every heading and spent --disp on one word, so hierarchy rested on font
+   WEIGHT alone, which has two usable steps before it turns to mud.
+
+   Two pages were measured before this was written. ~/me/library/index.html
+   carries 68 items on SYSTEM FONTS - no @font-face, no web font, eight
+   box-shadows, no gradient - and stays browsable because a serif titles every
+   card, a sans carries every sentence and tabular mono carries every number.
+   design/visual-system.html does the same three-way split and adds a strip of
+   large mono figures under its hero. Neither uses an effect the shell lacks.
+
+   So these are roles rather than styles: a title asks for .t-sec and gets
+   whatever face the live theme names, and a number asks for .t-num and gets
+   tabular figures that do not shift width as they change. Declared once here
+   rather than per component, because the same defect had already been fixed
+   twice in two files. */
+
+.t-sec {
+  font-family: var(--disp);
+  font-weight: 600;
+  letter-spacing: var(--tight-disp);
+  line-height: 1.15;
+  color: var(--fg);
+}
+
+.t-num {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── the shell: 56px rail, 36px context bar, 22px status strip ─────────────
    Section 11's chrome budget, and it is a number that gets defended: 6.1% of
    1400x900. Ported from design/visual-system.src.html:181-226 rather than
@@ -285,4 +317,20 @@ kbd {
 .dot.bad {
   border-color: var(--sem-bad);
   background: var(--sem-bad);
+}
+
+/* The quality floor, and it is one rule rather than a per-component decision.
+   design/theme.js already ships a `--motion` token for this; until section 6's
+   config surface can push it, the operating system's own preference is the
+   authority. The rail's notch, the marker scale and every colour transition in
+   this window stop moving when a person has asked for that. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

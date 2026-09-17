@@ -121,9 +121,17 @@
          two rows of cells, left most of that empty. Found by looking at a
          screenshot after every ratio had already passed. -->
     <section class="hero">
-      <div class="fig">
-        <Waffle items={p.items} {summary} />
-      </div>
+      {#if p.planned > 0}
+        <div class="fig">
+          <Waffle items={p.items} {summary} />
+        </div>
+      {:else}
+        <!-- An empty grid reads as a rendering fault rather than as an empty
+             project, so there is no grid to draw. -->
+        <p class="nofig">
+          Nothing is open here, so there is no plan to draw against.
+        </p>
+      {/if}
 
       <div class="reading">
         <div class="pair">
@@ -435,6 +443,12 @@
 
   .fig {
     min-width: 0;
+  }
+
+  .nofig {
+    margin: 0;
+    color: var(--fg-dim);
+    font-size: var(--fs--1);
   }
 
   .reading {

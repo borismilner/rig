@@ -26,6 +26,7 @@
   import PlanVsExec from "./PlanVsExec.svelte";
   import type { RigStore } from "./rigstore.svelte";
   import { SELF } from "./rigstore.svelte";
+  import { splitByKind } from "./brief";
 
   interface Props {
     store: RigStore;
@@ -82,8 +83,9 @@
         ],
   );
 
-  let projects = $derived(entries.filter((e) => e.kind !== "case"));
-  let cases = $derived(entries.filter((e) => e.kind === "case"));
+  let split = $derived(splitByKind(entries));
+  let projects = $derived(split.projects);
+  let cases = $derived(split.cases);
   let shown = $derived(side === "cases" ? cases : projects);
 
   // Keep the selection inside the visible bucket. Switching the toggle to a
