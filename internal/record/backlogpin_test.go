@@ -164,7 +164,10 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 			"B49", "B5", "B50", "B51", "B52", "B53", "B54", "B55",
 			"B56", "B57", "B58", "B59", "B6", "B60", "B61", "B62", "B63",
 			// B64-B70 filed 2026-09-17 by the nine-surface attack, all OPEN.
-			"B64", "B65", "B66", "B67", "B68", "B69", "B7", "B70",
+			// B71 filed 2026-09-17 by team-lead generation 11: the contrast
+			// gate cannot see a background-image, so it returns green over
+			// ground the eye never sees. OPEN.
+			"B64", "B65", "B66", "B67", "B68", "B69", "B7", "B70", "B71",
 			"B8", "B9",
 		})
 
@@ -204,9 +207,15 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 		// established the way this test's own failure message says to, by
 		// checking that TestTheBacklogParserReadsEveryRowShapeTheSameWay was
 		// GREEN at the same commit.
-		{"rows", len(items), 75},
+		//
+		// 75 -> 76 and 66 -> 67 later the same day: B71, one OPEN row, filed by
+		// team-lead generation 11. Same discrimination run again - the shape
+		// test was GREEN at this commit and the SET pin reported exactly one
+		// added id, {B71}, which is the assertion that would have caught a swap
+		// and the one a previous generation moved the counts without checking.
+		{"rows", len(items), 76},
 		{"closed", len(struck) + len(byLead), 9},
-		{"open", open, 66},
+		{"open", open, 67},
 	} {
 		if c.got != c.want {
 			t.Errorf("%s: %d, pinned at %d.\n"+
