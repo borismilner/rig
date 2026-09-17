@@ -1024,3 +1024,64 @@ seven consecutive full-width cards, five of which say the same two sentences
 about the git projection. **A panel that repeats one reason five times is
 spending a screen to say one thing** - that is a grouping defect, not a colour
 one, and the two must not be closed together.
+
+## ⛔ A MANAGEMENT PANEL, AND REDEPLOYMENT MUST BE TRIVIAL AND AUTOMATIC. BORIS, 2026-09-17.
+
+> *"Should have management panel to do things like `make install` in the proper
+> place with ease. And `make install-window`. You can click these buttons
+> yourself too and perhaps it would bypass different strange limitations you
+> have. Redeployment should be trivial and automatic."*
+
+⛔ **THIS IS THE ANSWER TO A PROBLEM THAT HAS RIDDEN FIVE GENERATIONS OF HANDOVER
+DOCUMENTS**, and every one of them recorded it as a wall rather than as a
+requirement: *"`make install` is denied to a seat; three denials is an answer."*
+**He has now said what to build instead of asking again.**
+
+### The requirement, in four parts
+
+| # | What he asked for |
+|---|---|
+| 1 | **a MANAGEMENT PANEL in the window** - deployment actions in the place he already looks, rather than in a terminal he has to find |
+| 2 | **`make install` and `make install-window` are the first two**, named |
+| 3 | **a seat can press them too** |
+| 4 | ⛔ **"Redeployment should be trivial and automatic"** - which is a bar on the WHOLE act, not a request for two buttons |
+
+### ⛔ PART 4 OUTRANKS PARTS 1-3 AND MUST NOT BE ANSWERED WITH THEM
+
+**Two buttons is the SMALL reading.** *"Trivial and automatic"* says the thing
+that should not require a decision is the redeploy itself. B89 is the measured
+case: `make install` reported success while the window it did not touch stayed
+thirteen hours stale, **and nobody noticed for a day.** A panel with two buttons
+on it would have had the same outcome - somebody has to know to press the second.
+
+⛔ **SO THE PANEL OWES A STATE BEFORE IT OWES A BUTTON:** what is deployed, what
+is built, and whether they are the same thing. **A redeploy control that cannot
+say what is currently running is a button that reports success over B89 again.**
+
+### ⛔ WHETHER A SEAT MAY PRESS IT IS rig's CAPABILITY MODEL, NOT A WORKAROUND
+
+**He is right about the effect and the mechanism must be built as the feature it
+is.** §13 and §42 already govern what an agent may do, and a deploy control is
+exactly the kind of declared, effectful capability they exist for: it is
+`EffectsDestructive` or close to it, it replaces a live deployment, and §28
+already spends thirty lines on why a stale daemon left running is a failed
+termination.
+
+⛔ **SO IT IS DECLARED, ATTRIBUTED AND LOGGED LIKE EVERY OTHER EFFECTFUL VERB** -
+who pressed it, from which seat, at which epoch - and **the policy of whether a
+seat may is HIS to set**, which is what §42's *"absolutely without restrictions"*
+default already says. **Building it as a way around a harness gate rather than as
+a capability is the version that goes wrong**: an unattributed shell-out from a
+GUI is the one shape §13 exists to refuse, and it would also be a worse product.
+
+### What this does NOT license
+
+⛔ **NOT arbitrary shell from the window.** The panel runs rig's OWN declared
+deployment actions. A text box that runs what is typed into it is a different
+product and a much worse one.
+
+⛔ **NOT automatic deployment of unreviewed work.** *"Automatic"* is his word
+about the ACT being trivial once decided, in a message whose whole subject is
+making a deploy easy to perform. **Nothing here says a commit deploys itself**,
+and a seat reading it that way has widened a convenience into a policy he has not
+stated. If he wants that, he will say so.
