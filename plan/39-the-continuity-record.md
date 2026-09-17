@@ -3008,3 +3008,50 @@ by the daemon from the uid over `SO_PEERCRED`. **A name carried in the request i
 still refused** - it is the daemon's to determine, which is the property that
 makes provenance worth anything. **Default is not the same as claimable.**
 
+### ⛔ DELETE DROPS THE EDGES. RULED BY BORIS 2026-09-17, AGAINST THE LEAD'S RECOMMENDATION.
+
+**The question put to him:** other records point at a record with `part-of` and
+`supersedes` edges - the busiest target in the store has 758 citations - so what
+happens to those edges when the target is deleted?
+
+| Option | |
+|---|---|
+| **refuse and name the citers** | the lead's recommendation. Delete fails while anything points at the record, and the refusal lists what |
+| ✅ **RULED: delete and drop the edges** | **the record and every edge touching it go.** One command, nothing to clean up |
+| cascade to children | not chosen |
+
+⛔ **THE COST WAS STATED BEFORE HE CHOSE AND HE TOOK IT, SO IT IS NOT A DEFECT TO
+BE FIXED LATER BY A SEAT THAT REDISCOVERS IT:** deleting a parent leaves its
+children with no record that they ever had one, and the next brief renders them
+as top-level items as though that were intended. **B46 has six children; a
+section heading can have dozens.**
+
+⛔ **SO THE OBLIGATION MOVES FROM THE VERB TO THE REPORT.** Since nothing refuses,
+`delete` must SAY what it took: **the count and the ids of every edge dropped, on
+the command's own output**, and a dry run must be able to show it first. **A
+destructive verb that answers `deleted` and nothing else is the failure this
+project already has a name for** - it is B75's shape, success reported over data
+loss, arriving through a verb that is supposed to lose data.
+
+**And this is why `replace` is not optional.** The duplicate case - two ids
+holding one fact - is the case where the edges genuinely must survive, onto the
+survivor. **Shipping `delete` without `replace` leaves that case with no answer
+but edge loss.**
+
+### ✅ THE RE-SEED WAITS FOR DELETE. RULED BY BORIS 2026-09-17.
+
+**Order: `retract` + `delete` + `replace` land, THEN production is re-seeded, THEN
+the three strays are removed with the new verb.** A re-seed today is one-way - it
+fixes what is missing and stale and can undo neither the strays nor its own
+mistakes - and it has only ever been run against a throwaway store.
+
+### ✅ THE BRIEF GAINS A `CLOSED` SECTION. RULED BY BORIS 2026-09-17. (B68)
+
+**14 of 80 work items are invisible today because the brief renders only
+`status == "active"`.** The open list does **not** change; a new section carries
+the closed rows **with the word that closed them**.
+
+⛔ **"CLOSED" IS A FAMILY AND THE SECTION MUST SHOW WHICH:** 12 `closed` and 2
+`closed-by-ruling` in the live store. **A one-word filter on `"closed"` drops the
+two and re-opens B68 for them**, which is the trap this row was filed over.
+
