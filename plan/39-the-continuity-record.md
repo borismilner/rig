@@ -1506,6 +1506,7 @@ other record's "project it belongs to" field is this same slug.
 | `principles` | project, work-item | optional list; **a parent's principles bind its children** rather than being restated per item |
 | `owner` | project, work-item | which seat is currently driving it |
 | `target_date` | work-item | optional |
+| `item_type` | work-item | ⛔ **`task`, `bug`, `idea` - the classification WITHIN work-item, and it is NOT `kind`.** Boris, 2026-09-17: *"The different work-items should probably be classified to task/bug/idea/... with appropriate icons."* `kind` already separates a work-item from a decision from a requirement; this separates work-items from each other. **The trailing `/...` is his and the set is deliberately open** - a value this list does not name renders as itself rather than being refused. ⛔ **NOTHING MAY BACKFILL IT BY GUESSING.** `BACKLOG.md` says nothing about whether a row is a bug; the rows read as defects because that is what this project files, not because anything typed them. **An untyped row says untyped**, and new rows carry a type because whoever writes them knows it |
 | `source` | project, work-item | which document or session it originated from - distinct from `cites`, which is for rules-on |
 | `next_up_n` | project | how many work-items `project.brief` surfaces as "next up." **Default 5**, override per project |
 
