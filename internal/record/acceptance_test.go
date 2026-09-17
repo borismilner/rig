@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
+	"strings"
 	"testing"
 )
 
@@ -298,7 +300,7 @@ func report(t *testing.T, headline string, b Brief, open, seeded int) {
 	fmt.Printf("\n  === %s ===\n", headline)
 	fmt.Printf("  project %s   %d open of %d seeded   next_up_n=%d\n",
 		b.Project, open, seeded, len(b.NextUp))
-	fmt.Printf("  NEXT UP (execution order)\n")
+	fmt.Printf("  NEXT UP %s\n", nextUpOrderLabel(b.NextUp))
 	for i, it := range b.NextUp {
 		fmt.Printf("    %d. %-5s %-8s %s\n", i+1, it.ID, "["+it.State+"]", trunc(it.Title, 58))
 	}
@@ -340,4 +342,62 @@ func contains(ss []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// nextUpOrderLabel says what the printed order ACTUALLY IS rather than what the
+// derivation is capable of.
+//
+// ⛔ THIS REPORT IS `make mvp-demo`'s OUTPUT - the artefact whose whole job is
+// to prove section 39 works - AND IT CARRIED A FALSE CAPTION. It printed
+// "(execution order)" unconditionally. `sortByPriority` IS a topological sort
+// over `blocks` and it is correct; the store holds ZERO `blocks` edges and ZERO
+// priorities, so it degenerates to `sort.Strings` and the demonstration
+// asserted an ordering it had not performed. Measured 2026-09-17 against live
+// production: 0 of 68 records carry a priority.
+//
+// The fourth of four sites, found by the seat that fixed the other three and
+// handed this one back because it is not in `cmd/rig`. The other three are at
+// `cmd/rig/brief.go`; `internal/daemon/record.go:690` records that NO GATE IN
+// THIS REPOSITORY CHECKS A CAPTION, which is why every one of them was found by
+// a person reading rather than by a test.
+//
+// Derived, never asserted, so it retires itself the day an ordering exists: it
+// compares the order it was handed against those same ids sorted, and reports
+// what it sees.
+func nextUpOrderLabel(items []ItemState) string {
+	if len(items) < 2 {
+		return "(order not observable below two items)"
+	}
+	ids := make([]string, len(items))
+	for i, it := range items {
+		ids[i] = it.ID
+	}
+	byID := append([]string(nil), ids...)
+	sort.Strings(byID)
+	for i := range ids {
+		if ids[i] != byID[i] {
+			return "(execution order)"
+		}
+	}
+	return "(id order - nothing here carries a priority or a blocks edge)"
+}
+
+// The caption must go to "id order" exactly when the order it was handed is
+// the ids sorted, and to "execution order" only when the derivation actually
+// moved something. Mutation-tested: inverting the comparison makes both arms
+// report the other label and each assertion below names its own case.
+func TestNextUpOrderLabelSaysWhatTheOrderIs(t *testing.T) {
+	sorted := []ItemState{{ID: "B1"}, {ID: "B10"}, {ID: "B12"}}
+	if got := nextUpOrderLabel(sorted); !strings.Contains(got, "id order") {
+		t.Errorf("ids already in sorted order must NOT be captioned as execution order, got %q", got)
+	}
+	moved := []ItemState{{ID: "B45"}, {ID: "B2"}, {ID: "B7"}}
+	if got := nextUpOrderLabel(moved); got != "(execution order)" {
+		t.Errorf("an order the derivation actually changed IS execution order, got %q", got)
+	}
+	// Below two items there is nothing to observe, and claiming either label
+	// would be a claim the data cannot support.
+	if got := nextUpOrderLabel([]ItemState{{ID: "B1"}}); !strings.Contains(got, "not observable") {
+		t.Errorf("one item cannot evidence an ordering, got %q", got)
+	}
 }
