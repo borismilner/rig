@@ -332,10 +332,26 @@ withdrawn.** ⛔ **Third instance of this section's own rule: a quotation
 attributed to Boris that cannot be traced to a transcript is a seat's paraphrase
 until proved otherwise, and the carrier of a quotation is never its evidence.**
 
-#### ⛔ THERE IS NO WARM-HANDOFF MARK. THE SESSION WINDS DOWN AT 97% OF THE SESSION BUDGET. RULED BY BORIS 2026-09-17, THIRD AND LATEST STATEMENT.
+#### ⛔ THE 97% WIND-DOWN WAS FOR ONE SESSION ONLY. IT IS NOT A STANDING RULE, AND THIS BLOCK IS THE CORRECTION.
 
-**His words, to the twelfth lead generation, and they retire the context mark
-outright:**
+⛔ **CORRECTED BY BORIS THE SAME DAY, IN HIS OWN WORDS:** *"the rule about 97%
+session was only for the current session and you seem to have persisted it to
+all sessions."* **Lead generation 12 wrote it into this section as a standing
+requirement. It was not one.**
+
+⛔ **THE FAILURE IS WORTH MORE THAN THE ROW AND IT IS THE INVERSE OF THIS
+PROJECT'S USUAL ONE.** Four of his requirements were lost by living only in a
+volatile document, so `CLAUDE.md` says record a requirement in the durable
+document THAT TURN - and the seat applying that rule promoted a one-session
+instruction into the specification without asking which it was. ⛔ **THE RULE
+NEEDS ITS OTHER HALF: RECORD WHAT HE SAID THAT TURN, AND RECORD ITS SCOPE WITH
+IT.** *"For this session"* and *"from now on"* read identically once they are in
+a document, which is the same defect as an untagged measurement one level up.
+**When the scope is not stated, ASK - it is one line and it is cheaper than a
+false requirement.**
+
+**What he said, kept because the instruction was real for the session it was
+given in:**
 
 > *"You must work on our goal of the perfect MVP and wind-down once session is
 > at 97%, you are not to warm-handoff before that."*
@@ -344,30 +360,18 @@ outright:**
 > relevant documents for autonomous work on the next session when I point you
 > to the entry point and you'll have no context at all."*
 
-⛔ **THIS IS NOT A SEVENTH NUMBER IN THE SAME SERIES. IT CHANGES WHICH CLOCK
-GOVERNS.** Six values had been given for a CONTEXT-window mark; this ruling
-says the context window does not trigger a handover at all. **The SESSION
-budget does, at 97%, and what happens there is a COLD wind-down - documents
-prepared for a session that arrives with no context - not a live relay.**
+⛔ **SO WHAT STANDS, AND WHAT DOES NOT:**
 
-| Clock | What it now does |
+| | |
 |---|---|
-| the **SESSION budget** (5h) | ⛔ **THE ONLY TRIGGER. At 97%: wind down and prepare the documents.** |
-| the **CONTEXT window** | ⛔ **TRIGGERS NOTHING.** Keep working |
+| ⛔ **NOT a standing rule** | the 97% wind-down, and the ban on warm handoffs before it. **Both were for the session of 2026-09-17 alone** |
+| ⛔ **NO STANDING MARK IS IN FORCE** | the six context-window numbers (35, 40, 45, 40, 45, 40) were each superseded, and the last of them was then set aside for one session. **A seat arriving cold has NO ruled mark to work to and must not infer one from this history** - ask him, or work to the guard |
+| ✅ **STANDS, and is not part of this** | the entry point must be sufficient on its own for a session with no context. That is his 2026-09-16 instruction and it was never session-scoped |
 
-⛔ **SO A WARM HANDOFF IS BANNED BEFORE 97% OF THE SESSION BUDGET**, and at
-97% the thing owed is the entry point, not a successor. **This is consistent
-with his 2026-09-16 objection that a warm handoff is "a waste of time" and with
-his standing instruction that the entry point must be sufficient on its own -
-the two rulings agree, and the context-window mark was the odd one out.**
-
-⛔ **THE `PostToolUse` GUARD AND GLOBAL `CLAUDE.md` BOTH FIRE ON THE CONTEXT
-WINDOW AND ARE NOW STALE AGAINST THIS.** When one fires: say in one line that it
-fired on a clock he has retired, and **keep working.** Do not spawn.
-
-⛔ **THE ACCEPTANCE TEST FOR THE WIND-DOWN IS HIS OWN SENTENCE:** *"when I
-point you to the entry point and you'll have no context at all."* **A wind-down
-that leaves anything only in this session's context has failed it.**
+⛔ **THE ACCEPTANCE TEST FOR ANY WIND-DOWN IS HIS OWN SENTENCE, AND THIS PART
+IS PERMANENT:** *"when I point you to the entry point and you'll have no context
+at all."* **A wind-down that leaves anything only in a session's context has
+failed it, whenever it happens and whatever triggered it.**
 
 ##### ⛔ SUPERSEDED: THE 40% CONTEXT MARK, KEPT BECAUSE THE SUPERSESSION IS THE POINT
 
@@ -376,11 +380,10 @@ that leaves anything only in this session's context has failed it.**
 > *"Keep working towards our goal of a perfect MVP until you get to 40% context"*
 
 ⛔ **40 SUPERSEDES THE 45 RECORDED EARLIER THE SAME DAY**, which superseded 40,
-which superseded 35. **He gave SIX numbers in two days and then retired the
-clock they measured.** ⛔ **DO NOT ACT ON THIS ROW. At 40% of the context
-window, nothing now happens** - the block above is the live rule and this one is
-kept only so a reader meeting the number elsewhere can see it was withdrawn
-rather than forgotten.
+which superseded 35. **He gave SIX numbers in two days.** ⛔ **DO NOT ACT ON
+THIS ROW AND DO NOT ARGUE FROM THE SERIES.** The block above records that the
+latest of them was set aside for one session only, which leaves no mark ruled
+for a fresh one. **Ask him rather than picking a number off this history.**
 
 ⛔ **DO NOT "RECONCILE" THE TWO. There is nothing to reconcile and the number is
 not converging on anything** - it has been 35, 40, 45, 40, 45, 40. **Treat this
@@ -402,9 +405,7 @@ working to his.
 OPPOSITE THINGS ON PURPOSE.** The session window (5h) rule is *never hand off
 against it* - a fresh session shares the same window, so the relay buys
 nothing. The context window rule is *hand off at 45%*. **A session that merges
-the two will do the wrong thing on one of them.** ⛔ **AND THE 2026-09-17 THIRD
-STATEMENT SETTLES IT IN THE OTHER DIRECTION: the session window is now the only
-clock that triggers anything, and what it triggers is a COLD wind-down.**
+the two will do the wrong thing on one of them.**
 
 ##### ⛔ WHY THIS IS IN THE SPECIFICATION AND NOT IN A HANDOFF NOTE
 
