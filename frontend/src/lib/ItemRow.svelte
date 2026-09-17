@@ -23,6 +23,7 @@
      made twice and the second one is the one that gets forgotten. -->
 <script lang="ts">
   import type { Item } from "../../bindings/github.com/boris-milner/rig/cmd/rigwindow/models.js";
+  import { itemTypeView } from "./itemtype";
 
   interface Props {
     item: Item;
@@ -44,6 +45,9 @@
   let { item, tone, trailing, unstepped, startOpen = false }: Props = $props();
 
   let open = $state(startOpen);
+
+  // null when the item is untyped, which is most of them and is honest.
+  let ty = $derived(itemTypeView(item.itemType));
 
   // ⛔ WHETHER THERE IS ANYTHING BEHIND THE ROW AT ALL. A row with an empty
   // record must not offer to open and then show a blank panel - that is the
@@ -72,6 +76,17 @@
     onclick={() => (open = !open)}
   >
     <span class="dotm" data-tone={tone}></span>
+    <!-- ⛔ THE TYPE SLOT IS ALWAYS PRESENT, EVEN WHEN EMPTY. A column that
+         appears only for typed rows would shift every other row sideways as
+         soon as one item is classified, and the lists are read by scanning a
+         column. An untyped row reserves the space and draws nothing. -->
+    <span class="ity" title={ty ? ty.label : "untyped"}>
+      {#if ty && ty.icon}
+        <svg viewBox="0 0 16 16" aria-hidden="true" style:color={ty.hue ? `var(--h-${ty.hue})` : "inherit"}>
+          <path d={ty.icon} />
+        </svg>
+      {/if}
+    </span>
     <span class="iid">{item.id}</span>
     <span class="it">{item.title}</span>
     <span class="ist" class:none={unstepped}>{trailing}</span>
@@ -87,6 +102,10 @@
       {/if}
 
       <dl class="facts">
+        <div>
+          <dt>type</dt>
+          <dd>{ty ? ty.label : "untyped"}</dd>
+        </div>
         {#if item.status}
           <div><dt>status</dt><dd>{item.status}</dd></div>
         {/if}
@@ -127,7 +146,7 @@
   .head {
     /* The same five-column grid the two lists used, plus the affordance. */
     display: grid;
-    grid-template-columns: 2.2rem minmax(7ch, auto) minmax(0, 1fr) auto 1.2rem;
+    grid-template-columns: 2.2rem 1.1rem minmax(7ch, auto) minmax(0, 1fr) auto 1.2rem;
     gap: 0.5rem;
     align-items: baseline;
     width: 100%;
@@ -206,6 +225,24 @@
      of identical amber down one column and the hue became the list's noise.
      The warn hue is spent ONCE, on the headline zero. Preserved on the move. */
   .ist.none {
+    color: var(--fg-dim);
+  }
+
+  .ity {
+    display: grid;
+    place-items: center;
+    align-self: center;
+  }
+
+  .ity svg {
+    width: 11px;
+    height: 11px;
+    fill: currentColor;
+  }
+
+  /* A type with no hue of its own stays dim, so an unrecognised classification
+     never reads louder than bug or idea. */
+  .ity svg:not([style*="--h-"]) {
     color: var(--fg-dim);
   }
 

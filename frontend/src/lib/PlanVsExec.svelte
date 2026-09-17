@@ -83,9 +83,13 @@
   let query = $state(openRows ? "b" : "");
   let ownerFilter = $state("");
   let tagFilter = $state("");
+  let typeFilter = $state("");
 
   let filtering = $derived(
-    query.trim() !== "" || ownerFilter !== "" || tagFilter !== "",
+    query.trim() !== "" ||
+      ownerFilter !== "" ||
+      tagFilter !== "" ||
+      typeFilter !== "",
   );
 
   // Every owner and tag actually present, so the controls offer what exists
@@ -99,10 +103,22 @@
   let tags = $derived(
     [...new Set(allItems.flatMap((i) => i.tags ?? []))].sort(),
   );
+  // Only types that are actually present, plus an explicit "untyped" when any
+  // row is - because "show me what nobody has classified" is the question this
+  // list makes answerable, and it is the one he will have most of.
+  let types = $derived(
+    [...new Set(allItems.map((i) => i.itemType).filter(Boolean))].sort(),
+  );
+  let anyUntyped = $derived(allItems.some((i) => !i.itemType));
 
   function matches(it: Item): boolean {
     if (ownerFilter && it.owner !== ownerFilter) return false;
     if (tagFilter && !(it.tags ?? []).includes(tagFilter)) return false;
+    if (typeFilter === "\u0000untyped") {
+      if (it.itemType) return false;
+    } else if (typeFilter && it.itemType !== typeFilter) {
+      return false;
+    }
     const q = query.trim().toLowerCase();
     if (!q) return true;
     // id, title and the short description - everything the row can actually
@@ -124,6 +140,7 @@
     query = "";
     ownerFilter = "";
     tagFilter = "";
+    typeFilter = "";
   }
   let t = $derived(sectionTally(brief));
   let blockedSection = $derived(sectionView(brief, "BLOCKED"));
@@ -287,6 +304,19 @@
           <select bind:value={ownerFilter}>
             <option value="">any</option>
             {#each owners as o (o)}<option value={o}>{o}</option>{/each}
+          </select>
+        </label>
+      {/if}
+
+      {#if types.length > 0 || anyUntyped}
+        <label>
+          <span class="flabel">type</span>
+          <select bind:value={typeFilter}>
+            <option value="">any</option>
+            {#each types as t (t)}<option value={t}>{t}</option>{/each}
+            {#if anyUntyped}
+              <option value={"\u0000untyped"}>untyped</option>
+            {/if}
           </select>
         </label>
       {/if}

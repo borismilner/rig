@@ -1402,6 +1402,19 @@ message ItemState {
   string target_date = 11;
   string semver = 12;
 
+  // `task`, `bug`, `idea` - the classification WITHIN work-item, and NOT
+  // `kind`. Boris, 2026-09-17: "The different work-items should probably be
+  // classified to task/bug/idea/... with appropriate icons."
+  //
+  // ⛔ THE SET IS OPEN ON PURPOSE - the trailing "/..." is his. A value this
+  // comment does not name must render as itself rather than be refused, so
+  // this is a string and not an enum. An enum here would also make every
+  // future type a wire change, which is the cost section 39 refuses.
+  //
+  // EMPTY means untyped, and untyped is the honest state of every row that
+  // exists today: nothing may infer a type from a row's wording.
+  string item_type = 13;
+
   // ⛔ has_note IS DELIBERATELY NOT HERE. The store carries it as a bool, and
   // it is exactly `note != ""` - a reader already holding `note` can answer it
   // without being told. Putting a derived bool on the wire is the shape that

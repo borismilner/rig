@@ -118,6 +118,7 @@ const unstepped = (id: string, title: string): Item => ({
   state: "not stepped",
   sinceUnixNano: 0,
   note: "",
+  itemType: "",
   descriptionShort: "",
   priority: "",
   status: "",
@@ -146,11 +147,13 @@ const described = (
   short: string,
   owner: string,
   tags: string[],
+  itemType = "",
 ): Item => ({
   ...unstepped(id, title),
   descriptionShort: short,
   owner,
   tags,
+  itemType,
   status: "active",
   priority: "high",
 });
@@ -182,6 +185,7 @@ export const BRIEF: Brief = {
       "`confirms` is ruled and unbuilt, so rig tells a user something...",
       "team-lead",
       ["wire", "honesty"],
+      "bug",
     ),
     described(
       "B10",
@@ -189,6 +193,11 @@ export const BRIEF: Brief = {
       "`--json` converges by the DAEMON rendering the bytes, not by the...",
       "backend-record",
       ["wire", "cli"],
+      // ⛔ A TYPE THE WINDOW DOES NOT KNOW, ON PURPOSE. His set ends in "/..."
+      // and the open-set behaviour ships: this must render as its own word
+      // rather than be refused or folded into a default. It is also what the
+      // contrast gate then measures.
+      "spike",
     ),
     unstepped(
       "B12",

@@ -338,6 +338,19 @@ type ItemState struct {
 	// invent one and refuse every record that disagreed.
 	TargetDate string
 
+	// ItemType is `task`, `bug`, `idea` - the classification WITHIN work-item.
+	//
+	// ⛔ IT IS NOT `Kind`. Kind separates a work-item from a decision from a
+	// requirement; this separates work-items from each other. Boris asked for
+	// it on 2026-09-17 with "appropriate icons", and section 39's field table
+	// carries the full statement.
+	//
+	// ⛔ EMPTY IS A REAL ANSWER AND THE COMMON ONE. Nothing may infer a type
+	// from a row's wording: BACKLOG.md says nothing about whether a row is a
+	// bug, and a type guessed from prose is a seat composing content. An
+	// untyped item says untyped.
+	ItemType string
+
 	// Semver is on the card because Boris's word for the metadata was
 	// "exhaustive" and the brief is where metadata is seen - one short string
 	// answering "how far along is this".
@@ -382,6 +395,7 @@ func card(it Record) ItemState {
 		Owner:            it.Fields["owner"],
 		Tags:             decodeTags(it.Fields["tags"]),
 		TargetDate:       it.Fields["target_date"],
+		ItemType:         it.Fields["item_type"],
 		Semver:           it.Fields["semver"],
 	}
 }

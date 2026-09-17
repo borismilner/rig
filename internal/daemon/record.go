@@ -508,6 +508,7 @@ func itemToWire(i record.ItemState) *rigv1.ItemState {
 		Tags:             i.Tags,
 		TargetDate:       i.TargetDate,
 		Semver:           i.Semver,
+		ItemType:         i.ItemType,
 	}
 	// A ZERO Since IS "NOBODY HAS STEPPED THIS YET", and it must not become a
 	// 1970 timestamp on the wire - a reader sorting by age would put it above

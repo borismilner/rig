@@ -68,6 +68,11 @@ type Item struct {
 
 	TargetDate string `json:"targetDate"`
 	Semver     string `json:"semver"`
+
+	// `task`, `bug`, `idea`, or empty for untyped. The row draws an icon for
+	// it; an unknown value draws no icon and renders as its own word, because
+	// the set is open.
+	ItemType string `json:"itemType"`
 }
 
 // Blocked is an item that cannot proceed, with what is holding it.
@@ -269,6 +274,7 @@ func itemsFrom(in []*rigv1.ItemState) []Item {
 			Tags:             i.GetTags(),
 			TargetDate:       i.GetTargetDate(),
 			Semver:           i.GetSemver(),
+			ItemType:         i.GetItemType(),
 		})
 	}
 	return out

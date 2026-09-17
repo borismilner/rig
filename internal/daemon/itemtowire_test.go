@@ -26,10 +26,13 @@ func TestEveryItemFieldTheStoreComputesReachesTheWire(t *testing.T) {
 	//   ID Title State Since Note                   crossed before this change
 	//   DescriptionShort Priority Status Owner Tags crossed as of 2026-09-17
 	//   TargetDate Semver                           crossed as of 2026-09-17
+	//   ItemType                                    crossed as of 2026-09-17,
+	//     the task/bug/idea classification he asked for. This test FIRED when
+	//     the field was added, which is the whole reason it is a count.
 	//   HasNote                                     DELIBERATELY not on the
 	//     wire: it is exactly `note != ""`, and a derived bool beside the field
 	//     it is derived from is a thing that can go stale on its own.
-	const fieldsThisTestKnowsAbout = 13
+	const fieldsThisTestKnowsAbout = 14
 	got := reflect.TypeOf(record.ItemState{}).NumField()
 	if got != fieldsThisTestKnowsAbout {
 		t.Fatalf("record.ItemState has %d fields, this test was written for %d.\n"+
@@ -51,6 +54,7 @@ func TestTheCardFieldsCrossTheWireIntact(t *testing.T) {
 		Tags:             []string{"window", "legibility"},
 		TargetDate:       "2026-09-30",
 		Semver:           "v0.1.0",
+		ItemType:         "bug",
 		Note:             "the latest step's words",
 	}
 
@@ -78,6 +82,29 @@ func TestTheCardFieldsCrossTheWireIntact(t *testing.T) {
 	}
 	if w.GetSemver() != in.Semver {
 		t.Errorf("semver dropped: %q", w.GetSemver())
+	}
+	if w.GetItemType() != in.ItemType {
+		t.Errorf("item_type dropped: %q", w.GetItemType())
+	}
+}
+
+// ⛔ THE SET IS OPEN, AND A VALUE NOBODY ANTICIPATED MUST SURVIVE THE WIRE
+// RATHER THAN BE NORMALISED AWAY. His own phrasing was "task/bug/idea/..." and
+// the trailing ellipsis is the requirement: an enum here would have made every
+// later type a wire change and would have dropped this on the floor today.
+func TestAnItemTypeNobodyAnticipatedCrossesUnchanged(t *testing.T) {
+	w := itemToWire(record.ItemState{ID: "B99", ItemType: "spike"})
+	if w.GetItemType() != "spike" {
+		t.Errorf("an unanticipated type was not carried verbatim: %q", w.GetItemType())
+	}
+}
+
+// ⛔ AN UNTYPED ROW STAYS UNTYPED. Every row that exists today is untyped, and
+// plan/39 forbids inferring one from a row's wording.
+func TestAnUntypedItemIsNotGivenAType(t *testing.T) {
+	w := itemToWire(record.ItemState{ID: "B1", Title: "a defect reached a live estate"})
+	if w.GetItemType() != "" {
+		t.Errorf("an untyped item was given the type %q", w.GetItemType())
 	}
 }
 

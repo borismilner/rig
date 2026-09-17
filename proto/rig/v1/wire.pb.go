@@ -5041,8 +5041,20 @@ type ItemState struct {
 	// human-friendly field by any reading of Boris's "human-friendly fields are
 	// obligatory", and leaving it behind while fixing the other five would be the
 	// same defect with a shorter list.
-	TargetDate    string `protobuf:"bytes,11,opt,name=target_date,json=targetDate,proto3" json:"target_date,omitempty"`
-	Semver        string `protobuf:"bytes,12,opt,name=semver,proto3" json:"semver,omitempty"`
+	TargetDate string `protobuf:"bytes,11,opt,name=target_date,json=targetDate,proto3" json:"target_date,omitempty"`
+	Semver     string `protobuf:"bytes,12,opt,name=semver,proto3" json:"semver,omitempty"`
+	// `task`, `bug`, `idea` - the classification WITHIN work-item, and NOT
+	// `kind`. Boris, 2026-09-17: "The different work-items should probably be
+	// classified to task/bug/idea/... with appropriate icons."
+	//
+	// ⛔ THE SET IS OPEN ON PURPOSE - the trailing "/..." is his. A value this
+	// comment does not name must render as itself rather than be refused, so
+	// this is a string and not an enum. An enum here would also make every
+	// future type a wire change, which is the cost section 39 refuses.
+	//
+	// EMPTY means untyped, and untyped is the honest state of every row that
+	// exists today: nothing may infer a type from a row's wording.
+	ItemType      string `protobuf:"bytes,13,opt,name=item_type,json=itemType,proto3" json:"item_type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5157,6 +5169,13 @@ func (x *ItemState) GetTargetDate() string {
 func (x *ItemState) GetSemver() string {
 	if x != nil {
 		return x.Semver
+	}
+	return ""
+}
+
+func (x *ItemState) GetItemType() string {
+	if x != nil {
+		return x.ItemType
 	}
 	return ""
 }
@@ -6652,7 +6671,7 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x05state\x18\x02 \x01(\x0e2\x11.rig.v1.StepStateR\x05state\x12\x12\n" +
 	"\x04note\x18\x03 \x01(\tR\x04noteJ\x04\b\x04\x10\x05R\bevidence\":\n" +
 	"\x14ProgressStepResponse\x12\"\n" +
-	"\x04step\x18\x01 \x01(\v2\x0e.rig.v1.RecordR\x04step\"\xda\x02\n" +
+	"\x04step\x18\x01 \x01(\v2\x0e.rig.v1.RecordR\x04step\"\xf7\x02\n" +
 	"\tItemState\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12'\n" +
@@ -6667,7 +6686,8 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	" \x03(\tR\x04tags\x12\x1f\n" +
 	"\vtarget_date\x18\v \x01(\tR\n" +
 	"targetDate\x12\x16\n" +
-	"\x06semver\x18\f \x01(\tR\x06semver\"X\n" +
+	"\x06semver\x18\f \x01(\tR\x06semver\x12\x1b\n" +
+	"\titem_type\x18\r \x01(\tR\bitemType\"X\n" +
 	"\aBlocker\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12'\n" +

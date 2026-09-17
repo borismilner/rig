@@ -366,6 +366,13 @@ export class Item {
     "targetDate": string;
     "semver": string;
 
+    /**
+     * `task`, `bug`, `idea`, or empty for untyped. The row draws an icon for
+     * it; an unknown value draws no icon and renders as its own word, because
+     * the set is open.
+     */
+    "itemType": string;
+
     /** Creates a new Item instance. */
     constructor($$source: Partial<Item> = {}) {
         if (!("id" in $$source)) {
@@ -403,6 +410,9 @@ export class Item {
         }
         if (!("semver" in $$source)) {
             this["semver"] = "";
+        }
+        if (!("itemType" in $$source)) {
+            this["itemType"] = "";
         }
 
         Object.assign(this, $$source);
