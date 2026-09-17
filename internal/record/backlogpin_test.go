@@ -203,7 +203,11 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 			// cannot tell its own red from a peer's, and a subagent has no row
 			// anywhere so work Boris commissioned is invisible while it runs -
 			// the second reported by him, not inferred for him. Both OPEN.
-			"B84", "B85", "B9",
+			"B84", "B85",
+			// B86 filed 2026-09-17 by generation 15 the turn Boris ruled it: a
+			// CLI write mints a new session every time, so 783 sessions over 451
+			// decisions say nothing. OPEN, and designed rather than open-ended.
+			"B86", "B9",
 		})
 
 	// B65 joins this set 2026-09-17: the field predicate landed at rig
@@ -318,9 +322,12 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 		// so every backlog edit owes a commit HERE and the two can be pushed
 		// apart. It has now been paid three times in one hour by one seat.
 		// That is B63 arriving at the GATE, and it is filed as B84.
-		{"rows", len(items), 90},
+		// 90 -> 91 rows and 76 -> 77 open: B86 filed, nothing closed.
+		// ⛔ B83 IS DELIBERATELY STILL OPEN although its build landed - the
+		// LIVE store holds none of the 342 records, so the row is not done.
+		{"rows", len(items), 91},
 		{"closed", len(struck) + len(byLead), 14},
-		{"open", open, 76},
+		{"open", open, 77},
 	} {
 		if c.got != c.want {
 			t.Errorf("%s: %d, pinned at %d.\n"+

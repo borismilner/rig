@@ -2939,3 +2939,72 @@ all day.
   phase 2 is *"all the rig-using agents"*.
 - **NOT a silent import.** A phase-1 peer that reports no friction has not
   completed phase 1.
+
+## ⛔ FULL CONTROL OVER THE RECORDS. BORIS, 2026-09-17, AND IT OVERRULES A SEAT'S RULING.
+
+> *"I want full controll over the records, so everybody can delete/retract
+> records and replace records and the missing functionality has to be
+> consolidated into the development plan. By default the name that goes with the
+> records and everything is the username from the OS."*
+
+⛔ **THIS OVERRULES "DO NOT ANSWER B77 WITH A DELETE", WHICH WAS A SEAT'S RULING
+AND NEVER HIS.** That instruction rode through four generations of handover
+documents in the imperative, and it was a lead's judgement that a delete would
+weaken the record's append-only character. **He has now said delete, in his own
+words, unprompted.** The seat ruling is dead; do not restore it by argument.
+
+**AND "EVERYBODY" IS HIS WORD.** Not the owner, not the writer, not an
+administrator. ⛔ **Anything shipped behind a permission check is building the
+wrong product**, which is §42's default read the same way: *"absolutely without
+restrictions"*, a policy table he configures rather than a boundary against a
+hostile agent.
+
+### THE FOUR CAPABILITIES, CONSOLIDATED - three are missing entirely
+
+**He asked for the missing functionality to be consolidated here rather than left
+scattered across backlog rows, so this table is the statement and the rows point
+at it.**
+
+| Verb | Today | What is owed |
+|---|---|---|
+| **supersede** | ✅ **BUILT.** `record.put` with `if_version` writes a new version; `record.get --version` reads any earlier one | nothing. This is the one that works |
+| ⛔ **retract** | **NOTHING.** B77. A record can be written and never withdrawn | mark a record withdrawn **without destroying its history** - it stops appearing in a brief or a query, and `record.get` still explains what it was and that it was retracted |
+| ⛔ **delete** | **NOTHING** | remove the record **and its versions**. ⛔ **THIS IS DESTRUCTIVE AND IT IS WHAT HE ASKED FOR.** It is not retract spelled differently, and shipping only retract does not satisfy this sentence |
+| ⛔ **replace** | **NOTHING at the identity level** | put a DIFFERENT record in the place of an existing one - the duplicate case, where two ids hold one fact and the survivor must absorb the other's inbound edges. A supersede cannot express it, because supersede keeps the id |
+
+⛔ **RETRACT, DELETE AND REPLACE ARE THREE CAPABILITIES AND NOT THREE NAMES FOR
+ONE.** A seat that ships retract and reports the sentence satisfied has shipped a
+third of it. The distinguishing questions: does the id survive (retract yes,
+delete no), and does the HISTORY survive (retract yes, delete no)?
+
+### WHY IT IS URGENT RATHER THAN TIDY, AND THE RECEIPT IS FROM TODAY
+
+**The production store holds records nobody can remove.** The `extra` set - ids
+the store holds that no document states - was **two** on the morning of
+2026-09-17 and **three** by the afternoon. The new one is a `note` with **no
+fields and no body**, written by a seat exercising the write path.
+
+⛔ **A STORE WITH NO RETRACTION ACCRETES, AND IT ACCRETED DURING ONE SESSION,
+FROM A SEAT DOING ITS JOB CORRECTLY.** It also makes every re-seed a one-way
+decision: `rigseed --check` can name a divergence it has no verb to close.
+
+### ⛔ THE DEFAULT NAME IS THE OS USERNAME, EVERYWHERE
+
+> *"By default the name that goes with the records and everything is the username
+> from the OS."*
+
+**"And everything" is his word, so this is not a record-only rule.** The OS
+username is the default identity rig stamps, and a seat name is a refinement over
+it rather than a replacement for it.
+
+✅ **THIS SIMPLIFIES THE RULING HE MADE MINUTES EARLIER IN §42** and does not
+contradict it: the seat on a CLI-written record stays the username, which is what
+`terminalSeat` already returns. **What §42 adds is the derivable SESSION; what
+this adds is that the username is the DEFAULT rather than a fallback, and that it
+applies past the record verbs.**
+
+⛔ **WHAT THIS DOES NOT DO IS MAKE THE NAME FORGEABLE.** The username is derived
+by the daemon from the uid over `SO_PEERCRED`. **A name carried in the request is
+still refused** - it is the daemon's to determine, which is the property that
+makes provenance worth anything. **Default is not the same as claimable.**
+
