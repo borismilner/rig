@@ -123,6 +123,18 @@ func run() error {
 	win.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
 		e.Cancel()
 		win.Hide()
+
+		// RETITLE HERE TOO, AND IT IS A MEASURED DEFECT RATHER THAN TIDINESS.
+		// `[ran it]` 2026-09-17 against the installed unit: close the window
+		// with _NET_CLOSE_WINDOW and the tray entry still reads "Hide rig" for
+		// an already-hidden window. Clicking it then SHOWS the window, so the
+		// label says the opposite of what the click does. pollEstate does
+		// self-correct it - retitleWindowItem is on its every-5s path - so the
+		// window is bounded at trayRefresh and never permanent, which is why
+		// nobody caught it by reading. toggleWindow already retitles on its own
+		// click path for exactly this reason; this hook is the other way the
+		// window's visibility changes and it was the one that did not.
+		retitleWindowItem(win)
 	})
 
 	// The tray (section 11) is a separate goroutine because both it and
