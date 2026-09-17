@@ -85,6 +85,23 @@ func run() error {
 		BackgroundColour: background,
 		URL:              "/",
 
+		// HIDDEN AT BIRTH, AND IT IS A REQUIREMENT RATHER THAN A DEFAULT.
+		// Boris, 2026-09-17, on seeing the unit come back after a reboot: "the
+		// window should be hidden by default, it is usually a background
+		// worker and shown ad-hoc." Section 11 requirement 5. The unit starts
+		// this PROCESS at login so the tray is up whenever the graphical
+		// session is; the window is one entry on that tray's menu and must
+		// wait to be asked for.
+		//
+		// It is honoured on this platform, which is worth stating because the
+		// field is a no-op on some: webview_window_linux.go:453 guards
+		// `w.show()` on `!options.Hidden`. Note what else that guard skips -
+		// applyScreenPlacement - so a window first shown from the tray takes
+		// GTK's placement rather than any StartState this struct asks for. We
+		// ask for none, so there is nothing to lose today; a future
+		// StartState here would be silently dropped until the first show.
+		Hidden: true,
+
 		// No zoom keybinding here, and it is not an omission. Wails cannot
 		// deliver one on Linux at beta.19: keys_linux.go's VirtualKeyCodes
 		// table holds letters but no digits and none of = + - 0, and

@@ -15,8 +15,11 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
     system-tray, like AgentBox. Clicking on the icon reveals the different
     options and it also shows the version and whether it's prod or dev."*
 
-    **THREE REQUIREMENTS, and the first is the one that may move
-    architecture.**
+    **FIVE REQUIREMENTS NOW, and the first is the one that may move
+    architecture.** It said THREE while the table held four rows, from
+    2026-09-16 until 2026-09-17 - a caption that is a claim and that no gate
+    checks, which is the defect class this project recorded seven times in one
+    day. **Count the rows before you trust the number above them.**
 
     | # | Requirement |
     |---|---|
@@ -24,6 +27,7 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
     | 2 | **CLICKING REVEALS THE OPTIONS.** The menu is the access point, not a window toggle. This restates and sharpens the access-point requirement below |
     | 3 | **THE MENU SHOWS THE VERSION AND THE ESTATE** - prod or dev - **as TEXT a human reads**, not only as the icon's colour |
     | ⛔ **4** | ⛔ **CLOSING THE WINDOW MUST NOT REMOVE OR TERMINATE THE TRAY ICON.** Boris, 2026-09-16, verbatim: *"Closing the window should not remove or terminate the system-tray icon"*. **It follows from requirement 1 and is stated separately because the implementation can satisfy 1 at startup and break it on the first close** - the tray belongs to the WINDOW PROCESS, so anything that ends that process ends the icon |
+    | ⛔ **5** | ⛔ **THE WINDOW STARTS HIDDEN. THE PROCESS AUTOSTARTS; THE WINDOW DOES NOT.** Boris, 2026-09-17, verbatim: *"I see that rig is started automatically after a reboot, but the window should be hidden by default, it is usually a background worker and shown ad-hoc."* **This is the half of the third answer that was named and never built.** The scope call below chose *"the window process is always started and the window itself is what is optional"* and **only the first clause shipped** |
 
     ⛔ **REQUIREMENT 1 WAS NOT SATISFIED BY WHAT WAS BUILT, and the gap was
     structural rather than a missing feature.** The tray lives in
@@ -51,6 +55,52 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
     *"We won't reboot to check if it survives a reboot - I trust you install it
     properly"*. **So the install is EVIDENCED and the survival is TRUSTED, and
     those are different words on purpose.**
+
+    ✅ ⛔ **THE REBOOT HAPPENED, 2026-09-17, AND THE WAIVER IS SPENT.** The
+    machine booted at `09:11:31` and `rigwindow.service` entered active at
+    `09:12:00` with `NRestarts=0` and no hand on it. **Boris saw it himself and
+    said so:** *"I see that rig is started automatically after a reboot"*. **So
+    requirement 1, and the MVP's condition 2, are now EVIDENCED across a real
+    boot rather than trusted.** `[ran it]` 2026-09-17: `uptime -s`,
+    `systemctl --user show rigwindow.service -p ActiveEnterTimestamp -p
+    NRestarts -p MainPID`, `systemctl --user is-enabled|is-active`.
+
+    ⛔ **AND THE SAME BOOT PRODUCED REQUIREMENT 5, WHICH IS WHAT HE ACTUALLY
+    SAW.** The unit starting the window process is correct and is what makes the
+    tray survive a login. **What is not correct is that the WINDOW came up with
+    it.** `cmd/rigwindow/main.go` builds the window with no `Hidden` option, and
+    Wails shows a window on creation unless told otherwise
+    (`webview_window_options.go:177`, *"Hidden will hide the window when it is
+    first created"*), so every login and every `Restart=on-failure` puts a
+    1280x800 window in front of whatever he was doing.
+
+    ⛔ **AND THE FIELD IS READ ON THIS PLATFORM, WHICH HAD TO BE CHECKED
+    RATHER THAN ASSUMED.** A first grep said `options.Hidden` was touched only
+    by the darwin backend, which would have made `Hidden: true` the exact shape
+    §9 records under promotion - *compiles, lints, passes, does nothing*. **The
+    grep was truncated by `head`.** `webview_window_linux.go:453` guards
+    `w.show()` on `!options.Hidden` and the Linux path honours it.
+    **Positive-control every empty grep, and count the rows `head` ate.**
+
+    **ONE THING THAT GUARD ALSO SKIPS, recorded before it surprises somebody:**
+    `applyScreenPlacement()` sits inside the same `if`, so a window first shown
+    from the tray takes GTK's placement rather than any `StartState` the options
+    ask for. **Nothing is lost today** - this window asks for no `StartState` -
+    **but one added later would be silently dropped until the first show.**
+
+    **THE SHOW PATH ALREADY EXISTS, WHICH IS WHY THIS IS AN OPTION AND NOT A
+    FEATURE.** `cmd/rigwindow/tray.go:61` adds a **Show rig** menu entry whose
+    title already starts at *"Show rig"* and is retitled by `refreshWindowItem`
+    from `win.IsVisible()`, so a hidden start is the state that entry was written
+    for. **Requirement 5 is one field; what it is NOT is one field of evidence** -
+    a hidden start is only demonstrated by a real login or a real unit restart,
+    and the unit is on his screen, so the restart is his to authorise.
+
+    ⛔ **AND IT SHARPENS REQUIREMENT 4 RATHER THAN RESTATING IT.** Requirement 4
+    says a close must not kill the tray; requirement 5 says the window was never
+    supposed to be open. **Together they make the window a pure toggle on the
+    tray with no path that opens it uninvited**, which is what *"it is usually a
+    background worker and shown ad-hoc"* means in one sentence.
 
     ⛔ **THE THIRD ANSWER CARRIES A COST THAT THE OTHER TWO DID NOT, AND IT IS
     REQUIREMENT 4.** If the tray's owner is the window process, then **every
