@@ -196,9 +196,15 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 		what      string
 		got, want int
 	}{
-		{"rows", len(items), 68},
+		// 68 -> 75 and 59 -> 66 on 2026-09-17: the 9-surface attack filed
+		// B64-B70, seven OPEN rows, so `closed` is unmoved and both other
+		// numbers rise by exactly seven. The document changed, not the parser -
+		// established the way this test's own failure message says to, by
+		// checking that TestTheBacklogParserReadsEveryRowShapeTheSameWay was
+		// GREEN at the same commit.
+		{"rows", len(items), 75},
 		{"closed", len(struck) + len(byLead), 9},
-		{"open", open, 59},
+		{"open", open, 66},
 	} {
 		if c.got != c.want {
 			t.Errorf("%s: %d, pinned at %d.\n"+
