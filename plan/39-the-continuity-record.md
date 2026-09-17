@@ -329,28 +329,43 @@ logbook being behind** - so `rigseed --check` is a migration instrument with a
 retirement date, not a permanent sync. **Nothing may be built that assumes the
 document is the original for ever.**
 
-##### ⛔ THE HANDOVER MARK IS 45% OF CONTEXT. BORIS, 2026-09-17. ⛔ SCOPE UNSTATED - SEE BELOW BEFORE YOU INHERIT IT.
+##### ✅ THE 45% HANDOVER MARK WAS SCOPED TO ONE SESSION. ASKED AND ANSWERED, BORIS, 2026-09-17.
 
 > *"You are not to warm-handoff before you get to 45% context. I want you to
 > proceed without stopping unnecessarily and keep me in the loop once in a while
 > on the converging towards the MVP."*
 
-⛔ **IT IS A FLOOR, NOT A TRIGGER.** *"Not to warm-handoff before"* forbids
-handing over early; it does not order a handover at 45%. A seat reading it as
-*"hand off at 45%"* has inverted it.
+⛔ **THE SCOPE IS SETTLED AND IT IS *THAT SESSION ONLY*.** Team-lead generation
+14 put the question to him in one line - standing, session-only, or provisional -
+and he chose **session-only**. ⛔ **SO 45% IS NOT A STANDING REQUIREMENT AND NO
+LATER SESSION INHERITS IT.** A seat arriving after 2026-09-17 works to the
+`PostToolUse` guard and to global `CLAUDE.md`, not to this number.
 
-⛔ **WHETHER IT BINDS THE NEXT SESSION IS NOT STATED, AND THIS ENTRY MUST NOT
-PRETEND OTHERWISE.** He has now given **seven** context numbers - 35, 40, 45, 40,
-45, 40, 45 - and on 2026-09-17 he corrected a seat for persisting one of them:
-*"the rule about 97% session was only for the current session and you seem to
-have persisted it to all sessions."* **So the failure mode is proven, not
-hypothetical.**
+⛔ **DO NOT RE-ASK AND DO NOT RE-DERIVE FROM THE SERIES.** He has given **seven**
+numbers - 35, 40, 45, 40, 45, 40, 45 - and arguing from the sequence is how the
+false version got written. **The answer is not in the series; it is in this line.**
 
-⛔ **ASK HIM, ONCE, BEFORE ACTING ON THIS IN A LATER SESSION.** One line is
-cheaper than a false requirement in the specification. **Until he answers, treat
-it as scoped to the session he said it in** - the conservative reading, because
-persisting it wrongly is the error he has already corrected and the other
-direction merely costs one question.
+**WHAT THE ENTRY USED TO SAY, kept because deleting it hides the lesson:** it
+read *"SCOPE UNSTATED - SEE BELOW BEFORE YOU INHERIT IT"* and told a reader to
+treat it as session-scoped provisionally, pending an ask. ⛔ **The ask was the
+whole point and it cost one line.** The requirement was in the specification for
+several hours with its scope missing, which is precisely the half-recorded shape
+this section names below.
+
+⛔ **IT WAS ALSO A FLOOR, NOT A TRIGGER, AND THAT READING SURVIVES ITS SCOPE.**
+*"Not to warm-handoff before"* forbids handing over early; it never ordered a
+handover at 45%. A seat reading it as *"hand off at 45%"* had inverted it - and
+the inversion is now moot for later sessions, which is why it is recorded rather
+than carried.
+
+⛔ **THE GENERAL RULE THIS PROVES, AND IT IS THE REASON THE ENTRY EXISTS AT ALL:
+RECORDING A REQUIREMENT THE TURN HE STATES IT NEEDS ITS OTHER HALF - RECORD ITS
+SCOPE WITH IT.** *"For this session"* and *"from now on"* read identically once
+they are in a document. On 2026-09-17 he corrected a seat for persisting the 97%
+session rule to all sessions; **this entry is the second instance of the same
+class in one day, caught by asking rather than by being corrected.** When the
+scope is not stated, **ASK - one line, and it is cheaper than a false
+requirement in the specification.**
 
 ⛔ **THE SECOND HALF IS A STANDING INSTRUCTION AND IS NOT AMBIGUOUS:** *"proceed
 without stopping unnecessarily"* and *"keep me in the loop once in a while"*.
@@ -588,16 +603,21 @@ warm-handoff before you are at 45% context"*, typed 2026-09-17 as the closing
 line of the message that gave the dashboard / program / tabs / settings
 architecture.
 
-⛔ **THE `PostToolUse` GUARD FIRES AT 35% AND IS STALE AGAINST THIS.** Global
-`CLAUDE.md` says 35% too. When it fires below his mark: get to a clean
-checkpoint, say in one line that it fired on a number he has moved, and keep
-working to his.
+⛔ **THE `PostToolUse` GUARD FIRES AT 35%, AND SINCE 2026-09-17 IT IS THE ONLY
+MARK A LATER SESSION HAS.** ✅ **THE 45% WAS ASKED ABOUT AND HE SCOPED IT TO THAT
+SESSION ONLY** - see the answered entry above. **So a seat arriving afterwards
+works to the guard and to global `CLAUDE.md`, and there is no mark of his to be
+stale against.** Within the session he said it in, the rule was: get to a clean
+checkpoint, say in one line that the guard fired on a number he had moved, and
+keep working to his.
 
 ⛔ **THIS IS A DIFFERENT CLOCK FROM THE SESSION TOKEN BUDGET AND THEY SAY
 OPPOSITE THINGS ON PURPOSE.** The session window (5h) rule is *never hand off
 against it* - a fresh session shares the same window, so the relay buys
-nothing. The context window rule is *hand off at 45%*. **A session that merges
-the two will do the wrong thing on one of them.**
+nothing. The context-window rule is a **FLOOR** - *do not hand off BEFORE the
+mark* - and never a trigger to hand off AT it. ⛔ **A session that merges the two
+clocks, or that reads the floor as a trigger, will do the wrong thing on one of
+them.** Both errors have been made here.
 
 ##### ⛔ WHY THIS IS IN THE SPECIFICATION AND NOT IN A HANDOFF NOTE
 
