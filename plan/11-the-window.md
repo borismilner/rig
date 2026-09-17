@@ -102,6 +102,61 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
     tray with no path that opens it uninvited**, which is what *"it is usually a
     background worker and shown ad-hoc"* means in one sentence.
 
+    ✅ ⛔ **BUILT, DEPLOYED AND DEMONSTRATED THE SAME MORNING. THE TABLE ROW
+    ABOVE THAT SAYS THE CLOSE HOOK IS `[read it]`, NEVER EXERCISED, IS NOW
+    SUPERSEDED.** Boris: *"You can redeploy whenever you want."* `make
+    install-window` + `systemctl --user restart rigwindow.service` at
+    `v0.0.0-m0-381-g862ae30`, **against the real installed unit, not a
+    worktree binary and with no `-dirty` in the stamp.**
+
+    **The instrument, because it is the part worth reusing:** the tray menu was
+    driven over its own **DBusMenu** interface - `GetLayout` to read the entry's
+    live label and `Event`/`clicked` to activate it - so the *"Show rig"* path
+    was exercised through the same code a panel click reaches, not simulated.
+    The close was a real `_NET_CLOSE_WINDOW` via `wmctrl -ic`, which is the
+    titlebar X's own event.
+
+    | # | State | Tray entry reads | Window |
+    |---|---|---|---|
+    | 1 | after a unit restart | **`Show rig`** | **not mapped** |
+    | 2 | after activating that entry | `Hide rig` | mapped |
+    | 3 | 1s after the X closed it | **`Show rig`** | **not mapped** |
+
+    **Throughout: same pid, `NRestarts=0`, `ActiveState=active`, and the tray's
+    `StatusNotifierItem` still in the watcher's registered list.** So requirement
+    5 passes and requirement 4 is now `[ran it]` rather than `[read it]`. **No
+    `SIGABRT`** - consistent with the 2026-09-16 review that downgraded it, and
+    it stays UNVERIFIED rather than closed because this close was also
+    synthetic; a pointer on the titlebar is still the one path never tried.
+
+    ⛔ **AND THE DEMONSTRATION FOUND A DEFECT THAT READING HAD NOT, WHICH IS THE
+    WHOLE ARGUMENT FOR RUNNING IT.** Step 3 first printed **`Hide rig` for an
+    already-hidden window** - and `toggleWindow`'s branch is on
+    `win.IsVisible()`, so clicking an entry labelled *Hide* would have **shown**
+    the window. **A label doing the opposite of what it says.**
+
+    **WHY NOBODY CAUGHT IT BY READING, and it is the interesting half:**
+    `retitleWindowItem` IS called from `pollEstate`, every `trayRefresh` = 5s,
+    and its own doc comment says so - *"from the poll loop so it self-corrects
+    when the window is hidden or shown by anything other than this menu"*.
+    **The comment is TRUE. The defect was bounded at five seconds, never
+    permanent, and therefore invisible to any reader who checked whether a
+    caller exists.** `toggleWindow` retitles on its own click path *"for
+    immediacy"*; the `WindowClosing` hook is the OTHER way visibility changes and
+    it was the one that did not. **Fixed at rig `862ae30`** - one call in the
+    hook - and step 3 above is the re-run.
+
+    ⛔ **A METHOD NOTE, BECAUSE IT COST TIME TWICE IN ONE HOUR AND BOTH WERE THE
+    SAME CLASS.** Diagnosing this, a grep for `refreshWindowItem` returned empty
+    and read as *"nothing calls it"*; the function is named `retitleWindowItem`.
+    Earlier the same hour, a grep for `options.Hidden` **truncated by `head`**
+    read as *"the Linux backend never reads it"*. **Both empty results were the
+    instrument, not the code, and both pointed toward a bigger defect than was
+    there.** `POSITIVE-CONTROL EVERY EMPTY GREP` is already written down in four
+    places in this project and it still bit twice in sixty minutes, so the
+    operational form is the one to carry: **an absence is a claim about your
+    instrument before it is a claim about the code.**
+
     ⛔ **THE THIRD ANSWER CARRIES A COST THAT THE OTHER TWO DID NOT, AND IT IS
     REQUIREMENT 4.** If the tray's owner is the window process, then **every
     path that ends that process ends the icon** - closing the window, an
