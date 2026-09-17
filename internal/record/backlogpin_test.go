@@ -168,14 +168,21 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 			// gate cannot see a background-image, so it returns green over
 			// ground the eye never sees. OPEN.
 			"B64", "B65", "B66", "B67", "B68", "B69", "B7", "B70", "B71",
-			"B8", "B9",
+			// B72 filed 2026-09-17 by team-lead generation 12, at Boris's own
+			// challenge: two processes both call themselves the production
+			// estate and rig's singleton is per runtime dir, so neither is
+			// told the other exists. OPEN.
+			"B72", "B8", "B9",
 		})
 
 	// B65 joins this set 2026-09-17: the field predicate landed at rig
 	// `1c3a8c4` and the row was struck, which is this document's own closure
 	// mark. The SET is what says which row closed; the count alone would not.
+	// B64 joins this set 2026-09-17: the twelfth brief section landed at rig
+	// `22faf89` and the row was struck. The SET is what says WHICH row
+	// closed; the count alone would have accepted a swap.
 	pin(t, "closed, struck", struck,
-		[]string{"B11", "B19", "B20", "B22", "B31", "B33", "B65", "B7", "B9"})
+		[]string{"B11", "B19", "B20", "B22", "B31", "B33", "B64", "B65", "B7", "B9"})
 	pin(t, "closed by a terminal lead in the item cell", byLead, []string{"B21"})
 	pin(t, "claims a terminal state unstruck, seeded OPEN", claims,
 		[]string{"B15", "B24", "B25", "B44", "B46a", "B48", "B55", "B56"})
@@ -219,8 +226,15 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 		// 9 -> 10 closed and 67 -> 66 open, same day: B65 was struck when the
 		// field predicate landed. `rows` is UNMOVED at 76, which is the check
 		// that says a row was closed rather than added or removed.
-		{"rows", len(items), 76},
-		{"closed", len(struck) + len(byLead), 10},
+		//
+		// 76 -> 77 and 66 open unmoved, 2026-09-17: TWO changes in one commit,
+		// which is why the SET pins above matter more than these numbers. B72
+		// was FILED (open, +1 row) and B64 was STRUCK (closed, +1). The two
+		// move `open` in opposite directions and it lands back on 66 - a count
+		// that is unchanged while two rows moved is exactly the shape a count
+		// pin cannot see, and the struck SET above is what catches it.
+		{"rows", len(items), 77},
+		{"closed", len(struck) + len(byLead), 11},
 		{"open", open, 66},
 	} {
 		if c.got != c.want {

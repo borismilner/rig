@@ -467,9 +467,15 @@ func TestRigsOwnBacklogSaysWhichWordClosedEachRow(t *testing.T) {
 	sameSet(t, "RETRACTED", by["RETRACTED"], []string{"B19"})
 	sameSet(t, "CLOSED", by["CLOSED"], []string{"B15", "B21", "B48", "B55", "B56"})
 	// B65 joins 2026-09-17: the field predicate landed at rig `1c3a8c4` and
-	// the row was struck with DONE after the strike.
+	// the row was struck with DONE after the strike. B64 joins the same day
+	// at `22faf89`, the same shape.
+	//
+	// ⛔ THIS IS THE THIRD PIN A CLOSURE MOVES AND IT IS THE ONE THE ENTRYPOINT
+	// DID NOT NAME. It said two - the counts and the struck SET - and this
+	// closing-WORD set is a third, found by generation 11 running it. Closing a
+	// row therefore touches backlogpin_test.go TWICE and this file ONCE.
 	sameSet(t, "DONE", by["DONE"],
-		[]string{"B20", "B22", "B24", "B25", "B31", "B33", "B44", "B46a", "B65", "B9"})
+		[]string{"B20", "B22", "B24", "B25", "B31", "B33", "B44", "B46a", "B64", "B65", "B9"})
 	sameSet(t, "REJECTED", by["REJECTED"], nil)
 
 	// ⛔ B19 IS THE ROW THE WHOLE FIELD EXISTS FOR. It was RETRACTED as
