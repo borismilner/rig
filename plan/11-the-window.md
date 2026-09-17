@@ -1047,6 +1047,30 @@ about the git projection. **A panel that repeats one reason five times is
 spending a screen to say one thing** - that is a grouping defect, not a colour
 one, and the two must not be closed together.
 
+## ⛔ THE REDUNDANT SCROLLBARS GO. BORIS, 2026-09-17, WITH AN ANNOTATED SCREENSHOT.
+
+> *"These scrolls are unnecessary."*
+
+**He arrowed the stacked scrollbar arrows at the top right of the projects
+tab** - two scroll affordances one above the other, in a pane whose content
+did not need either of them.
+
+⛔ **A SCROLLBAR IS A CLAIM THAT THERE IS MORE TO SEE, AND A FALSE ONE IS
+WORSE THAN NO AFFORDANCE AT ALL.** A nested scroll container also steals the
+wheel: a reader scrolling the page stops dead when the pointer crosses it, which
+is the specific thing that makes a window feel wrong without a person being able
+to name why.
+
+⛔ **ONE SCROLL OWNER PER PANE.** The `browsable-page` rule this project
+already follows says who owns the scroll must be decided rather than inherited.
+A tab strip holding ONE tab must not be a scroll container; a list inside a page
+that already scrolls must not open a second one.
+
+**What this does NOT license:** removing a scrollbar that is doing real work by
+clipping content. **The fix is to stop creating the container, never to hide its
+bar with `overflow: hidden` or a styled-away scrollbar** - a hidden scrollbar on
+a real overflow is content a reader cannot reach and no longer knows is there.
+
 ## ⛔ A MANAGEMENT PANEL, AND REDEPLOYMENT MUST BE TRIVIAL AND AUTOMATIC. BORIS, 2026-09-17.
 
 > *"Should have management panel to do things like `make install` in the proper
