@@ -56,7 +56,8 @@ func TestADivergenceOfEqualSizeIsSeenBecauseTheAnswerIsASet(t *testing.T) {
 	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{
 		{ID: "B1", Title: "in both"},
 		{ID: "B2", Title: "in the document only"},
-	}}, record.DecisionParse{})
+	}}, record.DecisionParse{}, record.PlanParse{})
+
 	store := map[string]held{
 		"B1": heldOf(intentFor(t, p, "B1")),
 		"B3": {kind: record.KindWorkItem, body: "in the store only", fields: map[string]string{"title": "in the store only"}},
@@ -100,7 +101,7 @@ func TestARecordWhoseStoredFieldsContradictTheDocumentIsStale(t *testing.T) {
 	o := options{project: "rig", backlog: "BACKLOG.md"}
 	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{
 		{ID: "B65", Title: "struck in the document", Done: true, Struck: true},
-	}}, record.DecisionParse{})
+	}}, record.DecisionParse{}, record.PlanParse{})
 
 	stored := heldOf(intentFor(t, p, "B65"))
 	stored.fields[fieldStatus] = record.StatusActive
@@ -128,7 +129,7 @@ func TestAnIdStatedInAHeadingBecomesARecord(t *testing.T) {
 			Label: "⛔ B46 - THE MVP ACCEPTANCE TEST",
 			Title: "THE MVP ACCEPTANCE TEST", Line: 137,
 		}},
-	}, record.DecisionParse{})
+	}, record.DecisionParse{}, record.PlanParse{})
 
 	if !has(ids(p.want), "B46") {
 		t.Fatalf("B46 is stated in a heading and was not planned; the plan holds %v", ids(p.want))
@@ -175,14 +176,11 @@ func TestAHeadingsParentComesFromTheIdAndNotFromWhereItSits(t *testing.T) {
 	p := planFor(o, record.BacklogParse{
 		Items: []record.BacklogItem{{ID: "B1", Title: "anything"}},
 		Unimported: []record.Unimported{
-			// B46 itself, or B46d's edge would be an orphan rather than a
-			// parent - which is what the document actually holds and what the
-			// orphan pass caught when this fixture left it out.
 			{Kind: record.UnimportedHeading, ID: "B46", Label: "the parent heading", Line: 137},
 			{Kind: record.UnimportedHeading, ID: "B46d", Label: "a real sub-heading", Line: 183, Under: "B46"},
 			{Kind: record.UnimportedHeading, ID: "B70", Label: "unrelated work filed under B46", Line: 400, Under: "B46"},
 		},
-	}, record.DecisionParse{})
+	}, record.DecisionParse{}, record.PlanParse{})
 
 	if got := intentFor(t, p, "B46d").partOf; got != "B46" {
 		t.Errorf("B46d part-of = %q, want B46 - the id agrees with the nesting", got)
@@ -211,7 +209,7 @@ func TestAnUnknownUnimportedKindIsReportedAndNeverImported(t *testing.T) {
 		Unimported: []record.Unimported{
 			{Kind: future, ID: "B99", Label: "something new", Line: 7},
 		},
-	}, record.DecisionParse{})
+	}, record.DecisionParse{}, record.PlanParse{})
 
 	if has(ids(p.want), "B99") {
 		t.Fatalf("a kind this file does not know was IMPORTED; the plan holds %v", ids(p.want))
@@ -239,7 +237,7 @@ func TestAnIdStatedAtBothGrainsIsWrittenOnceAndReported(t *testing.T) {
 		Unimported: []record.Unimported{
 			{Kind: record.UnimportedHeading, ID: "B46", Label: "the heading's title", Line: 137},
 		},
-	}, record.DecisionParse{})
+	}, record.DecisionParse{}, record.PlanParse{})
 
 	if n := len(p.want); n != 1 {
 		t.Fatalf("B46 was planned %d times, want once: %v", n, ids(p.want))
@@ -297,7 +295,7 @@ func TestTheEdgeDiffIsASetOnBothSides(t *testing.T) {
 		{ID: "B46a", Title: "stated and held", PartOf: "B46"},
 		{ID: "B46b", Title: "stated and absent", PartOf: "B46"},
 		{ID: "B46", Title: "the parent"},
-	}}, record.DecisionParse{})
+	}}, record.DecisionParse{}, record.PlanParse{})
 
 	d := divergence{}
 	err := d.compareEdges(p, func(parent string) (map[string]bool, error) {
@@ -322,7 +320,7 @@ func TestTheEdgeDiffIsASetOnBothSides(t *testing.T) {
 // repository's most-recorded defect class.
 func TestAnEmptySetIsPrintedAsEmpty(t *testing.T) {
 	o := options{project: "rig", backlog: "BACKLOG.md"}
-	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "x"}}}, record.DecisionParse{})
+	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "x"}}}, record.DecisionParse{}, record.PlanParse{})
 	d := diff(p, map[string]held{"B1": heldOf(intentFor(t, p, "B1"))})
 
 	var b bytes.Buffer
@@ -352,7 +350,8 @@ func TestTheRefusalNamesWhichSetsDiverged(t *testing.T) {
 		Unimported: []record.Unimported{
 			{Kind: record.UnimportedRowWithoutID, Label: "6a", Line: 131},
 		},
-	}, record.DecisionParse{})
+	}, record.DecisionParse{}, record.PlanParse{})
+
 	d := diff(p, map[string]held{})
 
 	got := strings.Join(d.nonEmpty(), " ")
@@ -376,7 +375,7 @@ func TestRigsOwnBacklogPlansBothGrains(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading %s: %v", live, err)
 	}
-	p := planFor(options{project: "rig", backlog: live}, doc, record.DecisionParse{})
+	p := planFor(options{project: "rig", backlog: live}, doc, record.DecisionParse{}, record.PlanParse{})
 
 	// POSITIVE CONTROL. An empty document would pass every assertion below in
 	// silence, which is how this project's checks have failed nine times.
@@ -421,7 +420,7 @@ func TestAPartOfTowardsAnUndefinedIdIsReportedAndNeverAttempted(t *testing.T) {
 	o := options{project: "rig", backlog: "BACKLOG.md"}
 	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{
 		{ID: "B99a", Title: "a child of a parent nobody wrote", PartOf: "B99"},
-	}}, record.DecisionParse{})
+	}}, record.DecisionParse{}, record.PlanParse{})
 
 	if got := intentFor(t, p, "B99a").partOf; got != "" {
 		t.Errorf("B99a still carries part-of %q; the link would abort the run", got)
@@ -456,7 +455,7 @@ func TestAStruckHeadingIsSeededClosed(t *testing.T) {
 			Label: "⛔ ~~B46 - THE MVP ACCEPTANCE TEST~~",
 			Title: "THE MVP ACCEPTANCE TEST", Struck: true, Line: 137,
 		}},
-	}, record.DecisionParse{})
+	}, record.DecisionParse{}, record.PlanParse{})
 
 	in := intentFor(t, p, "B46")
 	if got := in.fields[fieldStatus]; got != record.StatusClosed {
@@ -479,11 +478,10 @@ func TestAStruckHeadingIsSeededClosed(t *testing.T) {
 // in its most expensive form.
 func TestEveryNoteIsAskedAboutEvenWhereNothingIsPartOfIt(t *testing.T) {
 	o := options{project: "rig", backlog: "BACKLOG.md", decisions: "DECISIONS.md"}
-	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}},
-		record.DecisionParse{Decisions: []record.DecisionEntry{
-			entryFor("the-attack", "Decisions taken during the attack", record.EntrySection),
-			entryFor("2026-09-17-a-ruling", "2026-09-17 a ruling", record.EntryDecision),
-		}})
+	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}}, record.DecisionParse{Decisions: []record.DecisionEntry{
+		entryFor("the-attack", "Decisions taken during the attack", record.EntrySection),
+		entryFor("2026-09-17-a-ruling", "2026-09-17 a ruling", record.EntryDecision),
+	}}, record.PlanParse{})
 
 	asked := map[string]bool{}
 	var d divergence
@@ -525,11 +523,10 @@ func TestEveryNoteIsAskedAboutEvenWhereNothingIsPartOfIt(t *testing.T) {
 // is that things stop disappearing.
 func TestOnlyAnEdgeThisSeederWroteBothEndsOfIsTakenBack(t *testing.T) {
 	o := options{project: "rig", backlog: "BACKLOG.md", decisions: "DECISIONS.md"}
-	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}},
-		record.DecisionParse{Decisions: []record.DecisionEntry{
-			entryFor("the-attack", "Decisions taken during the attack", record.EntrySection),
-			entryFor("2026-09-17-a-ruling", "2026-09-17 a ruling", record.EntryDecision),
-		}})
+	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}}, record.DecisionParse{Decisions: []record.DecisionEntry{
+		entryFor("the-attack", "Decisions taken during the attack", record.EntrySection),
+		entryFor("2026-09-17-a-ruling", "2026-09-17 a ruling", record.EntryDecision),
+	}}, record.PlanParse{})
 
 	got := p.retractable(o, []edge{
 		{src: "2026-09-17-a-ruling", dst: "the-attack"}, // both ends written here
@@ -562,7 +559,8 @@ func TestARuledExclusionIsPrintedAndDoesNotFailTheCheck(t *testing.T) {
 			{Kind: record.UnimportedOtherTable, ID: "B6", Line: 527},
 			{Kind: record.UnimportedIrregularID, ID: "B60-2", Line: 400},
 		},
-	}, record.DecisionParse{})
+	}, record.DecisionParse{}, record.PlanParse{})
+
 	div := diff(p, map[string]held{"B1": heldOf(intentFor(t, p, "B1"))})
 
 	if has(div.nonEmpty(), "unimported") {
@@ -580,7 +578,9 @@ func TestARuledExclusionIsPrintedAndDoesNotFailTheCheck(t *testing.T) {
 		Unimported: []record.Unimported{
 			{Kind: record.UnimportedOtherTable, ID: "B6", Line: 527},
 		},
-	}, record.DecisionParse{}), map[string]held{"B1": heldOf(intentFor(t, p, "B1"))})
+	}, record.DecisionParse{}, record.PlanParse{}),
+
+		map[string]held{"B1": heldOf(intentFor(t, p, "B1"))})
 	if got := strings.Join(clean.nonEmpty(), " "); got != "" {
 		t.Errorf("nonEmpty = {%s}, want {} - a ruled exclusion is not a divergence", got)
 	}

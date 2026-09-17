@@ -44,7 +44,7 @@ func TestADocumentThatStatesNoDecisionPlansNoDecision(t *testing.T) {
 	o := options{project: "rig", backlog: "BACKLOG.md", decisions: "DECISIONS.md"}
 	p := planFor(o, record.BacklogParse{
 		Items: []record.BacklogItem{{ID: "B1", Title: "a row"}},
-	}, record.DecisionParse{})
+	}, record.DecisionParse{}, record.PlanParse{})
 
 	for _, in := range p.want {
 		if in.grain == grainEntry {
@@ -70,11 +70,10 @@ func TestADocumentThatStatesNoDecisionPlansNoDecision(t *testing.T) {
 // section 39's ten.
 func TestAStandingSectionIsANoteAndEveryKindIsOneOfTheTen(t *testing.T) {
 	o := options{project: "rig", decisions: "DECISIONS.md"}
-	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}},
-		record.DecisionParse{Decisions: []record.DecisionEntry{
-			entryFor("what-rig-is", "What rig is", record.EntrySection),
-			entryFor("2026-09-17-a-ruling", "2026-09-17 a ruling", record.EntryDecision),
-		}})
+	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}}, record.DecisionParse{Decisions: []record.DecisionEntry{
+		entryFor("what-rig-is", "What rig is", record.EntrySection),
+		entryFor("2026-09-17-a-ruling", "2026-09-17 a ruling", record.EntryDecision),
+	}}, record.PlanParse{})
 
 	if got := intentFor(t, p, "what-rig-is").kind; got != record.KindNote {
 		t.Errorf("a standing section was written as kind %q, want %q", got, record.KindNote)
@@ -105,8 +104,7 @@ func TestAnEntryCarriesItsCoordinatesAndAnUndatedOneCarriesNoDate(t *testing.T) 
 	undated := record.DecisionEntry{
 		Key: "undated", Title: "undated", Kind: record.EntryDecision, Level: 2, Line: 9, Body: "prose",
 	}
-	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}},
-		record.DecisionParse{Decisions: []record.DecisionEntry{dated, undated}})
+	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}}, record.DecisionParse{Decisions: []record.DecisionEntry{dated, undated}}, record.PlanParse{})
 
 	in := intentFor(t, p, "2026-09-17-dated")
 	for name, want := range map[string]string{
@@ -151,14 +149,13 @@ func TestAnEntryCarriesItsCoordinatesAndAnUndatedOneCarriesNoDate(t *testing.T) 
 // is the 292 edges that DO stand, so it names a parent of that kind.
 func TestASubHeadingsParentIsAnEntryAndTheEdgeIsEmitted(t *testing.T) {
 	o := options{project: "rig", decisions: "DECISIONS.md"}
-	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}},
-		record.DecisionParse{Decisions: []record.DecisionEntry{
-			entryFor("2026-09-10-the-attack", "2026-09-10 the attack", record.EntryDecision),
-			{
-				Key: "2026-09-10-the-attack/the-ruling", Title: "The ruling", Kind: record.EntryDecision,
-				Level: 3, PartOf: "2026-09-10-the-attack", Line: 12, Body: "prose",
-			},
-		}})
+	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}}, record.DecisionParse{Decisions: []record.DecisionEntry{
+		entryFor("2026-09-10-the-attack", "2026-09-10 the attack", record.EntryDecision),
+		{
+			Key: "2026-09-10-the-attack/the-ruling", Title: "The ruling", Kind: record.EntryDecision,
+			Level: 3, PartOf: "2026-09-10-the-attack", Line: 12, Body: "prose",
+		},
+	}}, record.PlanParse{})
 
 	if got := intentFor(t, p, "2026-09-10-the-attack/the-ruling").partOf; got != "2026-09-10-the-attack" {
 		t.Errorf("part-of = %q, want 2026-09-10-the-attack", got)
@@ -177,10 +174,9 @@ func TestASubHeadingsParentIsAnEntryAndTheEdgeIsEmitted(t *testing.T) {
 // ever. Measured 2026-09-17 while extending this seeder to the second document.
 func TestARewrittenRulingIsStaleBecauseTheBodyIsCompared(t *testing.T) {
 	o := options{project: "rig", decisions: "DECISIONS.md"}
-	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}},
-		record.DecisionParse{Decisions: []record.DecisionEntry{
-			entryFor("a-ruling", "a ruling", record.EntryDecision),
-		}})
+	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}}, record.DecisionParse{Decisions: []record.DecisionEntry{
+		entryFor("a-ruling", "a ruling", record.EntryDecision),
+	}}, record.PlanParse{})
 
 	stored := heldOf(intentFor(t, p, "a-ruling"))
 	stored.body = "what it used to say"
@@ -206,10 +202,9 @@ func TestARewrittenRulingIsStaleBecauseTheBodyIsCompared(t *testing.T) {
 // kind.
 func TestARecordHeldAtTheWrongKindIsStaleRatherThanClean(t *testing.T) {
 	o := options{project: "rig", decisions: "DECISIONS.md"}
-	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}},
-		record.DecisionParse{Decisions: []record.DecisionEntry{
-			entryFor("what-rig-is", "What rig is", record.EntrySection),
-		}})
+	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}}, record.DecisionParse{Decisions: []record.DecisionEntry{
+		entryFor("what-rig-is", "What rig is", record.EntrySection),
+	}}, record.PlanParse{})
 
 	stored := heldOf(intentFor(t, p, "what-rig-is"))
 	stored.kind = record.KindDecision
@@ -235,10 +230,9 @@ func TestARecordHeldAtTheWrongKindIsStaleRatherThanClean(t *testing.T) {
 // missing several hundred rulings.
 func TestARulingInNoRecordIsMissingAndTheCheckRefusesToExitClean(t *testing.T) {
 	o := options{project: "rig", backlog: "BACKLOG.md", decisions: "DECISIONS.md"}
-	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}},
-		record.DecisionParse{Decisions: []record.DecisionEntry{
-			entryFor("a-ruling", "a ruling", record.EntryDecision),
-		}})
+	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}}, record.DecisionParse{Decisions: []record.DecisionEntry{
+		entryFor("a-ruling", "a ruling", record.EntryDecision),
+	}}, record.PlanParse{})
 
 	d := diff(p, map[string]held{"B1": heldOf(intentFor(t, p, "B1"))})
 	if got := strings.Join(d.missing, " "); got != "a-ruling" {
@@ -264,11 +258,10 @@ func TestARulingInNoRecordIsMissingAndTheCheckRefusesToExitClean(t *testing.T) {
 // ⛔ THE KINDS QUERIED COME FROM THE PLAN, OR A WHOLE KIND IS NEVER COMPARED.
 func TestTheStoreIsReadAtEveryKindThePlanWrites(t *testing.T) {
 	o := options{project: "rig", decisions: "DECISIONS.md"}
-	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}},
-		record.DecisionParse{Decisions: []record.DecisionEntry{
-			entryFor("what-rig-is", "What rig is", record.EntrySection),
-			entryFor("a-ruling", "a ruling", record.EntryDecision),
-		}})
+	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}}, record.DecisionParse{Decisions: []record.DecisionEntry{
+		entryFor("what-rig-is", "What rig is", record.EntrySection),
+		entryFor("a-ruling", "a ruling", record.EntryDecision),
+	}}, record.PlanParse{})
 
 	if got := strings.Join(p.kinds(), " "); got != "decision note work-item" {
 		t.Errorf("kinds = {%s}, want {decision note work-item}", got)
@@ -284,14 +277,13 @@ func TestTheStoreIsReadAtEveryKindThePlanWrites(t *testing.T) {
 // string, a timestamp, anything not derived from the document.
 func TestAStoreBuiltFromThePlanDivergesInNoSet(t *testing.T) {
 	o := options{project: "rig", backlog: "BACKLOG.md", decisions: "DECISIONS.md"}
-	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}},
-		record.DecisionParse{Decisions: []record.DecisionEntry{
-			entryFor("what-rig-is", "What rig is", record.EntrySection),
-			{
-				Key: "what-rig-is/the-ruling", Title: "The ruling", Kind: record.EntryDecision,
-				Level: 3, PartOf: "what-rig-is", Line: 12, Body: "prose",
-			},
-		}})
+	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}}, record.DecisionParse{Decisions: []record.DecisionEntry{
+		entryFor("what-rig-is", "What rig is", record.EntrySection),
+		{
+			Key: "what-rig-is/the-ruling", Title: "The ruling", Kind: record.EntryDecision,
+			Level: 3, PartOf: "what-rig-is", Line: 12, Body: "prose",
+		},
+	}}, record.PlanParse{})
 
 	store := map[string]held{}
 	for _, in := range p.want {
@@ -332,7 +324,7 @@ func TestRigsOwnDecisionsDocumentPlansEveryEntry(t *testing.T) {
 		t.Fatalf("reading %s: %v", live, err)
 	}
 	o := options{project: "rig", backlog: "BACKLOG.md", decisions: live}
-	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}}, dec)
+	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}}, dec, record.PlanParse{})
 
 	// POSITIVE CONTROL. An empty parse would pass every assertion below in
 	// silence, which is how this project's checks have failed ten times.
@@ -416,7 +408,7 @@ func TestARankedRowIsKeyedOnItsTableAndCarriesItsRank(t *testing.T) {
 	p := planFor(o, record.BacklogParse{
 		Items:      []record.BacklogItem{{ID: "B1", Title: "a row"}},
 		Unimported: []record.Unimported{rankedRow("9", "the-critical-path-to-the-gate", 135)},
-	}, record.DecisionParse{})
+	}, record.DecisionParse{}, record.PlanParse{})
 
 	const want = "the-critical-path-to-the-gate/9"
 	in := intentFor(t, p, want)
@@ -464,7 +456,7 @@ func TestTwoOrderedTablesDoNotCollideBecauseTheIdNamesTheTable(t *testing.T) {
 			rankedRow("0", "the-critical-path-to-the-gate", 125),
 			rankedRow("0", "a-second-unnumbered-table", 600),
 		},
-	}, record.DecisionParse{})
+	}, record.DecisionParse{}, record.PlanParse{})
 
 	for _, want := range []string{"the-critical-path-to-the-gate/0", "a-second-unnumbered-table/0"} {
 		if !has(ids(p.want), want) {
@@ -487,7 +479,7 @@ func TestARankedRowWithNoSectionIsReportedRatherThanKeyedOnItsRankAlone(t *testi
 	p := planFor(o, record.BacklogParse{
 		Items:      []record.BacklogItem{{ID: "B1", Title: "a row"}},
 		Unimported: []record.Unimported{rankedRow("0", "", 125)},
-	}, record.DecisionParse{})
+	}, record.DecisionParse{}, record.PlanParse{})
 
 	for _, in := range p.want {
 		if in.grain == grainRanked {
@@ -502,7 +494,8 @@ func TestARankedRowWithNoSectionIsReportedRatherThanKeyedOnItsRankAlone(t *testi
 	q := planFor(o, record.BacklogParse{
 		Items:      []record.BacklogItem{{ID: "B1", Title: "a row"}},
 		Unimported: []record.Unimported{rankedRow("0", "a-named-table", 125)},
-	}, record.DecisionParse{})
+	}, record.DecisionParse{}, record.PlanParse{})
+
 	if !has(ids(q.want), "a-named-table/0") {
 		t.Errorf("a row with a section was not keyed either, so this test proves nothing")
 	}
@@ -520,7 +513,7 @@ func TestRigsOwnOrderedTableIsKeyedAndTheAdopterTableIsNot(t *testing.T) {
 		t.Fatalf("reading %s: %v", live, err)
 	}
 	o := options{project: "rig", backlog: live, decisions: "DECISIONS.md"}
-	p := planFor(o, doc, record.DecisionParse{})
+	p := planFor(o, doc, record.DecisionParse{}, record.PlanParse{})
 
 	var ranked []string
 	for _, in := range p.want {
@@ -567,7 +560,7 @@ func TestAnIdBothDocumentsStateIsReportedAndWrittenOnce(t *testing.T) {
 		Items: []record.BacklogItem{{ID: "B1", Title: "the row"}},
 	}, record.DecisionParse{Decisions: []record.DecisionEntry{
 		entryFor("B1", "a ruling that took the row's id", record.EntryDecision),
-	}})
+	}}, record.PlanParse{})
 
 	if got := strings.Join(p.collided, " "); got != "B1" {
 		t.Errorf("collided = {%s}, want {B1}", got)
@@ -619,11 +612,10 @@ func d(p plan) divergence {
 // data was wrong.
 func TestANoteIsPartOfTheProjectSoTheBriefCanReachIt(t *testing.T) {
 	o := options{project: "rig", decisions: "DECISIONS.md"}
-	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}},
-		record.DecisionParse{Decisions: []record.DecisionEntry{
-			entryFor("what-rig-is", "What rig is", record.EntrySection),
-			entryFor("2026-09-17-a-ruling", "2026-09-17 a ruling", record.EntryDecision),
-		}})
+	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}}, record.DecisionParse{Decisions: []record.DecisionEntry{
+		entryFor("what-rig-is", "What rig is", record.EntrySection),
+		entryFor("2026-09-17-a-ruling", "2026-09-17 a ruling", record.EntryDecision),
+	}}, record.PlanParse{})
 
 	if got := intentFor(t, p, "what-rig-is").partOf; got != o.project {
 		t.Errorf("a note states part-of %q, want %q - a note attached to nothing "+
@@ -655,19 +647,18 @@ func TestANoteIsPartOfTheProjectSoTheBriefCanReachIt(t *testing.T) {
 // document: only a parent that is a NOTE loses the edge.
 func TestARulingUnderAStandingSectionAssertsNoPartOf(t *testing.T) {
 	o := options{project: "rig", decisions: "DECISIONS.md"}
-	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}},
-		record.DecisionParse{Decisions: []record.DecisionEntry{
-			entryFor("the-attack", "Decisions taken during the attack", record.EntrySection),
-			{
-				Key: "the-attack/5-gap-is-cut", Title: "5. gap is cut", Kind: record.EntryDecision,
-				Level: 3, PartOf: "the-attack", Line: 173, Body: "prose",
-			},
-			entryFor("2026-09-17-a-ruling", "2026-09-17 a ruling", record.EntryDecision),
-			{
-				Key: "2026-09-17-a-ruling/the-detail", Title: "The detail", Kind: record.EntryDecision,
-				Level: 3, PartOf: "2026-09-17-a-ruling", Line: 200, Body: "prose",
-			},
-		}})
+	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}}, record.DecisionParse{Decisions: []record.DecisionEntry{
+		entryFor("the-attack", "Decisions taken during the attack", record.EntrySection),
+		{
+			Key: "the-attack/5-gap-is-cut", Title: "5. gap is cut", Kind: record.EntryDecision,
+			Level: 3, PartOf: "the-attack", Line: 173, Body: "prose",
+		},
+		entryFor("2026-09-17-a-ruling", "2026-09-17 a ruling", record.EntryDecision),
+		{
+			Key: "2026-09-17-a-ruling/the-detail", Title: "The detail", Kind: record.EntryDecision,
+			Level: 3, PartOf: "2026-09-17-a-ruling", Line: 200, Body: "prose",
+		},
+	}}, record.PlanParse{})
 
 	if got := intentFor(t, p, "the-attack/5-gap-is-cut").partOf; got != "" {
 		t.Errorf("a ruling under a standing section states part-of %q, want none - "+
@@ -687,14 +678,13 @@ func TestARulingUnderAStandingSectionAssertsNoPartOf(t *testing.T) {
 // would be the only way a reader could not tell the two apart.
 func TestAnEdgeTheSeederDoesNotAssertIsNamedRatherThanDropped(t *testing.T) {
 	o := options{project: "rig", decisions: "DECISIONS.md"}
-	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}},
-		record.DecisionParse{Decisions: []record.DecisionEntry{
-			entryFor("the-attack", "Decisions taken during the attack", record.EntrySection),
-			{
-				Key: "the-attack/5-gap-is-cut", Title: "5. gap is cut", Kind: record.EntryDecision,
-				Level: 3, PartOf: "the-attack", Line: 173, Body: "prose",
-			},
-		}})
+	p := planFor(o, record.BacklogParse{Items: []record.BacklogItem{{ID: "B1", Title: "a row"}}}, record.DecisionParse{Decisions: []record.DecisionEntry{
+		entryFor("the-attack", "Decisions taken during the attack", record.EntrySection),
+		{
+			Key: "the-attack/5-gap-is-cut", Title: "5. gap is cut", Kind: record.EntryDecision,
+			Level: 3, PartOf: "the-attack", Line: 173, Body: "prose",
+		},
+	}}, record.PlanParse{})
 
 	if got := strings.Join(p.detached, " "); got != "the-attack/5-gap-is-cut -part-of-> the-attack" {
 		t.Errorf("detached = {%s}, want the one edge the ruling drops", got)
