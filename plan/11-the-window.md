@@ -962,3 +962,65 @@ well it serves a query.
 that."* So the fields must be ones a writer can fill from what the source
 DOCUMENT already says. **A field that can only be filled by composing new prose
 is a field that will arrive empty or invented**, and both outcomes fail this.
+
+## ⛔ WORK ITEMS ARE CLASSIFIED, FILTERABLE, AND THE HATCH IS HARD TO READ. BORIS, 2026-09-17.
+
+> *"The different work-items should probably be classified to task/bug/idea/...
+> with appropriate icons. Should probably be able to filter by tags or aspects or
+> by searching. [screenshot] these are not that great for the eyes to read and in
+> general the layout of this display could be way much better."*
+
+**Three things, and the third has a filed row with a measured answer already.**
+
+### 1. A work item has a TYPE, and the type has an icon
+
+⛔ **`kind` IS ALREADY TAKEN AND THIS IS NOT IT.** §39's `kind` separates a
+work-item from a decision from a requirement. **What he is asking for is a
+classification WITHIN work-item** - task, bug, idea - so it is a FIELD on the
+record, not a new kind.
+
+⛔ **AND IT IS NOT DERIVABLE FROM THE DOCUMENT TODAY.** `BACKLOG.md` says
+nothing about whether a row is a bug or a task; the rows read as defects because
+that is what this project has been filing, not because anything typed them.
+**So this is his authorised "add dedicated fields" case**, and the writer is the
+agent: *"the AI agent populating it should have no problem setting proper fields
+for that."*
+
+⛔ **A SEAT MUST NOT BACKFILL THE EXISTING ROWS BY GUESSING.** A type inferred
+from a row's wording is a seat composing content, which this section already
+refuses twice. **An untyped row says untyped**; new rows carry a type because
+whoever writes them knows it.
+
+### 2. Filter by tag or aspect, and search
+
+**The store can already answer most of this and nothing asks it.** `record.query`
+takes project, kind and a field predicate (B65), so filtering on `owner`,
+`status` or a type field is a query the window does not make.
+
+⛔ **SEARCH OVER THE BODY IS THE PART THAT IS NOT BUILT.** The field predicate is
+an exact match on a field's value; nothing does substring or full-text over a
+record's prose - which is now where a row's real content lives (rig `dd6d102`).
+**B28 is the store-search row and it is open.**
+
+### 3. ⛔ THE HATCHED "NOT COMPUTED" GROUND IS B71, AND IT IS MEASURED
+
+**He is reading body text over a diagonal hatch.** This is **not a taste
+judgement and must not be answered with one**: `BACKLOG.md` B71 already carries
+the measurement, taken 2026-09-17 before he complained.
+
+| | |
+|---|---|
+| **measured** | the hatched *not computed* ground puts its reason text at **3.73:1 dark / 3.71:1 light** |
+| **what the gate said** | *"clean: every pass green in every theme"* |
+| **why the gate missed it** | every pass reads `backgroundColor`; a hatch is a `background-image`, so the gate measures the colour UNDERNEATH it |
+| **the answer, already computed** | **30% is the first alpha that clears both themes** - 5.16 dark / 5.01 light |
+
+⛔ **SO THE FIX IS KNOWN AND THE ROW IS OPEN.** He has now hit it from the
+outside, which raises it from a filed finding to a live complaint.
+
+⛔ **AND "the layout of this display could be way much better" IS A SEPARATE
+CLAIM FROM THE CONTRAST**, larger and not yet measured. The screenshot shows
+seven consecutive full-width cards, five of which say the same two sentences
+about the git projection. **A panel that repeats one reason five times is
+spending a screen to say one thing** - that is a grouping defect, not a colour
+one, and the two must not be closed together.
