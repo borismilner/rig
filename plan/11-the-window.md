@@ -806,3 +806,32 @@ rig tray icon unreadable as rig's**, and the icon is his only readout.
 ⛔ **THE TEST IS A GLANCE, NOT A DIFF.** They are adjacent in one strip at one
 size. **Distinguishable when compared side by side is not the bar**; telling
 them apart without comparing is.
+
+
+### ⛔ "ALWAYS AVAILABLE" IS THE REQUIREMENT, AND IT IS STRONGER THAN "WHENEVER RELEVANT". BORIS, 2026-09-17.
+
+> *"Rig system-tray icon should always be available."*
+
+⛔ **THIS SUPERSEDES HIS OWN "whenever it is relevant" FROM THE SAME DAY**, and
+the narrowing is his: **there is no state in which the icon is absent.** A seat
+weighing whether a given moment counts as *relevant* is answering a question he
+has now closed.
+
+**Three things remove it today and each needs its own answer:**
+
+| # | What removes it | Why the obvious fix is wrong |
+|---|---|---|
+| 1 | `Quit rig window` | it quits the PROCESS, which owns the tray. **The menu row conflates a window with a tray** |
+| 2 | an unnamed estate | §11's own rule quits the tray. **Written to stop a third icon appearing during `make ci`** - a real problem, wrong remedy |
+| 3 | `Restart=on-failure` after a clean exit | ⛔ **`Restart=always` IS NOT THE ANSWER.** It makes the close button do nothing, which is the scar `rigd.service` spends thirty lines on |
+
+⛔ **THE SHAPE OF THE FIX IS THAT THE WINDOW'S LIFECYCLE MUST STOP OWNING THE
+TRAY'S.** Closing a window is a normal act; ending the one thing whose job is to
+be visible is not. **They are one process today and that is the whole defect.**
+
+⛔ **AND THE `make ci` CASE IS REAL AND MUST NOT BE REGRESSED.** Every test and
+reproduction recipe starts a daemon, and an icon per test run is worse than no
+icon. **The answer is to distinguish the ESTATE a tray may show from the tray
+EXISTING** - an unnamed estate is a reason to say "unnamed" on the icon, not a
+reason to have no icon. That is the same argument §11 already makes about the
+detached state, applied one level up.

@@ -122,6 +122,60 @@ adds is an OWED REPORT: somebody must be watching this readiness and must say
 so unprompted, rather than Boris having to ask. **The team-lead owns it, in
 `READINESS.txt`, beside the "how much longer" line**, because that file is
 already the only place allowed to answer a readiness question.
+**BORIS, 2026-09-17, NARROWING IT TO WHAT ACTUALLY HAS TO MOVE:** *"Now about
+AgentBox, do we need its system-tray icon at all? Maybe we can register the
+functionality it exposes into rig? I mean, is the system-tray icon part of the
+daemon? If not then we don't need it, I still need you to be able to show
+AgentBox notifications and all it exposes just probably don't need the
+functionality of its system-tray icon that only allows to show the AgentBox GUI
+and set it into DND mode."*
+
+⛔ **HE ASKED A FACTUAL QUESTION AND IT IS ANSWERED, MEASURED ON HIS MACHINE:
+THE TRAY IS INSIDE THE DAEMON PROCESS.** `[ran it]` 2026-09-17: the registered
+item `:1.590@/StatusNotifierItem` belongs to **pid 469200**, whose cmdline is
+`/home/boris-milner/.local/bin/agentbox daemon`, 36 threads, one process.
+**So removing the tray removes NO other surface** - the MCP server, the
+notifications, the board, the window and every `mcp__agentbox__*` tool live in
+that same daemon and are untouched. His *"if not then we don't need it"* is
+conditional on a fact that turns out the other way, and the conclusion survives
+anyway: **the tray is a surface OF the daemon, not the daemon.**
+
+⛔ **AND THE MENU IS EXACTLY FOUR ROWS, SO THE PORT IS SMALL AND CAN BE
+STATED.** `[ran it]`, `com.canonical.dbusmenu GetLayout`:
+
+| id | row | what it is |
+|---|---|---|
+| 1 | `No pending items` | ⛔ **a LIVE COUNT, disabled.** Not in his list, and it is the one row that carries information rather than an action |
+| 3 | `Show AgentBox` | opens the GUI |
+| 4 | `Do not disturb` | a checkmark toggle |
+| 6 | `Quit AgentBox` | ⛔ also not in his list |
+
+⛔ **HE NAMED TWO OF THE FOUR. THE OTHER TWO ARE THE ONES THAT DECIDE THE
+SEQUENCING** - a pending-items count is how he learns an agent is waiting on
+him, and dropping it silently is a capability regression dressed as a
+consolidation.
+
+✅ **THIS IS NOT rig GROWING A CAPABILITY, WHICH `plan/38` WOULD FORBID. IT IS
+THE CAPABILITY rig ALREADY CLAIMS.** This section's own diagram has every
+program reaching the tray THROUGH rig, and §03's maximal is *"a new program
+registers and becomes fully reachable - CLI, TUI, MCP, tray, HTTP, palette,
+schedule - with zero frontend code"*. **AgentBox is the in-house program that
+test exists for.** Four rows projected from one registration is the smallest
+honest proof of the whole idea.
+
+⛔ **SO THE ORDER IS FIXED AND IT IS NOT NEGOTIABLE BY CONVENIENCE: rig's TRAY
+PROJECTS A REGISTERED PROGRAM'S ROWS FIRST, AND AgentBox's TRAY COMES OUT
+SECOND.** rig's tray renders its own four rows today and projects nothing from
+any registered program, so removing AgentBox's tray now costs him the pending
+count, DND, the GUI opener and quit, with nothing carrying them. **His own words
+already bind this: "everything must be ready so that we don't harm the rig
+development process."**
+
+⛔ **UNTIL THEN THE TWO ICONS SIT SIDE BY SIDE AND MUST BE TELLABLE APART AT A
+GLANCE**, which is the same day's `AB` wordmark ruling in `plan/11`. **That is an
+interim measure with a retirement date, and the date is the day this port
+lands.**
+
 **MVP-ready is not a feeling, and at a minimum it means:** the tray carries all
 four dimensions §11 requires at 22px (only the mark and the estate are wired
 today), the window survives being closed by the user (the SIGABRT found
