@@ -1,0 +1,21 @@
+[Desktop Entry]
+Type=Application
+Name=rig
+GenericName=Estate platform
+Comment=Start rig's window and system-tray icon
+# Starts the UNIT rather than the binary, and that is the load-bearing line.
+#
+# Launching build/rigwindow directly would leave systemd not owning the tray,
+# and section 11's recorded defect is precisely that the window's lifecycle owns
+# the tray's: the icon then dies with whatever started it and nothing restarts
+# it. `systemctl --user start` is idempotent, so a second double-click on an
+# already-running window is a no-op rather than a second tray icon.
+Exec=/usr/bin/systemctl --user start rigwindow.service
+Icon=rig
+Terminal=false
+Categories=Development;
+Keywords=rig;estate;agents;records;
+StartupNotify=false
+# Matches the window the Wails app actually creates, so the launcher and the
+# running window are one entry in the dock rather than two.
+StartupWMClass=rigwindow

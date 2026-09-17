@@ -11,6 +11,11 @@ PREFIX     ?= $(HOME)/.local
 # Where the systemd --user unit lands. systemd reads XDG_CONFIG_HOME
 # and falls back to ~/.config, so this follows it rather than guessing.
 UNITDIR    ?= $(or $(XDG_CONFIG_HOME),$(HOME)/.config)/systemd/user
+# Where a desktop launcher and its icon go, per the XDG basedir spec. Both
+# follow XDG_DATA_HOME so a machine that moves it does not get a launcher
+# written somewhere nothing reads.
+APPDIR     ?= $(or $(XDG_DATA_HOME),$(HOME)/.local/share)/applications
+ICONDIR    ?= $(or $(XDG_DATA_HOME),$(HOME)/.local/share)/icons/hicolor/256x256/apps
 # A BUILD FROM A DIRTY TREE HAS TO SAY SO IN EVERY STAMP IT CARRIES, and this
 # repository is the case that makes it matter rather than a hypothetical: three
 # seats share one working tree with no branches, so uncommitted work is the
@@ -216,13 +221,21 @@ install: build ## Install rig and rigd, replacing a live deployment without losi
 # it is properly deployed." Nothing installed the window before this target and
 # nothing started it after a login, so the second half of that sentence could
 # not have passed however many times the first half did.
-install-window: build-rigwindow ## Install the window and tray, and register its user service
+install-window: build-rigwindow ## Install the window, tray, user service and desktop launcher
 	install -Dm755 build/rigwindow $(PREFIX)/bin/rigwindow
 	install -Dm644 packaging/rigwindow.service $(UNITDIR)/rigwindow.service
+	# The launcher and its icon. Installed HERE and not by hand, because a
+	# launcher that exists only in somebody's home directory is one reinstall
+	# from gone with no trace in any repository - which is exactly how this one
+	# was found on 2026-09-17, twenty minutes after it was made.
+	install -Dm644 packaging/rig.desktop $(APPDIR)/rig.desktop
+	install -Dm644 cmd/rigwindow/icons/production.png $(ICONDIR)/rig.png
 	@systemctl --user daemon-reload 2>/dev/null || \
 	  echo "no user systemd here; the unit is installed but not registered"
+	@update-desktop-database $(APPDIR) 2>/dev/null || true
 	@echo "installed $(PREFIX)/bin/rigwindow ($(VERSION))"
 	@echo "installed $(UNITDIR)/rigwindow.service"
+	@echo "installed $(APPDIR)/rig.desktop and $(ICONDIR)/rig.png"
 	@echo
 	@echo "NOT ENABLED, the same call as the daemon's and for the same reason."
 	@echo "The tray shows which estate rigd is, so BOTH are needed for an icon:"
@@ -233,6 +246,7 @@ uninstall: ## Remove the installed binaries and the user service
 	-@systemctl --user disable --now $(BIND).service 2>/dev/null || true
 	rm -f $(PREFIX)/bin/$(BIN) $(PREFIX)/bin/$(BIND)
 	rm -f $(UNITDIR)/$(BIND).service
+	rm -f $(APPDIR)/rig.desktop $(ICONDIR)/rig.png
 	@systemctl --user daemon-reload 2>/dev/null || true
 
 run: build-rigd ## Run the daemon in the foreground with debug logging
