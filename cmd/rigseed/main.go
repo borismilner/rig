@@ -187,6 +187,21 @@ func run() error {
 		return fmt.Errorf("%s parsed to zero work items, which is never right for this "+
 			"document - the parser or the path is wrong, and writing nothing is the safe answer", o.backlog)
 	}
+	// ⛔ ONE FILE CANNOT BE BOTH DOCUMENTS, AND THE FAILURE IS SILENT WITHOUT
+	// THIS. Pointed at the same path twice, the backlog parser and the
+	// decisions parser both read it and both succeed: the rows arrive keyed on
+	// `B\d+` and the headings arrive keyed on title slugs, so no id collides,
+	// nothing is reported, and the store quietly holds every heading of
+	// BACKLOG.md as a ruling. `--check` would then agree with itself about a
+	// set that is wrong, which is the one shape this instrument must not have.
+	if o.backlog == o.decisions {
+		return fmt.Errorf("--backlog and --decisions are both %q.\n"+
+			"       One file cannot be both documents: each parser would succeed on it, "+
+			"the ids would not collide,\n"+
+			"       and the store would hold every heading of it as a ruling with "+
+			"nothing reporting that", o.backlog)
+	}
+
 	dec, err := readDecisions(o.decisions)
 	if err != nil {
 		return err

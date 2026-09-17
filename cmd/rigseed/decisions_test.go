@@ -547,3 +547,52 @@ func TestRigsOwnOrderedTableIsKeyedAndTheAdopterTableIsNot(t *testing.T) {
 			"expected to remain", strings.Join(left, ", "))
 	}
 }
+
+// ⛔ AN ID THE TWO DOCUMENTS BOTH STATE IS REPORTED, NEVER WRITTEN TWICE.
+//
+// The store keys on the id alone and knows nothing about which document a
+// record came from, so two puts against one id in one run supersede each other
+// and whichever went last wins - a silent wrong answer decided by the order
+// this seeder happens to read in. A backlog id is `B\d+` and a decision key is
+// a title slug, so it is not expected; the point is that the day it happens it
+// is a line in a report rather than a record nobody can account for.
+func TestAnIdBothDocumentsStateIsReportedAndWrittenOnce(t *testing.T) {
+	o := options{project: "rig", backlog: "BACKLOG.md", decisions: "DECISIONS.md"}
+	p := planFor(o, record.BacklogParse{
+		Items: []record.BacklogItem{{ID: "B1", Title: "the row"}},
+	}, record.DecisionParse{Decisions: []record.DecisionEntry{
+		entryFor("B1", "a ruling that took the row's id", record.EntryDecision),
+	}})
+
+	if got := strings.Join(p.collided, " "); got != "B1" {
+		t.Errorf("collided = {%s}, want {B1}", got)
+	}
+	// The BACKLOG's record is the one written, because it was read first.
+	in := intentFor(t, p, "B1")
+	if in.kind != record.KindWorkItem || in.title != "the row" {
+		t.Errorf("B1 was written as %q/%q; the first document read must win and "+
+			"nothing may be written twice", in.kind, in.title)
+	}
+	n := 0
+	for _, w := range p.want {
+		if w.id == "B1" {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Errorf("B1 is planned %d times; two puts against one id supersede each other", n)
+	}
+	if !has(d(p).nonEmpty(), "id-stated-twice") {
+		t.Errorf("nonEmpty = %v; an id two documents claim must not exit clean", d(p).nonEmpty())
+	}
+}
+
+// d is the divergence of a plan against a store that holds exactly it, so a
+// test can assert on the sets a collision puts there without building a store.
+func d(p plan) divergence {
+	store := map[string]held{}
+	for _, in := range p.want {
+		store[in.id] = heldOf(in)
+	}
+	return diff(p, store)
+}
