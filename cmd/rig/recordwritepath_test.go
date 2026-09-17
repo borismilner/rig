@@ -503,10 +503,14 @@ func TestAPipeStillGetsALayoutRatherThanTheWidestId(t *testing.T) {
 // long. Found by mutation: removing the fallback left the test above green.
 func TestAQueryPipeWithShortIdsKeepsTheColumnTable(t *testing.T) {
 	rs := []Record{
-		{ID: "B75", Version: 2, Kind: "work-item", Project: "rig",
-			Fields: map[string]string{titleKey: "the write path drops prose"}},
-		{ID: "B60", Version: 1, Kind: "work-item", Project: "rig",
-			Fields: map[string]string{titleKey: "a body that is not argv"}},
+		{
+			ID: "B75", Version: 2, Kind: "work-item", Project: "rig",
+			Fields: map[string]string{titleKey: "the write path drops prose"},
+		},
+		{
+			ID: "B60", Version: 1, Kind: "work-item", Project: "rig",
+			Fields: map[string]string{titleKey: "a body that is not argv"},
+		},
 	}
 	got := queryText(QueryArgs{Project: "rig"}, rs, 0)
 
@@ -546,10 +550,14 @@ func TestTheLayoutIsOneShapeForTheWholeTable(t *testing.T) {
 // pinned, so the summary is what pays for any squeeze.
 func TestAListingWhoseIdsFitKeepsOneLinePerRecord(t *testing.T) {
 	rs := []Record{
-		{ID: "B75", Version: 2, Kind: "work-item", Project: "rig",
-			Fields: map[string]string{titleKey: strings.Repeat("long ", 60)}},
-		{ID: "B60", Version: 1, Kind: "work-item", Project: "rig",
-			Fields: map[string]string{titleKey: "a body that is not argv"}},
+		{
+			ID: "B75", Version: 2, Kind: "work-item", Project: "rig",
+			Fields: map[string]string{titleKey: strings.Repeat("long ", 60)},
+		},
+		{
+			ID: "B60", Version: 1, Kind: "work-item", Project: "rig",
+			Fields: map[string]string{titleKey: "a body that is not argv"},
+		},
 	}
 	const width = 80
 	got := queryText(QueryArgs{Project: "rig"}, rs, width)
