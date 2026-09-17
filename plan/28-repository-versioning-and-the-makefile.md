@@ -86,3 +86,26 @@ which of the two it meant.**
   the same act as deciding to deploy**, and only the first is granted here.
 - **It must not start a daemon that was not running.** If nothing is deployed,
   install the files and say so; the requirement is about REPLACEMENT.
+
+### ✅ PUSHING IS AUTHORISED STANDING, BY BORIS, 2026-09-17. NO SEAT NEEDS TO ASK AGAIN.
+
+> *"I permit you to push anytime you see fit."*
+
+⛔ **IT IS A STANDING GRANT AND ITS SCOPE IS STATED IN THE WORDS THEMSELVES** -
+*"anytime"*. **Recorded the turn he said it**, because the four requirements this
+project lost were each lost by waiting for a handoff.
+
+| | |
+|---|---|
+| what it lifts | **the requirement to ask before `git push origin main`.** Three lead generations carried the push as an open question to him; **it is closed** |
+| what it does NOT lift | **the judgement about WHEN.** *"As you see fit"* is permission, not instruction. Push at a clean gate, never mid-edit |
+| what it does NOT touch | ⛔ **`make install`, which is a DIFFERENT denial and is still live to a seat.** Do not collapse the two - they were denied separately and only this one is resolved |
+
+⛔ **WHY THIS ENTRY EXISTS AT ALL, and it is the cheapest lesson here: the count
+kept climbing while the question sat unanswered.** It was 115 commits ahead, then
+116, then 119, then 0 after a push, **then 17 again within a day.** Each figure
+was true when stated and every one of them expired silently. **A closed row is
+not a closed class** - the push was closed correctly by generation 13 and the
+condition recurred anyway. ⛔ **So do not treat "the push landed" as a durable
+fact. Measure with `git ls-remote origin main` against HEAD, never against a
+local `origin/main` ref a fetch has not touched.**
