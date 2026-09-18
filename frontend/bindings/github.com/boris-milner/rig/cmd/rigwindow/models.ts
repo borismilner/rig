@@ -640,13 +640,46 @@ export class RecordRow {
     "title": string;
 
     /**
-     * Section is the grouping a reader actually thinks in - "39", "11" - and it
-     * is FREE: a requirement's id leads with its section number, by the id
-     * scheme Boris ruled on 2026-09-18. Empty when the id has no such prefix,
-     * which is every decision.
+     * Section is the grouping a reader actually thinks in - "39", "11".
+     * 
+     * ⛔ THE STORE CARRIES IT AS A FIELD AND THE ID IS ONLY THE FALLBACK.
+     * Measured against his production store 2026-09-18: `section` is present on
+     * all 387 requirement heads and agrees with the id's first segment on every
+     * one of them. Reading the field is not a preference - deriving a grouping
+     * from a key means the day an id scheme changes, the grouping changes
+     * silently and nothing fails.
      */
     "section": string;
+
+    /**
+     * SectionTitle is "11. The window" - what a reader wants above the group,
+     * rather than the bare number.
+     * 
+     * ⛔ IT IS COMPUTED, BECAUSE THERE IS NO SUCH FIELD. This read
+     * `fields["section-title"]`, which no seeder has ever written, so it was
+     * empty on every record in the store and the Spec view would have shipped
+     * with 42 headings reading "1", "2", "3". The store's own answer is the
+     * title of the record at the TOP of the section's document, which rowsFrom
+     * finds by doc-line.
+     */
     "sectionTitle": string;
+
+    /**
+     * Level is the heading depth the document states: 2 is a section head, 3
+     * and below are nested under it. It is what lets the Spec render as the
+     * tree the plan actually is rather than as 387 flat rows.
+     */
+    "level": number;
+
+    /**
+     * Date is the day a dated record belongs to, "" when it has none.
+     * 
+     * ⛔ 91 OF 533 DECISIONS HAVE NO DATE ANYWHERE - not in `doc-date`, which
+     * only 140 carry, and not in the id. Measured 2026-09-18. A view that
+     * groups by day must therefore have an undated group; inventing one from
+     * the seeding run's clock would date a ruling by when it was imported.
+     */
+    "date": string;
     "body": string;
 
     /**
@@ -683,6 +716,12 @@ export class RecordRow {
         }
         if (!("sectionTitle" in $$source)) {
             this["sectionTitle"] = "";
+        }
+        if (!("level" in $$source)) {
+            this["level"] = 0;
+        }
+        if (!("date" in $$source)) {
+            this["date"] = "";
         }
         if (!("body" in $$source)) {
             this["body"] = "";
