@@ -7,6 +7,8 @@ import (
 	"os"
 	"syscall"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/boris-milner/rig/internal/kernel"
 )
 
@@ -38,15 +40,43 @@ import (
 // caller kind can be given a connection without one by someone adding a third
 // listener and forgetting.
 func newPrincipal(nc net.Conn) kernel.Principal {
+	pid := peerPID(nc)
 	return kernel.Principal{
-		UID:        os.Getuid(),
-		Kind:       kernel.KindTerminal,
-		ClientID:   randomID("c"),
-		SessionID:  randomID("s"),
-		PID:        peerPID(nc),
-		Introspect: true,
-		Token:      randomID("sess"),
+		UID:         os.Getuid(),
+		Kind:        kernel.KindTerminal,
+		ClientID:    randomID("c"),
+		SessionID:   randomID("s"),
+		PID:         pid,
+		UnixSession: unixSession(pid),
+		Introspect:  true,
+		Token:       randomID("sess"),
 	}
+}
+
+// unixSession is B86's ruled derivation: the unix session of the process on the
+// other end of the socket.
+//
+// ⛔ HIS RULING IS *"DERIVE WHAT IS DERIVABLE"* AND THE PID WAS ALREADY HELD.
+// What it buys is measured, not hoped for: `rigseed` execs `rig record put` as
+// CHILD processes, so a whole seeding run inherits ONE session. The 2026-09-18
+// re-seed wrote 380 requirement records under 380 DISTINCT random tokens; they
+// collapse to one value under this.
+//
+// ⛔ ZERO IS "COULD NOT READ IT", AND IT IS NOT A SESSION. `peerPID` returns 0
+// when `SO_PEERCRED` fails, and `Getsid(0)` means "my own session" - the
+// DAEMON's - which would be a confident wrong answer about the caller.
+func unixSession(pid int) int {
+	if pid <= 0 {
+		return 0
+	}
+	// ⛔ `golang.org/x/sys/unix` AND NOT `syscall`: the standard library never
+	// exported `Getsid`. The module is already a direct dependency and
+	// `internal/coord` and `cmd/rig` already use it, so this adds nothing.
+	sid, err := unix.Getsid(pid)
+	if err != nil || sid < 0 {
+		return 0
+	}
+	return sid
 }
 
 // asProgram is the one transition a principal makes, and registration is what

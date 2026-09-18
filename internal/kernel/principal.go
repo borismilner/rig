@@ -106,6 +106,28 @@ type Principal struct {
 	ClientID  string
 	SessionID string
 
+	// UnixSession is the caller's unix session id, DERIVED from the pid the
+	// socket already gave up. Zero when it could not be read.
+	//
+	// ⛔ IT IS A THIRD FIELD BECAUSE THE OTHER TWO ARE BOTH SPOKEN FOR, AND
+	// B86's ROW NAMED THE WRONG ONE. The row says the fix is at
+	// `newPrincipal`'s `SessionID`; changing that field would not have reached
+	// a record at all - a record's `session` is `Token` - and it would have
+	// broken the registry, whose succession rule and whose `Deregister` both
+	// key on `SessionID` naming exactly ONE CONNECTION. Two shells in one unix
+	// session would then share it, so closing one would deregister the other's
+	// programs.
+	//
+	// ⛔ AND `Token` CANNOT CARRY IT EITHER, for the reason the comment below
+	// gives: section 5f says `Token` survives a reconnect and dies with an
+	// occupancy, which a unix session id does neither of.
+	//
+	// ⛔ IT ANSWERS *WHICH TERMINAL*, NEVER *WHICH AGENT*, AND B86 SAYS SO IN
+	// CAPITALS. Measured 2026-09-18: an agent harness `setsid`s every tool
+	// call, so for an agent this is per-call. Reporting it as attribution is
+	// the misuse the row forbids.
+	UnixSession int
+
 	// Token is section 5f's SESSION TOKEN, and it is NOT SessionID.
 	//
 	// READ THE TWO NAMES CAREFULLY, BECAUSE THEY LOOK LIKE SYNONYMS AND ARE

@@ -96,12 +96,13 @@ func (d *Daemon) recordStore(c *conn, f *rigv1.Frame, command string) (*record.S
 
 // provenance is WHO IS WRITING, and every field of it is the daemon's.
 //
-// ⛔ THE SESSION IS `Token`, NOT THE FIELD NAMED `SessionID`. They look like
-// synonyms and are opposites: SessionID names ONE CONNECTION and has never
-// travelled to a caller, while Token is section 5f's session token, which
-// outlives a socket and dies with one occupancy. principal.go records that
-// misnomer rather than repairing it, so this is the line where reading it
-// wrong would stamp every version of a reconnecting seat's work as a
+// ⛔ THE SESSION IS NEITHER `Token` NOR `SessionID` SINCE B86, AND THIS COMMENT
+// USED TO SAY IT WAS `Token`. It is `recordSession` below, which reads the
+// DERIVED unix session and falls back to `Token`. The old warning still holds
+// for anybody reaching for a field here: `SessionID` names ONE CONNECTION and
+// has never travelled to a caller, while `Token` is section 5f's session
+// token, which outlives a socket and dies with one occupancy. Reading either
+// one as the other stamps every version of a reconnecting seat's work as a
 // different author. PLAN.md section 39 carries the table.
 //
 // AN ANNOUNCED SEAT IS THE FIRST ANSWER AND A TERMINAL IS THE SECOND. A
@@ -110,13 +111,46 @@ func (d *Daemon) recordStore(c *conn, f *rigv1.Frame, command string) (*record.S
 // why that is not a weakening.
 func (d *Daemon) provenance(c *conn) (session, seat string, epoch uint64, ok bool) {
 	if occ, found := d.presence.occupantOf(c.occ); found && occ.seat != "" {
-		return c.principal().Token, occ.seat, d.epoch, true
+		return recordSession(c.principal()), occ.seat, d.epoch, true
 	}
 	p := c.principal()
 	if s := terminalSeat(c, p); s != "" {
-		return p.Token, s, d.epoch, true
+		return recordSession(p), s, d.epoch, true
 	}
 	return "", "", 0, false
+}
+
+// recordSession is what a record's `session` field carries, and B86 is the whole of
+// why it is not `Token` any more.
+//
+// ⛔ THE DEFECT WAS MEASURED TWICE AND THE SECOND TIME IT WAS THIS SESSION'S
+// OWN DOING. `Token` dies with an occupancy and a terminal has none, so every
+// `rig record put` minted a fresh one: generation 15 found 783 sessions over
+// 451 decisions, and the 2026-09-18 re-seed then wrote 380 requirement records
+// under 380 DISTINCT session values - `seat` constant, `epoch` constant, and
+// the one field that claims to group the act disagreeing with every row.
+//
+// ⛔ B86's ROW POINTED AT THE WRONG LINE AND THIS IS WHERE THAT IS ANSWERED.
+// It said the fix was `newPrincipal`'s `SessionID` at `principal.go:45`.
+// `SessionID` never reaches a record - THIS function decides what does - and
+// deriving it would have broken the registry, which keys succession and
+// `Deregister` on `SessionID` naming exactly one connection. The derivation
+// lands on its own field and the other two are untouched.
+//
+// ⛔ THE FALLBACK IS `Token`, WHICH IS TODAY'S ANSWER. An unreadable pid gives
+// no unix session, and a record with an EMPTY session field would be a new
+// silence where there used to be a useless value. Degrading to the old
+// behaviour is the honest floor.
+//
+// ⛔ REOPEN CONDITION, INHERITED FROM section 39 AND NOT RESTARTED HERE: when a
+// session outlives its connection at M7, the human surfaces that stopped
+// printing this field get it back. That ruling is about RENDERING and this
+// change does not touch it.
+func recordSession(p kernel.Principal) string {
+	if p.UnixSession > 0 {
+		return "unix:" + strconv.Itoa(p.UnixSession)
+	}
+	return p.Token
 }
 
 // terminalSeat names the seat an UNANNOUNCED caller writes under, or "" when
