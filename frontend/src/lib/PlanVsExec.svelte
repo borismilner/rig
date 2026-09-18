@@ -471,12 +471,18 @@
             No notes. rig computed this, so the list is genuinely empty.
           </p>
         {:else}
-          <ul class="items">
+          <!-- ⛔ NO ID COLUMN HERE, AND THAT IS THE FIX RATHER THAN A TASTE.
+               A work item's id is `B83` and the column is 4.5ch wide; a NOTE's
+               id is a 70-character slug, which that column rendered one
+               hyphen-fragment per line, vertically. Boris, 2026-09-18, with a
+               screenshot: "this is ugly and bad layout". The slug is of no use
+               to a reader anyway - it goes on the title, where it is still
+               reachable and no longer shapes the row. -->
+          <ul class="items notes">
             {#each brief.notes as n (n.id)}
               <li>
                 <span class="dotm" data-tone="none"></span>
-                <span class="iid">{n.priority || n.id}</span>
-                <span class="it">{n.body}</span>
+                <span class="it" title={n.id}>{n.body}</span>
               </li>
             {/each}
           </ul>
@@ -951,6 +957,18 @@
   .iid {
     font-family: var(--mono);
     color: var(--fg-dim);
+    /* ⛔ THE CLASS OF PROBLEM, NOT THE INSTANCE. This track is 4.5ch, so any
+       id longer than "B46a" wraps INSIDE it - and a 70-character slug wraps to
+       one fragment per line, which reads as vertical text. Clipping here means
+       no id can ever do that again, whatever the store starts holding. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* A note has no short id to show, so the row is a dot and the note. */
+  .items.notes li {
+    grid-template-columns: 10px minmax(0, 1fr) auto;
   }
 
   .it {
