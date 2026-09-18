@@ -213,6 +213,12 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 			// seeded - judged, joined, retitled for his reading and tagged.
 			// OPEN.
 			"B91", "B92", "B93", "B94", "B95", "B96",
+			// B97 and B98 filed 2026-09-18 by team-lead generation 22, and
+			// both were found by LOOKING at the real window rather than by
+			// reading code: a note in the brief is one truncated line nobody
+			// can open, and every decision title repeats the date its own
+			// group heading already states. Both OPEN.
+			"B97", "B98",
 		})
 
 	// B65 joins this set 2026-09-17: the field predicate landed at rig
@@ -351,9 +357,13 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 		// 99 -> 101 rows and 81 -> 83 open, the same day and the same seat:
 		// B95 and B96 filed from two things Boris said mid-session - the GUI
 		// phase after the gaps, and the shouting titles he read as stale data.
-		{"rows", len(items), 101},
+		// 101 -> 103 rows and 83 -> 85 open, 2026-09-18 by generation 22:
+		// B97 and B98 filed. ⛔ NEITHER CAME FROM A DOCUMENT OR A TEST - both
+		// were seen on the screen once the record views put 920 records there,
+		// which is the phase's own argument arriving as evidence.
+		{"rows", len(items), 103},
 		{"closed", len(struck) + len(byLead), 18},
-		{"open", open, 83},
+		{"open", open, 85},
 	} {
 		if c.got != c.want {
 			t.Errorf("%s: %d, pinned at %d.\n"+
