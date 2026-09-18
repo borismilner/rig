@@ -877,7 +877,7 @@ something tagged them. **The GUI complaint is a STORAGE finding with a GUI
 symptom**, and fixing the symptom first would produce a detail pane that renders
 the same truncated line twice.
 
-### What this does NOT license
+### What the legible rows do NOT license
 
 ⛔ **NOT a new grain.** §39's grain is Boris's own and was widened by him to
 `#####` on 2026-09-17. This is about which FIELDS a record carries, not about
@@ -1158,7 +1158,7 @@ default already says. **Building it as a way around a harness gate rather than a
 a capability is the version that goes wrong**: an unattributed shell-out from a
 GUI is the one shape §13 exists to refuse, and it would also be a worse product.
 
-### What this does NOT license
+### What the management panel does NOT license
 
 ⛔ **NOT arbitrary shell from the window.** The panel runs rig's OWN declared
 deployment actions. A text box that runs what is typed into it is a different

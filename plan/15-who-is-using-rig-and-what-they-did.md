@@ -158,7 +158,7 @@ of client ids present, the set of method ids, min/max timestamp, error count, an
 which client appears in which one-second bucket. A few KB per 64 MB segment, computed from data
 already in hand.
 
-### The budget
+### The latency budget for a recorded call
 
 | What | Target | Basis |
 |---|---|---|

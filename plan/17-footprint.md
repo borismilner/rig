@@ -60,7 +60,7 @@ obligation are what remain, and both are judgement rather than a gate.
 **A ceiling with headroom was offered and NOT chosen**, so a seat must not
 reintroduce one as a gate without asking again.
 
-### The budget
+### The footprint budget, binary and memory
 
 | What | Budget | Measured by |
 |---|---|---|

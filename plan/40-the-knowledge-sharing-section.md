@@ -3,7 +3,7 @@
 **RULED BY BORIS 2026-09-17, and recorded the turn he said it.** Not on the MVP's
 critical path, and **he said it should be done soon.**
 
-## His words, verbatim
+## His words on knowledge sharing, verbatim
 
 > *"`rig` shall have a knowledge sharing section, mainly for the use of AI agents
 > but human users may use it too."*
@@ -94,7 +94,7 @@ have cost. **That number is the capability.** It is also the first thing in this
 project that would be measured against rig's own ARMED reports, which are the
 evidence for what agents actually re-derive by hand.
 
-## Where it sits
+## Where knowledge sharing sits
 
 **NOT ON THE MVP PATH.** Boris: *"it is not on the critical MVP path but should
 be done soon."* The MVP is §39 slices 1, 2 and 4 - being able to use rig to work

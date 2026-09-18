@@ -4,7 +4,7 @@
 LINE, AND IT IS PART OF THE REQUIREMENT RATHER THAN A FOOTNOTE: *"It is not part
 of the MVP."* **
 
-### His words, verbatim
+### His words on export and import, verbatim
 
 > *"I want a mechanism for import and export projects/cases to and from `rig`
 > such that on export it will put all the outputs into a well-organized folder
@@ -105,7 +105,7 @@ record, every version, every link, every step, every provenance field.
 **A round trip that a person has to eyeball has not been tested**, and this
 project has paid for that reading four times.
 
-### Where it sits
+### Where export and import sits
 
 ⛔ **NOT ON THE MVP PATH. HIS WORDS.** The MVP is §39 slices 1, 2 and 4. **This
 is after it**, and it is not a reason to delay the MVP by one session.

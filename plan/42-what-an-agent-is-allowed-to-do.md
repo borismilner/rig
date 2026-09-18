@@ -3,7 +3,7 @@
 **RULED BY BORIS 2026-09-17, recorded the turn he said it.** ⛔ **HIS OWN SCOPE:
 *"It is not critical for MVP but it should be implemented soon."* **
 
-### His words, verbatim
+### His words on what an agent may do, verbatim
 
 > *"I want both the human user and the AI agents to be able to do this - as said
 > previously, I want the AI agents to be able to do anything in the system.
@@ -163,7 +163,7 @@ for most of its life. So:
 3. one capability granted to one agent and refused to another, **distinguished by
    an identity the caller cannot set.**
 
-### Where it sits
+### Where an agent's permission sits
 
 ⛔ **NOT CRITICAL FOR THE MVP - HIS WORDS - AND *"SHOULD BE IMPLEMENTED SOON"*,
 which is the same weight he gave §40.** The MVP is §39 slices 1, 2 and 4.
