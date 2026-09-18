@@ -50,7 +50,14 @@
   import ProjectCaseGui from "./lib/ProjectCaseGui.svelte";
   import { INTERNAL_GUIS, internalGui, PROJECT_CASE_GUI } from "./lib/guis";
   import { createRigStore } from "./lib/rigstore.svelte";
-  import { PROGRAMS, BUILD, BRIEF, DEPLOYMENT } from "./lib/fixtures";
+  import {
+    PROGRAMS,
+    BUILD,
+    BRIEF,
+    DEPLOYMENT,
+    SPEC,
+    DECISIONS,
+  } from "./lib/fixtures";
 
   /* ── the fixtures, and none of them is a mock of the product path ────────
    *
@@ -79,7 +86,16 @@
   const settingsFixture = params.get("settings") === "1";
   const dashFixture = params.get("dash") === "1";
   const guiParam = params.get("gui");
-  const guiFixture = guiParam === "projects" || guiParam === "cases";
+  /* ⛔ FOUR VALUES, BECAUSE THE GUI NOW HOLDS FOUR PAGES AND THE GATE MUST SEE
+     ALL OF THEM. `?gui=spec` and `?gui=decisions` open the record views, whose
+     colours - group headings, the retracted pill, the find box, the mono body -
+     appear on no other page. Without them those tokens ship unmeasured, which
+     is this project's named defect: a gate that cannot fail reads as a pass. */
+  const guiFixture =
+    guiParam === "projects" ||
+    guiParam === "cases" ||
+    guiParam === "spec" ||
+    guiParam === "decisions";
   const railFixture = params.get("fixture") === "1";
   const fixture =
     railFixture || paneFixture || settingsFixture || dashFixture || guiFixture;
@@ -383,6 +399,16 @@
           store={rig}
           initialSide={guiParam === "cases" ? "cases" : "projects"}
           openRows={guiFixture}
+          initialView={guiParam === "spec"
+            ? "spec"
+            : guiParam === "decisions"
+              ? "decisions"
+              : "now"}
+          recordSeed={guiParam === "spec"
+            ? SPEC
+            : guiParam === "decisions"
+              ? DECISIONS
+              : null}
         />
       </div>
     {:else}

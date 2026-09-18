@@ -24,9 +24,12 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import PlanVsExec from "./PlanVsExec.svelte";
+  import Records from "./Records.svelte";
   import type { RigStore } from "./rigstore.svelte";
+  import type { RecordRow } from "../../bindings/github.com/boris-milner/rig/cmd/rigwindow/models.js";
   import { SELF } from "./rigstore.svelte";
   import { splitByKind } from "./brief";
+  import { VIEWS, VIEW_KIND, VIEW_LABEL, type View } from "./records";
 
   interface Props {
     store: RigStore;
@@ -36,9 +39,21 @@
     /** Same fixture idea one level down: open the first work-item row so the
         gate can read the opened panel's colours. */
     openRows?: boolean;
+    /** Which view to open on, so the gate can reach Spec and Decisions - they
+        have no data to click their way into under a seeded store. */
+    initialView?: View;
+    /** Rows for the record views under the gate, which has no Wails runtime
+        and would otherwise measure an error panel. Null in the product. */
+    recordSeed?: RecordRow[] | null;
   }
 
-  let { store, initialSide = "projects", openRows = false }: Props = $props();
+  let {
+    store,
+    initialSide = "projects",
+    openRows = false,
+    initialView = "now",
+    recordSeed = null,
+  }: Props = $props();
 
   type Entry = {
     id: string;
@@ -56,6 +71,18 @@
   // is stated rather than the warning silenced.
   let side = $state(untrack(() => initialSide));
   let tabEls: HTMLButtonElement[] = $state([]);
+
+  /* ⛔ WHICH VIEW OF THE PROJECT, AND IT IS NOT A SECOND TAB STRIP. The rail
+     picks a GUI, the strip above picks a project, and this picks which of the
+     project's records you are reading. Drawn as a segmented control - the same
+     idiom as Projects/Cases above - because a second row of TABS under the
+     first row of tabs is the duplicated-hierarchy defect: two strips of the
+     same shape, one line apart, and a reader has to learn which is which every
+     time the page loads. A segment says "one of these, exclusive" and cannot
+     be mistaken for the strip above it.
+
+     Same starting-position idea as `side`, and the same reason for untrack. */
+  let view = $state<View>(untrack(() => initialView));
 
   $effect(() => {
     void store.open();
@@ -191,15 +218,40 @@
       id="pcg-panel"
       aria-labelledby={`tab-${store.current}`}
     >
-      <PlanVsExec
-        brief={held.brief}
-        project={store.current}
-        loading={store.loading}
-        error={held.error || store.rosterError}
-        readAt={held.readAt}
-        onrefresh={() => void store.refresh()}
-        {openRows}
-      />
+      <div class="views" role="group" aria-label="Which records to read">
+        {#each VIEWS as v (v)}
+          <button aria-pressed={view === v} onclick={() => (view = v)}>
+            {VIEW_LABEL[v]}
+          </button>
+        {/each}
+      </div>
+
+      {#if view === "now"}
+        <PlanVsExec
+          brief={held.brief}
+          project={store.current}
+          loading={store.loading}
+          error={held.error || store.rosterError}
+          readAt={held.readAt}
+          onrefresh={() => void store.refresh()}
+          {openRows}
+        />
+      {:else}
+        <!-- ⛔ KEYED ON THE VIEW so switching Spec to Decisions builds a fresh
+             component rather than handing the old one a new `kind` prop. The
+             open-row state and the find box belong to the list that is on
+             screen; carrying them across would leave a query typed against the
+             specification filtering the decision log. -->
+        {#key view}
+          <Records
+            project={store.current}
+            kind={VIEW_KIND[view]}
+            label={VIEW_LABEL[view]}
+            seed={recordSeed}
+            {openRows}
+          />
+        {/key}
+      {/if}
 
       <!-- The third level, named rather than mocked. -->
       <p class="third">
@@ -228,15 +280,29 @@
   }
 
   /* A segmented control rather than two links: the two sides are exclusive
-     and exhaustive, which is what a segment says and a link does not. */
-  .toggle {
+     and exhaustive, which is what a segment says and a link does not.
+
+     ⛔ .views SHARES EVERY RULE, AND SHARING THEM IS THE POINT. Two segmented
+     controls that looked SLIGHTLY different would read as two unrelated
+     mechanisms; identical ones read as the same kind of choice asked twice, at
+     two levels, which is what they are. One selector, not a copy that drifts. */
+  .toggle,
+  .views {
     display: inline-flex;
     border: 1px solid var(--border-2);
     border-radius: var(--radius);
     overflow: hidden;
   }
 
-  .toggle button {
+  /* The view switch sits at the top of the panel it governs, not in the head
+     above the tab strip: it changes what the PANEL shows, and a control that
+     lives further from what it moves than the tabs do reads as chrome. */
+  .views {
+    margin-bottom: calc(1.1rem * var(--den));
+  }
+
+  .toggle button,
+  .views button {
     font: inherit;
     font-size: var(--fs--1);
     color: var(--fg-dim);
@@ -249,20 +315,24 @@
     gap: 0.45rem;
   }
 
-  .toggle button + button {
+  .toggle button + button,
+  .views button + button {
     border-inline-start: 1px solid var(--border-2);
   }
 
-  .toggle button:hover {
+  .toggle button:hover,
+  .views button:hover {
     color: var(--fg);
   }
 
-  .toggle button[aria-pressed="true"] {
+  .toggle button[aria-pressed="true"],
+  .views button[aria-pressed="true"] {
     color: var(--fg);
     background: color-mix(in srgb, var(--hue) 13%, var(--panel));
   }
 
-  .toggle button:focus-visible {
+  .toggle button:focus-visible,
+  .views button:focus-visible {
     outline: none;
     box-shadow: inset 0 0 0 var(--ring-w) var(--hue);
   }

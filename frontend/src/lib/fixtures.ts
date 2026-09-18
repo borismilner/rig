@@ -18,6 +18,7 @@ import type {
   Brief,
   Item,
   Program,
+  RecordRow,
 } from "../../bindings/github.com/boris-milner/rig/cmd/rigwindow/models.js";
 
 export const PROGRAMS: Program[] = [
@@ -268,3 +269,166 @@ export const BRIEF: Brief = {
     },
   ],
 } as Brief;
+
+/* ── the record views ─────────────────────────────────────────────────────
+ *
+ * ⛔ SHAPED FROM THE LIVE STORE, NOT INVENTED. Every structural case below was
+ * measured on his production store on 2026-09-18 and each one changes what the
+ * gate can see: a section head at level 2 with nested requirements under it
+ * (387 requirements over 42 sections), a body holding a markdown TABLE (the
+ * wrap that stops a 120-character row pushing a horizontal scrollbar onto the
+ * whole panel), a retracted row (shown and struck, never dropped), a dated
+ * decision and an undated one (91 of 533 carry no date anywhere).
+ *
+ * The prose is real prose at real length, because the gate reads colour off
+ * rendered text and a three-word body measures a page the product never draws.
+ */
+
+const rec = (r: Partial<RecordRow>): RecordRow =>
+  ({
+    id: "",
+    version: 1,
+    kind: "requirement",
+    title: "",
+    section: "",
+    sectionTitle: "",
+    level: 3,
+    date: "",
+    body: "",
+    source: "",
+    line: "",
+    tags: "",
+    retracted: false,
+    ...r,
+  }) as RecordRow;
+
+export const SPEC: RecordRow[] = [
+  rec({
+    id: "11/the-window",
+    title: "11. The window",
+    section: "11",
+    sectionTitle: "11. The window",
+    level: 2,
+    source: "plan/11-the-window.md",
+    line: "1",
+    tags: '["section:window"]',
+    body:
+      "The window is rig's own surface, and it is one window rather than one " +
+      "per program. What it draws is what rig holds; what it cannot reach it " +
+      "says it cannot reach.",
+  }),
+  rec({
+    id: "11/the-window/never-stale",
+    title: "THE WINDOW MAY NEVER BE STALE",
+    section: "11",
+    sectionTitle: "11. The window",
+    level: 3,
+    source: "plan/11-the-window.md",
+    line: "88",
+    tags: '["section:window","rule"]',
+    body:
+      "Boris, 2026-09-18: \"You must make sure the GUI is never stale.\" Three " +
+      "parts, and a window that is merely rebuilt satisfies none of them:\n\n" +
+      "| part | what it means | built |\n" +
+      "|---|---|---|\n" +
+      "| 1 | a redeployment replaces the running window | yes |\n" +
+      "| 2 | the window detects that its own binary has moved | no |\n" +
+      "| 3 | the data on screen carries the time it was read | partly |\n",
+  }),
+  rec({
+    id: "11/the-window/never-stale/what-it-costs",
+    title: "What a stale window costs, measured twice",
+    section: "11",
+    sectionTitle: "11. The window",
+    level: 4,
+    source: "plan/11-the-window.md",
+    line: "104",
+    tags: '["section:window"]',
+    body:
+      "He caught a six-hour-old window on a deleted inode on 2026-09-18, and " +
+      "the same class of fault the day before. Both times the pixels were " +
+      "right and the binary behind them was gone.",
+  }),
+  rec({
+    id: "12/toasts",
+    title: "12. Toasts",
+    section: "12",
+    sectionTitle: "12. Toasts",
+    level: 2,
+    source: "plan/12-toasts.md",
+    line: "1",
+    tags: '["section:toasts"]',
+    body:
+      "A toast is how rig says a thing happened that the human did not ask " +
+      "about. It is never how rig asks a question.",
+  }),
+  rec({
+    id: "12/toasts/one-channel",
+    title: "One channel, and the desktop owns it",
+    section: "12",
+    sectionTitle: "12. Toasts",
+    level: 3,
+    retracted: true,
+    source: "plan/12-toasts.md",
+    line: "31",
+    tags: '["section:toasts"]',
+    body:
+      "Superseded: the tray carries its own notifications now, so this is no " +
+      "longer the only channel and the paragraph claiming it was is withdrawn.",
+  }),
+];
+
+export const DECISIONS: RecordRow[] = [
+  rec({
+    id: "2026-09-18-the-window-reads-the-store",
+    kind: "decision",
+    title: "2026-09-18 - the window reads the store, not just its brief",
+    level: 2,
+    date: "2026-09-18",
+    source: "logbook/projects/rig/DECISIONS.md",
+    line: "8121",
+    body:
+      "920 of the store's 1,057 current records had no screen. One call - " +
+      "record.query, which already answered - closes it, and it needs no new " +
+      "verb, no schema change and no daemon work.",
+  }),
+  rec({
+    id: "2026-09-18-the-window-reads-the-store/why-not-the-brief-store",
+    kind: "decision",
+    title: "Why the record list does not go through rigstore",
+    level: 3,
+    date: "2026-09-18",
+    source: "logbook/projects/rig/DECISIONS.md",
+    line: "8140",
+    body:
+      "rigstore holds one brief per project under a read-once contract. A " +
+      "record list is keyed by project AND kind, so putting it there either " +
+      "widens that contract or caches a second thing under the first one's " +
+      "rules.",
+  }),
+  rec({
+    id: "2026-09-17-the-fence-rule-is-one-type-and-four-callers",
+    kind: "decision",
+    title: "2026-09-17 - the fence rule is one type and four callers",
+    level: 2,
+    date: "2026-09-17",
+    source: "logbook/projects/rig/DECISIONS.md",
+    line: "7902",
+    body:
+      "Four call sites had each grown their own copy of the fence check. The " +
+      "backport found zero behavioural hits over 47 documents and the sets " +
+      "before and after are byte-identical.",
+  }),
+  rec({
+    id: "a-constant-dressed-as-a-live-field-is-a-lie-by-shape",
+    kind: "decision",
+    title: "A constant dressed as a live field is a lie by shape",
+    level: 2,
+    source: "logbook/projects/rig/DECISIONS.md",
+    line: "3310",
+    body:
+      "A field that never varies but is rendered as though it might teaches a " +
+      "reader to trust the next one that does vary. There are three partial " +
+      "instances of this in the window and each is named where it lives.",
+  }),
+];

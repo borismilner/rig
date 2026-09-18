@@ -441,6 +441,14 @@ contrast-window: contrast-selftest build-frontend ## Measure the shell's own pag
 	# program's own pane is a page not showing the detail list. It exists to gate
 	# the unserved state, whose colours nothing measured until now.
 	#
+	# ?gui=spec and ?gui=decisions are the record views, and they are separate
+	# pages for the same reason ?pane=1 is: the panel draws one view, so a page
+	# showing the specification is a page not showing the decision log. They
+	# carry colours that appear nowhere else in this window - the group heading
+	# and its rule, the retracted pill against the warn hue, the find box, and
+	# the mono body at --fs--1 over 90ch. Until they were added here those
+	# tokens would have shipped unmeasured.
+	#
 	# What it does NOT gate is the frame's focus ring, and that is a finding
 	# rather than a gap - see the note in frontend/src/lib/Pane.svelte. The ring
 	# lands on the program's own document, which rig does not own, so there is no
@@ -454,6 +462,8 @@ contrast-window: contrast-selftest build-frontend ## Measure the shell's own pag
 	    'http://127.0.0.1:$(CONTRAST_PORT)/index.html?pane=1' \
 	    'http://127.0.0.1:$(CONTRAST_PORT)/index.html?dash=1' \
 	    'http://127.0.0.1:$(CONTRAST_PORT)/index.html?gui=projects' \
+	    'http://127.0.0.1:$(CONTRAST_PORT)/index.html?gui=spec' \
+	    'http://127.0.0.1:$(CONTRAST_PORT)/index.html?gui=decisions' \
 	    'http://127.0.0.1:$(CONTRAST_PORT)/index.html?settings=1'
 
 theme-gate: ## Prove the palette engine refuses an unreadable token set
