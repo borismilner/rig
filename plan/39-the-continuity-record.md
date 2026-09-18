@@ -751,6 +751,81 @@ the loop-nobody-sent failure, caught by the record seat chasing its lead.
 | **what it costs, stated because he was shown it** | **a requirement stated mid-paragraph under a heading with five others is not separately addressable.** A supersede names the heading, not the sentence |
 | **what it refuses** | the 39-section grain. §37 is **942 lines**; a link to it points at a DOCUMENT rather than a requirement, which is attack finding 5's failed row |
 
+### ⛔ THE 342 REQUIREMENTS ARE REVISITED BEFORE THEY ARE SEEDED, AND IT IS AN EDITORIAL PASS. BORIS, 2026-09-18.
+
+**His words, verbatim, sent while the gap list was being worked:**
+
+> *"When you come to the 342 requirement you need to revisit them and see
+> whether they are all good, whether some should be joined together, while you
+> are going over the materials you can make the title and the description more
+> human-friendly for my introspection and assign tags and all the other
+> capabilities offered by `rug`."*
+
+> *"Have it good and ready both in `rig` and in logbook; maybe on the disk in
+> logbook it can also be better organized into files for better grouping and
+> gradual work on them."*
+
+⛔ **THIS IS NOT THE IMPORT BEING RE-RUN. IT IS FIVE ACTS ON THE MATERIAL, AND
+FOUR OF THEM CHANGE THE DOCUMENTS RATHER THAN THE STORE.** Reading it as
+*"seed the 342 and add a tags field"* loses four of the five.
+
+| # | What he asked for | Where it lands |
+|---|---|---|
+| 1 | **judge each one: is it good** | the section files. A heading that states no requirement is a finding, not a record |
+| 2 | ⛔ **JOIN WHAT BELONGS TOGETHER** | the section files. **The grain is the heading, so joining two requirements IS merging two headings** - there is no other instrument |
+| 3 | **title and description made human-friendly, FOR HIS INTROSPECTION** | both. The heading is the title; the prose under it is the description |
+| 4 | **tags, and every other field rig offers** | the records. `tags`, `owner`, `status`, `priority`, `source`, `part-of` |
+| 5 | **the same material, organised into more files** | the logbook side, **and it is "maybe" - permission, not instruction** |
+
+### ⛔ THE ORDER IS FORCED BY THE ID SCHEME, AND DOING IT THE OTHER WAY ROUND IS EXPENSIVE
+
+⛔ **A REQUIREMENT'S RECORD ID IS ITS HEADING.** `planKey` mints
+`<section>/<enclosing slugs>/<own slug>` (`internal/record/plan.go:250`), so
+**editing a heading RENAMES the record and merging two headings DELETES one
+id.** After a seed that costs a retraction and a re-put per changed heading, and
+B77's retraction machinery is the only thing that makes it survivable at all.
+
+⛔ **BEFORE THE FIRST SEED IT COSTS NOTHING.** The live store holds **ZERO**
+requirement records today, so acts 1 to 3 are free right now and dear later.
+**So the editorial pass comes FIRST and the seed second**, which is also the
+plain reading of *"have it good and ready"*.
+
+### ⛔ AND IT PARTLY LIFTS §11's "NOT INVENTING A DESCRIPTION", FOR THIS KIND ONLY
+
+**§11 forbids a seat composing a `description_short` for a work item:** *"a
+`description_short` derived by summarising it would be a seat composing content,
+which is the thing the record exists to stop."* ⛔ **HE HAS NOW ASKED FOR
+EXACTLY THAT, ON THE REQUIREMENT KIND, IN HIS OWN WORDS - "make the title and
+the description more human-friendly for my introspection."**
+
+**The two are reconciled by WHOSE TEXT IT IS, and the distinction is not a
+loophole:**
+
+| Kind | Whose prose | So |
+|---|---|---|
+| **work-item** | `BACKLOG.md`'s rows, written by seats about their own work | ⛔ **§11 stands.** A cut, never a summary |
+| **requirement** | ⛔ **the specification, and it is HIS** - he is the reader the rewrite is for, and he asked for it | **rewrite it.** The evidence survives in git and in `source` |
+
+⛔ **WHAT IS STILL REFUSED: CHANGING WHAT A REQUIREMENT SAYS.** Making a heading
+legible is editorial; softening a ruling, dropping a `⛔`, or merging two
+requirements that disagree is a rewrite of the specification and is his call per
+case. **A join that would lose a clause is reported rather than performed.**
+
+### The open question on act 5, parked with a default rather than blocking
+
+⛔ **"ON THE DISK IN LOGBOOK" DOES NOT RESOLVE: THE 342 LIVE IN `plan/`, IN THE
+REPO, NOT IN THE LOGBOOK.** The logbook holds `BACKLOG.md` and `DECISIONS.md`;
+the requirements are `plan/NN-*.md`. **Two readings, and they differ in cost:**
+
+| Reading | What it means | Cost |
+|---|---|---|
+| **the requirement material** | split the biggest `plan/` sections into more files | ⛔ **renumbers nothing, but a section file IS a section number** - §37 at 942 lines cannot split without inventing numbers |
+| **the logbook's own big documents** | `BACKLOG.md` at 203K and `DECISIONS.md` at 498K, split for gradual work | cheap, and nothing cites them by line |
+
+**Default taken, and it is reversible in one line from him: the second.** It is
+the reading where *"gradual work on them"* costs nothing structural, and the
+first would put a number on a heading he never numbered.
+
 ### ⛔ THE MIGRATION IMPORTS ALL 4,206 CITATIONS AND FLAGS THE COARSE ONES. RULED BY BORIS 2026-09-16 LATE.
 
 **The 22% floor was put to him with its three answers.** He took the one that
