@@ -1169,3 +1169,32 @@ about the ACT being trivial once decided, in a message whose whole subject is
 making a deploy easy to perform. **Nothing here says a commit deploys itself**,
 and a seat reading it that way has widened a convenience into a policy he has not
 stated. If he wants that, he will say so.
+
+## ⛔ After the gaps, the window is where rig starts paying. Boris, 2026-09-18.
+
+**HIS WORDS, AND THEY SET THE NEXT PHASE RATHER THAN A FEATURE:**
+
+> *"Once all gaps are closed we shall make use of the tokens left to plan and
+> implement the best possible user-experience for GUI interaction with the
+> existing data we have for the `rig` project and in general for all projects
+> we'll import later into `rig` so that it starts paying for its long
+> development."*
+
+### What this rules, and it is three things
+
+| # | What he ruled | What it forbids |
+|---|---|---|
+| 1 | **IT STARTS WHEN THE GAPS CLOSE, NOT BEFORE.** The budget named is *"the tokens left"* | a seat opening GUI work while a gap is open. His 2026-09-17 ruling - *"Don't spend too much time on GUI, lets get the functionality first to its finish line"* - is NARROWED here, not reversed: it expires at the last gap |
+| 2 | **IT IS OVER THE DATA THAT ALREADY EXISTS**, rig's own project first | a design demonstrated on a fixture. The store holds his real backlog, his real decisions and 380 requirement records, and the window's job is to make THOSE usable |
+| 3 | **AND IT GENERALISES TO EVERY PROJECT IMPORTED LATER** | a surface built around rig's own shape alone. §41 is the import; this is what the imported thing must be worth looking at through |
+
+⛔ **"SO THAT IT STARTS PAYING FOR ITS LONG DEVELOPMENT" IS THE ACCEPTANCE
+SENTENCE, AND IT IS A HUMAN JUDGEMENT.** Not a feature list and not a metric a
+seat may invent: **the test is whether HE reaches for the window instead of the
+documents.** The MVP bar (§39) is the same shape - *"being able to use rig to
+work on rig"* - and this is that bar moved from the CLI to the window.
+
+**PLANNING IS PART OF THE INSTRUCTION.** *"plan and implement"*, in that order,
+so the first act is a design put to him rather than a screen built.
+
+---

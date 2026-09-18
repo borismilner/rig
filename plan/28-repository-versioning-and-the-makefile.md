@@ -87,6 +87,56 @@ which of the two it meant.**
 - **It must not start a daemon that was not running.** If nothing is deployed,
   install the files and say so; the requirement is about REPLACEMENT.
 
+### ⛔ One target redeploys EVERYTHING, because several calls is the interface he has to type
+
+**RULED BY BORIS, 2026-09-18, in his own words:**
+
+> *"We should have a Make target that builds and re-deploys everything; It's
+> easier that doing multiple Make calls."*
+
+> *"Re-deployment should elegantly gracefully close the live instances and
+> deploy the new ones instead of them."*
+
+**IT IS A COMPOSITE, NOT A REPLACEMENT.** `make install` and
+`make install-window` keep their contracts and their separate existence - the
+seven clauses above bind unchanged, and so does clause 7's rule that only
+`rigd.service` is touched by the daemon half. **What changes is the INTERFACE:
+one target he types, which runs both halves in the order that leaves nothing
+stale.**
+
+⛔ **THIS NARROWS THE OLDER RULE AND DOES NOT CANCEL IT.** *"`make install` must
+not touch `rigwindow`"* stands: the daemon half still touches only its own unit.
+**What is no longer true is that the human has to remember the second call.**
+The window was left out of the composite nowhere by design - it was left out
+because nobody had asked for one target.
+
+| Clause | Why |
+|---|---|
+| **EVERY LIVE INSTANCE CLOSES GRACEFULLY** - the daemon AND the window | his word is *"elegantly gracefully"*, and the window is a live instance too. A tray left running against a replaced binary is the skew defect with the surfaces swapped |
+| **THE ORDER IS BUILD, VERIFY, THEN REPLACE** | clause 1 above, applied to both halves at once: **nothing is stopped until BOTH new binaries exist and answer** |
+| **IT REPORTS WHAT IT REPLACED, BY VERSION, FOR EACH** | *"installed"* without a version is the sentence that let a 14-commit skew survive. Two halves means two dials |
+| **A HALF THAT WAS NOT DEPLOYED IS INSTALLED AND SAID SO** | the replacement rule is about what is live; it must not refuse because one half was never running |
+
+### ⛔ The first `rig` after a redeployment tells the human it happened
+
+**RULED BY BORIS, 2026-09-18, in his own words:**
+
+> *"When first run after a redeployment `rig` should show a toast informing the
+> user of the update."*
+
+**IT IS A TOAST (§12), AND ITS TRIGGER IS A DEPLOYMENT**, which is why it is
+recorded here as well. **The condition is a CHANGE the human has not been told
+about yet, not a version mismatch** - §21's skew warning already fires when the
+client and daemon disagree, and that is a different sentence for a different
+fault.
+
+- **Once, not every run.** What makes it "first" is state that survives the
+  run, so the second invocation is silent.
+- **It names what changed, or at least what it moved from and to.** A toast
+  saying "updated" and nothing else is the `installed` defect again.
+- ⛔ **IT IS NOT AN ERROR AND MUST NOT READ AS ONE.** The human asked for it,
+  so the deployment succeeding is the good news the toast carries.
+
 ### ✅ Pushing is authorised standing, by Boris, 2026-09-17. No seat needs to ask again.
 
 > *"I permit you to push anytime you see fit."*

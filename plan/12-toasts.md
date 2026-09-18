@@ -84,4 +84,14 @@ behaviour change, so it belongs with the rest of the AgentBox supersession - aft
 has survived M12's pilot week of daily use. Shipping the renderer and repointing the estate are
 two decisions, and collapsing them is how the second one gets made by accident.
 
+## ⛔ A toast on the first run after a redeployment. Boris, 2026-09-18.
+
+> *"When first run after a redeployment `rig` should show a toast informing the
+> user of the update."*
+
+**THE REQUIREMENT AND ITS CLAUSES ARE IN §28**, with the deployment target that
+triggers it, because the trigger is what makes it hard to get right: once and
+not every run, naming what changed, and NOT wearing the shape of an error.
+**This heading exists so a reader of the toast surface finds it.**
+
 ---
