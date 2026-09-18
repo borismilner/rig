@@ -813,6 +813,33 @@ citations across four documents resolve to it and renaming it would break them.
 | **the content** | says something the title did not. **Equal to the title is the failure**, and it is B62's measured defect arriving at a third field |
 | ⛔ **the test** | **he reads it.** *"For my introspection"* is the purpose, so the question is always what a person scanning ninety-six rows takes away, never whether the value is derivable |
 
+### ⛔ AND IT IS AN AUDIENCE SPLIT, NOT A DEFECT IN THE ID. HIS CLARIFICATION, THE NEXT MESSAGE.
+
+> *"Things like `B46` is maybe good for AI agents because it's short and maps
+> easily, but for human reader it is almost useless."*
+
+⛔ **THIS STOPS THE OVER-CORRECTION, AND THE OVER-CORRECTION IS THE OBVIOUS
+NEXT MOVE.** A seat reading only *"`B46` is none of them"* renames the records,
+lengthens the ids, or drops them from what it renders. **He has ruled the
+opposite: the id is RIGHT for the reader it was built for.**
+
+| Reader | What serves it | Why |
+|---|---|---|
+| **an agent** | ⛔ **`B46`. Keep it.** | *"short and maps easily"* - and 4,206 citations across four documents resolve to it. An id that reads well and resolves badly is worse than the reverse |
+| **a human** | **a name, a description and a tag that say something** | *"almost useless"* is his verdict on the id in that role, and it is a verdict about the SURFACE and not about the key |
+
+⛔ **SO BOTH ARE OWED AT ONCE AND NEITHER REPLACES THE OTHER.** The record
+already has the shape for it - `id` for the machine, `title` and
+`description_short` for the person, `tags` for the scan - and the defect was
+never the id: **it was the other three fields carrying the id's value.**
+`headingIntent` writing `title = u.ID` and `body = title` is one line serving
+one audience twice and the other not at all.
+
+**And this is the same distinction §39 already makes about its own readers** -
+*"read by an agent to resume; rendered for Boris from the same record"* - which
+is why it needs no new mechanism. **One record, two renderings, and the store
+holds enough for both.**
+
 ⛔ **AND IT IS AUTHORISED, NOT MERELY PERMITTED.** His ruling of the same day -
 *"AI agents can do anything they want as long as it is a real benefit and bring
 improvement to what I'm doing"* - already lifted the ban on a seat composing.
