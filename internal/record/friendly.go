@@ -34,6 +34,7 @@ func FriendlyTag(heading string) string {
 		return ""
 	}
 	t = strings.TrimSpace(leadingID.ReplaceAllString(t, ""))
+	t = strings.TrimSpace(leadingSection.ReplaceAllString(t, ""))
 	// An id-only first clause is kept whole: `M7, ordered by what this team
 	// uses today` would cut to `M7`, which is the value the bar rejects.
 	if head := firstClause(t); head != "" && !idOnly.MatchString(head) {
@@ -53,6 +54,17 @@ var (
 	// separator the document put after it. Anchored, because an id mentioned
 	// mid-heading is part of what the heading SAYS.
 	leadingID = regexp.MustCompile(`^B\d+[a-z]?\s*[-:–—]?\s*`)
+
+	// leadingSection is a PLAN section number at the start of a heading:
+	// `tools/plansplit.py` writes every section file's first line as
+	// `## NN. Title` and checks the file name against it, so the number is
+	// positional and is never what the heading is about.
+	//
+	// ⛔ THE DOT IS REQUIRED AND THE COUNT IS BOUNDED, because `^\d+` with a
+	// loose separator eats a date: `2026-09-17 - ...` would lose `2026` and
+	// keep `09-17`, which is a tag that reads as a different day. There are 42
+	// sections, so three digits is already more headroom than the document has.
+	leadingSection = regexp.MustCompile(`^\d{1,3}\.\s+`)
 
 	// idOnly is a clause that is nothing but a short label - `M7`, `B46`, `D1`.
 	idOnly = regexp.MustCompile(`^[A-Za-z]\d+[a-z]?$`)

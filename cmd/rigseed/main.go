@@ -1194,8 +1194,13 @@ func rowIntent(o options, it record.BacklogItem) intent {
 // ⛔ IT CUTS AT A WORD BOUNDARY AND SAYS SO WITH AN ELLIPSIS. The window
 // truncates too, mid-word and silently, which is half of what Boris called not
 // user friendly; a reader who can see the cut knows to open the row.
+// shortWidth is the budget a `description_short` is cut to, named once because
+// `docLead` fills to the same number and two spellings of one budget is how the
+// two halves of a field drift.
+const shortWidth = 72
+
 func shortOf(title string) string {
-	const width = 72
+	const width = shortWidth
 	// The same decoration set the parser strips: the markers are the
 	// document's emphasis, not part of what the row says.
 	t := strings.TrimSpace(strings.Trim(title, "⛔✅*~ \t"))

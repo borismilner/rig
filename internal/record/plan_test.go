@@ -326,3 +326,45 @@ func TestTheBodyStopsAtTheNextHeadingOfAnyLevel(t *testing.T) {
 		t.Errorf("child body = %q", got)
 	}
 }
+
+// ⛔ EVERY ENTRY IN A FILE CARRIES THAT FILE'S SECTION TITLE, INCLUDING THE
+// SECTION HEADING ITSELF. The seeder tags a requirement by its section, and a
+// tag is `FriendlyTag` of the TEXT - a slug has thrown away the punctuation the
+// clause cut needs, which is why this is not read back off the file name.
+func TestEveryEntryCarriesItsSectionsOwnTitle(t *testing.T) {
+	p, err := ParsePlanDir(fstest.MapFS{
+		"40-the-knowledge-sharing-section.md": &fstest.MapFile{Data: []byte(
+			"## 40. The knowledge-sharing section\n\n### What it holds\n\n#### The shape\n")},
+		"22-tech-stack.md": &fstest.MapFile{Data: []byte("## 22. Tech stack\n\n### Go\n")},
+	})
+	if err != nil {
+		t.Fatalf("parsing: %v", err)
+	}
+
+	for id, want := range map[string]string{
+		"40/40-the-knowledge-sharing-section":                         "40. The knowledge-sharing section",
+		"40/40-the-knowledge-sharing-section/what-it-holds":           "40. The knowledge-sharing section",
+		"40/40-the-knowledge-sharing-section/what-it-holds/the-shape": "40. The knowledge-sharing section",
+		"22/22-tech-stack":    "22. Tech stack",
+		"22/22-tech-stack/go": "22. Tech stack",
+	} {
+		if got := planEntry(t, p, id).SectionTitle; got != want {
+			t.Errorf("%s: SectionTitle = %q, want %q - a child tagged by another "+
+				"file's section groups two sections as one", id, got, want)
+		}
+	}
+}
+
+// A file whose first heading is BELOW the grain still states the section's
+// title, and the entries under it must carry it: the first heading is the
+// section's own by plansplit's contract, whether or not this parser imports it.
+func TestTheSectionTitleIsTheFirstHeadingEvenWhereItIsNotAnEntry(t *testing.T) {
+	p, err := ParsePlanSection(strings.NewReader(
+		"# 30. Name\n\n## Why rig\n"), "30-name.md", 30)
+	if err != nil {
+		t.Fatalf("parsing: %v", err)
+	}
+	if got := planEntry(t, p, "30/why-rig").SectionTitle; got != "30. Name" {
+		t.Errorf("SectionTitle = %q, want %q", got, "30. Name")
+	}
+}

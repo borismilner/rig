@@ -65,11 +65,13 @@ func TestAPlanHeadingCarriesNoStatusAndNoDate(t *testing.T) {
 	}
 
 	want := map[string]string{
-		"title":      "7. Storage",
-		"source":     "plan/07-storage.md",
-		fieldSection: "7",
-		fieldLevel:   "2",
-		fieldDocLine: "1",
+		"title":             "7. Storage",
+		"source":            "plan/07-storage.md",
+		"description_short": "2026-09-16 prose with a date in it",
+		fieldSection:        "7",
+		fieldLevel:          "2",
+		fieldDocLine:        "1",
+		fieldTags:           `["section:storage"]`,
 	}
 	for name, v := range want {
 		if in.fields[name] != v {
@@ -324,4 +326,183 @@ func TestEveryUnimportedKindHasAReason(t *testing.T) {
 			t.Errorf("%q reaches the open block with no statement of what it means", k)
 		}
 	}
+}
+
+// ⛔ THE NEGATIVE CONTROL FOR THE SHORT DESCRIPTION. Every case below says
+// "the field carries what the document wrote"; that is worth nothing unless a
+// body the rule cannot read yields NO field rather than a wrong one.
+func TestABodyWithNoProseToReadCarriesNoShortDescription(t *testing.T) {
+	for name, body := range map[string]string{
+		"empty":  "",
+		"blanks": "\n\n   \n",
+		"table":  "| Call | What it does |\n|---|---|\n| `get` | reads |",
+		"fence":  "```sh\nrig record get B1\n```",
+		"tilde":  "~~~\nnot prose\n~~~",
+	} {
+		if got := docLead(body); got != "" {
+			t.Errorf("%s: docLead = %q, want no field at all - a description the "+
+				"document does not state is one this seeder invented", name, got)
+		}
+	}
+}
+
+// ⛔ `description_short` IS THE DOCUMENT'S OWN LEAD AND NEVER A CUT OF THE
+// TITLE. GAP 1's defect was `description_short` seeded as the title, which is
+// present, non-empty, passes every check and says nothing. On this grain a cut
+// of the title would restate it: 116 of the 379 headings SHOUT and 103 run past
+// 70 characters.
+func TestTheShortDescriptionIsWhatTheDocumentWrote(t *testing.T) {
+	for _, c := range []struct{ name, body, want string }{{
+		name: "a bold lead that is a whole sentence is the lead",
+		body: "**The rule binds NAMED estates.** Every test in this repository and " +
+			"every reproduction recipe starts an anonymous estate.",
+		want: "The rule binds NAMED estates.",
+	}, {
+		name: "a one-word bold lead fills on to the sentence beside it",
+		body: "**Presence.** What AgentBox does today, kept because it works.",
+		want: "Presence. What AgentBox does today, kept because it works.",
+	}, {
+		name: "a label alone in its paragraph reads the block it introduces",
+		body: "**BORIS, 2026-09-17, verbatim:**\n\n> *\"I want everything persisted.\"*",
+		want: `"I want everything persisted."`,
+	}, {
+		name: "a label with its statement beside it is left whole",
+		body: "**Measured:** today they are the same thing.",
+		want: "Measured: today they are the same thing.",
+	}, {
+		name: "a blockquote is his words, not the seeder's",
+		body: "> *\"MVP is being able to use `rig` to work on `rig`.\"*",
+		want: `"MVP is being able to use rig to work on rig."`,
+	}, {
+		name: "a list yields its FIRST item and not the whole list",
+		body: "- **Name:** rig. The CLI.\n- **Wire:** protobuf over a unix socket.",
+		want: "Name: rig. The CLI.",
+	}, {
+		name: "a numbered list loses its marker, which is not part of what it says",
+		body: "1. The daemon is the only writer.\n2. Everything else is a client.",
+		want: "The daemon is the only writer.",
+	}, {
+		name: "prose with no terminal punctuation is offered whole",
+		body: "2026-09-16 prose with a date in it",
+		want: "2026-09-16 prose with a date in it",
+	}, {
+		name: "a date inside a sentence does not end it",
+		body: "Ruled on 2026-09-17. The second sentence.",
+		want: "Ruled on 2026-09-17. The second sentence.",
+	}, {
+		name: "a first sentence past the budget is cut on a word boundary",
+		body: "The supervising process sits in a session the harness never shares " +
+			"with any of the tool calls it makes on a seat's behalf.",
+		want: "The supervising process sits in a session the harness never shares with...",
+	}} {
+		t.Run(c.name, func(t *testing.T) {
+			if got := docLead(c.body); got != c.want {
+				t.Errorf("docLead = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
+// ⛔ THE BUDGET IS A BUDGET AND NOT A HOPE. `fillSentences` adds sentences
+// while they fit, so the bound has to hold over the real document rather than
+// over the cases above - a rule that overruns on one heading in 379 writes a
+// field no list can lay out.
+func TestNoShortDescriptionOverrunsTheBudget(t *testing.T) {
+	pp := planOfThisRepo(t)
+	o := options{project: "rig", backlog: "BACKLOG.md", decisions: "DECISIONS.md", planDir: "plan"}
+
+	// ⛔ AND THE FIELD HAS TO BE THERE, over the real document. Every bound
+	// below is satisfied by writing nothing at all, so a rule that quietly
+	// stopped reading would pass every one of them. 341 of the 379 headings
+	// carry a lead today; the floor is set well under that so ordinary
+	// editing of `plan/` does not trip it, and a collapse does.
+	const floor = 300
+
+	held := 0
+	const ellipsis = 3
+	for _, e := range pp.Entries {
+		short := planEntryIntent(o, e).fields["description_short"]
+		if short != "" {
+			held++
+		}
+		if n := len([]rune(short)); n > shortWidth+ellipsis {
+			t.Errorf("%s: description_short is %d runes, over the %d budget: %q",
+				e.Key, n, shortWidth, short)
+		}
+		if short == e.Title {
+			t.Errorf("%s: description_short is a second copy of the title, which is "+
+				"GAP 1's defect restated", e.Key)
+		}
+	}
+	if held < floor {
+		t.Errorf("%d of %d requirement records carry a description_short, under the "+
+			"floor of %d - the rule has stopped reading the document",
+			held, len(pp.Entries), floor)
+	}
+}
+
+// ⛔ THE SECTION TAG DROPS THE SECTION NUMBER, and the bar is Boris's:
+// "the tags as well as the content and the titles must be useful and friendly".
+// `## 40. The knowledge-sharing section` tagged `section:40-the-knowledge-sharing-section`
+// carries the id into the one field the id was ruled out of.
+func TestTheSectionTagCarriesNoSectionNumber(t *testing.T) {
+	o := options{project: "rig", backlog: "BACKLOG.md", decisions: "DECISIONS.md", planDir: "plan"}
+	p := planFor(o, oneRow(), record.DecisionParse{},
+		planParseOf(t, "40-the-knowledge-sharing-section.md",
+			"## 40. The knowledge-sharing section\n\nprose\n"))
+
+	in := intentFor(t, p, "40/40-the-knowledge-sharing-section")
+	if got, want := in.fields[fieldTags], `["section:knowledge-sharing-section"]`; got != want {
+		t.Errorf("tags = %q, want %q", got, want)
+	}
+}
+
+// ⛔ EVERY REQUIREMENT RECORD CARRIES A SECTION TAG, over the real document.
+// Until 2026-09-18 this grain carried NO tags at all, so the one document the
+// grouping ruling was about was the only one without it.
+func TestEveryRequirementCarriesItsSectionTag(t *testing.T) {
+	pp := planOfThisRepo(t)
+	o := options{project: "rig", backlog: "BACKLOG.md", decisions: "DECISIONS.md", planDir: "plan"}
+
+	sections := map[string]bool{}
+	for _, e := range pp.Entries {
+		tags := record.DecodeTags(planEntryIntent(o, e).fields[fieldTags])
+		if len(tags) != 1 || !strings.HasPrefix(tags[0], tagSection) {
+			t.Fatalf("%s: tags = %v, want exactly one %s tag", e.Key, tags, tagSection)
+		}
+		sections[tags[0]] = true
+	}
+	if len(sections) != len(planFiles(t)) {
+		t.Errorf("%d distinct section tags over %d section files - a file whose tag "+
+			"collides with another's groups two sections as one",
+			len(sections), len(planFiles(t)))
+	}
+}
+
+// planOfThisRepo is the real `plan/` directory, because the rules above are
+// about a document that exists and a fixture cannot go stale with it.
+func planOfThisRepo(t *testing.T) record.PlanParse {
+	t.Helper()
+	pp, err := record.ParsePlanDir(os.DirFS("../../plan"))
+	if err != nil {
+		t.Fatalf("parsing the repository's own plan directory: %v", err)
+	}
+	if len(pp.Entries) == 0 {
+		t.Fatal("the repository's own plan directory parsed to no entries at all")
+	}
+	return pp
+}
+
+// planFiles is every section file on disk.
+func planFiles(t *testing.T) []string {
+	t.Helper()
+	names, err := os.ReadDir("../../plan")
+	if err != nil {
+		t.Fatalf("reading the plan directory: %v", err)
+	}
+	var out []string
+	for _, n := range names {
+		out = append(out, n.Name())
+	}
+	return out
 }

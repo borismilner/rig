@@ -100,6 +100,20 @@ type PlanEntry struct {
 	// Body is the prose from under the heading to the line before the next
 	// heading of ANY level, trimmed.
 	Body string
+
+	// SectionTitle is the text of the section's own heading, which
+	// `tools/plansplit.py` writes as the first line of every section file and
+	// checks the file name against.
+	//
+	// ⛔ IT IS THE TEXT AND NOT THE FILE NAME'S SLUG, because `FriendlyTag`
+	// cuts at a clause end and a slug has thrown that punctuation away. The
+	// same reason is written on `FriendlyTag` itself.
+	//
+	// ⛔ AND IT IS READ FROM THE FILE RATHER THAN RE-DERIVED FROM `Section`.
+	// A number names a file; only the file states its title, and a second
+	// table mapping one to the other is the two-derivations failure this
+	// package's header names.
+	SectionTitle string
 }
 
 // PlanParse is one pass over the whole of `plan/`.
@@ -179,6 +193,14 @@ func parsePlanSection(r io.Reader, file string, section int, taken map[string]Pl
 	// holds its Key, so a child can name its parent without re-deriving it.
 	var chain, keys [planMaxLevel + 1]string
 
+	// The section's own heading is the FIRST one in the file - plansplit writes
+	// it there and refuses a file whose name does not match it. Reading it off
+	// the heading list rather than the name keeps one derivation of the pair.
+	var sectionTitle string
+	if len(heads) > 0 {
+		sectionTitle = decisionTitle(heads[0].text)
+	}
+
 	for _, h := range heads {
 		title := decisionTitle(h.text)
 
@@ -219,6 +241,8 @@ func parsePlanSection(r io.Reader, file string, section int, taken map[string]Pl
 			Body:    strings.TrimSpace(strings.Join(h.body, "\n")),
 			Key:     planKey(section, chain[:], h.level, slug),
 			PartOf:  planParent(keys[:], h.level),
+
+			SectionTitle: sectionTitle,
 		}
 
 		// ⛔ A COLLISION IS REPORTED AND THE FIRST READ WINS, WHICH IS THE
