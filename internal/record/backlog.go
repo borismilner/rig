@@ -825,7 +825,13 @@ type backlogScan struct {
 
 	idCol, itemCol, stateCol, ownerCol int
 	inTable                            bool
-	line                               int
+
+	// fences decides whether a `#` line is a heading or a shell comment
+	// inside a ```sh block. It is stepped by EVERY line, including the ones
+	// read() returns on early: a machine that sees only some lines cannot
+	// know which block it is in.
+	fences fenceScan
+	line   int
 }
 
 // ParseBacklog reads a backlog document and returns one item per work-item row.
@@ -878,6 +884,11 @@ func ParseBacklogDocument(r io.Reader) (BacklogParse, error) {
 	// would put it after reconcile's own filter, which rewrites the slice this
 	// index points into.
 	s.closeBody()
+	if fence := s.fences.unclosed(); fence != "" {
+		return BacklogParse{}, fmt.Errorf("a fenced block opened with %q is never closed, "+
+			"so every heading after it was read as code; this parse declines to answer "+
+			"rather than report the rest of the document as absent", fence)
+	}
 	if err := s.reconcile(text); err != nil {
 		return BacklogParse{}, err
 	}
@@ -886,6 +897,16 @@ func ParseBacklogDocument(r io.Reader) (BacklogParse, error) {
 
 // read takes one line of the document.
 func (s *backlogScan) read(line string) error {
+	// ⛔ THE FENCE MACHINE IS STEPPED BEFORE ANY EARLY RETURN, AND ITS ANSWER
+	// REACHES ONE DECISION ONLY: whether a `#` line is a heading. It
+	// deliberately does NOT change the table partition - a `|` row inside a
+	// fenced block is an example rather than a work item, and declining it
+	// here would make reconcile accuse the parse of dropping an id. That is a
+	// separate question with its own answer owed; it is measured at zero
+	// occurrences today. DECISIONS.md, 2026-09-18.
+	marker, code := s.fences.read(line)
+	fenced := marker || code
+
 	// ⛔ A BLANK LINE DOES NOT END A TABLE IN THIS DOCUMENT, AND STANDARD
 	// MARKDOWN SAYS IT DOES. `BACKLOG.md` uses blank lines to GROUP rows
 	// visually inside one table - five of them inside the five-column table
@@ -916,7 +937,7 @@ func (s *backlogScan) read(line string) error {
 		// is why Body is not a second reading of what a table is: anything
 		// reaching here is not a table row, and anything that is not a heading
 		// either is the prose under the heading above it.
-		if !s.heading(line) {
+		if fenced || !s.heading(line) {
 			s.bodyLine(line)
 		}
 		return nil

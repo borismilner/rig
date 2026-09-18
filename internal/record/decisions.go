@@ -2,6 +2,7 @@ package record
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"regexp"
 	"strings"
@@ -154,16 +155,25 @@ func ParseDecisionsDocument(r io.Reader) (DecisionParse, error) {
 		body  []string
 	}
 
-	var heads []head
+	var (
+		heads  []head
+		fences fenceScan
+	)
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 1<<20), 1<<20)
 	line := 0
 	for sc.Scan() {
 		line++
 		raw := sc.Text()
-		if m := mdHeading.FindStringSubmatch(raw); m != nil {
-			heads = append(heads, head{level: len(m[1]), text: strings.TrimSpace(m[2]), line: line})
-			continue
+		// ⛔ A `#` LINE INSIDE A FENCED BLOCK IS A SHELL COMMENT, NOT A RULING.
+		// Both the marker and the block's contents are body here, which is
+		// what this loop already did with every line that was not a heading -
+		// so the rule changes nothing until the first fenced `#` is written.
+		if marker, code := fences.read(raw); !marker && !code {
+			if m := mdHeading.FindStringSubmatch(raw); m != nil {
+				heads = append(heads, head{level: len(m[1]), text: strings.TrimSpace(m[2]), line: line})
+				continue
+			}
 		}
 		if n := len(heads); n > 0 {
 			heads[n-1].body = append(heads[n-1].body, raw)
@@ -171,6 +181,11 @@ func ParseDecisionsDocument(r io.Reader) (DecisionParse, error) {
 	}
 	if err := sc.Err(); err != nil {
 		return DecisionParse{}, err
+	}
+	if fence := fences.unclosed(); fence != "" {
+		return DecisionParse{}, fmt.Errorf("a fenced block opened with %q is never closed, "+
+			"so every heading after it was read as code; this parse declines to answer "+
+			"rather than report the rest of the document as absent", fence)
 	}
 
 	firstDated := -1

@@ -328,37 +328,16 @@ type planHead struct {
 	body  []string
 }
 
-// planFence matches the opening or closing line of a fenced code block: three
-// or more backticks or tildes, optionally indented, with whatever info string
-// the writer put after it.
-var planFence = regexp.MustCompile("^\\s{0,3}(`{3,}|~{3,})(.*)$")
-
 // planHeadings splits one section file into its headings, IGNORING ANYTHING
 // INSIDE A FENCED CODE BLOCK.
 //
-// ⛔ THE FENCE RULE IS A CORRECTNESS FIX AND IT SHIPS AT ZERO HITS, WHICH IS
-// THE ONLY TIME IT IS FREE. `plan/` contains fenced blocks and none of them
-// currently holds a line starting with `#`; `COORDINATION.md:906` does - a `#`
-// shell comment inside a ```sh fence - so the defect is real and measured,
-// just not in this document yet. A parser that gains the rule only after the
-// first shell comment appears has already imported a heading that was a
-// comment, and nothing would have said so.
-//
-// ⛔ NEITHER `mdHeading` NOR ITS TWO EXISTING CALLERS ARE CHANGED BY THIS.
-// Backporting the rule to `internal/record/backlog.go` would alter the backlog
-// and decisions parses, whose pinned SETS are another seat's and are measured
-// at zero fenced headings. The backport is owed and is named here; it is not
-// done from this file.
-//
-// The closing rule is CommonMark's: only a fence of the same character, at
-// least as long as the opener, with nothing but whitespace after it, closes the
-// block. That is what lets a ```` ```go ```` block contain a ``` line of
-// output without ending early.
+// ⛔ THE FENCE RULE IS A CORRECTNESS FIX AND IT SHIPPED AT ZERO HITS, WHICH IS
+// THE ONLY TIME IT IS FREE. It is `fenceScan`'s now and all four of
+// `mdHeading`'s callers have it; this parser's behaviour is what defines it.
 func planHeadings(r io.Reader) ([]planHead, error) {
 	var (
 		heads  []planHead
-		fence  string
-		inCode bool
+		fences fenceScan
 	)
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 1<<20), 1<<20)
@@ -367,19 +346,12 @@ func planHeadings(r io.Reader) ([]planHead, error) {
 		line++
 		raw := sc.Text()
 
-		if m := planFence.FindStringSubmatch(raw); m != nil {
-			switch {
-			case !inCode:
-				inCode, fence = true, m[1]
-			case m[1][0] == fence[0] && len(m[1]) >= len(fence) && strings.TrimSpace(m[2]) == "":
-				inCode, fence = false, ""
-			default:
-				// A shorter or different fence inside an open block is content.
-				heads = appendBody(heads, raw)
-			}
+		// The fence that opened or closed a block is dropped; everything
+		// else inside one is this heading's body, the shorter or different
+		// fences included.
+		if marker, code := fences.read(raw); marker {
 			continue
-		}
-		if inCode {
+		} else if code {
 			heads = appendBody(heads, raw)
 			continue
 		}
@@ -394,12 +366,8 @@ func planHeadings(r io.Reader) ([]planHead, error) {
 		return nil, err
 	}
 
-	// ⛔ AN UNCLOSED FENCE IS AN ERROR AND NOT A SHRUG. Everything after it was
-	// read as code and no heading in the rest of the file was seen, so the
-	// parse is missing an unknown number of entries - and `missing` would name
-	// them all without saying why. A document that cannot be read is not a
-	// document that states nothing.
-	if inCode {
+	// An unclosed fence is an error and not a shrug: fenceScan.unclosed says why.
+	if fence := fences.unclosed(); fence != "" {
 		return nil, fmt.Errorf("a fenced block opened with %q is never closed, so every "+
 			"heading after it was read as code; this parse declines to answer rather "+
 			"than report the rest of the file as absent", fence)

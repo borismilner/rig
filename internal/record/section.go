@@ -20,12 +20,17 @@ import (
 // filled by composing new prose is a field that will arrive empty or invented,
 // and both outcomes fail this."
 //
-// ⛔ NEITHER PARSER HERE IS NEW. It reuses `mdHeading`, which backlog.go and
-// decisions.go already share, and `planFence`, which carries CommonMark's
-// closing rule so a fenced block containing a `#` line cannot be read as a
-// heading. plan.go records that the fence rule was owed to mdHeading's callers
-// and not backported from there; this function takes both and so is correct
-// without changing either, which is the same reasoning that left them alone.
+// ⛔ NEITHER PARSER HERE IS NEW. It reuses `mdHeading` and `fenceScan`, which
+// every caller in this package now shares. This function used to carry its own
+// copy of the fence rule; the copy is gone, which is the whole point of the
+// extraction.
+//
+// ⛔ AN UNCLOSED FENCE IS NOT AN ERROR HERE, AND IT IS IN THE OTHER THREE. This
+// one reads documents the project does not own - a README belonging to whatever
+// project is being described - and its failure mode is a description that runs
+// long, not a set of records silently absent. The other three read our own
+// documents, where a missing entry is the defect the whole mechanism exists to
+// refuse.
 //
 // A MISSING SECTION IS NOT AN ERROR. It answers empty, and the caller decides
 // whether an absent description is a defect or simply a project nobody has
@@ -41,7 +46,7 @@ func MarkdownSection(r io.Reader, heading string) (string, error) {
 	var (
 		sc      = bufio.NewScanner(r)
 		out     []string
-		fence   string
+		fences  fenceScan
 		level   int
 		started bool
 	)
@@ -50,23 +55,10 @@ func MarkdownSection(r io.Reader, heading string) (string, error) {
 	for sc.Scan() {
 		raw := sc.Text()
 
-		// Fences first: a heading inside one is not a heading.
-		if m := planFence.FindStringSubmatch(raw); m != nil {
-			switch {
-			case fence == "":
-				fence = m[1]
-			// CommonMark: only a fence of the same character, at least as
-			// long as the opener, with nothing after it, closes the block.
-			case m[1][0] == fence[0] && len(m[1]) >= len(fence) &&
-				strings.TrimSpace(m[2]) == "":
-				fence = ""
-			}
-			if started {
-				out = append(out, raw)
-			}
-			continue
-		}
-		if fence != "" {
+		// Fences first: a heading inside one is not a heading. The marker
+		// lines are KEPT, unlike planHeadings, because a fenced block is part
+		// of the prose this function is quoting.
+		if marker, code := fences.read(raw); marker || code {
 			if started {
 				out = append(out, raw)
 			}
