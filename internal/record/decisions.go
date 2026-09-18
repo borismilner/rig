@@ -197,7 +197,11 @@ func ParseDecisionsDocument(r io.Reader) (DecisionParse, error) {
 	for i, h := range heads {
 		sections.popTo(h.level)
 		section := sections.section()
-		sections = append(sections, headingFrame{level: h.level, section: sectionSlug(h.text)})
+		sectionTitle := sections.sectionTitle()
+		sections = append(sections, headingFrame{
+			level: h.level, section: sectionSlug(h.text),
+			sectionTitle: decisionTitle(h.text),
+		})
 
 		// ⛔ THE H1 IS THE DOCUMENT'S OWN TITLE AND IS NOT AN ENTRY. Levels
 		// below 3 are not used by this document; carrying them would invent a
@@ -206,7 +210,7 @@ func ParseDecisionsDocument(r io.Reader) (DecisionParse, error) {
 			if h.level > 3 {
 				out.Unimported = append(out.Unimported, Unimported{
 					Kind: UnimportedHeadingTooDeep, Label: h.text, Line: h.line,
-					Under: parent, Section: section,
+					Under: parent, Section: section, SectionTitle: sectionTitle,
 				})
 			}
 			continue
@@ -216,7 +220,7 @@ func ParseDecisionsDocument(r io.Reader) (DecisionParse, error) {
 		if title == "" {
 			out.Unimported = append(out.Unimported, Unimported{
 				Kind: UnimportedHeadingNoTitle, Label: h.text, Line: h.line,
-				Under: parent, Section: section,
+				Under: parent, Section: section, SectionTitle: sectionTitle,
 			})
 			continue
 		}
@@ -251,7 +255,7 @@ func ParseDecisionsDocument(r io.Reader) (DecisionParse, error) {
 		if taken[e.Key] {
 			out.Unimported = append(out.Unimported, Unimported{
 				Kind: UnimportedDuplicateKey, ID: e.Key, Label: title, Line: h.line,
-				Under: parent, Section: section,
+				Under: parent, Section: section, SectionTitle: sectionTitle,
 			})
 			continue
 		}

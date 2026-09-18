@@ -278,21 +278,12 @@ func TestTheReportSeparatesASupersessionFromANoOp(t *testing.T) {
 }
 
 // ⛔ EVERY TAG THIS SEEDER WRITES MUST COME BACK OUT OF THE STORE'S OWN READER,
-// AND FOR THE LIFE OF THIS FIELD NONE OF THEM DID.
+// AND FOR THE LIFE OF THIS FIELD NONE OF THEM DID. `DECISIONS.md`, 2026-09-18.
 //
-// `tagsFor` joined with a comma, `headingIntent` and `rankedIntent` each wrote a
-// bare word, and `record.DecodeTags` parses JSON - so all three decoded to
-// nothing. Measured on Boris's live production store 2026-09-18: 54 record
-// versions carry a non-empty tags field and ZERO of them parse.
-//
-// ⛔ THE ASSERTION IS A ROUND TRIP AND NOT A SPELLING CHECK, WHICH IS WHY IT
-// CATCHES THE NEXT GRAIN TOO. A test comparing the field against
-// `["a","b"]` passes for a writer that hand-rolls the JSON and drifts from
-// `EncodeTags` later; running the reader is the only form that cannot.
-//
-// ⛔ AND IT IS ONE SUBTEST PER GRAIN BECAUSE THREE GRAINS WRITE THIS FIELD.
-// One table row covering "the seeder" would go red on the first grain and never
-// reach the other two - the count-the-assertions rule this repo already carries.
+// ⛔ THE ASSERTION IS A ROUND TRIP, NOT A SPELLING CHECK: a test comparing the
+// field against `["a","b"]` passes for a writer that hand-rolls the JSON and
+// drifts later. One subtest per grain, because three grains write this field
+// and one row would go red on the first and never reach the others.
 func TestEveryTagTheSeederWritesIsReadableByTheStore(t *testing.T) {
 	o := options{project: "rig", backlog: "BACKLOG.md"}
 
@@ -304,7 +295,8 @@ func TestEveryTagTheSeederWritesIsReadableByTheStore(t *testing.T) {
 		{
 			name: "the row grain, irregular and placed",
 			fields: rowIntent(o, record.BacklogItem{
-				ID: "B21", Title: "a shifted row", Section: "open",
+				ID: "B21", Title: "a shifted row",
+				Section: "open", SectionTitle: "Open",
 				Malformed: true,
 			}).fields,
 			want: []string{"section:open", "malformed"},
@@ -312,23 +304,38 @@ func TestEveryTagTheSeederWritesIsReadableByTheStore(t *testing.T) {
 		{
 			name: "the heading grain",
 			fields: headingIntent(o, record.Unimported{
-				ID: "B46", Title: "the acceptance test", Section: "rig-s-development-plan",
+				ID: "B46", Title: "the acceptance test",
+				Section: "rig-s-development-plan", SectionTitle: "rig's development plan",
 			}, "").fields,
 			want: []string{"heading-borne", "section:rig-s-development-plan"},
 		},
 		{
 			name: "the ranked grain, whose section is also an id qualifier",
 			fields: rankedIntent(o, record.Unimported{
-				Label: "6a", Section: "the-critical-path-to-the-gate", Line: 110,
+				Label: "6a", Line: 110,
+				Section:      "the-critical-path-to-the-gate",
+				SectionTitle: "The critical path to the gate",
 			}, "rig/the-critical-path-to-the-gate/6a").fields,
-			want: []string{"rank-only", "section:the-critical-path-to-the-gate"},
+			// The tag is shorter than the field on purpose: the field is the
+			// id qualifier, the tag is what a reader sees in a filter.
+			want: []string{"rank-only", "section:critical-path-to-the-gate"},
 		},
-		// ⛔ THE UNPLACED CASES, AND THEY ARE HERE BECAUSE A MUTATION SURVIVED
-		// WITHOUT THEM. Making `sectioned` emit the tag unconditionally left
-		// every assertion above GREEN, so nothing held the line that a record
-		// the document placed nowhere gets NO section tag. A tag reading
-		// `section:` is worse than no tag: it says the document stated a place
-		// and then names none.
+		// ⛔ A ROW WHOSE HEADING IS LONG, BECAUSE THE SHORT ONE PROVED NOTHING.
+		// `Open` slugs to `open` and shortens to `open`, so pointing `tagsFor`
+		// back at the raw slug left every case above green. This row is the
+		// one where the two answers differ.
+		{
+			name: "the row grain, under a heading that shouts",
+			fields: rowIntent(o, record.BacklogItem{
+				ID: "B46a", Title: "a row under the acceptance test",
+				Section:      "b46-the-mvp-acceptance-test-and-it-existed-in-no-document-at-all",
+				SectionTitle: "⛔ B46 - THE MVP ACCEPTANCE TEST, AND IT EXISTED IN NO DOCUMENT AT ALL",
+			}).fields,
+			want: []string{"section:mvp-acceptance-test"},
+		},
+		// ⛔ THE UNPLACED CASES ARE HERE BECAUSE A MUTATION SURVIVED WITHOUT
+		// THEM. A tag reading `section:` is worse than no tag: it says the
+		// document stated a place and then names none.
 		{
 			name: "a heading the document placed nowhere",
 			fields: headingIntent(o, record.Unimported{
@@ -365,22 +372,14 @@ func TestEveryTagTheSeederWritesIsReadableByTheStore(t *testing.T) {
 	}
 }
 
-// ⛔ A ROW IS TAGGED WITH WHERE THE DOCUMENT PUT IT, WHICH IS THE THIRD OF THE
-// THREE SOURCES §11 NAMES AND THE ONLY ONE NOTHING CARRIED.
-//
-// Boris, 2026-09-17: "I'm sure they can be grouped or at least tagged so that
-// the user can see what relates to what." §11 answers it from what the
-// documents ALREADY assert - the section a row sits under, the `part-of`
-// parent, the owner column - and forbids a vocabulary a seat invents. `owner`
-// and `part-of` were carried; the section was not.
-//
-// ⛔ THE EMPTY CASE IS HERE BECAUSE A TAG READING `section:` WOULD BE WORSE
-// THAN NO TAG - it says the document stated a place and names none.
+// A row is tagged with where the document put it: the third of the three
+// sources `plan/11` names, and the only one nothing carried.
 func TestARowIsTaggedWithTheSectionItSitsUnder(t *testing.T) {
 	o := options{project: "rig", backlog: "BACKLOG.md"}
 
 	placed := record.DecodeTags(rowIntent(o, record.BacklogItem{
-		ID: "B90", Title: "the management panel", Section: "open",
+		ID: "B90", Title: "the management panel",
+		Section: "open", SectionTitle: "Open",
 	}).fields[fieldTags])
 	if len(placed) != 1 || placed[0] != "section:open" {
 		t.Errorf("a placed row carries %v, want exactly [section:open]", placed)
@@ -389,5 +388,39 @@ func TestARowIsTaggedWithTheSectionItSitsUnder(t *testing.T) {
 	loose := rowIntent(o, record.BacklogItem{ID: "B1", Title: "a row in no section"}).fields
 	if raw, ok := loose[fieldTags]; ok {
 		t.Errorf("a row the document placed nowhere carries tags %q; it must carry none", raw)
+	}
+}
+
+// ⛔ A HEADING RECORD CARRIES THE HEADING'S PROSE, AND IT CARRIED ITS OWN TITLE
+// UNTIL 2026-09-18. Measured: B46 held 697 characters of prose it did not
+// store. `DECISIONS.md`, and `plan/39` for the bar.
+func TestAHeadingRecordCarriesItsProseAndNotItsOwnTitle(t *testing.T) {
+	o := options{project: "rig", backlog: "BACKLOG.md"}
+
+	const prose = "The closing lead's own words: it is the MVP acceptance test and it is nowhere on disk."
+	in := headingIntent(o, record.Unimported{
+		ID: "B46", Title: "THE MVP ACCEPTANCE TEST", Body: prose,
+		SectionTitle: "Open",
+	}, "")
+
+	if in.body != prose {
+		t.Errorf("body = %q,\nwant the heading's prose %q", in.body, prose)
+	}
+	if in.body == in.title {
+		t.Error("body equals title, which is the defect this test exists for")
+	}
+
+	// ⛔ NO `description_short`. It was the title, which is B62. An absent
+	// field can be filled by B91's pass; a duplicated one reads as answered.
+	if got, ok := in.fields["description_short"]; ok {
+		t.Errorf("description_short = %q; a heading has no mechanical short form "+
+			"that improves on the heading, so the field must be absent", got)
+	}
+
+	// The fallback still exists, because a heading with no prose under it is a
+	// real shape and an empty body would be worse than the title.
+	bare := headingIntent(o, record.Unimported{ID: "B47", Title: "a heading with no prose"}, "")
+	if bare.body != "a heading with no prose" {
+		t.Errorf("a heading with no prose has body %q, want its title", bare.body)
 	}
 }

@@ -159,12 +159,11 @@ func TestAnIdStatedInAHeadingBecomesARecord(t *testing.T) {
 		t.Errorf("B46 status = %q, want %q - the heading is not struck, and "+
 			"unstruck is what this document means by open", got, record.StatusActive)
 	}
-	// ⛔ ASSERTED THROUGH THE STORE'S OWN READER, AND THIS TEST USED TO ASSERT
-	// THE RAW STRING - which is how it stayed GREEN over a value the reader
-	// could not parse. It compared `in.fields["tags"]` against the bare word
-	// `heading-borne`; `record.DecodeTags` reads a JSON array, so the assertion
-	// was pinning the defect in place rather than catching it. A field's test
-	// runs the reader, or it is testing the writer against itself.
+	// ⛔ ASSERTED THROUGH THE STORE'S OWN READER. This compared the raw string
+	// against `heading-borne`, which is how it stayed green over a value
+	// `DecodeTags` could not parse - pinning the defect rather than catching
+	// it. A field's test runs the reader, or it tests the writer against
+	// itself.
 	if got := record.DecodeTags(in.fields[fieldTags]); len(got) != 1 || got[0] != tagHeadingBorne {
 		t.Errorf("B46 tags decode to %v, want [%s] - without it, a status that is "+
 			"absent cannot be told from one something lost", got, tagHeadingBorne)

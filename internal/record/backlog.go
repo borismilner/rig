@@ -175,35 +175,24 @@ type BacklogItem struct {
 	// column. Section 39 declares `owner` and nothing has ever written it.
 	Owner string
 
-	// Section is the nearest enclosing heading, as a slug, and it is the
-	// DOCUMENT'S OWN grouping of its rows.
+	// Section is the nearest enclosing heading, as a slug: the document's own
+	// grouping of its rows. The requirement it answers is `plan/11`, Boris's
+	// fourth 2026-09-17 ruling, and the two-bucket measurement over rig's own
+	// backlog is in `plan/39`.
 	//
-	// ⛔ IT IS THE FIRST HALF OF BORIS'S FOURTH 2026-09-17 REQUIREMENT, WHICH
-	// §11 ANSWERS WITH THE STORE RATHER THAN THE WINDOW: *"I'm sure they can be
-	// grouped or at least tagged so that the user can see what relates to
-	// what."* §11 names three sources that the documents ALREADY assert - the
-	// section a row sits under, the `part-of` parent and the owner column - and
-	// forbids a tag vocabulary a seat invents. `Owner` and `PartOf` were
-	// carried; this is the one that was not.
+	// ⛔ IT IS NOT `PartOf` AND MUST NEVER BE PROMOTED TO ONE. `Under`'s
+	// comment below carries the measurement: heading enclosure as a `part-of`
+	// edge produced twenty-four edges this document never states. Where a row
+	// SITS is a fact about the file; `part-of` is a claim about the work.
 	//
-	// ⛔ IT IS NOT `PartOf` AND MUST NEVER BE PROMOTED TO ONE. `Under`'s doc
-	// comment on `Unimported` carries the measurement: heading enclosure as a
-	// `part-of` edge produced TWENTY-FOUR edges this document never states.
-	// Where a row SITS is a fact about the file; `part-of` is a claim about the
-	// work. As a GROUPING the first is exactly what was asked for, which is why
-	// it arrives as a tag and not as an edge.
-	//
-	// ⛔ AND IT IS THE SAME FIELD, WITH THE SAME RULE, AS `Unimported.Section`.
-	// Both come from `sectionStack`, so the two grains cannot drift - which is
-	// that type's own reason for existing.
-	//
-	// ⛔ MEASURED BEFORE IT WAS BUILT, AND THE NUMBER IS A FINDING RATHER THAN
-	// A FEATURE: over rig's own backlog it yields TWO buckets, 50 rows under
-	// `b46-the-mvp-acceptance-test-...` and 45 under `open`. **Fifty rows are
-	// filed under a heading about the MVP acceptance test because the table
-	// under it grew into the general backlog.** A reader who can see that can
-	// fix it; nothing could see it before.
+	// Same field, same rule, as `Unimported.Section` - both read
+	// `sectionStack`, which is that type's reason for existing.
 	Section string
+
+	// SectionTitle is the same heading's TEXT, for a reader rather than for a
+	// key. `FriendlyTag` shortens it; the raw slug cannot be shortened without
+	// guessing.
+	SectionTitle string
 }
 
 // cells splits a markdown table row and trims every cell. The table is
@@ -694,6 +683,11 @@ type Unimported struct {
 	// enclosing heading from `sectionStack`, so there is one rule and not two.
 	Section string
 
+	// SectionTitle is the same heading's TEXT, for a reader rather than for a
+	// key, and it is populated wherever `Section` is. `FriendlyTag` turns it
+	// into something short enough to read in a filter.
+	SectionTitle string
+
 	// Body is the PROSE beneath a heading-borne id, down to the next heading
 	// of any level, with the runs of blank lines a removed table leaves
 	// collapsed to one. Empty for everything that is not a heading, and for a
@@ -747,6 +741,15 @@ type headingFrame struct {
 	level   int
 	carry   string
 	section string
+
+	// sectionTitle is the heading's own TEXT, kept BESIDE the slug because a
+	// slug cannot be shortened well and the text can - see `FriendlyTag`.
+	//
+	// ⛔ IT IS NOT A SECOND SLUG RULE, WHICH IS THE DRIFT THIS TYPE EXISTS TO
+	// STOP. `section` stays the key component: ranked-row ids are built from
+	// it and shortening it would RENAME eleven live records. Both are taken
+	// from the same text in the same call. Bar and reasoning: `plan/39`.
+	sectionTitle string
 }
 
 // sectionStack is the heading stack, and BOTH grains in this package keep one.
@@ -783,6 +786,14 @@ func (st sectionStack) carry() string {
 func (st sectionStack) section() string {
 	if n := len(st); n > 0 {
 		return st[n-1].section
+	}
+	return ""
+}
+
+// sectionTitle is the same heading's TEXT, for a reader rather than for a key.
+func (st sectionStack) sectionTitle() string {
+	if n := len(st); n > 0 {
+		return st[n-1].sectionTitle
 	}
 	return ""
 }
@@ -947,6 +958,7 @@ func (s *backlogScan) heading(line string) bool {
 	// PARENT heading; it does not enclose itself, and a field that meant one
 	// thing on a row and another on a heading would be worse than either.
 	parentSection := s.heads.section()
+	parentSectionTitle := s.heads.sectionTitle()
 	carry := parent
 	if tok := backlogIDish.FindString(text); tok != "" {
 		// An irregular id is labelled by its TOKEN wherever it is found, so
@@ -956,12 +968,14 @@ func (s *backlogScan) heading(line string) bool {
 		u := Unimported{
 			Kind: UnimportedIrregularID, Label: tok, Line: s.line,
 			Under: parent, Section: parentSection,
+			SectionTitle: parentSectionTitle,
 		}
 		if backlogIDLegal.MatchString(tok) {
 			u = Unimported{
 				Kind: UnimportedHeading, ID: tok, Label: text,
 				Title: headingTitle(text, tok), Struck: struckThrough(text),
 				Line: s.line, Under: parent, Section: parentSection,
+				SectionTitle: parentSectionTitle,
 			}
 			carry = tok
 		}
@@ -975,7 +989,9 @@ func (s *backlogScan) heading(line string) bool {
 		}
 	}
 	s.heads = append(s.heads, headingFrame{
-		level: level, carry: carry, section: sectionSlug(text),
+		level: level, carry: carry,
+		section:      sectionSlug(text),
+		sectionTitle: decisionTitle(text),
 	})
 	return true
 }
@@ -1063,6 +1079,7 @@ func (s *backlogScan) row(line string) error {
 				Label: strings.TrimSpace(c[1]),
 				Cells: contentCells(c),
 				Line:  s.line, Under: s.heads.carry(), Section: s.heads.section(),
+				SectionTitle: s.heads.sectionTitle(),
 			}
 			s.readWorkCell(&u, c)
 			s.unimported = append(s.unimported, u)
@@ -1073,6 +1090,7 @@ func (s *backlogScan) row(line string) error {
 		u := Unimported{
 			Kind: UnimportedIrregularID, Label: tok, Cells: contentCells(c),
 			Line: s.line, Under: s.heads.carry(), Section: s.heads.section(),
+			SectionTitle: s.heads.sectionTitle(),
 		}
 		s.readWorkCell(&u, c)
 		s.unimported = append(s.unimported, u)
@@ -1096,6 +1114,7 @@ func (s *backlogScan) row(line string) error {
 			Kind: UnimportedOtherTable, ID: id,
 			Label: strings.TrimSpace(c[1]), Cells: contentCells(c),
 			Line: s.line, Under: s.heads.carry(), Section: s.heads.section(),
+			SectionTitle: s.heads.sectionTitle(),
 		})
 		return nil
 	}
@@ -1203,9 +1222,10 @@ func (s *backlogScan) item(id string, c []string) BacklogItem {
 	// in would assert that a ruling finished the work. Naming it is what lets a
 	// seeder decide; guessing is what produced the four rows that have seeded
 	// OPEN since B15.
-	// ⛔ READ FROM THE SAME STACK THE OTHER GRAIN USES, NOT RE-DERIVED. A row is
+	// Read from the same stack the other grain uses, never re-derived. A row is
 	// not a heading, so the top of the stack is the heading enclosing it.
 	it.Section = s.heads.section()
+	it.SectionTitle = s.heads.sectionTitle()
 	it.RuledClosed = it.ClaimsDone && strings.Contains(c[s.idCol], "✅")
 	it.Disposition = dispositionOf(it, item, c[s.stateCol])
 	return it

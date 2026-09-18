@@ -394,6 +394,9 @@ func TestRigsOwnDecisionsDocumentPlansEveryEntry(t *testing.T) {
 func rankedRow(rank, section string, line int) record.Unimported {
 	return record.Unimported{
 		Kind: record.UnimportedRowWithoutID, Label: rank, Section: section, Line: line,
+		// The seeder derives the KEY from the slug and the TAG from the text,
+		// so a fixture carrying only the slug tests half the pair.
+		SectionTitle: "The critical path to the gate",
 	}
 }
 
@@ -424,20 +427,13 @@ func TestARankedRowIsKeyedOnItsTableAndCarriesItsRank(t *testing.T) {
 			t.Errorf("%s = %q, want %q", name, got, w)
 		}
 	}
-	// ⛔ THE TAGS GO THROUGH THE READER, AND THIS ROW USED TO BE IN THE TABLE
-	// ABOVE COMPARING THE RAW STRING AGAINST `rank-only`. That is a writer
-	// checked against itself: `record.DecodeTags` parses JSON, so the bare word
-	// the assertion demanded was a value the store reads as NO tags.
-	//
-	// ⛔ AND THE SECTION IS ON BOTH - IN A FIELD AND IN A TAG - WHICH IS
-	// DELIBERATE. `fieldSection` is an ID QUALIFIER, because a bare rank is not
-	// unique across two unnumbered tables. The tag is the GROUPING axis Boris
-	// asked for, and it is spelled the same way on every grain so a reader
-	// asking "what relates to what" gets one answer rather than having to know
-	// that this grain keeps it somewhere else.
+	// ⛔ THE TAGS GO THROUGH THE READER. This row was in the table above,
+	// comparing the raw string - a writer checked against itself.
+	// The field keeps the full slug because the id is built from it; the tag
+	// drops the article because a person reads it in a filter.
 	if got := record.DecodeTags(in.fields[fieldTags]); len(got) != 2 ||
-		got[0] != tagRankOnly || got[1] != tagSection+"the-critical-path-to-the-gate" {
-		t.Errorf("tags decode to %v, want [%s %sthe-critical-path-to-the-gate]",
+		got[0] != tagRankOnly || got[1] != tagSection+"critical-path-to-the-gate" {
+		t.Errorf("tags decode to %v, want [%s %scritical-path-to-the-gate]",
 			got, tagRankOnly, tagSection)
 	}
 	// ⛔ NO status. `Unimported` does not export the State cell, so `active`

@@ -517,12 +517,11 @@ func itemClosingWord(status, step string) string {
 // the whole derivation hostage to the worst row in the store, in a system whose
 // entire argument is that it answers from what is actually there.
 //
-// ⛔ IT IS EXPORTED BECAUSE THE UNEXPORTED HALF IS WHAT LET A DEFECT SHIP FOR
-// THE LIFE OF THIS FIELD. `EncodeTags` was exported for writers and this was
-// not, so a writer could not check its own write with the reader's own code -
-// and `cmd/rigseed` wrote comma-joined tags into 54 record versions on Boris's
-// live store, every one of which decoded to nothing. **A tolerant reader needs
+// ⛔ EXPORTED BECAUSE THE UNEXPORTED HALF LET A DEFECT SHIP FOR THE LIFE OF
+// THIS FIELD: `EncodeTags` was exported and this was not, so a writer could
+// not check its own write with the reader's code. **A tolerant reader needs
 // its writer to be able to run it**, or the tolerance hides the writer's bug.
+// The measurement is in `DECISIONS.md`, 2026-09-18.
 func DecodeTags(raw string) []string {
 	if raw == "" {
 		return nil
