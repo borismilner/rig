@@ -519,10 +519,18 @@ func TestRigsOwnBacklogSaysWhichWordClosedEachRow(t *testing.T) {
 	// B68, B87 and B88 join 2026-09-17 later, all three with DONE. B68 is the
 	// thirteenth brief section; B87 and B88 were FILED AND CLOSED in the same
 	// session, which is why two rows arrived already struck.
+	// B96 and B97 join 2026-09-18, generation 22, both closed BY WORK and
+	// therefore struck: 254 titles stopped shouting with only their case
+	// changed, and a note carries the title the document gave it, opens, and
+	// renders its body.
+	// ⛔ B98 IS NOT HERE ALTHOUGH HALF OF IT SHIPPED THE SAME HOUR. Its title
+	// states two things and the seeder half is untouched, so the row stays
+	// open - the closure B82 got wrong the day before, in the other direction.
 	sameSet(t, "DONE", by["DONE"],
 		[]string{
 			"B20", "B22", "B24", "B25", "B31", "B33", "B44", "B46a", "B64",
 			"B65", "B66", "B68", "B75", "B76", "B82", "B87", "B88", "B9",
+			"B96", "B97",
 		})
 	// B82 joins 2026-09-18, and its WORD is DONE rather than the CLOSED its
 	// state cell leads with: the item cell's terminal word is what closes a

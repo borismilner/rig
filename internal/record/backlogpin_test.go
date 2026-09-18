@@ -235,10 +235,15 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 	// prose (rig `334c3e2`, hardened at `c147419`) and a brief for a project
 	// that does not exist is now NAMED and exits 1 (rig `072aea4`). Both were
 	// demonstrated and both rows were struck.
+	// B96 and B97 join this set 2026-09-18, generation 22, both closed BY WORK
+	// and both demonstrated on his own screen rather than reported: 254 titles
+	// stopped shouting with only their case changed, and a note carries the
+	// title the document gave it, opens, and renders its body as markdown.
 	pin(t, "closed, struck", struck,
 		[]string{
 			"B11", "B19", "B20", "B22", "B31", "B33", "B64", "B65", "B66",
-			"B68", "B7", "B75", "B76", "B82", "B87", "B88", "B9",
+			"B68", "B7", "B75", "B76", "B82", "B87", "B88", "B9", "B96",
+			"B97",
 		})
 	pin(t, "closed by a terminal lead in the item cell", byLead, []string{"B21"})
 	pin(t, "claims a terminal state unstruck, seeded OPEN", claims,
@@ -361,9 +366,16 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 		// B97 and B98 filed. ⛔ NEITHER CAME FROM A DOCUMENT OR A TEST - both
 		// were seen on the screen once the record views put 920 records there,
 		// which is the phase's own argument arriving as evidence.
+		// 18 -> 20 closed and 85 -> 83 open, the same day and the same seat:
+		// B96 and B97 CLOSED BY WORK, so both are struck.
+		// ⛔ B98 IS DELIBERATELY STILL OPEN although half of it is built. Its
+		// title states two things - the repetition, which the view now strips,
+		// and the 91 decisions the seeder cannot date - and the second is
+		// untouched. Striking a title whose own statement is half true is the
+		// closure this document was caught getting wrong on B82 the day before.
 		{"rows", len(items), 103},
-		{"closed", len(struck) + len(byLead), 18},
-		{"open", open, 85},
+		{"closed", len(struck) + len(byLead), 20},
+		{"open", open, 83},
 	} {
 		if c.got != c.want {
 			t.Errorf("%s: %d, pinned at %d.\n"+
