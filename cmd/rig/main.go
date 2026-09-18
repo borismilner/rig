@@ -35,6 +35,12 @@ var (
 )
 
 func main() {
+	// The first run after a redeployment says so, once. PLAN.md section 28.
+	// It is deliberately BEFORE the command: an update is worth knowing about
+	// whether or not what you typed then works.
+	noticeCtx, cancelNotice := context.WithTimeout(context.Background(), noticeDeadline)
+	announceUpdate(noticeCtx)
+	cancelNotice()
 	if err := run(os.Args[1:]); err != nil {
 		report(os.Stdout, os.Stderr, err)
 		os.Exit(1)
