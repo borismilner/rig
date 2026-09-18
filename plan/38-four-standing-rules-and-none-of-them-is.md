@@ -1,8 +1,13 @@
 ## 38. Four standing rules, and none of them is a preference
 
+⛔ **FIVE SINCE 2026-09-18. THE TITLE IS KEPT BECAUSE `PLAN.md section 38` IS
+CITED BY NUMBER AND A RENAMED SECTION FILE IS A RENAMED RECORD** - `plansplit`
+derives the file name from the heading, and §39's grain keys a requirement on
+its heading slug. **38e is below and is as standing as the other four.**
+
 **The first three are Boris's, stated 2026-09-12; the fourth is his, stated
-2026-09-17. They bind every milestone rather
-than any one of them.** They are here rather than folded into §22 or §29 because a
+2026-09-17; the fifth is his, stated 2026-09-18. They bind every milestone
+rather than any one of them.** They are here rather than folded into §22 or §29 because a
 rule that applies to all future work needs an address a seat can be pointed at.
 
 ### 38a. rig is the world-best swiss knife of the capabilities it carries
@@ -144,3 +149,44 @@ field predicate uses `json_each` rather than a concatenated `json_extract` path
 so a caller's field name is never interpreted, and
 `TestAFieldNameIsNeverInterpreted` pins it. **Written with no threat model, and
 it is the right code either way.**
+
+### 38e. Knowledge goes to the documents an agent reads, not into a code comment
+
+**Boris, verbatim, 2026-09-18**, on reviewing a session's diff:
+
+> *"I see you put A LOT for the prose into the code instead of the documentations
+> that is read by the agents."*
+
+⛔ **MEASURED THE MOMENT HE SAID IT, over that session's own Go changes: 250
+comment lines against 272 code lines. 48%.** Not a style complaint; a routing
+defect with a number.
+
+⛔ **AND THE DECIDING ARGUMENT IS THIS PROJECT'S OWN MECHANISM: NOTHING IMPORTS
+A GO COMMENT.** rig reads `plan/` (342 requirement records), `DECISIONS.md` (451)
+and `BACKLOG.md` (96). **A measurement written into a doc comment is a record
+rig cannot hold, cannot query, cannot link and cannot supersede** - so it is
+invisible to the one reader §39 is built for. **That makes this 38c, applied to
+prose:** the same fact in the documents is queryable and in a comment it is not,
+and only one of those can be perfected.
+
+| Goes in the CODE | Goes in the DOCUMENT |
+|---|---|
+| what this code does that the code does not show | ⛔ **the requirement, and its quotation** |
+| the one-line reason a non-obvious choice was made | ⛔ **the measurement, with its number and its date** |
+| a trap at the site where somebody would fall into it | the history, the falsified claim, the argument that was had |
+| ⛔ **a POINTER**: `plan/39`, `DECISIONS.md`, a `B` id | the reasoning, at whatever length it needs |
+
+**The test, and it is one question: would a seat that never opens this file need
+to know it?** If yes, it belongs in a document and the comment carries a
+pointer. If it is only legible with the code in front of you, it is a comment.
+
+⛔ **WHAT THIS DOES NOT LICENSE, BECAUSE THE OPPOSITE FAILURE IS THIS REPOSITORY'S
+OWN HISTORY.** Several comments in `internal/record` record a trap that cost a
+measured afternoon - a private runtime dir that isolates a socket and not a
+store, a slug that read `B60-2` as `B60` - and those are at the site because
+that is where somebody meets them. **Stripping a file to bare declarations
+would trade one routing defect for a worse one.** The move is from NARRATIVE to
+POINTER, never from comment to nothing.
+
+**The first application is the session he said it in**, which trimmed its own
+comments to pointers and moved the substance into §39, §11 and `DECISIONS.md`.
