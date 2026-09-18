@@ -31,6 +31,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 // notCovered is what a scoped run cannot answer, named so the report can say
@@ -44,12 +45,27 @@ var notCovered = []struct{ target, why string }{
 	{"a peer's packages", "only what you named, or what git reports dirty"},
 }
 
-func main() {
-	if err := run(context.Background()); err != nil {
+func main() { os.Exit(main1()) }
+
+// main1 exists so the deadline's cancel actually runs: `defer` does not survive
+// os.Exit, and a linter is right to call that a leak.
+func main1() int {
+	// ⛔ A DEADLINE, BECAUSE A GATE THAT HANGS IS WORSE THAN A RED ONE: it is
+	// indistinguishable from a slow one, and a seat waits instead of reading
+	// the answer. Generous rather than tight - `test -race` over a large
+	// package is minutes, and a timeout that fires on a healthy tree would
+	// train everybody to raise it.
+	ctx, cancel := context.WithTimeout(context.Background(), gateDeadline)
+	defer cancel()
+	if err := run(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "gate: %v\n", err)
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }
+
+// gateDeadline bounds the whole run.
+const gateDeadline = 30 * time.Minute
 
 type options struct {
 	race bool

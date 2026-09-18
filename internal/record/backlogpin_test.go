@@ -212,7 +212,7 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 			// stated it: the 342 requirements are revisited before they are
 			// seeded - judged, joined, retitled for his reading and tagged.
 			// OPEN.
-			"B91",
+			"B91", "B92", "B93", "B94",
 		})
 
 	// B65 joins this set 2026-09-17: the field predicate landed at rig
@@ -232,7 +232,7 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 	pin(t, "closed, struck", struck,
 		[]string{
 			"B11", "B19", "B20", "B22", "B31", "B33", "B64", "B65", "B66",
-			"B68", "B7", "B75", "B76", "B87", "B88", "B9",
+			"B68", "B7", "B75", "B76", "B82", "B87", "B88", "B9",
 		})
 	pin(t, "closed by a terminal lead in the item cell", byLead, []string{"B21"})
 	pin(t, "claims a terminal state unstruck, seeded OPEN", claims,
@@ -340,9 +340,17 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 		// 95 -> 96 rows and 78 -> 79 open: B91 filed, nothing closed. The
 		// PARSER test above is GREEN at this commit, which is this pin's own
 		// instrument for saying the DOCUMENT moved rather than the reading.
-		{"rows", len(items), 96},
-		{"closed", len(struck) + len(byLead), 17},
-		{"open", open, 79},
+		// 96 -> 99 rows, 17 -> 18 closed and 79 -> 81 open, 2026-09-18 by
+		// team-lead generation 21: B92, B93 and B94 FILED and B82 CLOSED.
+		// ⛔ B82 FIRST WENT IN WEARING THE WRONG CLOSURE - a tick on the id and
+		// a terminal state, which is the RULED-CLOSED shape meaning no work was
+		// done. It was closed BY work: four survey candidates re-run, two of
+		// them killed. The parser said so before any human did, and the fix was
+		// to the DOCUMENT rather than to this pin. The struck set is where a
+		// row closed by work belongs.
+		{"rows", len(items), 99},
+		{"closed", len(struck) + len(byLead), 18},
+		{"open", open, 81},
 	} {
 		if c.got != c.want {
 			t.Errorf("%s: %d, pinned at %d.\n"+

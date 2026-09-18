@@ -515,8 +515,14 @@ func TestRigsOwnBacklogSaysWhichWordClosedEachRow(t *testing.T) {
 	sameSet(t, "DONE", by["DONE"],
 		[]string{
 			"B20", "B22", "B24", "B25", "B31", "B33", "B44", "B46a", "B64",
-			"B65", "B66", "B68", "B75", "B76", "B87", "B88", "B9",
+			"B65", "B66", "B68", "B75", "B76", "B82", "B87", "B88", "B9",
 		})
+	// B82 joins 2026-09-18, and its WORD is DONE rather than the CLOSED its
+	// state cell leads with: the item cell's terminal word is what closes a
+	// row, and B87 and B88 are the same shape. The first attempt at the row
+	// put a tick on the id instead, which is the RULED-CLOSED convention -
+	// "no work was finished, a decision was taken" - and four candidates had
+	// just been re-run. The parser caught the wrong claim.
 	sameSet(t, "REJECTED", by["REJECTED"], nil)
 
 	// ⛔ B19 IS THE ROW THE WHOLE FIELD EXISTS FOR. It was RETRACTED as
