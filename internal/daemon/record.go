@@ -283,6 +283,7 @@ func recordToWire(r record.Record) *rigv1.Record {
 func noteToWire(n record.Note) *rigv1.BriefNote {
 	return &rigv1.BriefNote{
 		Id:       n.ID,
+		Title:    n.Title,
 		Body:     n.Body,
 		Priority: n.Priority,
 		About:    n.About,

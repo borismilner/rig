@@ -5434,6 +5434,13 @@ type BriefNote struct {
 	Id       string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Body     string                 `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
 	Priority string                 `protobuf:"bytes,3,opt,name=priority,proto3" json:"priority,omitempty"`
+	// What the document called this note.
+	//
+	// ⛔ ADDED 2026-09-18 BECAUSE THE DERIVATION HAD IT AND THE WIRE DID NOT, so
+	// every client listed a note by the opening of its body. The id is a slug
+	// and the body is prose; neither is a name. A note with no stated title
+	// sends "" and the client says so rather than inventing one from the slug.
+	Title string `protobuf:"bytes,6,opt,name=title,proto3" json:"title,omitempty"`
 	// Which record this note is `part-of`. A note on the project itself and a
 	// note on a work item render differently and are not otherwise separable.
 	About         string      `protobuf:"bytes,4,opt,name=about,proto3" json:"about,omitempty"`
@@ -5489,6 +5496,13 @@ func (x *BriefNote) GetBody() string {
 func (x *BriefNote) GetPriority() string {
 	if x != nil {
 		return x.Priority
+	}
+	return ""
+}
+
+func (x *BriefNote) GetTitle() string {
+	if x != nil {
+		return x.Title
 	}
 	return ""
 }
@@ -6735,11 +6749,12 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x12BriefSectionStatus\x12.\n" +
 	"\asection\x18\x01 \x01(\x0e2\x14.rig.v1.BriefSectionR\asection\x12*\n" +
 	"\x05state\x18\x02 \x01(\x0e2\x14.rig.v1.SectionStateR\x05state\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reason\"\x89\x01\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"\x9f\x01\n" +
 	"\tBriefNote\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04body\x18\x02 \x01(\tR\x04body\x12\x1a\n" +
 	"\bpriority\x18\x03 \x01(\tR\bpriority\x12\x14\n" +
+	"\x05title\x18\x06 \x01(\tR\x05title\x12\x14\n" +
 	"\x05about\x18\x04 \x01(\tR\x05about\x12&\n" +
 	"\x04prov\x18\x05 \x01(\v2\x12.rig.v1.ProvenanceR\x04prov\"\xbc\x01\n" +
 	"\x05Drift\x12\x1a\n" +

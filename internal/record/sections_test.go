@@ -423,3 +423,44 @@ func isDerived(s Section) bool {
 	}
 	return false
 }
+
+// ⛔ THE TITLE WAS DERIVED, DROPPED, AND THEREFORE INVISIBLE TO EVERY CLIENT.
+// All eight notes in Boris's production store carry fields["title"] - "Naming",
+// "What rig is" - and Note had no slot for it, so `rig brief` and the window
+// both listed a note by the opening of its BODY. One of his is 1,951 bytes and
+// one is EMPTY, so that list read as a paragraph cut mid-sentence and a blank
+// row. Boris, 2026-09-18: "fix the rig functionality". B97.
+func TestANoteCarriesTheTitleTheDocumentGaveIt(t *testing.T) {
+	s := openStore(t, estate(t, sectProject))
+	project(t, s, "")
+
+	if _, err := s.Put(tctx, PutRequest{
+		ID: "n-titled", Kind: KindNote, Project: sectProject,
+		Body:    "the body, which is not the name",
+		Fields:  map[string]string{"title": "What rig is", "priority": "high"},
+		Session: "boris", Seat: "boris",
+	}); err != nil {
+		t.Fatalf("writing the titled note: %v", err)
+	}
+	if err := s.Link(tctx, "n-titled", LinkPartOf, sectProject); err != nil {
+		t.Fatalf("attaching it: %v", err)
+	}
+	// A note with no title at all: the field stays empty rather than being
+	// invented from the slug, and the CLIENT decides what to say instead.
+	note(t, s, "n-untitled", "only a body here", "", sectProject)
+
+	b, err := s.Brief(tctx, sectProject)
+	if err != nil {
+		t.Fatalf("brief: %v", err)
+	}
+	got := map[string]string{}
+	for _, n := range b.Notes {
+		got[n.ID] = n.Title
+	}
+	if got["n-titled"] != "What rig is" {
+		t.Errorf("Title = %q; the document stated it and the derivation dropped it", got["n-titled"])
+	}
+	if got["n-untitled"] != "" {
+		t.Errorf("Title = %q for a note that states none; want \"\" so the client can say so", got["n-untitled"])
+	}
+}

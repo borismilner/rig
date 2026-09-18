@@ -579,7 +579,20 @@ type Blockage struct {
 // the opposite of the compact card's rule and both are deliberate: the card is
 // a list to scan, this is a question somebody asked and is waiting on.
 type Note struct {
-	ID       string
+	ID string
+
+	// Title is what the document called this note, and it is what a reader
+	// needs FIRST.
+	//
+	// ⛔ IT WAS DERIVED AND THEN DROPPED, WHICH IS WHY THE WINDOW SHOWED PROSE
+	// WHERE A NAME BELONGS. Every one of the eight notes in Boris's store
+	// carries `fields["title"]` - "Naming", "What rig is" - and this struct had
+	// no slot for it, so the window listed each note by the first 90 characters
+	// of its BODY. One of his is 1,951 bytes and one is empty, so that list
+	// read as a truncated paragraph and a blank line. Boris, 2026-09-18: "fix
+	// the rig functionality". B97.
+	Title string
+
 	Body     string
 	Priority string
 
@@ -1241,6 +1254,7 @@ func (s *Store) notesAbout(ctx context.Context, project string, subjects map[str
 		var f map[string]string
 		if err := json.Unmarshal([]byte(fields), &f); err == nil {
 			n.Priority = f["priority"]
+			n.Title = f["title"]
 		}
 		out = append(out, n)
 	}

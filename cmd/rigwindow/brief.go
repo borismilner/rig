@@ -95,7 +95,14 @@ type Blocker struct {
 
 // Note is a project note, carrying its priority and what it is about.
 type Note struct {
-	ID       string `json:"id"`
+	ID string `json:"id"`
+
+	// Title is what the document called it. ⛔ THE WIRE DID NOT CARRY THIS
+	// UNTIL 2026-09-18, so this window listed every note by the first line of
+	// its BODY - a 1,951-byte paragraph in one of Boris's, and nothing at all
+	// in the one whose body is empty. B97.
+	Title string `json:"title"`
+
 	Body     string `json:"body"`
 	Priority string `json:"priority"`
 	About    string `json:"about"`
@@ -283,7 +290,13 @@ func itemsFrom(in []*rigv1.ItemState) []Item {
 func notesFrom(in []*rigv1.BriefNote) []Note {
 	out := make([]Note, 0, len(in))
 	for _, n := range in {
-		out = append(out, Note{ID: n.GetId(), Body: n.GetBody(), Priority: n.GetPriority(), About: n.GetAbout()})
+		out = append(out, Note{
+			ID:       n.GetId(),
+			Title:    n.GetTitle(),
+			Body:     n.GetBody(),
+			Priority: n.GetPriority(),
+			About:    n.GetAbout(),
+		})
 	}
 	return out
 }

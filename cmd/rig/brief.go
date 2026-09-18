@@ -388,7 +388,9 @@ type BriefWordCount struct {
 // narration." A note rendered without its author is a note an agent cannot
 // weigh.
 type BriefNote struct {
-	ID       string
+	ID    string
+	Title string
+
 	Priority string
 	Body     string
 	Prov     Provenance
@@ -1632,12 +1634,34 @@ func briefNotesSection(notes []BriefNote, now time.Time, st briefStyle) string {
 			displaySeat(n.Prov.Seat),
 			briefCell(n.Priority, "-"),
 			peersAgeCell(provUnix(n.Prov.CreatedAt), now),
-			firstLine(strings.TrimSpace(n.Body)),
+			noteLabel(n),
 		})
 	}
 	briefTable(&sb, st, []string{"WHO", "PRIORITY", "AGE", "NOTE"}, rows)
 	fmt.Fprintf(&sb, "\n%d note%s.\n", len(notes), plural(len(notes)))
 	return sb.String()
+}
+
+// noteLabel is what the NOTE column says: the title, else the body's first
+// line, else a statement that the note is empty.
+//
+// ⛔ THE TITLE WAS ON THE RECORD ALL ALONG AND NO CLIENT COULD SEE IT. It was
+// derived, dropped before the wire, and every client therefore printed the
+// opening of the BODY under a heading that says NOTE. On Boris's own store
+// that is a 1,951-byte paragraph cut mid-sentence in one row and an EMPTY cell
+// in another, because one of his eight notes is a heading whose children are
+// the rulings under it. B97.
+//
+// ⛔ AN EMPTY NOTE SAYS IT IS EMPTY. A blank cell in a table is indistinguishable
+// from a rendering fault, and this one had been on his screen for days.
+func noteLabel(n BriefNote) string {
+	if t := strings.TrimSpace(n.Title); t != "" {
+		return t
+	}
+	if b := firstLine(strings.TrimSpace(n.Body)); b != "" {
+		return b
+	}
+	return "(this note states no title and has no body)"
 }
 
 // briefBlockedSection reports the cycles and REFUSES TO RESOLVE THEM.
@@ -2037,6 +2061,7 @@ func itemFromWire(i *rigv1.ItemState) BriefItem {
 func noteFromWire(n *rigv1.BriefNote) BriefNote {
 	return BriefNote{
 		ID:       n.GetId(),
+		Title:    n.GetTitle(),
 		Priority: n.GetPriority(),
 		Body:     n.GetBody(),
 		Prov:     provFromWire(n.GetProv()),

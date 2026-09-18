@@ -1579,6 +1579,14 @@ message BriefNote {
   string body = 2;
   string priority = 3;
 
+  // What the document called this note.
+  //
+  // ⛔ ADDED 2026-09-18 BECAUSE THE DERIVATION HAD IT AND THE WIRE DID NOT, so
+  // every client listed a note by the opening of its body. The id is a slug
+  // and the body is prose; neither is a name. A note with no stated title
+  // sends "" and the client says so rather than inventing one from the slug.
+  string title = 6;
+
   // Which record this note is `part-of`. A note on the project itself and a
   // note on a work item render differently and are not otherwise separable.
   string about = 4;
