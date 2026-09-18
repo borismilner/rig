@@ -103,8 +103,13 @@
   // every toggle; a record of booleans is what the rest of this window uses.
   let open = $state<Record<string, boolean>>({});
 
-  function toggle(id: string) {
-    open = { ...open, [id]: !open[id] };
+  /* ⛔ IT INVERTS THE EFFECTIVE STATE, NOT THE STORED ONE, AND THE DIFFERENCE
+     IS A BUG THIS ALREADY HAD. A row the fixture opened has NO entry in `open`,
+     so `!open[id]` is `!undefined` - true - and the first click on a row that
+     is visibly open re-opens it. It took two clicks to close. Caught by
+     driving the real bundle rather than by reading it. */
+  function toggle(r: RecordRow, groupKey: string) {
+    open = { ...open, [r.id]: !isOpen(r, groupKey) };
   }
 
   function firstOf(key: string): string {
@@ -197,7 +202,7 @@
               class="lead"
               aria-expanded={leadOpen}
               disabled={!g.lead.body}
-              onclick={() => g.lead && toggle(g.lead.id)}
+              onclick={() => g.lead && toggle(g.lead, g.key)}
             >
               <span class="gt">{g.title}</span>
               <span class="gn">{groupCount(g)}</span>
@@ -232,7 +237,7 @@
                 class="head"
                 aria-expanded={opened}
                 disabled={!r.body}
-                onclick={() => toggle(r.id)}
+                onclick={() => toggle(r, g.key)}
               >
                 <span class="rt">{r.title || r.id}</span>
                 <!-- ⛔ THE SLOT IS ALWAYS PRESENT, EVEN WHEN EMPTY, AND THIS IS
