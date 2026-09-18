@@ -36,7 +36,7 @@ and rodata pages are resident - so an RSS budget without a **binary-size budget*
 budget with no cause. And a single 1 Hz ticker in Go floors at **5.60 wakeups/second**, so
 "< 1 per second" was never reachable by any amount of care.
 
-### THE FOOTPRINT GATE IS OFF, 2026-09-12, BY BORIS
+### The footprint gate is off, 2026-09-12, by Boris
 
 **`make ci` no longer runs `bench-size`.** The budget below stands as a design
 target and nothing enforces it automatically any more.

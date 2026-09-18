@@ -726,7 +726,7 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
   refuses a token set that fails its contrast targets. Built and measured:
   `design/visual-system.html`, with `design/theme.js` as the engine.
 
-## ⛔ THE TRAY IS HOW HE KNOWS rig IS RUNNING, AND IT OWES A DOWN STATE. RULED BY BORIS 2026-09-17.
+## ⛔ The tray is how he knows rig is running, and it owes a down state. Ruled by Boris 2026-09-17.
 
 > *"I want to know about the presence of the background process of `rig` by the
 > system-tray icon and I'm not sure this is the case. If I don't have it I don't
@@ -777,7 +777,7 @@ GLYPH.** A red dot that opens a menu saying `no daemon answering` and nothing
 else tells him it is down and not why, when, or what to do. **The menu owes
 what the window cannot say while it is detached.**
 
-### ⛔ "WHENEVER IT IS RELEVANT" IS A PRESENCE REQUIREMENT AND IT IS THE HARD HALF
+### ⛔ "Whenever it is relevant" is a presence requirement and it is the hard half
 
 The glyph is the easy part. **His sentence is about the icon BEING THERE**, and
 today three separate things remove it: quitting the window, an unnamed estate,
@@ -794,7 +794,7 @@ on my system-tray both during this session and after I reboot the machine."*
 **A tray that can vanish mid-session fails the first half of that test**, and
 the first half is the one that looked settled.
 
-## ⛔ AgentBox's TRAY ICON BECOMES "AB". RULED BY BORIS 2026-09-17.
+## ⛔ AgentBox's tray icon becomes "AB". Ruled by Boris 2026-09-17.
 
 > *"Replace the icon for AgentBox with \"AB\" so that it doesn't look like the
 > rig icon and we'll redeploy agentbox."*
@@ -808,7 +808,7 @@ size. **Distinguishable when compared side by side is not the bar**; telling
 them apart without comparing is.
 
 
-### ⛔ "ALWAYS AVAILABLE" IS THE REQUIREMENT, AND IT IS STRONGER THAN "WHENEVER RELEVANT". BORIS, 2026-09-17.
+### ⛔ "Always available" is the requirement, and it is stronger than "whenever relevant". Boris, 2026-09-17.
 
 > *"Rig system-tray icon should always be available."*
 
@@ -836,7 +836,7 @@ EXISTING** - an unnamed estate is a reason to say "unnamed" on the icon, not a
 reason to have no icon. That is the same argument §11 already makes about the
 detached state, applied one level up.
 
-## ⛔ THE WORK-ITEM ROWS ARE NOT LEGIBLE TO A HUMAN REVIEWER. BORIS, 2026-09-17, WITH A SCREENSHOT.
+## ⛔ The work-item rows are not legible to a human reviewer. Boris, 2026-09-17, with a screenshot.
 
 **He sent the Projects-and-cases tab and said, of the work-item rows:**
 
@@ -857,7 +857,7 @@ lost is the one that decides the others.
 | 3 | **search and filter** | the window, over a store that can already answer - `record.query` has project, kind and a field predicate |
 | 4 | **grouping or at least tagging, so a reader sees what relates to what** | the STORE first (`tags` is a §39 field nothing writes), the window second |
 
-### ⛔ REQUIREMENT 2 IS THE ONE THAT BINDS THE SEEDING, AND IT ARRIVED BEFORE THE RE-SEED
+### ⛔ Requirement 2 is the one that binds the seeding, and it arrived before the re-seed
 
 **He said it as an instruction about what to do when the work items are next
 populated** - *"When you later populate the rig work-items just note that"* - so
@@ -932,7 +932,7 @@ seat's to make readable**, and *"as long as it is a real benefit"* is the test h
 gave the same day. **`mvp-acceptance` instead of the slug invents nothing.** Full
 statement in §39.
 
-## ⛔ THE RAIL MUST LAND ON THE THING IT NAMES. BORIS, 2026-09-17.
+## ⛔ The rail must land on the thing it names. Boris, 2026-09-17.
 
 > *"The 'Open Projects and cases' way of navigation seems strange and not
 > natural. I'm guessing the left button says 'Projects and cases' so I expect to
@@ -996,7 +996,7 @@ is a page the rail lied about.**
 the work-item rows produced an hour earlier in this section. **The window cannot
 render a reminder nobody stored.**
 
-### ⛔ HUMAN-FRIENDLY FIELDS ARE OBLIGATORY, AND HE RULED THE FORK
+### ⛔ Human-friendly fields are obligatory, and he ruled the fork
 
 > *"The content should be user-friendly, the AI agent populating it should have
 > no problem setting proper fields for that, in fact human-friendly fields are
@@ -1023,7 +1023,7 @@ that."* So the fields must be ones a writer can fill from what the source
 DOCUMENT already says. **A field that can only be filled by composing new prose
 is a field that will arrive empty or invented**, and both outcomes fail this.
 
-## ⛔ WORK ITEMS ARE CLASSIFIED, FILTERABLE, AND THE HATCH IS HARD TO READ. BORIS, 2026-09-17.
+## ⛔ Work items are classified, filterable, and the hatch is hard to read. Boris, 2026-09-17.
 
 > *"The different work-items should probably be classified to task/bug/idea/...
 > with appropriate icons. Should probably be able to filter by tags or aspects or
@@ -1062,7 +1062,7 @@ an exact match on a field's value; nothing does substring or full-text over a
 record's prose - which is now where a row's real content lives (rig `dd6d102`).
 **B28 is the store-search row and it is open.**
 
-### 3. ⛔ THE HATCHED "NOT COMPUTED" GROUND IS B71, AND IT IS MEASURED
+### 3. ⛔ The hatched "not computed" ground is B71, and it is measured
 
 **He is reading body text over a diagonal hatch.** This is **not a taste
 judgement and must not be answered with one**: `BACKLOG.md` B71 already carries
@@ -1085,7 +1085,7 @@ about the git projection. **A panel that repeats one reason five times is
 spending a screen to say one thing** - that is a grouping defect, not a colour
 one, and the two must not be closed together.
 
-## ⛔ THE REDUNDANT SCROLLBARS GO. BORIS, 2026-09-17, WITH AN ANNOTATED SCREENSHOT.
+## ⛔ The redundant scrollbars go. Boris, 2026-09-17, with an annotated screenshot.
 
 > *"These scrolls are unnecessary."*
 
@@ -1109,7 +1109,7 @@ clipping content. **The fix is to stop creating the container, never to hide its
 bar with `overflow: hidden` or a styled-away scrollbar** - a hidden scrollbar on
 a real overflow is content a reader cannot reach and no longer knows is there.
 
-## ⛔ A MANAGEMENT PANEL, AND REDEPLOYMENT MUST BE TRIVIAL AND AUTOMATIC. BORIS, 2026-09-17.
+## ⛔ A management panel, and redeployment must be trivial and automatic. Boris, 2026-09-17.
 
 > *"Should have management panel to do things like `make install` in the proper
 > place with ease. And `make install-window`. You can click these buttons
@@ -1130,7 +1130,7 @@ requirement: *"`make install` is denied to a seat; three denials is an answer."*
 | 3 | **a seat can press them too** |
 | 4 | ⛔ **"Redeployment should be trivial and automatic"** - which is a bar on the WHOLE act, not a request for two buttons |
 
-### ⛔ PART 4 OUTRANKS PARTS 1-3 AND MUST NOT BE ANSWERED WITH THEM
+### ⛔ Part 4 outranks parts 1-3 and must not be answered with them
 
 **Two buttons is the SMALL reading.** *"Trivial and automatic"* says the thing
 that should not require a decision is the redeploy itself. B89 is the measured
@@ -1142,7 +1142,7 @@ on it would have had the same outcome - somebody has to know to press the second
 is built, and whether they are the same thing. **A redeploy control that cannot
 say what is currently running is a button that reports success over B89 again.**
 
-### ⛔ WHETHER A SEAT MAY PRESS IT IS rig's CAPABILITY MODEL, NOT A WORKAROUND
+### ⛔ Whether a seat may press it is rig's capability model, not a workaround
 
 **He is right about the effect and the mechanism must be built as the feature it
 is.** §13 and §42 already govern what an agent may do, and a deploy control is

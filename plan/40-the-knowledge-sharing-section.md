@@ -30,7 +30,7 @@ critical path, and **he said it should be done soon.**
 needs it - across projects, across agents, and across sessions that share no
 context.**
 
-## ⛔ THE HARD REQUIREMENT IS THE INDEX, NOT THE STORE
+## ⛔ The hard requirement is the index, not the store
 
 **He stated the failure mode himself and it is a token argument, not a tidiness
 one:** the content is huge, an agent must not read it whole, and an agent must
@@ -60,7 +60,7 @@ progress. This is *what was learned that outlives the project it was learned
 in*. Same store, different question, and a lesson filed as a project decision
 is invisible to the next project, which is the one thing he asked for.
 
-## ⛔ WHAT IS NOT DECIDED, AND MUST NOT BE DECIDED BY DEFAULT
+## ⛔ What is not decided, and must not be decided by default
 
 **The indexing mechanism is the whole difficulty and it is UNCHOSEN.** He
 specified the PROPERTY - efficiently indexed, exposed cheaply, reached only on a

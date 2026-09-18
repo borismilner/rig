@@ -1,6 +1,6 @@
 ## 6. Configuration
 
-### ⛔ EVERY SETTING IS UNDER AGENT CONTROL, AND HE IS RIGHT THAT HE ASKED BEFORE - PARTLY
+### ⛔ Every setting is under agent control, and he is right that he asked before - partly
 
 **BORIS, 2026-09-17, verbatim, recorded the turn he said it:** *"All settings
 are to be exposed to AI agent control efficiently, probably using MCP, and as

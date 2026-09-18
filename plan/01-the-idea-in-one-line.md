@@ -1,6 +1,6 @@
 ## 1. The idea, in one line
 
-### ⛔ WHO rig IS FOR, AND IN WHICH ORDER. RULED BY BORIS 2026-09-17.
+### ⛔ Who rig is for, and in which order. Ruled by Boris 2026-09-17.
 
 **Two statements, hours apart, and the second SCOPES the first. Read them
 together or the ordering comes out wrong.**

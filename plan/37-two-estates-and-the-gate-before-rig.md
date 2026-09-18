@@ -8,7 +8,7 @@ more than one production and one development."*
 
 **This section exists so that moment is prepared for rather than discovered.**
 
-### THE GATE MOVED, 2026-09-12, AND IT IS HIS OWN CORRECTION OF HIMSELF
+### The gate moved, 2026-09-12, and it is his own correction of himself
 
 **Boris, 2026-09-12, verbatim, overturning the bar quoted at the head of this
 section:**
@@ -26,7 +26,7 @@ section:**
 mechanisms will be ready in their full glory"* is **no longer the condition**.
 Nothing else in this section is withdrawn by it.
 
-#### THE GATE HAD TWO HALVES WELDED TOGETHER AND ONLY ONE WAS EVER LOAD-BEARING
+#### The gate had two halves welded together and only one was ever load-bearing
 
 **This is the diagnosis, and it is what made the wait open-ended.** The
 preconditions below and the capability bar were written as one gate. They answer
@@ -72,7 +72,7 @@ without it.
 That is deliberate: an absence a seat felt under load is stronger evidence than a
 usage count, because the seat was trying to do the work when it found the hole.
 
-#### WHAT IS DELIBERATELY OUT OF THE MINIMUM, with the reason
+#### What is deliberately out of the minimum, with the reason
 
 **A list where nothing is excluded is a list that was not applied.** These are
 planned, specified and NOT in the first cutover:
@@ -85,7 +85,7 @@ planned, specified and NOT in the first cutover:
 | `rig peers run --lease` | the only real fence for a resource rig does not own, **and the minimum set guards documents rather than deploys.** It arrives with the first resource that needs fencing |
 | **A crew / idle-visibility view** (`rig crew`, one row per seat, health states) | **REFUSED BY BORIS 2026-09-16, and REFUSED rather than deferred.** The capability study proposed it at ~1-1.5 seat-days on OWNER-AUTHORED evidence twice in one window - his own *"I think you both are idle now - WTF"*, and a seat's key reading BLOCKED while its diff showed it building. **He declined it over his own evidence**, on the ground that AgentBox's board already covers it and the staged-migration rule keeps AgentBox authoritative for everything not yet moved. **Evidence establishes that a need is REAL; it does not establish that the need must be met by building something** - and that is the general lesson, not a detail of this row. A seat proposing it again needs evidence that the board CANNOT be made to answer it, not a second instance of the same complaint |
 
-#### SEAT IDENTITY IS NOT THE REFUSED VIEW
+#### Seat identity is not the refused view
 
 **The row above refuses a crew / idle-visibility surface with health states. It
 does not refuse the question underneath Boris's 2026-09-11 count**, which was
@@ -135,7 +135,7 @@ against an independently derived one, with every difference ruled by the owner.
 ranks them second - was named by the study as an order dispute rather than a
 scope one and is not treated as a disagreement here.**
 
-#### "PERFECTED" IS NOT A FEELING, AND THIS IS THE FLOOR IT MEANS
+#### "Perfected" is not a feeling, and this is the floor it means
 
 **Only the rows above are taken to the bar Boris set. Everything else ships to
 the ordinary standard of this repository.** The bar, applied per capability:
@@ -151,7 +151,7 @@ the ordinary standard of this repository.** The bar, applied per capability:
 keep using AgentBox for it. That is the whole discipline and it needs no other
 enforcement.
 
-#### THE FIRST PASS AGAINST THIS BAR FOUND IT BITING, 2026-09-16
+#### The first pass against this bar found it biting, 2026-09-16
 
 **Recorded here because a bar nobody has ever failed is a bar nobody has
 tested.** The first capability taken to the four clauses was row 0, and **it
@@ -206,7 +206,7 @@ worst possible property for "which estate am I in"** - an agent that dialled
 development can be served a cached production answer, and the one question the
 resource would exist to answer is the one a cache makes unsafe.
 
-### THE MIGRATION IS STAGED, PER CAPABILITY, AND BOTH SYSTEMS RUN AT ONCE
+### The migration is staged, per capability, and both systems run at once
 
 **Boris, 2026-09-12, verbatim:**
 
@@ -230,7 +230,7 @@ where split-brain lives:
 **The migration order is the table above**, and each move updates
 `READINESS.txt` - see below.
 
-### THE TWO FLAVOURS, AND WHO MAY DO WHAT TO EACH
+### The two flavours, and who may do what to each
 
 **Boris, 2026-09-12, verbatim, and it settles the lifecycle question this section
 left to convention:**
@@ -306,7 +306,7 @@ mechanism. An unnamed estate claims no name and collides with nothing.
 rigd` - that killed every estate on the machine, and it is the reason the verb
 was pulled forward from M6.
 
-#### WHEN A PRECONDITION IS MET, AND IT IS NOT WHEN THE FACT EXISTS
+#### When a precondition is met, and it is not when the fact exists
 
 **A precondition is not met when the fact exists. It is met when the caller it
 was built for can read it.**
@@ -789,7 +789,7 @@ development experience.**
 courtesy it extends when it has spare time. The bar does not drop: an armed seat
 reports more, not worse.
 
-#### ⛔ CHECK THE SURFACE YOUR MISSION ALREADY TOUCHES. DO NOT STRAY. RULED BY BORIS 2026-09-17.
+#### ⛔ Check the surface your mission already touches. Do not stray. Ruled by Boris 2026-09-17.
 
 **Two statements, and the second NARROWS the first. A seat reading only the
 first will go off and spend a day auditing rig.**
@@ -831,7 +831,7 @@ Findings reach the plan through the team-lead, as §37's ARMED path already
 specifies. **The bar is unchanged - evidence, never a wish, and grep the plan
 first.**
 
-##### ⛔ AND THE CAPABILITY HE DERIVED FROM THE FIRST STATEMENT STANDS UNNARROWED
+##### ⛔ And the capability he derived from the first statement stands unnarrowed
 
 > **AI agents get FULL AND TOTAL access and introspection into ALL ASPECTS of
 > rig.**
@@ -862,7 +862,7 @@ invariant are untouched: **what `secrets.get` returned is still never recorded,
 only the key name.** A capability that made secrets introspectable would be
 obeying this sentence and breaking a ruling that predates it.
 
-##### ⛔ RECORDED AGAINST THE SEAT: THIS IS THE THIRD SCOPE INFLATION IN ONE DAY
+##### ⛔ Recorded against the seat: this is the third scope inflation in one day
 
 **Team-lead generation 12 wrote all three of these down wider than he said them,
 and he corrected all three:**
@@ -880,7 +880,7 @@ specification reading as settled. **All three inflations ran in the same
 direction - bigger, more standing, more general - which is the direction that
 makes a seat look diligent.**
 
-#### ⛔ AND IT IS NOT ONLY THE SEATS BUILDING rig. EVERY AGENT **USING** rig IS ARMED TOO. RULED BY BORIS 2026-09-16.
+#### ⛔ And it is not only the seats building rig. Every agent **using** rig is armed too. Ruled by Boris 2026-09-16.
 
 > *"Make sure that all future agents that are using `rig` provide feedback on
 > missing or unoptimal agent-experience so that their claims can be considered

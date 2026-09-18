@@ -4,7 +4,7 @@ An agent is a first-class user of rig, not an afterthought bolted onto the CLI. 
 agents constantly, so the estate being legible to one is worth as much as it being legible to
 him.
 
-### ⛔ EVERY FACILITY AN AGENT NEEDS, AND FINDING OUT WHAT THEY ARE IS AN ASSIGNMENT
+### ⛔ Every facility an agent needs, and finding out what they are is an assignment
 
 **BORIS, 2026-09-17, verbatim:** *"AI agents will have all the facilities they
 need or may need for their conveninence in `rig` - and you are responsible on
@@ -30,7 +30,7 @@ measured agent friction, with receipts. Start there, not from imagination.**
 |---|---|---|
 | **A0** | **AGENTS GET EVERY FACILITY THEY NEED OR MAY NEED, and the lead OWNS discovering what those are and consolidating them HERE** | **his** |
 
-### ⛔ AN AGENT'S WORKING NOTES LIVE IN rig, AND NOTHING IS EVER LOST
+### ⛔ An agent's working notes live in rig, and nothing is ever lost
 
 **BORIS, 2026-09-17, verbatim, recorded the turn he said it:** *"The AI agent
 working with `rig` should manage its scratch-pads in `rig` so that nothing is
@@ -63,7 +63,7 @@ it must NOT reuse §39's existing `note` kind**, which is a PROJECT note with
 the surface a human reads** - same word, different lifecycle, and merging them
 is how the brief becomes unreadable.
 
-### ⛔ THIS REQUIREMENT SITS ON TOP OF FOUR DEFECTS THE 2026-09-17 ATTACK FILED, AND IT CANNOT BE BUILT WELL OVER ANY OF THEM
+### ⛔ This requirement sits on top of four defects the 2026-09-17 attack filed, and it cannot be built well over any of them
 
 **This is the honest state, not a reason to defer: his requirement is the best
 forcing function the attack's findings have.** Every one of these is filed.
@@ -83,7 +83,7 @@ asks of its own notes - is unanswerable by construction.** Provenance records a
 login and a moment, and can group neither. **First-class citizenship means the
 WHO and the WHEN-TOGETHER work, and today neither does.**
 
-### THE CONVENIENCES, WHICH ARE THE PART HE ASKED ME TO EXPAND
+### The conveniences, which are the part he asked me to expand
 
 - **Write must accept prose from a file or stdin**, not argv. B60, and it is the
   first thing.

@@ -8,7 +8,7 @@ mechanism and then widened it in the same breath:
 > source of truth we can perfect, instead of perfecting general instructions
 > across many different CLAUDE.md"*
 
-### ⛔ THE MVP, DEFINED BY BORIS 2026-09-16 LATE, IN HIS OWN WORDS
+### ⛔ The MVP, defined by Boris 2026-09-16 late, in his own words
 
 > *"MVP is being able to use `rig` to work on `rig` with respect to the
 > project/case management."*
@@ -40,7 +40,7 @@ had that ranks its own slices:
 managed IN rig.** Not demonstrated on a fixture, not on a synthetic second
 project - on rig itself, which is the only project there is.
 
-#### ⛔ AND THE ACCEPTANCE TEST IS HIS EYES ON A TRAY ICON, TWICE. RULED BY BORIS 2026-09-16.
+#### ⛔ And the acceptance test is his eyes on a tray icon, twice. Ruled by Boris 2026-09-16.
 
 > *"I'll know we reached MVP when I'll see the production icon on my system-tray
 > both during this session and after I reboot the machine so I know it is
@@ -88,7 +88,7 @@ runs through a file no seat on this team owns.** That is a coordination fact
 that has to be settled by asking him rather than assumed either way, and it is
 the first thing about this criterion a lead should raise.
 
-#### ⛔ THE MVP MUST BE SUPER-ROBUST BEFORE IT IS USED, AND TERMINATION IS THE NAMED CASE. RULED BY BORIS 2026-09-16.
+#### ⛔ The MVP must be super-robust before it is used, and termination is the named case. Ruled by Boris 2026-09-16.
 
 > *"We must strive to a super-robust MVP implementation before we start using
 > it. Terminations must be graceful and everything else that makes it very
@@ -138,7 +138,7 @@ why, and leaves nothing half-written.** A panic is none of those. The same bar
 reaches the daemon's shutdown, the record store's open transactions, and any
 path where a seat's write could be in flight when something stops.
 
-##### ⛔ HE ORDERED NOTHING BETWEEN THE THREE CONDITIONS, AND TWO SEATS HAVE NOW INFERRED ONE
+##### ⛔ He ordered nothing between the three conditions, and two seats have now inferred one
 
 **Recorded 2026-09-16 late, traced between the fifth and sixth lead generations,
 because an inferred ordering was about to be inherited as his.** *"before we
@@ -158,7 +158,7 @@ lead that reads the robustness bar as a work order is ranking against his own
 stated want without telling him. **Rank it, say which you ranked, and put it to
 him in one clause** - do not hand a successor an ordering with no origin.
 
-##### ⛔ TWO QUESTIONS ARE NOT BEING ASKED, AND THAT IS NOW A DECISION RATHER THAN A FIFTH INHERITANCE
+##### ⛔ Two questions are not being asked, and that is now a decision rather than a fifth inheritance
 
 **RULED BY THE LEAD 2026-09-16 late, closing `BACKLOG.md` B55.** The
 **four-clause cadence** and **whether Boris wants `standard.*` and
@@ -193,7 +193,7 @@ passes to be a cadence over. **A later lead may overturn this - it is one
 paragraph - but it must say what changed, because "nobody asked yet" is no
 longer the state.**
 
-#### ✅ "SUPER-ROBUST" DOES NOT INCLUDE POWER LOSS. RULED BY BORIS 2026-09-16, AND THE PREMISE IS THE HARDWARE.
+#### ✅ "Super-robust" does not include power loss. Ruled by Boris 2026-09-16, and the premise is the hardware.
 
 **Traced to the transcript rather than to the seat that carried it, because a
 quotation's carrier is never its evidence:**
@@ -217,7 +217,7 @@ from a decision that merely might be revisited.
 **The seat that declined to decide this was right to decline, and it still cost
 four lead generations of carrying it.** `BACKLOG.md` B56.
 
-#### ⛔ `session` ANTI-IDENTIFIES THE ACT THAT WROTE A RECORD, AND THE HUMAN SURFACES STOP PRINTING IT
+#### ⛔ `session` anti-identifies the act that wrote a record, and the human surfaces stop printing it
 
 **Measured on a live daemon at rig `3d1c05c`, 60 rows at rig's own backlog
 scale**, which is the shape the seeding will actually have:
@@ -250,7 +250,7 @@ RENDERING, never a stored field: the daemon still mints `seat`, `session` and
 ⛔ **HOW THE SEAT IS SPELLED ON A HUMAN SURFACE IS A SEPARATE OPEN QUESTION**
 and is deliberately not answered here.
 
-#### ⛔ REDEPLOYMENT IS BATCHED, AND EVERY PEER WAITS THROUGH IT. RULED BY BORIS 2026-09-16.
+#### ⛔ Redeployment is batched, and every peer waits through it. Ruled by Boris 2026-09-16.
 
 > *"Once in a while when there are enough new features, changes and capabilities
 > that deserve redeployment we'll do it while all peers are awaiting
@@ -284,7 +284,7 @@ that number was read as the cost of the whole thing. **The MVP is slices 1, 2
 and 4** - and a number for that subset is owed rather than assumed, because
 the sizing was never cut that way.
 
-#### ⛔ THE CUTOVER IS A DUAL RUN, AND HE DECIDES WHEN IT ENDS. RULED BY BORIS 2026-09-17.
+#### ⛔ The cutover is a dual run, and he decides when it ends. Ruled by Boris 2026-09-17.
 
 > *"Once we are there, you are to populate the `rig` information into `rig` from
 > scratch so that it is perfectly represented for us to be using `rig` for the
@@ -304,7 +304,7 @@ TRANSITION, which is now specified:**
 | **2. at the MVP** | ⛔ **REPOPULATE rig FROM SCRATCH**, then **BOTH are kept** |
 | **3. when HE says so** | *"absolutely comfortable"* - **HIS words and HIS call.** The logbook goes |
 
-##### ✅ B63 IS ANSWERED. rig IS THE SOURCE OF TRUTH, AND THE LOGBOOK IS WHAT IT REPLACES. BORIS, 2026-09-17.
+##### ✅ B63 is answered. rig is the source of truth, and the logbook is what it replaces. Boris, 2026-09-17.
 
 > *"At the end - `rig` is going to be the source of truth instead of logbook;
 > Making it clear in case you didn't get it from my definitions and
@@ -329,7 +329,7 @@ logbook being behind** - so `rigseed --check` is a migration instrument with a
 retirement date, not a permanent sync. **Nothing may be built that assumes the
 document is the original for ever.**
 
-##### ✅ THE 45% HANDOVER MARK WAS SCOPED TO ONE SESSION. ASKED AND ANSWERED, BORIS, 2026-09-17.
+##### ✅ The 45% handover mark was scoped to one session. Asked and answered, Boris, 2026-09-17.
 
 > *"You are not to warm-handoff before you get to 45% context. I want you to
 > proceed without stopping unnecessarily and keep me in the loop once in a while
@@ -373,7 +373,7 @@ without stopping unnecessarily"* and *"keep me in the loop once in a while"*.
 works silently for an hour is failing the second.** The report he is owed
 (`READINESS.txt`) is the formal one; this is the informal cadence alongside it.
 
-##### ✅ HE RESTATED THE 45% MARK THE SAME DAY. SCOPE UNSTATED, THEREFORE SESSION-ONLY. BORIS, 2026-09-17 LATE.
+##### ✅ He restated the 45% mark the same day. Scope unstated, therefore session-only. Boris, 2026-09-17 late.
 
 > *"Don't warm-handoff until you get to 45% context."*
 
@@ -408,7 +408,7 @@ its own upstream cause: a memory file holding *"the latest one wins and it is
 every session**, which is why the scope is half the record and not a footnote to
 it.
 
-##### ⛔ NO WARM HANDOFF. A COMPLETE WIND-DOWN INSTEAD, AND HE CALLS `/resume` HIMSELF. BORIS, 2026-09-18, TO GENERATION 19.
+##### ⛔ No warm handoff. A complete wind-down instead, and he calls `/resume` himself. Boris, 2026-09-18, to generation 19.
 
 > *"Do not warm-handoff - instead once you are comfortable that we have a
 > working product perform a complete wind-down and make sure all relevant files
@@ -439,7 +439,7 @@ means the next seat starts working rather than starts asking. **An open question
 with no ruling and no "do this in the meantime" is a session that cannot
 start.**
 
-##### ✅ FULL DECISION AUTONOMY, AND A 40% STOP. BORIS, 2026-09-17 LATE, TO GENERATION 17.
+##### ✅ Full decision autonomy, and a 40% stop. Boris, 2026-09-17 late, to generation 17.
 
 > *"You do all decisions and work until all gaps are covered or you come to 40%
 > context; Don't stop because it wastes time; I'll judge the final results."*
@@ -471,7 +471,7 @@ is the STOPPING, not the recording.** So: keep the file current every step, and
 put it in front of him at a milestone rather than after each one. **The durable
 half is unconditional; only the cadence of showing it moved.**
 
-##### ⛔ THE DUAL RUN IS BOUNDED BY rig's OWN DEVELOPMENT. BORIS, 2026-09-17.
+##### ⛔ The dual run is bounded by rig's own development. Boris, 2026-09-17.
 
 > *"We are using both logbook and rig just for the period of developing of `rig`
 > and ironing out all the bugs and problems."*
@@ -497,7 +497,7 @@ features and capabilities that we may have left out"*. **The comparison is the
 product of the arrangement.** A seat that runs the pair quietly and reports no
 gaps has not done the work; it has only kept two copies.
 
-##### ⛔ FILL EVERYTHING IN FIRST, AND AGENTS GET PERFECT CONTROL. BORIS, 2026-09-17.
+##### ⛔ Fill everything in first, and agents get perfect control. Boris, 2026-09-17.
 
 > *"As I said, you and all AI agents must have perfect control over `rig`. You
 > are to fill everything in before we start working on `rig` using `rig`."*
@@ -589,7 +589,7 @@ solved it"* over proposing a new mechanism.
 of the record is that a seat stops composing documents. **The logbook is kept to
 be COMPARED AGAINST, not to be authored in.**
 
-#### ⛔ HE IS OWED A REPORT THE MOMENT rig CAN BE USED ON rig. RULED BY BORIS 2026-09-17.
+#### ⛔ He is owed a report the moment rig can be used on rig. Ruled by Boris 2026-09-17.
 
 **His words, to the eleventh lead generation, instructing the handover:**
 
@@ -608,7 +608,7 @@ he does not ask again, and waiting to be asked is the failure.
 | **what it is NOT** | ⛔ **not the AgentBox-GUI readiness report**, which is a separate standing report in the same file with a different bar. **Two reports, two bars, and answering one with the other is the defect §39 already names about the two MVP questions** |
 | **what blocks it today** | **B64 is the next capability** - three of section 39's ten kinds cannot be RENDERED, so rig reads its own backlog and cannot show its own rulings. ⛔ **"B64 alone" is a SEAT'S READING and stood here as a measurement.** Nobody has demonstrated that closing B64 makes the bar met: his acceptance test is B46, and B46 is in no record at all, which is B66. Corrected 2026-09-17 by lead generation 12 |
 
-##### ⛔ AND THE REPORT IS OWED AT EVERY FINISHED STEP, NOT ONLY WHEN THE BAR IS MET. RULED BY BORIS 2026-09-17.
+##### ⛔ And the report is owed at every finished step, not only when the bar is met. Ruled by Boris 2026-09-17.
 
 **His words, to the sixteenth lead generation, in the same turn he deployed B68:**
 
@@ -668,7 +668,7 @@ withdrawn.** ⛔ **Third instance of this section's own rule: a quotation
 attributed to Boris that cannot be traced to a transcript is a seat's paraphrase
 until proved otherwise, and the carrier of a quotation is never its evidence.**
 
-#### ⛔ THE 97% WIND-DOWN WAS FOR ONE SESSION ONLY. IT IS NOT A STANDING RULE, AND THIS BLOCK IS THE CORRECTION.
+#### ⛔ The 97% wind-down was for one session only. It is not a standing rule, and this block is the correction.
 
 ⛔ **CORRECTED BY BORIS THE SAME DAY, IN HIS OWN WORDS:** *"the rule about 97%
 session was only for the current session and you seem to have persisted it to
@@ -709,7 +709,7 @@ IS PERMANENT:** *"when I point you to the entry point and you'll have no context
 at all."* **A wind-down that leaves anything only in a session's context has
 failed it, whenever it happens and whatever triggered it.**
 
-##### ⛔ SUPERSEDED: THE 40% CONTEXT MARK, KEPT BECAUSE THE SUPERSESSION IS THE POINT
+##### ⛔ Superseded: the 40% context mark, kept because the supersession is the point
 
 **His words, later the same day, to the eleventh lead generation:**
 
@@ -748,7 +748,7 @@ mark* - and never a trigger to hand off AT it. ⛔ **A session that merges the t
 clocks, or that reads the floor as a trigger, will do the wrong thing on one of
 them.** Both errors have been made here.
 
-##### ⛔ WHY THIS IS IN THE SPECIFICATION AND NOT IN A HANDOFF NOTE
+##### ⛔ Why this is in the specification and not in a handoff note
 
 **IT IS RECORDED HERE BECAUSE IT WAS NOT.** The generation that received it
 recorded the other eleven requirements from the same message run and missed
@@ -766,7 +766,7 @@ happened four times - the tray icon, the acceptance floor, the readiness bar
 and the successor clause. **This is the fifth, and it is the first one caught
 by a successor rather than by Boris.**
 
-### ⛔ THE GRAIN IS THE HEADING. RULED BY BORIS 2026-09-16 LATE.
+### ⛔ The grain is the heading. Ruled by Boris 2026-09-16 late.
 
 **Put to him as three options with their costs; he took the middle one.** This
 had been open since 2026-09-12, was dropped once as superseded, and was carried
@@ -782,7 +782,7 @@ the loop-nobody-sent failure, caught by the record seat chasing its lead.
 | **what it costs, stated because he was shown it** | **a requirement stated mid-paragraph under a heading with five others is not separately addressable.** A supersede names the heading, not the sentence |
 | **what it refuses** | the 39-section grain. §37 is **942 lines**; a link to it points at a DOCUMENT rather than a requirement, which is attack finding 5's failed row |
 
-### ⛔ EVERY REQUIREMENT IS REVISITED BEFORE IT IS SEEDED, AND IT IS AN EDITORIAL PASS. BORIS, 2026-09-18.
+### ⛔ Every requirement is revisited before it is seeded, and it is an editorial pass. Boris, 2026-09-18.
 
 **His words, verbatim, sent while the gap list was being worked:**
 
@@ -808,7 +808,7 @@ FOUR OF THEM CHANGE THE DOCUMENTS RATHER THAN THE STORE.** Reading it as
 | 4 | **tags, and every other field rig offers** | the records. `tags`, `owner`, `status`, `priority`, `source`, `part-of` |
 | 5 | **the same material, organised into more files** | the logbook side, **and it is "maybe" - permission, not instruction** |
 
-### ⛔ THE BAR IS "USEFUL AND FRIENDLY", IT COVERS THE TAGS, AND `B46` IS HIS OWN EXAMPLE OF FAILING IT
+### ⛔ The bar is "useful and friendly", it covers the tags, and `B46` is his own example of failing it
 
 **His words, verbatim, 2026-09-18, on being shown the first tags this project
 ever wrote:**
@@ -844,7 +844,7 @@ citations across four documents resolve to it and renaming it would break them.
 | **the content** | says something the title did not. **Equal to the title is the failure**, and it is B62's measured defect arriving at a third field |
 | ⛔ **the test** | **he reads it.** *"For my introspection"* is the purpose, so the question is always what a person scanning ninety-six rows takes away, never whether the value is derivable |
 
-### ⛔ AND IT IS AN AUDIENCE SPLIT, NOT A DEFECT IN THE ID. HIS CLARIFICATION, THE NEXT MESSAGE.
+### ⛔ And it is an audience split, not a defect in the id. His clarification, the next message.
 
 > *"Things like `B46` is maybe good for AI agents because it's short and maps
 > easily, but for human reader it is almost useless."*
@@ -881,7 +881,7 @@ document does not support is still refused; shortening `b46-the-mvp-acceptance-
 test-and-it-existed-in-no-document-at-all` to `mvp-acceptance` is not inventing
 anything.
 
-### ⛔ THE ORDER IS FORCED BY THE ID SCHEME, AND DOING IT THE OTHER WAY ROUND IS EXPENSIVE
+### ⛔ The order is forced by the id scheme, and doing it the other way round is expensive
 
 ⛔ **A REQUIREMENT'S RECORD ID IS ITS HEADING.** `planKey` mints
 `<section>/<enclosing slugs>/<own slug>` (`internal/record/plan.go:250`), so
@@ -894,7 +894,7 @@ requirement records today, so acts 1 to 3 are free right now and dear later.
 **So the editorial pass comes FIRST and the seed second**, which is also the
 plain reading of *"have it good and ready"*.
 
-### ⛔ THE ID IS THE FRIENDLY NAME OF EACH HEADING, NOT ITS FULL SLUG. BORIS, 2026-09-18.
+### ⛔ The id is the friendly name of each heading, not its full slug. Boris, 2026-09-18.
 
 ⛔ **HE OPENED THE ID SCHEME ON BEING SHOWN WHAT IT PRODUCED**, in the same
 breath as granting the judgement:
@@ -948,7 +948,7 @@ records when this landed, so no id had to be retracted and re-put. Doing it
 after the first seed costs a retraction plus a re-put per heading, which is the
 same arithmetic the editorial pass runs on.
 
-### ⛔ IT LIFTS §11's "NOT INVENTING A DESCRIPTION" - FOR EVERY KIND, NOT ONLY THIS ONE
+### ⛔ It lifts §11's "not inventing a description" - for every kind, not only this one
 
 ⛔ **CORRECTED BY BORIS THE SAME DAY, AND THE FIRST ANSWER THIS SECTION GAVE WAS
 TOO NARROW.** It read the lift as applying to the requirement kind alone, on the
@@ -986,7 +986,7 @@ the requirements are `plan/NN-*.md`. **Two readings, and they differ in cost:**
 the reading where *"gradual work on them"* costs nothing structural, and the
 first would put a number on a heading he never numbered.
 
-### ⛔ THE MIGRATION IMPORTS ALL 4,206 CITATIONS AND FLAGS THE COARSE ONES. RULED BY BORIS 2026-09-16 LATE.
+### ⛔ The migration imports all 4,206 citations and flags the coarse ones. Ruled by Boris 2026-09-16 late.
 
 **The 22% floor was put to him with its three answers.** He took the one that
 imports everything.
@@ -998,7 +998,7 @@ imports everything.
 | ⛔ **what this refuses** | dropping the 78%, which would leave most of the estate's cross-references invisible to rig; and blocking the migration behind a manual citation rewrite, which is a large pass for a slice already off the MVP |
 | ⛔ **the named risk, his to have accepted** | **a flagged count that nobody ever burns down.** `project.brief` surfaces it, so it is visible rather than silent - but visibility is not a plan for it, and this specification does not pretend otherwise |
 
-### ⛔ THE MVP SHIPS NO EXPORT, SO THE LOGBOOK STAYS AUTHORITATIVE
+### ⛔ The MVP ships no export, so the logbook stays authoritative
 
 **Raised by `backend-record` 2026-09-16 while sizing the MVP subset, and it is
 the one condition attached to the MVP ranking above.**
@@ -1023,7 +1023,7 @@ single-file store with no remote, acting on it is how the only copy is lost.**
 §39's own words on exactly this failure: *"this is how a laptop ends up holding
 the only copy."*
 
-### ⛔ A `blocks` CYCLE IS DETECTED AND REPORTED, NEVER RESOLVED
+### ⛔ A `blocks` cycle is detected and reported, never resolved
 
 **RULED BY THE LEAD 2026-09-16, on `backend-record`'s finding, because it
 reaches slice 1's LINK SCHEMA and slice 1 is on the MVP path.**
@@ -1068,7 +1068,7 @@ nothing in the link schema and is expensive bolted onto two derivations
 afterwards** - if slice 1 defines links without it, slice 2 and slice 4 both pay.
 **That is why this is ruled now rather than at slice 2, where it was found.**
 
-### ⛔ A LINK MAY CROSS A PROJECT BOUNDARY. A TRAVERSAL IS PROJECT-SCOPED.
+### ⛔ A link may cross a project boundary. A traversal is project-scoped.
 
 **RULED BY THE LEAD 2026-09-16 late, on `backend-record`'s finding, because it
 reaches the LINK SCHEMA committed at `88bdc44` and slice 1 is on the MVP path.**
@@ -1164,7 +1164,7 @@ Scoped traversal joins `links.dst` to `records.id`, the leading column of the
 primary key. **Measured, not assumed:** the join is the optimisation, not the
 cost.
 
-### ⛔ `project.brief` MUST RUN ALL FOUR SQL FORMULATIONS BEFORE IT PICKS ONE
+### ⛔ `project.brief` must run all four SQL formulations before it picks one
 
 **RULED 2026-09-16 on a measurement that nearly shipped backwards.** The
 per-group-maximum question - which every `project.brief` derivation asks - has
@@ -1417,7 +1417,7 @@ from `plan/` and hand-editing it is forbidden. **The record generalises what
 this project already proved works**, which is a better position to design from
 than a blank page, and it is the same answer the degraded path above needs.
 
-## THE VERDICT OF THE SEAT THAT SPECIFIED IT
+## The verdict of the seat that specified it
 
 **Recorded because a specification full of open problems reads as doubt, and
 this is not doubt.** Asked directly on 2026-09-12 whether this feature was weak
@@ -1441,7 +1441,7 @@ thing the design specifies.
 in a single sitting. The ordering ruled the same day handles it: **cut row 1
 over first, then design this while it is no longer moving.**
 
-## THE DESIGN
+## The design
 
 ### The spine: rig is the writer, git is the reader of last resort
 
@@ -1820,7 +1820,7 @@ case-shaped brief surfaces it exactly as `project.brief` already
 surfaces next-up work-items - the same derivation aimed at a
 different container.
 
-##### ⛔ `priority` HAD NO VOCABULARY, AND "DESCENDING" OVER RAW STRINGS SORTS IT WRONG. RULED BY THE LEAD 2026-09-16 LATE.
+##### ⛔ `priority` had no vocabulary, and "descending" over raw strings sorts it wrong. Ruled by the lead 2026-09-16 late.
 
 **Raised by `backend-record` as a held item rather than guessed at, which is the
 correct move and is why this ruling exists instead of a reading in the code.**
@@ -2023,7 +2023,7 @@ written more than once, and any estimate that assumed otherwise is low.**
 **ON THE CLI: `rig record`, `rig progress`, `rig standard`, `rig brief`.** Four
 commands, because a surface an agent has to learn is a surface it gets wrong.
 
-### ⛔ THE WIRE SURFACE FOR THE RECORD VERBS. RULED 2026-09-16 LATE, ALL MEASURED.
+### ⛔ The wire surface for the record verbs. Ruled 2026-09-16 late, all measured.
 
 **Written before a line of it is built, because the last estimate of this
 section assumed a projection mechanism that does not reach rig's own verbs.**
@@ -2047,7 +2047,7 @@ disagreeing on two**, and renaming was offered and not chosen. **The record
 verbs carry ONE spelling across the wire, the CLI and the door.** Nothing to map,
 nothing to drift.
 
-#### ⛔ THE REQUEST MESSAGES CARRY NO PROVENANCE FIELDS AT ALL
+#### ⛔ The request messages carry no provenance fields at all
 
 **`Session`, `Seat` and `Epoch` are the DAEMON's and are absent from every
 request message** - not optional, not ignored, absent.
@@ -2082,7 +2082,7 @@ deliberately kept off. **And it owes its own discovery**: `[ran it]`, neither
 which excludes rig, and `describe` on `rig` hits the `SelfID` refusal. So the
 sibling must describe itself or it is a door with nine rooms and no map.
 
-##### ⛔ THE COUNT IS A SEAT'S RULING, NOT BORIS'S - AND §9, ONCE READ, RULES THE ROUTE AGAINST IT
+##### ⛔ The count is a seat's ruling, not Boris's - and §9, once read, rules the route against it
 
 **Traced 2026-09-16 late by the sixth lead generation, because the ruling above
 cites §9 and nobody had opened §9 to check what it says.** The provenance first:
@@ -2131,7 +2131,7 @@ are both uses; the CLI is the one that answers *"rig manages rig"* first. This
 is recorded now because the ruling it corrects is already written down, not
 because it is next.
 
-#### ⛔ THE `record.refs` WIRE MESSAGES DROP HALF THE ANSWER, AND ONE REQUEST FIELD DOES NOT EXIST AT ALL
+#### ⛔ The `record.refs` wire messages drop half the answer, and one request field does not exist at all
 
 **Found 2026-09-16 late by the sixth lead generation, reading the package and
 the proto side by side before wiring the CLI seam - which is the only moment
@@ -2192,7 +2192,7 @@ eight against a live wire and one against a message set that drops half its
 answer is how a provisional shape becomes the contract by default. Filed
 `BACKLOG.md` B57.
 
-#### ⛔ R3.2's WORDING MOVES: `truncated` MEANS THE ANSWER IS INCOMPLETE, NOT THAT THE WALK HIT ITS CAP
+#### ⛔ R3.2's wording moves: `truncated` means the answer is incomplete, not that the walk hit its cap
 
 **RULED BY THE LEAD 2026-09-16 late, closing a debt that parked a peer's queue
 item for two generations.** `STORE-REQUIREMENTS.md` R3.2 reads as though
@@ -2240,7 +2240,7 @@ not slice 4 leaking. **A `blocks` edge is a caller's assertion about the work**,
 which is precisely slice 4's capability, and writing it from inside the package
 would have put the acceptance demonstration on a path no caller has.
 
-#### ⛔ THE SET THAT GOES ON THE WIRE IS EIGHT ROWS AND NINE VERBS, NOT ELEVEN
+#### ⛔ The set that goes on the wire is eight rows and nine verbs, not eleven
 
 **Ruled 2026-09-16 late by the lead, and recorded here rather than in
 `DECISIONS.md` because it is a scope rule about what the table above MEANS.**
@@ -2264,7 +2264,7 @@ caught. **Eleven rows, minus three excluded, is EIGHT rows; the `record.link` /
 `unlink` row carries TWO verbs, so it is NINE verbs.** Nobody needs to re-derive
 this.
 
-#### ⛔ EVERY RECORD VERB OWES A `kernel.Command` IN `self.go`, AND THE MISS IS CHEAP TO MAKE
+#### ⛔ Every record verb owes a `kernel.Command` in `self.go`, and the miss is cheap to make
 
 **`internal/daemon/self.go` declares EIGHT commands today** - `ping`, `estate`,
 `programs`, `announce`, `activity`, `peers`, `session` and `down`. `[ran it]`.
@@ -2288,7 +2288,7 @@ house rule exists.
 | `record.get`, `record.query`, `record.history`, `project.brief` | `EffectsReadOnly` | the `readOnly` helper covers them whole |
 | `record.put`, `record.link`, `record.unlink`, `progress.step` | ⛔ **NOT read-only** | they need real values, and **`Idempotent` is mandatory with no safe default** - `missing()` refuses the declaration without it |
 
-#### ⛔ `project.brief` CARRIES ITS DELIVERY MARK IN SLICE 2, AND IT IS STILL `EffectsReadOnly`
+#### ⛔ `project.brief` carries its delivery mark in slice 2, and it is still `EffectsReadOnly`
 
 **This resolves the one sentence in this section that specified a build and a
 rewrite at the same time.** The brief's row 6 says calling it MARKS the must-read
@@ -2346,7 +2346,7 @@ BUS, and the delivery mark costs a map write on state the daemon already holds
 per connection.** The shapes are not the same size and the rule that fits one
 does not fit the other.
 
-#### ⛔ WHICH IDENTITY IS §39's "SESSION": `Token`, AND THE FIELD NAMED `SessionID` IS THE WRONG ONE
+#### ⛔ Which identity is §39's "session": `Token`, and the field named `SessionID` is the wrong one
 
 **`kernel.Principal` carries three identities and the one named for a session
 is not it.** Recorded here because §39 says *"session"* in two load-bearing
@@ -2383,7 +2383,7 @@ correct and must not be weakened - **but the refusal a caller sees has to say
 unattributable record is exactly what the provenance rule exists to prevent, so
 the answer is a legible refusal rather than a permissive default.
 
-#### ⛔ "EXECUTION ORDER" DEFINES THE NODE SET. IT DOES NOT DEFINE THE EDGE SET, AND THE TWO ARE NOT THE SAME QUESTION
+#### ⛔ "Execution order" defines the node set. It does not define the edge set, and the two are not the same question
 
 **Raised by `rig-record` as a reading that lives only in a code comment, which
 is the drift class §39 exists to catch.** `internal/record.blocksAmong` returns
@@ -2436,7 +2436,7 @@ discretion; that is the whole defect §38c names.
 | **ONE CALL SATISFIES IT** | `project.brief` returns the must-read set. **Complying is cheaper than arguing with it**, which is the only reason a gate like this survives contact with a working agent |
 | **a must-read record that CHANGES re-arms the gate** | for every session that read the old version. This is drift detection pointed at the project's own rules, and it is free once drift exists for standards. **Triggered by `record.changed` on the internal bus, above** - the gate does not poll |
 
-##### ⛔ HOW A RECORD IS "MARKED": A FIELD, `must_read`. RULED BY THE LEAD 2026-09-16 LATE.
+##### ⛔ How a record is "marked": a field, `must_read`. Ruled by the lead 2026-09-16 late.
 
 **§39 said *"records of any kind, marked"* and named no mechanism anywhere.**
 Raised as a HELD item by `backend-record` rather than guessed at - the same move
@@ -2553,7 +2553,7 @@ working from the table alone shipped something wrong in six ways.** Found by
 | **10. features** | features at `stage: building`, plus counts per stage. **This row resolves a CONTRADICTION 20 lines wide:** the GUI overview paragraph says the brief carries *"next-up work-items, **features**, drift, gate status"* and this table had no features row. **The paragraph is the side written against Boris's actual request** - `feature` is a kind he asked for by name with a `stage` field - **and a brief without features cannot drive the overview that paragraph specifies** |
 | **11. a case's `attention_n` notes** | priority desc, then `created_at` desc. See the cases section |
 
-#### ⛔ WHETHER THE ELEVEN BECOME TWELVE IS THE LEAD'S CALL. RULED BY BORIS 2026-09-17.
+#### ⛔ Whether the eleven become twelve is the lead's call. Ruled by Boris 2026-09-17.
 
 **B64 has to make a decision, a requirement and an artefact REACHABLE from the
 brief, and there were two ways to do it: a TWELFTH section, or folding them into
@@ -2581,7 +2581,7 @@ ruling is that no section may be silently absent. **A twelfth section that
 declares its own state obeys the rule; a fold that hides one kind inside
 another's row is the thing the rule was made against.**
 
-#### ⛔ ALL ELEVEN SECTIONS ARE IN THE MVP. RULED BY BORIS 2026-09-16 LATE.
+#### ⛔ All eleven sections are in the MVP. Ruled by Boris 2026-09-16 late.
 
 > **Boris, 2026-09-16, asked whether the seven cut sections belonged in the MVP
 > or whether four was enough to call it done: *"Cover all of them"*.**
@@ -2677,7 +2677,7 @@ not-yet-computed state, and the two must not be collapsed. **A section withheld
 by the view says so differently from a section that cannot be computed**, or the
 human view reads as a degraded agent view.
 
-#### WHICH OF THE ELEVEN SECTIONS EACH VIEW CARRIES
+#### Which of the eleven sections each view carries
 
 ⛔ **THE TWO VIEWS WERE NAMED AND NEVER SPECIFIED.** Attack finding 9 rules one
 derivation, two views, *"and the caller says which"* - and nothing said which
@@ -2870,7 +2870,7 @@ a store is filled with records, the daemon is upgraded across a release that
 changes the schema, and **every record, link, version and provenance field is
 read back.** Then the same store is opened by the OLD binary and refuses.
 
-#### AND THIS RE-ARMS TWO OF §37'S DEFERRED PRECONDITIONS
+#### And this re-arms two of §37's deferred preconditions
 
 **Part A items 2 and 4 were deferred on 2026-09-12, not cancelled, with a stated
 trigger: *"they re-arm at the first capability that persists anything."*** **§39
@@ -2968,7 +2968,7 @@ build cannot finish by declaring itself superior.
 project's per-session instruction file is measured before the cutover and after.
 **If it has not shrunk to a pointer, none of the above mattered.**
 
-## WHAT THE ATTACK CHANGED, 2026-09-12
+## What the attack changed, 2026-09-12
 
 **Boris typed `/attack` on this section the hour it was written.** Run
 single-seat rather than fanned out, because the weekly budget was at 93% against
@@ -3109,7 +3109,7 @@ read, what is claimed, what is decided*. **`project.brief` stays one derivation
 both views and the caller says which.** Claiming one rendering serves both
 produces something mediocre for each.
 
-## THE OPEN TENSIONS, AND NONE OF THEM MAY BE CLOSED AS AN ACCEPTED COST
+## The open tensions, and none of them may be closed as an accepted cost
 
 **Boris, 2026-09-12, and it is a rule about the design rather than a wish about
 it:**
@@ -3172,7 +3172,7 @@ design is what the build begins from once it does.
 
 ---
 
-## RIG MANAGES RIG IN TWO PHASES, AND THE GATE BETWEEN THEM IS CAPTURE FIDELITY
+## rig manages rig in two phases, and the gate between them is capture fidelity
 
 **RULED BY BORIS, 2026-09-17, verbatim and complete:**
 
@@ -3188,7 +3188,7 @@ design is what the build begins from once it does.
 > improved or added to make rig better, and this way I'm hoping to have a self
 > feeding feedback loop that perfects rig"*
 
-### THE TWO PHASES, AND THEY ARE NOT THE SAME ACT
+### The two phases, and they are not the same act
 
 | | Phase 1 - POPULATE | Phase 2 - USE |
 |---|---|---|
@@ -3197,7 +3197,7 @@ design is what the build begins from once it does.
 | **the feedback** | **the agent-experience of POPULATING**: what details are missing, and which of them matter enough to be supported | **what to correct, improve or add** to make rig better |
 | **the question it answers** | *can rig HOLD this project?* | *is rig GOOD at holding it?* |
 
-### ⛔ AND THE GATE IS ADVERSARIAL, NOT SELF-ASSESSED. RULED BY BORIS 2026-09-17.
+### ⛔ And the gate is adversarial, not self-assessed. Ruled by Boris 2026-09-17.
 
 **His words, the turn the store was first populated:**
 
@@ -3231,7 +3231,7 @@ pass.
 nothing is deleted on the strength of this gate either way.** What it decides is
 whether phase 2 begins.
 
-### THE GATE IS NAMED AND IT IS NOT A DATE
+### The gate is named and it is not a date
 
 **Phase 2 starts only *"after we are able to perfectly capture all relevant rig
 details"*.** That is a CAPTURE-FIDELITY bar, and it is the same shape as the
@@ -3242,7 +3242,7 @@ it.**
 but "is there anything about this project rig cannot hold".** A document that
 went in with its meaning flattened is a phase-1 FINDING, not a completed row.
 
-### WHY THE POPULATING PEER'S FEEDBACK IS THE POINT AND NOT A COURTESY
+### Why the populating peer's feedback is the point and not a courtesy
 
 **Phase 1's output is TWO things and the second is the valuable one:** a
 populated store, and **a list of what rig could not express.** A peer that
@@ -3254,7 +3254,7 @@ same rule, a named population and a named moment. **Evidence, never a wish:
 *"this document has a kind rig has no word for"* is the report; *"it would be
 nice if"* is not.**
 
-### THE LOOP HE IS AFTER, STATED SO IT CANNOT BE SOFTENED
+### The loop he is after, stated so it cannot be softened
 
 > *"a self feeding feedback loop that perfects rig"*
 
@@ -3274,7 +3274,7 @@ all day.
 - **NOT a silent import.** A phase-1 peer that reports no friction has not
   completed phase 1.
 
-## ⛔ FULL CONTROL OVER THE RECORDS. BORIS, 2026-09-17, AND IT OVERRULES A SEAT'S RULING.
+## ⛔ Full control over the records. Boris, 2026-09-17, and it overrules a seat's ruling.
 
 > *"I want full controll over the records, so everybody can delete/retract
 > records and replace records and the missing functionality has to be
@@ -3311,7 +3311,7 @@ ONE.** A seat that ships retract and reports the sentence satisfied has shipped 
 third of it. The distinguishing questions: does the id survive (retract yes,
 delete no), and does the HISTORY survive (retract yes, delete no)?
 
-### WHY IT IS URGENT RATHER THAN TIDY, AND THE RECEIPT IS FROM TODAY
+### Why it is urgent rather than tidy, and the receipt is from today
 
 **The production store holds records nobody can remove.** The `extra` set - ids
 the store holds that no document states - was **two** on the morning of
@@ -3322,7 +3322,7 @@ fields and no body**, written by a seat exercising the write path.
 FROM A SEAT DOING ITS JOB CORRECTLY.** It also makes every re-seed a one-way
 decision: `rigseed --check` can name a divergence it has no verb to close.
 
-### ⛔ THE DEFAULT NAME IS THE OS USERNAME, EVERYWHERE
+### ⛔ The default name is the OS username, everywhere
 
 > *"By default the name that goes with the records and everything is the username
 > from the OS."*
@@ -3342,7 +3342,7 @@ by the daemon from the uid over `SO_PEERCRED`. **A name carried in the request i
 still refused** - it is the daemon's to determine, which is the property that
 makes provenance worth anything. **Default is not the same as claimable.**
 
-### ⛔ DELETE DROPS THE EDGES. RULED BY BORIS 2026-09-17, AGAINST THE LEAD'S RECOMMENDATION.
+### ⛔ Delete drops the edges. Ruled by Boris 2026-09-17, against the lead's recommendation.
 
 **The question put to him:** other records point at a record with `part-of` and
 `supersedes` edges - the busiest target in the store has 758 citations - so what
@@ -3372,14 +3372,14 @@ holding one fact - is the case where the edges genuinely must survive, onto the
 survivor. **Shipping `delete` without `replace` leaves that case with no answer
 but edge loss.**
 
-### ✅ THE RE-SEED WAITS FOR DELETE. RULED BY BORIS 2026-09-17.
+### ✅ The re-seed waits for delete. Ruled by Boris 2026-09-17.
 
 **Order: `retract` + `delete` + `replace` land, THEN production is re-seeded, THEN
 the three strays are removed with the new verb.** A re-seed today is one-way - it
 fixes what is missing and stale and can undo neither the strays nor its own
 mistakes - and it has only ever been run against a throwaway store.
 
-### ✅ THE BRIEF GAINS A `CLOSED` SECTION. RULED BY BORIS 2026-09-17. (B68)
+### ✅ The brief gains a `CLOSED` section. Ruled by Boris 2026-09-17. (B68)
 
 **14 of 80 work items are invisible today because the brief renders only
 `status == "active"`.** The open list does **not** change; a new section carries

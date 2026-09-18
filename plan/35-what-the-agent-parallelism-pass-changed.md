@@ -12,7 +12,7 @@ is imported because AgentBox has it.** Each mechanism below is here because an
 agent working beside another agent fails without it, and the IN/OUT judgement
 for every candidate is recorded in the cross.
 
-### THE ACCEPTANCE FLOOR - **ITS ATTRIBUTION IS CORRECTED 2026-09-12 AND THE REQUIREMENT SURVIVES**
+### The acceptance floor - **its attribution is corrected 2026-09-12 and the requirement survives**
 
 **THE QUOTATION BELOW IS NOT HIS, AND THE TRANSCRIPT SWEEP OF 2026-09-12 IS WHAT
 ESTABLISHED THAT.** It is kept, struck, because the section's whole lesson is how

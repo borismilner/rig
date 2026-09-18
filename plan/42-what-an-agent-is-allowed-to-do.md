@@ -13,7 +13,7 @@
 > change my mind about some capabilities or maybe I'll want to grant some
 > capabilities only to certain agents and not others so this must be supported."*
 
-### ⛔ THE DEFAULT IS OPEN, AND THIS IS THE LINE A SEAT WILL GET WRONG
+### ⛔ The default is open, and this is the line a seat will get wrong
 
 > **By default an agent can call ALL MCP and do EVERYTHING, absolutely without
 > restrictions.**
@@ -41,7 +41,7 @@ has.**
 and the AI agents to be able to do this."* **A capability reachable only from
 the CLI has not met §41.**
 
-### ⛔ THE IDENTITY THIS RESTS ON ALREADY EXISTS AND MUST NOT BE REINVENTED
+### ⛔ The identity this rests on already exists and must not be reinvented
 
 **"Certain agents and not others" needs a name for an agent, and rig has
 one.** §14 mints a `Principal` at accept from the socket's peer credentials;
@@ -56,7 +56,7 @@ policy keyed on seat cannot express a rule about a caller that has no seat**, an
 today the MCP door does not require one. **That is a precondition of this
 section, not a detail of it.**
 
-### ⛔ AND IT IS NOT ONLY ABOUT CALLING THINGS. IT COVERS JUDGEMENT AND AUTHORSHIP. BORIS, 2026-09-18.
+### ⛔ And it is not only about calling things. It covers judgement and authorship. Boris, 2026-09-18.
 
 **This section was read for a day as being about CAPABILITY GATING - which MCP
 calls a seat may make, keyed on which agent.** ⛔ **He corrected that reading
@@ -90,7 +90,7 @@ successor clause are the inverse failure - his requirements nobody wrote down.
 This is the mirror: a requirement he never stated, written down as though he
 had.**
 
-### ✅ WHAT THIS IS - ASKED AND ANSWERED BY BORIS, 2026-09-17
+### ✅ What this is - asked and answered by Boris, 2026-09-17
 
 **The seat's reading was put to him and he confirmed it:**
 
@@ -105,7 +105,7 @@ had.**
 | ⛔ **what it is NOT, and it is DEFERRED rather than refused** | defence against a **hostile** agent. *"Late in our development program"* - **a schedule position, so it is NOT a non-goal and nothing here may be built in a way that forecloses it** |
 | **why now** | *"we don't have a threat model yet so no point in doing premature optimizations"* |
 
-#### ⛔ THE ONE DISTINCTION IN THAT ANSWER, AND A SEAT WILL COLLAPSE IT IN ONE OF TWO DIRECTIONS
+#### ⛔ The one distinction in that answer, and a seat will collapse it in one of two directions
 
 > ***"Our development must produce safe code, but we don't have a threat model
 > yet."***
@@ -137,7 +137,7 @@ returned is never recorded, only the key name** - a policy granting an agent
 secret-reading would still not make secrets introspectable, because that is a
 different ruling and this section does not reach it.
 
-### ⛔ THE MECHANISM MUST COST NOTHING WHEN IT IS EMPTY
+### ⛔ The mechanism must cost nothing when it is empty
 
 **The default is no configuration at all**, and that is the state rig will be in
 for most of its life. So:
@@ -168,7 +168,7 @@ for most of its life. So:
 ⛔ **NOT CRITICAL FOR THE MVP - HIS WORDS - AND *"SHOULD BE IMPLEMENTED SOON"*,
 which is the same weight he gave §40.** The MVP is §39 slices 1, 2 and 4.
 
-### ⛔ A CLI-WRITTEN RECORD CARRIES WHAT THE DAEMON CAN CHECK, AND NOTHING MORE. RULED BY BORIS 2026-09-17.
+### ⛔ A CLI-written record carries what the daemon can check, and nothing more. Ruled by Boris 2026-09-17.
 
 **The measurement that forced the ruling:** 451 decisions in the production
 store, **one distinct seat, 783 sessions**. Every record written through the CLI

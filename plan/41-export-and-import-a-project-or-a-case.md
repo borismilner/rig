@@ -29,7 +29,7 @@ state that file reflects. Nothing else is needed in between.**
 | the restore | ⛔ ***"fully restore the state reflected in it"*** |
 | ⛔ **compatibility** | ***"Don't forget future and backward"*** |
 
-### ⛔ WHAT "FULLY RESTORE" HAS TO MEAN, BECAUSE THE STORE MAKES IT NON-OBVIOUS
+### ⛔ What "fully restore" has to mean, because the store makes it non-obvious
 
 **§39's record is versioned and append-only, and the brief is DERIVED.** So
 there are three candidate readings of *"the state reflected in it"* and they are
@@ -47,7 +47,7 @@ wording read back with the session that wrote it."* **An export that drops
 history exports a snapshot and calls it a project.** And provenance travels with
 it: a version whose author and session are gone is a version nobody can weigh.
 
-### ⛔ COMPATIBILITY IS THE HARD CLAUSE, AND IT PULLS AGAINST "SMALLEST POSSIBLE"
+### ⛔ Compatibility is the hard clause, and it pulls against "smallest possible"
 
 **He asked for both in one sentence and they are in genuine tension. Name the
 trade; do not resolve it by picking the smaller number.**
@@ -74,7 +74,7 @@ trade; do not resolve it by picking the smaller number.**
   checking. **A plain manifest at a fixed location, in a format that will not
   move.**
 
-### ⛔ THE FOLDER IS A DELIVERABLE IN ITS OWN RIGHT, NOT A TEMP DIRECTORY
+### ⛔ The folder is a deliverable in its own right, not a temp directory
 
 **He described the folder BEFORE the compression, and the order is the
 requirement:** *"a well-organized folder with a great internal structure"*.

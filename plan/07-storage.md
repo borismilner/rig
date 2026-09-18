@@ -1,6 +1,6 @@
 ## 7. Storage
 
-### ⛔ THE RETENTION LADDER, AND HE IS RIGHT THAT HE SAID THE FIRST HALF BEFORE
+### ⛔ The retention ladder, and he is right that he said the first half before
 
 **BORIS, 2026-09-17, verbatim, recorded the turn he said it:** *"As I already
 said in the past, I want everything to be persisted but without harming
@@ -30,7 +30,7 @@ history segments *"age out in 30 days anyway"* and §15 already specifies
 **retention by size, age AND rate**. **The one-month rung matches the 30 days
 that already exist; the three-month rung and the pin do not exist at all.**
 
-### ✅ THE COLLISION IS SETTLED. RULED BY BORIS 2026-09-17.
+### ✅ The collision is settled. Ruled by Boris 2026-09-17.
 
 ⛔ **THE LADDER GOVERNS OBSERVABILITY ONLY. THE CONTINUITY RECORD IS EXEMPT AND
 IS NEVER DELETED.** Put to him by team-lead generation 11 with both readings and

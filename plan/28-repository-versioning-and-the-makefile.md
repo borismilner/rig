@@ -40,7 +40,7 @@ a README that is not a target, because a documented command drifts and a target 
 
 ---
 
-### ⛔ `make install` REPLACES A LIVE DEPLOYMENT, AND IT DOES SO WITHOUT LOSING ANYTHING
+### ⛔ `make install` replaces a live deployment, and it does so without losing anything
 
 **RULED BY BORIS, 2026-09-17, in his own words:**
 
@@ -87,7 +87,7 @@ which of the two it meant.**
 - **It must not start a daemon that was not running.** If nothing is deployed,
   install the files and say so; the requirement is about REPLACEMENT.
 
-### ✅ PUSHING IS AUTHORISED STANDING, BY BORIS, 2026-09-17. NO SEAT NEEDS TO ASK AGAIN.
+### ✅ Pushing is authorised standing, by Boris, 2026-09-17. No seat needs to ask again.
 
 > *"I permit you to push anytime you see fit."*
 

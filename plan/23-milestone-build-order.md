@@ -30,7 +30,7 @@ the ordering cannot be changed later by someone who never reads §14 - **house r
 | M15 | Packaging and updates | `.deb`, desktop entry, the signed update channel for rig and programs, self-update. **The autostart unit itself moved to M6** (§5l); what is left here is packaging it | Fresh machine to a working rig with three programs in one command, **and `rig restore` carries the state M11 backed up** |
 | M16 | Estate migration and the AgentBox cutover | The rest of the estate, in the order in §25, then the agent tooling repointed from AgentBox to the peers service - **and every agent's instructions repointed from AgentBox's `speak` to rig's speech (§12), which is a decision M9 deliberately does not make** | Every in-house program reachable from one CLI, one TUI, one tray, one window, one MCP server |
 
-### M3 TO M6 ARE CHERRY-PICKED, RULED BY BORIS 2026-09-11
+### M3 to M6 are cherry-picked, ruled by Boris 2026-09-11
 
 **His words, choosing between three shapes put to him the day M2 closed:**
 *"M3-M6 cherry-picked for only what M7 and §37 actually need."*
