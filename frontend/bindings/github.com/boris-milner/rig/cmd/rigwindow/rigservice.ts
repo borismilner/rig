@@ -90,6 +90,20 @@ export function Projects(): $CancellablePromise<$models.ProjectRef[]> {
     });
 }
 
+/**
+ * Records answers every record of one kind in one project, ordered for reading.
+ * 
+ * ⛔ THE KIND IS REQUIRED AND THE REFUSAL SAYS WHAT THE ALTERNATIVES ARE. An
+ * unfiltered query over this store returns 2,538 records and 2.6 MB through a
+ * single frame; a list that big is not a screen, it is a download. The caller
+ * asks for what it is about to render.
+ */
+export function Records(project: string, kind: string): $CancellablePromise<$models.RecordRow[]> {
+    return $Call.ByID(1013544747, project, kind).then(($result: any) => {
+        return $$createType9($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = $models.Brief.createFrom;
 const $$createType1 = $Create.Map($Create.Any, $Create.Any);
@@ -99,3 +113,5 @@ const $$createType4 = $models.Program.createFrom;
 const $$createType5 = $Create.Array($$createType4);
 const $$createType6 = $models.ProjectRef.createFrom;
 const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = $models.RecordRow.createFrom;
+const $$createType9 = $Create.Array($$createType8);

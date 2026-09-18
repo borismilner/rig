@@ -17,5 +17,6 @@ export {
     Program,
     ProjectRef,
     ProjectionHealth,
+    RecordRow,
     SectionStatus
 } from "./models.js";

@@ -630,6 +630,89 @@ export class ProjectionHealth {
 }
 
 /**
+ * RecordRow is one record as a list needs it: enough to render a row and open
+ * it, and not the whole store's prose twice.
+ */
+export class RecordRow {
+    "id": string;
+    "version": number;
+    "kind": string;
+    "title": string;
+
+    /**
+     * Section is the grouping a reader actually thinks in - "39", "11" - and it
+     * is FREE: a requirement's id leads with its section number, by the id
+     * scheme Boris ruled on 2026-09-18. Empty when the id has no such prefix,
+     * which is every decision.
+     */
+    "section": string;
+    "sectionTitle": string;
+    "body": string;
+
+    /**
+     * Source and Line are where the document says it, so a reader can go and
+     * look. They are the fields the seeder writes, unaltered.
+     */
+    "source": string;
+    "line": string;
+    "tags": string;
+
+    /**
+     * Retracted is stated rather than filtered: a record the store is still
+     * holding but no longer standing behind is a thing a reader must be able
+     * to see, and silently dropping it is how a list lies.
+     */
+    "retracted": boolean;
+
+    /** Creates a new RecordRow instance. */
+    constructor($$source: Partial<RecordRow> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("version" in $$source)) {
+            this["version"] = 0;
+        }
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+        if (!("section" in $$source)) {
+            this["section"] = "";
+        }
+        if (!("sectionTitle" in $$source)) {
+            this["sectionTitle"] = "";
+        }
+        if (!("body" in $$source)) {
+            this["body"] = "";
+        }
+        if (!("source" in $$source)) {
+            this["source"] = "";
+        }
+        if (!("line" in $$source)) {
+            this["line"] = "";
+        }
+        if (!("tags" in $$source)) {
+            this["tags"] = "";
+        }
+        if (!("retracted" in $$source)) {
+            this["retracted"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RecordRow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RecordRow {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new RecordRow($$parsedSource as Partial<RecordRow>);
+    }
+}
+
+/**
  * SectionStatus is one of the brief's eleven sections and what it can say.
  * 
  * ⛔ THIS IS THE FIELD THAT MAKES EVERY OTHER ONE HONEST, and it is not
