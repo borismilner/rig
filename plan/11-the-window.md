@@ -1170,6 +1170,30 @@ making a deploy easy to perform. **Nothing here says a commit deploys itself**,
 and a seat reading it that way has widened a convenience into a policy he has not
 stated. If he wants that, he will say so.
 
+## ⛔ THE WINDOW MAY NEVER BE STALE, AND IT MUST BE THE ONE THAT KNOWS. Boris, 2026-09-18.
+
+> *"You must make sure the GUI is never stale, it was very confusing to know
+> you improved it but still seeing an old instance."*
+
+⛔ **HE HAS NOW HIT THIS TWICE, ON TWO SEPARATE DAYS, AND BOTH TIMES HE
+REPORTED A DEFECT THAT WAS ALREADY FIXED.** 2026-09-17 it was the hatched cards
+(B89: the running window predated the fix by ten hours); 2026-09-18 it was the
+whole GUI, six hours behind a binary that had been replaced under it. **The cost
+is not the stale pixels. It is that his bug report was about a build nobody
+could reproduce**, and two sessions spent answering it.
+
+### The requirement, in three parts
+
+| # | Part | Why it is not the same as the others |
+|---|---|---|
+| 1 | **A REDEPLOYMENT RESTARTS THE WINDOW.** ✅ Built, §28's `make redeploy` and `tools/restart-window.sh` | closes the route that produced both incidents, and only that route |
+| 2 | ⛔ **A WINDOW THAT IS STALE BY ANY OTHER ROUTE MUST SAY SO ITSELF** | an install by hand, a `systemctl` he types, a crash-restart from an old unit. **Part 1 cannot cover these, so a fix that stops there will let it happen a third time** |
+| 3 | ⛔ **THE COMPARISON IS THE FILE ON DISK, NOT THE DAEMON** | §21's skew warning compares client to daemon and both can be new while the WINDOW is old. The measurement that caught it is `/proc/self/exe` reading `(deleted)`, which is exact, local, and needs nobody's cooperation |
+
+⛔ **AND IT MUST NOT BE A SILENT SELF-RESTART.** A window that replaces itself
+under his hands while he is reading is a different bug wearing a fix. It says
+so, and restarting is his click. **B89 carries the work.**
+
 ## ⛔ After the gaps, the window is where rig starts paying. Boris, 2026-09-18.
 
 **HIS WORDS, AND THEY SET THE NEXT PHASE RATHER THAN A FEATURE:**

@@ -212,7 +212,7 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 			// stated it: the 342 requirements are revisited before they are
 			// seeded - judged, joined, retitled for his reading and tagged.
 			// OPEN.
-			"B91", "B92", "B93", "B94",
+			"B91", "B92", "B93", "B94", "B95", "B96",
 		})
 
 	// B65 joins this set 2026-09-17: the field predicate landed at rig
@@ -348,9 +348,12 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 		// them killed. The parser said so before any human did, and the fix was
 		// to the DOCUMENT rather than to this pin. The struck set is where a
 		// row closed by work belongs.
-		{"rows", len(items), 99},
+		// 99 -> 101 rows and 81 -> 83 open, the same day and the same seat:
+		// B95 and B96 filed from two things Boris said mid-session - the GUI
+		// phase after the gaps, and the shouting titles he read as stale data.
+		{"rows", len(items), 101},
 		{"closed", len(struck) + len(byLead), 18},
-		{"open", open, 81},
+		{"open", open, 83},
 	} {
 		if c.got != c.want {
 			t.Errorf("%s: %d, pinned at %d.\n"+
