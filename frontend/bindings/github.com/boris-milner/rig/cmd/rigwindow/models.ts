@@ -436,6 +436,14 @@ export class Item {
  */
 export class Note {
     "id": string;
+
+    /**
+     * Title is what the document called it. ⛔ THE WIRE DID NOT CARRY THIS
+     * UNTIL 2026-09-18, so this window listed every note by the first line of
+     * its BODY - a 1,951-byte paragraph in one of Boris's, and nothing at all
+     * in the one whose body is empty. B97.
+     */
+    "title": string;
     "body": string;
     "priority": string;
     "about": string;
@@ -444,6 +452,9 @@ export class Note {
     constructor($$source: Partial<Note> = {}) {
         if (!("id" in $$source)) {
             this["id"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
         }
         if (!("body" in $$source)) {
             this["body"] = "";

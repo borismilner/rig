@@ -16,6 +16,8 @@ import {
   indentOf,
   shownTally,
   isView,
+  stripGroupDate,
+  groupCount,
   VIEW_KIND,
   VIEW_LABEL,
   VIEWS,
@@ -266,4 +268,80 @@ describe("the fields a row shows", () => {
 it("says how many are hidden only when some are", () => {
   expect(shownTally(387, 387)).toBe("387");
   expect(shownTally(4, 387)).toBe("4 of 387");
+});
+
+/* ⛔ 141 OF HIS 540 DECISION TITLES OPEN WITH THEIR OWN DATE, under a heading
+   that is that date. About thirty characters of every top-level row carried no
+   information and pushed the ruling out of the visible width. B98. */
+describe("a title does not repeat its own heading", () => {
+  it("takes the date off and keeps which session ruled it", () => {
+    expect(
+      stripGroupDate(
+        "2026-09-18, team-lead generation 21 - the fence rule is one type",
+        "2026-09-18",
+      ),
+    ).toEqual({
+      lead: "team-lead generation 21",
+      text: "the fence rule is one type",
+    });
+  });
+
+  it("unwraps a parenthesised qualifier rather than leaving a stray bracket", () => {
+    expect(
+      stripGroupDate("2026-09-10 (fifth session) - the project carries no dates", "2026-09-10"),
+    ).toEqual({ lead: "fifth session", text: "the project carries no dates" });
+  });
+
+  // The qualifier is the part that is NOT redundant: three sessions can rule on
+  // one day, and which one did is the thing the heading cannot say.
+  it("keeps a title that has no qualifier whole", () => {
+    expect(stripGroupDate("2026-09-12 - the window is cmd/rigwindow", "2026-09-12")).toEqual({
+      lead: "",
+      text: "the window is cmd/rigwindow",
+    });
+  });
+
+  it("leaves a title that does not open with the heading's date alone", () => {
+    const t = "A constant dressed as a live field is a lie by shape";
+    expect(stripGroupDate(t, "2026-09-12")).toEqual({ lead: "", text: t });
+    // A DIFFERENT date must not be stripped either - it is not redundant then.
+    expect(stripGroupDate("2026-09-10 - older", "2026-09-12")).toEqual({
+      lead: "",
+      text: "2026-09-10 - older",
+    });
+  });
+
+  // ⛔ THE UNDATED GROUP'S KEY IS NOT A DATE, so nothing may be taken off a
+  // title under it. 91 of his decisions live there.
+  it("takes nothing off under a group with no date", () => {
+    const t = "§5e gains the element list";
+    expect(stripGroupDate(t, "")).toEqual({ lead: "", text: t });
+    expect(stripGroupDate(t, "~undated")).toEqual({ lead: "", text: t });
+  });
+
+  // A title that is ONLY its date would otherwise render as an empty row.
+  it("never renders a row with no text at all", () => {
+    expect(stripGroupDate("2026-09-12", "2026-09-12")).toEqual({
+      lead: "",
+      text: "2026-09-12",
+    });
+  });
+
+  it("does not hyphen-split a title that merely contains a dash", () => {
+    expect(
+      stripGroupDate("2026-09-12 - a door nobody can dial - and how it grew", "2026-09-12"),
+    ).toEqual({ lead: "", text: "a door nobody can dial - and how it grew" });
+  });
+});
+
+/* ⛔ THE GROUP COUNTS MUST SUM TO THE NUMBER IN THE TITLE BAR. Lifting the head
+   out of `rows` dropped 42 records out of the per-section counts while the
+   header still said 387, so the page contradicted itself on its first screen. */
+it("counts the record on the heading as one of the section's", () => {
+  const g = groupRecords([
+    rec({ id: "11/the-window", title: "11. The window", section: "11", sectionTitle: "11. The window" }),
+    rec({ id: "11/rail", title: "The rail", section: "11", sectionTitle: "11. The window" }),
+  ]);
+  expect(g[0].rows.length).toBe(1);
+  expect(groupCount(g[0])).toBe(2);
 });

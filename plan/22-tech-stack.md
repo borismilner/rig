@@ -26,7 +26,8 @@ Versions verified 2026-09-10.
 | TUI testing | charmbracelet x/exp/teatest, golden frames | latest |
 | Frontend | Svelte 5 + TypeScript + Vite + Tailwind v4 | 5.57 / 7.0 / 8.2 / 4.3 |
 | Toast motion | motion | 13.2.0 |
-| Toast content | shiki, marked | 4.4.3 / 18.0.12 |
+| Toast content | shiki | 4.4.3 |
+| Markdown in the window | `marked`, **as a LEXER and never as a parser** | 18.0.12, pinned exactly. ⛔ `marked.parse()` returns an HTML STRING, which would have to be injected and then sanitised forever; `marked.lexer()` returns a token TREE the view walks into Svelte markup, so §38's "no injection-shaped string building" holds by construction rather than by a check. Candidates weighed 2026-09-18: `snarkdown` (1 KB, no tables, HTML strings only - fails the 348 bodies that hold a table), `markdown-it` (~3x, plugin model nothing needs), `micromark` (events not a tree, needs a second package). Raw HTML inside a body renders as its own characters: 56 bodies contain a `<` and every one MENTIONS markup rather than intending it |
 | Testing | stdlib, testing/synctest, go-cmp | v0.7.0 |
 | Frontend testing | Vitest, Playwright | 5.0.0 / 1.63.0 |
 | Frontend build plugin | `@sveltejs/vite-plugin-svelte` | 7.3.0 |

@@ -19,6 +19,7 @@
      added; injecting HTML from a record body is not on the table at all. -->
 <script lang="ts">
   import * as RigService from "../../bindings/github.com/boris-milner/rig/cmd/rigwindow/rigservice.js";
+  import Markdown from "./Markdown.svelte";
   import type { RecordRow } from "../../bindings/github.com/boris-milner/rig/cmd/rigwindow/models.js";
   import {
     groupRecords,
@@ -28,6 +29,7 @@
     indentOf,
     shownTally,
     groupCount,
+    stripGroupDate,
   } from "./records";
 
   interface Props {
@@ -224,13 +226,18 @@
             {#if citation(g.lead)}
               <p class="cite">{citation(g.lead)}</p>
             {/if}
-            <pre class="body">{g.lead.body}</pre>
+            <div class="body"><Markdown src={g.lead.body} /></div>
           </div>
         {/if}
 
         <ul class="rows">
           {#each g.rows as r (r.id)}
             {@const opened = isOpen(r, g.key)}
+            <!-- ⛔ THE HEADING ALREADY SAID THE DATE. 141 of his 540 decision
+                 titles opened with their own day, directly under a heading that
+                 IS that day. The qualifier - which session, which generation -
+                 stays, because three sessions can rule on one date. B98. -->
+            {@const t = stripGroupDate(r.title || r.id, g.key)}
             <li class="row" class:open={opened} style:--ind={indentOf(r)}>
               <button
                 type="button"
@@ -239,7 +246,9 @@
                 disabled={!r.body}
                 onclick={() => toggle(r, g.key)}
               >
-                <span class="rt">{r.title || r.id}</span>
+                <span class="rt">
+                  {#if t.lead}<span class="lq">{t.lead}</span>{/if}{t.text}
+                </span>
                 <!-- ⛔ THE SLOT IS ALWAYS PRESENT, EVEN WHEN EMPTY, AND THIS IS
                      A MEASURED DEFECT RATHER THAN ItemRow's RULE REPEATED. An
                      {#if} REMOVES the element, so on the 385 rows that are not
@@ -271,7 +280,7 @@
                       {#each tagsOf(r) as t (t)}<li>{t}</li>{/each}
                     </ul>
                   {/if}
-                  <pre class="body">{r.body}</pre>
+                  <div class="body"><Markdown src={r.body} /></div>
                 </div>
               {/if}
             </li>
@@ -560,6 +569,14 @@
     white-space: nowrap;
   }
 
+  /* Which pass of that day ruled it. Dim and ahead of the title, because it
+     qualifies the row rather than being what the row says. */
+  .lq {
+    color: var(--fg-dim);
+    font-size: var(--fs--1);
+    margin-inline-end: 0.5rem;
+  }
+
   /* A retracted row is dimmed and LABELLED, never hidden - the Go side carries
      the flag for exactly this. */
   .row:has(.ret.on) .rt {
@@ -625,20 +642,14 @@
     padding: 0.05rem 0.5rem;
   }
 
-  /* ⛔ pre-wrap AND overflow-wrap TOGETHER, AND BOTH ARE LOAD-BEARING. The
-     bodies hold markdown tables whose rows are 120 characters of pipes; without
-     the wrap they push a horizontal scrollbar onto the whole panel, which is
-     the "these scrolls are unnecessary" defect he photographed on 2026-09-17.
-     pre-wrap alone does not break a long unbroken token, and an id here is one. */
+  /* ⛔ THIS WAS A <pre> UNDER white-space: pre-wrap AND BORIS CALLED IT UGLY.
+     It showed markdown as its own punctuation: 348 of his bodies hold a table
+     and every one of them read as a wall of pipes with each cell wrapped over
+     four lines. Markdown.svelte now renders the tokens, so this element only
+     owns selection and the text colour - the measure, the faces and the table
+     grid are its. */
   .body {
-    margin: 0;
-    font-family: var(--mono);
-    font-size: var(--fs--1);
-    line-height: 1.55;
     color: var(--fg);
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    max-width: 92ch;
     user-select: text;
   }
 </style>

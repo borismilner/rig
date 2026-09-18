@@ -41,6 +41,7 @@
   } from "./brief";
   import Waffle from "./Waffle.svelte";
   import Sections from "./Sections.svelte";
+  import Markdown from "./Markdown.svelte";
 
   interface Props {
     brief: Brief | null;
@@ -61,6 +62,30 @@
     $props();
 
   let p = $derived(planVsExec(brief));
+
+  /* ⛔ A NOTE OPENS, AND IT DID NOT. Boris, 2026-09-17, about the work items:
+     "they are not user friendly and clicking them doesn't show the full
+     description." ItemRow answered that for work items and nothing answered it
+     for notes, so his own complaint survived one list over. B97. */
+  let openNotes = $state<Record<string, boolean>>({});
+
+  function toggleNote(id: string) {
+    openNotes = { ...openNotes, [id]: !openNotes[id] };
+  }
+
+  /* What the row says, in the order a reader can use it.
+
+     ⛔ AN EMPTY NOTE SAYS SO RATHER THAN DRAWING A BARE DOT. One of his eight
+     is a heading whose children are the six rulings under it, so its body is
+     genuinely empty - and a blank row is indistinguishable from a rendering
+     fault, which is how it sat on his screen unreported. */
+  function noteLabel(n: { title?: string; body: string; id: string }): string {
+    const t = (n.title ?? "").trim();
+    if (t) return t;
+    const first = n.body.split("\n").find((l) => l.trim()) ?? "";
+    if (first.trim()) return first.trim();
+    return "this note states no title and has no body";
+  }
 
   /* ⛔ SEARCH AND FILTER. BORIS, 2026-09-17: "I'm missing search/filter
      functionality... Should probably be able to filter by tags or aspects or
@@ -477,12 +502,37 @@
                hyphen-fragment per line, vertically. Boris, 2026-09-18, with a
                screenshot: "this is ugly and bad layout". The slug is of no use
                to a reader anyway - it goes on the title, where it is still
-               reachable and no longer shapes the row. -->
+               reachable and no longer shapes the row.
+
+               ⛔ AND THE ROW WAS STILL WRONG AFTER THAT, because it showed the
+               BODY where a name belongs. A note's body is prose - 1,951 bytes
+               in one of his, and nothing at all in another - so the list read
+               as a truncated paragraph beside a blank line, and none of it
+               could be opened. The title is on the wire as of 2026-09-18 and
+               the row opens like every other row in this window. B97. -->
           <ul class="items notes">
             {#each brief.notes as n (n.id)}
-              <li>
-                <span class="dotm" data-tone="none"></span>
-                <span class="it" title={n.id}>{n.body}</span>
+              <li class="nrow" class:open={openNotes[n.id]}>
+                <button
+                  type="button"
+                  class="nhead"
+                  aria-expanded={!!openNotes[n.id]}
+                  disabled={!n.body.trim()}
+                  title={n.id}
+                  onclick={() => toggleNote(n.id)}
+                >
+                  <span class="dotm" data-tone="none"></span>
+                  <span class="it">{noteLabel(n)}</span>
+                  <span class="chev" aria-hidden="true"
+                    >{n.body.trim() ? (openNotes[n.id] ? "−" : "+") : ""}</span
+                  >
+                </button>
+                {#if openNotes[n.id]}
+                  <div class="ndetail">
+                    <p class="nid">{n.id}</p>
+                    <Markdown src={n.body} />
+                  </div>
+                {/if}
               </li>
             {/each}
           </ul>
@@ -966,9 +1016,67 @@
     white-space: nowrap;
   }
 
-  /* A note has no short id to show, so the row is a dot and the note. */
+  /* ⛔ THE ROW IS A BUTTON NOW, SO THE GRID MOVES ONTO IT. The <li> was the
+     grid; a row that opens needs the keyboard, a focus ring and an
+     aria-expanded, and a <li> with an onclick is reachable by exactly one
+     input device - ItemRow's note states the case in full. So the li is a
+     plain block and .nhead carries the columns. */
   .items.notes li {
-    grid-template-columns: 10px minmax(0, 1fr) auto;
+    display: block;
+  }
+
+  .nhead {
+    display: grid;
+    grid-template-columns: 10px minmax(0, 1fr) 1.2rem;
+    gap: 0.5rem;
+    align-items: baseline;
+    width: 100%;
+    font: inherit;
+    text-align: start;
+    background: none;
+    border: 0;
+    border-radius: 4px;
+    padding: 0.28rem 0.3rem;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .nhead:disabled {
+    cursor: default;
+  }
+
+  .nhead:not(:disabled):hover {
+    background: var(--bg-2);
+  }
+
+  .nhead:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 var(--ring-w) var(--hue);
+  }
+
+  .chev {
+    color: var(--fg-dim);
+    font-size: 0.85rem;
+    text-align: center;
+  }
+
+  /* Inset with a rule and no tinted ground: ItemRow's note gives the reason,
+     and this is the same panel one list over. */
+  .ndetail {
+    margin: 0.1rem 0 0.7rem 1.1rem;
+    padding-inline-start: 0.85rem;
+    border-inline-start: 2px solid var(--border-2);
+    display: grid;
+    gap: 0.4rem;
+    user-select: text;
+  }
+
+  .nid {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--fg-dim);
+    overflow-wrap: anywhere;
   }
 
   .it {

@@ -213,6 +213,53 @@ export function shownTally(shown: number, held: number): string {
   return shown === held ? `${held}` : `${shown} of ${held}`;
 }
 
+/** A title split into the qualifier its heading makes redundant, and the rest. */
+export type TitleParts = { lead: string; text: string };
+
+/* stripGroupDate takes off the front of a title what the heading above it
+ * already says.
+ *
+ * ⛔ 141 OF HIS 540 DECISION TITLES OPEN WITH THEIR OWN DATE, directly under a
+ * heading that is that date: *"2026-09-18, team-lead generation 21 - the fence
+ * rule is one type and four callers"* under **2026-09-18**. About thirty
+ * characters of every top-level row carried no information and pushed the
+ * actual ruling out of the visible width. B98.
+ *
+ * ⛔ IT IS DONE IN THE VIEW AND NOT IN THE DOCUMENT, and that is a decision
+ * rather than the cheaper option. `DECISIONS.md` is read linearly by people and
+ * by agents, where the date on an entry is the only thing placing it; and a
+ * title edit re-slugs the record, which would supersede 141 ids that other
+ * documents cite. The redundancy exists only under the heading, so it is
+ * removed only under the heading.
+ *
+ * ⛔ THE QUALIFIER IS KEPT, BECAUSE IT IS NOT THE REDUNDANT PART. "(fifth
+ * session)" and "team-lead generation 21" say WHICH pass of that day ruled it,
+ * and three sessions can rule on one day. It moves to its own dim slot; only
+ * the date itself goes.
+ */
+export function stripGroupDate(title: string, date: string): TitleParts {
+  if (!date || !title.startsWith(date)) return { lead: "", text: title };
+  let rest = title.slice(date.length);
+  // A title that IS just the date keeps itself rather than becoming blank.
+  if (rest.trim() === "") return { lead: "", text: title };
+
+  const cut = rest.indexOf(" - ");
+  if (cut < 0) return { lead: "", text: trimLead(rest) };
+
+  return {
+    lead: trimLead(rest.slice(0, cut)),
+    text: rest.slice(cut + 3).trim(),
+  };
+}
+
+/** Drops the punctuation that only joined a title to the date in front of it. */
+function trimLead(s: string): string {
+  return s
+    .replace(/^[\s,;:-]+/, "")
+    .replace(/^\((.*)\)$/, "$1")
+    .trim();
+}
+
 /* How many records a group holds, INCLUDING the one lifted onto its heading.
  *
  * ⛔ THE GROUP COUNTS HAVE TO SUM TO THE NUMBER IN THE TITLE BAR. Lifting the
