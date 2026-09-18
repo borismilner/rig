@@ -242,6 +242,49 @@ install-window: build-rigwindow ## Install the window, tray, user service and de
 	@echo "    systemctl --user enable --now $(BIND).service"
 	@echo "    systemctl --user enable --now rigwindow.service"
 
+# redeploy is the ONE CALL, and it exists because several was the interface he
+# had to type. PLAN.md section 28, Boris 2026-09-18: "We should have a Make
+# target that builds and re-deploys everything; It's easier that doing multiple
+# Make calls" and "Re-deployment should elegantly gracefully close the live
+# instances and deploy the new ones instead of them."
+#
+# ⛔ A COMPOSITE, NOT A REPLACEMENT. `install` and `install-window` keep their
+# contracts and their separate existence: `install` must not need gtk3 and
+# webkit2gtk, because a box that only ever wanted the daemon must still be able
+# to install one. This target is for the machine that wants both.
+#
+# ⛔ THE ORDER IS THE REQUIREMENT. Both binaries are built AND both answer
+# `--version` before anything live is stopped - clause 1 applied to two halves
+# at once, so a window that will not build cannot take the daemon down with it.
+#
+# ⛔ WHAT IT DELIBERATELY DOES NOT TOUCH, and each one is a separate
+# deployment: `rig-team.service` on its own XDG_STATE_HOME, and any private
+# daemon a peer is running on its own XDG_RUNTIME_DIR. Clause 7 says stopping
+# "the daemon" by pattern would take a peer's work with it, and that rule is
+# not narrowed by wanting one call.
+redeploy: build build-rigwindow ## Build and redeploy EVERYTHING live - daemon, client and window
+	@build/$(BIND) --version >/dev/null 2>&1 || { \
+	  echo "the new $(BIND) does not answer --version; NOTHING was replaced"; exit 1; }
+	@build/rigwindow --version >/dev/null 2>&1 || { \
+	  echo "the new rigwindow does not answer --version; NOTHING was replaced"; exit 1; }
+	@echo
+	@echo "  Both new binaries answer --version. Replacing what is live."
+	@echo
+	@$(MAKE) --no-print-directory install
+	@$(MAKE) --no-print-directory install-window
+	@echo
+	@echo "  The window's turn, and this is the half a plain install-window"
+	@echo "  never did: the file was replaced and the RUNNING tray kept its"
+	@echo "  own deleted inode. PLAN.md section 28."
+	@echo
+	@tools/restart-window.sh rigwindow.service
+	@echo
+	@echo "redeployed to $(VERSION):"
+	@echo "    $(PREFIX)/bin/$(BIN), $(PREFIX)/bin/$(BIND), $(PREFIX)/bin/rigwindow"
+	@echo
+	@echo "NOT TOUCHED, on purpose - each is a separate deployment:"
+	@echo "    rig-team.service, and any daemon on a private XDG_RUNTIME_DIR"
+
 uninstall: ## Remove the installed binaries and the user service
 	-@systemctl --user disable --now $(BIND).service 2>/dev/null || true
 	rm -f $(PREFIX)/bin/$(BIN) $(PREFIX)/bin/$(BIND)
@@ -322,6 +365,11 @@ cover-html: cover ## Open the coverage report in a browser
 	go tool cover -html=$(COVER_OUT)
 
 ##@ Quality
+
+# gate is the scoped answer to "is what I touched clean", which neither `ci`
+# nor `lint` can give on a tree several seats share. BACKLOG.md B84.
+gate: ## Gate ONLY the packages you touched (or named), and say what it did not cover
+	@go run ./cmd/gate $(GATE_ARGS)
 
 lint: lint-house ## Run golangci-lint plus the house analyzers
 	golangci-lint run $(LINT_DIRS)
