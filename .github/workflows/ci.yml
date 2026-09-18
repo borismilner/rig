@@ -49,6 +49,25 @@ jobs:
       - name: make ci
         run: make ci
 
+      - name: make bench-size
+        # ⛔ SECTION 17's FOOTPRINT RATCHET HAD NO STEP AND HAD NEVER RUN, which
+        # is why every row in size-ratchet.json was stale by 2026-09-18: rigd
+        # was 4.7 MB over and nobody knew. Two comments in THIS file already
+        # cite it - `fetch-depth: 0` exists so `git describe` reaches the
+        # -ldflags string the ratchet measures, and `go-version-file` exists
+        # because a ratchet is only meaningful against a fixed toolchain - so
+        # the workflow was built for a step that was never added.
+        #
+        # This is the contrast gate's failure repeated: section 20's ratio rule
+        # was prose until a step existed, and the focus ring shipped at 2.17:1
+        # while nothing called it. A gate that exists and is not called is not
+        # a gate.
+        #
+        # Its own step rather than part of `make ci` because it depends on
+        # `build`, and `make ci` is the target that must stay runnable without
+        # producing artefacts.
+        run: make bench-size
+
       - name: make lint
         run: make lint
 
