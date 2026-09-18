@@ -775,14 +775,14 @@ the loop-nobody-sent failure, caught by the record seat chasing its lead.
 
 | | |
 |---|---|
-| **ONE RECORD = ONE HEADING** | ⛔ **WIDENED TO `#####` ON 2026-09-17, BY BORIS, AFTER THE IMPORT WAS BUILT.** Every `##`, `###`, `####` and `#####`. **342 requirement records** over 42 section files - 56 / 183 / 90 / 13 by level - against 639 for bold-leads and 39 for whole sections |
+| **ONE RECORD = ONE HEADING** | ⛔ **WIDENED TO `#####` ON 2026-09-17, BY BORIS, AFTER THE IMPORT WAS BUILT.** Every `##`, `###`, `####` and `#####`. **380 requirement records** over 42 section files - 62 / 211 / 90 / 17 by level - against 639 for bold-leads and 39 for whole sections. ⛔ **EVERY COUNT IN THIS TABLE IS AS-OF A COMMIT AND GOES STALE THE NEXT TIME ANYBODY ADDS A HEADING** - 342 was true at rig `ec7748e` and was carried in prose through 20 commits after it. **Re-measure rather than trust it:** `go test ./internal/record -run TestTheRealPlanKeysAreUnique -v` parses the live directory, and `rigseed --check` is the whole answer |
 | **why it moved** | thirteen `#####` headings fell outside the original bound and **three were his own rulings**, including this section's *"fill everything in first"* - the ruling the whole plan import came from. **A ruling nobody could reach from rig was the argument.** He was shown the cost (329 -> 342 records, about 4% more graph) and took it |
 | ⛔ **239 WAS NEVER RIGHT** | measured with the shipped parser over `git archive` at the exact commit that wrote it: the grain yields **247** there, so **8 was a hand count and not growth**. The other 82 are growth and account fully - +28 from new sections 40, 41, 42 and +54 in existing ones, less 4. **247 + 82 = 329**, then +13 from the widening |
 | **what it buys** | a **~40% smaller graph than the bold-lead grain**, so every traversal figure the record seat has published improves |
 | **what it costs, stated because he was shown it** | **a requirement stated mid-paragraph under a heading with five others is not separately addressable.** A supersede names the heading, not the sentence |
 | **what it refuses** | the 39-section grain. §37 is **942 lines**; a link to it points at a DOCUMENT rather than a requirement, which is attack finding 5's failed row |
 
-### ⛔ THE 342 REQUIREMENTS ARE REVISITED BEFORE THEY ARE SEEDED, AND IT IS AN EDITORIAL PASS. BORIS, 2026-09-18.
+### ⛔ EVERY REQUIREMENT IS REVISITED BEFORE IT IS SEEDED, AND IT IS AN EDITORIAL PASS. BORIS, 2026-09-18.
 
 **His words, verbatim, sent while the gap list was being worked:**
 
@@ -894,6 +894,60 @@ requirement records today, so acts 1 to 3 are free right now and dear later.
 **So the editorial pass comes FIRST and the seed second**, which is also the
 plain reading of *"have it good and ready"*.
 
+### ⛔ THE ID IS THE FRIENDLY NAME OF EACH HEADING, NOT ITS FULL SLUG. BORIS, 2026-09-18.
+
+⛔ **HE OPENED THE ID SCHEME ON BEING SHOWN WHAT IT PRODUCED**, in the same
+breath as granting the judgement:
+
+> *"I trust your judgement if it's free today and it's better then you should do
+> it."*
+
+**What he was shown, measured over this repository's own `plan/`:**
+
+| | full slug | friendly name |
+|---|---|---|
+| **median key** | 93 characters | **44** |
+| **p90** | 167 | **65** |
+| **longest** | ⛔ **287** | **95** |
+| **repeating their own section number** | ⛔ **272 of 379** | **0** |
+| **collisions** | 0 | **0** |
+
+⛔ **THE 287-CHARACTER KEY IS THE ARGUMENT AND IT IS REAL, NOT A LIMIT CASE:**
+
+    37/37-two-estates-and-the-gate-before-rig-develops-rig/every-seat-is-armed-not-merely-permitted-and-this-is-his-stated-main-reason-for/check-the-surface-your-mission-already-touches-do-not-stray-ruled-by-boris-2026/and-the-capability-he-derived-from-the-first-statement-stands-unnarrowed
+
+**The same heading now keys `37/two-estates/every-seat-is-armed/check-the-surface-your-mission/and-the-capability-he-derived`.**
+
+⛔ **THE DOUBLED SECTION NUMBER WAS A GENERATOR ARTEFACT AND NOT A DESIGN.**
+`tools/plansplit.py` writes every section file's first line as `## NN. Title`
+and checks the file name against it, so the number is positional - and
+`planKey` was slugging it as though it were part of what the heading says.
+`31/31-what-the-attack-changed/what-was-not-attacked` says `31` twice.
+
+⛔ **IT IS ONE RULE AND NOT A SECOND SPELLING.** The key component is
+`record.FriendlyTag` - the same function the `section:` tag uses - so a heading
+cannot name itself one way in a key and another in a filter. `FriendlyTag`'s
+own comment used to say the key kept its full slug and the two were separate on
+purpose; **the separation that is real is that a TAG must not carry an ID**, and
+that argument never asked for a 287-character key.
+
+⛔ **THE ID STILL STAYS AN ID, WHICH IS HIS OTHER RULING FROM THE SAME DAY.**
+*"`B46` is maybe good for AI agents because it's short and maps easily"* - so
+`B46` is untouched, `planSlug` falls back to the full slug for a heading that is
+nothing but an id, and nothing here renames a backlog row.
+
+⛔ **WHAT IT COSTS, STATED BECAUSE IT IS THE ONLY COST.** The friendly rule
+cuts at the first clause end, so two headings that agree up to their first comma
+now key the same way where the full slug needed them word-for-word identical.
+**Zero such pairs exist today, and the day one is written it is REPORTED** -
+`UnimportedDuplicateKey`, and `make ci` fails on it rather than the seed. It is
+a loud failure by construction, never a silent supersession.
+
+⛔ **AND IT WAS FREE EXACTLY ONCE.** The live store held ZERO requirement
+records when this landed, so no id had to be retracted and re-put. Doing it
+after the first seed costs a retraction plus a re-put per heading, which is the
+same arithmetic the editorial pass runs on.
+
 ### ⛔ IT LIFTS §11's "NOT INVENTING A DESCRIPTION" - FOR EVERY KIND, NOT ONLY THIS ONE
 
 ⛔ **CORRECTED BY BORIS THE SAME DAY, AND THE FIRST ANSWER THIS SECTION GAVE WAS
@@ -919,7 +973,7 @@ about composing prose was ever its subject.
 
 ### The open question on act 5, parked with a default rather than blocking
 
-⛔ **"ON THE DISK IN LOGBOOK" DOES NOT RESOLVE: THE 342 LIVE IN `plan/`, IN THE
+⛔ **"ON THE DISK IN LOGBOOK" DOES NOT RESOLVE: THE REQUIREMENTS LIVE IN `plan/`, IN THE
 REPO, NOT IN THE LOGBOOK.** The logbook holds `BACKLOG.md` and `DECISIONS.md`;
 the requirements are `plan/NN-*.md`. **Two readings, and they differ in cost:**
 

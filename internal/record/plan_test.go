@@ -8,6 +8,7 @@
 package record
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -83,9 +84,9 @@ deep prose
 		t.Fatalf("parsing: %v", err)
 	}
 
-	want := "39/39-the-continuity-record 39/39-the-continuity-record/a-ruling " +
-		"39/39-the-continuity-record/a-ruling/the-detail " +
-		"39/39-the-continuity-record/a-ruling/the-detail/the-ruling-under-the-detail"
+	want := "39/continuity-record 39/continuity-record/ruling " +
+		"39/continuity-record/ruling/detail " +
+		"39/continuity-record/ruling/detail/ruling-under-the-detail"
 	if got := strings.Join(planKeys(p), " "); got != want {
 		t.Errorf("entries = {%s}\n          want {%s}", got, want)
 	}
@@ -100,7 +101,7 @@ deep prose
 	if u.Label != "Too deep to be a record" || u.Line != 18 {
 		t.Errorf("the report does not resolve to the heading: %+v", u)
 	}
-	if u.Under != "39/39-the-continuity-record/a-ruling/the-detail/the-ruling-under-the-detail" {
+	if u.Under != "39/continuity-record/ruling/detail/ruling-under-the-detail" {
 		t.Errorf("the deep heading names %q as its enclosure, want the `#####` above it", u.Under)
 	}
 }
@@ -122,10 +123,10 @@ func TestTheKeyCarriesTheSectionNumberAndTheWholeAncestorChain(t *testing.T) {
 		t.Fatalf("parsing 41: %v", err)
 	}
 
-	if got := strings.Join(planKeys(pa), " "); got != "40/where-it-sits 40/where-it-sits/the-detail" {
+	if got := strings.Join(planKeys(pa), " "); got != "40/where-it-sits 40/where-it-sits/detail" {
 		t.Errorf("section 40 keys = {%s}", got)
 	}
-	if got := strings.Join(planKeys(pb), " "); got != "41/where-it-sits 41/where-it-sits/the-detail" {
+	if got := strings.Join(planKeys(pb), " "); got != "41/where-it-sits 41/where-it-sits/detail" {
 		t.Errorf("section 41 keys = {%s}", got)
 	}
 	for _, x := range planKeys(pa) {
@@ -237,21 +238,54 @@ func TestAnUnclosedFenceIsRefusedRatherThanAnswered(t *testing.T) {
 // one run supersede each other, so which content survived would be decided by
 // the order the files were read in - a silent wrong answer nobody could account
 // for later.
+//
+// ⛔ THE SECOND CASE IS THE ONE THE FRIENDLY KEY MADE POSSIBLE, AND IT IS WHY
+// THIS TEST GREW RATHER THAN MOVED. Under the full slug two headings had to be
+// word-for-word identical to collide. `planSlug` cuts at the first clause end,
+// so two headings that agree up to their first comma now key the same way -
+// which is the price of a key with a p50 of 44 instead of 93, and it is paid
+// LOUDLY: the second is reported, never silently dropped.
 func TestTwoHeadingsKeyingTheSameWayAreReportedAndWrittenOnce(t *testing.T) {
-	p, err := ParsePlanDir(fstest.MapFS{
-		"07-storage.md": &fstest.MapFile{Data: []byte("## The one line\n\n## The one line\n")},
-	})
+	for name, doc := range map[string]string{
+		"word for word":     "## The one line\n\n## The one line\n",
+		"same first clause": "## The one line, as he wrote it\n\n## The one line, as it shipped\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			p, err := ParsePlanDir(fstest.MapFS{
+				"07-storage.md": &fstest.MapFile{Data: []byte(doc)},
+			})
+			if err != nil {
+				t.Fatalf("parsing: %v", err)
+			}
+			if got := strings.Join(planKeys(p), " "); got != "7/one-line" {
+				t.Errorf("entries = {%s}, want the first read only", got)
+			}
+			if len(p.Unimported) != 1 || p.Unimported[0].Kind != UnimportedDuplicateKey {
+				t.Fatalf("unimported = %v, want one duplicate-key report", p.Unimported)
+			}
+			if p.Unimported[0].ID != "7/one-line" {
+				t.Errorf("the report names %q, want the key that collided", p.Unimported[0].ID)
+			}
+		})
+	}
+}
+
+// ⛔ THE REAL `plan/` HOLDS NO COLLISION, AND THIS IS A GATE RATHER THAN A
+// MEASUREMENT. The clause cut above makes one possible, and the day an edit to
+// a title creates one, a requirement stops being imported. `rigseed --check`
+// would say so at seed time; this says so at `make ci` time, which is before
+// anybody has to undo anything.
+func TestTheRealPlanKeysAreUnique(t *testing.T) {
+	pp, err := ParsePlanDir(os.DirFS("../../plan"))
 	if err != nil {
-		t.Fatalf("parsing: %v", err)
+		t.Fatalf("parsing the repository's own plan directory: %v", err)
 	}
-	if got := strings.Join(planKeys(p), " "); got != "7/the-one-line" {
-		t.Errorf("entries = {%s}, want the first read only", got)
-	}
-	if len(p.Unimported) != 1 || p.Unimported[0].Kind != UnimportedDuplicateKey {
-		t.Fatalf("unimported = %v, want one duplicate-key report", p.Unimported)
-	}
-	if p.Unimported[0].ID != "7/the-one-line" {
-		t.Errorf("the report names %q, want the key that collided", p.Unimported[0].ID)
+	for _, u := range pp.Unimported {
+		if u.Kind == UnimportedDuplicateKey {
+			t.Errorf("%s collides with a heading already keyed that way: %q at line %d. "+
+				"Two headings now agree up to their first clause end; give one of them a "+
+				"different opening clause", u.ID, u.Label, u.Line)
+		}
 	}
 }
 
@@ -298,7 +332,7 @@ func TestTheSectionNumberIsReadFromTheFileName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parsing: %v", err)
 	}
-	e := planEntry(t, p, "9/9-built-for-agents")
+	e := planEntry(t, p, "9/built-for-agents")
 	if e.Section != 9 {
 		t.Errorf("section = %d, want 9", e.Section)
 	}
@@ -342,11 +376,11 @@ func TestEveryEntryCarriesItsSectionsOwnTitle(t *testing.T) {
 	}
 
 	for id, want := range map[string]string{
-		"40/40-the-knowledge-sharing-section":                         "40. The knowledge-sharing section",
-		"40/40-the-knowledge-sharing-section/what-it-holds":           "40. The knowledge-sharing section",
-		"40/40-the-knowledge-sharing-section/what-it-holds/the-shape": "40. The knowledge-sharing section",
-		"22/22-tech-stack":    "22. Tech stack",
-		"22/22-tech-stack/go": "22. Tech stack",
+		"40/knowledge-sharing-section":                     "40. The knowledge-sharing section",
+		"40/knowledge-sharing-section/what-it-holds":       "40. The knowledge-sharing section",
+		"40/knowledge-sharing-section/what-it-holds/shape": "40. The knowledge-sharing section",
+		"22/tech-stack":    "22. Tech stack",
+		"22/tech-stack/go": "22. Tech stack",
 	} {
 		if got := planEntry(t, p, id).SectionTitle; got != want {
 			t.Errorf("%s: SectionTitle = %q, want %q - a child tagged by another "+
@@ -366,5 +400,45 @@ func TestTheSectionTitleIsTheFirstHeadingEvenWhereItIsNotAnEntry(t *testing.T) {
 	}
 	if got := planEntry(t, p, "30/why-rig").SectionTitle; got != "30. Name" {
 		t.Errorf("SectionTitle = %q, want %q", got, "30. Name")
+	}
+}
+
+// ⛔ A HEADING THAT IS NOTHING BUT AN ID STILL GETS A KEY. `planSlug` reads the
+// friendly rule first, and that rule STRIPS a leading id as decoration - so a
+// heading of `B46` and nothing else comes back empty from it. An empty
+// component would key every such heading in a section the same way, which is
+// the silent-supersession failure the whole key scheme exists to avoid.
+func TestAHeadingThatIsOnlyAnIdFallsBackToTheFullSlug(t *testing.T) {
+	p, err := ParsePlanSection(strings.NewReader("## B46\n\n## B47\n"),
+		"plan/07-storage.md", 7)
+	if err != nil {
+		t.Fatalf("parsing: %v", err)
+	}
+	if got := strings.Join(planKeys(p), " "); got != "7/b46 7/b47" {
+		t.Errorf("keys = {%s}, want {7/b46 7/b47} - an empty component would key "+
+			"both headings as %q", got, "7/")
+	}
+	if len(p.Unimported) != 0 {
+		t.Errorf("unimported = %v, want none - both headings have a title", p.Unimported)
+	}
+}
+
+// ⛔ THE KEY IS BOUNDED, AND THE BOUND IS WHY THE SCHEME CHANGED. The full slug
+// gave a p50 of 93 and a MAXIMUM OF 287 over this repository's own plan. A
+// number here rather than a comment, so a rule change that puts it back is a
+// red test rather than a thing somebody notices later.
+func TestNoPlanKeyRunsPastTheMeasuredBound(t *testing.T) {
+	pp, err := ParsePlanDir(os.DirFS("../../plan"))
+	if err != nil {
+		t.Fatalf("parsing the repository's own plan directory: %v", err)
+	}
+
+	// 95 is the longest this rule produces over `plan/` today, at five levels
+	// deep; the bound has the headroom of one more component and no more.
+	const bound = 128
+	for _, e := range pp.Entries {
+		if n := len(e.Key); n > bound {
+			t.Errorf("%s is %d characters, past the %d bound", e.Key, n, bound)
+		}
 	}
 }

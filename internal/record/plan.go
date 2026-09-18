@@ -61,9 +61,9 @@ var planFileName = regexp.MustCompile(`^(\d+)-.+\.md$`)
 // PlanEntry is one heading of one section file, at the ruled grain.
 type PlanEntry struct {
 	// Key is the record id: the section number, then every enclosing heading's
-	// slug, then this heading's own.
+	// short name, then this heading's own.
 	//
-	// ⛔ THE SECTION NUMBER LEADS BECAUSE THE SLUGS ALONE ARE NOT UNIQUE ACROSS
+	// ⛔ THE SECTION NUMBER LEADS BECAUSE THE NAMES ALONE ARE NOT UNIQUE ACROSS
 	// 42 FILES. "Where it sits" and "What it is, in one line" are headings
 	// several sections use, and a key that dropped the number would silently
 	// make one section's heading supersede another's - two puts against one id,
@@ -231,7 +231,7 @@ func parsePlanSection(r io.Reader, file string, section int, taken map[string]Pl
 			continue
 		}
 
-		slug := decisionSlug(title)
+		slug := planSlug(title)
 		e := PlanEntry{
 			Title:   title,
 			Section: section,
@@ -262,6 +262,35 @@ func parsePlanSection(r io.Reader, file string, section int, taken map[string]Pl
 		out.Entries = append(out.Entries, e)
 	}
 	return out, nil
+}
+
+// planSlug is one heading's component of the key.
+//
+// ⛔ IT IS `FriendlyTag` AND NOT `decisionSlug`, RULED BY BORIS 2026-09-18 ON
+// MEASUREMENT. The full slug of every enclosing heading gave keys with a p50 of
+// 93 characters and a MAXIMUM OF 287, and 272 of the 379 repeated their own
+// section number because `plansplit` writes each file's first heading as
+// `## NN. Title`. The friendly rule takes the same set to p50 44 and max 95
+// with ZERO collisions. Shown both, he ruled: *"if it's free today and it's
+// better then you should do it"*, and it is free exactly once - the live store
+// holds no requirement record, so nothing has to be retracted.
+//
+// ⛔ AND IT IS ONE RULE RATHER THAN A SECOND SPELLING. `FriendlyTag` was
+// written for the reading surface and its own comment used to say the key and
+// the tag were separate on purpose; that separation was about the tag not
+// carrying an ID, and it does not argue for an unreadable key. Deriving both
+// from one function is what stops a heading naming itself two ways.
+//
+// ⛔ THE FALLBACK IS OWED BECAUSE THE FRIENDLY RULE CAN EMPTY A TITLE. A
+// heading that is nothing but an id - `B46` - has its id stripped as decoration
+// and comes back empty, and an empty component would key two headings the same
+// way. `decisionSlug` keeps it whole, so the fallback is the OLD rule rather
+// than a new one.
+func planSlug(title string) string {
+	if s := FriendlyTag(title); s != "" {
+		return s
+	}
+	return decisionSlug(title)
 }
 
 // planKey is the record id one heading gets.

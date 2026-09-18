@@ -9,9 +9,19 @@ import (
 // FriendlyTag turns a heading's TEXT into a tag a person can read in a filter.
 //
 // The bar and the reasoning are `plan/39`, "the bar is useful and friendly";
-// the values it replaced are in `DECISIONS.md`, 2026-09-18. What matters here:
-// the KEY keeps its id and its full slug, this is the READING surface, and the
-// two are separate on purpose.
+// the values it replaced are in `DECISIONS.md`, 2026-09-18.
+//
+// ⛔ IT NAMES A PLAN HEADING'S KEY COMPONENT TOO, SINCE 2026-09-18, AND THIS
+// COMMENT USED TO SAY THE OPPOSITE. It said the key kept its full slug and that
+// the two were separate on purpose. **The separation that is real is a
+// different one:** a tag must not carry an ID, which is why `leadingID` and
+// `leadingSection` exist. That argument never said a key should be 287
+// characters long, which is what the full slug produced. Boris ruled the key
+// onto this rule on measurement; `planSlug` carries the numbers.
+//
+// ⛔ WHAT STAYS SEPARATE IS THE ID ITSELF. `B46` is still the id of B46 - "it's
+// short and maps easily" - and this function strips it from a tag. One
+// function, two callers, and neither of them invents an id.
 //
 // The rule, in order:
 //

@@ -56,7 +56,7 @@ func TestAPlanHeadingCarriesNoStatusAndNoDate(t *testing.T) {
 	p := planFor(o, oneRow(), record.DecisionParse{},
 		planParseOf(t, "07-storage.md", "## 7. Storage\n\n2026-09-16 prose with a date in it\n"))
 
-	in := intentFor(t, p, "7/7-storage")
+	in := intentFor(t, p, "7/storage")
 	for _, banned := range []string{fieldStatus, "date", "doc-date", "priority", "supersedes"} {
 		if v, ok := in.fields[banned]; ok {
 			t.Errorf("a plan heading carries %s=%q; the document states no such thing and "+
@@ -102,7 +102,7 @@ func TestTheSourceFieldIsThePathAReaderWouldType(t *testing.T) {
 	p := planFor(o, oneRow(), record.DecisionParse{},
 		planParseOf(t, "22-tech-stack.md", "## 22. Tech stack\n"))
 
-	if got := intentFor(t, p, "22/22-tech-stack").fields["source"]; got != "some/where/plan/22-tech-stack.md" {
+	if got := intentFor(t, p, "22/tech-stack").fields["source"]; got != "some/where/plan/22-tech-stack.md" {
 		t.Errorf("source = %q, want the joined path", got)
 	}
 }
@@ -115,9 +115,9 @@ func TestAPlanHeadingsParentIsTheHeadingAboveIt(t *testing.T) {
 		planParseOf(t, "05-architecture.md", "## 5. Architecture\n\n### The dumb pipe\n\n#### What it costs\n"))
 
 	for id, want := range map[string]string{
-		"5/5-architecture":                             "",
-		"5/5-architecture/the-dumb-pipe":               "5/5-architecture",
-		"5/5-architecture/the-dumb-pipe/what-it-costs": "5/5-architecture/the-dumb-pipe",
+		"5/architecture":                         "",
+		"5/architecture/dumb-pipe":               "5/architecture",
+		"5/architecture/dumb-pipe/what-it-costs": "5/architecture/dumb-pipe",
 	} {
 		if got := intentFor(t, p, id).partOf; got != want {
 			t.Errorf("%s is part-of %q, want %q", id, got, want)
@@ -144,7 +144,7 @@ func TestAHeadingBelowTheRuledGrainIsReportedWithItsFileAndLine(t *testing.T) {
 		planParseOf(t, "39-the-continuity-record.md",
 			"## 39. The continuity record\n\n###### DEEPER THAN THE RULED GRAIN.\n"))
 
-	if has(ids(p.want), "39/39-the-continuity-record/deeper-than-the-ruled-grain") {
+	if has(ids(p.want), "39/continuity-record/deeper-than-the-ruled-grain") {
 		t.Fatal("a heading below the ruled grain was IMPORTED; the grain is Boris's")
 	}
 	if len(p.unimported) != 1 {
@@ -165,20 +165,20 @@ func TestAHeadingBelowTheRuledGrainIsReportedWithItsFileAndLine(t *testing.T) {
 func TestAnIdTheBacklogAndThePlanBothStateIsWrittenOnceAndReported(t *testing.T) {
 	o := options{project: "rig", backlog: "BACKLOG.md", decisions: "DECISIONS.md", planDir: "plan"}
 	p := planFor(o,
-		record.BacklogParse{Items: []record.BacklogItem{{ID: "7/7-storage", Title: "a row keyed like a plan heading"}}},
+		record.BacklogParse{Items: []record.BacklogItem{{ID: "7/storage", Title: "a row keyed like a plan heading"}}},
 		record.DecisionParse{},
 		planParseOf(t, "07-storage.md", "## 7. Storage\n"))
 
 	n := 0
 	for _, in := range p.want {
-		if in.id == "7/7-storage" {
+		if in.id == "7/storage" {
 			n++
 		}
 	}
 	if n != 1 {
 		t.Errorf("the id is planned %d times; two puts against one id supersede each other", n)
 	}
-	if got := strings.Join(p.collided, " "); got != "7/7-storage" {
+	if got := strings.Join(p.collided, " "); got != "7/storage" {
 		t.Errorf("collided = {%s}, want the id both documents state", got)
 	}
 }
@@ -451,7 +451,7 @@ func TestTheSectionTagCarriesNoSectionNumber(t *testing.T) {
 		planParseOf(t, "40-the-knowledge-sharing-section.md",
 			"## 40. The knowledge-sharing section\n\nprose\n"))
 
-	in := intentFor(t, p, "40/40-the-knowledge-sharing-section")
+	in := intentFor(t, p, "40/knowledge-sharing-section")
 	if got, want := in.fields[fieldTags], `["section:knowledge-sharing-section"]`; got != want {
 		t.Errorf("tags = %q, want %q", got, want)
 	}
