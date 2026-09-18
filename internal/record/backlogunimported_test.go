@@ -289,13 +289,20 @@ func TestRigsOwnBacklogSaysExactlyWhatItDidNotImport(t *testing.T) {
 			"row-without-id id=\"\" label=\"3\" title=\"§37.3 build and semantic skew detected\" under=\"\" section=\"the-critical-path-to-the-gate\" cells=4",
 			"row-without-id id=\"\" label=\"4\" title=\"§37.2 storage keyed by estate\" under=\"\" section=\"the-critical-path-to-the-gate\" cells=4",
 			"row-without-id id=\"\" label=\"5\" title=\"§37.5 systemd manages production only\" under=\"\" section=\"the-critical-path-to-the-gate\" cells=4",
-			"row-without-id id=\"\" label=\"6\" title=\"M7 Peers - THE MINIMUM SET ONLY\" under=\"\" section=\"the-critical-path-to-the-gate\" cells=4",
+			// ⛔ THESE THREE MIRROR THE LIVE DOCUMENT AND MOVED WITH IT ON
+			// 2026-09-18, when `tools/deshout.py` took the shouting out of 254
+			// titles. ONLY THEIR CASE CHANGED, and the tool asserts that on
+			// every line it writes - the ids and the section slugs above are
+			// derived by lowercasing, so not one of them moved. The fixture at
+			// the top of this file is this test's OWN and is deliberately still
+			// shouting: it proves the parser reads a title whatever its case.
+			"row-without-id id=\"\" label=\"6\" title=\"M7 Peers - the minimum set only\" under=\"\" section=\"the-critical-path-to-the-gate\" cells=4",
 			"row-without-id id=\"\" label=\"6a\" title=\"§38b: the library search for rows 2, 3 and the WAL\" under=\"\" section=\"the-critical-path-to-the-gate\" cells=4",
 			"row-without-id id=\"\" label=\"7\" title=\"The FIRST cutover, and the gate\" under=\"\" section=\"the-critical-path-to-the-gate\" cells=4",
 			"row-without-id id=\"\" label=\"8\" title=\"The remaining cutovers, one capability at a time\" under=\"\" section=\"the-critical-path-to-the-gate\" cells=4",
 			"row-without-id id=\"\" label=\"9\" title=\"§39 THE CONTINUITY RECORD - and this row is BORIS'S ORDER, not a seat's reading\" under=\"\" section=\"the-critical-path-to-the-gate\" cells=4",
-			"heading id=\"B46\" label=\"⛔ B46 - THE MVP ACCEPTANCE TEST, AND IT EXISTED IN NO DOCUMENT AT ALL\" title=\"THE MVP ACCEPTANCE TEST, AND IT EXISTED IN NO DOCUMENT AT ALL\" under=\"\" section=\"rig-s-development-plan\" cells=0",
-			"heading id=\"B46d\" label=\"⛔ B46d - THE CYCLE IS CONSTRUCTED, AND THE RELAY SAID OTHERWISE\" title=\"THE CYCLE IS CONSTRUCTED, AND THE RELAY SAID OTHERWISE\" under=\"B46\" section=\"b46-the-mvp-acceptance-test-and-it-existed-in-no-document-at-all\" cells=0",
+			"heading id=\"B46\" label=\"⛔ B46 - the MVP acceptance test, and it existed in no document at all\" title=\"the MVP acceptance test, and it existed in no document at all\" under=\"\" section=\"rig-s-development-plan\" cells=0",
+			"heading id=\"B46d\" label=\"⛔ B46d - the cycle is constructed, and the relay said otherwise\" title=\"the cycle is constructed, and the relay said otherwise\" under=\"B46\" section=\"b46-the-mvp-acceptance-test-and-it-existed-in-no-document-at-all\" cells=0",
 			"other-table id=\"B6\" label=\"**B6** two shipped-output changes, one migration\" title=\"\" under=\"\" section=\"the-adopter-column-holds-a-role-never-a-session-name\" cells=2",
 			"other-table id=\"B10\" label=\"**B10** `--json` renders in the daemon\" title=\"\" under=\"\" section=\"the-adopter-column-holds-a-role-never-a-session-name\" cells=2",
 			"other-table id=\"B18\" label=\"**B18** the session token has no consumer\" title=\"\" under=\"\" section=\"the-adopter-column-holds-a-role-never-a-session-name\" cells=2",

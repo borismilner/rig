@@ -70,7 +70,13 @@
          bodies hold one. Under pre-wrap a 120-character row of pipes wrapped
          to four lines per cell and the columns stopped existing. -->
     <div class="tw">
-      <table>
+      <!-- ⛔ THE CELL CAP DEPENDS ON HOW MANY COLUMNS THERE ARE, AND A FIXED
+           ONE IS WRONG AT BOTH ENDS. 44ch stops one column eating a wide
+           table; on a ONE-column table it squeezed 40-character lines into a
+           1,150px panel with 800px empty beside them, which is the same
+           ugliness in the other direction. CSS cannot count columns, so the
+           count comes from the token. -->
+      <table style:--cell-max={b.header.length > 1 ? "44ch" : "68ch"}>
         <thead>
           <tr>
             {#each b.header as h, i}
@@ -189,7 +195,7 @@
     /* A cell wraps rather than forcing the table wider, but a long unbroken
        id in a cell must still break or it sets the column's width alone. */
     overflow-wrap: anywhere;
-    max-width: 44ch;
+    max-width: var(--cell-max, 44ch);
   }
 
   th {
