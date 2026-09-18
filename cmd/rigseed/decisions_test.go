@@ -419,11 +419,26 @@ func TestARankedRowIsKeyedOnItsTableAndCarriesItsRank(t *testing.T) {
 		fieldRank:    "9",
 		fieldSection: "the-critical-path-to-the-gate",
 		fieldDocLine: "135",
-		"tags":       tagRankOnly,
 	} {
 		if got := in.fields[name]; got != w {
 			t.Errorf("%s = %q, want %q", name, got, w)
 		}
+	}
+	// ⛔ THE TAGS GO THROUGH THE READER, AND THIS ROW USED TO BE IN THE TABLE
+	// ABOVE COMPARING THE RAW STRING AGAINST `rank-only`. That is a writer
+	// checked against itself: `record.DecodeTags` parses JSON, so the bare word
+	// the assertion demanded was a value the store reads as NO tags.
+	//
+	// ⛔ AND THE SECTION IS ON BOTH - IN A FIELD AND IN A TAG - WHICH IS
+	// DELIBERATE. `fieldSection` is an ID QUALIFIER, because a bare rank is not
+	// unique across two unnumbered tables. The tag is the GROUPING axis Boris
+	// asked for, and it is spelled the same way on every grain so a reader
+	// asking "what relates to what" gets one answer rather than having to know
+	// that this grain keeps it somewhere else.
+	if got := record.DecodeTags(in.fields[fieldTags]); len(got) != 2 ||
+		got[0] != tagRankOnly || got[1] != tagSection+"the-critical-path-to-the-gate" {
+		t.Errorf("tags decode to %v, want [%s %sthe-critical-path-to-the-gate]",
+			got, tagRankOnly, tagSection)
 	}
 	// ⛔ NO status. `Unimported` does not export the State cell, so `active`
 	// would be the store contradicting its own document on every row the table

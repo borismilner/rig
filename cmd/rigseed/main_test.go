@@ -276,3 +276,118 @@ func TestTheReportSeparatesASupersessionFromANoOp(t *testing.T) {
 		})
 	}
 }
+
+// ⛔ EVERY TAG THIS SEEDER WRITES MUST COME BACK OUT OF THE STORE'S OWN READER,
+// AND FOR THE LIFE OF THIS FIELD NONE OF THEM DID.
+//
+// `tagsFor` joined with a comma, `headingIntent` and `rankedIntent` each wrote a
+// bare word, and `record.DecodeTags` parses JSON - so all three decoded to
+// nothing. Measured on Boris's live production store 2026-09-18: 54 record
+// versions carry a non-empty tags field and ZERO of them parse.
+//
+// ⛔ THE ASSERTION IS A ROUND TRIP AND NOT A SPELLING CHECK, WHICH IS WHY IT
+// CATCHES THE NEXT GRAIN TOO. A test comparing the field against
+// `["a","b"]` passes for a writer that hand-rolls the JSON and drifts from
+// `EncodeTags` later; running the reader is the only form that cannot.
+//
+// ⛔ AND IT IS ONE SUBTEST PER GRAIN BECAUSE THREE GRAINS WRITE THIS FIELD.
+// One table row covering "the seeder" would go red on the first grain and never
+// reach the other two - the count-the-assertions rule this repo already carries.
+func TestEveryTagTheSeederWritesIsReadableByTheStore(t *testing.T) {
+	o := options{project: "rig", backlog: "BACKLOG.md"}
+
+	for _, c := range []struct {
+		name   string
+		fields map[string]string
+		want   []string
+	}{
+		{
+			name: "the row grain, irregular and placed",
+			fields: rowIntent(o, record.BacklogItem{
+				ID: "B21", Title: "a shifted row", Section: "open",
+				Malformed: true,
+			}).fields,
+			want: []string{"section:open", "malformed"},
+		},
+		{
+			name: "the heading grain",
+			fields: headingIntent(o, record.Unimported{
+				ID: "B46", Title: "the acceptance test", Section: "rig-s-development-plan",
+			}, "").fields,
+			want: []string{"heading-borne", "section:rig-s-development-plan"},
+		},
+		{
+			name: "the ranked grain, whose section is also an id qualifier",
+			fields: rankedIntent(o, record.Unimported{
+				Label: "6a", Section: "the-critical-path-to-the-gate", Line: 110,
+			}, "rig/the-critical-path-to-the-gate/6a").fields,
+			want: []string{"rank-only", "section:the-critical-path-to-the-gate"},
+		},
+		// ⛔ THE UNPLACED CASES, AND THEY ARE HERE BECAUSE A MUTATION SURVIVED
+		// WITHOUT THEM. Making `sectioned` emit the tag unconditionally left
+		// every assertion above GREEN, so nothing held the line that a record
+		// the document placed nowhere gets NO section tag. A tag reading
+		// `section:` is worse than no tag: it says the document stated a place
+		// and then names none.
+		{
+			name: "a heading the document placed nowhere",
+			fields: headingIntent(o, record.Unimported{
+				ID: "B46", Title: "the acceptance test",
+			}, "").fields,
+			want: []string{"heading-borne"},
+		},
+		{
+			name: "a ranked row the document placed nowhere",
+			fields: rankedIntent(o, record.Unimported{
+				Label: "6a", Line: 110,
+			}, "rig//6a").fields,
+			want: []string{"rank-only"},
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			raw := c.fields[fieldTags]
+			if raw == "" {
+				t.Fatalf("this grain wrote no %s field at all", fieldTags)
+			}
+			got := record.DecodeTags(raw)
+			if len(got) == 0 {
+				t.Fatalf("the store reads NO tags off %q, which is the defect this test exists for", raw)
+			}
+			if len(got) != len(c.want) {
+				t.Fatalf("decoded %v off %q, want %v", got, raw, c.want)
+			}
+			for i, w := range c.want {
+				if got[i] != w {
+					t.Errorf("tag %d is %q, want %q (decoded %v)", i, got[i], w, got)
+				}
+			}
+		})
+	}
+}
+
+// ⛔ A ROW IS TAGGED WITH WHERE THE DOCUMENT PUT IT, WHICH IS THE THIRD OF THE
+// THREE SOURCES §11 NAMES AND THE ONLY ONE NOTHING CARRIED.
+//
+// Boris, 2026-09-17: "I'm sure they can be grouped or at least tagged so that
+// the user can see what relates to what." §11 answers it from what the
+// documents ALREADY assert - the section a row sits under, the `part-of`
+// parent, the owner column - and forbids a vocabulary a seat invents. `owner`
+// and `part-of` were carried; the section was not.
+//
+// ⛔ THE EMPTY CASE IS HERE BECAUSE A TAG READING `section:` WOULD BE WORSE
+// THAN NO TAG - it says the document stated a place and names none.
+func TestARowIsTaggedWithTheSectionItSitsUnder(t *testing.T) {
+	o := options{project: "rig", backlog: "BACKLOG.md"}
+
+	placed := record.DecodeTags(rowIntent(o, record.BacklogItem{
+		ID: "B90", Title: "the management panel", Section: "open",
+	}).fields[fieldTags])
+	if len(placed) != 1 || placed[0] != "section:open" {
+		t.Errorf("a placed row carries %v, want exactly [section:open]", placed)
+	}
+
+	loose := rowIntent(o, record.BacklogItem{ID: "B1", Title: "a row in no section"}).fields
+	if raw, ok := loose[fieldTags]; ok {
+		t.Errorf("a row the document placed nowhere carries tags %q; it must carry none", raw)
+	}
+}

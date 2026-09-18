@@ -208,6 +208,11 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 			// CLI write mints a new session every time, so 783 sessions over 451
 			// decisions say nothing. OPEN, and designed rather than open-ended.
 			"B86", "B87", "B88", "B89", "B9", "B90",
+			// B91 filed 2026-09-18 by team-lead generation 19 the turn Boris
+			// stated it: the 342 requirements are revisited before they are
+			// seeded - judged, joined, retitled for his reading and tagged.
+			// OPEN.
+			"B91",
 		})
 
 	// B65 joins this set 2026-09-17: the field predicate landed at rig
@@ -332,9 +337,12 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 		// ⛔ B83 IS DELIBERATELY STILL OPEN although its build landed - the
 		// LIVE store holds none of the 342 records, so the row is not done.
 		// 93 -> 95 rows and 76 -> 78 open: B89 and B90 filed, nothing closed.
-		{"rows", len(items), 95},
+		// 95 -> 96 rows and 78 -> 79 open: B91 filed, nothing closed. The
+		// PARSER test above is GREEN at this commit, which is this pin's own
+		// instrument for saying the DOCUMENT moved rather than the reading.
+		{"rows", len(items), 96},
 		{"closed", len(struck) + len(byLead), 17},
-		{"open", open, 78},
+		{"open", open, 79},
 	} {
 		if c.got != c.want {
 			t.Errorf("%s: %d, pinned at %d.\n"+

@@ -174,6 +174,36 @@ type BacklogItem struct {
 	// Owner is who the row belongs to, from the table's `Seat` or `Adopter`
 	// column. Section 39 declares `owner` and nothing has ever written it.
 	Owner string
+
+	// Section is the nearest enclosing heading, as a slug, and it is the
+	// DOCUMENT'S OWN grouping of its rows.
+	//
+	// ⛔ IT IS THE FIRST HALF OF BORIS'S FOURTH 2026-09-17 REQUIREMENT, WHICH
+	// §11 ANSWERS WITH THE STORE RATHER THAN THE WINDOW: *"I'm sure they can be
+	// grouped or at least tagged so that the user can see what relates to
+	// what."* §11 names three sources that the documents ALREADY assert - the
+	// section a row sits under, the `part-of` parent and the owner column - and
+	// forbids a tag vocabulary a seat invents. `Owner` and `PartOf` were
+	// carried; this is the one that was not.
+	//
+	// ⛔ IT IS NOT `PartOf` AND MUST NEVER BE PROMOTED TO ONE. `Under`'s doc
+	// comment on `Unimported` carries the measurement: heading enclosure as a
+	// `part-of` edge produced TWENTY-FOUR edges this document never states.
+	// Where a row SITS is a fact about the file; `part-of` is a claim about the
+	// work. As a GROUPING the first is exactly what was asked for, which is why
+	// it arrives as a tag and not as an edge.
+	//
+	// ⛔ AND IT IS THE SAME FIELD, WITH THE SAME RULE, AS `Unimported.Section`.
+	// Both come from `sectionStack`, so the two grains cannot drift - which is
+	// that type's own reason for existing.
+	//
+	// ⛔ MEASURED BEFORE IT WAS BUILT, AND THE NUMBER IS A FINDING RATHER THAN
+	// A FEATURE: over rig's own backlog it yields TWO buckets, 50 rows under
+	// `b46-the-mvp-acceptance-test-...` and 45 under `open`. **Fifty rows are
+	// filed under a heading about the MVP acceptance test because the table
+	// under it grew into the general backlog.** A reader who can see that can
+	// fix it; nothing could see it before.
+	Section string
 }
 
 // cells splits a markdown table row and trims every cell. The table is
@@ -1173,6 +1203,9 @@ func (s *backlogScan) item(id string, c []string) BacklogItem {
 	// in would assert that a ruling finished the work. Naming it is what lets a
 	// seeder decide; guessing is what produced the four rows that have seeded
 	// OPEN since B15.
+	// ⛔ READ FROM THE SAME STACK THE OTHER GRAIN USES, NOT RE-DERIVED. A row is
+	// not a heading, so the top of the stack is the heading enclosing it.
+	it.Section = s.heads.section()
 	it.RuledClosed = it.ClaimsDone && strings.Contains(c[s.idCol], "✅")
 	it.Disposition = dispositionOf(it, item, c[s.stateCol])
 	return it

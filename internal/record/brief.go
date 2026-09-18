@@ -422,7 +422,7 @@ func card(it Record) ItemState {
 		Priority:         it.Fields["priority"],
 		Status:           it.Fields["status"],
 		Owner:            it.Fields["owner"],
-		Tags:             decodeTags(it.Fields["tags"]),
+		Tags:             DecodeTags(it.Fields["tags"]),
 		TargetDate:       it.Fields["target_date"],
 		ItemType:         it.Fields["item_type"],
 		Semver:           it.Fields["semver"],
@@ -509,14 +509,21 @@ func itemClosingWord(status, step string) string {
 	}
 }
 
-// decodeTags reads the JSON array a tags field holds.
+// DecodeTags reads the JSON array a tags field holds.
 //
 // ⛔ A MALFORMED VALUE IS NO TAGS, NEVER AN ERROR, and that is deliberate
 // rather than lazy. The alternative is a brief that refuses to answer because
 // one record out of forty-five has a hand-written tags field - which would make
 // the whole derivation hostage to the worst row in the store, in a system whose
 // entire argument is that it answers from what is actually there.
-func decodeTags(raw string) []string {
+//
+// ⛔ IT IS EXPORTED BECAUSE THE UNEXPORTED HALF IS WHAT LET A DEFECT SHIP FOR
+// THE LIFE OF THIS FIELD. `EncodeTags` was exported for writers and this was
+// not, so a writer could not check its own write with the reader's own code -
+// and `cmd/rigseed` wrote comma-joined tags into 54 record versions on Boris's
+// live store, every one of which decoded to nothing. **A tolerant reader needs
+// its writer to be able to run it**, or the tolerance hides the writer's bug.
+func DecodeTags(raw string) []string {
 	if raw == "" {
 		return nil
 	}
@@ -535,7 +542,7 @@ func decodeTags(raw string) []string {
 // IT EXISTS SO THE ENCODING HAS ONE DEFINITION. A caller that joins tags with a
 // comma and a caller that writes JSON produce a store where half the tags are
 // queryable, and nothing would report it - the flat rows simply return no
-// matches and read as items with no tags. Pairs with decodeTags.
+// matches and read as items with no tags. Pairs with DecodeTags.
 func EncodeTags(tags []string) string {
 	if len(tags) == 0 {
 		return ""

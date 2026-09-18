@@ -92,11 +92,52 @@ const tagHeadingBorne = "heading-borne"
 // work is called "9".
 const tagRankOnly = "rank-only"
 
+// tagSection is the prefix on the tag that says WHERE IN THE DOCUMENT a record
+// sits, and the value after it is the document's own heading slug.
+//
+// ⛔ IT IS THE ANSWER SECTION 11 NAMES TO BORIS'S FOURTH 2026-09-17
+// REQUIREMENT - "I'm sure they can be grouped or at least tagged so that the
+// user can see what relates to what" - which that section answers with the
+// STORE and not the window, from what the documents ALREADY assert: "the
+// section a row sits under, the `part-of` parent, the owner column". `owner`
+// and `part-of` were already carried. This is the third.
+//
+// ⛔ IT IS NOT A VOCABULARY A SEAT PICKED, WHICH §11 FORBIDS IN THE SAME
+// BREATH. Every value is a heading the document wrote; the prefix only says
+// which axis the tag is on, so a reader filtering by it is not guessing whether
+// `open` is a status or a place.
+//
+// ⛔ AND IT IS NOT A `part-of` EDGE AND MUST NEVER BE PROMOTED TO ONE. The
+// parser's own measurement: heading enclosure as part-of produced TWENTY-FOUR
+// edges the document never states. As a GROUPING it is exactly what was asked
+// for; as an edge it is a claim nobody made.
+const tagSection = "section:"
+
 // The fields a ranked row carries, named once.
 const (
 	fieldRank    = "rank"
 	fieldSection = "section"
 )
+
+// fieldTags names section 39's grouping field once, because it is written by
+// three grains and a literal in three places is how two of them drifted.
+const fieldTags = "tags"
+
+// sectioned is one grain's own tag plus the section tag, where the document
+// states a section.
+//
+// ⛔ THE RANKED GRAIN CARRIES THE SECTION IN A FIELD ALREADY AND STILL GETS THE
+// TAG, WHICH IS NOT DUPLICATION FOR ITS OWN SAKE. `fieldSection` is there as an
+// ID QUALIFIER - a bare rank is not unique across two unnumbered tables, and
+// its doc comment says so. The tag is the GROUPING AXIS, and a reader asking
+// "what relates to what" must get one answer over every grain rather than
+// having to know that one of them spells it in a different field.
+func sectioned(own, section string) []string {
+	if section == "" {
+		return []string{own}
+	}
+	return []string{own, tagSection + section}
+}
 
 // exitDiverged is what --check exits with when the store and the document are
 // not set-equal.
@@ -652,14 +693,34 @@ func currentVersion(o options, id string) (version uint64, exists bool, err erro
 	return rec.Version, true, nil
 }
 
-// tagsFor flags what is irregular about a row rather than tidying it.
+// tagsFor is what a row is GROUPED by and what is IRREGULAR about it, in the
+// one field section 39 gives for the job.
 //
 // ⛔ SECTION 39'S MIGRATION RULING IS IMPORT EVERYTHING AND FLAG WHAT IS
-// IRREGULAR, and tags is the field it gives for the job - "free-form grouping,
-// queryable like any typed field". A row this seeder quietly normalised would
-// be a row nobody ever fixes.
-func tagsFor(it record.BacklogItem) string {
+// IRREGULAR, and tags is the field it names - "free-form grouping, queryable
+// like any typed field". A row this seeder quietly normalised would be a row
+// nobody ever fixes.
+//
+// ⛔ IT RETURNS A SLICE NOW, AND THAT IS A DEFECT FIX RATHER THAN A TIDY-UP.
+// It used to return `strings.Join(t, ",")` and the store reads this field with
+// `record.DecodeTags`, which parses JSON. So every tag this seeder has ever
+// written decoded to NOTHING. Measured on Boris's live store 2026-09-18: 54
+// record versions carry a non-empty tags field and ZERO of them parse. The
+// window's tag filter - his own "or at least tagged so the user can see what
+// relates to what" - was reading an empty list off records that all had tags.
+//
+// ⛔ `EncodeTags`'s OWN DOC COMMENT PREDICTED THIS EXACT FAILURE AND NAMED THIS
+// CALLER'S SHAPE: "a caller that joins tags with a comma and a caller that
+// writes JSON produce a store where half the tags are queryable, and nothing
+// would report it - the flat rows simply return no matches and read as items
+// with no tags." **The helper existed, said why, and was not called.** So the
+// guard that ships with this is a ROUND-TRIP over every grain's field map, not
+// a note: a tag this seeder writes must come back out of `record.DecodeTags`.
+func tagsFor(it record.BacklogItem) []string {
 	var t []string
+	if it.Section != "" {
+		t = append(t, tagSection+it.Section)
+	}
 	if it.Malformed {
 		t = append(t, "malformed")
 	}
@@ -669,7 +730,7 @@ func tagsFor(it record.BacklogItem) string {
 	if it.RuledClosed {
 		t = append(t, "closed-by-ruling")
 	}
-	return strings.Join(t, ",")
+	return t
 }
 
 // closureNote says HOW the document closed a row, which is the one thing the
@@ -1129,8 +1190,8 @@ func rowIntent(o options, it record.BacklogItem) intent {
 	if note := closureNote(it); note != "" {
 		f["closure_note"] = note
 	}
-	if tags := tagsFor(it); tags != "" {
-		f["tags"] = tags
+	if tags := record.EncodeTags(tagsFor(it)); tags != "" {
+		f[fieldTags] = tags
 	}
 	// ⛔ THE BODY IS THE STATE CELL AND FALLS BACK TO THE TITLE. A row whose
 	// state cell is empty is a real shape in this document, and writing an
@@ -1228,7 +1289,7 @@ func headingIntent(o options, u record.Unimported, parent string) intent {
 			"description_short": title,
 			fieldStatus:         status,
 			"source":            o.backlog,
-			"tags":              tagHeadingBorne,
+			fieldTags:           record.EncodeTags(sectioned(tagHeadingBorne, u.Section)),
 		},
 		partOf: parent,
 	}
@@ -1320,7 +1381,7 @@ func rankedIntent(o options, u record.Unimported, id string) intent {
 			fieldRank:    u.Label,
 			fieldSection: u.Section,
 			fieldDocLine: strconv.Itoa(u.Line),
-			"tags":       tagRankOnly,
+			fieldTags:    record.EncodeTags(sectioned(tagRankOnly, u.Section)),
 		},
 	}
 }
