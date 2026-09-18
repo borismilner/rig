@@ -408,6 +408,37 @@ its own upstream cause: a memory file holding *"the latest one wins and it is
 every session**, which is why the scope is half the record and not a footnote to
 it.
 
+##### ⛔ NO WARM HANDOFF. A COMPLETE WIND-DOWN INSTEAD, AND HE CALLS `/resume` HIMSELF. BORIS, 2026-09-18, TO GENERATION 19.
+
+> *"Do not warm-handoff - instead once you are comfortable that we have a
+> working product perform a complete wind-down and make sure all relevant files
+> are 100% correct and up to date and ready to proceed towards our MVP on
+> `/resume` that I'll call after I charnge my laptop and turn it back on."*
+
+⛔ **THIS SUPERSEDES THE WARM-HANDOFF MECHANISM HE NAMED EARLIER THE SAME DAY**
+- *"at 40% context in which case you'll do a warm handoff"* - and it supersedes
+the MECHANISM, not the mark. **Recorded the turn he said it.**
+
+| | |
+|---|---|
+| ⛔ **what is refused** | **a live successor.** No spawn, no briefing, no ASK round. The reason is in his own sentence: **the laptop is going off**, so there is no machine for a successor to run on |
+| **what replaces it** | a **cold wind-down**: every relevant file correct and current, and `/resume` sufficient on its own |
+| ⛔ **when** | *"once you are comfortable that we have a working product"* - **a judgement he has delegated to the seat**, not a percentage. It is the first stop condition in this section that is not a number |
+| **who restarts it** | **he does.** `/resume` after the laptop is charged, so nothing may assume continuity of session or of context |
+
+⛔ **"100% CORRECT AND UP TO DATE" IS THE ACCEPTANCE TEST AND IT IS STRICTER
+THAN A HANDOFF DOCUMENT.** It binds every file a resuming seat reads, not one:
+`READINESS.txt`, `BACKLOG.md`, `DECISIONS.md`, `COORDINATION.md`, the
+`HANDOFF*.md` files and `NEXT-SESSION-ENTRYPOINT.md`. **A stale number in any of
+them fails it**, which is this project's most frequent recorded defect and the
+reason rule 8 of `COORDINATION.md` exists.
+
+⛔ **AND IT INHERITS THE SECOND HALF OF HIS 2026-09-16 INSTRUCTION UNCHANGED:
+NOTHING MAY BLOCK ON HIM.** *"Ready to proceed towards our MVP on `/resume`"*
+means the next seat starts working rather than starts asking. **An open question
+with no ruling and no "do this in the meantime" is a session that cannot
+start.**
+
 ##### ✅ FULL DECISION AUTONOMY, AND A 40% STOP. BORIS, 2026-09-17 LATE, TO GENERATION 17.
 
 > *"You do all decisions and work until all gaps are covered or you come to 40%
