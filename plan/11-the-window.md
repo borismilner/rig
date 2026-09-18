@@ -883,11 +883,34 @@ the same truncated line twice.
 `#####` on 2026-09-17. This is about which FIELDS a record carries, not about
 what counts as a record.
 
-⛔ **NOT inventing a description.** A backlog row's prose is what it is; a
-`description_short` derived by summarising it would be a seat composing content,
-which is the thing the record exists to stop. **The full text is what the
-document says and the short form is a deterministic cut of it, or it is absent
-and says so.**
+⛔ **THIS ROW USED TO READ "NOT INVENTING A DESCRIPTION" AND BORIS OVERTURNED IT
+ON 2026-09-18.** Kept in full, because a reader who meets only the new rule
+cannot tell which failure it was written against.
+
+> **What it said:** *"A backlog row's prose is what it is; a `description_short`
+> derived by summarising it would be a seat composing content, which is the
+> thing the record exists to stop. The full text is what the document says and
+> the short form is a deterministic cut of it, or it is absent and says so."*
+
+**His words, verbatim:**
+
+> *"As I said, AI agents are allowed to do anything - so `plan/11 forbids a seat
+> composing a description` seems strange; AI agents can do anything they want as
+> long as it is a real benefit and bring improvement to what I'm doing."*
+
+⛔ **SO A SEAT MAY COMPOSE, AND THE TEST IS BENEFIT RATHER THAN PROVENANCE.**
+*"As I said"* points at §42, which he had already ruled in the plainest words
+available - *"I want the AI agents to be able to do anything in the system"*,
+default open, *"absolutely without restrictions"*. **This row was a seat's
+caution written as his requirement, and it contradicted a ruling already in the
+specification.** Full reasoning in `DECISIONS.md`, 2026-09-18.
+
+| | |
+|---|---|
+| **allowed** | writing a `description_short` that is genuinely clearer than a cut of the title. Rewriting a title for his reading. Filling any field rig offers |
+| **the test he stated** | ⛔ **"a real benefit and bring improvement to what I'm doing"** - and he is the judge of it, so a seat that cannot say what the improvement IS has not met it |
+| ⛔ **still refused, and it is a DIFFERENT rule** | **misrepresentation.** Inventing a quotation, changing what a requirement or a ruling SAYS, dropping a clause in a merge. That is the honesty rule this project already carries, and it was never about composing prose |
+| **what a deterministic cut is still good for** | the fallback. **A row nobody has read yet gets the cut**, and a cut is honest; it is no longer the ceiling |
 
 ⛔ **NOT a tag vocabulary a seat picks.** Tagging *"so the user can see what
 relates to what"* is answered first by what the documents ALREADY assert - the

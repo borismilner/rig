@@ -56,6 +56,40 @@ policy keyed on seat cannot express a rule about a caller that has no seat**, an
 today the MCP door does not require one. **That is a precondition of this
 section, not a detail of it.**
 
+### ⛔ AND IT IS NOT ONLY ABOUT CALLING THINGS. IT COVERS JUDGEMENT AND AUTHORSHIP. BORIS, 2026-09-18.
+
+**This section was read for a day as being about CAPABILITY GATING - which MCP
+calls a seat may make, keyed on which agent.** ⛔ **He corrected that reading
+himself, on finding a rule elsewhere in the plan that forbade a seat from
+writing a sentence:**
+
+> *"As I said, AI agents are allowed to do anything - so `plan/11 forbids a seat
+> composing a description` seems strange; AI agents can do anything they want as
+> long as it is a real benefit and bring improvement to what I'm doing."*
+
+⛔ **"ANYTHING IN THE SYSTEM" INCLUDES AUTHORING THE CONTENT, NOT JUST INVOKING
+THE VERBS.** The row he struck was `plan/11`'s *"NOT inventing a description"*,
+which said a summary a seat wrote would be *"a seat composing content, which is
+the thing the record exists to stop."* **That was a seat's caution recorded as
+his requirement**, and it had been sitting in the specification contradicting
+this section since the day both were written.
+
+| | |
+|---|---|
+| **the default, restated for the authorship case** | ⛔ **a seat may write, rewrite, summarise, title, tag and merge.** No permission to seek |
+| ⛔ **the ONE test, and it is his sentence** | *"as long as it is a real benefit and bring improvement to what I'm doing"* |
+| **what that test actually demands** | **a seat that cannot NAME the improvement has not met it.** The bar is not "harmless", it is "better for him" - which is the same bar `READINESS.txt` and §37 already apply to mechanisms, arriving at prose |
+| ⛔ **what is NOT lifted by it** | **misrepresentation.** An invented quotation, a ruling softened, a clause lost in a merge. **Those were never about composing** - they are the provenance rule, and this project found two invented quotations and one misattributed requirement in a single day |
+| **why the caution existed at all** | that day. **The lesson keeps its force as an honesty rule and loses it as a ban on writing** |
+
+⛔ **THE GENERAL FORM, BECAUSE THIS IS THE SECOND TIME A SEAT'S CAUTION WAS
+FOUND WEARING HIS AUTHORITY:** a prohibition in this plan that no quotation
+supports is a seat's, whoever wrote it, and it is overturnable by measurement or
+by asking him. **The tray icon, the acceptance floor, the readiness bar and the
+successor clause are the inverse failure - his requirements nobody wrote down.
+This is the mirror: a requirement he never stated, written down as though he
+had.**
+
 ### ✅ WHAT THIS IS - ASKED AND ANSWERED BY BORIS, 2026-09-17
 
 **The seat's reading was put to him and he confirmed it:**

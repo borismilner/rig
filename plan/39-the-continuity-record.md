@@ -790,26 +790,28 @@ requirement records today, so acts 1 to 3 are free right now and dear later.
 **So the editorial pass comes FIRST and the seed second**, which is also the
 plain reading of *"have it good and ready"*.
 
-### ⛔ AND IT PARTLY LIFTS §11's "NOT INVENTING A DESCRIPTION", FOR THIS KIND ONLY
+### ⛔ IT LIFTS §11's "NOT INVENTING A DESCRIPTION" - FOR EVERY KIND, NOT ONLY THIS ONE
 
-**§11 forbids a seat composing a `description_short` for a work item:** *"a
-`description_short` derived by summarising it would be a seat composing content,
-which is the thing the record exists to stop."* ⛔ **HE HAS NOW ASKED FOR
-EXACTLY THAT, ON THE REQUIREMENT KIND, IN HIS OWN WORDS - "make the title and
-the description more human-friendly for my introspection."**
+⛔ **CORRECTED BY BORIS THE SAME DAY, AND THE FIRST ANSWER THIS SECTION GAVE WAS
+TOO NARROW.** It read the lift as applying to the requirement kind alone, on the
+argument that the specification is his prose and a backlog row is a seat's. **He
+rejected the distinction:**
 
-**The two are reconciled by WHOSE TEXT IT IS, and the distinction is not a
-loophole:**
+> *"As I said, AI agents are allowed to do anything - so `plan/11 forbids a seat
+> composing a description` seems strange; AI agents can do anything they want as
+> long as it is a real benefit and bring improvement to what I'm doing."*
 
-| Kind | Whose prose | So |
-|---|---|---|
-| **work-item** | `BACKLOG.md`'s rows, written by seats about their own work | ⛔ **§11 stands.** A cut, never a summary |
-| **requirement** | ⛔ **the specification, and it is HIS** - he is the reader the rewrite is for, and he asked for it | **rewrite it.** The evidence survives in git and in `source` |
+**So the rule is general and the test is BENEFIT: a seat may compose a title or
+a description for any kind, and must be able to say what the improvement is.**
+Full entry in `plan/11`, where the overturned row is kept verbatim beside it, and
+in §42, which is where *"as I said"* points.
 
-⛔ **WHAT IS STILL REFUSED: CHANGING WHAT A REQUIREMENT SAYS.** Making a heading
-legible is editorial; softening a ruling, dropping a `⛔`, or merging two
-requirements that disagree is a rewrite of the specification and is his call per
-case. **A join that would lose a clause is reported rather than performed.**
+⛔ **WHAT IS STILL REFUSED IS MISREPRESENTATION, AND IT IS A DIFFERENT RULE FROM
+THE ONE HE LIFTED.** Making a heading legible is editorial; softening a ruling,
+dropping a `⛔`, or merging two requirements that disagree changes what the
+specification SAYS. **A join that would lose a clause is reported rather than
+performed.** That is the honesty rule this project already carries, and nothing
+about composing prose was ever its subject.
 
 ### The open question on act 5, parked with a default rather than blocking
 
