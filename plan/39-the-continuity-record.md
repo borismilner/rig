@@ -433,6 +433,26 @@ THAN A HANDOFF DOCUMENT.** It binds every file a resuming seat reads, not one:
 them fails it**, which is this project's most frequent recorded defect and the
 reason rule 8 of `COORDINATION.md` exists.
 
+⛔ **THE MARK CAME BACK THE NEXT DAY, AND IT IS 40%. BORIS, 2026-09-18, TO
+GENERATION 20, IN TWO MESSAGES:**
+
+> *"Don't warm-handoff before you get to 40% context. Keep working towards
+> closing all the gaps."*
+
+> *"When you get to 40% do a complete wind-down instead of a warm-handover and
+> make it ready for `/resume`."*
+
+**So the two halves are settled and they are not in tension.** The MECHANISM is
+generation 19's - a cold wind-down, and he calls `/resume` - and the MARK is
+**40% of the context window**, restated as a number after a day in which it had
+been delegated to a judgement.
+
+| | |
+|---|---|
+| ⛔ **the guard fires at 35% and that is NOT the mark** | it asked for a warm handoff at 35% and was told, in as many words, not to. **Working on past the guard is correct until 40%** |
+| **at 40%** | stop taking new work, finish or revert what is in hand, wind down cold |
+| ⛔ **what he also asked for in the same breath** | *"Let me know when they are all closed and let me know for each one you close then keep working"* - **a report per gap, in-turn, and then CARRY ON.** It is `READINESS.txt` RULE 2 applied to the gap list rather than to a step |
+
 ⛔ **AND IT INHERITS THE SECOND HALF OF HIS 2026-09-16 INSTRUCTION UNCHANGED:
 NOTHING MAY BLOCK ON HIM.** *"Ready to proceed towards our MVP on `/resume`"*
 means the next seat starts working rather than starts asking. **An open question
