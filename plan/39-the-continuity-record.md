@@ -777,6 +777,52 @@ FOUR OF THEM CHANGE THE DOCUMENTS RATHER THAN THE STORE.** Reading it as
 | 4 | **tags, and every other field rig offers** | the records. `tags`, `owner`, `status`, `priority`, `source`, `part-of` |
 | 5 | **the same material, organised into more files** | the logbook side, **and it is "maybe" - permission, not instruction** |
 
+### ⛔ THE BAR IS "USEFUL AND FRIENDLY", IT COVERS THE TAGS, AND `B46` IS HIS OWN EXAMPLE OF FAILING IT
+
+**His words, verbatim, 2026-09-18, on being shown the first tags this project
+ever wrote:**
+
+> *"The tags as well as the content and the titles must be useful and friendly,
+> for example `B46` is none of them."*
+
+⛔ **THREE SURFACES, ONE BAR, AND THE TAGS ARE THE ONE A SEAT WILL LEAVE OUT.**
+The entry above reads as being about titles and descriptions. **He named the
+tags first.** A tag is read in a filter, which is the most compressed surface in
+the product, so it is where an unfriendly value costs the most.
+
+⛔ **WHAT `B46` FAILS AND WHY IT IS THE PERFECT EXAMPLE.** It is a legal id, it
+is unique, it resolves, and **it tells a reader nothing.** Three different
+surfaces were serving it at the moment he said this:
+
+| Surface | What it was serving | Why it fails his bar |
+|---|---|---|
+| a **tag** | `section:b46-the-mvp-acceptance-test-and-it-existed-in-no-document-at-all` | the raw heading slug, id and shouting and all. **Sixty-one characters in a filter chip** |
+| a **title** | `B46`, where a heading states an id and no words | the id standing in for a name, which `cmd/rigseed` calls *"the honest stand-in"*. ⛔ **Honest and useless are not exclusive** |
+| the **content** | the title again, where a heading has no prose | a reader who opens it learns nothing they did not see in the list |
+
+⛔ **SO AN ID IS A KEY AND NEVER A NAME.** A record keeps `B46` as its id, because
+citations across four documents resolve to it and renaming it would break them.
+**What a human reads is a separate field and must say something.**
+
+### What "friendly" means concretely, so it is a check and not a taste
+
+| | |
+|---|---|
+| **a tag** | **a short phrase, lower case, no id, no decoration** - `mvp-acceptance` rather than a sixty-character slug of a heading that shouts |
+| **a title** | ⛔ **sentence case, not this project's house SHOUTING.** `THE MVP ACCEPTANCE TEST, AND IT EXISTED IN NO DOCUMENT AT ALL` is a heading in a working document; it is not a thing to read in a list of ninety-six |
+| **the content** | says something the title did not. **Equal to the title is the failure**, and it is B62's measured defect arriving at a third field |
+| ⛔ **the test** | **he reads it.** *"For my introspection"* is the purpose, so the question is always what a person scanning ninety-six rows takes away, never whether the value is derivable |
+
+⛔ **AND IT IS AUTHORISED, NOT MERELY PERMITTED.** His ruling of the same day -
+*"AI agents can do anything they want as long as it is a real benefit and bring
+improvement to what I'm doing"* - already lifted the ban on a seat composing.
+**§11's remaining *"NOT a tag vocabulary a seat picks"* is narrowed by this to
+its real point: the tag's SUBJECT still comes from what the document asserts,
+and its WORDING is the seat's to make readable.** Inventing a classification the
+document does not support is still refused; shortening `b46-the-mvp-acceptance-
+test-and-it-existed-in-no-document-at-all` to `mvp-acceptance` is not inventing
+anything.
+
 ### ⛔ THE ORDER IS FORCED BY THE ID SCHEME, AND DOING IT THE OTHER WAY ROUND IS EXPENSIVE
 
 ⛔ **A REQUIREMENT'S RECORD ID IS ITS HEADING.** `planKey` mints

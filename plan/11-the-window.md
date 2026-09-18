@@ -917,6 +917,21 @@ relates to what"* is answered first by what the documents ALREADY assert - the
 section a row sits under, the `part-of` parent, the owner column - before any
 new classification is invented.
 
+⛔ **NARROWED BY BORIS 2026-09-18, AND THE NARROWING MATTERS BECAUSE A SEAT READ
+THIS ROW AND SHIPPED AN UNREADABLE TAG UNDER IT.** The first tags this project
+ever wrote were raw heading slugs - `section:b46-the-mvp-acceptance-test-and-it-
+existed-in-no-document-at-all`, sixty-one characters in a filter chip - and the
+seat that wrote them was obeying this row to the letter.
+
+> *"The tags as well as the content and the titles must be useful and friendly,
+> for example `B46` is none of them."*
+
+**So the two halves come apart:** the tag's **SUBJECT** still comes from what the
+document asserts, which is what this row was protecting. **Its WORDING is the
+seat's to make readable**, and *"as long as it is a real benefit"* is the test he
+gave the same day. **`mvp-acceptance` instead of the slug invents nothing.** Full
+statement in §39.
+
 ## ⛔ THE RAIL MUST LAND ON THE THING IT NAMES. BORIS, 2026-09-17.
 
 > *"The 'Open Projects and cases' way of navigation seems strange and not
