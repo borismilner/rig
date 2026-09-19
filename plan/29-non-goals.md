@@ -1,5 +1,12 @@
 ## 29. Non-goals
 
+⛔ **NON-GOAL 1's 2026-09-12 NARROWING IS WITHDRAWN BY §43, 2026-09-19.** The
+continuity record was admitted under it; Boris has ruled it back out into a
+program that adopts rig. **The unnarrowed reading is the live one again: rig
+does not run business logic, and a program, a project or a plan named in rig's
+code is a bug.** The `does not own a PROGRAM's data` line keeps its narrowing -
+seats, leases, messages, slots and progress are rig's own and always were.
+
 - rig does not run business logic. Ever. A program id appearing in rig's code is a bug.
   **NARROWED 2026-09-12 BY THE RULING IN §16**, and the narrowing is written here so it is
   not bent silently later. The continuity record is sessions, records, claims and steps; it

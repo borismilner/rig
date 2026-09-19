@@ -1,5 +1,14 @@
 ## 39. The continuity record
 
+⛔ **SUPERSEDED ON PLACEMENT BY §43, 2026-09-19. READ §43 FIRST.** Boris ruled
+that project and case management leaves rig and becomes a standalone program
+that adopts it. **The 2026-09-12 ruling quoted below is reversed on WHERE this
+lives and on nothing else** - the nouns, the provenance, the grain, the two
+co-equal consumers and the retention exemption are all still the specification.
+**`progress` stays a platform verb; the brief that reads it is the planner's.**
+⛔ **THE MVP SENTENCE BELOW NOW DESCRIBES THE PLANNER, NOT rig.** `READINESS.txt`
+is the only artefact allowed to say what that costs.
+
 **RULED BY BORIS, 2026-09-12**, after he raised the problem unprompted on two
 consecutive days. Put to him as four options; he took rig carrying the
 mechanism and then widened it in the same breath:
