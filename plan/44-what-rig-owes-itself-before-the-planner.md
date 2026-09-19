@@ -17,6 +17,32 @@ and the planner's name are all still his.
 
 ---
 
+### ⛔ NOTHING IS DROPPED. THIS SECTION ORDERS THE WORK; IT DOES NOT SCOPE IT. BORIS, 2026-09-19.
+
+**He corrected this section's own framing the turn he read it**, and the
+correction is load-bearing enough to sit above everything else here:
+
+> *"I want all the services still to be planned to be provided by `rig`.
+> Nothing is to be lost; we just bringing `rig` back to its original goal of
+> being the infrastructure to be used by all of our in-house applications."*
+
+⛔ **THE FIRST DRAFT OF THIS SECTION SAID SERVICES WERE "DELIBERATELY OUT", AND
+THAT WAS WRONG.** It read as descoping. **Every service §1 names is still
+rig's to build and every milestone that carries one still stands.** Tracing,
+secrets, scheduling, the event bus, notifications, toasts, speech, supervision,
+the palette, federated search and `rig://` are **DEFERRED, NOT DROPPED.**
+
+| | |
+|---|---|
+| **what his test decides** | **WHEN.** Which services must land before the planner splits out |
+| **what it does NOT decide** | **WHETHER.** No service leaves the plan, and §29's non-goals are the only thing that ever removes one |
+
+**And the reason he gave is §1 restated:** *"bringing rig back to its original
+goal of being the infrastructure to be used by all of our in-house
+applications."* §43 is a return to that goal, not a narrowing of it.
+
+---
+
 ### ⛔ THE TEST IS HIS, IT IS MECHANICAL, AND IT IS WHAT MAKES THIS LIST FINITE
 
 **His sentence contains a rule, not just two examples:** *"everything else rig
@@ -25,11 +51,13 @@ is using that it should not have implemented if it had rig."*
 > **A service is owed if rig USES it today. It is not owed if rig merely
 > PROMISES it.**
 
-**That is checkable by grep and it cuts the list from thirteen services to
-five.** It is the reason this section is short and the reason it can be
-finished. **A seat that widens it to everything §1 promises is building a
-different thing**, and §38's swiss-knife rule says why that is wrong: best at
-what it carries, and it does not grow new capabilities to be broader.
+**That is checkable by grep and it puts five of the thirteen services BEFORE
+the split and the other eight after it.** It is the reason this section can be
+finished. ⛔ **IT IS A GATE ON ORDER AND NEVER ON SCOPE** - see the banner
+above. **A seat that pulls the other eight forward is building a different
+thing and a seat that deletes them from the plan is doing something worse.**
+§38's swiss-knife rule governs the first: best at what it carries, and it does
+not grow new capabilities to be broader.
 
 ---
 
@@ -41,19 +69,19 @@ notifications, a window, a tray - and it controls them: starting, stopping,
 invoking, scheduling and wiring them to each other."* Every row below was
 measured, not read.
 
-| Service | Offered to programs? | What rig does for ITSELF | Owed? |
+| Service | Offered to programs? | What rig does for ITSELF | Before the split? |
 |---|---|---|---|
 | ⛔ **storage** | **NO** | ⛔ **two hand-rolled stores, 959 lines, TWO engines and TWO migration runners** | ⛔ **YES** |
 | ⛔ **backup / restore** | **NO** | ⛔ **a hand `cp`**, done by a seat this very day | ⛔ **YES** |
 | ⛔ **logging** | **NO** | `slog` to stderr, swept up by the journal | ⛔ **YES** |
 | ⛔ **configuration** | **NO** | three flags in `cmd/rigd/main.go` and some `os.Getenv` | ⛔ **YES** |
 | ⛔ **migrations** | **NO** | part of storage, and written **twice** | ⛔ **YES** |
-| tracing | NO | **nothing.** No span, no exporter | no - rig does not use it |
-| secrets | NO | **nothing.** rig holds no secret | no - rig does not use it |
-| scheduling | NO | **nothing.** No `time.Ticker`, no cron in the tree | no - rig does not use it |
-| wiring, the event bus | NO | **nothing.** No `Publish`, no `Subscribe` anywhere | no - rig does not use it |
-| notifications, toasts | NO | **nothing** | no - rig does not use it |
-| starting / stopping | NO | **systemd units. `rigd` execs nothing** | no - rig does not use it |
+| tracing | NO | **nothing.** No span, no exporter | **after** - rig does not use it yet. **Still owed** |
+| secrets | NO | **nothing.** rig holds no secret | **after** - rig does not use it yet. **Still owed** |
+| scheduling | NO | **nothing.** No `time.Ticker`, no cron in the tree | **after** - rig does not use it yet. **Still owed** |
+| wiring, the event bus | NO | **nothing.** No `Publish`, no `Subscribe` anywhere | **after** - rig does not use it yet. **Still owed** |
+| notifications, toasts | NO | **nothing** | **after** - rig does not use it yet. **Still owed** |
+| starting / stopping | NO | **systemd units. `rigd` execs nothing** | **after** - rig does not use it yet. **Still owed** |
 | invoking | **YES** | its own | built |
 | a window | **YES**, at the pre-kit tier | `rigwindow` | built |
 | a tray | **YES** | one icon | built |
@@ -155,17 +183,20 @@ IN THE SET WHOSE FAILURE IS SILENT."*
 
 ---
 
-### ⛔ WHAT IS DELIBERATELY OUT, AND WHY EACH IS OUT ON HIS OWN TEST
+### ⛔ WHAT COMES AFTER THE SPLIT, AND WHY EACH WAITS RATHER THAN GOES
 
-**Recorded so a later seat does not read the absence as an oversight**, which
-is this project's named missing-row failure.
+⛔ **EVERY ROW BELOW IS STILL rig's TO BUILD, ON THE MILESTONE IT ALREADY HAS.**
+This table says *not yet*, never *not ever*. **Recorded so a later seat reads
+neither the absence as an oversight nor the deferral as a deletion** - the
+first is this project's named missing-row failure and the second is what Boris
+corrected on 2026-09-19.
 
-| Out | Because |
+| Waits | Because, on his ordering test |
 |---|---|
 | **tracing** (M5) | rig emits no span. **It ships with the logging milestone and must not be assumed into S3** |
 | **secrets** (M11) | rig holds no secret. It ships with the storage milestone and is a separate clause |
 | **scheduling** (M13) | no ticker and no cron anywhere in the tree |
-| **the event bus** (M4/M13) | no `Publish` or `Subscribe` exists. ⛔ **THE PLANNER WILL WANT `record.changed` FOR A LIVE WINDOW, AND THAT IS A PLANNER WANT RATHER THAN RIG'S OWN USE.** It fails his test and is flagged for him rather than folded in |
+| **the event bus** (M4/M13) | no `Publish` or `Subscribe` exists. ⛔ **THE PLANNER WILL WANT `record.changed` FOR A LIVE WINDOW, AND THAT IS A PLANNER WANT RATHER THAN RIG'S OWN USE.** It fails his ORDERING test and is flagged for him rather than folded in. **Still owed, on M4/M13** |
 | **notifications and toasts** (M9) | rig notifies nobody today |
 | **supervision** (M6) | `rigd` execs nothing; systemd starts it. **Different from the M6 items already cherry-picked** for §37, which stay where they are |
 
