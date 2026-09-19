@@ -22,7 +22,7 @@ laptop, see section 4).
 
 ## Map - this file is the INDEX. The sections live in `plan/`.
 
-**The specification is 11605 lines across 43 files and nobody reads it
+**The specification is 11961 lines across 44 files and nobody reads it
 whole.** It is a reference to query, and it is queried with two questions:
 *"what is rig supposed to do"* and *"what did he already rule on this"*.
 **This index exists so a requirement cannot hide**, which is the failure this
@@ -103,7 +103,8 @@ the original byte for byte before writing anything.
 | 40 | The knowledge-sharing section | 104 | [`plan/40-the-knowledge-sharing-section.md`](plan/40-the-knowledge-sharing-section.md) |
 | 41 | Export and import a project or a case | 112 | [`plan/41-export-and-import-a-project-or-a-case.md`](plan/41-export-and-import-a-project-or-a-case.md) |
 | 42 | What an agent is allowed to do | 196 | [`plan/42-what-an-agent-is-allowed-to-do.md`](plan/42-what-an-agent-is-allowed-to-do.md) |
-| 43 | The platform and the planner, separated | 179 | [`plan/43-the-platform-and-the-planner-separated.md`](plan/43-the-platform-and-the-planner-separated.md) |
+| 43 | The platform and the planner, separated | 183 | [`plan/43-the-platform-and-the-planner-separated.md`](plan/43-the-platform-and-the-planner-separated.md) |
+| 44 | What rig owes itself before the planner leaves | 352 | [`plan/44-what-rig-owes-itself-before-the-planner.md`](plan/44-what-rig-owes-itself-before-the-planner.md) |
 
 ### The four questions a seat actually arrives with
 
@@ -114,8 +115,8 @@ the original byte for byte before writing anything.
 | **what do agents get, and when?** | §16 for the coordination primitives, **§39 for the continuity record**, §37 for the minimum set and the staged migration |
 | **has he already ruled on this?** | `logbook/projects/rig/DECISIONS.md` first, then §31-38. **Grep before proposing** - proposing what already exists is this project's named failure mode |
 
-**§31-38 ARE A CHANGELOG INSIDE A SPECIFICATION** - 5893 of 11605 lines,
-51%. Splitting the file did not fix that; it made it visible and
+**§31-38 ARE A CHANGELOG INSIDE A SPECIFICATION** - 6249 of 11961 lines,
+52%. Splitting the file did not fix that; it made it visible and
 cheap to act on, since those eight sections are now eight files that can move to
 the logbook in one commit. `BACKLOG.md` B24. **Until they do, a reader after the
 current rule prefers the numbered section over the pass that changed it.**

@@ -1,5 +1,9 @@
 ## 43. The platform and the planner, separated
 
+⛔ **OPEN QUESTION 2 IS ANSWERED BY §44, 2026-09-19: THE SERVICES COME FIRST.**
+Boris ruled the platform capabilities rig itself uses are completed before any
+planner code moves. **Questions 1, 3 and 4 below are still open and still his.**
+
 **RULED BY BORIS, 2026-09-19.** He raised it unprompted at the start of the
 session, asked for it to be sized, and ruled before anything moved. The three
 statements are quoted in the order he made them, verbatim from the terminal.
