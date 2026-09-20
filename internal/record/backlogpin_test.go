@@ -155,7 +155,27 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 	// document by a header-aware scan sharing no code path with the parser.
 	pin(t, "every work item read", idsWhere(items, func(BacklogItem) bool { return true }),
 		[]string{
-			"B1", "B10", "B11", "B12", "B13", "B14", "B15", "B16",
+			// ⛔ B99-B113 FILED 2026-09-19, FIFTEEN ROWS AND ALL OPEN, which is why
+			// `closed` is unmoved at 20 below while `rows` and `open` both rise by
+			// exactly fifteen. They land in three groups, one logbook commit each:
+			//   B99-B102  (logbook e12c946) the platform/planner ruling and its four
+			//             rows. B99 is Boris's own ruling, verbatim; B100-B102 are
+			//             the seam, measured by splitting the package in a scratch
+			//             copy and reading the compiler rather than by reading code.
+			//   B103-B108 (logbook a2fbced) the four platform services S1-S4, the
+			//             event-bus row, and B108 - what a brief costs over a
+			//             socket, which is B103's PREREQUISITE, not its follow-on.
+			//   B109-B113 (logbook 6302d15) P1-P5 from the service review, every
+			//             one of them proposed and NOT yet argued.
+			// ⛔ B107 WAS CORRECTED BY BORIS THE SAME DAY (logbook 9cc9ebb): its
+			// first wording said the bus was OUT and he read that as descoping -
+			// *"I want all the services still to be planned to be provided by `rig`.
+			// Nothing is to be lost"*. Deferred is not dropped. B104 became the
+			// first capability 2026-09-20 (logbook 3adb1e2), which moves the ORDER
+			// and no row's state, so no pin here moves with it.
+			"B1", "B10", "B100", "B101", "B102", "B103", "B104", "B105",
+			"B106", "B107", "B108", "B109", "B11", "B110", "B111", "B112",
+			"B113", "B12", "B13", "B14", "B15", "B16",
 			"B17", "B18", "B19", "B2", "B20", "B21", "B22", "B23",
 			"B24", "B25", "B26", "B27", "B28", "B29", "B3", "B30",
 			"B31", "B32", "B33", "B34", "B35", "B36", "B37", "B38",
@@ -218,7 +238,7 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 			// reading code: a note in the brief is one truncated line nobody
 			// can open, and every decision title repeats the date its own
 			// group heading already states. Both OPEN.
-			"B97", "B98",
+			"B97", "B98", "B99",
 		})
 
 	// B65 joins this set 2026-09-17: the field predicate landed at rig
@@ -373,9 +393,20 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 		// and the 91 decisions the seeder cannot date - and the second is
 		// untouched. Striking a title whose own statement is half true is the
 		// closure this document was caught getting wrong on B82 the day before.
-		{"rows", len(items), 103},
+		// 103 -> 118 rows and 83 -> 98 open, 2026-09-19, and `closed` is UNMOVED
+		// at 20: fifteen rows FILED and none closed, which is the one-direction
+		// case these counts CAN see on their own.
+		// ⛔ THE DISCRIMINATION WAS RUN THE WAY THIS TEST'S OWN MESSAGE SAYS TO,
+		// and it is recorded because the instrument is worth nothing unrecorded:
+		// TestTheBacklogParserReadsEveryRowShapeTheSameWay is GREEN at this
+		// commit, and the struck, byLead, claims, ruled-closed and malformed SET
+		// pins every one of them PASSED untouched - so the DOCUMENT moved and the
+		// parser did not. The added set is exactly {B99..B113} and nothing was
+		// removed, derived from the document by a header-aware scan sharing no
+		// code path with the parser.
+		{"rows", len(items), 118},
 		{"closed", len(struck) + len(byLead), 20},
-		{"open", open, 83},
+		{"open", open, 98},
 	} {
 		if c.got != c.want {
 			t.Errorf("%s: %d, pinned at %d.\n"+
