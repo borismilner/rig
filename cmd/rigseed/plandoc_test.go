@@ -229,8 +229,12 @@ func TestRigsOwnPlanParsesAtTheRuledGrain(t *testing.T) {
 	if got := byLevel["2"] + byLevel["3"] + byLevel["4"] + byLevel["5"]; got != len(pp.Entries) {
 		t.Errorf("%d entries parsed and %d planned; every entry becomes a record", len(pp.Entries), got)
 	}
-	if len(sections) != 42 {
-		t.Errorf("%d section files carried a heading, want 42", len(sections))
+	// ⛔ DERIVED FROM DISK, NEVER PINNED. The rule is "every section file
+	// carried a heading at the ruled grain", not "there are N of them" - and a
+	// literal here breaks CI on the next commit that adds a section.
+	if want := len(planFiles(t)); len(sections) != want {
+		t.Errorf("%d section files carried a heading over %d files in plan/ - a "+
+			"file states no heading at the ruled grain", len(sections), want)
 	}
 	for _, u := range pp.Unimported {
 		if u.Kind != record.UnimportedHeadingTooDeep {
@@ -239,7 +243,7 @@ func TestRigsOwnPlanParsesAtTheRuledGrain(t *testing.T) {
 		}
 	}
 
-	// The keys are unique across 42 files, which is what the section-number
+	// The keys are unique across every section file, which is what the section-number
 	// prefix exists for, and it is asserted rather than assumed.
 	seen := map[string]string{}
 	for _, in := range p.want {
