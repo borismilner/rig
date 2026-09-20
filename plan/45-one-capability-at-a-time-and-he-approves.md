@@ -68,21 +68,23 @@ step 2 is where they get tested against what he actually wants.
 
 ---
 
-### ⛔ OPEN, AND A SEAT MUST ASK HIM RATHER THAN DECIDE
+### ⛔ TWO OF THESE HE ANSWERED ON 2026-09-20. TWO ARE STILL OPEN.
 
-**He ruled the process. He did not rule any of the following**, and each changes
-how the first session after `/resume` behaves.
+**He ruled the process on 2026-09-19 and left four things unstated.** He was
+asked the first two on 2026-09-20 and answered both; they are ANSWERED rows
+below and bind from that day. The other two remain his to rule.
 
 | Open | Why it cannot be answered from what he said |
 |---|---|
-| ⛔ **What order are the capabilities taken in?** | The review's order is a reviewer's ranking; §44's order is a build dependency. **Neither is a statement about what he wants to look at first** |
-| ⛔ **What does "perfected" mean, concretely?** | For a planned capability it is plausibly a specification he has approved. **For an already-implemented one it is unclear whether it means changing code or only confirming the design** |
+| ✅ **ANSWERED 2026-09-20. What order are the capabilities taken in?** | **Backup and restore is FIRST.** His choice, put to him as a question with Storage, Configuration and a scope-cutting pass as the alternatives. The reason offered and accepted: it is small enough that the whole loop - explore, approve, specify, hand to a subagent - completes in one session, so the LOOP gets proven on a cheap case before an expensive one. ⛔ **This is one pick, not a standing order. The second capability is his to choose too** |
+| ✅ **ANSWERED 2026-09-20. What does "perfected" mean for an ALREADY-IMPLEMENTED capability?** | **Confirm the design only.** We review it together, he approves or reshapes, and the output is a specification recorded in `plan/`. ⛔ **No code changes unless the review finds the DESIGN itself wrong** - a defect in the design is in scope, polishing the implementation is not. He declined the two costlier readings (design plus a live demo; design, demo and fix what the demo shows) |
 | **Does a killed capability leave the plan?** | §43's correction says deferral is never deletion. **A capability he rejects in step 3 is a different case and has no precedent** |
 | **How many subagents run at once?** | *"a subagent"* is singular in his sentence. Whether step 5 may have two in flight is not stated |
 
-⛔ **THE FIRST ACT AFTER `/resume` IS TO ASK HIM THE FIRST TWO.** A seat that
-picks an order and a definition of "perfected" on its own has taken the two
-decisions this section exists to give him.
+⛔ **THE FIRST TWO ARE ANSWERED AND A SEAT MUST NOT RE-ASK THEM.** What still
+has to be asked is the NEXT capability, every time one finishes - the
+2026-09-20 answer picked one row, and a seat that reads a queue out of it has
+taken back the decision this section exists to give him.
 
 ---
 
