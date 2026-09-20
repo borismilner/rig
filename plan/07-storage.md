@@ -135,13 +135,16 @@ centre - so for those the rule above is not merely unmet, it is unmeetable by re
 |---|---|---|
 | Config tree | nothing - it is hand-edited source | **yes**, and it is the one thing whose loss cannot be worked around |
 | History segments | nothing, but they age out in 30 days anyway | no. Retention already says they are disposable |
+| ⛔ **The record store** | **nothing. It IS the record** - §39, and §7 exempts it from every retention rung for that reason | ⛔ **yes.** §39's claim is *"nothing is ever lost"*, and **a store with no backup does not have that property** |
 | **Audit log** | nothing. It is the record | **yes** |
 | **Notification centre** | nothing. §12 makes it the record of record | **yes** |
 | Registry, peers WAL, resolved snapshots | live registration and re-resolution | no. Rebuilt at start |
 | A program's database | the program's own files, per the rule above | already covered, per program |
 
 **One command, and it is the same one programs get.** `rig backup` writes the four rows marked
-yes to one archive; `rig restore` puts them back on a machine where `rigd` has never run. That
+yes to one archive - ⛔ **and the count was wrong until 2026-09-20, when the table held THREE
+such rows and this line claimed four.** The record store was the missing one, which §44's S2
+had already said the archive must cover. `rig backup` writes those four; `rig restore` puts them back on a machine where `rigd` has never run. That
 is the missing half of M15's "fresh machine to a working rig in one command" - which as
 written installs the software and carries none of the history. **M11**, beside the per-program
 backup it already ships, because building it twice is the alternative.
