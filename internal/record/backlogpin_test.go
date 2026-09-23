@@ -175,7 +175,8 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 			// and no row's state, so no pin here moves with it.
 			"B1", "B10", "B100", "B101", "B102", "B103", "B104", "B105",
 			"B106", "B107", "B108", "B109", "B11", "B110", "B111", "B112",
-			"B113", "B114", "B115", "B12", "B13", "B14", "B15", "B16",
+			"B113", "B114", "B115", "B116", "B12", "B13", "B14", "B15",
+			"B16",
 			"B17", "B18", "B19", "B2", "B20", "B21", "B22", "B23",
 			"B24", "B25", "B26", "B27", "B28", "B29", "B3", "B30",
 			"B31", "B32", "B33", "B34", "B35", "B36", "B37", "B38",
@@ -411,9 +412,16 @@ func TestRigsOwnBacklogStillParsesAsItDidBeforeTheParserMoved(t *testing.T) {
 		// so neither closed set moves. Discriminated the same way: the fixture
 		// test GREEN at this commit, every set pin untouched, the added set
 		// exactly {B114, B115}, derived by a header-aware scan of the document.
-		{"rows", len(items), 120},
+		// 120 -> 121 rows and 100 -> 101 open, 2026-09-24, `closed` UNMOVED
+		// at 20: B116 FILED (a record.query answer over MaxFrameSize, found by
+		// the docket seat's proof D). The lead filed the row at 02:14 and moved
+		// this pin only after the B114 seat's control worktree showed ci red at
+		// 27e27da (its FINDINGS 5): the pin belongs to whoever adds the row, and
+		// this is that commit. B114 is CLOSED in its state cell and NOT struck,
+		// the B104 and B108 shape, so neither closed set moves.
+		{"rows", len(items), 121},
 		{"closed", len(struck) + len(byLead), 20},
-		{"open", open, 100},
+		{"open", open, 101},
 	} {
 		if c.got != c.want {
 			t.Errorf("%s: %d, pinned at %d.\n"+
