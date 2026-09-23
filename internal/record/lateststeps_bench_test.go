@@ -26,8 +26,8 @@ func TestTheFourLatestStepFormulationsAgreeAndAreMeasured(t *testing.T) {
 	s := openStore(t, name)
 	seedStreams(t, s, items, steps)
 
-	forms := make([]string, 0, len(latestStepsSQL))
-	for f := range latestStepsSQL {
+	forms := make([]string, 0, len(latestStepSQL))
+	for f := range latestStepSQL {
 		forms = append(forms, f)
 	}
 	sort.Strings(forms)
@@ -43,7 +43,7 @@ func TestTheFourLatestStepFormulationsAgreeAndAreMeasured(t *testing.T) {
 	)
 	for _, form := range forms {
 		// Warm, then measure the median of five.
-		if _, err := s.latestStepsUsing(tctx, form, "rig"); err != nil {
+		if _, err := s.LatestStepsUsing(tctx, form, "rig"); err != nil {
 			t.Fatalf("%s: %v", form, err)
 		}
 		var ds []time.Duration
@@ -51,7 +51,7 @@ func TestTheFourLatestStepFormulationsAgreeAndAreMeasured(t *testing.T) {
 		for range 5 {
 			start := time.Now()
 			var err error
-			got, err = s.latestStepsUsing(tctx, form, "rig")
+			got, err = s.LatestStepsUsing(tctx, form, "rig")
 			if err != nil {
 				t.Fatalf("%s: %v", form, err)
 			}
@@ -88,7 +88,7 @@ func TestTheFourLatestStepFormulationsAgreeAndAreMeasured(t *testing.T) {
 	fmt.Printf("  %-14s %12s %10s   %s\n", "formulation", "median of 5", "vs best", "")
 	for _, r := range results {
 		mark := ""
-		if r.form == latestStepsForm {
+		if r.form == latestStepForm {
 			mark = "  <- IN USE"
 		}
 		fmt.Printf("  %-14s %12s %9.1fx%s\n", r.form, r.d.Round(time.Microsecond),

@@ -355,7 +355,7 @@ type ItemState struct {
 	// matching inside another tag - searching `dev` finds `devops` - so the flat
 	// form satisfies rendering and silently fails the requirement that makes
 	// tags worth having. The fields blob is already JSON in SQLite and
-	// coarseCitations already reads it with ->>, so this costs no schema change.
+	// CoarseCitations already reads it with ->>, so this costs no schema change.
 	//
 	// A VALUE THAT IS NOT A JSON ARRAY YIELDS NO TAGS RATHER THAN AN ERROR. A
 	// brief is a read of whatever is in the store, and one malformed field on
@@ -768,8 +768,42 @@ func sortByPriority(ids []string, active map[string]ItemState) {
 	})
 }
 
-// Brief derives the answer to "what is going on here" for one project.
-// briefContainer reads the container record and copies its own metadata onto
+// BriefStore is everything the brief derivation reads, and nothing else.
+//
+// ⛔ IT EXISTS BECAUSE THE DERIVATION IS LEAVING AND THE STORE IS NOT. Section
+// 43 measured the one real coupling in this package: twelve methods on *Store
+// were DEFINED in the two planning files and four of them reached `s.db`
+// directly, so the application had grown into the platform's private state.
+// Section 50's move 2 (B100) states that finding in code - the four raw reads
+// are the store's and are exported here by name, and everything below this
+// declaration is a plain function over the interface.
+//
+// ⛔ IT IS A STEPPING STONE AND NOT THE END STATE, section 50 decision 2. When
+// the planner is its own program it implements this interface over
+// `record.query` on the socket rather than over a *Store, and the seven
+// methods here are the list of what that client has to answer.
+//
+// EVERY METHOD IS EXPORTED ON PURPOSE: an interface with an unexported method
+// can only ever be satisfied from inside this package, which is exactly the
+// coupling being removed.
+type BriefStore interface {
+	// Get reads one record at its head version.
+	Get(ctx context.Context, id string) (Record, error)
+	// Query reads every head record of one kind in one project.
+	Query(ctx context.Context, project, kind string) ([]Record, error)
+	// LinksFrom reads the destinations of one link type out of one record.
+	LinksFrom(ctx context.Context, src, typ string) ([]string, error)
+	// LatestSteps is the newest progress step on every item, by item id.
+	LatestSteps(ctx context.Context, project string) (map[string]Record, error)
+	// ItemsWithANote is the set of records in a project carrying a note.
+	ItemsWithANote(ctx context.Context, project string) (map[string]bool, error)
+	// CoarseCitations counts citations that resolve only to a section.
+	CoarseCitations(ctx context.Context, project string) (int, error)
+	// NotesAbout reads every note part-of a record in one project.
+	NotesAbout(ctx context.Context, project string, subjects map[string]bool) ([]Note, error)
+}
+
+// containerFor reads the container record and copies its own metadata onto
 // the brief, answering the record itself for the derivations that need it.
 //
 // ⛔ A MISSING CONTAINER IS NOT AN ERROR AND THAT IS DELIBERATE. The brief
@@ -783,8 +817,8 @@ func sortByPriority(ids []string, active map[string]ItemState) {
 // serveRecord records about serveSelf, which crossed on ONE inline case. A
 // derivation that is one branch under a limit is one section away from being
 // over it, and the limit is doing its job when that is what forces the split.
-func (s *Store) briefContainer(ctx context.Context, project string, b *Brief) (Record, error) {
-	container, err := s.Get(ctx, project)
+func containerFor(ctx context.Context, src BriefStore, project string, b *Brief) (Record, error) {
+	container, err := src.Get(ctx, project)
 	if err != nil {
 		if !errors.As(err, new(*NotFoundError)) {
 			return Record{}, err
@@ -805,7 +839,17 @@ func (s *Store) briefContainer(ctx context.Context, project string, b *Brief) (R
 	return container, nil
 }
 
+// Brief derives the answer to "what is going on here" for one project.
+//
+// ⛔ THE METHOD IS THE STORE'S AND THE DERIVATION IS NOT. The signature is
+// frozen - internal/daemon and cmd/rig both call it - and the body is one
+// line so that deriveBrief below can be compiled against BriefStore rather
+// than against this package's concrete store. That is the whole of B100.
 func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
+	return deriveBrief(ctx, s, project)
+}
+
+func deriveBrief(ctx context.Context, src BriefStore, project string) (Brief, error) {
 	if project == "" {
 		return Brief{}, errors.New("record: a brief needs a project")
 	}
@@ -817,17 +861,17 @@ func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 	// id it was handed. A MISSING CONTAINER IS NOT AN ERROR - the brief answers
 	// for the store as it is, and nextUpN has always fallen back to the default
 	// rather than refusing - but it is no longer silently a project either.
-	container, err := s.briefContainer(ctx, project, &b)
+	container, err := containerFor(ctx, src, project, &b)
 	if err != nil {
 		return Brief{}, err
 	}
 	led := newSectionLedger(b.Kind)
 
-	items, err := s.Query(ctx, project, "work-item")
+	items, err := src.Query(ctx, project, "work-item")
 	if err != nil {
 		return Brief{}, err
 	}
-	latest, err := s.latestSteps(ctx, project)
+	latest, err := src.LatestSteps(ctx, project)
 	if err != nil {
 		return Brief{}, err
 	}
@@ -842,7 +886,7 @@ func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 	// membership test, and asking it per item would be forty-five round trips
 	// to answer forty-five booleans - the shape section 39's own traversal
 	// numbers exist to keep out of the brief.
-	noted, err := s.itemsWithANote(ctx, project)
+	noted, err := src.ItemsWithANote(ctx, project)
 	if err != nil {
 		return Brief{}, err
 	}
@@ -865,7 +909,7 @@ func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 		active[it.ID] = st
 	}
 
-	edges, err := s.blocksAmong(ctx, active)
+	edges, err := blockEdges(ctx, src, active)
 	if err != nil {
 		return Brief{}, err
 	}
@@ -873,7 +917,7 @@ func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 	order, cycles := topoSort(active, edges)
 	b.Cycles = cycles
 
-	blockedBy, err := s.blockedBy(ctx, items, latest, active)
+	blockers, err := blockersOf(ctx, src, items, latest, active)
 	if err != nil {
 		return Brief{}, err
 	}
@@ -886,20 +930,20 @@ func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 	led.did(SectionOpen)
 	led.did(SectionBlocked)
 	for _, id := range order {
-		if len(b.NextUp) < n && len(blockedBy[id]) == 0 {
+		if len(b.NextUp) < n && len(blockers[id]) == 0 {
 			b.NextUp = append(b.NextUp, active[id])
 			continue
 		}
 		b.Open = append(b.Open, active[id])
 	}
 
-	for id, on := range blockedBy {
+	for id, on := range blockers {
 		sort.Strings(on)
 		b.Blocked = append(b.Blocked, Blockage{Item: id, Title: active[id].Title, BlockedBy: on})
 	}
 	sort.Slice(b.Blocked, func(i, j int) bool { return b.Blocked[i].Item < b.Blocked[j].Item })
 
-	if b.CoarseCitations, err = s.coarseCitations(ctx, project); err != nil {
+	if b.CoarseCitations, err = src.CoarseCitations(ctx, project); err != nil {
 		return Brief{}, err
 	}
 
@@ -909,19 +953,19 @@ func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 	for _, it := range b.Open {
 		subjects[it.ID] = true
 	}
-	if b.Notes, err = s.notesAbout(ctx, project, subjects); err != nil {
+	if b.Notes, err = src.NotesAbout(ctx, project, subjects); err != nil {
 		return Brief{}, err
 	}
 	led.did(SectionNotes)
 
 	// SECTION 10.
-	if b.Features, b.Stages, err = s.features(ctx, project); err != nil {
+	if b.Features, b.Stages, err = features(ctx, src, project); err != nil {
 		return Brief{}, err
 	}
 	led.did(SectionFeatures)
 
 	// SECTION 12, B64.
-	if b.Governing, b.GoverningCounts, err = s.governing(ctx, project); err != nil {
+	if b.Governing, b.GoverningCounts, err = governing(ctx, src, project); err != nil {
 		return Brief{}, err
 	}
 	led.did(SectionGoverning)
@@ -929,7 +973,7 @@ func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 	// SECTION 11, and only for a case. A project's notes are section 3 above;
 	// this is the case's own attention list, capped and ordered by importance.
 	if b.Kind == KindCase {
-		if b.CaseNotes, err = s.caseNotes(ctx, container); err != nil {
+		if b.CaseNotes, err = caseNotes(ctx, src, container); err != nil {
 			return Brief{}, err
 		}
 		led.did(SectionCaseNotes)
@@ -965,7 +1009,7 @@ func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 // The ordering above runs over the active set and must: a topological sort
 // has to be over the nodes being ordered. THE BLOCKED DETERMINATION IS A
 // DIFFERENT QUESTION and had silently inherited the same filter, because
-// `edges` is blocksAmong(active) with BOTH ends filtered.
+// `edges` is blockEdges(active) with BOTH ends filtered.
 //
 // The defect that hid inside it: the filter is right for a blocker whose
 // latest step is `done` - finished work is not a live dependency - and
@@ -979,25 +1023,25 @@ func (s *Store) Brief(ctx context.Context, project string) (Brief, error) {
 // Extracted from Brief when it crossed the house cyclomatic bound: it is a
 // question with its own name and its own ruling, and it reads better beside
 // them than inside a derivation that does eleven other things.
-func (s *Store) blockedBy(ctx context.Context, items []Record,
+func blockersOf(ctx context.Context, src BriefStore, items []Record,
 	latest map[string]Record, active map[string]ItemState,
 ) (map[string][]string, error) {
-	blockedBy := map[string][]string{}
+	blockers := map[string][]string{}
 	for _, it := range items {
 		if step, ok := latest[it.ID]; ok && step.Fields["state"] == "done" {
 			continue
 		}
-		dsts, err := s.LinksFrom(ctx, it.ID, LinkBlocks)
+		dsts, err := src.LinksFrom(ctx, it.ID, LinkBlocks)
 		if err != nil {
 			return nil, err
 		}
 		for _, d := range dsts {
 			if _, ok := active[d]; ok {
-				blockedBy[d] = append(blockedBy[d], it.ID)
+				blockers[d] = append(blockers[d], it.ID)
 			}
 		}
 	}
-	return blockedBy, nil
+	return blockers, nil
 }
 
 // nextUpN reads the container's override, falling back to the default.
@@ -1023,14 +1067,14 @@ func capFrom(container Record, field string, def int) int {
 	return n
 }
 
-// blocksAmong returns the blocks edges with BOTH ends in the active set.
+// blockEdges returns the blocks edges with BOTH ends in the active set.
 //
 // Restricted deliberately: an edge from a done item is not a live dependency,
 // and carrying it would put finished work back into the ordering.
-func (s *Store) blocksAmong(ctx context.Context, active map[string]ItemState) (map[string][]string, error) {
+func blockEdges(ctx context.Context, src BriefStore, active map[string]ItemState) (map[string][]string, error) {
 	out := map[string][]string{}
 	for id := range active {
-		dsts, err := s.LinksFrom(ctx, id, LinkBlocks)
+		dsts, err := src.LinksFrom(ctx, id, LinkBlocks)
 		if err != nil {
 			return nil, err
 		}
@@ -1114,86 +1158,6 @@ func topoSort(active map[string]ItemState, edges map[string][]string) ([]string,
 	return append(order, rest...), cycles
 }
 
-// notesAbout collects section 3's notes: every note part-of one of `subjects`.
-//
-// ONE QUERY FOR EVERY NOTE IN THE PROJECT, FILTERED IN GO. The alternative is
-// an IN clause built from the subject set, which is a query whose text changes
-// with the data - unprepareable, and a different plan on every call. The set is
-// the project plus its open items, so the difference is a handful of rows.
-//
-// ⛔ SCOPED ON THE DESTINATION, like the has-note flag, because section 39 rules
-// that links MAY cross a project boundary. A note written elsewhere and attached
-// here is exactly the question this section exists to surface.
-//
-// ⛔ ORDERED BY PRIORITY, THEN created_at DESCENDING, THEN id - AND THIS
-// COMMENT USED TO NAME A MECHANISM THE QUERY DID NOT HAVE. It read "ordered by
-// priority then id" above an ORDER BY n.id, wrong from the first draft rather
-// than drifted, and no test ever watched it: ordering by id alone IS
-// deterministic, so every assertion here passed against a caption describing a
-// sort that was not happening.
-//
-// Section 39 binds neither order here - row 3 says a note is rendered in full
-// and says nothing about sequence - so this one is the seat's, taken with the
-// lead. It is deliberately the SAME sort a case's attention_n notes get eleven
-// rows later in section 39, because two adjacent note lists ordering
-// differently is precisely the drift the one-definition rule exists to stop.
-//
-// ⛔ AND THE SORT RUNS HERE RATHER THAN IN THE ORDER BY, WHICH IS THE ONE THING
-// THE RANK CANNOT DELEGATE. SQLite can only reach the raw string out of the
-// fields blob, so a SQL ordering is alphabetical whichever way it is pointed.
-// The only SQL form that honours the rank is a CASE WHEN, and that puts a
-// second copy of the vocabulary in a string literal no Go test can reach -
-// which is the drift the ruling names, arriving through the door opened to
-// implement it. The query keeps ORDER BY n.id for a stable read.
-func (s *Store) notesAbout(ctx context.Context, project string, subjects map[string]bool) ([]Note, error) {
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT n.id, n.body, n.fields, l.dst,
-		       n.session, n.seat, n.epoch, n.created_at
-		FROM links l
-		JOIN records n ON n.id = l.src
-		JOIN heads hn ON hn.id = n.id AND hn.version = n.version
-		JOIN records d ON d.id = l.dst
-		JOIN heads hd ON hd.id = d.id AND hd.version = d.version
-		WHERE l.type = ? AND n.kind = ? AND d.project = ?
-		ORDER BY n.id`, LinkPartOf, KindNote, project)
-	if err != nil {
-		return nil, fmt.Errorf("record: reading the notes in %s: %w", project, err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	var out []Note
-	for rows.Next() {
-		var (
-			n           Note
-			fields      string
-			epoch, nano int64
-		)
-		if err := rows.Scan(&n.ID, &n.Body, &fields, &n.About,
-			&n.Prov.Session, &n.Prov.Seat, &epoch, &nano); err != nil {
-			return nil, err
-		}
-		if !subjects[n.About] {
-			continue
-		}
-		if n.Prov.Epoch, err = fromColumn("epoch", epoch); err != nil {
-			return nil, err
-		}
-		n.Prov.CreatedAt = unixNano(nano)
-		var f map[string]string
-		if err := json.Unmarshal([]byte(fields), &f); err == nil {
-			n.Priority = f["priority"]
-			n.Title = f["title"]
-		}
-		out = append(out, n)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	sortNotes(out)
-	return out, nil
-}
-
 // sortNotes puts the important notes first: priority, then recency, then id.
 //
 // ⛔ ONE SORT FOR BOTH NOTE LISTS, AND THAT IS THE POINT OF IT BEING A
@@ -1223,7 +1187,7 @@ func sortNotes(notes []Note) {
 
 // caseNotes answers section 11: up to attention_n notes part-of this case.
 //
-// ⛔ IT REUSES notesAbout RATHER THAN WRITING A SECOND QUERY, and the subject
+// ⛔ IT REUSES NotesAbout RATHER THAN WRITING A SECOND QUERY, and the subject
 // set is the case itself. Section 39 is explicit that row 11 needs NO new verb
 // and no new kind - "a note part-of a case IS the mechanism" - and the same
 // argument reaches the read side: a second query over the same two tables is a
@@ -1233,8 +1197,8 @@ func sortNotes(notes []Note) {
 // it binds here for the same reason: a list padded to its cap tells a reader
 // there are exactly that many, and a cap is a limit on what is SHOWN rather
 // than a claim about what EXISTS.
-func (s *Store) caseNotes(ctx context.Context, container Record) ([]Note, error) {
-	notes, err := s.notesAbout(ctx, container.ID, map[string]bool{container.ID: true})
+func caseNotes(ctx context.Context, src BriefStore, container Record) ([]Note, error) {
+	notes, err := src.NotesAbout(ctx, container.ID, map[string]bool{container.ID: true})
 	if err != nil {
 		return nil, err
 	}
@@ -1258,12 +1222,12 @@ func (s *Store) caseNotes(ctx context.Context, container Record) ([]Note, error)
 // for its kind, so the count is len() of something already in hand - there is
 // no second read, and no opportunity for the list and the count to be answers
 // about two different moments.
-func (s *Store) governing(ctx context.Context, project string) ([]GoverningRecord, []KindCount, error) {
+func governing(ctx context.Context, src BriefStore, project string) ([]GoverningRecord, []KindCount, error) {
 	var rows []GoverningRecord
 	var counts []KindCount
 
 	for _, kind := range governingKinds {
-		recs, err := s.Query(ctx, project, kind)
+		recs, err := src.Query(ctx, project, kind)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1296,8 +1260,8 @@ func (s *Store) governing(ctx context.Context, project string) ([]GoverningRecor
 // stage, so deriving the counts from the list would report a project with three
 // shipped features as having none. They are two answers about the same rows and
 // this reads those rows once.
-func (s *Store) features(ctx context.Context, project string) ([]Feature, []StageCount, error) {
-	recs, err := s.Query(ctx, project, KindFeature)
+func features(ctx context.Context, src BriefStore, project string) ([]Feature, []StageCount, error) {
+	recs, err := src.Query(ctx, project, KindFeature)
 	if err != nil {
 		return nil, nil, err
 	}

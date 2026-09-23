@@ -1,5 +1,9 @@
 package record
 
+// STORE-SIDE FILE, NOT IMPORTER: every read here is SQL over `records`,
+// `links` and `heads`, so it stays with the store under section 50 while
+// brief.go keeps the derivation that consumes it (move 2, B100).
+
 import (
 	"context"
 	"database/sql"
@@ -26,11 +30,11 @@ import (
 // v7 over v4 is load-bearing, and the first where getting it wrong returns
 // wrong rows rather than ugly ones.
 
-// latestStepsSQL are the four formulations, keyed by name.
+// latestStepSQL are the four formulations, keyed by name.
 //
 // Each takes the project twice where it needs it and returns the full record
 // columns plus the item the step belongs to.
-var latestStepsSQL = map[string]string{
+var latestStepSQL = map[string]string{
 	// 1. GROUP BY with a join back to the winning row.
 	"group-by-max": `
 		SELECT r.id, r.version, r.kind, r.project, r.body, r.fields,
@@ -83,7 +87,7 @@ var latestStepsSQL = map[string]string{
 		                    AND r2.id > r.id)`,
 }
 
-// latestStepsForm is the formulation in use, CHOSEN ON MEASUREMENT.
+// latestStepForm is the formulation in use, CHOSEN ON MEASUREMENT.
 //
 // ⛔ THE FIRST CHOICE HERE WAS "correlated", ON AN INHERITED NUMBER, AND IT WAS
 // THE WORST OF THE FOUR BY 582x. Measured 2026-09-16 at section 39's stress
@@ -104,19 +108,23 @@ var latestStepsSQL = map[string]string{
 // point lookup rather than a group re-derivation. A number carried across a
 // schema change is a number about the old schema, which is exactly why the
 // ruling says run all four rather than reuse the last answer.
-const latestStepsForm = "group-by-max"
+const latestStepForm = "group-by-max"
 
-// latestSteps returns the newest step on every item in a project, by item id.
-func (s *Store) latestSteps(ctx context.Context, project string) (map[string]Record, error) {
-	return s.latestStepsUsing(ctx, latestStepsForm, project)
+// LatestSteps returns the newest step on every item in a project, by item id.
+//
+// ⛔ EXPORTED BY B100 BECAUSE THE BRIEF IS LEAVING AND THIS IS NOT. It is
+// named by BriefStore, which is the interface brief.go derives against, so
+// the derivation can be compiled against something other than *Store.
+func (s *Store) LatestSteps(ctx context.Context, project string) (map[string]Record, error) {
+	return s.LatestStepsUsing(ctx, latestStepForm, project)
 }
 
-// latestStepsUsing runs one named formulation. Exists so the benchmark can
+// LatestStepsUsing runs one named formulation. Exists so the benchmark can
 // measure all four against the SAME corpus through the SAME scan path - a
 // benchmark that measures its own helper rather than the database is the
 // instrument failure this question already paid for once.
-func (s *Store) latestStepsUsing(ctx context.Context, form, project string) (map[string]Record, error) {
-	q, ok := latestStepsSQL[form]
+func (s *Store) LatestStepsUsing(ctx context.Context, form, project string) (map[string]Record, error) {
+	q, ok := latestStepSQL[form]
 	if !ok {
 		return nil, fmt.Errorf("record: %q is not a latest-step formulation", form)
 	}
@@ -161,7 +169,7 @@ func scanStepRow(sc scanner) (Record, string, error) {
 	return rec, item, nil
 }
 
-// coarseCitations counts citations that resolve only to a whole section.
+// CoarseCitations counts citations that resolve only to a whole section.
 //
 // RULED BY BORIS 2026-09-16: the migration imports all 4,206 citations and
 // flags the coarse ones rather than dropping them, and he accepted the named
@@ -174,7 +182,7 @@ func scanStepRow(sc scanner) (Record, string, error) {
 // a failed row: section 37 is 942 lines, and a link to it is the same coarse
 // pointer wearing a new format. Reads ZERO until the migration runs, which is
 // honest rather than empty - the count is a real zero, not a missing feature.
-func (s *Store) coarseCitations(ctx context.Context, project string) (int, error) {
+func (s *Store) CoarseCitations(ctx context.Context, project string) (int, error) {
 	var n int
 	err := s.db.QueryRowContext(ctx, `
 		SELECT COUNT(*)
@@ -191,7 +199,7 @@ func (s *Store) coarseCitations(ctx context.Context, project string) (int, error
 	return n, nil
 }
 
-// itemsWithANote is every record in a project that has a `note` record attached.
+// ItemsWithANote is every record in a project that has a `note` record attached.
 //
 // SECTION 39 ROW 2's "a flag for whether a note is attached", answered as a SET
 // in one query rather than as a boolean per item. The brief already knows every
@@ -207,7 +215,7 @@ func (s *Store) coarseCitations(ctx context.Context, project string) (int, error
 //
 // The heads join on both ends is the same head-only reading every other
 // derivation uses: a superseded note is not a note that is attached.
-func (s *Store) itemsWithANote(ctx context.Context, project string) (map[string]bool, error) {
+func (s *Store) ItemsWithANote(ctx context.Context, project string) (map[string]bool, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT DISTINCT l.dst
 		FROM links l
