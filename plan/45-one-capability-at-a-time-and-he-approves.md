@@ -108,6 +108,31 @@ handed to it is the whole of its context, so:
 
 ---
 
+### ⛔ HOW THE LOOP RUNS WHEN HE IS AWAY. BORIS, 2026-09-23.
+
+> *"Find the plan to separate the planner from `rig` and follow it. I want you
+> to do as much as possible on your own without bothering me!"*
+
+**The plan is §43, §44 and this section, and following it means working §44's
+services in §44's order; the separation is where the plan ends.** The loop
+above is unchanged in WHO decides and changed in WHEN he is asked:
+
+| Step | Who | Running without him |
+|---|---|---|
+| 1, 4, 5, 6 | the seat | **done without asking.** Presenting, specifying, spawning an APPROVED capability, moving on |
+| **3** | **Boris** | ⛔ **still his, and BATCHED.** One consolidated ask per session: every capability that reached step 4, each with a recommendation and the consequence of each answer. Never one interruption per capability |
+| the next capability | Boris | **the seat PREPARES in §44's order** (S1, S2, S4, S3) so his approvals are one word each. **Preparing is not approving** |
+
+⛔ **Nothing is BUILT that he has not approved.** A subagent is spawned for a
+capability he approved and the seat specified, and for nothing else. B104 is
+the first: chosen by him on 2026-09-20, specified in §46, shown to him on the
+morning of 2026-09-23 with the lever to reshape any row, and spawned that
+evening on this instruction.
+
+**A question that is his** (§43's open rows) **is parked with a recommendation
+and with what proceeds meanwhile**, never as *"ask Boris"* alone.
+`DECISIONS.md` 2026-09-23 carries the reasoning.
+
 ### What this does not change
 
 - **§43 and §44 stand.** The planner still leaves rig, and the services rig
