@@ -246,7 +246,9 @@ func restoreJSON(estate string, r backup.RestoreResult) map[string]any {
 // reader to invent a way of verifying it would be the reassuring answer rather
 // than the useful one. The head count is the number to compare because
 // `rig record query` answers heads, and it is printed here so the reader does
-// not have to go and find it.
+// not have to go and find it. The check is the human query's LAST LINE, which
+// counts heads; the --json answer is one line, so a `grep -c` over it printed
+// 1 for every non-empty store. Measured 2026-09-24 in the lead's hand run.
 func restoreText(estate string, r backup.RestoreResult) string {
 	var b strings.Builder
 	row := func(label, value string) {
@@ -264,7 +266,7 @@ func restoreText(estate string, r backup.RestoreResult) string {
 			"To undo this restore:\n  mv %s %s\n", r.Replaced, r.Dir)
 	}
 	fmt.Fprintf(&b, "\nNow check it:\n  rigd --estate %s\n"+
-		"  rig record query --json | grep -c '\"id\"'   expect %d\n",
+		"  rig record query | tail -1   expect \"%d records\" - the query counts heads\n",
 		estate, r.Manifest.Heads)
 	return b.String()
 }

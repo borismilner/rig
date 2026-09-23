@@ -312,7 +312,7 @@ func TestTheRestoreRenderingEndsWithTheCheckToRun(t *testing.T) {
 		"heads     17",
 		"records   22",
 		"rigd --estate b",
-		"expect 17",
+		"expect \"17 records\"",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the rendering has no %q in it:\n%s", want, got)
@@ -449,7 +449,7 @@ func TestAnArchiveGoesThroughTheRestoreVerbIntoAQueryableEstate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("`rig restore --estate b <archive>`: %v", err)
 	}
-	if want := "expect " + strconv.FormatUint(heads, 10); !strings.Contains(out, want) {
+	if want := "expect \"" + strconv.FormatUint(heads, 10) + " records\""; !strings.Contains(out, want) {
 		t.Errorf("the restore does not tell the reader to expect %d heads, "+
 			"which is the number section 44 says the whole verb is for:\n%s",
 			heads, out)

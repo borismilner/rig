@@ -179,6 +179,10 @@ func usage() {
   progress step <item>
                    append one step to a work item's stream
   brief <project>  what is going on in a project or a case
+  backup           archive the estate this shell reached; rig picks the path
+  restore --estate <name> <archive>
+                   put an archive back onto an estate, offline; --force moves
+                   the old state aside rather than deleting it
   down             stop the daemon serving this XDG_RUNTIME_DIR
   version          print every version this build carries
   completion <sh>  a completion script for bash, zsh or fish
