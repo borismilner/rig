@@ -68,7 +68,7 @@ step 2 is where they get tested against what he actually wants.
 
 ---
 
-### ⛔ TWO OF THESE HE ANSWERED ON 2026-09-20. TWO ARE STILL OPEN.
+### ⛔ THREE OF THESE HE HAS ANSWERED. ONE IS STILL OPEN.
 
 **He ruled the process on 2026-09-19 and left four things unstated.** He was
 asked the first two on 2026-09-20 and answered both; they are ANSWERED rows
@@ -79,7 +79,7 @@ below and bind from that day. The other two remain his to rule.
 | ✅ **ANSWERED 2026-09-20. What order are the capabilities taken in?** | **Backup and restore is FIRST.** His choice, put to him as a question with Storage, Configuration and a scope-cutting pass as the alternatives. The reason offered and accepted: it is small enough that the whole loop - explore, approve, specify, hand to a subagent - completes in one session, so the LOOP gets proven on a cheap case before an expensive one. ⛔ **This is one pick, not a standing order. The second capability is his to choose too** |
 | ✅ **ANSWERED 2026-09-20. What does "perfected" mean for an ALREADY-IMPLEMENTED capability?** | **Confirm the design only.** We review it together, he approves or reshapes, and the output is a specification recorded in `plan/`. ⛔ **No code changes unless the review finds the DESIGN itself wrong** - a defect in the design is in scope, polishing the implementation is not. He declined the two costlier readings (design plus a live demo; design, demo and fix what the demo shows) |
 | **Does a killed capability leave the plan?** | §43's correction says deferral is never deletion. **A capability he rejects in step 3 is a different case and has no precedent** |
-| **How many subagents run at once?** | *"a subagent"* is singular in his sentence. Whether step 5 may have two in flight is not stated |
+| ✅ **ANSWERED 2026-09-24. How many subagents run at once?** | ***"If possible, work in parallel!"*** - said while the `seam` seat was being spawned for §50. **Several seats at once, each on files no other seat owns** (`COORDINATION.md`'s rows are the mechanism), and a seat in a tree of its own collides with nothing. The 2026-09-23 recommendation below (one build on the shared tree) is superseded by his word; disjoint ownership replaces it, and the lead schedules the tracks (§50) |
 
 **Seat recommendations on the two open rows, 2026-09-23 evening, parked per
 this section's own rule below.** Neither is an answer.
@@ -87,12 +87,18 @@ this section's own rule below.** Neither is an answer.
 | Open row | Recommendation | Consequence |
 |---|---|---|
 | **a killed capability** | **Stays in `plan/`, marked ⛔ KILLED with his words and the date, and leaves every order and queue.** Deletion loses the reasoning, and the section is the evidence against the next seat re-proposing it | the plan carries closed sections. B24's route to the logbook exists for the day that costs something |
-| **how many subagents at once** | **One BUILD at a time on the shared tree; any number of read-only agents beside it.** A measurement mutates only a detached copy and the tree sees one writer | **Evidence, 2026-09-23 evening:** one build (B104) and one measurement (B108) ran together; the measurement took a `VACUUM INTO` copy and touched no shared file. The next approved build waits for the running one's last commit |
+| ~~**how many subagents at once**~~ SUPERSEDED 2026-09-24 by his answer above | ~~**One BUILD at a time on the shared tree; any number of read-only agents beside it.**~~ A measurement mutates only a detached copy and the tree sees one writer | **Evidence, 2026-09-23 evening:** one build (B104) and one measurement (B108) ran together; the measurement took a `VACUUM INTO` copy and touched no shared file. The next approved build waits for the running one's last commit |
 
 ⛔ **THE FIRST TWO ARE ANSWERED AND A SEAT MUST NOT RE-ASK THEM.** What still
 has to be asked is the NEXT capability, every time one finishes - the
 2026-09-20 answer picked one row, and a seat that reads a queue out of it has
 taken back the decision this section exists to give him.
+
+✅ **ASKED AND ANSWERED 2026-09-24, THE CAPABILITY AFTER B104: THE EXTRACTION
+ITSELF.** Shown the B104 certification and asked whether to start B114 or hold
+for the batched rows, he answered *"We need it split ASAP; Do all needed to make
+it happen ASAP!"* §50 carries what that settles and the three questions it
+reopened, put to him the same turn.
 
 ---
 

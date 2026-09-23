@@ -1,8 +1,13 @@
 ## 43. The platform and the planner, separated
 
-⛔ **OPEN QUESTION 2 IS ANSWERED BY §44, 2026-09-19: THE SERVICES COME FIRST.**
-Boris ruled the platform capabilities rig itself uses are completed before any
-planner code moves. **Questions 1, 3 and 4 below are still open and still his.**
+✅ **Q1 AND Q4 ANSWERED BY BORIS 2026-09-24: THE STORE STAYS IN rig, THE
+PLANNER IS `docket`.** Put to him as three questions with §43's own
+recommendations first, on his *"We need it split ASAP"*; he took all three.
+**The third reversed §44's order: the split comes FIRST, and S1, S4, S3 land
+after it.** Q3, the MVP sentence, is the one row still his. §50 is the build.
+
+⛔ Question 2 was first answered by §44, 2026-09-19 (services first) and
+reversed by him on 2026-09-24 (split first); §44 carries both.
 
 **RULED BY BORIS, 2026-09-19.** He raised it unprompted at the start of the
 session, asked for it to be sized, and ruled before anything moved. The three
@@ -162,10 +167,10 @@ what gets built.
 
 | Open | Why it is not answerable from what he said |
 |---|---|
-| ⛔ **does the generic record store stay in rig as a platform service, or go with the planner?** | *"uses `rig` to the max"* bears on it and does not settle it. **Staying** makes the planner thin and keeps rig owning the data; **going** restores §29 cleanly and makes the planner self-contained |
-| ⛔ **does M11 come before the extraction?** | It is the difference between a planner that uses rig for storage and one that carries its own. **The first matches his sentence; the second is what is buildable today** |
+| ✅ **ANSWERED 2026-09-24: STAYS.** does the generic record store stay in rig as a platform service, or go with the planner? | Put to him as *Stays in rig* (rig keeps kinds, versions, links, the `record.*` verbs and `progress`; the planner declares ITS kinds and reads and writes over the wire) against *Goes with the planner*. He chose STAYS. §50 was drafted for it |
+| ✅ **ANSWERED TWICE. does M11 come before the extraction?** | 2026-09-19: yes, §44. **2026-09-24: NO - split first**, the reversal named to him as a reversal of his own order; the planner leaves on rig's existing record store over the wire and adopts S1, S4, S3 as each lands |
 | ⛔ **what happens to the MVP definition?** | §39's MVP is *"being able to use `rig` to work on `rig` with respect to the project/case management"*. **That sentence now describes the planner, not rig.** `READINESS.txt` is the team-lead's and is the only artefact allowed to answer it |
-| **the planner's name, and its repository** | Not raised |
+| ✅ **ANSWERED 2026-09-24: `docket`.** the planner's name, and its repository | `~/me/projects/docket`, module `github.com/boris-milner/docket`, notes at `logbook/projects/docket/` by the standing convention. `cmd/docket`, M1a's second fake application, is renamed to free the name. `slate` was the alternative offered |
 
 #### Seat recommendations, 2026-09-23 evening. NOT ANSWERS: §45's rule is that his question is parked WITH a recommendation and with what proceeds meanwhile
 

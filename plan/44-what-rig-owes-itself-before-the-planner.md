@@ -1,5 +1,16 @@
 ## 44. What rig owes itself before the planner leaves
 
+⛔ **THE ORDER IN THIS SECTION WAS REVERSED BY BORIS ON 2026-09-24: THE
+SPLIT COMES FIRST.** Asked - with the reversal named as a reversal of this
+section - whether the split comes before S1 storage, S4 configuration and S3
+logging, he chose *Split first*: the planner leaves now on rig's existing
+record store over the wire, and S1, S4 and S3 land afterwards, the planner
+adopting each as it arrives. **Nothing below is dropped**; his 2026-09-19
+correction stands, every service is still owed on its milestone, and the
+ordering TEST below still decides which land next once the split is done.
+S2 landed before the split regardless (B104, 2026-09-24), and §50's
+acceptance C needs it.
+
 **RULED BY BORIS, 2026-09-19**, the same day as §43 and immediately after it.
 This is the ORDER decision §43 left open, and he took the option §43 named as
 matching his own sentence.
@@ -386,6 +397,7 @@ store and its answer was `modernc.org/sqlite` alone.**
 - ⛔ **The MVP sentence is STILL OPEN.** §43's question 3 is not answered by
   this section, and `READINESS.txt` remains the only artefact allowed to say
   what any of it costs.
-- **No planner code moves until S1 to S4 land**, which is his instruction read
-  literally: *"complete missing services/capabilities in rig BEFORE we split
-  out the planner."*
+- ~~**No planner code moves until S1 to S4 land**~~, which was his 2026-09-19
+  instruction read literally: *"complete missing services/capabilities in rig
+  BEFORE we split out the planner."* ⛔ **REVERSED BY HIM 2026-09-24, the
+  banner at the top.**
