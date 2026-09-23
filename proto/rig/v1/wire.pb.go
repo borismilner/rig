@@ -6446,6 +6446,166 @@ func (x *ProjectBriefResponse) GetUnlistedItems() uint64 {
 	return 0
 }
 
+// BackupCreateRequest asks the daemon to archive the estate it is running.
+//
+// ⛔ EMPTY, ON EstateRequest's PRECEDENT, AND THAT IS SECTION 46 DECISION 6.
+// Anything a client could write into this - a destination, a name, a set of
+// members - would be a second place for the client and the daemon to disagree
+// about a file on a disk they share. The daemon knows which estate it is
+// running and where rig keeps archives; the client knows neither and does not
+// need to. An empty request also has nothing to validate, which is how section
+// 38's fourth standing rule is met here rather than by a checker.
+type BackupCreateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BackupCreateRequest) Reset() {
+	*x = BackupCreateRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[71]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BackupCreateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BackupCreateRequest) ProtoMessage() {}
+
+func (x *BackupCreateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[71]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BackupCreateRequest.ProtoReflect.Descriptor instead.
+func (*BackupCreateRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{71}
+}
+
+// BackupCreateResponse is the archive the daemon just wrote.
+//
+// EVERY FIELD IS READ OUT OF THE ARTEFACT RATHER THAN OFF THE WRITER. The
+// digest is taken from the bytes as they went to disk, and the three counts
+// come from the snapshot file through a second connection, never from the live
+// store or from a constant in the daemon. A number read out of the artefact can
+// be wrong about the world; a number read out of the writer cannot even be
+// wrong about the artefact.
+type BackupCreateResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Where the archive landed, absolute. The client prints it and never chose
+	// it.
+	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	// SHA-256 of the whole archive file, lowercase hex, so a person can run
+	// sha256sum against what they copied off the machine.
+	Sha256 string `protobuf:"bytes,2,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	// Size of the archive file in bytes.
+	Bytes uint64 `protobuf:"varint,3,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	// PRAGMA user_version of the snapshot inside, which a restore refuses if it
+	// is newer than the restoring binary knows.
+	SchemaVersion uint64 `protobuf:"varint,4,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	// Rows in `records`, counting every superseded version.
+	Records uint64 `protobuf:"varint,5,opt,name=records,proto3" json:"records,omitempty"`
+	// Rows in `heads`, one per record.
+	//
+	// ⛔ THIS IS THE NUMBER A RESTORE IS CHECKED AGAINST, because rig.record.query
+	// answers heads and `records` counts every version behind them. Generation 22
+	// measured 2,568 rows against 1,057 heads while a document said "2,538
+	// records" and was counting neither.
+	Heads uint64 `protobuf:"varint,6,opt,name=heads,proto3" json:"heads,omitempty"`
+	// When the snapshot was taken, on the daemon's clock.
+	CreatedUnixNano int64 `protobuf:"varint,7,opt,name=created_unix_nano,json=createdUnixNano,proto3" json:"created_unix_nano,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *BackupCreateResponse) Reset() {
+	*x = BackupCreateResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[72]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BackupCreateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BackupCreateResponse) ProtoMessage() {}
+
+func (x *BackupCreateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[72]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BackupCreateResponse.ProtoReflect.Descriptor instead.
+func (*BackupCreateResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{72}
+}
+
+func (x *BackupCreateResponse) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *BackupCreateResponse) GetSha256() string {
+	if x != nil {
+		return x.Sha256
+	}
+	return ""
+}
+
+func (x *BackupCreateResponse) GetBytes() uint64 {
+	if x != nil {
+		return x.Bytes
+	}
+	return 0
+}
+
+func (x *BackupCreateResponse) GetSchemaVersion() uint64 {
+	if x != nil {
+		return x.SchemaVersion
+	}
+	return 0
+}
+
+func (x *BackupCreateResponse) GetRecords() uint64 {
+	if x != nil {
+		return x.Records
+	}
+	return 0
+}
+
+func (x *BackupCreateResponse) GetHeads() uint64 {
+	if x != nil {
+		return x.Heads
+	}
+	return 0
+}
+
+func (x *BackupCreateResponse) GetCreatedUnixNano() int64 {
+	if x != nil {
+		return x.CreatedUnixNano
+	}
+	return 0
+}
+
 var File_proto_rig_v1_wire_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_wire_proto_rawDesc = "" +
@@ -6821,7 +6981,16 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x0fcontainer_found\x18\x16 \x01(\x0e2\x10.rig.v1.TristateR\x0econtainerFound\x12*\n" +
 	"\x06closed\x18\x17 \x03(\v2\x12.rig.v1.ClosedItemR\x06closed\x126\n" +
 	"\rclosed_counts\x18\x18 \x03(\v2\x11.rig.v1.WordCountR\fclosedCounts\x12%\n" +
-	"\x0eunlisted_items\x18\x19 \x01(\x04R\runlistedItems*\xbc\x01\n" +
+	"\x0eunlisted_items\x18\x19 \x01(\x04R\runlistedItems\"\x15\n" +
+	"\x13BackupCreateRequest\"\xdb\x01\n" +
+	"\x14BackupCreateResponse\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +
+	"\x06sha256\x18\x02 \x01(\tR\x06sha256\x12\x14\n" +
+	"\x05bytes\x18\x03 \x01(\x04R\x05bytes\x12%\n" +
+	"\x0eschema_version\x18\x04 \x01(\x04R\rschemaVersion\x12\x18\n" +
+	"\arecords\x18\x05 \x01(\x04R\arecords\x12\x14\n" +
+	"\x05heads\x18\x06 \x01(\x04R\x05heads\x12*\n" +
+	"\x11created_unix_nano\x18\a \x01(\x03R\x0fcreatedUnixNano*\xbc\x01\n" +
 	"\tFrameKind\x12\x1a\n" +
 	"\x16FRAME_KIND_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12FRAME_KIND_REQUEST\x10\x01\x12\x17\n" +
@@ -6927,7 +7096,7 @@ func file_proto_rig_v1_wire_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 14)
-var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 73)
+var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 75)
 var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(FrameKind)(0),                // 0: rig.v1.FrameKind
 	(Code)(0),                     // 1: rig.v1.Code
@@ -7014,8 +7183,10 @@ var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(*ClosedItem)(nil),            // 82: rig.v1.ClosedItem
 	(*WordCount)(nil),             // 83: rig.v1.WordCount
 	(*ProjectBriefResponse)(nil),  // 84: rig.v1.ProjectBriefResponse
-	nil,                           // 85: rig.v1.Record.FieldsEntry
-	nil,                           // 86: rig.v1.RecordPutRequest.FieldsEntry
+	(*BackupCreateRequest)(nil),   // 85: rig.v1.BackupCreateRequest
+	(*BackupCreateResponse)(nil),  // 86: rig.v1.BackupCreateResponse
+	nil,                           // 87: rig.v1.Record.FieldsEntry
+	nil,                           // 88: rig.v1.RecordPutRequest.FieldsEntry
 }
 var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	1,  // 0: rig.v1.Status.code:type_name -> rig.v1.Code
@@ -7046,11 +7217,11 @@ var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	9,  // 25: rig.v1.ActivityRequest.state:type_name -> rig.v1.SeatState
 	35, // 26: rig.v1.ActivityResponse.you:type_name -> rig.v1.Seat
 	35, // 27: rig.v1.PeersResponse.crew:type_name -> rig.v1.Seat
-	85, // 28: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
+	87, // 28: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
 	42, // 29: rig.v1.Record.prov:type_name -> rig.v1.Provenance
 	44, // 30: rig.v1.Record.retraction:type_name -> rig.v1.Retraction
 	42, // 31: rig.v1.Retraction.prov:type_name -> rig.v1.Provenance
-	86, // 32: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
+	88, // 32: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
 	43, // 33: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
 	43, // 34: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
 	43, // 35: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
@@ -7105,7 +7276,7 @@ func file_proto_rig_v1_wire_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_wire_proto_rawDesc), len(file_proto_rig_v1_wire_proto_rawDesc)),
 			NumEnums:      14,
-			NumMessages:   73,
+			NumMessages:   75,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

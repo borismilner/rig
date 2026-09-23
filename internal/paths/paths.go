@@ -261,3 +261,30 @@ func EstateStateDir(name string) (string, error) {
 	}
 	return filepath.Join(d, "estates", name), nil
 }
+
+// BackupDir is where `rig backup` puts its archives:
+// $XDG_STATE_HOME/rig/backups/.
+//
+// ⛔ THE CALLER NEVER NAMES A PATH, AND THAT IS SECTION 46 DECISION 6 RATHER
+// THAN A CONVENIENCE. `BackupCreateRequest` is empty, so there is nothing in it
+// to validate, which is the cheapest possible way to meet section 38's fourth
+// standing rule that no caller path is joined unvalidated. The daemon chooses
+// the directory here and the file name from the estate's own name and the
+// clock; the CLI prints where it landed. Copying an archive off the machine is
+// the user's business and a plain .tar.gz opens anywhere.
+//
+// It sits beside `estates/` under the same root rather than inside an estate's
+// own directory, and the reason is decision 8: a restore RENAMES the estate
+// directory whole to <name>.replaced-<stamp>. An archive stored inside it would
+// travel with the directory being moved aside, so the one file a person needs
+// when a restore went wrong would be the file that just moved.
+//
+// It resolves a path and creates nothing, exactly as every other function here.
+// The mkdir belongs to whoever is about to write.
+func BackupDir() (string, error) {
+	d, err := StateDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(d, "backups"), nil
+}

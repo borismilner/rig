@@ -1918,3 +1918,53 @@ message ProjectBriefResponse {
   // ABSENCE of BRIEF_SECTION_CLOSED from `sections`, not by this number.
   uint64 unlisted_items = 25;
 }
+
+// BackupCreateRequest asks the daemon to archive the estate it is running.
+//
+// ⛔ EMPTY, ON EstateRequest's PRECEDENT, AND THAT IS SECTION 46 DECISION 6.
+// Anything a client could write into this - a destination, a name, a set of
+// members - would be a second place for the client and the daemon to disagree
+// about a file on a disk they share. The daemon knows which estate it is
+// running and where rig keeps archives; the client knows neither and does not
+// need to. An empty request also has nothing to validate, which is how section
+// 38's fourth standing rule is met here rather than by a checker.
+message BackupCreateRequest {}
+
+// BackupCreateResponse is the archive the daemon just wrote.
+//
+// EVERY FIELD IS READ OUT OF THE ARTEFACT RATHER THAN OFF THE WRITER. The
+// digest is taken from the bytes as they went to disk, and the three counts
+// come from the snapshot file through a second connection, never from the live
+// store or from a constant in the daemon. A number read out of the artefact can
+// be wrong about the world; a number read out of the writer cannot even be
+// wrong about the artefact.
+message BackupCreateResponse {
+  // Where the archive landed, absolute. The client prints it and never chose
+  // it.
+  string path = 1;
+
+  // SHA-256 of the whole archive file, lowercase hex, so a person can run
+  // sha256sum against what they copied off the machine.
+  string sha256 = 2;
+
+  // Size of the archive file in bytes.
+  uint64 bytes = 3;
+
+  // PRAGMA user_version of the snapshot inside, which a restore refuses if it
+  // is newer than the restoring binary knows.
+  uint64 schema_version = 4;
+
+  // Rows in `records`, counting every superseded version.
+  uint64 records = 5;
+
+  // Rows in `heads`, one per record.
+  //
+  // ⛔ THIS IS THE NUMBER A RESTORE IS CHECKED AGAINST, because rig.record.query
+  // answers heads and `records` counts every version behind them. Generation 22
+  // measured 2,568 rows against 1,057 heads while a document said "2,538
+  // records" and was counting neither.
+  uint64 heads = 6;
+
+  // When the snapshot was taken, on the daemon's clock.
+  int64 created_unix_nano = 7;
+}

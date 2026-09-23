@@ -842,6 +842,14 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 		"progress.step", "project.brief":
 		d.serveRecord(ctx, c, f, command)
 
+	case "backup.create":
+		// Its own arm rather than a member of the group above: the record
+		// verbs all take a store and read or write rows in it, and this one
+		// writes a FILE. Section 46's decision 11 refusal also runs after
+		// recordStore rather than inside it, which the grouped arm cannot
+		// express.
+		d.serveBackupCreate(ctx, c, f)
+
 	case "down":
 		// Authorised above like everything else, and it is declared
 		// destructive in self.go, so a house rule denying destructive calls

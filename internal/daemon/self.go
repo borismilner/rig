@@ -171,6 +171,36 @@ func selfDeclaration() kernel.Declaration {
 				Returns:      "The record as written, at its new version.",
 			},
 			{
+				ID: "backup.create", Title: "Backup create",
+
+				// It writes a file and nothing else: the store is read
+				// through VACUUM INTO, which does not change a row.
+				Effects: kernel.EffectsWritesFiles,
+
+				// NOT idempotent: the name carries a UTC stamp, so two
+				// calls leave TWO archives. That is the intended shape -
+				// a backup that overwrote the previous one would destroy
+				// a backup in the act of taking one.
+				Idempotent: kernel.No,
+
+				Sensitive:    []string{},
+				Interactive:  kernel.No,
+				Streams:      kernel.No,
+				NeedsDisplay: kernel.No,
+
+				// Seconds, not instant: VACUUM INTO rewrites the whole
+				// database compacted and then gzip runs over the result.
+				Duration: kernel.DurationSeconds,
+
+				// No confirmation: it only ever ADDS a file, and the one
+				// file it could have destroyed is refused by name.
+				Confirms:    kernel.No,
+				Shape:       kernel.ShapeUnary,
+				Summary:     "Archive this estate's own persistent state",
+				Description: "Takes a transactional snapshot of the record store and writes one .tar.gz under the user's state directory, carrying a manifest and the snapshot. The caller names no path: the daemon chooses it from the estate name and the clock, and answers with where it landed. A copy of record.db taken with cp is NOT a backup, because the store runs in WAL mode and a committed write lives in record.db-wal until a checkpoint folds it in.",
+				Returns:     "Where the archive landed, its size and SHA-256, and the schema version, record count and head count of the snapshot inside it.",
+			},
+			{
 				ID: "progress.step", Title: "Progress step",
 				Effects: kernel.EffectsWritesFiles,
 
