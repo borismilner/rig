@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/boris-milner/rig/internal/backup"
+	"github.com/boris-milner/rig/internal/estate"
 	"github.com/boris-milner/rig/internal/instance"
 	"github.com/boris-milner/rig/internal/paths"
 )
@@ -68,6 +69,20 @@ func cmdRestore(args []string) (err error) {
 	}
 	if err := paths.ValidEstateName(*rf.estate); err != nil {
 		return badArgumentf("rig restore: %v", err)
+	}
+
+	// ⛔ LEXICALLY VALID IS NOT THE SAME AS OPENABLE, AND THIS IS THE CHECK
+	// THAT WAS MISSING (B114). paths.ValidEstateName above asks whether the
+	// name is a safe path component; internal/estate asks whether any daemon
+	// will ever open it. Without the second, `rig restore --estate b` exited 0
+	// and told the reader to run `rigd --estate b`, which exits 1 - measured
+	// with two real binaries 2026-09-23. Both checks are cheap and both come
+	// before the claim, so a refused name reaches neither the lock nor the
+	// disk.
+	if err := estate.CheckName(*rf.estate); err != nil {
+		return badArgumentf("rig restore: %v.\n"+
+			"       Restoring into any other name writes a whole estate "+
+			"directory no rigd will ever open", err)
 	}
 
 	// ⛔ THE CLAIM COMES BEFORE ANY LOOK AT THE DISK. rigd takes this same
@@ -225,9 +240,13 @@ func restoreRefusal(err error) error {
 const estateKey = "estate"
 
 // restoreJSON is the object --json emits.
-func restoreJSON(estate string, r backup.RestoreResult) map[string]any {
+//
+// The parameter is `name` rather than `estate` because internal/estate is
+// imported above and a parameter shadowing a package is how a later edit ends
+// up calling a method on a string (gocritic importShadow, .golangci.yml).
+func restoreJSON(name string, r backup.RestoreResult) map[string]any {
 	return map[string]any{
-		estateKey:           estate,
+		estateKey:           name,
 		"dir":               r.Dir,
 		"replaced":          r.Replaced,
 		"heads":             r.Manifest.Heads,
@@ -249,12 +268,12 @@ func restoreJSON(estate string, r backup.RestoreResult) map[string]any {
 // not have to go and find it. The check is the human query's LAST LINE, which
 // counts heads; the --json answer is one line, so a `grep -c` over it printed
 // 1 for every non-empty store. Measured 2026-09-24 in the lead's hand run.
-func restoreText(estate string, r backup.RestoreResult) string {
+func restoreText(name string, r backup.RestoreResult) string {
 	var b strings.Builder
 	row := func(label, value string) {
 		fmt.Fprintf(&b, "%-*s%s\n", restoreColumn, label, value)
 	}
-	row("estate", estate)
+	row("estate", name)
 	row("at", r.Dir)
 	row("from", restoreFromCell(r.Manifest))
 	row("heads", strconv.FormatUint(r.Manifest.Heads, 10))
@@ -267,7 +286,7 @@ func restoreText(estate string, r backup.RestoreResult) string {
 	}
 	fmt.Fprintf(&b, "\nNow check it:\n  rigd --estate %s\n"+
 		"  rig record query | tail -1   expect \"%d records\" - the query counts heads\n",
-		estate, r.Manifest.Heads)
+		name, r.Manifest.Heads)
 	return b.String()
 }
 

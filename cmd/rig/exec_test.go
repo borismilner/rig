@@ -243,6 +243,10 @@ func TestTheBinary(t *testing.T) {
 		{name: "restore-usage", argv: []string{"restore"}},
 		{name: "restore-refuses-a-bad-estate-name", argv: []string{"restore", "--estate", "../../etc", "x.tar.gz"}},
 		{name: "restore-refuses-two-archives", argv: []string{"restore", "--estate", "b", "one.tar.gz", "two.tar.gz"}},
+		// B114: `b` is a lexically perfect name that no rigd will ever open,
+		// and this transcript is the refusal a person now meets instead of a
+		// successful restore that ends "start it with: rigd --estate b".
+		{name: "restore-refuses-an-estate-no-daemon-opens", argv: []string{"restore", "--estate", "b", "x.tar.gz"}},
 
 		// ⛔ SECTION 39's THREE VERBS, WHOSE ABSENCE THIS FILE'S OWN OPENING
 		// SENTENCE DENIED. "Every verb run() dispatches appears here, and so

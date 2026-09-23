@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/boris-milner/rig/internal/estate"
 )
 
 // unitPath is the systemd --user unit, which lives in packaging/ rather than
@@ -151,7 +153,7 @@ func TestTheUnitManagesProductionOnly(t *testing.T) {
 				"manages persists nothing and cannot be told apart from the one "+
 				"that replaces it. There is no default estate to fall back on", d)
 		}
-		for _, other := range estateNames {
+		for _, other := range estate.Names() {
 			if other != "production" && strings.Contains(d, "--estate="+other) {
 				t.Errorf("ExecStart names the %s estate (%q). This unit manages "+
 					"production only", other, d)

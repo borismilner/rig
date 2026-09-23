@@ -1,0 +1,6 @@
+$ rig restore --estate b x.tar.gz
+exit 1
+--- stdout (0 bytes)
+--- stderr (231 bytes)
+rig: rig restore: estate "b" is not a permitted name: rig runs at most two named estates, production and development (PLAN.md section 37).
+       Restoring into any other name writes a whole estate directory no rigd will ever open

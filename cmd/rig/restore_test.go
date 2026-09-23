@@ -189,6 +189,23 @@ func TestRestoreRefusesBadArgvBeforeItReachesAnyEstate(t *testing.T) {
 			argv: []string{"--estate=", "x.tar.gz"},
 			want: []string{"--estate is required"},
 		},
+		{
+			// ⛔ B114, AND IT IS THE ONE CASE HERE THAT USED TO SUCCEED.
+			// `b` is a lexically perfect estate name - lowercase, one path
+			// component, nothing to traverse - so paths.ValidEstateName
+			// passes it and the restore ran, printing `rigd --estate b` as
+			// the next step. rigd refuses that name, so the archive landed in
+			// an estate nothing would ever open. internal/estate is the check
+			// that closes it, and it is reached HERE, in this table, because
+			// the refusal has to come before the claim and before the disk.
+			name: "an estate name no daemon will open",
+			argv: []string{"--estate", "b", "x.tar.gz"},
+			want: []string{
+				`estate "b" is not a permitted name`,
+				"production", "development", "section 37",
+				"no rigd will ever open",
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			err := cmdRestore(tc.argv)
@@ -406,16 +423,17 @@ func TestTheRestoreObjectCarriesEveryFieldOnEveryAnswer(t *testing.T) {
 // ROW 8 IS THE ACCEPTANCE TEST, AND THIS IS THE HALF THAT FITS IN A SUITE.
 //
 // The row runs a daemon on estate `a`, puts K records, takes a backup,
-// restores it into `b` under a SECOND state root, starts a daemon there and
-// asks `rig record query` for K heads. Two of those steps are processes and a
+// restores it into a SECOND state root, starts a daemon there and asks
+// `rig record query` for K heads. Two of those steps are processes and a
 // suite cannot prove a process starts; the seat's hand run is the other half
 // and the transcript is in its STATUS.md. What runs HERE is everything
 // between:
 //
 //	a real store, superseded so heads and records are different numbers
 //	a real archive, written by internal/backup
-//	`rig restore --estate b` - THE VERB, not backup.Restore - under a second
-//	  XDG_STATE_HOME, so `b` is somewhere no store has ever opened
+//	`rig restore --estate development` - THE VERB, not backup.Restore - under
+//	  a second XDG_STATE_HOME, so the target is somewhere no store has ever
+//	  opened
 //	a real reopen of the restored bytes, answering the manifest's head count
 //
 // ⛔ THE VERB IS THE POINT OF THIS TEST EXISTING AT ALL.
@@ -438,16 +456,38 @@ func TestAnArchiveGoesThroughTheRestoreVerbIntoAQueryableEstate(t *testing.T) {
 
 	archive, heads, records := archiveOfARealEstate(t)
 
-	// ⛔ A SECOND STATE ROOT. `b` must be somewhere no store has ever opened,
-	// or a restore that quietly reused `a`'s files would satisfy every
+	// ⛔ A SECOND STATE ROOT. The target must be somewhere no store has ever
+	// opened, or a restore that quietly reused `a`'s files would satisfy every
 	// assertion below. It is also what the row specifies.
-	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	stateRoot := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", stateRoot)
+
+	// ⛔ THE TARGET IS ONE OF HIS OWN TWO NAMES, AND THAT IS B114's DOING.
+	// This test restored into `b` until section 37's set was closed over `rig
+	// restore` as well as `rigd`; the set has two members and no test-only
+	// third, so the name here is a name that exists on his machine. The
+	// isolation above is the only thing keeping this off his disk, and an
+	// isolation that silently stopped working is this project's most frequent
+	// defect - COORDINATION.md records four escapes, one of them the daemon's
+	// own suite opening his live production store. So the path is resolved and
+	// checked BEFORE the verb runs: this test refuses to run rather than
+	// restore an archive over a real estate.
+	const target = "development"
+	targetDir, err := paths.EstateStateDir(target)
+	if err != nil {
+		t.Fatalf("paths.EstateStateDir(%q): %v", target, err)
+	}
+	if !strings.HasPrefix(targetDir, stateRoot+string(os.PathSeparator)) {
+		t.Fatalf("estate %q resolves to %s, OUTSIDE this test's state root %s."+
+			"\nThe isolation is not holding, so this test stops here: running "+
+			"on would restore an archive over a real estate", target, targetDir, stateRoot)
+	}
 
 	out, err := captureStdout(t, func() error {
-		return cmdRestore([]string{"--estate", "b", archive})
+		return cmdRestore([]string{"--estate", target, archive})
 	})
 	if err != nil {
-		t.Fatalf("`rig restore --estate b <archive>`: %v", err)
+		t.Fatalf("`rig restore --estate %s <archive>`: %v", target, err)
 	}
 	if want := "expect \"" + strconv.FormatUint(heads, 10) + " records\""; !strings.Contains(out, want) {
 		t.Errorf("the restore does not tell the reader to expect %d heads, "+
@@ -457,18 +497,18 @@ func TestAnArchiveGoesThroughTheRestoreVerbIntoAQueryableEstate(t *testing.T) {
 
 	// THE ROW'S OWN ASSERTION: record.query answers HEADS, and the manifest's
 	// head count is what it must equal.
-	st, err := recordstore.Open("b")
+	st, err := recordstore.Open(target)
 	if err != nil {
-		t.Fatalf("opening the restored estate b: %v", err)
+		t.Fatalf("opening the restored estate %s: %v", target, err)
 	}
 	t.Cleanup(func() { _ = st.Close() })
 
 	got, err := st.Find(context.Background(), recordstore.QueryFilter{})
 	if err != nil {
-		t.Fatalf("querying the restored estate b: %v", err)
+		t.Fatalf("querying the restored estate %s: %v", target, err)
 	}
 	if uint64(len(got)) != heads {
-		t.Fatalf("estate b answers %d heads and the archive carried %d",
+		t.Fatalf("estate %s answers %d heads and the archive carried %d", target,
 			len(got), heads)
 	}
 	// The calibration, without which the line above passes against a restore
@@ -485,10 +525,7 @@ func TestAnArchiveGoesThroughTheRestoreVerbIntoAQueryableEstate(t *testing.T) {
 	// and nothing written. Both halves matter - a refusal that had already
 	// moved the directory aside would be a failed restore that destroyed the
 	// estate it refused to touch.
-	dir, err := paths.EstateStateDir("b")
-	if err != nil {
-		t.Fatalf("paths.EstateStateDir: %v", err)
-	}
+	dir := targetDir
 	db := filepath.Join(dir, recordstore.DBName)
 	before, err := os.Stat(db)
 	if err != nil {
@@ -496,7 +533,7 @@ func TestAnArchiveGoesThroughTheRestoreVerbIntoAQueryableEstate(t *testing.T) {
 	}
 	siblings := siblingNames(t, dir)
 
-	again := cmdRestore([]string{"--estate", "b", archive})
+	again := cmdRestore([]string{"--estate", target, archive})
 	if again == nil {
 		t.Fatal("a second restore into an estate that already holds state was " +
 			"ACCEPTED without --force, so an archive overwrites a live estate " +
