@@ -572,37 +572,6 @@ type Blockage struct {
 	BlockedBy []string
 }
 
-// Note is section 39 row 3's note, RENDERED IN FULL.
-//
-// "never summarised - this is Boris's comment/question mechanism, and an agent
-// that skips it has not read the item." So the body is carried whole. That is
-// the opposite of the compact card's rule and both are deliberate: the card is
-// a list to scan, this is a question somebody asked and is waiting on.
-type Note struct {
-	ID string
-
-	// Title is what the document called this note, and it is what a reader
-	// needs FIRST.
-	//
-	// ⛔ IT WAS DERIVED AND THEN DROPPED, WHICH IS WHY THE WINDOW SHOWED PROSE
-	// WHERE A NAME BELONGS. Every one of the eight notes in Boris's store
-	// carries `fields["title"]` - "Naming", "What rig is" - and this struct had
-	// no slot for it, so the window listed each note by the first 90 characters
-	// of its BODY. One of his is 1,951 bytes and one is empty, so that list
-	// read as a truncated paragraph and a blank line. Boris, 2026-09-18: "fix
-	// the rig functionality". B97.
-	Title string
-
-	Body     string
-	Priority string
-
-	// About is the record this note is part-of - the project itself, or one of
-	// its work-items. A note with no About has nothing to be read against.
-	About string
-
-	Prov Provenance
-}
-
 // Feature is section 39 row 10's feature, for the features-at-stage list.
 type Feature struct {
 	ID    string
@@ -956,6 +925,7 @@ func deriveBrief(ctx context.Context, src BriefStore, project string) (Brief, er
 	if b.Notes, err = src.NotesAbout(ctx, project, subjects); err != nil {
 		return Brief{}, err
 	}
+	sortNotes(b.Notes)
 	led.did(SectionNotes)
 
 	// SECTION 10.
@@ -1160,6 +1130,12 @@ func topoSort(active map[string]ItemState, edges map[string][]string) ([]string,
 
 // sortNotes puts the important notes first: priority, then recency, then id.
 //
+// ⛔ IT RUNS HERE AND NOT IN NotesAbout, WHICH IS THE B100 SEAM. Ordering by
+// importance is the brief's policy and the rank lives in this file; the
+// store answers rows in a stable id order and says nothing about which note
+// matters. Both call sites below call THIS function, so the one-order rule
+// the rest of this comment states is unchanged.
+//
 // ⛔ ONE SORT FOR BOTH NOTE LISTS, AND THAT IS THE POINT OF IT BEING A
 // FUNCTION. Section 39 states this ordering for a case's attention_n notes
 // (row 11) and states nothing for a project's notes (row 3); using it for both
@@ -1202,6 +1178,7 @@ func caseNotes(ctx context.Context, src BriefStore, container Record) ([]Note, e
 	if err != nil {
 		return nil, err
 	}
+	sortNotes(notes)
 	if n := capFrom(container, "attention_n", DefaultAttentionN); len(notes) > n {
 		notes = notes[:n]
 	}

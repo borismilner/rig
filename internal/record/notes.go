@@ -10,6 +10,37 @@ import (
 	"fmt"
 )
 
+// Note is section 39 row 3's note, RENDERED IN FULL.
+//
+// "never summarised - this is Boris's comment/question mechanism, and an agent
+// that skips it has not read the item." So the body is carried whole. That is
+// the opposite of the compact card's rule and both are deliberate: the card is
+// a list to scan, this is a question somebody asked and is waiting on.
+type Note struct {
+	ID string
+
+	// Title is what the document called this note, and it is what a reader
+	// needs FIRST.
+	//
+	// ⛔ IT WAS DERIVED AND THEN DROPPED, WHICH IS WHY THE WINDOW SHOWED PROSE
+	// WHERE A NAME BELONGS. Every one of the eight notes in Boris's store
+	// carries `fields["title"]` - "Naming", "What rig is" - and this struct had
+	// no slot for it, so the window listed each note by the first 90 characters
+	// of its BODY. One of his is 1,951 bytes and one is empty, so that list
+	// read as a truncated paragraph and a blank line. Boris, 2026-09-18: "fix
+	// the rig functionality". B97.
+	Title string
+
+	Body     string
+	Priority string
+
+	// About is the record this note is part-of - the project itself, or one of
+	// its work-items. A note with no About has nothing to be read against.
+	About string
+
+	Prov Provenance
+}
+
 // NotesAbout collects section 3's notes: every note part-of one of `subjects`.
 //
 // ONE QUERY FOR EVERY NOTE IN THE PROJECT, FILTERED IN GO. The alternative is
@@ -20,6 +51,12 @@ import (
 // ⛔ SCOPED ON THE DESTINATION, like the has-note flag, because section 39 rules
 // that links MAY cross a project boundary. A note written elsewhere and attached
 // here is exactly the question this section exists to surface.
+//
+// ⛔ THE ROWS COME BACK IN ORDER BY n.id AND THE RANK IS APPLIED BY THE
+// CALLER, which is B100's seam: importance is the brief's policy and the
+// store does not know which note matters. brief.go's sortNotes is the one
+// place that decides, and both note lists go through it. The paragraphs below
+// are why that rank exists and they belong with it.
 //
 // ⛔ ORDERED BY PRIORITY, THEN created_at DESCENDING, THEN id - AND THIS
 // COMMENT USED TO NAME A MECHANISM THE QUERY DID NOT HAVE. It read "ordered by
@@ -86,6 +123,5 @@ func (s *Store) NotesAbout(ctx context.Context, project string, subjects map[str
 		return nil, err
 	}
 
-	sortNotes(out)
 	return out, nil
 }
