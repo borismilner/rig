@@ -140,6 +140,8 @@ state.
   has no backup.
 - **The acceptance test:** the `cp` in a seat's shell history is replaced by a
   command, and a restore is demonstrated onto a throwaway estate.
+- **Specified for an unattended build in §46**, 2026-09-23, after he chose it
+  first on 2026-09-20 (§45).
 
 #### S3. Logging - ingest, not a logger
 

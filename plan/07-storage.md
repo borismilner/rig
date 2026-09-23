@@ -149,4 +149,8 @@ is the missing half of M15's "fresh machine to a working rig in one command" - w
 written installs the software and carries none of the history. **M11**, beside the per-program
 backup it already ships, because building it twice is the alternative.
 
+**The build specification is §46**, written 2026-09-23 as §45's step 4 for B104. It also
+records why the hand `cp` was never a backup: the store is WAL-mode, and on 2026-09-23 the
+main file was four days older than a 4.2 MB `record.db-wal` beside it.
+
 ---
