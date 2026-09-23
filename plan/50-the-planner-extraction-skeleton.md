@@ -125,7 +125,7 @@ row it depends on has landed, never before.** The lead owns this table and
 | Track | Seat | Tree and files | Moves | Depends on |
 |---|---|---|---|---|
 | **A** | `seam` | rig, `internal/record/` | 1, 2 | nothing. **RUNNING** |
-| **B** | `rename` | rig, `cmd/docket/` to a new name, `Makefile` size rows, the size baseline | frees the name | nothing. **RUNNING** |
+| **B** | `rename` | rig, `cmd/docket/` to `cmd/abacus/`, `Makefile` size rows, the size baseline | frees the name | **DONE 2026-09-24 02:03, rig `83a1695` and `2ebe4a5`**; `abacus` chosen because every plainer noun was live rig vocabulary (its FINDINGS). The fictional program id `docket` in five `internal/` tests became `satchel` at `9f40679`, the lead's |
 | **C** | `docket` | `~/me/projects/docket`, NEW tree | 3 | nothing. **RUNNING**; the cut-sha is whatever rig's HEAD is when it copies |
 | **D** | lead | `plan/50` | the specification of 4 to 8 perfected: the client mechanism, the kinds declaration, the forward arm | reading, no code |
 | **E** | `docket`, continued | `~/me/projects/docket` | 4 | C. The client decision is taken: decision 1, the stub |
