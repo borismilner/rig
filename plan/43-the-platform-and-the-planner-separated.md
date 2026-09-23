@@ -141,6 +141,14 @@ reads differently under this section's own ruling that `progress` stays in rig -
 two of the 14 methods are `Step` and `Stream` in `progress.go`, so **12 move and
 2 stay**. §50 carries the file-by-file classification and the moves in order.
 
+⛔ **CORRECTED 2026-09-24 BY THE BUILD OF §50 MOVES 1 AND 2 (the `seam`
+seat, rig `2fedfaa`, `b50bf42`, `f0682cf`), by splitting the package for real
+and reading the compiler:** the six symbols above are **seven** (`notesAbout`);
+the alias file is **11 symbols in 20 lines**, not 6 in 15; `lateststeps.go` is
+a **store** file (SQL over rig's schema), so **8 methods move, not 12**; and
+`stronglyConnected` is needed on **both** sides. The 2026-09-19 numbers stand
+as what that scratch split measured; these are what a real one found.
+
 ⛔ **THE ONE REAL COUPLING: 14 METHODS ON `*Store` ARE DEFINED IN PLANNING
 FILES** - eight in `brief.go`, four in `lateststeps.go`, two in `progress.go` -
 **and they reach the store's unexported internals** (`briefContainer`,

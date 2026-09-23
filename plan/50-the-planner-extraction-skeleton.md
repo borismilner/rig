@@ -69,10 +69,17 @@ a future seat starts from are current rather than inherited.
 ⛔ **CORRECTION TO §43's SEAM TABLE, AND IT IS §43's OWN RULING APPLIED TO ITS
 OWN COUNT.** The two `*Store` methods in `progress.go` are `Step` and `Stream`,
 the write and read path of `progress.step`. **§43 rules that `progress` stays a
-platform verb.** So of the 14 methods in planning files, **12 move** (eight in
-`brief.go`, four in `lateststeps.go`) and **2 stay**; `progress.go` is a store
-file carrying two planning constants, which is B102's finding and not a third
-category.
+platform verb.** So of the 14 methods in planning files, ~~12 move~~ **8 move
+(`brief.go`) and 6 stay** - ⛔ **CORRECTED 2026-09-24 BY THE SEAM SEAT'S
+SCRATCH SPLIT:** every read in `lateststeps.go` is SQL over rig's schema, so it
+is a STORE file the planner cannot carry; its four methods stay beside
+`progress.go`'s two. Three more corrections from the same proof: §43's six
+unexported names are SEVEN (`notesAbout` was a fourth raw `s.db` read in
+`brief.go`); the alias file the planning half needs is **11 symbols, 20 lines**,
+not 6 and 15 (brief sections 10-12 each reach a kind constant); and
+`stronglyConnected` is needed on BOTH sides, so docket duplicates it (about 70
+lines, standard library) at move 4. Full record: the seat's FINDINGS,
+`agent-work/build-plan-50-moves-1-and-2/`.
 
 **Every non-test file in `internal/record`, classified.** The classification is
 the seat's; the line counts are measured.
@@ -81,7 +88,7 @@ the seat's; the line counts are measured.
 |---|---|---|---|
 | **STORE - stays in rig** | `store.go`, `records.go`, `control.go`, `links.go`, `refs.go`, `snapshot.go`, `progress.go` | **2,658** | 26 |
 | **IMPORTERS - move untouched** | `backlog.go`, `plan.go`, `decisions.go`, `sections.go`, `section.go`, `fence.go`, `friendly.go` | **2,668** | 0 |
-| **COUPLED - move after B100** | `brief.go`, `lateststeps.go` | **1,646** | 12, reaching the store's unexported internals |
+| **COUPLED - `brief.go` moves after B100, rewritten over the wire; `lateststeps.go` STAYS** (corrected above) | `brief.go` moves; `lateststeps.go` stays | **1,646** together | 8 move, 4 stay; at `f0682cf` none of them reaches an unexported store name |
 
 **The planner-shaped code OUTSIDE the package**, which §43 sized at about
 38,000 lines including tests and this table names file by file:
@@ -124,7 +131,7 @@ row it depends on has landed, never before.** The lead owns this table and
 
 | Track | Seat | Tree and files | Moves | Depends on |
 |---|---|---|---|---|
-| **A** | `seam` | rig, `internal/record/` | 1, 2 | nothing. **RUNNING** |
+| **A** | `seam` | rig, `internal/record/` | 1, 2 | **DONE 2026-09-24 02:10, rig `2fedfaa`, `b50bf42`, `f0682cf`**; `make ci` 0; four corrections to this section below came out of its scratch split |
 | **B** | `rename` | rig, `cmd/docket/` to `cmd/abacus/`, `Makefile` size rows, the size baseline | frees the name | **DONE 2026-09-24 02:03, rig `83a1695` and `2ebe4a5`**; `abacus` chosen because every plainer noun was live rig vocabulary (its FINDINGS). The fictional program id `docket` in five `internal/` tests became `satchel` at `9f40679`, the lead's |
 | **C** | `docket` | `~/me/projects/docket`, NEW tree | 3 | nothing. **RUNNING**; the cut-sha is whatever rig's HEAD is when it copies |
 | **D** | lead | `plan/50` | the specification of 4 to 8 perfected: the client mechanism, the kinds declaration, the forward arm | reading, no code |
@@ -146,7 +153,7 @@ rig.
 | **1** | **B102: three symbols and two files to the right side** inside `internal/record`. `stronglyConnected` to `refs.go`; `KindProgress`, `LinkPartOf` to `records.go`; `fence.go`, `friendly.go` marked as importers | `go build ./...` and `go test ./internal/record/` unchanged; `git diff --stat` shows motion only |
 | **2** | **B100: an exported interface for what the brief needs**, the 12 methods rewritten against it | the planning files compile with `Store` replaced by the interface in a scratch split; the six unexported names §43 lists no longer appear in `brief.go` or `lateststeps.go` |
 | **3** | **The repository:** `~/me/projects/docket`, `go.mod`, the seven importers and `cmd/rigseed` copied in, decision 6's cut-sha in the first commit | `go list -deps` names no rig package (acceptance A); `rigseed --check` exits 0 from the new repo against the same estate |
-| **4** | **The brief over the wire:** `brief.go` and `lateststeps.go` rewritten as `record.query` and `record.refs` calls through the stub (decision 2, first shape); docket registers with rig the way `cmd/fakeapp` does and declares `brief` as a command, so `rig docket brief` answers through M1's projection | acceptance C, the diff of two briefs; **and the timing beside it**: `docket brief` and `rig brief` at the cut-sha, 50 runs each, medians in FINDINGS, judged against decision 2's bound |
+| **4** | **The brief over the wire:** `brief.go` rewritten as `record.query` and `record.refs` calls through the stub (decision 2, first shape); the eleven store symbols it reaches (seam FINDINGS) each become a wire call or a docket type; latest steps derived in docket from `record.query` on kind `progress`, since rig's `lateststeps.go` stays as the store's own read; `stronglyConnected` duplicated into docket (both sides need it); docket registers with rig the way `cmd/fakeapp` does and declares `brief` as a command, so `rig docket brief` answers through M1's projection | acceptance C, the diff of two briefs; **and the timing beside it**: `docket brief` and `rig brief` at the cut-sha, 50 runs each, medians in FINDINGS, judged against decision 2's bound |
 | **5** | **`cmd/rig/brief.go` leaves**; `rig docket brief` answers through M1's projection; `project.brief` becomes decision 4's forward | `cmd/rig/refusal_verbs_test.go` green; `rig brief` prints the refusal that names the new command |
 | **6** | **`records.go` loses its planner constants** (decision 5, narrowed); `internal/daemon/record.go` keeps `record.KindCount`, which is a store type. Measured 2026-09-24: outside `internal/record`, only `cmd/rigseed` uses the planner kind and link constants, so this move waits for move 8's deletion of rig's `cmd/rigseed` | `git grep -n 'KindWorkItem\|KindRequirement\|KindDecision\|KindNote\|KindProject\|KindCase'` in rig returns nothing outside `plan/` |
 | **7** | **The pane:** the nine frontend files move; `Dashboard`, `Sections` and `Waffle` lose their imports | `make test-window` 0, `make contrast-window` clean, and the window shows platform data only |
@@ -186,8 +193,8 @@ for completeness against the tables above when the time comes.
 | Path | Fate | Note |
 |---|---|---|
 | `internal/record/{backlog,plan,decisions,sections,section,fence,friendly}.go` + tests | **move** | untouched |
-| `internal/record/{brief,lateststeps}.go` + tests | **move, rewritten** | decision 2 |
-| `internal/record/{store,records,control,links,refs,snapshot,progress}.go` + tests | **stay** | decision 5 edits `records.go` only |
+| `internal/record/brief.go` + tests | **move, rewritten** | decision 2. **`lateststeps.go` STAYS**, a store file (corrected 2026-09-24) |
+| `internal/record/{store,records,control,links,refs,snapshot,progress,lateststeps,notes}.go` + tests | **stay** | decision 5 edits `records.go` only. `notes.go` is the seam seat's split of the note rows from their ordering (`f0682cf`). Open: whether `LinkPartOf` belongs in `links.go` beside the other link types rather than `records.go` |
 | `cmd/rigseed/` | **move, whole** | decision 8 |
 | `cmd/rig/brief.go` + tests, `testdata/exec/brief-*.golden` | **move** | move 5 |
 | `internal/daemon/record.go`, `mcp_records.go` | **split** | one arm each leaves; the seat's grant is those arms and nothing else in the lead's files |
