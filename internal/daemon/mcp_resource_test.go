@@ -105,7 +105,7 @@ func TestSliceFourDemoAcrossTheTwoSockets(t *testing.T) {
 	// kernel level by TestSliceFourDemo; the daemon refuses a second hello on
 	// a live connection, so over a socket the honest form of "the estate
 	// changed" is another program registering.
-	_ = program(t, sock, "docket")
+	_ = program(t, sock, "satchel")
 
 	after := readMap(ctx, t, agentSession)
 	if got := programIDs(t, after); len(got) != 3 {

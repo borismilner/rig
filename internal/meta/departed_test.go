@@ -109,7 +109,7 @@ func TestATombstoneDoesNotREVEALAProgramTheCallerCouldNotSee(t *testing.T) {
 	k := departedEstate(t)
 	stranger := kernel.Principal{
 		UID: 1000, Kind: kernel.KindProgram,
-		ClientID: "docket", SessionID: "s-docket", PID: 3,
+		ClientID: "satchel", SessionID: "s-satchel", PID: 3,
 	}
 
 	gone := refusal(t, k, stranger, "shelf")

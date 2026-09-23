@@ -23,7 +23,7 @@ func TestExpiredDeparturesAreActuallyDropped(t *testing.T) {
 	k := New()
 	k.RememberDeparturesFor(time.Millisecond)
 
-	for _, id := range []string{"shelf", "pilot", "docket"} {
+	for _, id := range []string{"shelf", "pilot", "satchel"} {
 		p, err := k.Register(Principal{
 			UID: 1000, Kind: KindProgram,
 			ClientID: id, SessionID: "s-" + id, PID: 42,

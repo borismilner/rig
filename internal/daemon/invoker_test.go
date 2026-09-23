@@ -82,7 +82,7 @@ func TestTheInvokerCannotReachAProgramThePrincipalCannotSee(t *testing.T) {
 	// A scoped program that is not shelf and shares no scope with it.
 	other := kernel.Principal{
 		UID: os.Getuid(), Kind: kernel.KindProgram,
-		ClientID: "docket", SessionID: "s-docket", PID: 2,
+		ClientID: "satchel", SessionID: "s-satchel", PID: 2,
 		Scoped: true,
 	}
 

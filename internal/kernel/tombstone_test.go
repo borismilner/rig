@@ -163,14 +163,14 @@ func TestTheWindowIsReadableSoAnAnswerCanCarryIt(t *testing.T) {
 // steady state must cost nothing in it.
 func TestAnEstateWhereNothingLeavesRemembersNothing(t *testing.T) {
 	k := kernel.New()
-	for _, id := range []string{"shelf", "pilot", "docket"} {
+	for _, id := range []string{"shelf", "pilot", "satchel"} {
 		if _, err := k.Register(programPrincipal(id), good(id)); err != nil {
 			t.Fatalf("register %s: %v", id, err)
 		}
 	}
 
 	v := k.See(introspecting())
-	for _, id := range []string{"shelf", "pilot", "docket", "never-existed"} {
+	for _, id := range []string{"shelf", "pilot", "satchel", "never-existed"} {
 		if _, ok := v.Departed(id); ok {
 			t.Errorf("nothing has left this estate and %q is reported as "+
 				"departed", id)
