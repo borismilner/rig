@@ -1,0 +1,6 @@
+$ rig restore --estate b one.tar.gz two.tar.gz
+exit 1
+--- stdout (0 bytes)
+--- stderr (165 bytes)
+rig: usage: rig restore --estate <name> [--force] [--json] <archive>
+       one archive, and 2 were given. The archive is the .tar.gz rig backup printed the path of

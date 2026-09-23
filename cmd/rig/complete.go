@@ -45,7 +45,7 @@ const verbVersion = "version"
 // staticVerbs are rig's own, and the only names in this file.
 var staticVerbs = []string{
 	"apps", "ping", "down", "estate", "peers", "describe", "mcp",
-	"record", "progress", "brief",
+	"record", "progress", "brief", "backup", "restore",
 	verbVersion, "completion", "help",
 }
 
@@ -128,6 +128,22 @@ func candidates(argv []string) []string {
 			// name is a real thing a reader would expect to filter on and
 			// `rig peers` does not filter.
 			return answersNothingElse()
+		case "backup":
+			// No positional argument, and the reason is section 46's
+			// decision 6 rather than down's or estate's: the DAEMON chooses
+			// the archive's directory and name, so there is no path a caller
+			// could type here. Offering one would suggest `rig backup
+			// <path>` writes where it is told, which is the request field
+			// that decision exists to refuse.
+			return flagNames(backupFlagSet().fs)
+		case "restore":
+			// ⛔ FLAGS ONLY, AND THE POSITIONAL IS DELIBERATELY LEFT TO THE
+			// SHELL. `rig restore` takes an archive path, and a path is the
+			// one thing every shell already completes better than rig could:
+			// the archives live wherever the person copied them to, not only
+			// in the directory `rig backup` wrote. Walked off the flag set so
+			// --estate and --force cannot drift out of this list.
+			return flagNames(restoreFlagSet().fs)
 		case "record":
 			// The seven subcommands, read off the dispatcher's own list so
 			// this cannot drift from what `rig record` accepts. A fresh
@@ -164,6 +180,16 @@ func candidates(argv []string) []string {
 		}
 		if argv[0] == "brief" {
 			return flagNames(briefFlagSet().fs)
+		}
+		// The same guard for section 46's two verbs. Without it `rig restore
+		// --estate a <TAB>` falls through to flagsOf, which asks the registry
+		// about a PROGRAM called restore and offers --args - a flag only a
+		// declared command takes.
+		if argv[0] == "backup" {
+			return flagNames(backupFlagSet().fs)
+		}
+		if argv[0] == "restore" {
+			return flagNames(restoreFlagSet().fs)
 		}
 		// `rig describe <program> <TAB>` offers that program's commands. It
 		// is the one static verb whose SECOND position is a program's own

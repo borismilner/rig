@@ -1,0 +1,5 @@
+$ rig restore --estate ../../etc x.tar.gz
+exit 1
+--- stdout (0 bytes)
+--- stderr (129 bytes)
+rig: rig restore: paths: estate name "../../etc" may use lowercase letters, digits and hyphens only; it becomes a path component

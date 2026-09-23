@@ -232,6 +232,18 @@ func TestTheBinary(t *testing.T) {
 		{name: "down-refuses-a-positional", argv: []string{"down", "somewhere"}},
 		{name: "estate-refuses-a-positional", argv: []string{"estate", "somewhere"}},
 
+		// ⛔ SECTION 46's TWO VERBS, AND ALL FOUR OF THESE ARE REFUSED WITH
+		// THE DISK UNTOUCHED. `rig restore` is the only verb in this table
+		// that can WRITE to an estate, so its transcripts are deliberately
+		// the ones that stop before the claim is taken and before any path is
+		// resolved: this harness gives each case its own XDG_RUNTIME_DIR and
+		// NOT its own XDG_STATE_HOME, and the record store resolves through
+		// the second one.
+		{name: "backup-refuses-a-positional", argv: []string{"backup", "/tmp/somewhere.tar.gz"}},
+		{name: "restore-usage", argv: []string{"restore"}},
+		{name: "restore-refuses-a-bad-estate-name", argv: []string{"restore", "--estate", "../../etc", "x.tar.gz"}},
+		{name: "restore-refuses-two-archives", argv: []string{"restore", "--estate", "b", "one.tar.gz", "two.tar.gz"}},
+
 		// ⛔ SECTION 39's THREE VERBS, WHOSE ABSENCE THIS FILE'S OWN OPENING
 		// SENTENCE DENIED. "Every verb run() dispatches appears here, and so
 		// does the way each one fails" was true of TEN OF THIRTEEN: record,
@@ -272,6 +284,11 @@ func TestTheBinary(t *testing.T) {
 		{name: "ping-json", argv: []string{"--json", "ping", "fakeapp"}},
 		{name: "estate", argv: []string{"estate"}},
 		{name: "estate-json", argv: []string{"estate", "--json"}},
+		// `rig backup` dials like `rig estate` does, and an unreachable
+		// socket is not a form of the answer: nothing was archived, and
+		// naming the directory rig WOULD have written to is the guess
+		// decision 6 exists to remove.
+		{name: "backup-no-daemon", argv: []string{"backup"}},
 		{name: "describe", argv: []string{"describe", "fakeapp"}},
 		{name: "declared-command", argv: []string{"fakeapp", "reindex", "--since", "7d"}},
 		{name: "declared-command-json", argv: []string{"fakeapp", "reindex", "--since", "7d", "--json"}},

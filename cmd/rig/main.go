@@ -138,6 +138,29 @@ var valuedFlags = map[string]bool{
 	"version":    true,
 	"state":      true,
 	"note":       true,
+
+	// `rig restore --estate <name>` (PLAN.md section 46).
+	//
+	// ⛔ MEASURED WITH THE ENTRY REMOVED, in a detached copy at 2047aeb, and
+	// it fails BOTH WAYS depending on what follows the flag - which is why
+	// the comment first written here, naming only one of them, was wrong.
+	//
+	//	--estate=b                      unaffected; the equals form needs
+	//	                                nothing from this map
+	//	--estate b <archive>            LOUD: "flag needs an argument:
+	//	                                -estate", over a correct command line
+	//	--estate a --force <archive>    ⛔ QUIET AND WRONG: partition keeps
+	//	                                --force as the next token, so
+	//	                                flag.Parse sets --estate to the string
+	//	                                "--force" and `a` joins the archive in
+	//	                                the positionals. The verb then refuses
+	//	                                "one archive, and 2 were given",
+	//	                                naming neither the flag nor the cause
+	//
+	// The third row is the one this entry is for. It is caught a layer down -
+	// ValidEstateName refuses a name starting with a hyphen - but only after
+	// a refusal that sends the reader to count their arguments.
+	"estate": true,
 }
 
 func usage() {
@@ -244,6 +267,18 @@ func run(args []string) error {
 		return cmdDown(with(args[1:], lead))
 	case "estate":
 		return cmdEstate(with(args[1:], lead))
+	case "backup", "restore":
+		// ⛔ SECTION 46's TWO VERBS SHARE ONE ARM, AND THE REASON IS A
+		// MEASURED CEILING. Two arms take this function's cyclomatic
+		// complexity to 26 against gocyclo's limit of 25 (.golangci.yml:103),
+		// measured in a detached worktree at 2047aeb - and `run` is not this
+		// capability's file to restructure. One arm costs one, and the branch
+		// between the two verbs lives in cmd/rig/backup.go where the rest of
+		// the capability already is.
+		//
+		// It also happens to be the honest shape: `plan/46` specifies one
+		// capability with two halves, and this is its single seam into run.
+		return cmdBackupOrRestore(args[0], with(args[1:], lead))
 	case "peers":
 		return cmdPeers(with(args[1:], lead))
 	case "record":

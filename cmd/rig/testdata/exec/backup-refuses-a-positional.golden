@@ -1,0 +1,6 @@
+$ rig backup /tmp/somewhere.tar.gz
+exit 1
+--- stdout (0 bytes)
+--- stderr (152 bytes)
+rig: usage: rig backup [--json] [--timeout=30s]
+       rig chooses the archive's name and location and prints where it landed; there is no path to give
