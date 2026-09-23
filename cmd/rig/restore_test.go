@@ -1,15 +1,20 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/boris-milner/rig/internal/backup"
 	"github.com/boris-milner/rig/internal/instance"
+	"github.com/boris-milner/rig/internal/paths"
 
 	// TEST-ONLY, AND THE IMPORT IS THE WHOLE POINT OF THE FIRST TEST BELOW.
 	//
@@ -394,4 +399,216 @@ func TestTheRestoreObjectCarriesEveryFieldOnEveryAnswer(t *testing.T) {
 			t.Errorf("the encoded object has no %s in it: %s", want, b)
 		}
 	}
+}
+
+// ---- section 46's acceptance row, as far as a suite can carry it -----------
+
+// ROW 8 IS THE ACCEPTANCE TEST, AND THIS IS THE HALF THAT FITS IN A SUITE.
+//
+// The row runs a daemon on estate `a`, puts K records, takes a backup,
+// restores it into `b` under a SECOND state root, starts a daemon there and
+// asks `rig record query` for K heads. Two of those steps are processes and a
+// suite cannot prove a process starts; the seat's hand run is the other half
+// and the transcript is in its STATUS.md. What runs HERE is everything
+// between:
+//
+//	a real store, superseded so heads and records are different numbers
+//	a real archive, written by internal/backup
+//	`rig restore --estate b` - THE VERB, not backup.Restore - under a second
+//	  XDG_STATE_HOME, so `b` is somewhere no store has ever opened
+//	a real reopen of the restored bytes, answering the manifest's head count
+//
+// ⛔ THE VERB IS THE POINT OF THIS TEST EXISTING AT ALL.
+// internal/daemon/backup_test.go already restores an archive, but it calls
+// backup.Restore directly - the layer below this one - so it cannot see the
+// estate claim, the flag partition, the name validation, the refusal arms or
+// anything cmdRestore prints. Every one of those is what a person actually
+// types, and all of it sat between the two tests, untested, until this one.
+//
+// The manifest is assembled here the way the daemon assembles it. That
+// duplication is deliberate: this package may not import internal/daemon, the
+// assembly is asserted over there, and what is asserted here is what happens
+// to an archive once one exists.
+func TestAnArchiveGoesThroughTheRestoreVerbIntoAQueryableEstate(t *testing.T) {
+	// The socket, so nothing in this test can reach a daemon on this machine -
+	// see the note on TestBackupRefusesAPathBecauseTheDaemonChoosesTheName,
+	// which found that hazard the hard way.
+	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+
+	archive, heads, records := archiveOfARealEstate(t)
+
+	// ⛔ A SECOND STATE ROOT. `b` must be somewhere no store has ever opened,
+	// or a restore that quietly reused `a`'s files would satisfy every
+	// assertion below. It is also what the row specifies.
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+
+	out, err := captureStdout(t, func() error {
+		return cmdRestore([]string{"--estate", "b", archive})
+	})
+	if err != nil {
+		t.Fatalf("`rig restore --estate b <archive>`: %v", err)
+	}
+	if want := "expect " + strconv.FormatUint(heads, 10); !strings.Contains(out, want) {
+		t.Errorf("the restore does not tell the reader to expect %d heads, "+
+			"which is the number section 44 says the whole verb is for:\n%s",
+			heads, out)
+	}
+
+	// THE ROW'S OWN ASSERTION: record.query answers HEADS, and the manifest's
+	// head count is what it must equal.
+	st, err := recordstore.Open("b")
+	if err != nil {
+		t.Fatalf("opening the restored estate b: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+
+	got, err := st.Find(context.Background(), recordstore.QueryFilter{})
+	if err != nil {
+		t.Fatalf("querying the restored estate b: %v", err)
+	}
+	if uint64(len(got)) != heads {
+		t.Fatalf("estate b answers %d heads and the archive carried %d",
+			len(got), heads)
+	}
+	// The calibration, without which the line above passes against a restore
+	// that carried the wrong table: heads and records are different numbers
+	// here on purpose, so an estate answering `records` would be caught.
+	if heads >= records {
+		t.Fatalf("the fixture wrote %d heads and %d records, so this test can "+
+			"no longer tell the two tables apart", heads, records)
+	}
+
+	// ---- THE RED CONTROL THE ROW NAMES ------------------------------------
+	//
+	// The same archive into the same estate again, WITHOUT --force: refused,
+	// and nothing written. Both halves matter - a refusal that had already
+	// moved the directory aside would be a failed restore that destroyed the
+	// estate it refused to touch.
+	dir, err := paths.EstateStateDir("b")
+	if err != nil {
+		t.Fatalf("paths.EstateStateDir: %v", err)
+	}
+	db := filepath.Join(dir, recordstore.DBName)
+	before, err := os.Stat(db)
+	if err != nil {
+		t.Fatalf("stat of the restored store: %v", err)
+	}
+	siblings := siblingNames(t, dir)
+
+	again := cmdRestore([]string{"--estate", "b", archive})
+	if again == nil {
+		t.Fatal("a second restore into an estate that already holds state was " +
+			"ACCEPTED without --force, so an archive overwrites a live estate " +
+			"by default")
+	}
+	for _, want := range []string{"already holds state", "--force"} {
+		if !strings.Contains(again.Error(), want) {
+			t.Errorf("the refusal does not say %q, so it does not tell the "+
+				"caller what to do: %v", want, again)
+		}
+	}
+
+	after, err := os.Stat(db)
+	if err != nil {
+		t.Fatalf("the refused restore left no store behind at %s: %v", db, err)
+	}
+	if after.Size() != before.Size() || !after.ModTime().Equal(before.ModTime()) {
+		t.Errorf("the refused restore CHANGED the estate it refused to touch: "+
+			"%d bytes at %v, was %d bytes at %v",
+			after.Size(), after.ModTime(), before.Size(), before.ModTime())
+	}
+	if now := siblingNames(t, dir); now != siblings {
+		t.Errorf("the refused restore left something beside the estate: %s, "+
+			"was %s", now, siblings)
+	}
+}
+
+// archiveOfARealEstate writes a real store, snapshots it and packs the
+// snapshot the way the daemon does, returning the archive and its two counts.
+//
+// The two counts are DIFFERENT on purpose: five of the records are superseded,
+// so an estate that came back answering the row count rather than the head
+// count cannot pass.
+func archiveOfARealEstate(t *testing.T) (archive string, heads, records uint64) {
+	t.Helper()
+
+	st, err := recordstore.Open("a")
+	if err != nil {
+		t.Fatalf("opening estate a: %v", err)
+	}
+	defer func() { _ = st.Close() }()
+
+	ctx := context.Background()
+	ids := make([]string, 0, 12)
+	for i := range 12 {
+		r, err := st.Put(ctx, recordstore.PutRequest{
+			Kind: "note", Project: "rig", Seat: "backup", Session: "suite",
+			Body: "original " + strconv.Itoa(i),
+		})
+		if err != nil {
+			t.Fatalf("put %d: %v", i, err)
+		}
+		ids = append(ids, r.ID)
+	}
+	// ⛔ THE BODY MUST CHANGE. internal/record makes a put whose content is
+	// already the head a NO-OP rather than a new version, measured on the live
+	// store at 74% of all stored versions - so superseding with the same body
+	// would leave heads and records equal and quietly disarm this fixture.
+	for i, id := range ids[:5] {
+		if _, err := st.Put(ctx, recordstore.PutRequest{
+			ID: id, IfVersion: 1,
+			Kind: "note", Project: "rig", Seat: "backup", Session: "suite",
+			Body: "superseded " + strconv.Itoa(i),
+		}); err != nil {
+			t.Fatalf("superseding %s: %v", id, err)
+		}
+	}
+
+	work := t.TempDir()
+	member := filepath.Join(work, backup.RecordMember)
+	snap, err := st.Snapshot(ctx, member)
+	if err != nil {
+		t.Fatalf("snapshotting estate a: %v", err)
+	}
+	if snap.Heads != 12 || snap.Records != 17 {
+		t.Fatalf("the fixture snapshot reports %d heads and %d records, want "+
+			"12 and 17", snap.Heads, snap.Records)
+	}
+
+	at := time.Now()
+	name, err := backup.ArchiveName("a", at)
+	if err != nil {
+		t.Fatalf("backup.ArchiveName: %v", err)
+	}
+	archive = filepath.Join(t.TempDir(), name)
+	if _, err := backup.Write(archive, backup.Manifest{
+		CreatedUnixNano: at.UnixNano(),
+		Estate:          "a",
+		Format:          backup.Format,
+		Heads:           snap.Heads,
+		Records:         snap.Records,
+		RigVersion:      "suite",
+		SchemaVersion:   uint64(snap.SchemaVersion),
+		Wire:            "1",
+	}, []backup.Source{{Name: backup.RecordMember, Path: member}}); err != nil {
+		t.Fatalf("writing the archive: %v", err)
+	}
+	return archive, snap.Heads, snap.Records
+}
+
+// siblingNames is every entry beside the estate directory, as one sorted
+// string, so "nothing was written" is a single comparison.
+func siblingNames(t *testing.T, dir string) string {
+	t.Helper()
+	entries, err := os.ReadDir(filepath.Dir(dir))
+	if err != nil {
+		t.Fatalf("reading %s: %v", filepath.Dir(dir), err)
+	}
+	names := make([]string, 0, len(entries))
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	sort.Strings(names)
+	return strings.Join(names, " ")
 }
