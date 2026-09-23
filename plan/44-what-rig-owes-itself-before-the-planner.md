@@ -249,6 +249,11 @@ argued:
 | **S2 backup** | **bulk** | ✅ **YES.** 64 KB frames at 3.4 GB/s effective |
 | ⛔ **S1 storage** | **control, PROVISIONALLY** | ⛔ **NO. THIS IS THE GAP HIS SENTENCE OPENS** |
 
+**Measured 2026-09-23 (B108): a `rigd` VERB round trip costs 24.25 µs from a
+connected client**, 3.9x the 6.2 µs raw-socket floor above, because a rig call
+carries protobuf, framing and dispatch. **Both numbers are true and price
+different things**; a seat pricing a verb uses the larger. §48 carries the rest.
+
 #### ⛔ S1 IS THE ONE THE EXISTING NUMBERS DO NOT COVER, AND §4 SAYS WHAT TO DO
 
 **Every workload §4 priced is occasional: a config read at startup, a
@@ -328,8 +333,10 @@ key-value get.
 
 **`project.brief` is the worked example and it is already built**, which is why
 B108 measures it: it is the heaviest real read in this estate, it aggregates
-across kinds, and §39 already records that one of its four SQL formulations
-was **582x** worse than the one taken. **A brief the planner has to assemble
+across kinds, and the record already holds that one of its four SQL formulations
+was **582x** worse than the one taken (`BACKLOG.md` B46a and the body of rig
+`71ebabf`; **not §39**, which this line credited until B108 found the citation did
+not resolve, 2026-09-23). **A brief the planner has to assemble
 client-side is that 582x arriving through the API instead of through the SQL.**
 
 #### The visual half, and it is already specified per service
