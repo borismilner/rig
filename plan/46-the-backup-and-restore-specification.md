@@ -54,7 +54,7 @@ argued in a handoff.
 | **8** | **Existing state is never deleted. Without `--force` restore refuses; with it the estate directory is renamed aside WHOLE** to `<name>.replaced-<UTC stamp>` | ⛔ **File by file is unsafe:** a stale `record.db-wal` beside a fresh `record.db` is replayed into it on the next open. The directory moves as one, and the user removes it when satisfied | `os.RemoveAll` anywhere in the restore path |
 | **9** | **All or nothing.** Extract into a sibling `<name>.restoring-<UTC stamp>` under the same parent, verify every member's SHA-256 against the manifest, then two renames | A failure at any step leaves the target untouched and the partial directory named for what it is. Two renames on one filesystem are the atomic step the standard library offers | a partially written estate that opens |
 | **10** | **The manifest carries `schema_version`, and restore refuses one newer than the restoring binary's `record.SchemaVersion`** | The migration runner goes forward only. An OLDER version is accepted and migrated at the daemon's next open | a store that lies about itself, which `store.go` names as the silent failure |
-| **11** | **`backup.create` on an unnamed estate is refused** in the terms `recordStore` already uses | §37: an unnamed estate keeps no persistent state, so there is nothing to back up. The scratch store is discarded at every start by design | a backup of a store that will not exist tomorrow |
+| **11** | **`backup.create` on an unnamed estate is refused.** ⛔ **Corrected 2026-09-23 on the backup seat's finding F1:** since the scratch store landed (2026-09-17) an unnamed estate opens `record.OpenScratch()` and `recordStore` no longer refuses it, so the refusal is `d.estate == ""`, checked after `recordStore`, in `recordStore`'s own wording | §37: an unnamed estate keeps no persistent state, so there is nothing to back up. The scratch store is discarded at every start by design | a backup of a store that will not exist tomorrow |
 | **12** | **No MCP tool, no `backup.list`, no schedule, no encryption, no off-machine copy** | The agent door does not re-seed the store; `ls` lists the directory; rig has no ticker (§44's scheduling row) and holds no secret (§44's secrets row). **Deferred, not dropped** - §43's correction | building what he has not looked at, §45 |
 
 ---
@@ -114,7 +114,8 @@ is the sign the declaration is wrong. Nothing in `frontend/` is owed.
 
 **Dispatched** from `daemon.go`'s switch through one arm to a new
 `serveBackupCreate` in `internal/daemon/backup.go`, on `serveRecord`'s pattern:
-`recordStore` first, so the unnamed case is refused in one place.
+`recordStore` first, then the estate-name check (decision 11 as corrected), so
+the store-did-not-open refusal stays in one place.
 
 ---
 
