@@ -180,7 +180,7 @@ and what it printed goes in the commit body.
 | 5 | restore against an estate whose claim a test holds is refused with `NameHeldError`, nothing written | release the claim: the same restore succeeds |
 | 6 | restore over existing state refuses without `--force`; with it, the old directory exists whole under `<name>.replaced-*` and the old `record.db` bytes are unchanged | assert the old file is byte-identical, not merely present |
 | 7 | a manifest with `schema_version = record.SchemaVersion + 1` is refused; `record.SchemaVersion - 1` is accepted | the two numbers are the control |
-| 8 | **end to end, the acceptance test:** `rigd --estate a` on a private `XDG_STATE_HOME` AND `XDG_RUNTIME_DIR`, K records put, `rig backup`, `rig restore --estate b` under a second private `XDG_STATE_HOME`, `rigd --estate b`, `rig record query` shows K heads and `manifest.heads` is K | restore the same archive into `b` again without `--force`: refused |
+| 8 | **end to end, the acceptance test:** `rigd --estate production` on a private `XDG_STATE_HOME` AND a private `XDG_RUNTIME_DIR`, K records put, `rig backup`, `rig restore --estate development` under a SECOND private `XDG_STATE_HOME`, `rigd --estate development` there, `rig record query` shows K heads and `manifest.heads` is K. ⛔ **CORRECTED 2026-09-24: this row named estates `a` and `b`, and `rigd` refuses both** - the closed set is §37's, Boris 2026-09-11, checked at `cmd/rigd`'s flag (the seat's finding A, its `FINDINGS.md` §10). The two names it accepts are safe here ONLY under a private `XDG_STATE_HOME`, and the machine's own estates are proven untouched by size and mtime before and after. **Performed by the lead 2026-09-24 with binaries built at `452f0f4`:** 5 heads through, the restored estate opened by `rigd --estate development` and queried to 5 | restore the same archive into `development` again without `--force`: refused, nothing written. **And while a live `rigd` holds it: refused, the claim and its pid named** (run 2026-09-24, the first time that arm met a real daemon) |
 | 9 | `cmd/rig/layering_test.go` stays green, and `go list -deps ./cmd/rig \| grep -c modernc` prints 0 | ⛔ **CORRECTED 2026-09-24 on the backup seat's finding F5, measured 2026-09-23:** importing `internal/record` from `internal/backup` in a detached copy leaves `layering_test.go` GREEN - it names neither the store nor the driver - while `grep -c modernc` prints **8**. The controls that DO fire: `internal/backup`'s `TestThisPackageLinksNothingButTheStandardLibrary` (14 packages named, slice 2) and the `modernc` assertion in `cmd/rig/restore_test.go` (slice 4). The first sentence of this row was a red control that could not go red |
 | 10 | the `BackupCreateResponse` string fields travel: two mutations each per DECISION 6 | empty, and a wrong non-empty value |
 | 11 | CLI transcripts on `exec_test.go`'s pattern: `backup-no-daemon`, `backup-refuses-a-positional`, `restore-usage`, `restore-refuses-a-bad-estate-name`, `restore-refuses-two-archives` | the goldens are the control |
@@ -241,6 +241,9 @@ the checkout every other seat compiles.
 2. **`rig restore --estate <fresh> <archive>` onto an estate `rigd` has never
    run, then `rigd --estate <fresh>`, then `rig record query`** returns exactly
    `manifest.heads` heads. **The restore is the test, not the backup** - §44.
+   **`<fresh>` is `development` under a PRIVATE `XDG_STATE_HOME`**, because
+   §37's closed set leaves `rigd` no other name to open (corrected 2026-09-24;
+   test row 8 carries the run).
 3. **`cmd/rig` links no SQLite**, by the layering test and by `go list`.
 4. `make ci` 0, `make lint` 0, `rigseed --check` 0, `make proto` idempotent.
 5. **The production demonstration waits for his redeploy.** A redeploy quiesces
@@ -251,6 +254,16 @@ the checkout every other seat compiles.
    the next re-seed's notes name the command.
 
 ---
+
+### Found by the build, 2026-09-24, and where each went
+
+| Finding | State |
+|---|---|
+| **`rig restore` accepts every lexically valid name and `rigd` opens two.** A restore into `b` exits 0 and prints `rigd --estate b`, which exits 1 (the seat's finding B). The set is closed at `cmd/rigd`'s flag by design, §37, and `cmd/rig` cannot import it | **B114**, the lead's: one package both binaries read, so the restore refuses what the daemon will. No ruling needed; the set does not move |
+| **The check a restore printed counted lines, not heads.** `rig record query --json` answers on ONE line, so `grep -c '"id"'` printed 1 for every non-empty store | **fixed** the same day: the check is the human query's last line, which counts heads |
+| **`rig --help` listed neither verb** | **fixed**, same commit |
+| **`run`'s cyclomatic complexity is 25 of 25**, which is why the two verbs share one dispatch arm | **B115**, the lead's |
+| **Eight `internal/daemon` tests opened the machine's own estates** from `make ci` in the shared tree, found by the lead's gate run at `452f0f4` | **fixed at `a9c7ab8`**: a package `TestMain` and a guard test. `cmd/rig` tests still inherit the shell's `XDG_RUNTIME_DIR` (the seat's finding, its `FINDINGS.md` §8) - B87 carries the class |
 
 ### What this section does not change
 
