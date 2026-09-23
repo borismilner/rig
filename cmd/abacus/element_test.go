@@ -54,7 +54,7 @@ func TestTheDeclaredElementsAreTheOnesThePageImports(t *testing.T) {
 	}
 	sort.Strings(imported)
 
-	declared := append([]string(nil), declaration("docket", "").GetElements()...)
+	declared := append([]string(nil), declaration("abacus", "").GetElements()...)
 	sort.Strings(declared)
 
 	if strings.Join(imported, ",") != strings.Join(declared, ",") {
@@ -71,7 +71,7 @@ func TestTheDeclaredElementsAreTheOnesThePageImports(t *testing.T) {
 // A fake application that cannot register is not a fake application.
 func TestEveryDeclaredElementIsOneRigServes(t *testing.T) {
 	served := map[string]bool{"rigPanel": true, "rigTable": true, "rigToolbar": true}
-	for _, name := range declaration("docket", "").GetElements() {
+	for _, name := range declaration("abacus", "").GetElements() {
 		if !served[name] {
 			t.Errorf("declares %q, which rig does not serve: registration would "+
 				"be refused and this program would not start (section 5h R7)", name)

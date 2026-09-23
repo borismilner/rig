@@ -221,7 +221,7 @@ func TestAProgramThatIsNotConnectedIsRefusedWithTheOnesThatAre(t *testing.T) {
 	d := startFakeDaemon(t, &rigv1.ProgramsResponse{
 		Programs: []*rigv1.Program{
 			{Identity: &rigv1.Identity{Id: "ledger"}},
-			{Identity: &rigv1.Identity{Id: "docket"}},
+			{Identity: &rigv1.Identity{Id: "abacus"}},
 		},
 	})
 	c, err := client.Dial(d.socket)
@@ -238,7 +238,7 @@ func TestAProgramThatIsNotConnectedIsRefusedWithTheOnesThatAre(t *testing.T) {
 		t.Fatal("a program the daemon never listed was accepted")
 	}
 	text := errorText(err)
-	for _, want := range []string{"fakeapp", "docket", "ledger"} {
+	for _, want := range []string{"fakeapp", "abacus", "ledger"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the refusal does not name %q, so a reader cannot tell a "+
 				"typo from a program that is not running:\n%s", want, text)

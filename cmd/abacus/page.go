@@ -1,6 +1,6 @@
 package main
 
-// The page docket serves. Modelled on dispatch's frontend/src/pages/CiBoard.tsx,
+// The page abacus serves. Modelled on dispatch's frontend/src/pages/CiBoard.tsx,
 // read rather than remembered: seven columns, a pill-toggle filter, and an
 // empty message whose text depends on which filter is on.
 //
@@ -37,13 +37,13 @@ func pane() string { return page }
 //
 // The explanation lives here rather than in the CSS deliberately: the string
 // below is shipped to the browser on every pane load, and an essay about a
-// fixed bug cost docket 4096 bytes against its size ratchet when it was
+// fixed bug cost abacus 4096 bytes against its size ratchet when it was
 // written there.
 //
 //nolint:misspell // `color` is a CSS property name, which is American by
 const page = `<!doctype html>
 <meta charset="utf-8">
-<title>docket</title>
+<title>abacus</title>
 <link rel="stylesheet" href="/kit/kit.css">
 <style>
   /* Held until the tokens land, on the absence of pane.js's marker. See the

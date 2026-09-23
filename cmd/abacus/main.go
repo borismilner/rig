@@ -1,4 +1,4 @@
-// Command docket is M1a's SECOND fake application, and it exists to disagree
+// Command abacus is M1a's SECOND fake application, and it exists to disagree
 // with the first.
 //
 // PLAN.md section 5h: "A fake application that is written to fit the kit
@@ -47,7 +47,7 @@ import (
 )
 
 // The `go:embed` directive cannot reach above its own package, exactly as it
-// cannot for the window's built frontend, so `make build-docket` copies
+// cannot for the window's built frontend, so `make build-abacus` copies
 // design/kit in here first and kit/.gitkeep is what keeps this embed
 // resolvable on a fresh clone. The `all:` prefix makes .gitkeep count as a
 // match. (Written with backticks: as bare prose, the space after the slashes
@@ -60,13 +60,13 @@ var version = "dev"
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, "docket: "+err.Error())
+		fmt.Fprintln(os.Stderr, "abacus: "+err.Error())
 		os.Exit(1)
 	}
 }
 
 func run() error {
-	id := flag.String("name", "docket", "the program id to announce")
+	id := flag.String("name", "abacus", "the program id to announce")
 	addr := flag.String("addr", "127.0.0.1:7452", "where to serve its own pane")
 	flag.Parse()
 
@@ -153,7 +153,7 @@ func declaration(id, paneURL string) *rigv1.Declaration {
 	return &rigv1.Declaration{
 		Identity: &rigv1.Identity{
 			Id:          id,
-			Name:        "Docket",
+			Name:        "Abacus",
 			Version:     version,
 			Description: "A CI board, modelled on dispatch's measured markup.",
 		},

@@ -7,7 +7,7 @@ import (
 
 // The embed path and the Makefile's copy step are two halves of one
 // arrangement written in two files, and nothing connects them: `make
-// build-docket` copies design/kit into cmd/docket/kit, this package embeds
+// build-abacus` copies design/kit into cmd/abacus/kit, this package embeds
 // all:kit, and .gitignore has to keep the directory visible while ignoring its
 // contents. Change any one of those and the binary still builds - it serves a
 // page whose stylesheet and modules 404, which looks like an unstyled program
@@ -29,7 +29,7 @@ func TestKitIsEmbedded(t *testing.T) {
 		names = append(names, e.Name())
 	}
 	if len(names) == 0 {
-		t.Skip("kit holds only .gitkeep, so nothing has been copied yet: run make build-docket")
+		t.Skip("kit holds only .gitkeep, so nothing has been copied yet: run make build-abacus")
 	}
 
 	for _, want := range []string{"kit/kit.css", "kit/kit.js", "kit/pane.js"} {

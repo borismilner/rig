@@ -14,8 +14,8 @@ cmd/rigwindow/dist/*
 # glob would silently cover a directory somebody added for another reason.
 cmd/ledger/kit/*
 !cmd/ledger/kit/.gitkeep
-cmd/docket/kit/*
-!cmd/docket/kit/.gitkeep
+cmd/abacus/kit/*
+!cmd/abacus/kit/.gitkeep
 cmd/rigwindow/icons/*
 !cmd/rigwindow/icons/.gitkeep
 node_modules/
@@ -39,7 +39,7 @@ ipcbench/bench
 /rigwindow
 /fakeapp
 /ledger
-/docket
+/abacus
 /ipcbench
 /sizeratchet
 /depscheck

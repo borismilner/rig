@@ -49,7 +49,7 @@ RATCHET    := size-ratchet.json
 # bench-size, bench-size-update and bench-size-one cannot drift apart. The
 # window is deliberately not here: it needs cgo and a webview, and ci must
 # not assume either, so it keeps its own pair of targets.
-RATCHET_BINS := $(BIND) $(BIN) fakeapp ledger docket
+RATCHET_BINS := $(BIND) $(BIN) fakeapp ledger abacus
 # Only used to serve the window's built page to the contrast gate. Nothing
 # listens on it outside that target.
 CONTRAST_PORT ?= 8731
@@ -91,10 +91,10 @@ SHELL := bash
 ##@ Build
 
 # Every binary bench-size measures must be built here, or `make ci` fails on a
-# cold checkout while passing on a warm one. build-docket was missing and
-# bench-size measured build/docket anyway, so ci depended on a binary it never
+# cold checkout while passing on a warm one. build-abacus was missing and
+# bench-size measured build/abacus anyway, so ci depended on a binary it never
 # built - invisible locally because the file was left over from an earlier run.
-build: build-rigd build-rig build-fakeapp build-ledger build-docket ## Build every binary into build/
+build: build-rigd build-rig build-fakeapp build-ledger build-abacus ## Build every binary into build/
 
 build-rigd: ## Build the daemon (links none of the terminal stack)
 	@mkdir -p build
@@ -122,15 +122,15 @@ build-ledger: ## Build M1a's first fake application, kit and all
 	cp design/kit/kit.css design/kit/kit.js design/kit/pane.js cmd/ledger/kit/
 	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o build/ledger ./cmd/ledger
 
-build-docket: ## Build M1a's second fake application, on dispatch's shape
+build-abacus: ## Build M1a's second fake application, on dispatch's shape
 	# Its own target rather than a flag on build-ledger, for the same reason it
 	# is its own binary: section 5h says a fake application written to fit the
 	# kit proves nothing, and a second adopter that shares the first one's
 	# build is a second adopter in name only.
-	@mkdir -p build cmd/docket/kit
-	@find cmd/docket/kit -mindepth 1 ! -name .gitkeep -delete
-	cp design/kit/kit.css design/kit/kit.js design/kit/pane.js cmd/docket/kit/
-	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o build/docket ./cmd/docket
+	@mkdir -p build cmd/abacus/kit
+	@find cmd/abacus/kit -mindepth 1 ! -name .gitkeep -delete
+	cp design/kit/kit.css design/kit/kit.js design/kit/pane.js cmd/abacus/kit/
+	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o build/abacus ./cmd/abacus
 
 # The window is the third binary (section 17, section 22) and deliberately not
 # part of `build`: it is the only one that needs cgo, gtk and a webview, so a
@@ -734,7 +734,7 @@ help: ## Show this help
 	  /^[a-zA-Z_-]+:.*##/ {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo
 
-.PHONY: build build-rigd build-rig build-fakeapp build-ledger build-docket deps-frontend build-frontend build-rigwindow build-all install uninstall \
+.PHONY: build build-rigd build-rig build-fakeapp build-ledger build-abacus deps-frontend build-frontend build-rigwindow build-all install uninstall \
         run dev clean test test-unit test-race \
         test-chaos test-e2e test-wire fuzz cover cover-html lint lint-house fmt vet audit \
         vet-window test-window verify contrast contrast-selftest contrast-window theme-gate generate proto schema types docs bench bench-ipc profile \
