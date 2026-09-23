@@ -327,3 +327,75 @@ func (s *Store) moreBeyond(ctx context.Context, frontier []string, visited map[s
 	}
 	return false, nil
 }
+
+// stronglyConnected finds every cycle among the given nodes, by Tarjan.
+//
+// A COMPONENT OF ONE IS NOT A CYCLE and is dropped: those are the items merely
+// DOWNSTREAM of a cycle, which are stuck but are not themselves the problem.
+// Naming them in the cycle report would send a reader to the wrong edge. A
+// self-loop cannot appear here because Link refuses one.
+func stronglyConnected(nodes map[string]bool, edges map[string][]string) [][]string {
+	var (
+		index   = map[string]int{}
+		low     = map[string]int{}
+		onStack = map[string]bool{}
+		stack   []string
+		next    int
+		out     [][]string
+		strong  func(string)
+		ordered = make([]string, 0, len(nodes))
+	)
+	for id := range nodes {
+		ordered = append(ordered, id)
+	}
+	sort.Strings(ordered)
+
+	strong = func(v string) {
+		index[v] = next
+		low[v] = next
+		next++
+		stack = append(stack, v)
+		onStack[v] = true
+
+		succ := append([]string(nil), edges[v]...)
+		sort.Strings(succ)
+		for _, w := range succ {
+			if !nodes[w] {
+				continue
+			}
+			if _, seen := index[w]; !seen {
+				strong(w)
+				if low[w] < low[v] {
+					low[v] = low[w]
+				}
+			} else if onStack[w] && index[w] < low[v] {
+				low[v] = index[w]
+			}
+		}
+
+		if low[v] == index[v] {
+			var comp []string
+			for {
+				w := stack[len(stack)-1]
+				stack = stack[:len(stack)-1]
+				onStack[w] = false
+				comp = append(comp, w)
+				if w == v {
+					break
+				}
+			}
+			if len(comp) > 1 {
+				sort.Strings(comp)
+				out = append(out, comp)
+			}
+		}
+	}
+
+	for _, v := range ordered {
+		if _, seen := index[v]; !seen {
+			strong(v)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i][0] < out[j][0] })
+	return out
+}

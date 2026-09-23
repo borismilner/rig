@@ -1,5 +1,8 @@
 package record
 
+// IMPORTER-SIDE FILE, NOT STORE: the fence scanner is read by the four
+// markdown parsers and by nothing the store does (section 50, move 1, B102).
+
 import (
 	"regexp"
 	"strings"

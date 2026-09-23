@@ -190,6 +190,19 @@ const (
 	KindCase    = "case"
 )
 
+// KindProgress is the kind of a single step in a work item's stream.
+const KindProgress = "progress"
+
+// LinkPartOf attaches a step to the item whose stream it belongs to.
+//
+// SECTION 39: "SUB-TASK NESTING USES THE LINK, NOT A NEW KIND." A step is the
+// same shape of thing - it belongs to an item and it is not a property of it -
+// so it uses the edge that already exists rather than a column invented for
+// this one case. The reverse index on (dst, type) that slice 1 shipped is
+// exactly the lookup Stream needs, which is why the table landed before its
+// verbs did.
+const LinkPartOf = "part-of"
+
 // The four stages section 39 names for a feature, and there are only four.
 const (
 	StagePlanned    = "planned"

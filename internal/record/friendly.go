@@ -1,5 +1,8 @@
 package record
 
+// IMPORTER-SIDE FILE, NOT STORE: FriendlyTag is read by plan.go and
+// backlog.go and by nothing the store does (section 50, move 1, B102).
+
 import (
 	"regexp"
 	"strings"

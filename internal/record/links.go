@@ -18,7 +18,7 @@ const (
 	LinkCheckedAgainst = "checked-against"
 	LinkProducedBy     = "produced-by"
 	LinkBlocks         = "blocks"
-	// LinkPartOf is declared in progress.go, where Step uses it.
+	// LinkPartOf is declared in records.go, with the kind constants.
 )
 
 // linkTypes is the closed set.
