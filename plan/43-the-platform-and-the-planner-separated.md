@@ -131,6 +131,11 @@ compiler rather than the source.** The working tree was not touched.
 | symbols found on the wrong side | **3** - `stronglyConnected`, `KindProgress`, `LinkPartOf` |
 | files found on the wrong side | **2** - `fence.go` and `friendly.go` are planning |
 
+**Re-measured 2026-09-24 at `abb1ed0`, §50:** every number above holds, and one
+reads differently under this section's own ruling that `progress` stays in rig -
+two of the 14 methods are `Step` and `Stream` in `progress.go`, so **12 move and
+2 stay**. §50 carries the file-by-file classification and the moves in order.
+
 ⛔ **THE ONE REAL COUPLING: 14 METHODS ON `*Store` ARE DEFINED IN PLANNING
 FILES** - eight in `brief.go`, four in `lateststeps.go`, two in `progress.go` -
 **and they reach the store's unexported internals** (`briefContainer`,
