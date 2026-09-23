@@ -162,6 +162,18 @@ what gets built.
 | ⛔ **what happens to the MVP definition?** | §39's MVP is *"being able to use `rig` to work on `rig` with respect to the project/case management"*. **That sentence now describes the planner, not rig.** `READINESS.txt` is the team-lead's and is the only artefact allowed to answer it |
 | **the planner's name, and its repository** | Not raised |
 
+#### Seat recommendations, 2026-09-23 evening. NOT ANSWERS: §45's rule is that his question is parked WITH a recommendation and with what proceeds meanwhile
+
+**He said to do as much as possible without him (§45, 2026-09-23). The three
+rows are still his**, and each is one word from him. A recommendation here is
+one seat's reading of the evidence named beside it, nothing more.
+
+| Row | Recommendation | Evidence | Proceeds meanwhile |
+|---|---|---|---|
+| **Q1 - the record store** | **STAYS in rig, as a platform layer over S1.** The generic mechanism - kinds, versions, links, compare-and-swap, provenance, the `record.*` verbs - is rig's; **the planner declares ITS kinds** (project, case, work item, decision) and takes its importers, `brief.go`, `lateststeps.go`, the views | `progress` is already ruled a platform verb above, and a progress record has to land somewhere rig owns. §39's *two co-equal consumers* was the design from 2026-09-12 and is untouched by the placement ruling. **The 14 coupled methods in the seam table are exactly what B108 is pricing**: if `project.brief` composes over the wire at an acceptable cost, STAYS is buildable; if not, §44 already owes a batched projection verb that pushes the joins down, and the answer is still STAYS | B108 runs; S1's specification (the next section written) is drafted for STAYS and says so in its first line, so GOES costs one section rewrite and no code |
+| **Q3 - the MVP sentence** | **His words unchanged, re-addressed:** *use the planner, running on rig, to work on rig with respect to project/case management*, and the tray test unchanged. **`READINESS.txt` carries the draft**, being the only artefact allowed to answer it | §39's sentence names the OUTCOME he wants, and the outcome did not move; only the program that delivers it did. The tray test is a deployment test and no seam touches it (above) | nothing waits on it; it changes what `READINESS.txt` counts, not what is built |
+| **Q4 - the name and the repository** | **`docket`**: *a list of cases to be heard*, which is what the program is. One repository at `~/me/projects/docket`, module `github.com/boris-milner/docket`, notes at `logbook/projects/docket/` by the standing convention until it retires the logbook (§16). **Collision:** `cmd/docket` is M1a's second FAKE application and would be renamed; **`slate`** is the alternative that collides with nothing | The in-house names are one plain word each (`shelf`, `graft`, `archi`, `nudge`). The extraction specification cannot be written without a module path, so this is the first of the three the build actually blocks on | the extraction specification is drafted with `<planner>` as a placeholder and is one substitution from final |
+
 ---
 
 ### What this does NOT change

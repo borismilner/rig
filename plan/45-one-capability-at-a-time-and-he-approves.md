@@ -81,6 +81,14 @@ below and bind from that day. The other two remain his to rule.
 | **Does a killed capability leave the plan?** | §43's correction says deferral is never deletion. **A capability he rejects in step 3 is a different case and has no precedent** |
 | **How many subagents run at once?** | *"a subagent"* is singular in his sentence. Whether step 5 may have two in flight is not stated |
 
+**Seat recommendations on the two open rows, 2026-09-23 evening, parked per
+this section's own rule below.** Neither is an answer.
+
+| Open row | Recommendation | Consequence |
+|---|---|---|
+| **a killed capability** | **Stays in `plan/`, marked ⛔ KILLED with his words and the date, and leaves every order and queue.** Deletion loses the reasoning, and the section is the evidence against the next seat re-proposing it | the plan carries closed sections. B24's route to the logbook exists for the day that costs something |
+| **how many subagents at once** | **One BUILD at a time on the shared tree; any number of read-only agents beside it.** A measurement mutates only a detached copy and the tree sees one writer | **Evidence, 2026-09-23 evening:** one build (B104) and one measurement (B108) ran together; the measurement took a `VACUUM INTO` copy and touched no shared file. The next approved build waits for the running one's last commit |
+
 ⛔ **THE FIRST TWO ARE ANSWERED AND A SEAT MUST NOT RE-ASK THEM.** What still
 has to be asked is the NEXT capability, every time one finishes - the
 2026-09-20 answer picked one row, and a seat that reads a queue out of it has
