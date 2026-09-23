@@ -100,7 +100,7 @@
   // MEASURED 2026-09-11, the first time anyone opened this panel: aria-modal
   // was declared and the focus behaviour behind it was never wired, so opening
   // it left focus on the document. Three Tab presses walked the rail BEHIND the
-  // scrim and then landed inside docket's own pane - the keyboard reached an
+  // scrim and then landed inside abacus's own pane - the keyboard reached an
   // embedded program's document through a dialog claiming to be modal. The
   // frame boundary is what makes this worse than the ordinary missing-trap bug,
   // and it is the same boundary section 11 already knows :focus-within will not
@@ -456,7 +456,7 @@
   li {
     font-family: var(--mono), monospace;
     /* var(--fs--2) carries the scale's own max(12px, ...) floor. A raw em here
-       would walk around it, which is how a 10.16px cell reached docket. */
+       would walk around it, which is how a 10.16px cell reached abacus. */
     font-size: var(--fs--2);
     line-height: 1.7;
     color: var(--fg);
