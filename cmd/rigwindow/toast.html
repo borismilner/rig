@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>rig toasts</title>
+<style>
+/* The dark theme's tokens, as design/theme.js computes them for DEFAULTS.
+   Severity colours are the theme's semantic hues, never new ones. */
+:root {
+  --bg: #121a23; --panel: #212a34; --glow: #242d37; --border: #64778c;
+  --fg: #dae5f3; --fg-dim: #a1b1c5; --on-hue: #0d1117;
+  --sem-info: #8fc2fb; --sem-good: #92cf9a; --sem-warn: #e1b673; --sem-bad: #f7a59c;
+  --sans: "Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif;
+}
+html, body { margin: 0; background: transparent; overflow: hidden; }
+body { font: 14px/1.4 var(--sans); color: var(--fg); -webkit-user-select: none; user-select: none; }
+#stack { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; padding: 14px 14px 18px 26px; }
+
+.toast {
+  --hue: var(--sem-info);
+  position: relative; box-sizing: border-box; width: 360px;
+  display: grid; grid-template-columns: 26px 1fr; gap: 2px 10px;
+  padding: 12px 14px 12px 12px; border-radius: 14px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--hue) 55%, var(--border));
+  box-shadow: 0 10px 28px rgba(0,0,0,.45), inset 3px 0 0 var(--hue);
+  animation: in .38s cubic-bezier(.2,1.4,.4,1) both;
+  cursor: default;
+}
+.toast.leaving { animation: out .22s ease-in both; }
+@keyframes in  { from { opacity: 0; transform: translate(12px,-10px) scale(.92); } }
+@keyframes out { to   { opacity: 0; transform: translate(14px,-6px) scale(.96); } }
+
+/* The speech bubble's tail. Only the first bubble has one, and it points
+   into the top-right corner of the work area, where GNOME's tray sits:
+   Linux gives no tray icon position, so the tail aims at the corner and
+   never at the icon on a guess. */
+.toast:first-child::after {
+  content: ""; position: absolute; top: -9px; right: 22px; width: 16px; height: 16px;
+  background: inherit; border-left: inherit; border-top: inherit;
+  transform: rotate(45deg) skew(8deg,8deg); border-top-left-radius: 3px;
+}
+
+.glyph {
+  grid-row: span 2; width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center; font-weight: 700; font-size: 14px;
+  background: var(--hue); color: var(--on-hue);
+}
+.title { font-weight: 600; color: var(--fg); overflow-wrap: anywhere; }
+.body { color: var(--fg-dim); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 7.2em; overflow: hidden; }
+.meta { grid-column: 2; color: var(--fg-dim); font-size: 12px; opacity: .75; }
+
+.info    { --hue: var(--sem-info); }
+.success { --hue: var(--sem-good); }
+.warning { --hue: var(--sem-warn); }
+.error   { --hue: var(--sem-bad); }
+.error .title { color: var(--sem-bad); }
+/* Urgent is the one drawn filled, pulses, and never leaves on its own. */
+.urgent {
+  --hue: var(--sem-bad);
+  background: var(--sem-bad); border-color: var(--sem-bad);
+  box-shadow: 0 10px 28px rgba(0,0,0,.5), 0 0 0 0 color-mix(in srgb, var(--sem-bad) 70%, transparent);
+  animation: in .38s cubic-bezier(.2,1.4,.4,1) both, pulse 1.6s ease-out .4s infinite;
+}
+.urgent .title, .urgent .body, .urgent .meta { color: var(--on-hue); }
+.urgent .glyph { background: var(--on-hue); color: var(--sem-bad); }
+@keyframes pulse { 70% { box-shadow: 0 10px 28px rgba(0,0,0,.5), 0 0 0 10px transparent; } }
+</style>
+</head>
+<body>
+<div id="stack"></div>
+<script>
+"use strict";
+const GLYPH = { info: "i", success: "✓", warning: "!", error: "✕", urgent: "!!" };
+const stack = document.getElementById("stack");
+let hovered = false;
+stack.addEventListener("mouseenter", () => { hovered = true; });
+stack.addEventListener("mouseleave", () => { hovered = false; });
+
+// Section 12: roughly ten seconds plus five per line; hover pauses. Error
+// stays twice as long, and urgent stays until it is clicked.
+function dwellFor(t) {
+  if (t.severity === "urgent") return Infinity;
+  const lines = 1 + (t.body ? t.body.split("\n").length : 0);
+  const ms = 10000 + 5000 * lines;
+  return t.severity === "error" ? 2 * ms : ms;
+}
+
+function leave(el) {
+  if (el.classList.contains("leaving")) return;
+  el.classList.add("leaving");
+  setTimeout(() => el.remove(), 230);
+}
+
+function show(t) {
+  const el = document.createElement("div");
+  el.className = "toast " + t.severity;
+  el.setAttribute("role", t.severity === "urgent" || t.severity === "error" ? "alert" : "status");
+  const g = document.createElement("div"); g.className = "glyph"; g.textContent = GLYPH[t.severity] || "i";
+  const ti = document.createElement("div"); ti.className = "title"; ti.textContent = t.title;
+  el.append(g, ti);
+  if (t.body) { const b = document.createElement("div"); b.className = "body"; b.textContent = t.body; el.append(b); }
+  const m = document.createElement("div"); m.className = "meta"; m.textContent = t.sender + " · " + t.severity;
+  el.append(m);
+  el.dataset.left = String(dwellFor(t));
+  el.addEventListener("click", () => leave(el));
+  stack.prepend(el); // newest nearest the corner
+}
+
+// Count down every bubble's dwell, paused while the pointer is over the stack.
+let last = performance.now();
+setInterval(() => {
+  const now = performance.now(), dt = now - last; last = now;
+  if (hovered) return;
+  for (const el of stack.querySelectorAll(".toast:not(.leaving)")) {
+    const left = Number(el.dataset.left) - dt;
+    el.dataset.left = String(left);
+    if (left <= 0) leave(el);
+  }
+}, 200);
+
+// The page's one door to Go: report how many bubbles are up and how tall the
+// stack is, and take whatever toasts arrived.
+async function poll() {
+  const shown = stack.querySelectorAll(".toast:not(.leaving)").length;
+  const h = Math.ceil(stack.getBoundingClientRect().height);
+  try {
+    const r = await fetch("/toast/poll?shown=" + shown + "&h=" + h);
+    for (const t of await r.json() || []) show(t);
+  } catch (e) { /* the renderer is quitting */ }
+  setTimeout(poll, 150);
+}
+poll();
+</script>
+</body>
+</html>

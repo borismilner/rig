@@ -5,6 +5,7 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
+	"os"
 	"strings"
 	"time"
 
@@ -132,6 +133,10 @@ func runTraySupervisor(sup *supervisor) {
 		}()
 
 		go pollEstate(sup)
+		go watchToasts(&toastWatcher{
+			spawn: spawnToasts, fallback: notifyDesktop,
+			warn: func(msg string) { fmt.Fprintln(os.Stderr, "rigwindow: "+msg) },
+		})
 	}, nil)
 }
 

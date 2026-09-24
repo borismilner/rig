@@ -48,12 +48,25 @@ var background = application.NewRGB(0x12, 0x1a, 0x23)
 func main() {
 	showVersion := flag.Bool("version", false, "print every version this build carries and exit")
 	window := flag.Bool("window", false, "be the window rather than the tray (the tray starts this itself)")
+	toasts := flag.Bool("toasts", false, "be the toast renderer (the tray starts this itself)")
+	after := flag.String("after", "0", "with --toasts: draw the toasts after this cursor")
 	flag.Parse()
 	if *showVersion {
 		fmt.Printf("product %s\nwire    %s\ncommit  %s\nbuilt   %s\n", version, wire, sha, date)
 		return
 	}
 
+	if *toasts {
+		cursor, err := toastAfter(*after)
+		if err == nil {
+			err = runToasts(cursor)
+		}
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "rigwindow: "+err.Error())
+			os.Exit(1)
+		}
+		return
+	}
 	if *window {
 		if err := runWindow(); err != nil {
 			fmt.Fprintln(os.Stderr, "rigwindow: "+err.Error())
