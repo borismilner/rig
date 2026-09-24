@@ -1072,9 +1072,7 @@ func (d *Daemon) route(ctx context.Context, from *conn, f *rigv1.Frame, program,
 		Payload:  reply.GetPayload(),
 		Status:   reply.GetStatus(),
 	}
-	if err := from.w.WriteFrame(relay); err != nil {
-		d.log.Warn("could not relay reply", "program", program, "err", err)
-	}
+	from.send(relay, "could not relay reply", "program", program)
 }
 
 func (c *conn) reply(stream uint32, msg proto.Message) {
@@ -1083,12 +1081,32 @@ func (c *conn) reply(stream uint32, msg proto.Message) {
 		c.fail(stream, rigv1.Code_CODE_INTERNAL, err.Error())
 		return
 	}
-	if err := c.w.WriteFrame(&rigv1.Frame{
+	c.send(&rigv1.Frame{
 		StreamId: stream,
 		Kind:     rigv1.FrameKind_FRAME_KIND_RESPONSE,
 		Payload:  body,
-	}); err != nil {
-		c.log.Warn("could not write response", "err", err)
+	}, "could not write response")
+}
+
+// send writes an answer frame, and an answer too large for the wire is
+// REFUSED TO THE CALLER rather than only logged.
+//
+// ⛔ A LOGGED FAILURE HERE IS A SILENT ONE AT THE OTHER END. WriteFrame
+// refuses a frame over wire.MaxFrameSize before writing a byte, so the
+// connection is intact - but the caller was never sent anything and waits
+// out its whole deadline, then reports a timeout about a call that finished.
+// The error frame names the size and the cap, so the caller learns the
+// answer exists and has to be asked for in smaller pieces.
+func (c *conn) send(f *rigv1.Frame, warn string, attrs ...any) {
+	err := c.w.WriteFrame(f)
+	if err == nil {
+		return
+	}
+	c.log.Warn(warn, append(attrs, "err", err)...)
+	if errors.Is(err, wire.ErrFrameTooLarge) {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, fmt.Sprintf(
+			"the answer is too large for one frame (%v, cap %d bytes); ask for "+
+				"less per call - a page, a limit, or fewer ids", err, wire.MaxFrameSize))
 	}
 }
 
