@@ -242,6 +242,7 @@ func allToolNames() []string {
 		string(RecordHistoryTool), string(RecordLinkTool), string(RecordUnlinkTool),
 		string(RecordRefsTool), string(ProgressStepTool),
 		string(RecordRetractTool), string(RecordDeleteTool), string(RecordReplaceTool),
+		string(KnowledgeSearchTool), string(KnowledgeGetTool), string(KnowledgeAddTool),
 	}
 }
 
@@ -281,6 +282,12 @@ type RecordAnswer struct {
 
 	// Replacement accounts for every inbound edge of the loser.
 	Replacement *RecordReplacement `json:"replacement,omitempty"`
+
+	// Hits is knowledge_search's answer: never a body. EMPTY IS AN ANSWER.
+	Hits []LessonHit `json:"hits,omitempty"`
+
+	// Lesson is knowledge_get's and knowledge_add's answer, whole.
+	Lesson *Lesson `json:"lesson,omitempty"`
 }
 
 // RecordRetraction is a withdrawal on the agent's door.

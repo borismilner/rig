@@ -359,3 +359,65 @@ func (m *mcpCaller) Replace(ctx context.Context, old, replacement, reason string
 		Dropped: edgeRows(got.Dropped),
 	}, retractionRow(got.Retraction), nil
 }
+
+// The daemon's MCP caller serves section 40's lessons too.
+var _ meta.Lessons = (*mcpCaller)(nil)
+
+// SearchLessons answers knowledge_search: hits, never a body.
+func (m *mcpCaller) SearchLessons(ctx context.Context, query string, limit int) ([]meta.LessonHit, error) {
+	st, err := m.store()
+	if err != nil {
+		return nil, err
+	}
+	hits, err := st.SearchLessons(ctx, query, limit)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]meta.LessonHit, 0, len(hits))
+	for _, h := range hits {
+		out = append(out, meta.LessonHit{ID: h.ID, Title: h.Title, Summary: h.Summary, Snippet: h.Snippet, Score: h.Score})
+	}
+	return out, nil
+}
+
+// GetLesson answers knowledge_get.
+func (m *mcpCaller) GetLesson(ctx context.Context, id string) (meta.Lesson, error) {
+	st, err := m.store()
+	if err != nil {
+		return meta.Lesson{}, err
+	}
+	l, err := st.GetLesson(ctx, id)
+	if err != nil {
+		return meta.Lesson{}, err
+	}
+	return lessonOf(l), nil
+}
+
+// AddLesson answers knowledge_add, under this connection's seat and never one
+// named by the caller, the rule Put states for records.
+func (m *mcpCaller) AddLesson(ctx context.Context, title, summary, body string, tags []string) (meta.Lesson, error) {
+	st, err := m.store()
+	if err != nil {
+		return meta.Lesson{}, err
+	}
+	session, seat, epoch, err := m.writer()
+	if err != nil {
+		return meta.Lesson{}, err
+	}
+	l, err := st.AddLesson(ctx, record.LessonRequest{
+		Title: title, Summary: summary, Body: body, Tags: tags,
+		Session: session, Seat: seat, Epoch: epoch,
+	})
+	if err != nil {
+		return meta.Lesson{}, err
+	}
+	return lessonOf(l), nil
+}
+
+func lessonOf(l record.Lesson) meta.Lesson {
+	tags := l.Tags
+	if tags == nil {
+		tags = []string{}
+	}
+	return meta.Lesson{ID: l.ID, Title: l.Title, Summary: l.Summary, Body: l.Body, Tags: tags, Seat: l.Prov.Seat}
+}

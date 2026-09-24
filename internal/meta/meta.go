@@ -82,6 +82,11 @@ const (
 	RecordRefsTool    Tool = "record_refs"
 	ProgressStepTool  Tool = "progress_step"
 
+	// Section 40's lessons.
+	KnowledgeSearchTool Tool = "knowledge_search"
+	KnowledgeGetTool    Tool = "knowledge_get"
+	KnowledgeAddTool    Tool = "knowledge_add"
+
 	// ⛔ B77's THREE, RULED BY BORIS 2026-09-17: he asked for full control over
 	// the records, so that everybody can delete, retract and replace them. His
 	// sentence verbatim is in plan/39 and in internal/record/control.go.
@@ -234,6 +239,14 @@ type Request struct {
 	Reason string
 	DryRun bool
 	NewID  string
+
+	// Section 40's. Query and Limit are knowledge_search's; Title, Summary,
+	// Body and Tags are knowledge_add's; RecordID is knowledge_get's lesson.
+	Query   string
+	Limit   int
+	Title   string
+	Summary string
+	Tags    []string
 }
 
 // Answer is what every meta tool returns, and what both --json and the MCP
@@ -391,6 +404,8 @@ func (s *Server) Answer(ctx context.Context, who kernel.Principal, r Request) (A
 		return s.recordReplace(ctx, who, r)
 	case ProgressStepTool:
 		return s.progressStep(ctx, who, r)
+	case KnowledgeSearchTool, KnowledgeGetTool, KnowledgeAddTool:
+		return s.knowledge(ctx, who, r)
 	default:
 		// ⛔ THE REFUSAL ENUMERATES EVERY TOOL AND MUST KEEP DOING SO. It used
 		// to say "the seven are" and list them; a hand-kept count beside a
