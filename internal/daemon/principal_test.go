@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
-	"time"
 
 	"golang.org/x/sys/unix"
 
@@ -124,11 +123,17 @@ func TestAPrincipalFromARealSocketCarriesARealUnixSession(t *testing.T) {
 	}
 	defer func() { _ = ln.Close() }()
 
+	// The dialer holds its end open until the test is over, then exits, and
+	// the test waits for it: a goroutine outliving its test is what the
+	// package's goleak check refuses.
+	done, finished := make(chan struct{}), make(chan struct{})
+	t.Cleanup(func() { close(done); <-finished })
 	go func() {
+		defer close(finished)
 		c, derr := net.Dial("unix", sock)
 		if derr == nil {
 			defer func() { _ = c.Close() }()
-			<-time.After(time.Second)
+			<-done
 		}
 	}()
 
