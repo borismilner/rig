@@ -434,4 +434,18 @@ served as `rig.queue.push`, `claim`, `complete` and `list`.
   requeue kill a stalled worker. Until it exists, replay safety is the
   consumer's contract, as the row says.
 
+### Fencing tokens, the resource's check, built 2026-09-24
+
+The fencing row's token already existed, monotonic per lease. What was
+missing was a way for a resource to use it. `rig.lease.check {name, token}`
+answers whether the token is current: the lease carries it and is held or
+orphaned. A released, broken, dead-witness or re-granted lease makes it
+stale for good. The epoch is not asked for, because a restart fences a
+handle, not the lease. `rig.queue.complete` is the one rig-mediated write,
+and it is fenced by the claim's token and epoch.
+
+The row's own caveat still holds: this only protects a resource that asks.
+The Fenced gate, proving that a stalled holder's work stops, needs the
+witnessed-run path and is not built.
+
 ---
