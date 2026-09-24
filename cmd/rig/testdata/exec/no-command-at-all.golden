@@ -1,7 +1,7 @@
 $ rig 
 exit 1
 --- stdout (0 bytes)
---- stderr (2055 bytes)
+--- stderr (2081 bytes)
 usage: rig <command> [flags]
 
   <app> <cmd>      run a command a program declared, with its declared flags
@@ -13,7 +13,7 @@ usage: rig <command> [flags]
   estate           which estate this shell reached, and what it is for
   peers            who else is here, what each is for and what each is doing
   record <cmd>     the continuity record: put, get, query, history, link,
-                   unlink, refs
+                   unlink, refs, retract, delete, replace
   progress step <item>
                    append one step to a work item's stream
   backup           archive the estate this shell reached; rig picks the path

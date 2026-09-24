@@ -175,7 +175,7 @@ func usage() {
   estate           which estate this shell reached, and what it is for
   peers            who else is here, what each is for and what each is doing
   record <cmd>     the continuity record: put, get, query, history, link,
-                   unlink, refs
+                   unlink, refs, retract, delete, replace
   progress step <item>
                    append one step to a work item's stream
   backup           archive the estate this shell reached; rig picks the path
