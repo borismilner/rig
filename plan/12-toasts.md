@@ -1,5 +1,22 @@
 ## 12. Toasts
 
+⛔ **TOASTS COME FIRST, RULED BY BORIS 2026-09-24, verbatim** (his elision, marked `[...]`,
+is kept as the lead relayed it):
+
+> *"I want the `rig` to be as useful as possible from the start. I want it to be able to show
+> different kinds of toasts (different severities, like AgentBox). The toasts must be beautiful
+> and shown like speech bubbles coming out of the `rig` system-tray icon if possible. The best
+> of the best library/libraries are to be used for that. [...] I also want its libraries to be
+> fully verified to be the best of the absolute best and make sure they don't leak
+> performance."*
+
+**This moves the toast surface ahead of M9**, where §23 placed it: his word overrides the
+milestone order. The severities are AgentBox's five - `info`, `success`, `warning`, `error`,
+`urgent`. The shape is a speech bubble whose tail points at rig's tray icon **where the icon's
+screen position can be measured**, and at the panel corner the tray sits in where it cannot;
+a tail is never drawn at the icon on a guess. The rules below are unchanged and apply to it.
+
+
 A notification is a designed surface, not a line handed to the desktop. Frameless, always-on-top,
 transparent webview windows rig owns and styles. X11 with GNOME Shell as compositor is confirmed
 present on this laptop, so an ARGB visual and a real backdrop blur are available.
