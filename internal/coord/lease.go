@@ -490,3 +490,26 @@ func (s *Store) Leases() ([]Status, error) {
 	})
 	return out, err
 }
+
+// Check answers whether token is the lease's CURRENT fencing token, for a
+// resource deciding whether to accept a write (section 16's fencing row).
+//
+// A token is current while the lease record carries it and the lease is held
+// or orphaned: in both, nobody else has been granted it since. It stops being
+// current the moment the lease is released, broken, freed by its witness
+// being observed dead, or granted again - and it never becomes current again,
+// because tokens are monotonic per lease and survive a release.
+//
+// THE EPOCH IS NOT ASKED FOR, deliberately. A restart fences a HANDLE, so the
+// holder must re-acquire before renewing; it does not hand the lease to
+// anybody else, so a write under the old token conflicts with no newer holder.
+// What a resource needs to refuse is a token older than the newest one
+// granted, and that is exactly this comparison.
+func (s *Store) Check(name string, token uint64) (Status, bool, error) {
+	st, err := s.Inspect(name)
+	if err != nil {
+		return Status{}, false, err
+	}
+	current := token != 0 && st.Token == token && (st.State == Held || st.State == Orphaned)
+	return st, current, nil
+}
