@@ -127,47 +127,15 @@ func (e *NotFoundError) Error() string {
 	return fmt.Sprintf("no version %d of record %s", e.Version, e.ID)
 }
 
-// KindNote is Boris's comment and question mechanism, section 39 row 3: a note
-// is a RECORD attached to a project or a work-item, never a field on either.
+// KindProject and KindCase are section 39's two CONTAINERS, and the only kinds
+// the store still names.
 //
-// It is named here rather than written as a literal because the brief's
-// compact-card flag and the notes-in-full section are two derivations asking
-// the same question, and a typo in one of them is an edge nothing looks for -
-// the same silent-failure argument that closed the link-type set.
-const KindNote = "note"
-
-// KindFeature is section 39 row 10's kind: a feature with a `stage`, which
-// Boris asked for by name.
-const KindFeature = "feature"
-
-// KindDecision, KindRequirement and KindArtefact are the three of section 39's
-// ten kinds that nothing could RENDER until B64.
-//
-// ⛔ NAMING THEM IS NOT THE FIX AND MUST NOT BE REPORTED AS ONE. `kind` has
-// never been a closed set and `Put` has never refused a value, so three more
-// constants change nothing a caller can observe: `record put --kind decision`
-// worked before this line existed, and `record query --kind decision` answered.
-// What was missing is that NOTHING TOLD A READER THEY WERE THERE - the brief's
-// sections were a closed eleven and none of them mentioned a decision, so the
-// records were reachable only by a caller who already knew to ask for them.
-// The twelfth section is the fix; these are the spelling it shares with it.
-//
-// THEY ARE HERE FOR THE REASON KindNote GIVES ABOVE: two derivations asking the
-// same question with a literal each is one typo away from a silent miss, and a
-// typo in a kind is invisible by construction because an unknown kind is a
-// legal kind.
-const (
-	KindDecision    = "decision"
-	KindRequirement = "requirement"
-	KindArtefact    = "artefact"
-)
-
-// KindProject and KindCase are section 39's two CONTAINERS.
-//
-// A case is "for what is ongoing and never ships" - Boris, 2026-09-15: "we have
-// projects but we have also things that are ongoing". The brief derives both,
-// and which one it is decides which sections mean anything: row 11 is a case's
-// notes, and a case has no semver because it does not ship.
+// ⛔ THEY STAY FOR ONE RULE, slugIDKinds below: a project's or a case's id is
+// its slug, the value every other record carries in its `project` column. The
+// rest of section 39's kinds left with the brief at plan/50 move 6, because
+// nothing in the store behaved differently for them. These two it does, and
+// whether that rule is the store's or the planner's is plan/50 decision 5's
+// open edge: move 6's `git grep` proof still finds them.
 const (
 	KindProject = "project"
 	KindCase    = "case"
@@ -182,17 +150,9 @@ const KindProgress = "progress"
 // same shape of thing - it belongs to an item and it is not a property of it -
 // so it uses the edge that already exists rather than a column invented for
 // this one case. The reverse index on (dst, type) that slice 1 shipped is
-// exactly the lookup Stream needs, which is why the table landed before its
-// verbs did.
+// exactly the lookup a stream read needs, which is why the table landed
+// before its verbs did.
 const LinkPartOf = "part-of"
-
-// The four stages section 39 names for a feature, and there are only four.
-const (
-	StagePlanned    = "planned"
-	StageBuilding   = "building"
-	StageShipped    = "shipped"
-	StageDeprecated = "deprecated"
-)
 
 // slugIDKinds are the kinds whose id is a caller-supplied SLUG rather than a
 // generated UUIDv7.

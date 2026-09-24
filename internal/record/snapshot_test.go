@@ -18,7 +18,7 @@ func putN(t *testing.T, s *Store, n int) []string {
 	ids := make([]string, 0, n)
 	for i := range n {
 		rec, err := s.Put(context.Background(), PutRequest{
-			Kind:    KindNote,
+			Kind:    "note",
 			Project: "rig",
 			Body:    "a record written so the snapshot has something to carry",
 			Session: "s-snapshot", Seat: "backup", Epoch: 1,
@@ -44,7 +44,7 @@ func supersede(t *testing.T, s *Store, ids []string) {
 	for _, id := range ids {
 		if _, err := s.Put(context.Background(), PutRequest{
 			ID: id, IfVersion: 1,
-			Kind:    KindNote,
+			Kind:    "note",
 			Project: "rig",
 			Body:    "the second version of this record",
 			Session: "s-snapshot", Seat: "backup", Epoch: 1,
