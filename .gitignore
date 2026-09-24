@@ -61,3 +61,6 @@ DECISIONS.md
 
 # make types output: generated from schema/, imported by nothing yet.
 frontend/src/lib/schema/
+
+# examples/python: protoc output, generated per README.md.
+examples/python/proto/
