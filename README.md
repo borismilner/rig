@@ -54,7 +54,7 @@ declaration, and answers its own commands. rig never runs code inside it.
 Go links `client` and `proto/rig/v1`; any other language speaks the wire from
 the proto files. **[docs/programs.md](docs/programs.md)** is the contract, with
 Go and Python examples in `examples/`, `client/clienttest` for testing against
-a real daemon.
+a real daemon, and [how to pin a release](docs/programs.md#pinning-a-version).
 
 ## What an agent session gets
 
