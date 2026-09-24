@@ -120,7 +120,8 @@ prefix on a unix socket. gRPC was measured (+9.8 MiB resident) and rejected.
 | supervision | start, stop, health as evidence of progress, restart budgets | partial (window supervisor only) | §18 |
 | the window | three pane tiers: generated, kit, embedded | partial | §11 |
 | one tray | one icon for every program | built for rig itself | §11 |
-| toasts and speech | frameless toasts, severities, inline actions | specified | §12 |
+| toasts | five severities as speech bubbles at the tray's corner, an on-demand renderer, freedesktop fallback, filed in the record; `rig.notify`, `rig notify` | built (inline actions, DND, centre UI not yet) | §12 |
+| speech | the notification centre said out loud | specified | §12 |
 | palette, search, scheduler, URL scheme | cross-program surfaces | specified | M13 |
 | packaging and updates | `.deb`, signed update channel | partial (`pkgdeb`) | M15 |
 

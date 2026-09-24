@@ -248,6 +248,20 @@ not current, and it never becomes current again. A stale token is an answer
 This protects only resources that ask. rig cannot stop a write to something
 that never checks, such as git, a deploy or a VM (PLAN.md section 16).
 
+## Toasts
+
+`rig.notify` shows a toast at the tray's corner of the screen and files it in
+the record, so nothing is only a toast:
+
+| method | request | answer |
+|---|---|---|
+| `rig.notify` | `severity` (info, success, warning, error, urgent), `title`, `body` | the toast as filed, with its record id |
+
+The severity is required: there is no default, because a default would decide
+how loudly your message is drawn. The sender is your program's id (or your
+seat), never a field you set. From a shell: `rig notify warning "Disk 91%
+full" --body "/var is filling"`.
+
 ## Agents
 
 Nothing extra is needed: every declared command reaches agents through rig's
