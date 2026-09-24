@@ -19,6 +19,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -623,6 +624,20 @@ func (d *Daemon) authorizeSelf(ctx context.Context, c *conn, f *rigv1.Frame, com
 	return true
 }
 
+// servedMethods is every rig.* method this daemon serves, sorted: rig's own
+// declaration plus rig.hello, which is prior to it (self.go says why hello is
+// not declared). HelloResponse.methods carries it.
+func servedMethods() []string {
+	cmds := selfDeclaration().Commands
+	out := make([]string, 0, len(cmds)+1)
+	out = append(out, kernel.SelfID+".hello")
+	for _, c := range cmds {
+		out = append(out, kernel.SelfID+"."+c.ID)
+	}
+	sort.Strings(out)
+	return out
+}
+
 // serveHello is the program handshake: it registers the connection as one
 // program and mints that principal. Split out of serveSelf only for length.
 func (d *Daemon) serveHello(ctx context.Context, c *conn, f *rigv1.Frame) {
@@ -705,6 +720,7 @@ func (d *Daemon) serveHello(ctx context.Context, c *conn, f *rigv1.Frame) {
 		Wire:          d.wire,
 		DaemonVersion: d.version,
 		Scoped:        true,
+		Methods:       servedMethods(),
 
 		// Section 14 row 4 - a registered program - is the one caller
 		// kind with a handshake, so it is the one that never has to ask

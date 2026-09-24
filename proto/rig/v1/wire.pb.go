@@ -798,7 +798,15 @@ type HelloResponse struct {
 	// occupancy. That is why it is here rather than on Frame - a field beside
 	// request_id would file it under the one lifetime V18 says no peer may
 	// ever hold.
-	Session       string `protobuf:"bytes,4,opt,name=session,proto3" json:"session,omitempty"`
+	Session string `protobuf:"bytes,4,opt,name=session,proto3" json:"session,omitempty"`
+	// Every rig.* method this daemon serves, sorted, so a program can check for
+	// a verb before calling it instead of learning its absence from a
+	// NOT_FOUND. It is the capability half of the handshake: `wire` says which
+	// major, this says what that major's daemon actually has, which grows
+	// within a major as verbs are added. Built from rig's own declaration, the
+	// same list the house rules authorise against, so it cannot name a method
+	// the daemon would refuse as unknown.
+	Methods       []string `protobuf:"bytes,5,rep,name=methods,proto3" json:"methods,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -859,6 +867,13 @@ func (x *HelloResponse) GetSession() string {
 		return x.Session
 	}
 	return ""
+}
+
+func (x *HelloResponse) GetMethods() []string {
+	if x != nil {
+		return x.Methods
+	}
+	return nil
 }
 
 type PingRequest struct {
@@ -1595,12 +1610,13 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\fHelloRequest\x12\x18\n" +
 	"\aprogram\x18\x01 \x01(\tR\aprogram\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x125\n" +
-	"\vdeclaration\x18\x03 \x01(\v2\x13.rig.v1.DeclarationR\vdeclaration\"|\n" +
+	"\vdeclaration\x18\x03 \x01(\v2\x13.rig.v1.DeclarationR\vdeclaration\"\x96\x01\n" +
 	"\rHelloResponse\x12\x12\n" +
 	"\x04wire\x18\x01 \x01(\tR\x04wire\x12%\n" +
 	"\x0edaemon_version\x18\x02 \x01(\tR\rdaemonVersion\x12\x16\n" +
 	"\x06scoped\x18\x03 \x01(\bR\x06scoped\x12\x18\n" +
-	"\asession\x18\x04 \x01(\tR\asession\"=\n" +
+	"\asession\x18\x04 \x01(\tR\asession\x12\x18\n" +
+	"\amethods\x18\x05 \x03(\tR\amethods\"=\n" +
 	"\vPingRequest\x12\x14\n" +
 	"\x05nonce\x18\x01 \x01(\fR\x05nonce\x12\x18\n" +
 	"\aprogram\x18\x02 \x01(\tR\aprogram\"X\n" +

@@ -198,6 +198,15 @@ message HelloResponse {
   // request_id would file it under the one lifetime V18 says no peer may
   // ever hold.
   string session = 4;
+
+  // Every rig.* method this daemon serves, sorted, so a program can check for
+  // a verb before calling it instead of learning its absence from a
+  // NOT_FOUND. It is the capability half of the handshake: `wire` says which
+  // major, this says what that major's daemon actually has, which grows
+  // within a major as verbs are added. Built from rig's own declaration, the
+  // same list the house rules authorise against, so it cannot name a method
+  // the daemon would refuse as unknown.
+  repeated string methods = 5;
 }
 
 // ---- rig.ping, the one method M0 ships -------------------------------------
