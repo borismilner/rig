@@ -239,6 +239,11 @@ func restoreRefusal(err error) error {
 // name. This is the output key alone.
 const estateKey = "estate"
 
+// epochKey is the JSON key an epoch travels under, in every object this client
+// emits that carries one - the estate, a seat, a lease and a record's
+// provenance. One spelling for one fact.
+const epochKey = "epoch"
+
 // restoreJSON is the object --json emits.
 //
 // The parameter is `name` rather than `estate` because internal/estate is

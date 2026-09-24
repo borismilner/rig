@@ -53,6 +53,10 @@ var now = func() (Instant, error) {
 	return Instant(ts.Nano()), nil
 }
 
+// Now is the clock every deadline here is on, for a caller turning one into a
+// distance. A deadline read against any other clock is a number about nothing.
+func Now() (Instant, error) { return now() }
+
 // bootIDPath is the kernel's per-boot identifier, and it is a variable only so
 // tests can point it at a file they control.
 var bootIDPath = "/proc/sys/kernel/random/boot_id"

@@ -289,3 +289,71 @@ func TestTheLastColumnCarriesNoTrailingPadding(t *testing.T) {
 		}
 	}
 }
+
+// ---- leases, section 16 ----------------------------------------------------
+
+// The two facts a reader acts on are words in the NOTE column, and a refused
+// lease list is reported under the roster rather than failing it.
+func TestLeasesTextSaysWhatAReaderActsOn(t *testing.T) {
+	got := leasesText(&rigv1.LeaseListResponse{Leases: []*rigv1.Lease{
+		{
+			Name: "deploy", State: rigv1.LeaseState_LEASE_STATE_HELD,
+			Holder: "seat-a", Witness: "pid 42", RemainingMs: 30_000,
+			OwnerGone: true, Liveness: rigv1.Liveness_LIVENESS_DEAD,
+		},
+		{
+			Name: "vm", State: rigv1.LeaseState_LEASE_STATE_ORPHANED,
+			Holder: "seat-b", Witness: "unwitnessed", RemainingMs: -5000,
+			NeedsBreak: true, Liveness: rigv1.Liveness_LIVENESS_UNKNOWN,
+		},
+		{
+			Name: "db", State: rigv1.LeaseState_LEASE_STATE_FREE,
+			Holder: "seat-c", Witness: "unwitnessed",
+			BrokenBy: "seat-a", BrokenReason: "torn down",
+		},
+	}}, "")
+	for _, want := range []string{
+		"LEASE", "deploy", "held", "seat-a (pid 42)", "30s",
+		"holder observed dead: frees at its deadline",
+		"vm", "orphaned", "needs a recorded break",
+		"db", "free", "broken by seat-a: torn down",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the lease section does not say %q:\n%s", want, got)
+		}
+	}
+
+	if got := leasesText(&rigv1.LeaseListResponse{}, ""); !strings.Contains(got, "No lease has ever been taken") {
+		t.Errorf("an empty lease list renders as %q, want a sentence", got)
+	}
+	if got := leasesText(nil, "rig.lease.list: CODE_UNAVAILABLE: no store"); !strings.Contains(got, "not available") ||
+		!strings.Contains(got, "no store") {
+		t.Errorf("a refused lease list renders as %q, want the refusal named", got)
+	}
+}
+
+// Every key on every row, and an empty array rather than null.
+func TestLeasesJSONCarriesEveryKey(t *testing.T) {
+	b, err := json.Marshal(leasesJSON(&rigv1.LeaseListResponse{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(b) != "[]" {
+		t.Errorf("no leases marshals as %s, want []", b)
+	}
+	rows := leasesJSON(&rigv1.LeaseListResponse{Leases: []*rigv1.Lease{{
+		Name: "deploy", State: rigv1.LeaseState_LEASE_STATE_HELD,
+		Liveness: rigv1.Liveness_LIVENESS_ALIVE,
+	}}})
+	for _, k := range []string{
+		"name", "state", "holder", "token", "epoch", "witness", "remaining_ms",
+		"owner_gone", "liveness", "needs_break", "broken_by", "broken_reason",
+	} {
+		if _, ok := rows[0][k]; !ok {
+			t.Errorf("a lease row has no %q key", k)
+		}
+	}
+	if rows[0]["state"] != "held" || rows[0]["liveness"] != "alive" {
+		t.Errorf("state %v liveness %v, want held and alive", rows[0]["state"], rows[0]["liveness"])
+	}
+}

@@ -930,6 +930,133 @@ message PeersResponse {
   bool partial = 2;
 }
 
+// ---- rig.lease.*, leases with a liveness witness (PLAN.md section 16) ------
+//
+// internal/coord's leases, served. Every hold has a TTL, expiry is TWO-STEP
+// (a lease past its deadline is ORPHANED, and only becomes FREE when its
+// witness is observed dead or a recorded break frees it), and every handle
+// carries the epoch it was issued under, so a daemon restart fences it.
+//
+// ⛔ THE HOLDER AND THE WITNESS ARE THE CONNECTION'S, NEVER THE REQUEST'S. The
+// holder is the caller's seat, the same attribution a record write gets, and
+// the witness is the pid the socket itself reports for the caller. A witness
+// named on the request would let a caller pin a lease to a process it does
+// not own, which is a lease that never frees. A caller that cannot be polled
+// says so with `unwitnessed`, and its lease then needs a recorded break.
+
+// LeaseState is where a lease is in the two-step expiry.
+enum LeaseState {
+  LEASE_STATE_UNSPECIFIED = 0;
+
+  // Inside its deadline, on this boot. The holder owns it.
+  LEASE_STATE_HELD = 1;
+
+  // Past its deadline and the witness was NOT observed dead. Not free: its
+  // own holder may still renew it.
+  LEASE_STATE_ORPHANED = 2;
+
+  // Nobody holds it.
+  LEASE_STATE_FREE = 3;
+}
+
+// Liveness is what rig OBSERVED about a holder's witness.
+enum Liveness {
+  LIVENESS_UNSPECIFIED = 0;
+
+  // rig could not establish it. Never frees a lease.
+  LIVENESS_UNKNOWN = 1;
+  LIVENESS_ALIVE = 2;
+  LIVENESS_DEAD = 3;
+}
+
+// Lease is one lease as a reader sees it, INCLUDING its owner's liveness.
+message Lease {
+  string name = 1;
+  LeaseState state = 2;
+
+  // The LAST holder. A free lease still names who abandoned it.
+  string holder = 3;
+  uint64 token = 4;
+  uint64 epoch = 5;
+
+  // How the holder is checked: "pid <n>" or "unwitnessed".
+  string witness = 6;
+
+  // Milliseconds until the deadline, negative once it has passed. The
+  // deadline itself is on the daemon's boot clock and means nothing to a
+  // caller, so the wire carries the distance to it.
+  int64 remaining_ms = 7;
+
+  // True when the witness was OBSERVED dead.
+  bool owner_gone = 8;
+  Liveness liveness = 9;
+
+  // An orphaned lease rig can never free on its own: an unwitnessed one.
+  bool needs_break = 10;
+
+  string broken_by = 11;
+  string broken_reason = 12;
+}
+
+// LeaseHandle is what a holder presents to renew or release.
+message LeaseHandle {
+  string name = 1;
+  string holder = 2;
+  uint64 token = 3;
+  uint64 epoch = 4;
+  int64 remaining_ms = 5;
+}
+
+message LeaseAcquireRequest {
+  string name = 1;
+
+  // Required. There is no infinite hold.
+  uint32 ttl_ms = 2;
+
+  // True declares that rig cannot poll this holder, and buys the stricter
+  // rule: the lease never frees on its own and needs a recorded break.
+  bool unwitnessed = 3;
+}
+
+message LeaseAcquireResponse {
+  LeaseHandle handle = 1;
+}
+
+message LeaseRenewRequest {
+  string name = 1;
+  uint64 token = 2;
+  uint64 epoch = 3;
+  uint32 ttl_ms = 4;
+}
+
+message LeaseRenewResponse {
+  LeaseHandle handle = 1;
+}
+
+message LeaseReleaseRequest {
+  string name = 1;
+  uint64 token = 2;
+  uint64 epoch = 3;
+}
+
+message LeaseReleaseResponse {}
+
+// LeaseBreakRequest frees an orphaned lease by a recorded human action. Who
+// broke it is the caller's seat; why is required.
+message LeaseBreakRequest {
+  string name = 1;
+  string reason = 2;
+}
+
+message LeaseBreakResponse {}
+
+message LeaseListRequest {}
+
+message LeaseListResponse {
+  // Every lease the estate knows about, evaluated now, by name.
+  repeated Lease leases = 1;
+}
+
 // ============================================================================
 // SECTION 39's CONTINUITY RECORD.
 //

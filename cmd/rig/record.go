@@ -1405,7 +1405,7 @@ func recordJSON(r Record, now time.Time) map[string]any {
 		"provenance": map[string]any{
 			"session": r.Prov.Session,
 			"seat":    r.Prov.Seat,
-			"epoch":   r.Prov.Epoch,
+			epochKey:  r.Prov.Epoch,
 			// The timestamp is emitted unchanged AS WELL AS the age, because
 			// a consumer computing against its own clock must not be forced
 			// through this one - peersJSON's rule, and the same reason.
@@ -1437,7 +1437,7 @@ func retractionJSON(r *Retraction, now time.Time) map[string]any {
 		"retracted_by": map[string]any{
 			"session":         r.Prov.Session,
 			"seat":            r.Prov.Seat,
-			"epoch":           r.Prov.Epoch,
+			epochKey:          r.Prov.Epoch,
 			"created_at":      provTime(r.Prov.CreatedAt),
 			"created_age_s":   provAge(r.Prov.CreatedAt, now),
 			"created_at_unix": provUnix(r.Prov.CreatedAt),
@@ -2733,7 +2733,7 @@ func recordRetract(rf *recordFlags, rest []string) error {
 				"id": r.ID, "reason": r.Reason, "already": already,
 				"retracted_by": map[string]any{
 					"session": r.Prov.Session, "seat": r.Prov.Seat,
-					"epoch": r.Prov.Epoch, "at": provTime(r.Prov.CreatedAt),
+					epochKey: r.Prov.Epoch, "at": provTime(r.Prov.CreatedAt),
 				},
 			})
 		}

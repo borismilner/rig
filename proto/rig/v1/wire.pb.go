@@ -657,6 +657,117 @@ func (SeatState) EnumDescriptor() ([]byte, []int) {
 	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{9}
 }
 
+// LeaseState is where a lease is in the two-step expiry.
+type LeaseState int32
+
+const (
+	LeaseState_LEASE_STATE_UNSPECIFIED LeaseState = 0
+	// Inside its deadline, on this boot. The holder owns it.
+	LeaseState_LEASE_STATE_HELD LeaseState = 1
+	// Past its deadline and the witness was NOT observed dead. Not free: its
+	// own holder may still renew it.
+	LeaseState_LEASE_STATE_ORPHANED LeaseState = 2
+	// Nobody holds it.
+	LeaseState_LEASE_STATE_FREE LeaseState = 3
+)
+
+// Enum value maps for LeaseState.
+var (
+	LeaseState_name = map[int32]string{
+		0: "LEASE_STATE_UNSPECIFIED",
+		1: "LEASE_STATE_HELD",
+		2: "LEASE_STATE_ORPHANED",
+		3: "LEASE_STATE_FREE",
+	}
+	LeaseState_value = map[string]int32{
+		"LEASE_STATE_UNSPECIFIED": 0,
+		"LEASE_STATE_HELD":        1,
+		"LEASE_STATE_ORPHANED":    2,
+		"LEASE_STATE_FREE":        3,
+	}
+)
+
+func (x LeaseState) Enum() *LeaseState {
+	p := new(LeaseState)
+	*p = x
+	return p
+}
+
+func (x LeaseState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (LeaseState) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_rig_v1_wire_proto_enumTypes[10].Descriptor()
+}
+
+func (LeaseState) Type() protoreflect.EnumType {
+	return &file_proto_rig_v1_wire_proto_enumTypes[10]
+}
+
+func (x LeaseState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use LeaseState.Descriptor instead.
+func (LeaseState) EnumDescriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{10}
+}
+
+// Liveness is what rig OBSERVED about a holder's witness.
+type Liveness int32
+
+const (
+	Liveness_LIVENESS_UNSPECIFIED Liveness = 0
+	// rig could not establish it. Never frees a lease.
+	Liveness_LIVENESS_UNKNOWN Liveness = 1
+	Liveness_LIVENESS_ALIVE   Liveness = 2
+	Liveness_LIVENESS_DEAD    Liveness = 3
+)
+
+// Enum value maps for Liveness.
+var (
+	Liveness_name = map[int32]string{
+		0: "LIVENESS_UNSPECIFIED",
+		1: "LIVENESS_UNKNOWN",
+		2: "LIVENESS_ALIVE",
+		3: "LIVENESS_DEAD",
+	}
+	Liveness_value = map[string]int32{
+		"LIVENESS_UNSPECIFIED": 0,
+		"LIVENESS_UNKNOWN":     1,
+		"LIVENESS_ALIVE":       2,
+		"LIVENESS_DEAD":        3,
+	}
+)
+
+func (x Liveness) Enum() *Liveness {
+	p := new(Liveness)
+	*p = x
+	return p
+}
+
+func (x Liveness) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Liveness) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_rig_v1_wire_proto_enumTypes[11].Descriptor()
+}
+
+func (Liveness) Type() protoreflect.EnumType {
+	return &file_proto_rig_v1_wire_proto_enumTypes[11]
+}
+
+func (x Liveness) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Liveness.Descriptor instead.
+func (Liveness) EnumDescriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{11}
+}
+
 // StepState is where a work item stands, per section 39.
 //
 // Zero is UNSPECIFIED and mandatory: an enum whose zero means something makes
@@ -701,11 +812,11 @@ func (x StepState) String() string {
 }
 
 func (StepState) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_rig_v1_wire_proto_enumTypes[10].Descriptor()
+	return file_proto_rig_v1_wire_proto_enumTypes[12].Descriptor()
 }
 
 func (StepState) Type() protoreflect.EnumType {
-	return &file_proto_rig_v1_wire_proto_enumTypes[10]
+	return &file_proto_rig_v1_wire_proto_enumTypes[12]
 }
 
 func (x StepState) Number() protoreflect.EnumNumber {
@@ -714,7 +825,7 @@ func (x StepState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use StepState.Descriptor instead.
 func (StepState) EnumDescriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{10}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{12}
 }
 
 type BriefView int32
@@ -750,11 +861,11 @@ func (x BriefView) String() string {
 }
 
 func (BriefView) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_rig_v1_wire_proto_enumTypes[11].Descriptor()
+	return file_proto_rig_v1_wire_proto_enumTypes[13].Descriptor()
 }
 
 func (BriefView) Type() protoreflect.EnumType {
-	return &file_proto_rig_v1_wire_proto_enumTypes[11]
+	return &file_proto_rig_v1_wire_proto_enumTypes[13]
 }
 
 func (x BriefView) Number() protoreflect.EnumNumber {
@@ -763,7 +874,7 @@ func (x BriefView) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use BriefView.Descriptor instead.
 func (BriefView) EnumDescriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{11}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{13}
 }
 
 // BriefSection names each of section 39's eleven brief sections.
@@ -855,11 +966,11 @@ func (x BriefSection) String() string {
 }
 
 func (BriefSection) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_rig_v1_wire_proto_enumTypes[12].Descriptor()
+	return file_proto_rig_v1_wire_proto_enumTypes[14].Descriptor()
 }
 
 func (BriefSection) Type() protoreflect.EnumType {
-	return &file_proto_rig_v1_wire_proto_enumTypes[12]
+	return &file_proto_rig_v1_wire_proto_enumTypes[14]
 }
 
 func (x BriefSection) Number() protoreflect.EnumNumber {
@@ -868,7 +979,7 @@ func (x BriefSection) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use BriefSection.Descriptor instead.
 func (BriefSection) EnumDescriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{12}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{14}
 }
 
 // SectionState is whether a section's answer means anything.
@@ -922,11 +1033,11 @@ func (x SectionState) String() string {
 }
 
 func (SectionState) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_rig_v1_wire_proto_enumTypes[13].Descriptor()
+	return file_proto_rig_v1_wire_proto_enumTypes[15].Descriptor()
 }
 
 func (SectionState) Type() protoreflect.EnumType {
-	return &file_proto_rig_v1_wire_proto_enumTypes[13]
+	return &file_proto_rig_v1_wire_proto_enumTypes[15]
 }
 
 func (x SectionState) Number() protoreflect.EnumNumber {
@@ -935,7 +1046,7 @@ func (x SectionState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use SectionState.Descriptor instead.
 func (SectionState) EnumDescriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{13}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{15}
 }
 
 type Status struct {
@@ -3262,6 +3373,709 @@ func (x *PeersResponse) GetPartial() bool {
 	return false
 }
 
+// Lease is one lease as a reader sees it, INCLUDING its owner's liveness.
+type Lease struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	State LeaseState             `protobuf:"varint,2,opt,name=state,proto3,enum=rig.v1.LeaseState" json:"state,omitempty"`
+	// The LAST holder. A free lease still names who abandoned it.
+	Holder string `protobuf:"bytes,3,opt,name=holder,proto3" json:"holder,omitempty"`
+	Token  uint64 `protobuf:"varint,4,opt,name=token,proto3" json:"token,omitempty"`
+	Epoch  uint64 `protobuf:"varint,5,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	// How the holder is checked: "pid <n>" or "unwitnessed".
+	Witness string `protobuf:"bytes,6,opt,name=witness,proto3" json:"witness,omitempty"`
+	// Milliseconds until the deadline, negative once it has passed. The
+	// deadline itself is on the daemon's boot clock and means nothing to a
+	// caller, so the wire carries the distance to it.
+	RemainingMs int64 `protobuf:"varint,7,opt,name=remaining_ms,json=remainingMs,proto3" json:"remaining_ms,omitempty"`
+	// True when the witness was OBSERVED dead.
+	OwnerGone bool     `protobuf:"varint,8,opt,name=owner_gone,json=ownerGone,proto3" json:"owner_gone,omitempty"`
+	Liveness  Liveness `protobuf:"varint,9,opt,name=liveness,proto3,enum=rig.v1.Liveness" json:"liveness,omitempty"`
+	// An orphaned lease rig can never free on its own: an unwitnessed one.
+	NeedsBreak    bool   `protobuf:"varint,10,opt,name=needs_break,json=needsBreak,proto3" json:"needs_break,omitempty"`
+	BrokenBy      string `protobuf:"bytes,11,opt,name=broken_by,json=brokenBy,proto3" json:"broken_by,omitempty"`
+	BrokenReason  string `protobuf:"bytes,12,opt,name=broken_reason,json=brokenReason,proto3" json:"broken_reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Lease) Reset() {
+	*x = Lease{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Lease) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Lease) ProtoMessage() {}
+
+func (x *Lease) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Lease.ProtoReflect.Descriptor instead.
+func (*Lease) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *Lease) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Lease) GetState() LeaseState {
+	if x != nil {
+		return x.State
+	}
+	return LeaseState_LEASE_STATE_UNSPECIFIED
+}
+
+func (x *Lease) GetHolder() string {
+	if x != nil {
+		return x.Holder
+	}
+	return ""
+}
+
+func (x *Lease) GetToken() uint64 {
+	if x != nil {
+		return x.Token
+	}
+	return 0
+}
+
+func (x *Lease) GetEpoch() uint64 {
+	if x != nil {
+		return x.Epoch
+	}
+	return 0
+}
+
+func (x *Lease) GetWitness() string {
+	if x != nil {
+		return x.Witness
+	}
+	return ""
+}
+
+func (x *Lease) GetRemainingMs() int64 {
+	if x != nil {
+		return x.RemainingMs
+	}
+	return 0
+}
+
+func (x *Lease) GetOwnerGone() bool {
+	if x != nil {
+		return x.OwnerGone
+	}
+	return false
+}
+
+func (x *Lease) GetLiveness() Liveness {
+	if x != nil {
+		return x.Liveness
+	}
+	return Liveness_LIVENESS_UNSPECIFIED
+}
+
+func (x *Lease) GetNeedsBreak() bool {
+	if x != nil {
+		return x.NeedsBreak
+	}
+	return false
+}
+
+func (x *Lease) GetBrokenBy() string {
+	if x != nil {
+		return x.BrokenBy
+	}
+	return ""
+}
+
+func (x *Lease) GetBrokenReason() string {
+	if x != nil {
+		return x.BrokenReason
+	}
+	return ""
+}
+
+// LeaseHandle is what a holder presents to renew or release.
+type LeaseHandle struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Holder        string                 `protobuf:"bytes,2,opt,name=holder,proto3" json:"holder,omitempty"`
+	Token         uint64                 `protobuf:"varint,3,opt,name=token,proto3" json:"token,omitempty"`
+	Epoch         uint64                 `protobuf:"varint,4,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	RemainingMs   int64                  `protobuf:"varint,5,opt,name=remaining_ms,json=remainingMs,proto3" json:"remaining_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaseHandle) Reset() {
+	*x = LeaseHandle{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaseHandle) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaseHandle) ProtoMessage() {}
+
+func (x *LeaseHandle) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaseHandle.ProtoReflect.Descriptor instead.
+func (*LeaseHandle) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *LeaseHandle) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *LeaseHandle) GetHolder() string {
+	if x != nil {
+		return x.Holder
+	}
+	return ""
+}
+
+func (x *LeaseHandle) GetToken() uint64 {
+	if x != nil {
+		return x.Token
+	}
+	return 0
+}
+
+func (x *LeaseHandle) GetEpoch() uint64 {
+	if x != nil {
+		return x.Epoch
+	}
+	return 0
+}
+
+func (x *LeaseHandle) GetRemainingMs() int64 {
+	if x != nil {
+		return x.RemainingMs
+	}
+	return 0
+}
+
+type LeaseAcquireRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Required. There is no infinite hold.
+	TtlMs uint32 `protobuf:"varint,2,opt,name=ttl_ms,json=ttlMs,proto3" json:"ttl_ms,omitempty"`
+	// True declares that rig cannot poll this holder, and buys the stricter
+	// rule: the lease never frees on its own and needs a recorded break.
+	Unwitnessed   bool `protobuf:"varint,3,opt,name=unwitnessed,proto3" json:"unwitnessed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaseAcquireRequest) Reset() {
+	*x = LeaseAcquireRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaseAcquireRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaseAcquireRequest) ProtoMessage() {}
+
+func (x *LeaseAcquireRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaseAcquireRequest.ProtoReflect.Descriptor instead.
+func (*LeaseAcquireRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *LeaseAcquireRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *LeaseAcquireRequest) GetTtlMs() uint32 {
+	if x != nil {
+		return x.TtlMs
+	}
+	return 0
+}
+
+func (x *LeaseAcquireRequest) GetUnwitnessed() bool {
+	if x != nil {
+		return x.Unwitnessed
+	}
+	return false
+}
+
+type LeaseAcquireResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Handle        *LeaseHandle           `protobuf:"bytes,1,opt,name=handle,proto3" json:"handle,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaseAcquireResponse) Reset() {
+	*x = LeaseAcquireResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaseAcquireResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaseAcquireResponse) ProtoMessage() {}
+
+func (x *LeaseAcquireResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaseAcquireResponse.ProtoReflect.Descriptor instead.
+func (*LeaseAcquireResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *LeaseAcquireResponse) GetHandle() *LeaseHandle {
+	if x != nil {
+		return x.Handle
+	}
+	return nil
+}
+
+type LeaseRenewRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Token         uint64                 `protobuf:"varint,2,opt,name=token,proto3" json:"token,omitempty"`
+	Epoch         uint64                 `protobuf:"varint,3,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	TtlMs         uint32                 `protobuf:"varint,4,opt,name=ttl_ms,json=ttlMs,proto3" json:"ttl_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaseRenewRequest) Reset() {
+	*x = LeaseRenewRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaseRenewRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaseRenewRequest) ProtoMessage() {}
+
+func (x *LeaseRenewRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaseRenewRequest.ProtoReflect.Descriptor instead.
+func (*LeaseRenewRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *LeaseRenewRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *LeaseRenewRequest) GetToken() uint64 {
+	if x != nil {
+		return x.Token
+	}
+	return 0
+}
+
+func (x *LeaseRenewRequest) GetEpoch() uint64 {
+	if x != nil {
+		return x.Epoch
+	}
+	return 0
+}
+
+func (x *LeaseRenewRequest) GetTtlMs() uint32 {
+	if x != nil {
+		return x.TtlMs
+	}
+	return 0
+}
+
+type LeaseRenewResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Handle        *LeaseHandle           `protobuf:"bytes,1,opt,name=handle,proto3" json:"handle,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaseRenewResponse) Reset() {
+	*x = LeaseRenewResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaseRenewResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaseRenewResponse) ProtoMessage() {}
+
+func (x *LeaseRenewResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaseRenewResponse.ProtoReflect.Descriptor instead.
+func (*LeaseRenewResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *LeaseRenewResponse) GetHandle() *LeaseHandle {
+	if x != nil {
+		return x.Handle
+	}
+	return nil
+}
+
+type LeaseReleaseRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Token         uint64                 `protobuf:"varint,2,opt,name=token,proto3" json:"token,omitempty"`
+	Epoch         uint64                 `protobuf:"varint,3,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaseReleaseRequest) Reset() {
+	*x = LeaseReleaseRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaseReleaseRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaseReleaseRequest) ProtoMessage() {}
+
+func (x *LeaseReleaseRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaseReleaseRequest.ProtoReflect.Descriptor instead.
+func (*LeaseReleaseRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *LeaseReleaseRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *LeaseReleaseRequest) GetToken() uint64 {
+	if x != nil {
+		return x.Token
+	}
+	return 0
+}
+
+func (x *LeaseReleaseRequest) GetEpoch() uint64 {
+	if x != nil {
+		return x.Epoch
+	}
+	return 0
+}
+
+type LeaseReleaseResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaseReleaseResponse) Reset() {
+	*x = LeaseReleaseResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaseReleaseResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaseReleaseResponse) ProtoMessage() {}
+
+func (x *LeaseReleaseResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaseReleaseResponse.ProtoReflect.Descriptor instead.
+func (*LeaseReleaseResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{37}
+}
+
+// LeaseBreakRequest frees an orphaned lease by a recorded human action. Who
+// broke it is the caller's seat; why is required.
+type LeaseBreakRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaseBreakRequest) Reset() {
+	*x = LeaseBreakRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaseBreakRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaseBreakRequest) ProtoMessage() {}
+
+func (x *LeaseBreakRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaseBreakRequest.ProtoReflect.Descriptor instead.
+func (*LeaseBreakRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *LeaseBreakRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *LeaseBreakRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type LeaseBreakResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaseBreakResponse) Reset() {
+	*x = LeaseBreakResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaseBreakResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaseBreakResponse) ProtoMessage() {}
+
+func (x *LeaseBreakResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaseBreakResponse.ProtoReflect.Descriptor instead.
+func (*LeaseBreakResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{39}
+}
+
+type LeaseListRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaseListRequest) Reset() {
+	*x = LeaseListRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaseListRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaseListRequest) ProtoMessage() {}
+
+func (x *LeaseListRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaseListRequest.ProtoReflect.Descriptor instead.
+func (*LeaseListRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{40}
+}
+
+type LeaseListResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Every lease the estate knows about, evaluated now, by name.
+	Leases        []*Lease `protobuf:"bytes,1,rep,name=leases,proto3" json:"leases,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaseListResponse) Reset() {
+	*x = LeaseListResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaseListResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaseListResponse) ProtoMessage() {}
+
+func (x *LeaseListResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaseListResponse.ProtoReflect.Descriptor instead.
+func (*LeaseListResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *LeaseListResponse) GetLeases() []*Lease {
+	if x != nil {
+		return x.Leases
+	}
+	return nil
+}
+
 // Provenance is who wrote a record version and when.
 //
 // IT APPEARS ON RESPONSES ONLY. Every field here is the daemon's: the caller
@@ -3278,7 +4092,7 @@ type Provenance struct {
 
 func (x *Provenance) Reset() {
 	*x = Provenance{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[30]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3290,7 +4104,7 @@ func (x *Provenance) String() string {
 func (*Provenance) ProtoMessage() {}
 
 func (x *Provenance) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[30]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3303,7 +4117,7 @@ func (x *Provenance) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Provenance.ProtoReflect.Descriptor instead.
 func (*Provenance) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{30}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *Provenance) GetSession() string {
@@ -3364,7 +4178,7 @@ type Record struct {
 
 func (x *Record) Reset() {
 	*x = Record{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[31]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3376,7 +4190,7 @@ func (x *Record) String() string {
 func (*Record) ProtoMessage() {}
 
 func (x *Record) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[31]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3389,7 +4203,7 @@ func (x *Record) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Record.ProtoReflect.Descriptor instead.
 func (*Record) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{31}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *Record) GetId() string {
@@ -3470,7 +4284,7 @@ type Retraction struct {
 
 func (x *Retraction) Reset() {
 	*x = Retraction{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[32]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3482,7 +4296,7 @@ func (x *Retraction) String() string {
 func (*Retraction) ProtoMessage() {}
 
 func (x *Retraction) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[32]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3495,7 +4309,7 @@ func (x *Retraction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Retraction.ProtoReflect.Descriptor instead.
 func (*Retraction) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{32}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *Retraction) GetId() string {
@@ -3546,7 +4360,7 @@ type RecordPutRequest struct {
 
 func (x *RecordPutRequest) Reset() {
 	*x = RecordPutRequest{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[33]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3558,7 +4372,7 @@ func (x *RecordPutRequest) String() string {
 func (*RecordPutRequest) ProtoMessage() {}
 
 func (x *RecordPutRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[33]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3571,7 +4385,7 @@ func (x *RecordPutRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordPutRequest.ProtoReflect.Descriptor instead.
 func (*RecordPutRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{33}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *RecordPutRequest) GetId() string {
@@ -3625,7 +4439,7 @@ type RecordPutResponse struct {
 
 func (x *RecordPutResponse) Reset() {
 	*x = RecordPutResponse{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[34]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3637,7 +4451,7 @@ func (x *RecordPutResponse) String() string {
 func (*RecordPutResponse) ProtoMessage() {}
 
 func (x *RecordPutResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[34]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3650,7 +4464,7 @@ func (x *RecordPutResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordPutResponse.ProtoReflect.Descriptor instead.
 func (*RecordPutResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{34}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *RecordPutResponse) GetRecord() *Record {
@@ -3671,7 +4485,7 @@ type RecordGetRequest struct {
 
 func (x *RecordGetRequest) Reset() {
 	*x = RecordGetRequest{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[35]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3683,7 +4497,7 @@ func (x *RecordGetRequest) String() string {
 func (*RecordGetRequest) ProtoMessage() {}
 
 func (x *RecordGetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[35]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3696,7 +4510,7 @@ func (x *RecordGetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordGetRequest.ProtoReflect.Descriptor instead.
 func (*RecordGetRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{35}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *RecordGetRequest) GetId() string {
@@ -3722,7 +4536,7 @@ type RecordGetResponse struct {
 
 func (x *RecordGetResponse) Reset() {
 	*x = RecordGetResponse{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[36]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3734,7 +4548,7 @@ func (x *RecordGetResponse) String() string {
 func (*RecordGetResponse) ProtoMessage() {}
 
 func (x *RecordGetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[36]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3747,7 +4561,7 @@ func (x *RecordGetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordGetResponse.ProtoReflect.Descriptor instead.
 func (*RecordGetResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{36}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *RecordGetResponse) GetRecord() *Record {
@@ -3809,7 +4623,7 @@ type RecordQueryRequest struct {
 
 func (x *RecordQueryRequest) Reset() {
 	*x = RecordQueryRequest{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[37]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3821,7 +4635,7 @@ func (x *RecordQueryRequest) String() string {
 func (*RecordQueryRequest) ProtoMessage() {}
 
 func (x *RecordQueryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[37]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3834,7 +4648,7 @@ func (x *RecordQueryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordQueryRequest.ProtoReflect.Descriptor instead.
 func (*RecordQueryRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{37}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *RecordQueryRequest) GetProject() string {
@@ -3894,7 +4708,7 @@ type RecordQueryResponse struct {
 
 func (x *RecordQueryResponse) Reset() {
 	*x = RecordQueryResponse{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[38]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3906,7 +4720,7 @@ func (x *RecordQueryResponse) String() string {
 func (*RecordQueryResponse) ProtoMessage() {}
 
 func (x *RecordQueryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[38]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3919,7 +4733,7 @@ func (x *RecordQueryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordQueryResponse.ProtoReflect.Descriptor instead.
 func (*RecordQueryResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{38}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *RecordQueryResponse) GetRecords() []*Record {
@@ -3945,7 +4759,7 @@ type RecordHistoryRequest struct {
 
 func (x *RecordHistoryRequest) Reset() {
 	*x = RecordHistoryRequest{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[39]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3957,7 +4771,7 @@ func (x *RecordHistoryRequest) String() string {
 func (*RecordHistoryRequest) ProtoMessage() {}
 
 func (x *RecordHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[39]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3970,7 +4784,7 @@ func (x *RecordHistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordHistoryRequest.ProtoReflect.Descriptor instead.
 func (*RecordHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{39}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *RecordHistoryRequest) GetId() string {
@@ -3990,7 +4804,7 @@ type RecordHistoryResponse struct {
 
 func (x *RecordHistoryResponse) Reset() {
 	*x = RecordHistoryResponse{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[40]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4002,7 +4816,7 @@ func (x *RecordHistoryResponse) String() string {
 func (*RecordHistoryResponse) ProtoMessage() {}
 
 func (x *RecordHistoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[40]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4015,7 +4829,7 @@ func (x *RecordHistoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordHistoryResponse.ProtoReflect.Descriptor instead.
 func (*RecordHistoryResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{40}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *RecordHistoryResponse) GetVersions() []*Record {
@@ -4042,7 +4856,7 @@ type RecordLinkRequest struct {
 
 func (x *RecordLinkRequest) Reset() {
 	*x = RecordLinkRequest{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[41]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4054,7 +4868,7 @@ func (x *RecordLinkRequest) String() string {
 func (*RecordLinkRequest) ProtoMessage() {}
 
 func (x *RecordLinkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[41]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4067,7 +4881,7 @@ func (x *RecordLinkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordLinkRequest.ProtoReflect.Descriptor instead.
 func (*RecordLinkRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{41}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *RecordLinkRequest) GetSrc() string {
@@ -4106,7 +4920,7 @@ type RecordLinkResponse struct {
 
 func (x *RecordLinkResponse) Reset() {
 	*x = RecordLinkResponse{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[42]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4118,7 +4932,7 @@ func (x *RecordLinkResponse) String() string {
 func (*RecordLinkResponse) ProtoMessage() {}
 
 func (x *RecordLinkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[42]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4131,7 +4945,7 @@ func (x *RecordLinkResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordLinkResponse.ProtoReflect.Descriptor instead.
 func (*RecordLinkResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{42}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{54}
 }
 
 type RecordUnlinkRequest struct {
@@ -4145,7 +4959,7 @@ type RecordUnlinkRequest struct {
 
 func (x *RecordUnlinkRequest) Reset() {
 	*x = RecordUnlinkRequest{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[43]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4157,7 +4971,7 @@ func (x *RecordUnlinkRequest) String() string {
 func (*RecordUnlinkRequest) ProtoMessage() {}
 
 func (x *RecordUnlinkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[43]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4170,7 +4984,7 @@ func (x *RecordUnlinkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordUnlinkRequest.ProtoReflect.Descriptor instead.
 func (*RecordUnlinkRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{43}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *RecordUnlinkRequest) GetSrc() string {
@@ -4202,7 +5016,7 @@ type RecordUnlinkResponse struct {
 
 func (x *RecordUnlinkResponse) Reset() {
 	*x = RecordUnlinkResponse{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[44]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4214,7 +5028,7 @@ func (x *RecordUnlinkResponse) String() string {
 func (*RecordUnlinkResponse) ProtoMessage() {}
 
 func (x *RecordUnlinkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[44]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4227,7 +5041,7 @@ func (x *RecordUnlinkResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordUnlinkResponse.ProtoReflect.Descriptor instead.
 func (*RecordUnlinkResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{44}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{56}
 }
 
 // RecordRefsRequest asks what points AT a record - the direction files cannot
@@ -4254,7 +5068,7 @@ type RecordRefsRequest struct {
 
 func (x *RecordRefsRequest) Reset() {
 	*x = RecordRefsRequest{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[45]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4266,7 +5080,7 @@ func (x *RecordRefsRequest) String() string {
 func (*RecordRefsRequest) ProtoMessage() {}
 
 func (x *RecordRefsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[45]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4279,7 +5093,7 @@ func (x *RecordRefsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordRefsRequest.ProtoReflect.Descriptor instead.
 func (*RecordRefsRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{45}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *RecordRefsRequest) GetId() string {
@@ -4335,7 +5149,7 @@ type Ref struct {
 
 func (x *Ref) Reset() {
 	*x = Ref{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[46]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4347,7 +5161,7 @@ func (x *Ref) String() string {
 func (*Ref) ProtoMessage() {}
 
 func (x *Ref) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[46]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4360,7 +5174,7 @@ func (x *Ref) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Ref.ProtoReflect.Descriptor instead.
 func (*Ref) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{46}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *Ref) GetSrc() string {
@@ -4431,7 +5245,7 @@ type RecordRetractRequest struct {
 
 func (x *RecordRetractRequest) Reset() {
 	*x = RecordRetractRequest{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[47]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4443,7 +5257,7 @@ func (x *RecordRetractRequest) String() string {
 func (*RecordRetractRequest) ProtoMessage() {}
 
 func (x *RecordRetractRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[47]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4456,7 +5270,7 @@ func (x *RecordRetractRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordRetractRequest.ProtoReflect.Descriptor instead.
 func (*RecordRetractRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{47}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *RecordRetractRequest) GetId() string {
@@ -4490,7 +5304,7 @@ type RecordRetractResponse struct {
 
 func (x *RecordRetractResponse) Reset() {
 	*x = RecordRetractResponse{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[48]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4502,7 +5316,7 @@ func (x *RecordRetractResponse) String() string {
 func (*RecordRetractResponse) ProtoMessage() {}
 
 func (x *RecordRetractResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[48]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4515,7 +5329,7 @@ func (x *RecordRetractResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordRetractResponse.ProtoReflect.Descriptor instead.
 func (*RecordRetractResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{48}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *RecordRetractResponse) GetRetraction() *Retraction {
@@ -4544,7 +5358,7 @@ type Edge struct {
 
 func (x *Edge) Reset() {
 	*x = Edge{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[49]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4556,7 +5370,7 @@ func (x *Edge) String() string {
 func (*Edge) ProtoMessage() {}
 
 func (x *Edge) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[49]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4569,7 +5383,7 @@ func (x *Edge) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Edge.ProtoReflect.Descriptor instead.
 func (*Edge) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{49}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *Edge) GetSrc() string {
@@ -4608,7 +5422,7 @@ type RecordDeleteRequest struct {
 
 func (x *RecordDeleteRequest) Reset() {
 	*x = RecordDeleteRequest{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[50]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4620,7 +5434,7 @@ func (x *RecordDeleteRequest) String() string {
 func (*RecordDeleteRequest) ProtoMessage() {}
 
 func (x *RecordDeleteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[50]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4633,7 +5447,7 @@ func (x *RecordDeleteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordDeleteRequest.ProtoReflect.Descriptor instead.
 func (*RecordDeleteRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{50}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *RecordDeleteRequest) GetId() string {
@@ -4677,7 +5491,7 @@ type RecordDeleteResponse struct {
 
 func (x *RecordDeleteResponse) Reset() {
 	*x = RecordDeleteResponse{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[51]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4689,7 +5503,7 @@ func (x *RecordDeleteResponse) String() string {
 func (*RecordDeleteResponse) ProtoMessage() {}
 
 func (x *RecordDeleteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[51]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4702,7 +5516,7 @@ func (x *RecordDeleteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordDeleteResponse.ProtoReflect.Descriptor instead.
 func (*RecordDeleteResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{51}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *RecordDeleteResponse) GetId() string {
@@ -4752,7 +5566,7 @@ type RecordReplaceRequest struct {
 
 func (x *RecordReplaceRequest) Reset() {
 	*x = RecordReplaceRequest{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[52]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4764,7 +5578,7 @@ func (x *RecordReplaceRequest) String() string {
 func (*RecordReplaceRequest) ProtoMessage() {}
 
 func (x *RecordReplaceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[52]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4777,7 +5591,7 @@ func (x *RecordReplaceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordReplaceRequest.ProtoReflect.Descriptor instead.
 func (*RecordReplaceRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{52}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *RecordReplaceRequest) GetOld() string {
@@ -4831,7 +5645,7 @@ type RecordReplaceResponse struct {
 
 func (x *RecordReplaceResponse) Reset() {
 	*x = RecordReplaceResponse{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[53]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4843,7 +5657,7 @@ func (x *RecordReplaceResponse) String() string {
 func (*RecordReplaceResponse) ProtoMessage() {}
 
 func (x *RecordReplaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[53]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4856,7 +5670,7 @@ func (x *RecordReplaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordReplaceResponse.ProtoReflect.Descriptor instead.
 func (*RecordReplaceResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{53}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *RecordReplaceResponse) GetOld() string {
@@ -4922,7 +5736,7 @@ type RecordRefsResponse struct {
 
 func (x *RecordRefsResponse) Reset() {
 	*x = RecordRefsResponse{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[54]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4934,7 +5748,7 @@ func (x *RecordRefsResponse) String() string {
 func (*RecordRefsResponse) ProtoMessage() {}
 
 func (x *RecordRefsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[54]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4947,7 +5761,7 @@ func (x *RecordRefsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordRefsResponse.ProtoReflect.Descriptor instead.
 func (*RecordRefsResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{54}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *RecordRefsResponse) GetId() string {
@@ -4995,7 +5809,7 @@ type Cycle struct {
 
 func (x *Cycle) Reset() {
 	*x = Cycle{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[55]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5007,7 +5821,7 @@ func (x *Cycle) String() string {
 func (*Cycle) ProtoMessage() {}
 
 func (x *Cycle) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[55]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5020,7 +5834,7 @@ func (x *Cycle) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Cycle.ProtoReflect.Descriptor instead.
 func (*Cycle) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{55}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *Cycle) GetItems() []string {
@@ -5049,7 +5863,7 @@ type ProgressStepRequest struct {
 
 func (x *ProgressStepRequest) Reset() {
 	*x = ProgressStepRequest{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[56]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5061,7 +5875,7 @@ func (x *ProgressStepRequest) String() string {
 func (*ProgressStepRequest) ProtoMessage() {}
 
 func (x *ProgressStepRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[56]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5074,7 +5888,7 @@ func (x *ProgressStepRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProgressStepRequest.ProtoReflect.Descriptor instead.
 func (*ProgressStepRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{56}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *ProgressStepRequest) GetItem() string {
@@ -5110,7 +5924,7 @@ type ProgressStepResponse struct {
 
 func (x *ProgressStepResponse) Reset() {
 	*x = ProgressStepResponse{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[57]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5122,7 +5936,7 @@ func (x *ProgressStepResponse) String() string {
 func (*ProgressStepResponse) ProtoMessage() {}
 
 func (x *ProgressStepResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[57]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5135,7 +5949,7 @@ func (x *ProgressStepResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProgressStepResponse.ProtoReflect.Descriptor instead.
 func (*ProgressStepResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{57}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *ProgressStepResponse) GetStep() *Record {
@@ -5208,7 +6022,7 @@ type ItemState struct {
 
 func (x *ItemState) Reset() {
 	*x = ItemState{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[58]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5220,7 +6034,7 @@ func (x *ItemState) String() string {
 func (*ItemState) ProtoMessage() {}
 
 func (x *ItemState) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[58]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5233,7 +6047,7 @@ func (x *ItemState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ItemState.ProtoReflect.Descriptor instead.
 func (*ItemState) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{58}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *ItemState) GetId() string {
@@ -5355,7 +6169,7 @@ type Blocker struct {
 
 func (x *Blocker) Reset() {
 	*x = Blocker{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[59]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5367,7 +6181,7 @@ func (x *Blocker) String() string {
 func (*Blocker) ProtoMessage() {}
 
 func (x *Blocker) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[59]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5380,7 +6194,7 @@ func (x *Blocker) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Blocker.ProtoReflect.Descriptor instead.
 func (*Blocker) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{59}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *Blocker) GetId() string {
@@ -5415,7 +6229,7 @@ type Blockage struct {
 
 func (x *Blockage) Reset() {
 	*x = Blockage{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[60]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5427,7 +6241,7 @@ func (x *Blockage) String() string {
 func (*Blockage) ProtoMessage() {}
 
 func (x *Blockage) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[60]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5440,7 +6254,7 @@ func (x *Blockage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Blockage.ProtoReflect.Descriptor instead.
 func (*Blockage) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{60}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *Blockage) GetItem() string {
@@ -5473,7 +6287,7 @@ type ProjectBriefRequest struct {
 
 func (x *ProjectBriefRequest) Reset() {
 	*x = ProjectBriefRequest{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[61]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5485,7 +6299,7 @@ func (x *ProjectBriefRequest) String() string {
 func (*ProjectBriefRequest) ProtoMessage() {}
 
 func (x *ProjectBriefRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[61]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5498,7 +6312,7 @@ func (x *ProjectBriefRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectBriefRequest.ProtoReflect.Descriptor instead.
 func (*ProjectBriefRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{61}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *ProjectBriefRequest) GetProject() string {
@@ -5523,7 +6337,7 @@ type BriefSectionStatus struct {
 
 func (x *BriefSectionStatus) Reset() {
 	*x = BriefSectionStatus{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[62]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5535,7 +6349,7 @@ func (x *BriefSectionStatus) String() string {
 func (*BriefSectionStatus) ProtoMessage() {}
 
 func (x *BriefSectionStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[62]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5548,7 +6362,7 @@ func (x *BriefSectionStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BriefSectionStatus.ProtoReflect.Descriptor instead.
 func (*BriefSectionStatus) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{62}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *BriefSectionStatus) GetSection() BriefSection {
@@ -5598,7 +6412,7 @@ type BriefNote struct {
 
 func (x *BriefNote) Reset() {
 	*x = BriefNote{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[63]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5610,7 +6424,7 @@ func (x *BriefNote) String() string {
 func (*BriefNote) ProtoMessage() {}
 
 func (x *BriefNote) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[63]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5623,7 +6437,7 @@ func (x *BriefNote) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BriefNote.ProtoReflect.Descriptor instead.
 func (*BriefNote) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{63}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *BriefNote) GetId() string {
@@ -5684,7 +6498,7 @@ type Drift struct {
 
 func (x *Drift) Reset() {
 	*x = Drift{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[64]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5696,7 +6510,7 @@ func (x *Drift) String() string {
 func (*Drift) ProtoMessage() {}
 
 func (x *Drift) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[64]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5709,7 +6523,7 @@ func (x *Drift) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Drift.ProtoReflect.Descriptor instead.
 func (*Drift) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{64}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *Drift) GetStandard() string {
@@ -5759,7 +6573,7 @@ type Feature struct {
 
 func (x *Feature) Reset() {
 	*x = Feature{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[65]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5771,7 +6585,7 @@ func (x *Feature) String() string {
 func (*Feature) ProtoMessage() {}
 
 func (x *Feature) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[65]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5784,7 +6598,7 @@ func (x *Feature) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Feature.ProtoReflect.Descriptor instead.
 func (*Feature) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{65}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *Feature) GetId() string {
@@ -5823,7 +6637,7 @@ type StageCount struct {
 
 func (x *StageCount) Reset() {
 	*x = StageCount{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[66]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5835,7 +6649,7 @@ func (x *StageCount) String() string {
 func (*StageCount) ProtoMessage() {}
 
 func (x *StageCount) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[66]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5848,7 +6662,7 @@ func (x *StageCount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StageCount.ProtoReflect.Descriptor instead.
 func (*StageCount) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{66}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *StageCount) GetStage() string {
@@ -5894,7 +6708,7 @@ type BriefHealth struct {
 
 func (x *BriefHealth) Reset() {
 	*x = BriefHealth{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[67]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5906,7 +6720,7 @@ func (x *BriefHealth) String() string {
 func (*BriefHealth) ProtoMessage() {}
 
 func (x *BriefHealth) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[67]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5919,7 +6733,7 @@ func (x *BriefHealth) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BriefHealth.ProtoReflect.Descriptor instead.
 func (*BriefHealth) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{67}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *BriefHealth) GetProjectionBehindCommits() uint64 {
@@ -5972,7 +6786,7 @@ type GoverningRecord struct {
 
 func (x *GoverningRecord) Reset() {
 	*x = GoverningRecord{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[68]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5984,7 +6798,7 @@ func (x *GoverningRecord) String() string {
 func (*GoverningRecord) ProtoMessage() {}
 
 func (x *GoverningRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[68]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5997,7 +6811,7 @@ func (x *GoverningRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GoverningRecord.ProtoReflect.Descriptor instead.
 func (*GoverningRecord) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{68}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *GoverningRecord) GetId() string {
@@ -6036,7 +6850,7 @@ type KindCount struct {
 
 func (x *KindCount) Reset() {
 	*x = KindCount{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[69]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6048,7 +6862,7 @@ func (x *KindCount) String() string {
 func (*KindCount) ProtoMessage() {}
 
 func (x *KindCount) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[69]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6061,7 +6875,7 @@ func (x *KindCount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KindCount.ProtoReflect.Descriptor instead.
 func (*KindCount) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{69}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *KindCount) GetKind() string {
@@ -6109,7 +6923,7 @@ type ClosedItem struct {
 
 func (x *ClosedItem) Reset() {
 	*x = ClosedItem{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[70]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6121,7 +6935,7 @@ func (x *ClosedItem) String() string {
 func (*ClosedItem) ProtoMessage() {}
 
 func (x *ClosedItem) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[70]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6134,7 +6948,7 @@ func (x *ClosedItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClosedItem.ProtoReflect.Descriptor instead.
 func (*ClosedItem) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{70}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *ClosedItem) GetId() string {
@@ -6173,7 +6987,7 @@ type WordCount struct {
 
 func (x *WordCount) Reset() {
 	*x = WordCount{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[71]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6185,7 +6999,7 @@ func (x *WordCount) String() string {
 func (*WordCount) ProtoMessage() {}
 
 func (x *WordCount) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[71]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6198,7 +7012,7 @@ func (x *WordCount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WordCount.ProtoReflect.Descriptor instead.
 func (*WordCount) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{71}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{83}
 }
 
 func (x *WordCount) GetWord() string {
@@ -6376,7 +7190,7 @@ type ProjectBriefResponse struct {
 
 func (x *ProjectBriefResponse) Reset() {
 	*x = ProjectBriefResponse{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[72]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6388,7 +7202,7 @@ func (x *ProjectBriefResponse) String() string {
 func (*ProjectBriefResponse) ProtoMessage() {}
 
 func (x *ProjectBriefResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[72]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6401,7 +7215,7 @@ func (x *ProjectBriefResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectBriefResponse.ProtoReflect.Descriptor instead.
 func (*ProjectBriefResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{72}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *ProjectBriefResponse) GetProject() string {
@@ -6610,7 +7424,7 @@ type BackupCreateRequest struct {
 
 func (x *BackupCreateRequest) Reset() {
 	*x = BackupCreateRequest{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[73]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6622,7 +7436,7 @@ func (x *BackupCreateRequest) String() string {
 func (*BackupCreateRequest) ProtoMessage() {}
 
 func (x *BackupCreateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[73]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6635,7 +7449,7 @@ func (x *BackupCreateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BackupCreateRequest.ProtoReflect.Descriptor instead.
 func (*BackupCreateRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{73}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{85}
 }
 
 // BackupCreateResponse is the archive the daemon just wrote.
@@ -6676,7 +7490,7 @@ type BackupCreateResponse struct {
 
 func (x *BackupCreateResponse) Reset() {
 	*x = BackupCreateResponse{}
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[74]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6688,7 +7502,7 @@ func (x *BackupCreateResponse) String() string {
 func (*BackupCreateResponse) ProtoMessage() {}
 
 func (x *BackupCreateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_wire_proto_msgTypes[74]
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6701,7 +7515,7 @@ func (x *BackupCreateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BackupCreateResponse.ProtoReflect.Descriptor instead.
 func (*BackupCreateResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{74}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *BackupCreateResponse) GetPath() string {
@@ -6905,7 +7719,54 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\fPeersRequest\"K\n" +
 	"\rPeersResponse\x12 \n" +
 	"\x04crew\x18\x01 \x03(\v2\f.rig.v1.SeatR\x04crew\x12\x18\n" +
-	"\apartial\x18\x02 \x01(\bR\apartial\"r\n" +
+	"\apartial\x18\x02 \x01(\bR\apartial\"\xf6\x02\n" +
+	"\x05Lease\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12(\n" +
+	"\x05state\x18\x02 \x01(\x0e2\x12.rig.v1.LeaseStateR\x05state\x12\x16\n" +
+	"\x06holder\x18\x03 \x01(\tR\x06holder\x12\x14\n" +
+	"\x05token\x18\x04 \x01(\x04R\x05token\x12\x14\n" +
+	"\x05epoch\x18\x05 \x01(\x04R\x05epoch\x12\x18\n" +
+	"\awitness\x18\x06 \x01(\tR\awitness\x12!\n" +
+	"\fremaining_ms\x18\a \x01(\x03R\vremainingMs\x12\x1d\n" +
+	"\n" +
+	"owner_gone\x18\b \x01(\bR\townerGone\x12,\n" +
+	"\bliveness\x18\t \x01(\x0e2\x10.rig.v1.LivenessR\bliveness\x12\x1f\n" +
+	"\vneeds_break\x18\n" +
+	" \x01(\bR\n" +
+	"needsBreak\x12\x1b\n" +
+	"\tbroken_by\x18\v \x01(\tR\bbrokenBy\x12#\n" +
+	"\rbroken_reason\x18\f \x01(\tR\fbrokenReason\"\x88\x01\n" +
+	"\vLeaseHandle\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
+	"\x06holder\x18\x02 \x01(\tR\x06holder\x12\x14\n" +
+	"\x05token\x18\x03 \x01(\x04R\x05token\x12\x14\n" +
+	"\x05epoch\x18\x04 \x01(\x04R\x05epoch\x12!\n" +
+	"\fremaining_ms\x18\x05 \x01(\x03R\vremainingMs\"b\n" +
+	"\x13LeaseAcquireRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x15\n" +
+	"\x06ttl_ms\x18\x02 \x01(\rR\x05ttlMs\x12 \n" +
+	"\vunwitnessed\x18\x03 \x01(\bR\vunwitnessed\"C\n" +
+	"\x14LeaseAcquireResponse\x12+\n" +
+	"\x06handle\x18\x01 \x01(\v2\x13.rig.v1.LeaseHandleR\x06handle\"j\n" +
+	"\x11LeaseRenewRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05token\x18\x02 \x01(\x04R\x05token\x12\x14\n" +
+	"\x05epoch\x18\x03 \x01(\x04R\x05epoch\x12\x15\n" +
+	"\x06ttl_ms\x18\x04 \x01(\rR\x05ttlMs\"A\n" +
+	"\x12LeaseRenewResponse\x12+\n" +
+	"\x06handle\x18\x01 \x01(\v2\x13.rig.v1.LeaseHandleR\x06handle\"U\n" +
+	"\x13LeaseReleaseRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05token\x18\x02 \x01(\x04R\x05token\x12\x14\n" +
+	"\x05epoch\x18\x03 \x01(\x04R\x05epoch\"\x16\n" +
+	"\x14LeaseReleaseResponse\"?\n" +
+	"\x11LeaseBreakRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"\x14\n" +
+	"\x12LeaseBreakResponse\"\x12\n" +
+	"\x10LeaseListRequest\":\n" +
+	"\x11LeaseListResponse\x12%\n" +
+	"\x06leases\x18\x01 \x03(\v2\r.rig.v1.LeaseR\x06leases\"r\n" +
 	"\n" +
 	"Provenance\x12\x18\n" +
 	"\asession\x18\x01 \x01(\tR\asession\x12\x12\n" +
@@ -7206,7 +8067,18 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\tSeatState\x12\x1a\n" +
 	"\x16SEAT_STATE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11SEAT_STATE_ACTIVE\x10\x01\x12\x1a\n" +
-	"\x16SEAT_STATE_HANDING_OFF\x10\x02*l\n" +
+	"\x16SEAT_STATE_HANDING_OFF\x10\x02*o\n" +
+	"\n" +
+	"LeaseState\x12\x1b\n" +
+	"\x17LEASE_STATE_UNSPECIFIED\x10\x00\x12\x14\n" +
+	"\x10LEASE_STATE_HELD\x10\x01\x12\x18\n" +
+	"\x14LEASE_STATE_ORPHANED\x10\x02\x12\x14\n" +
+	"\x10LEASE_STATE_FREE\x10\x03*a\n" +
+	"\bLiveness\x12\x18\n" +
+	"\x14LIVENESS_UNSPECIFIED\x10\x00\x12\x14\n" +
+	"\x10LIVENESS_UNKNOWN\x10\x01\x12\x12\n" +
+	"\x0eLIVENESS_ALIVE\x10\x02\x12\x11\n" +
+	"\rLIVENESS_DEAD\x10\x03*l\n" +
 	"\tStepState\x12\x1a\n" +
 	"\x16STEP_STATE_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12STEP_STATE_STARTED\x10\x01\x12\x16\n" +
@@ -7250,8 +8122,8 @@ func file_proto_rig_v1_wire_proto_rawDescGZIP() []byte {
 	return file_proto_rig_v1_wire_proto_rawDescData
 }
 
-var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 14)
-var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 77)
+var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 16)
+var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 89)
 var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(FrameKind)(0),                // 0: rig.v1.FrameKind
 	(Code)(0),                     // 1: rig.v1.Code
@@ -7263,163 +8135,182 @@ var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(Depth)(0),                    // 7: rig.v1.Depth
 	(EstateRole)(0),               // 8: rig.v1.EstateRole
 	(SeatState)(0),                // 9: rig.v1.SeatState
-	(StepState)(0),                // 10: rig.v1.StepState
-	(BriefView)(0),                // 11: rig.v1.BriefView
-	(BriefSection)(0),             // 12: rig.v1.BriefSection
-	(SectionState)(0),             // 13: rig.v1.SectionState
-	(*Status)(nil),                // 14: rig.v1.Status
-	(*Frame)(nil),                 // 15: rig.v1.Frame
-	(*HelloRequest)(nil),          // 16: rig.v1.HelloRequest
-	(*HelloResponse)(nil),         // 17: rig.v1.HelloResponse
-	(*PingRequest)(nil),           // 18: rig.v1.PingRequest
-	(*PingResponse)(nil),          // 19: rig.v1.PingResponse
-	(*Identity)(nil),              // 20: rig.v1.Identity
-	(*SensitiveFields)(nil),       // 21: rig.v1.SensitiveFields
-	(*Command)(nil),               // 22: rig.v1.Command
-	(*Declaration)(nil),           // 23: rig.v1.Declaration
-	(*Program)(nil),               // 24: rig.v1.Program
-	(*ProgramsRequest)(nil),       // 25: rig.v1.ProgramsRequest
-	(*ProgramsResponse)(nil),      // 26: rig.v1.ProgramsResponse
-	(*DescribeRequest)(nil),       // 27: rig.v1.DescribeRequest
-	(*DescribeResponse)(nil),      // 28: rig.v1.DescribeResponse
-	(*DownRequest)(nil),           // 29: rig.v1.DownRequest
-	(*DownResponse)(nil),          // 30: rig.v1.DownResponse
-	(*EstateRequest)(nil),         // 31: rig.v1.EstateRequest
-	(*EstateResponse)(nil),        // 32: rig.v1.EstateResponse
-	(*SessionRequest)(nil),        // 33: rig.v1.SessionRequest
-	(*SessionResponse)(nil),       // 34: rig.v1.SessionResponse
-	(*CallRequest)(nil),           // 35: rig.v1.CallRequest
-	(*CallResponse)(nil),          // 36: rig.v1.CallResponse
-	(*Seat)(nil),                  // 37: rig.v1.Seat
-	(*AnnounceRequest)(nil),       // 38: rig.v1.AnnounceRequest
-	(*AnnounceResponse)(nil),      // 39: rig.v1.AnnounceResponse
-	(*ActivityRequest)(nil),       // 40: rig.v1.ActivityRequest
-	(*ActivityResponse)(nil),      // 41: rig.v1.ActivityResponse
-	(*PeersRequest)(nil),          // 42: rig.v1.PeersRequest
-	(*PeersResponse)(nil),         // 43: rig.v1.PeersResponse
-	(*Provenance)(nil),            // 44: rig.v1.Provenance
-	(*Record)(nil),                // 45: rig.v1.Record
-	(*Retraction)(nil),            // 46: rig.v1.Retraction
-	(*RecordPutRequest)(nil),      // 47: rig.v1.RecordPutRequest
-	(*RecordPutResponse)(nil),     // 48: rig.v1.RecordPutResponse
-	(*RecordGetRequest)(nil),      // 49: rig.v1.RecordGetRequest
-	(*RecordGetResponse)(nil),     // 50: rig.v1.RecordGetResponse
-	(*RecordQueryRequest)(nil),    // 51: rig.v1.RecordQueryRequest
-	(*RecordQueryResponse)(nil),   // 52: rig.v1.RecordQueryResponse
-	(*RecordHistoryRequest)(nil),  // 53: rig.v1.RecordHistoryRequest
-	(*RecordHistoryResponse)(nil), // 54: rig.v1.RecordHistoryResponse
-	(*RecordLinkRequest)(nil),     // 55: rig.v1.RecordLinkRequest
-	(*RecordLinkResponse)(nil),    // 56: rig.v1.RecordLinkResponse
-	(*RecordUnlinkRequest)(nil),   // 57: rig.v1.RecordUnlinkRequest
-	(*RecordUnlinkResponse)(nil),  // 58: rig.v1.RecordUnlinkResponse
-	(*RecordRefsRequest)(nil),     // 59: rig.v1.RecordRefsRequest
-	(*Ref)(nil),                   // 60: rig.v1.Ref
-	(*RecordRetractRequest)(nil),  // 61: rig.v1.RecordRetractRequest
-	(*RecordRetractResponse)(nil), // 62: rig.v1.RecordRetractResponse
-	(*Edge)(nil),                  // 63: rig.v1.Edge
-	(*RecordDeleteRequest)(nil),   // 64: rig.v1.RecordDeleteRequest
-	(*RecordDeleteResponse)(nil),  // 65: rig.v1.RecordDeleteResponse
-	(*RecordReplaceRequest)(nil),  // 66: rig.v1.RecordReplaceRequest
-	(*RecordReplaceResponse)(nil), // 67: rig.v1.RecordReplaceResponse
-	(*RecordRefsResponse)(nil),    // 68: rig.v1.RecordRefsResponse
-	(*Cycle)(nil),                 // 69: rig.v1.Cycle
-	(*ProgressStepRequest)(nil),   // 70: rig.v1.ProgressStepRequest
-	(*ProgressStepResponse)(nil),  // 71: rig.v1.ProgressStepResponse
-	(*ItemState)(nil),             // 72: rig.v1.ItemState
-	(*Blocker)(nil),               // 73: rig.v1.Blocker
-	(*Blockage)(nil),              // 74: rig.v1.Blockage
-	(*ProjectBriefRequest)(nil),   // 75: rig.v1.ProjectBriefRequest
-	(*BriefSectionStatus)(nil),    // 76: rig.v1.BriefSectionStatus
-	(*BriefNote)(nil),             // 77: rig.v1.BriefNote
-	(*Drift)(nil),                 // 78: rig.v1.Drift
-	(*Feature)(nil),               // 79: rig.v1.Feature
-	(*StageCount)(nil),            // 80: rig.v1.StageCount
-	(*BriefHealth)(nil),           // 81: rig.v1.BriefHealth
-	(*GoverningRecord)(nil),       // 82: rig.v1.GoverningRecord
-	(*KindCount)(nil),             // 83: rig.v1.KindCount
-	(*ClosedItem)(nil),            // 84: rig.v1.ClosedItem
-	(*WordCount)(nil),             // 85: rig.v1.WordCount
-	(*ProjectBriefResponse)(nil),  // 86: rig.v1.ProjectBriefResponse
-	(*BackupCreateRequest)(nil),   // 87: rig.v1.BackupCreateRequest
-	(*BackupCreateResponse)(nil),  // 88: rig.v1.BackupCreateResponse
-	nil,                           // 89: rig.v1.Record.FieldsEntry
-	nil,                           // 90: rig.v1.RecordPutRequest.FieldsEntry
+	(LeaseState)(0),               // 10: rig.v1.LeaseState
+	(Liveness)(0),                 // 11: rig.v1.Liveness
+	(StepState)(0),                // 12: rig.v1.StepState
+	(BriefView)(0),                // 13: rig.v1.BriefView
+	(BriefSection)(0),             // 14: rig.v1.BriefSection
+	(SectionState)(0),             // 15: rig.v1.SectionState
+	(*Status)(nil),                // 16: rig.v1.Status
+	(*Frame)(nil),                 // 17: rig.v1.Frame
+	(*HelloRequest)(nil),          // 18: rig.v1.HelloRequest
+	(*HelloResponse)(nil),         // 19: rig.v1.HelloResponse
+	(*PingRequest)(nil),           // 20: rig.v1.PingRequest
+	(*PingResponse)(nil),          // 21: rig.v1.PingResponse
+	(*Identity)(nil),              // 22: rig.v1.Identity
+	(*SensitiveFields)(nil),       // 23: rig.v1.SensitiveFields
+	(*Command)(nil),               // 24: rig.v1.Command
+	(*Declaration)(nil),           // 25: rig.v1.Declaration
+	(*Program)(nil),               // 26: rig.v1.Program
+	(*ProgramsRequest)(nil),       // 27: rig.v1.ProgramsRequest
+	(*ProgramsResponse)(nil),      // 28: rig.v1.ProgramsResponse
+	(*DescribeRequest)(nil),       // 29: rig.v1.DescribeRequest
+	(*DescribeResponse)(nil),      // 30: rig.v1.DescribeResponse
+	(*DownRequest)(nil),           // 31: rig.v1.DownRequest
+	(*DownResponse)(nil),          // 32: rig.v1.DownResponse
+	(*EstateRequest)(nil),         // 33: rig.v1.EstateRequest
+	(*EstateResponse)(nil),        // 34: rig.v1.EstateResponse
+	(*SessionRequest)(nil),        // 35: rig.v1.SessionRequest
+	(*SessionResponse)(nil),       // 36: rig.v1.SessionResponse
+	(*CallRequest)(nil),           // 37: rig.v1.CallRequest
+	(*CallResponse)(nil),          // 38: rig.v1.CallResponse
+	(*Seat)(nil),                  // 39: rig.v1.Seat
+	(*AnnounceRequest)(nil),       // 40: rig.v1.AnnounceRequest
+	(*AnnounceResponse)(nil),      // 41: rig.v1.AnnounceResponse
+	(*ActivityRequest)(nil),       // 42: rig.v1.ActivityRequest
+	(*ActivityResponse)(nil),      // 43: rig.v1.ActivityResponse
+	(*PeersRequest)(nil),          // 44: rig.v1.PeersRequest
+	(*PeersResponse)(nil),         // 45: rig.v1.PeersResponse
+	(*Lease)(nil),                 // 46: rig.v1.Lease
+	(*LeaseHandle)(nil),           // 47: rig.v1.LeaseHandle
+	(*LeaseAcquireRequest)(nil),   // 48: rig.v1.LeaseAcquireRequest
+	(*LeaseAcquireResponse)(nil),  // 49: rig.v1.LeaseAcquireResponse
+	(*LeaseRenewRequest)(nil),     // 50: rig.v1.LeaseRenewRequest
+	(*LeaseRenewResponse)(nil),    // 51: rig.v1.LeaseRenewResponse
+	(*LeaseReleaseRequest)(nil),   // 52: rig.v1.LeaseReleaseRequest
+	(*LeaseReleaseResponse)(nil),  // 53: rig.v1.LeaseReleaseResponse
+	(*LeaseBreakRequest)(nil),     // 54: rig.v1.LeaseBreakRequest
+	(*LeaseBreakResponse)(nil),    // 55: rig.v1.LeaseBreakResponse
+	(*LeaseListRequest)(nil),      // 56: rig.v1.LeaseListRequest
+	(*LeaseListResponse)(nil),     // 57: rig.v1.LeaseListResponse
+	(*Provenance)(nil),            // 58: rig.v1.Provenance
+	(*Record)(nil),                // 59: rig.v1.Record
+	(*Retraction)(nil),            // 60: rig.v1.Retraction
+	(*RecordPutRequest)(nil),      // 61: rig.v1.RecordPutRequest
+	(*RecordPutResponse)(nil),     // 62: rig.v1.RecordPutResponse
+	(*RecordGetRequest)(nil),      // 63: rig.v1.RecordGetRequest
+	(*RecordGetResponse)(nil),     // 64: rig.v1.RecordGetResponse
+	(*RecordQueryRequest)(nil),    // 65: rig.v1.RecordQueryRequest
+	(*RecordQueryResponse)(nil),   // 66: rig.v1.RecordQueryResponse
+	(*RecordHistoryRequest)(nil),  // 67: rig.v1.RecordHistoryRequest
+	(*RecordHistoryResponse)(nil), // 68: rig.v1.RecordHistoryResponse
+	(*RecordLinkRequest)(nil),     // 69: rig.v1.RecordLinkRequest
+	(*RecordLinkResponse)(nil),    // 70: rig.v1.RecordLinkResponse
+	(*RecordUnlinkRequest)(nil),   // 71: rig.v1.RecordUnlinkRequest
+	(*RecordUnlinkResponse)(nil),  // 72: rig.v1.RecordUnlinkResponse
+	(*RecordRefsRequest)(nil),     // 73: rig.v1.RecordRefsRequest
+	(*Ref)(nil),                   // 74: rig.v1.Ref
+	(*RecordRetractRequest)(nil),  // 75: rig.v1.RecordRetractRequest
+	(*RecordRetractResponse)(nil), // 76: rig.v1.RecordRetractResponse
+	(*Edge)(nil),                  // 77: rig.v1.Edge
+	(*RecordDeleteRequest)(nil),   // 78: rig.v1.RecordDeleteRequest
+	(*RecordDeleteResponse)(nil),  // 79: rig.v1.RecordDeleteResponse
+	(*RecordReplaceRequest)(nil),  // 80: rig.v1.RecordReplaceRequest
+	(*RecordReplaceResponse)(nil), // 81: rig.v1.RecordReplaceResponse
+	(*RecordRefsResponse)(nil),    // 82: rig.v1.RecordRefsResponse
+	(*Cycle)(nil),                 // 83: rig.v1.Cycle
+	(*ProgressStepRequest)(nil),   // 84: rig.v1.ProgressStepRequest
+	(*ProgressStepResponse)(nil),  // 85: rig.v1.ProgressStepResponse
+	(*ItemState)(nil),             // 86: rig.v1.ItemState
+	(*Blocker)(nil),               // 87: rig.v1.Blocker
+	(*Blockage)(nil),              // 88: rig.v1.Blockage
+	(*ProjectBriefRequest)(nil),   // 89: rig.v1.ProjectBriefRequest
+	(*BriefSectionStatus)(nil),    // 90: rig.v1.BriefSectionStatus
+	(*BriefNote)(nil),             // 91: rig.v1.BriefNote
+	(*Drift)(nil),                 // 92: rig.v1.Drift
+	(*Feature)(nil),               // 93: rig.v1.Feature
+	(*StageCount)(nil),            // 94: rig.v1.StageCount
+	(*BriefHealth)(nil),           // 95: rig.v1.BriefHealth
+	(*GoverningRecord)(nil),       // 96: rig.v1.GoverningRecord
+	(*KindCount)(nil),             // 97: rig.v1.KindCount
+	(*ClosedItem)(nil),            // 98: rig.v1.ClosedItem
+	(*WordCount)(nil),             // 99: rig.v1.WordCount
+	(*ProjectBriefResponse)(nil),  // 100: rig.v1.ProjectBriefResponse
+	(*BackupCreateRequest)(nil),   // 101: rig.v1.BackupCreateRequest
+	(*BackupCreateResponse)(nil),  // 102: rig.v1.BackupCreateResponse
+	nil,                           // 103: rig.v1.Record.FieldsEntry
+	nil,                           // 104: rig.v1.RecordPutRequest.FieldsEntry
 }
 var file_proto_rig_v1_wire_proto_depIdxs = []int32{
-	1,  // 0: rig.v1.Status.code:type_name -> rig.v1.Code
-	0,  // 1: rig.v1.Frame.kind:type_name -> rig.v1.FrameKind
-	14, // 2: rig.v1.Frame.status:type_name -> rig.v1.Status
-	23, // 3: rig.v1.HelloRequest.declaration:type_name -> rig.v1.Declaration
-	3,  // 4: rig.v1.Command.effects:type_name -> rig.v1.Effects
-	6,  // 5: rig.v1.Command.idempotent:type_name -> rig.v1.Tristate
-	21, // 6: rig.v1.Command.sensitive:type_name -> rig.v1.SensitiveFields
-	6,  // 7: rig.v1.Command.interactive:type_name -> rig.v1.Tristate
-	6,  // 8: rig.v1.Command.streams:type_name -> rig.v1.Tristate
-	6,  // 9: rig.v1.Command.needs_display:type_name -> rig.v1.Tristate
-	4,  // 10: rig.v1.Command.duration:type_name -> rig.v1.Duration
-	6,  // 11: rig.v1.Command.confirms:type_name -> rig.v1.Tristate
-	5,  // 12: rig.v1.Command.shape:type_name -> rig.v1.Shape
-	20, // 13: rig.v1.Declaration.identity:type_name -> rig.v1.Identity
-	2,  // 14: rig.v1.Declaration.coverage:type_name -> rig.v1.Coverage
-	22, // 15: rig.v1.Declaration.commands:type_name -> rig.v1.Command
-	20, // 16: rig.v1.Program.identity:type_name -> rig.v1.Identity
-	2,  // 17: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
-	22, // 18: rig.v1.Program.commands:type_name -> rig.v1.Command
-	7,  // 19: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
-	24, // 20: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
-	8,  // 21: rig.v1.EstateResponse.role:type_name -> rig.v1.EstateRole
-	9,  // 22: rig.v1.Seat.state:type_name -> rig.v1.SeatState
-	37, // 23: rig.v1.AnnounceResponse.you:type_name -> rig.v1.Seat
-	37, // 24: rig.v1.AnnounceResponse.crew:type_name -> rig.v1.Seat
-	9,  // 25: rig.v1.ActivityRequest.state:type_name -> rig.v1.SeatState
-	37, // 26: rig.v1.ActivityResponse.you:type_name -> rig.v1.Seat
-	37, // 27: rig.v1.PeersResponse.crew:type_name -> rig.v1.Seat
-	89, // 28: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
-	44, // 29: rig.v1.Record.prov:type_name -> rig.v1.Provenance
-	46, // 30: rig.v1.Record.retraction:type_name -> rig.v1.Retraction
-	44, // 31: rig.v1.Retraction.prov:type_name -> rig.v1.Provenance
-	90, // 32: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
-	45, // 33: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
-	45, // 34: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
-	45, // 35: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
-	45, // 36: rig.v1.RecordHistoryResponse.versions:type_name -> rig.v1.Record
-	46, // 37: rig.v1.RecordRetractResponse.retraction:type_name -> rig.v1.Retraction
-	63, // 38: rig.v1.RecordDeleteResponse.edges:type_name -> rig.v1.Edge
-	63, // 39: rig.v1.RecordReplaceResponse.moved:type_name -> rig.v1.Edge
-	63, // 40: rig.v1.RecordReplaceResponse.merged:type_name -> rig.v1.Edge
-	63, // 41: rig.v1.RecordReplaceResponse.dropped:type_name -> rig.v1.Edge
-	46, // 42: rig.v1.RecordReplaceResponse.retraction:type_name -> rig.v1.Retraction
-	60, // 43: rig.v1.RecordRefsResponse.refs:type_name -> rig.v1.Ref
-	69, // 44: rig.v1.RecordRefsResponse.cycles:type_name -> rig.v1.Cycle
-	10, // 45: rig.v1.ProgressStepRequest.state:type_name -> rig.v1.StepState
-	45, // 46: rig.v1.ProgressStepResponse.step:type_name -> rig.v1.Record
-	10, // 47: rig.v1.ItemState.state:type_name -> rig.v1.StepState
-	10, // 48: rig.v1.Blocker.state:type_name -> rig.v1.StepState
-	73, // 49: rig.v1.Blockage.blockers:type_name -> rig.v1.Blocker
-	12, // 50: rig.v1.BriefSectionStatus.section:type_name -> rig.v1.BriefSection
-	13, // 51: rig.v1.BriefSectionStatus.state:type_name -> rig.v1.SectionState
-	44, // 52: rig.v1.BriefNote.prov:type_name -> rig.v1.Provenance
-	72, // 53: rig.v1.ProjectBriefResponse.open:type_name -> rig.v1.ItemState
-	72, // 54: rig.v1.ProjectBriefResponse.next_up:type_name -> rig.v1.ItemState
-	74, // 55: rig.v1.ProjectBriefResponse.blocked:type_name -> rig.v1.Blockage
-	69, // 56: rig.v1.ProjectBriefResponse.cycles:type_name -> rig.v1.Cycle
-	77, // 57: rig.v1.ProjectBriefResponse.notes:type_name -> rig.v1.BriefNote
-	78, // 58: rig.v1.ProjectBriefResponse.drift:type_name -> rig.v1.Drift
-	81, // 59: rig.v1.ProjectBriefResponse.health:type_name -> rig.v1.BriefHealth
-	79, // 60: rig.v1.ProjectBriefResponse.features:type_name -> rig.v1.Feature
-	80, // 61: rig.v1.ProjectBriefResponse.feature_stages:type_name -> rig.v1.StageCount
-	77, // 62: rig.v1.ProjectBriefResponse.case_notes:type_name -> rig.v1.BriefNote
-	76, // 63: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
-	82, // 64: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
-	83, // 65: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
-	6,  // 66: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
-	84, // 67: rig.v1.ProjectBriefResponse.closed:type_name -> rig.v1.ClosedItem
-	85, // 68: rig.v1.ProjectBriefResponse.closed_counts:type_name -> rig.v1.WordCount
-	69, // [69:69] is the sub-list for method output_type
-	69, // [69:69] is the sub-list for method input_type
-	69, // [69:69] is the sub-list for extension type_name
-	69, // [69:69] is the sub-list for extension extendee
-	0,  // [0:69] is the sub-list for field type_name
+	1,   // 0: rig.v1.Status.code:type_name -> rig.v1.Code
+	0,   // 1: rig.v1.Frame.kind:type_name -> rig.v1.FrameKind
+	16,  // 2: rig.v1.Frame.status:type_name -> rig.v1.Status
+	25,  // 3: rig.v1.HelloRequest.declaration:type_name -> rig.v1.Declaration
+	3,   // 4: rig.v1.Command.effects:type_name -> rig.v1.Effects
+	6,   // 5: rig.v1.Command.idempotent:type_name -> rig.v1.Tristate
+	23,  // 6: rig.v1.Command.sensitive:type_name -> rig.v1.SensitiveFields
+	6,   // 7: rig.v1.Command.interactive:type_name -> rig.v1.Tristate
+	6,   // 8: rig.v1.Command.streams:type_name -> rig.v1.Tristate
+	6,   // 9: rig.v1.Command.needs_display:type_name -> rig.v1.Tristate
+	4,   // 10: rig.v1.Command.duration:type_name -> rig.v1.Duration
+	6,   // 11: rig.v1.Command.confirms:type_name -> rig.v1.Tristate
+	5,   // 12: rig.v1.Command.shape:type_name -> rig.v1.Shape
+	22,  // 13: rig.v1.Declaration.identity:type_name -> rig.v1.Identity
+	2,   // 14: rig.v1.Declaration.coverage:type_name -> rig.v1.Coverage
+	24,  // 15: rig.v1.Declaration.commands:type_name -> rig.v1.Command
+	22,  // 16: rig.v1.Program.identity:type_name -> rig.v1.Identity
+	2,   // 17: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
+	24,  // 18: rig.v1.Program.commands:type_name -> rig.v1.Command
+	7,   // 19: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
+	26,  // 20: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
+	8,   // 21: rig.v1.EstateResponse.role:type_name -> rig.v1.EstateRole
+	9,   // 22: rig.v1.Seat.state:type_name -> rig.v1.SeatState
+	39,  // 23: rig.v1.AnnounceResponse.you:type_name -> rig.v1.Seat
+	39,  // 24: rig.v1.AnnounceResponse.crew:type_name -> rig.v1.Seat
+	9,   // 25: rig.v1.ActivityRequest.state:type_name -> rig.v1.SeatState
+	39,  // 26: rig.v1.ActivityResponse.you:type_name -> rig.v1.Seat
+	39,  // 27: rig.v1.PeersResponse.crew:type_name -> rig.v1.Seat
+	10,  // 28: rig.v1.Lease.state:type_name -> rig.v1.LeaseState
+	11,  // 29: rig.v1.Lease.liveness:type_name -> rig.v1.Liveness
+	47,  // 30: rig.v1.LeaseAcquireResponse.handle:type_name -> rig.v1.LeaseHandle
+	47,  // 31: rig.v1.LeaseRenewResponse.handle:type_name -> rig.v1.LeaseHandle
+	46,  // 32: rig.v1.LeaseListResponse.leases:type_name -> rig.v1.Lease
+	103, // 33: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
+	58,  // 34: rig.v1.Record.prov:type_name -> rig.v1.Provenance
+	60,  // 35: rig.v1.Record.retraction:type_name -> rig.v1.Retraction
+	58,  // 36: rig.v1.Retraction.prov:type_name -> rig.v1.Provenance
+	104, // 37: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
+	59,  // 38: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
+	59,  // 39: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
+	59,  // 40: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
+	59,  // 41: rig.v1.RecordHistoryResponse.versions:type_name -> rig.v1.Record
+	60,  // 42: rig.v1.RecordRetractResponse.retraction:type_name -> rig.v1.Retraction
+	77,  // 43: rig.v1.RecordDeleteResponse.edges:type_name -> rig.v1.Edge
+	77,  // 44: rig.v1.RecordReplaceResponse.moved:type_name -> rig.v1.Edge
+	77,  // 45: rig.v1.RecordReplaceResponse.merged:type_name -> rig.v1.Edge
+	77,  // 46: rig.v1.RecordReplaceResponse.dropped:type_name -> rig.v1.Edge
+	60,  // 47: rig.v1.RecordReplaceResponse.retraction:type_name -> rig.v1.Retraction
+	74,  // 48: rig.v1.RecordRefsResponse.refs:type_name -> rig.v1.Ref
+	83,  // 49: rig.v1.RecordRefsResponse.cycles:type_name -> rig.v1.Cycle
+	12,  // 50: rig.v1.ProgressStepRequest.state:type_name -> rig.v1.StepState
+	59,  // 51: rig.v1.ProgressStepResponse.step:type_name -> rig.v1.Record
+	12,  // 52: rig.v1.ItemState.state:type_name -> rig.v1.StepState
+	12,  // 53: rig.v1.Blocker.state:type_name -> rig.v1.StepState
+	87,  // 54: rig.v1.Blockage.blockers:type_name -> rig.v1.Blocker
+	14,  // 55: rig.v1.BriefSectionStatus.section:type_name -> rig.v1.BriefSection
+	15,  // 56: rig.v1.BriefSectionStatus.state:type_name -> rig.v1.SectionState
+	58,  // 57: rig.v1.BriefNote.prov:type_name -> rig.v1.Provenance
+	86,  // 58: rig.v1.ProjectBriefResponse.open:type_name -> rig.v1.ItemState
+	86,  // 59: rig.v1.ProjectBriefResponse.next_up:type_name -> rig.v1.ItemState
+	88,  // 60: rig.v1.ProjectBriefResponse.blocked:type_name -> rig.v1.Blockage
+	83,  // 61: rig.v1.ProjectBriefResponse.cycles:type_name -> rig.v1.Cycle
+	91,  // 62: rig.v1.ProjectBriefResponse.notes:type_name -> rig.v1.BriefNote
+	92,  // 63: rig.v1.ProjectBriefResponse.drift:type_name -> rig.v1.Drift
+	95,  // 64: rig.v1.ProjectBriefResponse.health:type_name -> rig.v1.BriefHealth
+	93,  // 65: rig.v1.ProjectBriefResponse.features:type_name -> rig.v1.Feature
+	94,  // 66: rig.v1.ProjectBriefResponse.feature_stages:type_name -> rig.v1.StageCount
+	91,  // 67: rig.v1.ProjectBriefResponse.case_notes:type_name -> rig.v1.BriefNote
+	90,  // 68: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
+	96,  // 69: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
+	97,  // 70: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
+	6,   // 71: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
+	98,  // 72: rig.v1.ProjectBriefResponse.closed:type_name -> rig.v1.ClosedItem
+	99,  // 73: rig.v1.ProjectBriefResponse.closed_counts:type_name -> rig.v1.WordCount
+	74,  // [74:74] is the sub-list for method output_type
+	74,  // [74:74] is the sub-list for method input_type
+	74,  // [74:74] is the sub-list for extension type_name
+	74,  // [74:74] is the sub-list for extension extendee
+	0,   // [0:74] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_wire_proto_init() }
@@ -7432,8 +8323,8 @@ func file_proto_rig_v1_wire_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_wire_proto_rawDesc), len(file_proto_rig_v1_wire_proto_rawDesc)),
-			NumEnums:      14,
-			NumMessages:   77,
+			NumEnums:      16,
+			NumMessages:   89,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

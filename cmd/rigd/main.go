@@ -158,6 +158,7 @@ func run() error {
 	// opens no store, so it has no epoch, and a real epoch is always at least
 	// 1 because the store bumps before it publishes.
 	var epoch uint64
+	var leases *coord.Store
 
 	// An estate started without --estate claims nothing and reaches none of
 	// this, which is how every test in this repository keeps working by
@@ -204,6 +205,7 @@ func run() error {
 		}
 		defer func() { _ = st.Close() }()
 		epoch = st.Epoch()
+		leases = st
 		log.Info("estate state opened",
 			"estate", *estate,
 			"path", st.Path(),
@@ -263,6 +265,7 @@ func run() error {
 		Epoch:   epoch,
 		Log:     log,
 		Lock:    lock,
+		Leases:  leases,
 	})
 	if err != nil {
 		return err

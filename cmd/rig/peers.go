@@ -62,11 +62,119 @@ func cmdPeers(args []string) (err error) {
 		return err
 	}
 
+	// THE LEASES RIDE ON THE SAME ANSWER, AND A REFUSAL OF THEM IS PART OF IT.
+	// Section 16's leases are the other half of "who is doing what here": a
+	// seat on the roster says what it is for, a lease says what it holds. An
+	// estate with no lease store, or a daemon older than the verb, refuses
+	// rig.lease.list, and that refusal is reported beside the roster rather
+	// than failing it: the roster is still true.
+	leases := &rigv1.LeaseListResponse{}
+	unavailable := ""
+	if err := call(ctx, c, "rig.lease.list", &rigv1.LeaseListRequest{}, leases); err != nil {
+		unavailable = err.Error()
+	}
+
 	if *asJSON {
-		return json.NewEncoder(os.Stdout).Encode(peersJSON(resp, time.Now()))
+		obj := peersJSON(resp, time.Now())
+		obj["leases"] = leasesJSON(leases)
+		obj["leases_unavailable"] = unavailable
+		return json.NewEncoder(os.Stdout).Encode(obj)
 	}
 	fmt.Print(peersText(resp, time.Now()))
+	fmt.Print(leasesText(leases, unavailable))
 	return nil
+}
+
+// leasesJSON is every lease as the wire spells it, each key present on every
+// row, and an empty array rather than null when nothing is held.
+func leasesJSON(r *rigv1.LeaseListResponse) []map[string]any {
+	out := make([]map[string]any, 0, len(r.GetLeases()))
+	for _, l := range r.GetLeases() {
+		state, ok := enumWord(l.GetState(), "LEASE_STATE_")
+		if !ok {
+			state = skewToken(l.GetState())
+		}
+		live, ok := enumWord(l.GetLiveness(), "LIVENESS_")
+		if !ok {
+			live = skewToken(l.GetLiveness())
+		}
+		out = append(out, map[string]any{
+			"name":          l.GetName(),
+			"state":         state,
+			"holder":        l.GetHolder(),
+			"token":         l.GetToken(),
+			epochKey:        l.GetEpoch(),
+			"witness":       l.GetWitness(),
+			"remaining_ms":  l.GetRemainingMs(),
+			"owner_gone":    l.GetOwnerGone(),
+			"liveness":      live,
+			"needs_break":   l.GetNeedsBreak(),
+			"broken_by":     l.GetBrokenBy(),
+			"broken_reason": l.GetBrokenReason(),
+		})
+	}
+	return out
+}
+
+// leasesText is the human rendering of the leases, under the roster.
+//
+// THE TWO FACTS A READER ACTS ON GET WORDS, NOT FLAGS: an owner observed dead,
+// and an orphan that needs a recorded break. Both are why section 16 makes a
+// read report liveness at all.
+func leasesText(r *rigv1.LeaseListResponse, unavailable string) string {
+	var b strings.Builder
+	b.WriteString("\n")
+	if unavailable != "" {
+		b.WriteString("leases: not available from this daemon: " + unavailable + "\n")
+		return b.String()
+	}
+	if len(r.GetLeases()) == 0 {
+		b.WriteString("No lease has ever been taken on this estate.\n")
+		return b.String()
+	}
+	rows := make([][]string, 0, len(r.GetLeases()))
+	for _, l := range r.GetLeases() {
+		state, ok := enumWord(l.GetState(), "LEASE_STATE_")
+		if !ok {
+			state = skewToken(l.GetState())
+		}
+		rows = append(rows, []string{
+			l.GetName(), state, leaseHolderCell(l), leaseLeftCell(l), leaseNoteCell(l),
+		})
+	}
+	writeTable(&b, []string{"LEASE", "STATE", "HOLDER", "LEFT", "NOTE"}, rows)
+	return b.String()
+}
+
+func leaseHolderCell(l *rigv1.Lease) string {
+	if l.GetHolder() == "" {
+		return "-"
+	}
+	return l.GetHolder() + " (" + l.GetWitness() + ")"
+}
+
+// leaseLeftCell is the time to the deadline, and only a held lease has one
+// worth reading.
+func leaseLeftCell(l *rigv1.Lease) string {
+	if l.GetState() != rigv1.LeaseState_LEASE_STATE_HELD {
+		return "-"
+	}
+	return (time.Duration(l.GetRemainingMs()) * time.Millisecond).Round(time.Second).String()
+}
+
+func leaseNoteCell(l *rigv1.Lease) string {
+	switch {
+	case l.GetNeedsBreak():
+		return "orphaned and unwitnessed: needs a recorded break"
+	case l.GetOwnerGone() && l.GetState() == rigv1.LeaseState_LEASE_STATE_HELD:
+		return "holder observed dead: frees at its deadline"
+	case l.GetBrokenBy() != "" && l.GetState() == rigv1.LeaseState_LEASE_STATE_FREE:
+		return "broken by " + l.GetBrokenBy() + ": " + l.GetBrokenReason()
+	case l.GetOwnerGone():
+		return "holder observed dead"
+	default:
+		return ""
+	}
 }
 
 // peersFlagSet is `peers`'s flags, built here rather than inline so
@@ -135,7 +243,7 @@ func seatJSON(s *rigv1.Seat, now time.Time) map[string]any {
 	return map[string]any{
 		"seat":                s.GetSeat(),
 		"generation":          s.GetGeneration(),
-		"epoch":               s.GetEpoch(),
+		epochKey:              s.GetEpoch(),
 		"estate":              s.GetEstate(),
 		"purpose":             s.GetPurpose(),
 		"activity":            s.GetActivity(),

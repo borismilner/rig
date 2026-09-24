@@ -26,6 +26,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/borismilner/rig/internal/coord"
 	"github.com/borismilner/rig/internal/instance"
 	"github.com/borismilner/rig/internal/kernel"
 	"github.com/borismilner/rig/internal/mcpserver"
@@ -86,6 +87,12 @@ type Config struct {
 	// tree give two serialisation points, two WALs and two lock namespaces,
 	// and every property section 16 proves is false for as long as it lasts.
 	Lock *instance.Lock
+
+	// Leases is the estate's lease store, which rigd opened under the name
+	// claim for the epoch above. Passed in for the same reason the epoch is:
+	// the file must have exactly one opener. Nil for an unnamed estate, and
+	// the lease verbs then refuse naming the cause.
+	Leases *coord.Store
 }
 
 // Daemon serves one socket.
@@ -130,6 +137,9 @@ type Daemon struct {
 	// unnamed estate, runs with this nil and the record verbs refuse in terms
 	// that name the cause. recordStore in record.go is the one reader.
 	records *record.Store
+
+	// leases is section 16's lease store. Nil for an unnamed estate.
+	leases *coord.Store
 
 	// live is every accepted connection, so shutdown can close them.
 	//
@@ -282,6 +292,7 @@ func New(cfg Config) (*Daemon, error) {
 		programs: make(map[string]*conn),
 		presence: newPresence(cfg.Estate, cfg.Epoch),
 		records:  records,
+		leases:   cfg.Leases,
 	}, nil
 }
 
@@ -844,6 +855,11 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 		"record.retract", "record.delete", "record.replace",
 		"progress.step", "project.brief":
 		d.serveRecord(ctx, c, f, command)
+
+	// SECTION 16's LEASES, all five through one arm. lease.go has why the
+	// holder and the witness come off the connection.
+	case "lease.list", "lease.acquire", "lease.renew", "lease.release", "lease.break":
+		d.serveLease(c, f, command)
 
 	case "backup.create":
 		// Its own arm rather than a member of the group above: the record

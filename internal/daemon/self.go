@@ -31,6 +31,12 @@ func selfDeclaration() kernel.Declaration {
 			Returns:      returns,
 		}
 	}
+	leaseWriter := func(id, title string, idempotent kernel.Tristate, summary, description, returns string) kernel.Command {
+		c := readOnly(id, title, summary, description, returns)
+		c.Effects = kernel.EffectsWritesFiles
+		c.Idempotent = idempotent
+		return c
+	}
 	return kernel.Declaration{
 		Identity:     kernel.Identity{ID: kernel.SelfID, Name: kernel.SelfID, Version: "0"},
 		Coverage:     kernel.CoverageFull,
@@ -350,6 +356,33 @@ func selfDeclaration() kernel.Declaration {
 				Description:  "The duplicate case: two ids hold one fact. Every edge pointing at the loser is moved onto the survivor, the loser is withdrawn pointing at it, and record.get on the old id still says where the fact went. A supersede cannot express this, because a supersede keeps the id.",
 				Returns:      "Every inbound edge in one of three buckets - moved, merged into an edge the survivor already had, or dropped as a would-be self-edge - and the withdrawal.",
 			},
+
+			// SECTION 16's LEASES. The list is a read; the four writers keep
+			// their state in the estate's bbolt file and it outlives the
+			// process, so they are file writes on the same argument the
+			// record writers make above. None is destructive: a break
+			// refuses a lease still inside its deadline, so it only ever
+			// frees one whose holder has already let it lapse.
+			readOnly("lease.list", "Lease list",
+				"Every lease in the estate, with its owner's liveness",
+				"Answers every lease this estate knows about, evaluated now: held, orphaned or free, who holds or last held it, how it is witnessed, whether the witness was observed dead, and whether it needs a recorded break. Expiry is derived on read, never swept.",
+				"Every lease, by name."),
+			leaseWriter("lease.acquire", "Lease acquire", kernel.No,
+				"Take a named lease for a TTL, witnessed by the caller's own process",
+				"Takes the lease for the caller's seat, witnessed by the pid the socket reports for the caller, or declared unwitnessed. Refused with the incumbent's full status when somebody else holds it or it is orphaned. Re-acquiring your own is the reconnect path and issues a new token.",
+				"The handle: name, holder, token, epoch and the time left."),
+			leaseWriter("lease.renew", "Lease renew", kernel.No,
+				"Extend a lease you hold",
+				"Extends the lease against its token and epoch. An orphaned lease is renewable by its own holder, which is why orphaned is not free. A handle from before a daemon restart is fenced by its epoch.",
+				"The handle with its new deadline."),
+			leaseWriter("lease.release", "Lease release", kernel.Yes,
+				"Give a lease back",
+				"Frees the lease against its token and epoch. The token stays monotonic per lease, so an old handle can never match again.",
+				"Nothing. The lease is free afterwards or the call was refused."),
+			leaseWriter("lease.break", "Lease break", kernel.Yes,
+				"Free an orphaned lease by a recorded human action",
+				"The only way an unwitnessed orphan ever becomes free. Records the caller's seat as who broke it and requires a reason. Refused for a lease still inside its deadline.",
+				"Nothing. The lease is free afterwards, naming who broke it and why."),
 
 			// The first thing rig declares about itself that is not read-only,
 			// and the properties are the point rather than paperwork: this is

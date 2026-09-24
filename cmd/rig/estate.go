@@ -140,7 +140,7 @@ func estateJSON(r *rigv1.EstateResponse) map[string]any {
 		"daemon_version": r.GetDaemonVersion(),
 		"wire":           r.GetWire(),
 		"semantics_gen":  r.GetSemanticsGen(),
-		"epoch":          r.GetEpoch(),
+		epochKey:         r.GetEpoch(),
 	}
 }
 
@@ -168,7 +168,7 @@ func estateText(r *rigv1.EstateResponse) string {
 	row("daemon", r.GetDaemonVersion())
 	row("wire", r.GetWire())
 	row("semantics", strconv.Itoa(int(r.GetSemanticsGen())))
-	row("epoch", estateEpochCell(r))
+	row(epochKey, estateEpochCell(r))
 	return b.String()
 }
 
