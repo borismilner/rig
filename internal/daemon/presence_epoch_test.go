@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/borismilner/rig/internal/instance"
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // THE ADDRESSABLE IDENTITY IS (seat, epoch, generation), AND THIS FILE IS
@@ -197,8 +197,8 @@ func TestEverySeatServedCarriesTheEpochItWasCountedIn(t *testing.T) {
 
 	// SITE 3: activity answers with the caller's row, and it is the site a
 	// per-response field would have missed entirely.
-	act := &rigv1.ActivityResponse{}
-	if err := seated.Call(ctx5(t), "rig.activity", &rigv1.ActivityRequest{
+	act := &verbsv1.ActivityResponse{}
+	if err := seated.Call(ctx5(t), "rig.activity", &verbsv1.ActivityRequest{
 		Activity: "still working",
 	}, act); err != nil {
 		t.Fatal(err)

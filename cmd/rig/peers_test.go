@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // now is a fixed clock, so an age is a value this file can assert rather than
@@ -16,15 +16,15 @@ var now = time.Unix(1_700_000_000, 0)
 // ago builds a timestamp d before that clock.
 func ago(d time.Duration) int64 { return now.Add(-d).UnixNano() }
 
-func seat(mut ...func(*rigv1.Seat)) *rigv1.Seat {
-	s := &rigv1.Seat{
+func seat(mut ...func(*verbsv1.Seat)) *verbsv1.Seat {
+	s := &verbsv1.Seat{
 		Seat:              "backend-1",
 		Generation:        2,
 		Epoch:             7,
 		Estate:            "production",
 		Purpose:           "the continuity record",
 		Activity:          "sizing the slices",
-		State:             rigv1.SeatState_SEAT_STATE_ACTIVE,
+		State:             verbsv1.SeatState_SEAT_STATE_ACTIVE,
 		AnnouncedUnixNano: ago(90 * time.Minute),
 		ActivityUnixNano:  ago(30 * time.Second),
 	}
@@ -40,7 +40,7 @@ func seat(mut ...func(*rigv1.Seat)) *rigv1.Seat {
 // command. `rig peers` on a daemon nothing has announced to is what a person
 // runs before anything is up.
 func TestAnEmptyRosterIsASentenceAndNotABlankTable(t *testing.T) {
-	got := peersText(&rigv1.PeersResponse{}, now)
+	got := peersText(&verbsv1.PeersResponse{}, now)
 
 	if strings.Contains(got, "SEAT") {
 		t.Errorf("an empty roster printed a table header, which reads as a "+
@@ -60,7 +60,7 @@ func TestAnEmptyRosterIsASentenceAndNotABlankTable(t *testing.T) {
 // this build failed to set, and a consumer branching on it reads "the daemon
 // is broken" out of "nobody is here".
 func TestAnEmptyRosterEmitsAnEmptyArrayRatherThanNull(t *testing.T) {
-	b, err := json.Marshal(peersJSON(&rigv1.PeersResponse{}, now))
+	b, err := json.Marshal(peersJSON(&verbsv1.PeersResponse{}, now))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +75,7 @@ func TestAnEmptyRosterEmitsAnEmptyArrayRatherThanNull(t *testing.T) {
 // present and addressable without pretending to be a seat somebody inherits.
 // Rendered as an empty cell it reads as a daemon that failed to send the name.
 func TestAPeerWithNoSeatRendersAsAFactRatherThanABlank(t *testing.T) {
-	row := peersSeatCell(seat(func(s *rigv1.Seat) {
+	row := peersSeatCell(seat(func(s *verbsv1.Seat) {
 		s.Seat = ""
 		s.Generation = 0
 	}))
@@ -94,8 +94,8 @@ func TestAPeerWithNoSeatRendersAsAFactRatherThanABlank(t *testing.T) {
 // different occupancy from `backend-1` at generation 1, and a reader scanning
 // a column of bare names sees one seat where there were two.
 func TestASeatCarriesItsGenerationSoTwoOccupanciesDoNotReadAsOne(t *testing.T) {
-	first := peersSeatCell(seat(func(s *rigv1.Seat) { s.Generation = 1 }))
-	second := peersSeatCell(seat(func(s *rigv1.Seat) { s.Generation = 2 }))
+	first := peersSeatCell(seat(func(s *verbsv1.Seat) { s.Generation = 1 }))
+	second := peersSeatCell(seat(func(s *verbsv1.Seat) { s.Generation = 2 }))
 
 	if first == second {
 		t.Fatalf("two generations of one seat rendered identically as %q, so a "+
@@ -141,8 +141,8 @@ func TestTheAgeColumnDistinguishesAFreshLineFromAStaleOne(t *testing.T) {
 // PLACE A PERSON READS IT. AgentBox's `partial` is a general disclaimer; rig's
 // is one specific, checkable claim. Printing the flag invites the wrong one.
 func TestPartialSaysWhatItMeansRatherThanPrintingTheFlag(t *testing.T) {
-	got := peersText(&rigv1.PeersResponse{
-		Crew:    []*rigv1.Seat{seat()},
+	got := peersText(&verbsv1.PeersResponse{
+		Crew:    []*verbsv1.Seat{seat()},
 		Partial: true,
 	}, now)
 
@@ -160,7 +160,7 @@ func TestPartialSaysWhatItMeansRatherThanPrintingTheFlag(t *testing.T) {
 // absence as a value, and "this is everybody" is what somebody deciding whether
 // they are alone actually needs.
 func TestACompleteRosterSaysSoRatherThanStayingSilent(t *testing.T) {
-	got := peersText(&rigv1.PeersResponse{Crew: []*rigv1.Seat{seat()}}, now)
+	got := peersText(&verbsv1.PeersResponse{Crew: []*verbsv1.Seat{seat()}}, now)
 
 	if !strings.Contains(got, "everybody") {
 		t.Errorf("a complete roster did not say it was complete, so a reader "+
@@ -180,8 +180,8 @@ func TestACompleteRosterSaysSoRatherThanStayingSilent(t *testing.T) {
 // SAID, in a shape no enum word can take - a reader has to be told they are
 // looking at a defect, not handed a fourth state spelling to interpret.
 func TestAnUnsetStateDoesNotRenderAsAnActiveSeat(t *testing.T) {
-	unset := peersStateCell(seat(func(s *rigv1.Seat) {
-		s.State = rigv1.SeatState_SEAT_STATE_UNSPECIFIED
+	unset := peersStateCell(seat(func(s *verbsv1.Seat) {
+		s.State = verbsv1.SeatState_SEAT_STATE_UNSPECIFIED
 	}))
 	active := peersStateCell(seat())
 
@@ -196,7 +196,7 @@ func TestAnUnsetStateDoesNotRenderAsAnActiveSeat(t *testing.T) {
 			"take - otherwise it reads as a fourth state rather than a defect",
 			unset)
 	}
-	if word, _ := stateLabel(rigv1.SeatState_SEAT_STATE_UNSPECIFIED); strings.Contains(unset, word) {
+	if word, _ := stateLabel(verbsv1.SeatState_SEAT_STATE_UNSPECIFIED); strings.Contains(unset, word) {
 		t.Errorf("the unset cell %q contains the enum's own word %q, which is "+
 			"the spelling a reader will carry away as the state's name",
 			unset, word)
@@ -207,9 +207,9 @@ func TestAnUnsetStateDoesNotRenderAsAnActiveSeat(t *testing.T) {
 // and it must NOT fall back to the zero's spelling - that would report a skew
 // as "nothing was said" and send the reader looking in the wrong place.
 func TestAnUnknownStateReadsAsSkewAndNotAsSilence(t *testing.T) {
-	future := peersStateCell(seat(func(s *rigv1.Seat) { s.State = rigv1.SeatState(99) }))
-	unset := peersStateCell(seat(func(s *rigv1.Seat) {
-		s.State = rigv1.SeatState_SEAT_STATE_UNSPECIFIED
+	future := peersStateCell(seat(func(s *verbsv1.Seat) { s.State = verbsv1.SeatState(99) }))
+	unset := peersStateCell(seat(func(s *verbsv1.Seat) {
+		s.State = verbsv1.SeatState_SEAT_STATE_UNSPECIFIED
 	}))
 
 	if future == unset {
@@ -238,23 +238,23 @@ func TestTheStateNumberIsEmittedEvenWhenTheStateIsUnderstood(t *testing.T) {
 // TestEverySeatFieldReachesTheRosterRow gives the door, on the CLI's own
 // renderer, because the two surfaces are rendered by different code.
 func TestEverySeatFieldReachesTheJSONRow(t *testing.T) {
-	base := seatJSON(&rigv1.Seat{}, now)
+	base := seatJSON(&verbsv1.Seat{}, now)
 
 	for _, tc := range []struct {
 		field string
-		mut   func(*rigv1.Seat)
+		mut   func(*verbsv1.Seat)
 	}{
-		{"seat", func(s *rigv1.Seat) { s.Seat = "backend-9" }},
-		{"generation", func(s *rigv1.Seat) { s.Generation = 3 }},
-		{"epoch", func(s *rigv1.Seat) { s.Epoch = 11 }},
-		{"estate", func(s *rigv1.Seat) { s.Estate = "development" }},
-		{"purpose", func(s *rigv1.Seat) { s.Purpose = "a purpose" }},
-		{"activity", func(s *rigv1.Seat) { s.Activity = "an activity" }},
-		{"state", func(s *rigv1.Seat) { s.State = rigv1.SeatState_SEAT_STATE_HANDING_OFF }},
-		{"announced_unix_nano", func(s *rigv1.Seat) { s.AnnouncedUnixNano = ago(time.Hour) }},
-		{"activity_unix_nano", func(s *rigv1.Seat) { s.ActivityUnixNano = ago(time.Minute) }},
+		{"seat", func(s *verbsv1.Seat) { s.Seat = "backend-9" }},
+		{"generation", func(s *verbsv1.Seat) { s.Generation = 3 }},
+		{"epoch", func(s *verbsv1.Seat) { s.Epoch = 11 }},
+		{"estate", func(s *verbsv1.Seat) { s.Estate = "development" }},
+		{"purpose", func(s *verbsv1.Seat) { s.Purpose = "a purpose" }},
+		{"activity", func(s *verbsv1.Seat) { s.Activity = "an activity" }},
+		{"state", func(s *verbsv1.Seat) { s.State = verbsv1.SeatState_SEAT_STATE_HANDING_OFF }},
+		{"announced_unix_nano", func(s *verbsv1.Seat) { s.AnnouncedUnixNano = ago(time.Hour) }},
+		{"activity_unix_nano", func(s *verbsv1.Seat) { s.ActivityUnixNano = ago(time.Minute) }},
 	} {
-		s := &rigv1.Seat{}
+		s := &verbsv1.Seat{}
 		tc.mut(s)
 		got := seatJSON(s, now)
 
@@ -278,9 +278,9 @@ func TestEverySeatFieldReachesTheJSONRow(t *testing.T) {
 // padded final cell drags a run of trailing spaces across the terminal - which
 // is why this does not reach for text/tabwriter.
 func TestTheLastColumnCarriesNoTrailingPadding(t *testing.T) {
-	got := peersText(&rigv1.PeersResponse{Crew: []*rigv1.Seat{
-		seat(func(s *rigv1.Seat) { s.Activity = "short" }),
-		seat(func(s *rigv1.Seat) { s.Activity = "a considerably longer activity line" }),
+	got := peersText(&verbsv1.PeersResponse{Crew: []*verbsv1.Seat{
+		seat(func(s *verbsv1.Seat) { s.Activity = "short" }),
+		seat(func(s *verbsv1.Seat) { s.Activity = "a considerably longer activity line" }),
 	}}, now)
 
 	for _, line := range strings.Split(got, "\n") {
@@ -295,19 +295,19 @@ func TestTheLastColumnCarriesNoTrailingPadding(t *testing.T) {
 // The two facts a reader acts on are words in the NOTE column, and a refused
 // lease list is reported under the roster rather than failing it.
 func TestLeasesTextSaysWhatAReaderActsOn(t *testing.T) {
-	got := leasesText(&rigv1.LeaseListResponse{Leases: []*rigv1.Lease{
+	got := leasesText(&verbsv1.LeaseListResponse{Leases: []*verbsv1.Lease{
 		{
-			Name: "deploy", State: rigv1.LeaseState_LEASE_STATE_HELD,
+			Name: "deploy", State: verbsv1.LeaseState_LEASE_STATE_HELD,
 			Holder: "seat-a", Witness: "pid 42", RemainingMs: 30_000,
-			OwnerGone: true, Liveness: rigv1.Liveness_LIVENESS_DEAD,
+			OwnerGone: true, Liveness: verbsv1.Liveness_LIVENESS_DEAD,
 		},
 		{
-			Name: "vm", State: rigv1.LeaseState_LEASE_STATE_ORPHANED,
+			Name: "vm", State: verbsv1.LeaseState_LEASE_STATE_ORPHANED,
 			Holder: "seat-b", Witness: "unwitnessed", RemainingMs: -5000,
-			NeedsBreak: true, Liveness: rigv1.Liveness_LIVENESS_UNKNOWN,
+			NeedsBreak: true, Liveness: verbsv1.Liveness_LIVENESS_UNKNOWN,
 		},
 		{
-			Name: "db", State: rigv1.LeaseState_LEASE_STATE_FREE,
+			Name: "db", State: verbsv1.LeaseState_LEASE_STATE_FREE,
 			Holder: "seat-c", Witness: "unwitnessed",
 			BrokenBy: "seat-a", BrokenReason: "torn down",
 		},
@@ -323,7 +323,7 @@ func TestLeasesTextSaysWhatAReaderActsOn(t *testing.T) {
 		}
 	}
 
-	if got := leasesText(&rigv1.LeaseListResponse{}, ""); !strings.Contains(got, "No lease has ever been taken") {
+	if got := leasesText(&verbsv1.LeaseListResponse{}, ""); !strings.Contains(got, "No lease has ever been taken") {
 		t.Errorf("an empty lease list renders as %q, want a sentence", got)
 	}
 	if got := leasesText(nil, "rig.lease.list: CODE_UNAVAILABLE: no store"); !strings.Contains(got, "not available") ||
@@ -334,16 +334,16 @@ func TestLeasesTextSaysWhatAReaderActsOn(t *testing.T) {
 
 // Every key on every row, and an empty array rather than null.
 func TestLeasesJSONCarriesEveryKey(t *testing.T) {
-	b, err := json.Marshal(leasesJSON(&rigv1.LeaseListResponse{}))
+	b, err := json.Marshal(leasesJSON(&verbsv1.LeaseListResponse{}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if string(b) != "[]" {
 		t.Errorf("no leases marshals as %s, want []", b)
 	}
-	rows := leasesJSON(&rigv1.LeaseListResponse{Leases: []*rigv1.Lease{{
-		Name: "deploy", State: rigv1.LeaseState_LEASE_STATE_HELD,
-		Liveness: rigv1.Liveness_LIVENESS_ALIVE,
+	rows := leasesJSON(&verbsv1.LeaseListResponse{Leases: []*verbsv1.Lease{{
+		Name: "deploy", State: verbsv1.LeaseState_LEASE_STATE_HELD,
+		Liveness: verbsv1.Liveness_LIVENESS_ALIVE,
 	}}})
 	for _, k := range []string{
 		"name", "state", "holder", "token", "epoch", "witness", "remaining_ms",

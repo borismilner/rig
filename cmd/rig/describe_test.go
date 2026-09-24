@@ -10,6 +10,8 @@ import (
 
 	"github.com/borismilner/rig/client"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // A TRISTATE RENDERS THREE WAYS HERE, AND THAT IS THE WHOLE POINT OF DOING IT
@@ -169,7 +171,7 @@ func TestAnEnumValueThisBuildDoesNotKnowIsReportedAsSkew(t *testing.T) {
 func TestDescribeOnAProgramReturnsItsPreamble(t *testing.T) {
 	const preamble = "read the shelf before reindexing it, because reindex " +
 		"rewrites paths in place"
-	out := describeProgram(&rigv1.Program{
+	out := describeProgram(&registryv1.Program{
 		Identity: &rigv1.Identity{Id: "fakeapp", Version: "1.2.0"},
 		Preamble: preamble,
 		Coverage: rigv1.Coverage_COVERAGE_FULL,
@@ -188,7 +190,7 @@ func TestDescribeOnAProgramReturnsItsPreamble(t *testing.T) {
 // so silence reads as "describe is broken" rather than as "this program
 // declared none" - the estate verb's distinction arriving through prose.
 func TestAProgramWithNoPreambleSaysSoRatherThanPrintingNothing(t *testing.T) {
-	out := describeProgram(&rigv1.Program{
+	out := describeProgram(&registryv1.Program{
 		Identity: &rigv1.Identity{Id: "fakeapp", Version: "1.2.0"},
 		Coverage: rigv1.Coverage_COVERAGE_PARTIAL,
 	})
@@ -207,7 +209,7 @@ func TestAProgramWithNoPreambleSaysSoRatherThanPrintingNothing(t *testing.T) {
 // rather than by eye.
 func TestDescribeOnACommandRendersEveryDeclaredProperty(t *testing.T) {
 	out := describeCommand(
-		&rigv1.Program{Identity: &rigv1.Identity{Id: "fakeapp"}},
+		&registryv1.Program{Identity: &rigv1.Identity{Id: "fakeapp"}},
 		&rigv1.Command{
 			Id:            "reindex",
 			Summary:       "rebuild the index",
@@ -269,7 +271,7 @@ func TestDescribeOnACommandRendersEveryDeclaredProperty(t *testing.T) {
 // the first out loud rather than inferred from a missing heading.
 func TestACommandWithNoSensitiveFieldsSaysSoRatherThanOmittingTheHeading(t *testing.T) {
 	out := describeCommand(
-		&rigv1.Program{Identity: &rigv1.Identity{Id: "fakeapp"}},
+		&registryv1.Program{Identity: &rigv1.Identity{Id: "fakeapp"}},
 		&rigv1.Command{Id: "status", Summary: "say what is going on"})
 	if !strings.Contains(out, "no sensitive fields") {
 		t.Errorf("a command with no sensitive fields renders without saying "+
@@ -290,7 +292,7 @@ func TestDescribeCarriesPropertiesThatHelpDoesNotBother(t *testing.T) {
 		Streams: rigv1.Tristate_TRISTATE_NO,
 	}
 	out := describeCommand(
-		&rigv1.Program{Identity: &rigv1.Identity{Id: "fakeapp"}}, cmd)
+		&registryv1.Program{Identity: &rigv1.Identity{Id: "fakeapp"}}, cmd)
 
 	// These three are declared properties that generated help never prints.
 	for _, want := range []string{"shape", "promoted", "streams"} {
@@ -330,7 +332,7 @@ func TestDescribeRefusesTheArgumentCountsItCannotAnswer(t *testing.T) {
 // wrong thing.
 func TestDescribeJSONPrintsTheDaemonsObjectUnchanged(t *testing.T) {
 	const object = `{"tool":"describe","depth":"full","program":{"identity":{"id":"fakeapp"}}}`
-	d := startFakeDaemon(t, &rigv1.DescribeResponse{Answer: []byte(object)})
+	d := startFakeDaemon(t, &verbsv1.DescribeResponse{Answer: []byte(object)})
 	c, err := client.Dial(d.socket)
 	if err != nil {
 		t.Fatal(err)
@@ -358,7 +360,7 @@ func TestDescribeJSONPrintsTheDaemonsObjectUnchanged(t *testing.T) {
 	if f.GetMethod() != "rig.describe" {
 		t.Errorf("sent %q, want rig.describe", f.GetMethod())
 	}
-	var req rigv1.DescribeRequest
+	var req verbsv1.DescribeRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		t.Fatal(err)
 	}
@@ -372,7 +374,7 @@ func TestDescribeJSONPrintsTheDaemonsObjectUnchanged(t *testing.T) {
 // moving the constant cannot move both sides of the assertion at once.
 func TestALongValueWrapsIntoItsOwnColumnRatherThanBackToTheMargin(t *testing.T) {
 	out := describeCommand(
-		&rigv1.Program{Identity: &rigv1.Identity{Id: "fakeapp"}},
+		&registryv1.Program{Identity: &rigv1.Identity{Id: "fakeapp"}},
 		&rigv1.Command{
 			Id: "reindex", Summary: "rebuild",
 			Returns: "The window it used, how many items it indexed, and " +

@@ -488,7 +488,14 @@ proto: ## Generate Go from proto/
 	# with remote dependencies and there is one file here with none. The -I .
 	# and the full path are load-bearing - the source path is embedded in the
 	# descriptor, so generating it any other way rewrites the whole file.
-	protoc --go_out=. --go_opt=module=$(MODULE) -I . proto/rig/v1/wire.proto
+	#
+	# THREE FILES, ONE PROTO PACKAGE, THREE GO PACKAGES. rig.v1 is split by
+	# door so a program links only the handshake: wire.proto (proto/rig/v1),
+	# registry.proto (registryv1, what the window reads) and verbs.proto
+	# (verbsv1, rig's own verbs). Every message keeps its full name and its
+	# bytes; proto/rig/v1/wire_golden_test.go is the proof.
+	protoc --go_out=. --go_opt=module=$(MODULE) -I . \
+	  proto/rig/v1/wire.proto proto/rig/v1/registry.proto proto/rig/v1/verbs.proto
 	gofmt -s -w proto/
 
 schema: ## Emit the declaration JSON Schema from the proto descriptors

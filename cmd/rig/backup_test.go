@@ -6,13 +6,13 @@ import (
 	"testing"
 	"time"
 
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // backupAnswer is a complete BackupCreateResponse, so a renderer test reads as a
 // change from a known-good answer rather than as a pile of literals.
-func backupAnswer() *rigv1.BackupCreateResponse {
-	return &rigv1.BackupCreateResponse{
+func backupAnswer() *verbsv1.BackupCreateResponse {
+	return &verbsv1.BackupCreateResponse{
 		Path:            "/home/x/.local/state/rig/backups/a-20260924T101112Z.tar.gz",
 		Sha256:          strings.Repeat("ab", 32),
 		Bytes:           4096,
@@ -266,7 +266,7 @@ func TestABackupWithNoTimestampSaysSoRatherThanPrinting1970(t *testing.T) {
 func TestTheBackupObjectCarriesEveryFieldOnEveryAnswer(t *testing.T) {
 	// The empty response is the case that matters: with omitempty anywhere,
 	// this object would be `{}`.
-	obj := backupJSON(&rigv1.BackupCreateResponse{})
+	obj := backupJSON(&verbsv1.BackupCreateResponse{})
 
 	for _, key := range []string{
 		"path", "sha256", "bytes", "schema_version",

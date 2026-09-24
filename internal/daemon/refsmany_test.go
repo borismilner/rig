@@ -11,6 +11,7 @@ import (
 
 	"github.com/borismilner/rig/client"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // refsFixture writes n requirements, each cited by two work items, and
@@ -18,16 +19,16 @@ import (
 func refsFixture(ctx context.Context, tb testing.TB, c *client.Client, n int) []string {
 	tb.Helper()
 	put := func(id, kind string) {
-		if err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
+		if err := c.Call(ctx, "rig.record.put", &verbsv1.RecordPutRequest{
 			Id: id, Kind: kind, Project: "rig", Fields: map[string]string{"title": id},
-		}, &rigv1.RecordPutResponse{}); err != nil {
+		}, &verbsv1.RecordPutResponse{}); err != nil {
 			tb.Fatalf("rig.record.put(%s): %v", id, err)
 		}
 	}
 	link := func(src, dst string) {
-		if err := c.Call(ctx, "rig.record.link", &rigv1.RecordLinkRequest{
+		if err := c.Call(ctx, "rig.record.link", &verbsv1.RecordLinkRequest{
 			Src: src, Type: "cites", Dst: dst,
-		}, &rigv1.RecordLinkResponse{}); err != nil {
+		}, &verbsv1.RecordLinkResponse{}); err != nil {
 			tb.Fatalf("rig.record.link(%s, %s): %v", src, dst, err)
 		}
 	}
@@ -56,8 +57,8 @@ func TestRecordRefsForManyIDsIsTheOneIDAnswerForEach(t *testing.T) {
 	ids := refsFixture(ctx, t, c, 3)
 	ids = []string{ids[2], ids[0], ids[1]} // order asked is order answered
 
-	var many rigv1.RecordRefsResponse
-	if err := c.Call(ctx, "rig.record.refs", &rigv1.RecordRefsRequest{
+	var many verbsv1.RecordRefsResponse
+	if err := c.Call(ctx, "rig.record.refs", &verbsv1.RecordRefsRequest{
 		Ids: ids, Depth: 2,
 	}, &many); err != nil {
 		t.Fatalf("rig.record.refs with ids: %v", err)
@@ -66,8 +67,8 @@ func TestRecordRefsForManyIDsIsTheOneIDAnswerForEach(t *testing.T) {
 		t.Fatalf("asked about %d ids and got %d results", len(ids), len(many.GetResults()))
 	}
 	for i, id := range ids {
-		var one rigv1.RecordRefsResponse
-		if err := c.Call(ctx, "rig.record.refs", &rigv1.RecordRefsRequest{
+		var one verbsv1.RecordRefsResponse
+		if err := c.Call(ctx, "rig.record.refs", &verbsv1.RecordRefsRequest{
 			Id: id, Depth: 2,
 		}, &one); err != nil {
 			t.Fatalf("rig.record.refs(%s): %v", id, err)
@@ -96,16 +97,16 @@ func TestRecordRefsForManyIDsRefusesRatherThanAnswersPartly(t *testing.T) {
 	}
 	for _, tc := range []struct {
 		name string
-		req  *rigv1.RecordRefsRequest
+		req  *verbsv1.RecordRefsRequest
 		code rigv1.Code
 	}{
-		{"id and ids", &rigv1.RecordRefsRequest{Id: ids[0], Ids: ids}, rigv1.Code_CODE_INVALID},
-		{"an unknown id", &rigv1.RecordRefsRequest{Ids: []string{ids[0], "nope"}}, rigv1.Code_CODE_NOT_FOUND},
-		{"above the cap", &rigv1.RecordRefsRequest{Ids: tooMany}, rigv1.Code_CODE_INVALID},
-		{"depth above the cap", &rigv1.RecordRefsRequest{Ids: ids, Depth: 9}, rigv1.Code_CODE_INVALID},
+		{"id and ids", &verbsv1.RecordRefsRequest{Id: ids[0], Ids: ids}, rigv1.Code_CODE_INVALID},
+		{"an unknown id", &verbsv1.RecordRefsRequest{Ids: []string{ids[0], "nope"}}, rigv1.Code_CODE_NOT_FOUND},
+		{"above the cap", &verbsv1.RecordRefsRequest{Ids: tooMany}, rigv1.Code_CODE_INVALID},
+		{"depth above the cap", &verbsv1.RecordRefsRequest{Ids: ids, Depth: 9}, rigv1.Code_CODE_INVALID},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			err := c.Call(ctx, "rig.record.refs", tc.req, &rigv1.RecordRefsResponse{})
+			err := c.Call(ctx, "rig.record.refs", tc.req, &verbsv1.RecordRefsResponse{})
 			wantCode(t, err, tc.code, tc.name)
 		})
 	}
@@ -122,9 +123,9 @@ func BenchmarkRecordRefs(b *testing.B) {
 	defer c.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
-	if err := c.Call(ctx, "rig.announce", &rigv1.AnnounceRequest{
+	if err := c.Call(ctx, "rig.announce", &verbsv1.AnnounceRequest{
 		Seat: "bench", Purpose: "measuring refs", Activity: "benchmarking",
-	}, &rigv1.AnnounceResponse{}); err != nil {
+	}, &verbsv1.AnnounceResponse{}); err != nil {
 		b.Fatal(err)
 	}
 	ids := refsFixture(ctx, b, c, 220)
@@ -132,8 +133,8 @@ func BenchmarkRecordRefs(b *testing.B) {
 	b.Run("one-id-x220", func(b *testing.B) {
 		for b.Loop() {
 			for _, id := range ids {
-				if err := c.Call(ctx, "rig.record.refs", &rigv1.RecordRefsRequest{Id: id},
-					&rigv1.RecordRefsResponse{}); err != nil {
+				if err := c.Call(ctx, "rig.record.refs", &verbsv1.RecordRefsRequest{Id: id},
+					&verbsv1.RecordRefsResponse{}); err != nil {
 					b.Fatal(err)
 				}
 			}
@@ -141,8 +142,8 @@ func BenchmarkRecordRefs(b *testing.B) {
 	})
 	b.Run("ids-x220", func(b *testing.B) {
 		for b.Loop() {
-			if err := c.Call(ctx, "rig.record.refs", &rigv1.RecordRefsRequest{Ids: ids},
-				&rigv1.RecordRefsResponse{}); err != nil {
+			if err := c.Call(ctx, "rig.record.refs", &verbsv1.RecordRefsRequest{Ids: ids},
+				&verbsv1.RecordRefsResponse{}); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -160,9 +161,9 @@ func TestRecordRefsForManyIDsRefusesAnAnswerOverTheBudget(t *testing.T) {
 
 	put := func(id, kind, title string) {
 		t.Helper()
-		if err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
+		if err := c.Call(ctx, "rig.record.put", &verbsv1.RecordPutRequest{
 			Id: id, Kind: kind, Project: "rig", Fields: map[string]string{"title": title},
-		}, &rigv1.RecordPutResponse{}); err != nil {
+		}, &verbsv1.RecordPutResponse{}); err != nil {
 			t.Fatalf("rig.record.put(%s): %v", id, err)
 		}
 	}
@@ -170,9 +171,9 @@ func TestRecordRefsForManyIDsRefusesAnAnswerOverTheBudget(t *testing.T) {
 	put("R", "requirement", "R")
 	for _, w := range []string{"Wa", "Wb"} {
 		put(w, "work-item", strings.Repeat(w, 1<<10))
-		if err := c.Call(ctx, "rig.record.link", &rigv1.RecordLinkRequest{
+		if err := c.Call(ctx, "rig.record.link", &verbsv1.RecordLinkRequest{
 			Src: w, Type: "cites", Dst: "R",
-		}, &rigv1.RecordLinkResponse{}); err != nil {
+		}, &verbsv1.RecordLinkResponse{}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -182,7 +183,7 @@ func TestRecordRefsForManyIDsRefusesAnAnswerOverTheBudget(t *testing.T) {
 	for i := range ids {
 		ids[i] = "R"
 	}
-	err := c.Call(ctx, "rig.record.refs", &rigv1.RecordRefsRequest{Ids: ids}, &rigv1.RecordRefsResponse{})
+	err := c.Call(ctx, "rig.record.refs", &verbsv1.RecordRefsRequest{Ids: ids}, &verbsv1.RecordRefsResponse{})
 	wantCode(t, err, rigv1.Code_CODE_INVALID, "a batch over the budget")
 	if !strings.Contains(err.Error(), "budget") {
 		t.Errorf("the refusal does not name the budget: %v", err)

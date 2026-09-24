@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/borismilner/rig/internal/instance"
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // upIncarnation is upEstate with an epoch, which is the one thing that tells
@@ -132,7 +132,7 @@ func TestAnUnnamedEstateReportsEpochZero(t *testing.T) {
 		t.Errorf("an unnamed estate reported epoch %d, and it opens no store "+
 			"to have got one from", got.GetEpoch())
 	}
-	if got.GetRole() != rigv1.EstateRole_ESTATE_ROLE_UNNAMED {
+	if got.GetRole() != registryv1.EstateRole_ESTATE_ROLE_UNNAMED {
 		t.Errorf("role is %v, want UNNAMED", got.GetRole())
 	}
 }

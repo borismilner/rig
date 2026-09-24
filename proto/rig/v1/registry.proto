@@ -1,0 +1,211 @@
+// The rig wire contract, major version 1: the registry and the estate.
+//
+// Part of proto package rig.v1 exactly as wire.proto is, so every message
+// keeps its full name, its numbers and its bytes on the wire. It is a
+// separate FILE only so its generated Go code is a separate package: a
+// program links the handshake in wire.proto and none of this, and the
+// window links this and none of verbs.proto. See wire.proto's header.
+
+syntax = "proto3";
+
+package rig.v1;
+
+import "proto/rig/v1/wire.proto";
+
+option go_package = "github.com/borismilner/rig/proto/rig/v1/registryv1;registryv1";
+
+// Program is one program as one principal may see it (section 14).
+//
+// It is Declaration minus scope: what a reader is shown, not what was stored.
+// Section 5k's rule that no surface may imply completeness is why coverage
+// travels with it.
+//
+// THIS COMMENT USED TO SAY "minus preamble and scope", AND THAT WAS THE BUG.
+// Section 9 requires the preamble to be "returned by describe on the program",
+// and a program has been able to declare one since M1 - accepted at hello,
+// validated, stored in the registry - with no message on any path able to
+// carry it back. It was a dead field for as long as it existed. Scope stays
+// out: it is how rig decides who may see this program, not something the
+// program said about itself.
+message Program {
+  Identity identity = 1;
+  Coverage coverage = 2;
+  string coverage_note = 3;
+  int32 semantics_gen = 4;
+  repeated string services = 5;
+  bool hosted = 6;
+  repeated Command commands = 7;
+
+  // Where this program serves its own pane, validated at registration. A
+  // reader gets it because the window is a reader like any other.
+  string pane_url = 8;
+
+  // The kit elements this program declares (section 5h R3). A reader gets it
+  // for the same reason it gets services: it is part of what the program said
+  // about itself, not part of how anything draws it.
+  repeated string elements = 9;
+
+  // The one document an agent reads before touching this program (section 9).
+  //
+  // Carried at DEPTH_FULL only. It is prose, it can be long, and fifteen of
+  // them in one list is the context cost section 9's whole tiering argument
+  // exists to avoid - so it travels with describe and not with list.
+  string preamble = 10;
+}
+
+// Depth is how much of the estate a read wants (section 9).
+//
+// Section 9's argument for four meta tools is a context budget: fifteen
+// programs with twenty commands each is three hundred tools, and handing an
+// agent all of it "destroys its context before it has done anything". So
+// `list` "returns the estate at whatever depth is asked for".
+//
+// The line between the last two is one sentence: DEPTH_COMMANDS carries what
+// an agent picks a command BY, DEPTH_FULL carries what it calls the command
+// WITH. Scalars and the one-line summary are how you choose; schemas,
+// examples, preconditions and prose are how you invoke.
+enum Depth {
+  DEPTH_UNSPECIFIED = 0;
+
+  // The estate itself: who is registered and how much of rig each has
+  // adopted. No commands, no preamble.
+  DEPTH_PROGRAMS = 1;
+
+  // Every command's scalar properties and its summary - enough to choose
+  // one, and nothing that costs a schema.
+  DEPTH_COMMANDS = 2;
+
+  // Everything this principal may see, preamble and argument schemas
+  // included.
+  DEPTH_FULL = 3;
+}
+
+// ---- rig.programs, the read side of the registry ---------------------------
+
+message ProgramsRequest {
+  // How much to say about each program. Absent means DEPTH_FULL, and that is
+  // a COMPATIBILITY rule rather than a default worth having: every caller
+  // written before this field existed asked for everything, and proto3 gives
+  // it the zero value whether it says so or not. The kernel refuses an
+  // unspecified depth outright (section 21's enum rule); the boundary is
+  // where the old wire's meaning is restored, so exactly one place has to
+  // know that the two disagree.
+  Depth depth = 1;
+}
+
+message ProgramsResponse {
+  // Only what the calling principal may see. An unscoped, unprivileged client
+  // gets nothing; a program gets itself; a client of the owner's gets all of
+  // it, because introspect was decided when the connection was made.
+  repeated Program programs = 1;
+}
+
+// ---- rig.estate, which estate did I just reach (PLAN.md section 37) -------
+//
+// Section 37 runs at most two named estates, production and development, and
+// Boris's requirement is that "the peers (all agents) will know which rig
+// instance is which and will know when to be talking to which and for what
+// purposes". An agent could not know that: XDG_RUNTIME_DIR is INHERITED from
+// whatever launched it, so the estate was something an agent is PLACED IN and
+// never something it reads.
+//
+// A METHOD RATHER THAN A FIELD ON SOMETHING EXISTING, and the alternatives
+// were ruled out on mechanism. Not HelloResponse: a terminal never says hello,
+// and an agent connects as an ordinary unregistered client, so the callers who
+// need this most are exactly the ones that never handshake. Not PingResponse:
+// that is a probe with a nonce which answers FROM THE PROGRAM ADDRESSED, and
+// estate identity is a fact about the daemon - hanging it off a per-program
+// probe is the conflation section 21 keeps catching. Giving terminals a hello
+// instead was rejected on section 14's own terms, because `scoped` is the whole
+// authorisation state a connection carries and making it ambiguous breaks a
+// load-bearing boolean.
+//
+// IT IS UNSCOPED, AND IT IS THE FIRST RIG METHOD WHOSE ANSWER DOES NOT DEPEND
+// ON WHO IS ASKING. Section 14 makes any surface whose product is an
+// estate-wide AGGREGATE a granted surface - the capability map, config export,
+// doctor, the palette, the tray, the notification centre, the schedule. This
+// aggregates nothing: every field below is a fact about the daemon itself and
+// none is data belonging to another principal. Scoping restricts which
+// PROGRAMS a caller sees, and the estate is not a program. Walked against
+// section 14's six rows and every kind gets the full answer, a registered
+// program included. A LATER FIELD COULD QUIETLY DESTROY THAT PROPERTY, so
+// anything added here is walked again.
+
+message EstateRequest {}
+
+// EstateRole is what an estate is FOR.
+//
+// UNNAMED HAS A NUMBER OF ITS OWN AND THE ZERO IS NOT IT. proto3 cannot tell
+// an unset scalar from a zero one, so a daemon that carries this field and
+// fails to set it - a bug, or a build where the field landed and the setter
+// did not - would render as "this is an unnamed estate" and an agent would
+// branch on it. An unnamed estate reads as ephemeral and disposable and
+// production does not, so the safe guess and the useful guess point opposite
+// ways. Zero therefore keeps section 21's meaning, "nothing was said", and the
+// identity fact gets a value of its own.
+enum EstateRole {
+  ESTATE_ROLE_UNSPECIFIED = 0;  // nothing was said. Never a fact about an estate
+  ESTATE_ROLE_UNNAMED = 1;      // deliberately unnamed: a test, a build, an ephemeral run
+  ESTATE_ROLE_PRODUCTION = 2;
+  ESTATE_ROLE_DEVELOPMENT = 3;
+}
+
+message EstateResponse {
+  // The name this estate claimed, empty when it claimed none. Section 37's
+  // precondition 6 makes it unique across the machine while it is held.
+  string name = 1;
+
+  // ROLE IS DERIVED FROM name BY THE DAEMON, AT REPLY TIME, AND IS NEVER
+  // STORED AND NEVER ACCEPTED AS INPUT. A client must never send one and must
+  // never infer the other.
+  //
+  // Both are carried on purpose even though the name set is closed at two
+  // today and role is therefore derivable. With only the name, the derivation
+  // `name == "production"` would live in every consumer - every agent, every
+  // script, outside this repository and uncountable - and reopening the set
+  // would break all of them silently. Here it lives in the daemon, once, and
+  // reopening the set breaks nothing. The two cannot disagree because there is
+  // no second place to write one.
+  EstateRole role = 2;
+
+  // The daemon's own build. The same value `rig.ping` returns when it is
+  // addressed to rig itself, consolidated here so one call answers "who did I
+  // reach" rather than requiring a caller to know to probe "rig".
+  string daemon_version = 3;
+
+  // The wire contract's major. Carried for completeness rather than for skew
+  // detection: the major rides the proto package path, so a client and a
+  // daemon on different majors cannot connect at all and major skew is
+  // structurally impossible rather than undetected.
+  string wire = 4;
+
+  // RIG'S OWN SEMANTIC GENERATION, FROM ITS SELF-DECLARATION, AND IT IS NOT A
+  // PER-PROGRAM SKEW DETECTOR. Do not read this as "have the programs I use
+  // changed meaning". That question is per-program, its answer is already on
+  // the wire in Program.semantics_gen and already readable, and what it needs
+  // is a consumer on the capability map. This field answers only "what
+  // semantics does the daemon itself implement", which is what a client built
+  // from the development tree needs when it reaches the production daemon.
+  int32 semantics_gen = 5;
+
+  // THE INCARNATION, AS OPPOSED TO THE IDENTITY. Every other field in this
+  // message is identical across a restart - same name, same role, same build,
+  // same wire, same generation - so an agent holding a handle from before
+  // could not tell "same rig, still up" from "same rig, restarted under me",
+  // and a lease it believes it holds may already be somebody else's. This is
+  // the only field here that moves, and a caller that remembers the last one
+  // it saw gets the distinction for free.
+  //
+  // Bumped unconditionally on every start, with nothing consulted (section
+  // 37, precondition 4, and V15): the cost of treating a planned restart as a
+  // crash is one re-acquisition, and the cost of the reverse is a fencing
+  // token that outlives what it fences.
+  //
+  // ZERO MEANS NO PERSISTENT STATE, WHICH IS AN ANSWER RATHER THAN A HOLE. An
+  // estate started without a name opens no store, because it has no name to
+  // key a subtree to, so it has no epoch to report. A real epoch is always at
+  // least 1, because the store bumps before it publishes, so 0 is
+  // unambiguously "this estate has no persistent state" and cannot be
+  // confused with a real one.
+  uint64 epoch = 6;
+}

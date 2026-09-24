@@ -16,6 +16,7 @@ import (
 	"github.com/borismilner/rig/internal/instance"
 	"github.com/borismilner/rig/internal/kernel"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // The record verbs over the real wire (PLAN.md section 39).
@@ -84,9 +85,9 @@ func recordCtx(t *testing.T) context.Context {
 func seated(t *testing.T, sock, seat string) *client.Client {
 	t.Helper()
 	c := dial(t, sock)
-	if err := c.Call(recordCtx(t), "rig.announce", &rigv1.AnnounceRequest{
+	if err := c.Call(recordCtx(t), "rig.announce", &verbsv1.AnnounceRequest{
 		Seat: seat, Purpose: "exercising the record verbs", Activity: "testing",
-	}, &rigv1.AnnounceResponse{}); err != nil {
+	}, &verbsv1.AnnounceResponse{}); err != nil {
 		t.Fatalf("rig.announce(%q): %v", seat, err)
 	}
 	return c
@@ -102,8 +103,8 @@ func TestTheRecordVerbsAreReachableUnderSection39sOwnNames(t *testing.T) {
 	ctx := recordCtx(t)
 
 	// The project, whose id IS its slug - section 39's id-scheme exception.
-	var proj rigv1.RecordPutResponse
-	if err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
+	var proj verbsv1.RecordPutResponse
+	if err := c.Call(ctx, "rig.record.put", &verbsv1.RecordPutRequest{
 		Id: "rig", Kind: "project", Project: "rig", Body: "rig itself",
 	}, &proj); err != nil {
 		t.Fatalf("rig.record.put(project): %v", err)
@@ -130,8 +131,8 @@ func TestTheRecordVerbsAreReachableUnderSection39sOwnNames(t *testing.T) {
 	}
 
 	// A work item, then a step against it.
-	var item rigv1.RecordPutResponse
-	if err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
+	var item verbsv1.RecordPutResponse
+	if err := c.Call(ctx, "rig.record.put", &verbsv1.RecordPutRequest{
 		Kind: "work-item", Project: "rig", Body: "put the record verbs on the wire",
 		Fields: map[string]string{"title": "the wire surface", "status": "active"},
 	}, &item); err != nil {
@@ -142,9 +143,9 @@ func TestTheRecordVerbsAreReachableUnderSection39sOwnNames(t *testing.T) {
 		t.Fatal("an empty id was not minted")
 	}
 
-	var step rigv1.ProgressStepResponse
-	if err := c.Call(ctx, "rig.progress.step", &rigv1.ProgressStepRequest{
-		Item: id, State: rigv1.StepState_STEP_STATE_STARTED, Note: "proto landed",
+	var step verbsv1.ProgressStepResponse
+	if err := c.Call(ctx, "rig.progress.step", &verbsv1.ProgressStepRequest{
+		Item: id, State: verbsv1.StepState_STEP_STATE_STARTED, Note: "proto landed",
 	}, &step); err != nil {
 		t.Fatalf("rig.progress.step: %v", err)
 	}
@@ -165,7 +166,7 @@ func TestTheRecordVerbsAreReachableUnderSection39sOwnNames(t *testing.T) {
 	// brief body would; sending the brief's own request type here would also
 	// fail plan/50 acceptance B, whose grep must print nothing outside proto/.
 	if err := c.Call(ctx, "rig.project.brief",
-		&rigv1.RecordGetRequest{Id: "rig"}, &rigv1.RecordGetResponse{}); err == nil {
+		&verbsv1.RecordGetRequest{Id: "rig"}, &verbsv1.RecordGetResponse{}); err == nil {
 		t.Fatal("rig.project.brief answered a brief, so the derivation is still here")
 	} else {
 		var refusal *client.CallError
@@ -203,8 +204,8 @@ func TestATerminalWritesUnderASeatTheDaemonMinted(t *testing.T) {
 	sock := upRecordDaemon(t)
 	c := dial(t, sock) // deliberately NOT seated - this is a terminal
 
-	var put rigv1.RecordPutResponse
-	if err := c.Call(recordCtx(t), "rig.record.put", &rigv1.RecordPutRequest{
+	var put verbsv1.RecordPutResponse
+	if err := c.Call(recordCtx(t), "rig.record.put", &verbsv1.RecordPutRequest{
 		Id: "T1", Kind: "note", Project: "rig", Body: "who wrote this?",
 	}, &put); err != nil {
 		t.Fatalf("a terminal could not write, so the CLI demonstration is "+
@@ -237,8 +238,8 @@ func TestAnAnnouncedSeatBeatsTheTerminalFallback(t *testing.T) {
 	sock := upRecordDaemon(t)
 	c := seated(t, sock, "team-lead")
 
-	var put rigv1.RecordPutResponse
-	if err := c.Call(recordCtx(t), "rig.record.put", &rigv1.RecordPutRequest{
+	var put verbsv1.RecordPutResponse
+	if err := c.Call(recordCtx(t), "rig.record.put", &verbsv1.RecordPutRequest{
 		Id: "T2", Kind: "note", Project: "rig", Body: "seated",
 	}, &put); err != nil {
 		t.Fatalf("rig.record.put: %v", err)
@@ -306,9 +307,9 @@ func TestARegisteredProgramIsStillRefusedByName(t *testing.T) {
 	sock := upRecordDaemon(t)
 	c := program(t, sock, "fakeapp") // scoped by the handshake, never announced
 
-	err := c.Call(recordCtx(t), "rig.record.put", &rigv1.RecordPutRequest{
+	err := c.Call(recordCtx(t), "rig.record.put", &verbsv1.RecordPutRequest{
 		Id: "T3", Kind: "note", Project: "rig", Body: "who wrote this?",
-	}, &rigv1.RecordPutResponse{})
+	}, &verbsv1.RecordPutResponse{})
 	if err == nil {
 		t.Fatal("a registered program wrote a record without announcing, so " +
 			"the terminal fallback has become a general amnesty")
@@ -336,8 +337,8 @@ func TestALostCompareAndSwapIsAConflictAndNotJustInvalid(t *testing.T) {
 	c := seated(t, sock, "team-lead")
 	ctx := recordCtx(t)
 
-	var first rigv1.RecordPutResponse
-	if err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
+	var first verbsv1.RecordPutResponse
+	if err := c.Call(ctx, "rig.record.put", &verbsv1.RecordPutRequest{
 		Kind: "note", Project: "rig", Body: "one",
 	}, &first); err != nil {
 		t.Fatal(err)
@@ -345,15 +346,15 @@ func TestALostCompareAndSwapIsAConflictAndNotJustInvalid(t *testing.T) {
 	id := first.GetRecord().GetId()
 
 	// Move it to version 2, so the caller below is holding a stale 1.
-	if err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
+	if err := c.Call(ctx, "rig.record.put", &verbsv1.RecordPutRequest{
 		Id: id, IfVersion: 1, Kind: "note", Project: "rig", Body: "two",
-	}, &rigv1.RecordPutResponse{}); err != nil {
+	}, &verbsv1.RecordPutResponse{}); err != nil {
 		t.Fatal(err)
 	}
 
-	err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
+	err := c.Call(ctx, "rig.record.put", &verbsv1.RecordPutRequest{
 		Id: id, IfVersion: 1, Kind: "note", Project: "rig", Body: "also two",
-	}, &rigv1.RecordPutResponse{})
+	}, &verbsv1.RecordPutResponse{})
 	if err == nil {
 		t.Fatal("a stale compare-and-swap overwrote a newer version")
 	}
@@ -377,30 +378,30 @@ func TestVersionZeroMeansHeadAndNotVersionZero(t *testing.T) {
 	c := seated(t, sock, "team-lead")
 	ctx := recordCtx(t)
 
-	var first rigv1.RecordPutResponse
-	if err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
+	var first verbsv1.RecordPutResponse
+	if err := c.Call(ctx, "rig.record.put", &verbsv1.RecordPutRequest{
 		Kind: "note", Project: "rig", Body: "one",
 	}, &first); err != nil {
 		t.Fatal(err)
 	}
 	id := first.GetRecord().GetId()
-	if err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
+	if err := c.Call(ctx, "rig.record.put", &verbsv1.RecordPutRequest{
 		Id: id, IfVersion: 1, Kind: "note", Project: "rig", Body: "two",
-	}, &rigv1.RecordPutResponse{}); err != nil {
+	}, &verbsv1.RecordPutResponse{}); err != nil {
 		t.Fatal(err)
 	}
 
-	var head rigv1.RecordGetResponse
-	if err := c.Call(ctx, "rig.record.get", &rigv1.RecordGetRequest{Id: id}, &head); err != nil {
+	var head verbsv1.RecordGetResponse
+	if err := c.Call(ctx, "rig.record.get", &verbsv1.RecordGetRequest{Id: id}, &head); err != nil {
 		t.Fatalf("rig.record.get at head: %v", err)
 	}
 	if got := head.GetRecord().GetBody(); got != "two" {
 		t.Errorf("version 0 answered %q, so it was read as a version rather than as HEAD", got)
 	}
 
-	var old rigv1.RecordGetResponse
+	var old verbsv1.RecordGetResponse
 	if err := c.Call(ctx, "rig.record.get",
-		&rigv1.RecordGetRequest{Id: id, Version: 1}, &old); err != nil {
+		&verbsv1.RecordGetRequest{Id: id, Version: 1}, &old); err != nil {
 		t.Fatalf("rig.record.get at version 1: %v", err)
 	}
 	if got := old.GetRecord().GetBody(); got != "one" {
@@ -408,9 +409,9 @@ func TestVersionZeroMeansHeadAndNotVersionZero(t *testing.T) {
 	}
 
 	// And history carries both, oldest first, each with its own provenance.
-	var hist rigv1.RecordHistoryResponse
+	var hist verbsv1.RecordHistoryResponse
 	if err := c.Call(ctx, "rig.record.history",
-		&rigv1.RecordHistoryRequest{Id: id}, &hist); err != nil {
+		&verbsv1.RecordHistoryRequest{Id: id}, &hist); err != nil {
 		t.Fatalf("rig.record.history: %v", err)
 	}
 	if len(hist.GetVersions()) != 2 {
@@ -447,9 +448,9 @@ func TestAnUnnamedEstateServesTheRecordFromAnEphemeralStore(t *testing.T) {
 	// The READ half. It was `project.brief` until plan/50 move 8 retired that
 	// arm; `record.query` is the same probe against the same store, and it is a
 	// verb rig still carries.
-	var got rigv1.RecordQueryResponse
+	var got verbsv1.RecordQueryResponse
 	if err := c.Call(recordCtx(t), "rig.record.query",
-		&rigv1.RecordQueryRequest{Project: "rig"}, &got); err != nil {
+		&verbsv1.RecordQueryRequest{Project: "rig"}, &got); err != nil {
 		t.Fatalf("an unnamed estate still cannot serve the record, so an agent "+
 			"has nowhere to write that is not somebody's live estate: %v", err)
 	}
@@ -458,16 +459,16 @@ func TestAnUnnamedEstateServesTheRecordFromAnEphemeralStore(t *testing.T) {
 	// not a sandbox: the survey's whole difficulty was the WRITE half, and a
 	// brief that answers on an empty store would pass an assertion about
 	// reading while leaving the measured gap exactly where it was.
-	var put rigv1.RecordPutResponse
-	if err := c.Call(recordCtx(t), "rig.record.put", &rigv1.RecordPutRequest{
+	var put verbsv1.RecordPutResponse
+	if err := c.Call(recordCtx(t), "rig.record.put", &verbsv1.RecordPutRequest{
 		Id: "scratch-1", Kind: "note", Project: "rig", Body: "written to scratch",
 	}, &put); err != nil {
 		t.Fatalf("the scratch store refused a write: %v", err)
 	}
 
-	var back rigv1.RecordGetResponse
+	var back verbsv1.RecordGetResponse
 	if err := c.Call(recordCtx(t), "rig.record.get",
-		&rigv1.RecordGetRequest{Id: "scratch-1"}, &back); err != nil {
+		&verbsv1.RecordGetRequest{Id: "scratch-1"}, &back); err != nil {
 		t.Fatalf("what was written could not be read back: %v", err)
 	}
 	if body := back.GetRecord().GetBody(); body != "written to scratch" {
@@ -519,7 +520,7 @@ func TestNoServedRequestFieldIsSilentlyDropped(t *testing.T) {
 		// in wire.proto until the next major.
 	}
 
-	files := (&rigv1.ProgressStepRequest{}).ProtoReflect().Descriptor().ParentFile()
+	files := (&verbsv1.ProgressStepRequest{}).ProtoReflect().Descriptor().ParentFile()
 	msgs := files.Messages()
 	seen := 0
 	for i := range msgs.Len() {
@@ -573,9 +574,9 @@ func TestRecordRefsCarriesEveryFieldTheStoreComputes(t *testing.T) {
 	c := seated(t, sock, "team-lead")
 	ctx := recordCtx(t)
 
-	put := func(what string, req *rigv1.RecordPutRequest) string {
+	put := func(what string, req *verbsv1.RecordPutRequest) string {
 		t.Helper()
-		var resp rigv1.RecordPutResponse
+		var resp verbsv1.RecordPutResponse
 		if err := c.Call(ctx, "rig.record.put", req, &resp); err != nil {
 			t.Fatalf("rig.record.put(%s): %v", what, err)
 		}
@@ -583,29 +584,29 @@ func TestRecordRefsCarriesEveryFieldTheStoreComputes(t *testing.T) {
 	}
 	link := func(src, typ, dst string) {
 		t.Helper()
-		if err := c.Call(ctx, "rig.record.link", &rigv1.RecordLinkRequest{
+		if err := c.Call(ctx, "rig.record.link", &verbsv1.RecordLinkRequest{
 			Src: src, Type: typ, Dst: dst,
-		}, &rigv1.RecordLinkResponse{}); err != nil {
+		}, &verbsv1.RecordLinkResponse{}); err != nil {
 			t.Fatalf("rig.record.link(%s -%s-> %s): %v", src, typ, dst, err)
 		}
 	}
 
-	put("project", &rigv1.RecordPutRequest{
+	put("project", &verbsv1.RecordPutRequest{
 		Id: "rig", Kind: "project", Project: "rig", Body: "rig itself",
 	})
-	subject := put("subject", &rigv1.RecordPutRequest{
+	subject := put("subject", &verbsv1.RecordPutRequest{
 		Kind: "work-item", Project: "rig", Body: "the CLI seam",
 		Fields: map[string]string{"title": "the seam", "status": "active"},
 	})
-	citing := put("decision", &rigv1.RecordPutRequest{
+	citing := put("decision", &verbsv1.RecordPutRequest{
 		Kind: "decision", Project: "rig", Body: "land all nine verbs at once",
 		Fields: map[string]string{"title": "nine at once"},
 	})
 	link(citing, "cites", subject)
 
-	var refs rigv1.RecordRefsResponse
+	var refs verbsv1.RecordRefsResponse
 	if err := c.Call(ctx, "rig.record.refs",
-		&rigv1.RecordRefsRequest{Id: subject}, &refs); err != nil {
+		&verbsv1.RecordRefsRequest{Id: subject}, &refs); err != nil {
 		t.Fatalf("rig.record.refs: %v", err)
 	}
 
@@ -657,18 +658,18 @@ func TestRecordRefsCarriesEveryFieldTheStoreComputes(t *testing.T) {
 	// IS "ASKED FOR, NEVER ARRIVED AT". A wire that cannot ask serves only the
 	// default, so this pair - refused by default, served when asked - is the
 	// whole of that ruling and neither half proves it alone.
-	put("other project", &rigv1.RecordPutRequest{
+	put("other project", &verbsv1.RecordPutRequest{
 		Id: "shelf", Kind: "project", Project: "shelf", Body: "another project",
 	})
-	foreign := put("foreign citation", &rigv1.RecordPutRequest{
+	foreign := put("foreign citation", &verbsv1.RecordPutRequest{
 		Kind: "decision", Project: "shelf", Body: "shelf depends on the record",
 		Fields: map[string]string{"title": "from shelf"},
 	})
 	link(foreign, "cites", subject)
 
-	var scoped rigv1.RecordRefsResponse
+	var scoped verbsv1.RecordRefsResponse
 	if err := c.Call(ctx, "rig.record.refs",
-		&rigv1.RecordRefsRequest{Id: subject}, &scoped); err != nil {
+		&verbsv1.RecordRefsRequest{Id: subject}, &scoped); err != nil {
 		t.Fatalf("rig.record.refs(scoped): %v", err)
 	}
 	if n := len(scoped.GetRefs()); n != 1 {
@@ -677,9 +678,9 @@ func TestRecordRefsCarriesEveryFieldTheStoreComputes(t *testing.T) {
 			"asked for, never arrived at", n)
 	}
 
-	var crossed rigv1.RecordRefsResponse
+	var crossed verbsv1.RecordRefsResponse
 	if err := c.Call(ctx, "rig.record.refs",
-		&rigv1.RecordRefsRequest{Id: subject, CrossProject: true}, &crossed); err != nil {
+		&verbsv1.RecordRefsRequest{Id: subject, CrossProject: true}, &crossed); err != nil {
 		t.Fatalf("rig.record.refs(cross_project): %v", err)
 	}
 	seen := map[string]bool{}
@@ -722,17 +723,17 @@ func TestAnEmptyQueryFilterMeansEveryValueOverTheWire(t *testing.T) {
 		{"rig-req-1", "requirement", "rig"},
 		{"std-odd-1", "a-kind-nobody-would-guess", "standards"},
 	} {
-		if err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
+		if err := c.Call(ctx, "rig.record.put", &verbsv1.RecordPutRequest{
 			Id: r.id, Kind: r.kind, Project: r.project, Body: "",
 			Fields: map[string]string{"title": r.id},
-		}, &rigv1.RecordPutResponse{}); err != nil {
+		}, &verbsv1.RecordPutResponse{}); err != nil {
 			t.Fatalf("rig.record.put(%s): %v", r.id, err)
 		}
 	}
 
-	query := func(project, kind string) []*rigv1.Record {
-		var resp rigv1.RecordQueryResponse
-		if err := c.Call(ctx, "rig.record.query", &rigv1.RecordQueryRequest{
+	query := func(project, kind string) []*verbsv1.Record {
+		var resp verbsv1.RecordQueryResponse
+		if err := c.Call(ctx, "rig.record.query", &verbsv1.RecordQueryRequest{
 			Project: project, Kind: kind,
 		}, &resp); err != nil {
 			t.Fatalf("rig.record.query(%q, %q): %v", project, kind, err)

@@ -12,6 +12,8 @@ import (
 
 	"github.com/borismilner/rig/client"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // Command `describe` - one thing in full (PLAN.md sections 9 and 10, M2 slice 2).
@@ -69,7 +71,7 @@ func cmdDescribe(args []string) (err error) {
 
 	// DEPTH_FULL asked for explicitly. describe is defined as "one thing in
 	// full", and the preamble travels at DEPTH_FULL only.
-	p, err := programAt(ctx, c, positional[0], rigv1.Depth_DEPTH_FULL)
+	p, err := programAt(ctx, c, positional[0], registryv1.Depth_DEPTH_FULL)
 	if err != nil {
 		return err
 	}
@@ -101,8 +103,8 @@ func describeFlagSet() (fs *flag.FlagSet, timeout *time.Duration, asJSON *bool) 
 // answers through this caller's own view and refuses what it cannot see, so
 // there is nothing here to check or reshape.
 func describeJSON(ctx context.Context, c *client.Client, program, command string) error {
-	var resp rigv1.DescribeResponse
-	if err := call(ctx, c, "rig.describe", &rigv1.DescribeRequest{
+	var resp verbsv1.DescribeResponse
+	if err := call(ctx, c, "rig.describe", &verbsv1.DescribeRequest{
 		Program: program, Command: command,
 	}, &resp); err != nil {
 		return err
@@ -114,7 +116,7 @@ func describeJSON(ctx context.Context, c *client.Client, program, command string
 // ---- the program ----------------------------------------------------------
 
 // describeProgram renders what a program said about itself, preamble first.
-func describeProgram(p *rigv1.Program) string {
+func describeProgram(p *registryv1.Program) string {
 	var b strings.Builder
 	id := p.GetIdentity()
 
@@ -180,7 +182,7 @@ func describeProgram(p *rigv1.Program) string {
 // a zero in order to keep. Help may leave it out because a person is reading
 // to type a command; describe may not, because its reader is deciding whether
 // the command belongs on a surface at all.
-func describeCommand(p *rigv1.Program, c *rigv1.Command) string {
+func describeCommand(p *registryv1.Program, c *rigv1.Command) string {
 	var b strings.Builder
 	program := p.GetIdentity().GetId()
 
@@ -353,7 +355,7 @@ func skewWord(e protoreflect.Enum) string {
 // for the same reason lookup's does: section 5k, "shelf declares 3 of its 20
 // commands" is the difference between a typo and a command that exists and has
 // not been adopted.
-func noSuchCommand(p *rigv1.Program, command string) error {
+func noSuchCommand(p *registryv1.Program, command string) error {
 	program := p.GetIdentity().GetId()
 	return local(jsonStatus{
 		Code:         codeNoSuchCommand,

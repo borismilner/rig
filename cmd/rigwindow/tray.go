@@ -9,8 +9,9 @@ import (
 	"time"
 
 	"fyne.io/systray"
+
 	"github.com/borismilner/rig/client"
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // design/tray is the source (section 11); cmd/rigwindow/icons is where the
@@ -171,10 +172,10 @@ func pollEstate(sup *supervisor) {
 	for {
 		est, connected := estateSnapshot()
 		switch {
-		case connected && est.GetRole() == rigv1.EstateRole_ESTATE_ROLE_PRODUCTION:
+		case connected && est.GetRole() == registryv1.EstateRole_ESTATE_ROLE_PRODUCTION:
 			setTrayIcon("production.png", "rig - production")
 			setFacts(est)
-		case connected && est.GetRole() == rigv1.EstateRole_ESTATE_ROLE_DEVELOPMENT:
+		case connected && est.GetRole() == registryv1.EstateRole_ESTATE_ROLE_DEVELOPMENT:
 			setTrayIcon("development.png", "rig - development")
 			setFacts(est)
 		case connected:
@@ -219,7 +220,7 @@ func pollEstate(sup *supervisor) {
 // DAEMON's, not this window's, because the daemon is the thing actually
 // running: a window left open across an upgrade would otherwise report the
 // version it was built at while talking to a newer estate.
-func setFacts(est *rigv1.EstateResponse) {
+func setFacts(est *registryv1.EstateResponse) {
 	if menuVersion == nil || menuEstate == nil {
 		return
 	}
@@ -352,7 +353,7 @@ func iconBytes(name string) []byte {
 // It returns the whole response rather than just the role, because the menu
 // needs the name and the daemon version too and a second call would be a
 // second dial answering about a possibly different instant.
-func estateSnapshot() (*rigv1.EstateResponse, bool) {
+func estateSnapshot() (*registryv1.EstateResponse, bool) {
 	c, err := client.Connect()
 	if err != nil {
 		return nil, false
@@ -362,8 +363,8 @@ func estateSnapshot() (*rigv1.EstateResponse, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), readDeadline)
 	defer cancel()
 
-	resp := &rigv1.EstateResponse{}
-	if err := c.Call(ctx, "rig.estate", &rigv1.EstateRequest{}, resp); err != nil {
+	resp := &registryv1.EstateResponse{}
+	if err := c.Call(ctx, "rig.estate", &registryv1.EstateRequest{}, resp); err != nil {
 		return nil, false
 	}
 	return resp, true

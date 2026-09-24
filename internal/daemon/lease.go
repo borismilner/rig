@@ -10,6 +10,7 @@ import (
 
 	"github.com/borismilner/rig/internal/coord"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // Section 16's leases, served. internal/coord is the whole mechanism - TTL,
@@ -64,7 +65,7 @@ func (d *Daemon) serveLeaseList(c *conn, f *rigv1.Frame) {
 		return
 	}
 	sort.Slice(all, func(i, j int) bool { return all[i].Name < all[j].Name })
-	resp := &rigv1.LeaseListResponse{}
+	resp := &verbsv1.LeaseListResponse{}
 	for _, st := range all {
 		resp.Leases = append(resp.Leases, leaseToWire(st, at))
 	}
@@ -72,7 +73,7 @@ func (d *Daemon) serveLeaseList(c *conn, f *rigv1.Frame) {
 }
 
 func (d *Daemon) serveLeaseAcquire(c *conn, f *rigv1.Frame) {
-	var req rigv1.LeaseAcquireRequest
+	var req verbsv1.LeaseAcquireRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "lease.acquire: "+err.Error())
 		return
@@ -106,11 +107,11 @@ func (d *Daemon) serveLeaseAcquire(c *conn, f *rigv1.Frame) {
 		c.failErr(f.GetStreamId(), leaseCode(err), err)
 		return
 	}
-	c.reply(f.GetStreamId(), &rigv1.LeaseAcquireResponse{Handle: handleToWire(h)})
+	c.reply(f.GetStreamId(), &verbsv1.LeaseAcquireResponse{Handle: handleToWire(h)})
 }
 
 func (d *Daemon) serveLeaseRenew(c *conn, f *rigv1.Frame) {
-	var req rigv1.LeaseRenewRequest
+	var req verbsv1.LeaseRenewRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "lease.renew: "+err.Error())
 		return
@@ -122,11 +123,11 @@ func (d *Daemon) serveLeaseRenew(c *conn, f *rigv1.Frame) {
 		c.failErr(f.GetStreamId(), leaseCode(err), err)
 		return
 	}
-	c.reply(f.GetStreamId(), &rigv1.LeaseRenewResponse{Handle: handleToWire(h)})
+	c.reply(f.GetStreamId(), &verbsv1.LeaseRenewResponse{Handle: handleToWire(h)})
 }
 
 func (d *Daemon) serveLeaseRelease(c *conn, f *rigv1.Frame) {
-	var req rigv1.LeaseReleaseRequest
+	var req verbsv1.LeaseReleaseRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "lease.release: "+err.Error())
 		return
@@ -137,14 +138,14 @@ func (d *Daemon) serveLeaseRelease(c *conn, f *rigv1.Frame) {
 		c.failErr(f.GetStreamId(), leaseCode(err), err)
 		return
 	}
-	c.reply(f.GetStreamId(), &rigv1.LeaseReleaseResponse{})
+	c.reply(f.GetStreamId(), &verbsv1.LeaseReleaseResponse{})
 }
 
 // serveLeaseBreak records WHO broke a lease as the caller's seat. A break is
 // a recorded human action, and a break by nobody in particular cannot be
 // argued with afterwards.
 func (d *Daemon) serveLeaseBreak(c *conn, f *rigv1.Frame) {
-	var req rigv1.LeaseBreakRequest
+	var req verbsv1.LeaseBreakRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "lease.break: "+err.Error())
 		return
@@ -162,7 +163,7 @@ func (d *Daemon) serveLeaseBreak(c *conn, f *rigv1.Frame) {
 		c.failErr(f.GetStreamId(), leaseCode(err), err)
 		return
 	}
-	c.reply(f.GetStreamId(), &rigv1.LeaseBreakResponse{})
+	c.reply(f.GetStreamId(), &verbsv1.LeaseBreakResponse{})
 }
 
 func refuseUnseatedLease(c *conn, f *rigv1.Frame, command string) {
@@ -213,34 +214,34 @@ func leaseCode(err error) rigv1.Code {
 	}
 }
 
-func handleToWire(h coord.Handle) *rigv1.LeaseHandle {
+func handleToWire(h coord.Handle) *verbsv1.LeaseHandle {
 	at, err := coord.Now()
 	remaining := int64(0)
 	if err == nil {
 		remaining = h.Deadline.Sub(at).Milliseconds()
 	}
-	return &rigv1.LeaseHandle{
+	return &verbsv1.LeaseHandle{
 		Name: h.Name, Holder: h.Holder, Token: h.Token, Epoch: h.Epoch,
 		RemainingMs: remaining,
 	}
 }
 
-var leaseStateWire = map[coord.State]rigv1.LeaseState{
-	coord.Held:     rigv1.LeaseState_LEASE_STATE_HELD,
-	coord.Orphaned: rigv1.LeaseState_LEASE_STATE_ORPHANED,
-	coord.Free:     rigv1.LeaseState_LEASE_STATE_FREE,
+var leaseStateWire = map[coord.State]verbsv1.LeaseState{
+	coord.Held:     verbsv1.LeaseState_LEASE_STATE_HELD,
+	coord.Orphaned: verbsv1.LeaseState_LEASE_STATE_ORPHANED,
+	coord.Free:     verbsv1.LeaseState_LEASE_STATE_FREE,
 }
 
-var livenessWire = map[coord.Liveness]rigv1.Liveness{
-	coord.LivenessUnknown: rigv1.Liveness_LIVENESS_UNKNOWN,
-	coord.Alive:           rigv1.Liveness_LIVENESS_ALIVE,
-	coord.Dead:            rigv1.Liveness_LIVENESS_DEAD,
+var livenessWire = map[coord.Liveness]verbsv1.Liveness{
+	coord.LivenessUnknown: verbsv1.Liveness_LIVENESS_UNKNOWN,
+	coord.Alive:           verbsv1.Liveness_LIVENESS_ALIVE,
+	coord.Dead:            verbsv1.Liveness_LIVENESS_DEAD,
 }
 
 // leaseToWire renders a status. A lease nobody ever took has no deadline, and
 // its distance is left at zero rather than computed from nothing.
-func leaseToWire(st coord.Status, at coord.Instant) *rigv1.Lease {
-	out := &rigv1.Lease{
+func leaseToWire(st coord.Status, at coord.Instant) *verbsv1.Lease {
+	out := &verbsv1.Lease{
 		Name:         st.Name,
 		State:        leaseStateWire[st.State],
 		Holder:       st.Holder,

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/borismilner/rig/client"
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // WHAT A THIRD PARTY READS OFF THE ROSTER, which is a different question from
@@ -37,8 +37,8 @@ import (
 
 // seatRows returns the roster rows for one seat. B9 is a COUNT of rows, so the
 // count is what this returns to be asserted on.
-func seatRows(crew []*rigv1.Seat, seat string) []*rigv1.Seat {
-	var out []*rigv1.Seat
+func seatRows(crew []*verbsv1.Seat, seat string) []*verbsv1.Seat {
+	var out []*verbsv1.Seat
 	for _, s := range crew {
 		if s.GetSeat() == seat {
 			out = append(out, s)
@@ -50,7 +50,7 @@ func seatRows(crew []*rigv1.Seat, seat string) []*rigv1.Seat {
 // awaitRows blocks until a seat has exactly n rows on the roster, and reports
 // what it saw if it never does. Presence expires with the connection, so a
 // predecessor's row leaves on the daemon's schedule rather than on the test's.
-func awaitRows(t *testing.T, watcher *client.Client, seat string, n int) []*rigv1.Seat {
+func awaitRows(t *testing.T, watcher *client.Client, seat string, n int) []*verbsv1.Seat {
 	t.Helper()
 	var last int
 	for range 200 {
@@ -79,17 +79,17 @@ func TestABoardReaderSeesAHandoffAsAStateAndNotAsASecondRow(t *testing.T) {
 	holder := dial(t, sock)
 	announce(t, holder, "backend-1", "the session token", "building")
 
-	resp := &rigv1.ActivityResponse{}
-	err := holder.Call(ctx5(t), "rig.activity", &rigv1.ActivityRequest{
+	resp := &verbsv1.ActivityResponse{}
+	err := holder.Call(ctx5(t), "rig.activity", &verbsv1.ActivityRequest{
 		Activity: "briefing my successor",
-		State:    rigv1.SeatState_SEAT_STATE_HANDING_OFF,
+		State:    verbsv1.SeatState_SEAT_STATE_HANDING_OFF,
 	}, resp)
 	if err != nil {
 		t.Fatalf("rig.activity: %v", err)
 	}
 
 	rows := awaitRows(t, watcher, "backend-1", 1)
-	if s := rows[0].GetState(); s != rigv1.SeatState_SEAT_STATE_HANDING_OFF {
+	if s := rows[0].GetState(); s != verbsv1.SeatState_SEAT_STATE_HANDING_OFF {
 		t.Fatalf("a WATCHER reads state=%v on a seat that is handing off, "+
 			"want HANDING_OFF. The state exists so the roster can say what a "+
 			"stale purpose used to say badly; a state only its own occupant "+

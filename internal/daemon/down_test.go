@@ -10,15 +10,15 @@ import (
 	"github.com/borismilner/rig/client"
 	"github.com/borismilner/rig/internal/instance"
 	"github.com/borismilner/rig/internal/kernel"
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // down calls rig.down and returns the answer, so a test asserts on the reply
 // rather than on the shutdown alone. Getting an ANSWER is half the property.
-func down(t *testing.T, c *client.Client) (*rigv1.DownResponse, error) {
+func down(t *testing.T, c *client.Client) (*verbsv1.DownResponse, error) {
 	t.Helper()
-	resp := &rigv1.DownResponse{}
-	return resp, c.Call(ctx5(t), "rig.down", &rigv1.DownRequest{}, resp)
+	resp := &verbsv1.DownResponse{}
+	return resp, c.Call(ctx5(t), "rig.down", &verbsv1.DownRequest{}, resp)
 }
 
 // stoppedWithin reports whether the socket has stopped accepting, polling
@@ -181,8 +181,8 @@ func TestAProgramCanStopTheEstateToday(t *testing.T) {
 
 	// The default rule set: nothing written, so a program's destructive call
 	// to rig is allowed.
-	resp := &rigv1.DownResponse{}
-	if err := p.Call(ctx5(t), "rig.down", &rigv1.DownRequest{}, resp); err != nil {
+	resp := &verbsv1.DownResponse{}
+	if err := p.Call(ctx5(t), "rig.down", &verbsv1.DownRequest{}, resp); err != nil {
 		t.Fatalf("a program calling rig.down was refused under the default rules: %v", err)
 	}
 	if !stopped(sock) {
@@ -200,7 +200,7 @@ func TestAProgramCanStopTheEstateToday(t *testing.T) {
 		t.Fatalf("set rules: %v", err)
 	}
 	p2 := program(t, sock2, "shelf")
-	if err := p2.Call(ctx5(t), "rig.down", &rigv1.DownRequest{}, &rigv1.DownResponse{}); err == nil {
+	if err := p2.Call(ctx5(t), "rig.down", &verbsv1.DownRequest{}, &verbsv1.DownResponse{}); err == nil {
 		t.Fatal("a rule denying programs destructive calls did not stop rig.down")
 	}
 	if !keptServing(sock2) {

@@ -10,6 +10,7 @@ import (
 	"github.com/borismilner/rig/client"
 	"github.com/borismilner/rig/internal/kernel"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // sessionOf asks rig.session for THIS connection's token.
@@ -18,10 +19,10 @@ import (
 // test that exercises one has to assert on the error rather than on a
 // response, and it calls Call directly. A parameter only ever passed "" is a
 // parameter that lies about what the helper does - `unparam` says so.
-func sessionOf(t *testing.T, c *client.Client) *rigv1.SessionResponse {
+func sessionOf(t *testing.T, c *client.Client) *verbsv1.SessionResponse {
 	t.Helper()
-	out := &rigv1.SessionResponse{}
-	if err := c.Call(ctx5(t), "rig.session", &rigv1.SessionRequest{}, out); err != nil {
+	out := &verbsv1.SessionResponse{}
+	if err := c.Call(ctx5(t), "rig.session", &verbsv1.SessionRequest{}, out); err != nil {
 		t.Fatalf("rig.session was refused: %v", err)
 	}
 	return out
@@ -118,8 +119,8 @@ func TestAResumeIsSessionDeadRatherThanAQuietlyMintedNewSession(t *testing.T) {
 	c := dial(t, up(t))
 	mine := sessionOf(t, c).GetSession()
 
-	out := &rigv1.SessionResponse{}
-	err := c.Call(ctx5(t), "rig.session", &rigv1.SessionRequest{Resume: mine}, out)
+	out := &verbsv1.SessionResponse{}
+	err := c.Call(ctx5(t), "rig.session", &verbsv1.SessionRequest{Resume: mine}, out)
 
 	var ce *client.CallError
 	if !errors.As(err, &ce) || ce.Code() != rigv1.Code_CODE_SESSION_DEAD {

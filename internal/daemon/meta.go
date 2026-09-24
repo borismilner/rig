@@ -13,6 +13,8 @@ import (
 	"github.com/borismilner/rig/internal/meta"
 	"github.com/borismilner/rig/internal/paths"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // The daemon is what runs a command for the four meta tools. Asserted here so
@@ -54,7 +56,7 @@ func (d *Daemon) EstateIdentity() meta.Estate {
 // Derived FROM the enum rather than from the estate name a second time, so a
 // role added to the proto arrives on the agent surface without a second table
 // to remember. ESTATE_ROLE_PRODUCTION becomes "production".
-func roleWord(r rigv1.EstateRole) string {
+func roleWord(r registryv1.EstateRole) string {
 	return strings.ToLower(strings.TrimPrefix(r.String(), "ESTATE_ROLE_"))
 }
 
@@ -282,7 +284,7 @@ func (m *mcpCaller) SetActivity(activity string) (meta.Crew, error) {
 	// Raised by the presence owner reviewing this file. Kept as one token
 	// rather than a comment on the risk.
 	o, ok := m.presence.setActivity(m.occ, activity,
-		rigv1.SeatState_SEAT_STATE_UNSPECIFIED)
+		verbsv1.SeatState_SEAT_STATE_UNSPECIFIED)
 	if !ok {
 		return meta.Crew{}, &kernel.RefusalError{
 			Err: fmt.Errorf("set_activity: this connection has no row on %s, "+
@@ -380,7 +382,7 @@ func (m *mcpCaller) crew(you *occupant) meta.Crew {
 // WHAT GUARDS IT INSTEAD is TestEverySeatFieldReachesTheRosterRow, which sets
 // each wire field alone and requires the row to change. Add a field to Seat and
 // that test goes red and names it; there is no compiler to catch you.
-func seatToOccupant(s *rigv1.Seat) meta.Occupant {
+func seatToOccupant(s *verbsv1.Seat) meta.Occupant {
 	return meta.Occupant{
 		Seat:              s.GetSeat(),
 		Generation:        s.GetGeneration(),
@@ -397,7 +399,7 @@ func seatToOccupant(s *rigv1.Seat) meta.Occupant {
 // stateWord is the wire's seat-state enum as the word an agent reads, derived
 // FROM the enum for the reason roleWord is: a state added to the proto arrives
 // on the agent surface without a second table to remember.
-func stateWord(s rigv1.SeatState) string {
+func stateWord(s verbsv1.SeatState) string {
 	return strings.ToLower(strings.TrimPrefix(s.String(), "SEAT_STATE_"))
 }
 
@@ -411,7 +413,7 @@ func stateWord(s rigv1.SeatState) string {
 // own principal, the same call the MCP door makes with its own, so what a
 // caller may see and the sentence it is refused with are the MCP tool's too.
 func (d *Daemon) serveDescribe(ctx context.Context, c *conn, f *rigv1.Frame) {
-	var req rigv1.DescribeRequest
+	var req verbsv1.DescribeRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "describe: "+err.Error())
 		return
@@ -434,5 +436,5 @@ func (d *Daemon) serveDescribe(ctx context.Context, c *conn, f *rigv1.Frame) {
 			"describe: rig could not render its own answer: "+err.Error())
 		return
 	}
-	c.reply(f.GetStreamId(), &rigv1.DescribeResponse{Answer: b})
+	c.reply(f.GetStreamId(), &verbsv1.DescribeResponse{Answer: b})
 }

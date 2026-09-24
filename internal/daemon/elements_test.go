@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // declaring connects a program whose declaration names these kit elements,
@@ -41,9 +42,9 @@ func TestTheDeclaredElementListRoundTrips(t *testing.T) {
 		t.Fatalf("a declaration naming served elements was refused: %v", err)
 	}
 
-	var resp rigv1.ProgramsResponse
+	var resp registryv1.ProgramsResponse
 	if err := dial(t, sock).Call(ctx5(t), "rig.programs",
-		&rigv1.ProgramsRequest{}, &resp); err != nil {
+		&registryv1.ProgramsRequest{}, &resp); err != nil {
 		t.Fatalf("programs: %v", err)
 	}
 	if len(resp.GetPrograms()) != 1 {
@@ -70,9 +71,9 @@ func TestAnUnservedElementRefusesTheHandshakeOverTheWire(t *testing.T) {
 
 	// And it is not registered, so nothing downstream can reach a program
 	// whose page rig cannot draw.
-	var resp rigv1.ProgramsResponse
+	var resp registryv1.ProgramsResponse
 	if err := dial(t, sock).Call(ctx5(t), "rig.programs",
-		&rigv1.ProgramsRequest{}, &resp); err != nil {
+		&registryv1.ProgramsRequest{}, &resp); err != nil {
 		t.Fatalf("programs: %v", err)
 	}
 	if len(resp.GetPrograms()) != 0 {

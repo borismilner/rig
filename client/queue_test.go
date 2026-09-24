@@ -24,6 +24,7 @@ import (
 	"time"
 
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // deafSocket listens, accepts, and never answers anything.
@@ -67,8 +68,8 @@ func TestAFullOutboundQueueRefusesInsteadOfWaiting(t *testing.T) {
 		holders.Add(1)
 		go func() {
 			defer holders.Done()
-			_ = c.Call(hold, "rig.programs", &rigv1.ProgramsRequest{},
-				&rigv1.ProgramsResponse{})
+			_ = c.Call(hold, "rig.programs", &registryv1.ProgramsRequest{},
+				&registryv1.ProgramsResponse{})
 		}()
 	}
 
@@ -87,7 +88,7 @@ func TestAFullOutboundQueueRefusesInsteadOfWaiting(t *testing.T) {
 	over, cancelOver := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancelOver()
 	start := time.Now()
-	err = c.Call(over, "rig.programs", &rigv1.ProgramsRequest{}, &rigv1.ProgramsResponse{})
+	err = c.Call(over, "rig.programs", &registryv1.ProgramsRequest{}, &registryv1.ProgramsResponse{})
 	took := time.Since(start)
 
 	var ce *CallError

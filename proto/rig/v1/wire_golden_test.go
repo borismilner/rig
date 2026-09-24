@@ -13,7 +13,11 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 
+	// Every Go package that generates part of rig.v1, so the registry this
+	// test walks holds the whole proto package.
 	_ "github.com/borismilner/rig/proto/rig/v1"
+	_ "github.com/borismilner/rig/proto/rig/v1/registryv1"
+	_ "github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 var updateGolden = flag.Bool("update", false, "rewrite testdata/wire_golden.txt")

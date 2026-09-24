@@ -13,7 +13,7 @@ import (
 // THERE ARE TWO STRUCTURAL DESCRIPTIONS OF A PROGRAM IN THIS REPOSITORY AND
 // NOTHING TIED THEM TOGETHER UNTIL THIS FILE.
 //
-//	programToWire / commandToWire   kernel.Program -> *rigv1.Program   (protobuf)
+//	programToWire / commandToWire   kernel.Program -> *registryv1.Program   (protobuf)
 //	meta.MarshalAnswer              meta.Answer    -> JSON bytes       (json)
 //
 // They are not the same rendering and one does not wrap the other. The

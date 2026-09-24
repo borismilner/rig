@@ -25,6 +25,8 @@ import (
 	"github.com/borismilner/rig/client"
 	"github.com/borismilner/rig/internal/paths"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 var (
@@ -479,8 +481,8 @@ func cmdDown(args []string) (err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 
-	resp := &rigv1.DownResponse{}
-	if err := call(ctx, c, "rig.down", &rigv1.DownRequest{}, resp); err != nil {
+	resp := &verbsv1.DownResponse{}
+	if err := call(ctx, c, "rig.down", &verbsv1.DownRequest{}, resp); err != nil {
 		return err
 	}
 
@@ -553,8 +555,8 @@ func cmdApps(args []string) (err error) {
 		return err
 	}
 	shown := asked
-	if shown == rigv1.Depth_DEPTH_UNSPECIFIED {
-		shown = rigv1.Depth_DEPTH_FULL
+	if shown == registryv1.Depth_DEPTH_UNSPECIFIED {
+		shown = registryv1.Depth_DEPTH_FULL
 	}
 
 	c, err := connect()
@@ -566,8 +568,8 @@ func cmdApps(args []string) (err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	resp := &rigv1.ProgramsResponse{}
-	req := &rigv1.ProgramsRequest{Depth: asked}
+	resp := &registryv1.ProgramsResponse{}
+	req := &registryv1.ProgramsRequest{Depth: asked}
 	if err := call(ctx, c, "rig.programs", req, resp); err != nil {
 		return err
 	}
@@ -637,7 +639,7 @@ func cmdApps(args []string) (err error) {
 // emitted, because that case is reachable today and its rendering is shipped
 // output; the unknown half is unreachable until a daemon is newer than its
 // client, which is what makes it free to fix now.
-func coverageLabel(p *rigv1.Program) string {
+func coverageLabel(p *registryv1.Program) string {
 	c := p.GetCoverage()
 	switch c {
 	case rigv1.Coverage_COVERAGE_FULL:
@@ -782,7 +784,7 @@ func rawSchema(args []byte) any {
 // Landing it in both now rather than with B10 is deliberate: B10 changes
 // WHERE the rendering happens and not WHAT the object says, so a converged
 // object would inherit the ambiguity instead of ending it.
-func appsJSON(ps []*rigv1.Program, d rigv1.Depth) []map[string]any {
+func appsJSON(ps []*registryv1.Program, d registryv1.Depth) []map[string]any {
 	out := make([]map[string]any, 0, len(ps))
 	for _, p := range ps {
 		cmds := make([]map[string]any, 0, len(p.GetCommands()))
@@ -852,7 +854,7 @@ func appsJSON(ps []*rigv1.Program, d rigv1.Depth) []map[string]any {
 // santhosh-tekuri rather than the kernel. The descriptor is the same contract
 // without the dependency, and it cannot drift when a depth is added.
 func depthSpellings() []string {
-	values := rigv1.Depth(0).Descriptor().Values()
+	values := registryv1.Depth(0).Descriptor().Values()
 	out := make([]string, 0, values.Len())
 	for i := range values.Len() {
 		v := values.Get(i)
@@ -870,36 +872,36 @@ func depthSpellings() []string {
 // parseDepth maps the flag onto the wire enum. An empty string is not an error
 // and not a default: it is the absent flag, which sends the zero and lets the
 // daemon's boundary restore the old wire's meaning.
-func parseDepth(s string) (rigv1.Depth, error) {
+func parseDepth(s string) (registryv1.Depth, error) {
 	if s == "" {
-		return rigv1.Depth_DEPTH_UNSPECIFIED, nil
+		return registryv1.Depth_DEPTH_UNSPECIFIED, nil
 	}
-	values := rigv1.Depth(0).Descriptor().Values()
+	values := registryv1.Depth(0).Descriptor().Values()
 	for i := range values.Len() {
 		v := values.Get(i)
 		if v.Number() == 0 {
 			continue
 		}
 		if enumLabel(string(v.Name()), "DEPTH_") == s {
-			return rigv1.Depth(v.Number()), nil
+			return registryv1.Depth(v.Number()), nil
 		}
 	}
-	return rigv1.Depth_DEPTH_UNSPECIFIED, badArgumentf(
+	return registryv1.Depth_DEPTH_UNSPECIFIED, badArgumentf(
 		"%q is not a depth; the depths are %s",
 		s, strings.Join(depthSpellings(), ", "))
 }
 
 // carriesCommands is false only at DEPTH_PROGRAMS, where kernel.atDepth sets
 // Commands to nil.
-func carriesCommands(d rigv1.Depth) bool {
-	return d != rigv1.Depth_DEPTH_PROGRAMS
+func carriesCommands(d registryv1.Depth) bool {
+	return d != registryv1.Depth_DEPTH_PROGRAMS
 }
 
 // carriesCommandDetail is true only at DEPTH_FULL. kernel.commandsAtDepth
 // drops Args, Examples, Preconditions, Sensitive, Description and Returns
 // below it; of those this renderer carries Args and Sensitive.
-func carriesCommandDetail(d rigv1.Depth) bool {
-	return d == rigv1.Depth_DEPTH_FULL
+func carriesCommandDetail(d registryv1.Depth) bool {
+	return d == registryv1.Depth_DEPTH_FULL
 }
 
 // commandCountCell is the "N commands, " run in a listing row, and it is EMPTY
@@ -909,7 +911,7 @@ func carriesCommandDetail(d rigv1.Depth) bool {
 // false one, and a human reading a listing has no other signal that the number
 // was never asked for. It is a function of its own so it can be tested without
 // a live daemon: cmdApps needs one and this does not.
-func commandCountCell(p *rigv1.Program, d rigv1.Depth) string {
+func commandCountCell(p *registryv1.Program, d registryv1.Depth) string {
 	if !carriesCommands(d) {
 		return ""
 	}
@@ -920,7 +922,7 @@ func commandCountCell(p *rigv1.Program, d rigv1.Depth) string {
 // withheldNote says what a shallow depth left out, for a human reading the
 // listing. Empty at full depth, where nothing was withheld and there is
 // nothing to disclose.
-func withheldNote(d rigv1.Depth) string {
+func withheldNote(d registryv1.Depth) string {
 	switch {
 	case !carriesCommands(d):
 		return "showing the estate only: no commands were asked for. " +

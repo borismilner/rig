@@ -9,6 +9,7 @@ import (
 
 	"github.com/borismilner/rig/client"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // withPreamble declares a program that fills every field a depth trims, so a
@@ -50,17 +51,17 @@ func connectDeclaring(t *testing.T, sock, id string) *client.Client {
 	return c
 }
 
-func estate(t *testing.T, c *client.Client, d rigv1.Depth) []*rigv1.Program {
+func estate(t *testing.T, c *client.Client, d registryv1.Depth) []*registryv1.Program {
 	t.Helper()
-	var resp rigv1.ProgramsResponse
+	var resp registryv1.ProgramsResponse
 	if err := c.Call(ctx5(t), "rig.programs",
-		&rigv1.ProgramsRequest{Depth: d}, &resp); err != nil {
+		&registryv1.ProgramsRequest{Depth: d}, &resp); err != nil {
 		t.Fatalf("programs at %v: %v", d, err)
 	}
 	return resp.GetPrograms()
 }
 
-func find(ps []*rigv1.Program, id string) *rigv1.Program {
+func find(ps []*registryv1.Program, id string) *registryv1.Program {
 	for _, p := range ps {
 		if p.GetIdentity().GetId() == id {
 			return p
@@ -84,7 +85,7 @@ func TestThePreambleReachesACallerAtAllOverTheWire(t *testing.T) {
 	sock, _ := upDaemon(t, nil)
 	connectDeclaring(t, sock, "shelf")
 
-	p := find(estate(t, dial(t, sock), rigv1.Depth_DEPTH_FULL), "shelf")
+	p := find(estate(t, dial(t, sock), registryv1.Depth_DEPTH_FULL), "shelf")
 	if p == nil {
 		t.Fatal("shelf is not in the estate")
 	}
@@ -100,9 +101,9 @@ func TestDepthTravelsAndTrimsOverTheWire(t *testing.T) {
 	connectDeclaring(t, sock, "shelf")
 	caller := dial(t, sock)
 
-	programs := find(estate(t, caller, rigv1.Depth_DEPTH_PROGRAMS), "shelf")
-	commands := find(estate(t, caller, rigv1.Depth_DEPTH_COMMANDS), "shelf")
-	full := find(estate(t, caller, rigv1.Depth_DEPTH_FULL), "shelf")
+	programs := find(estate(t, caller, registryv1.Depth_DEPTH_PROGRAMS), "shelf")
+	commands := find(estate(t, caller, registryv1.Depth_DEPTH_COMMANDS), "shelf")
+	full := find(estate(t, caller, registryv1.Depth_DEPTH_FULL), "shelf")
 	if programs == nil || commands == nil || full == nil {
 		t.Fatal("shelf is missing at some depth, so the depth filtered the estate")
 	}
@@ -155,7 +156,7 @@ func TestAnOldCallerGetsWhatItAlwaysGot(t *testing.T) {
 	connectDeclaring(t, sock, "shelf")
 
 	// Exactly what a caller written before the field existed sends.
-	old := find(estate(t, dial(t, sock), rigv1.Depth_DEPTH_UNSPECIFIED), "shelf")
+	old := find(estate(t, dial(t, sock), registryv1.Depth_DEPTH_UNSPECIFIED), "shelf")
 	if old == nil {
 		t.Fatal("an old caller saw no programs at all")
 	}
@@ -177,9 +178,9 @@ func TestADepthNeverChangesWhichProgramsAreNamed(t *testing.T) {
 	connectDeclaring(t, sock, "shelf")
 	shelf := connectDeclaring(t, sock, "grabbit")
 
-	for _, d := range []rigv1.Depth{
-		rigv1.Depth_DEPTH_UNSPECIFIED, rigv1.Depth_DEPTH_PROGRAMS,
-		rigv1.Depth_DEPTH_COMMANDS, rigv1.Depth_DEPTH_FULL,
+	for _, d := range []registryv1.Depth{
+		registryv1.Depth_DEPTH_UNSPECIFIED, registryv1.Depth_DEPTH_PROGRAMS,
+		registryv1.Depth_DEPTH_COMMANDS, registryv1.Depth_DEPTH_FULL,
 	} {
 		// An unscoped client of the owner's sees the whole estate. Checked by
 		// NAME rather than by count: a count of two would be satisfied by the
@@ -202,7 +203,7 @@ func TestADepthNeverChangesWhichProgramsAreNamed(t *testing.T) {
 	}
 }
 
-func commandNamed(t *testing.T, p *rigv1.Program, id string) *rigv1.Command {
+func commandNamed(t *testing.T, p *registryv1.Program, id string) *rigv1.Command {
 	t.Helper()
 	for _, c := range p.GetCommands() {
 		if c.GetId() == id {

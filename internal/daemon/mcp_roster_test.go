@@ -11,7 +11,7 @@ import (
 	"github.com/borismilner/rig/internal/kernel"
 	"github.com/borismilner/rig/internal/mcpserver"
 	"github.com/borismilner/rig/internal/meta"
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // TestTheDoorRequiresASeatAndTheProgramSocketStillDoesNot is condition C, and
@@ -71,9 +71,9 @@ func TestTheDoorRequiresASeatAndTheProgramSocketStillDoesNot(t *testing.T) {
 	// THE PROGRAM SOCKET STILL SERVES ONE. If this ever goes red, the rule has
 	// migrated into presence and every unseated Go caller has been broken by a
 	// change aimed at agents.
-	var got rigv1.AnnounceResponse
+	var got verbsv1.AnnounceResponse
 	if err := dial(t, sock).Call(ctx, "rig.announce",
-		&rigv1.AnnounceRequest{Purpose: "a program with no seat"}, &got); err != nil {
+		&verbsv1.AnnounceRequest{Purpose: "a program with no seat"}, &got); err != nil {
 		t.Fatalf("the program socket refused an unseated announce, so the "+
 			"door's rule has leaked into presence and every unseated Go "+
 			"caller - cmd/fakeapp and the conformance suite among them - is "+
@@ -423,7 +423,7 @@ func TestSetActivityThroughTheDoorDoesNotOverwriteTheState(t *testing.T) {
 	// state-only transition, empty line, which presence treats as leaving both
 	// the line and its age alone.
 	if _, ok := d.presence.setActivity(occ, "",
-		rigv1.SeatState_SEAT_STATE_HANDING_OFF); !ok {
+		verbsv1.SeatState_SEAT_STATE_HANDING_OFF); !ok {
 		t.Fatal("the row could not be moved into handing-off, so this test " +
 			"cannot measure whether the door preserves it")
 	}

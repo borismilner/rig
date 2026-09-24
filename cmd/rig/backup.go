@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // cmdBackupOrRestore is section 46's single seam into run's dispatch switch.
@@ -75,8 +75,8 @@ func cmdBackup(args []string) (err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), *bf.timeout)
 	defer cancel()
 
-	resp := &rigv1.BackupCreateResponse{}
-	if err := call(ctx, c, "rig.backup.create", &rigv1.BackupCreateRequest{}, resp); err != nil {
+	resp := &verbsv1.BackupCreateResponse{}
+	if err := call(ctx, c, "rig.backup.create", &verbsv1.BackupCreateRequest{}, resp); err != nil {
 		return err
 	}
 
@@ -116,7 +116,7 @@ func backupFlagSet() *backupFlags {
 // spells them rather than in the lowerCamelCase protojson would produce. Every
 // key is present on every answer, with no omitempty: an absent key reads as
 // "this was never considered", and all seven were.
-func backupJSON(r *rigv1.BackupCreateResponse) map[string]any {
+func backupJSON(r *verbsv1.BackupCreateResponse) map[string]any {
 	return map[string]any{
 		"path":              r.GetPath(),
 		"sha256":            r.GetSha256(),
@@ -136,7 +136,7 @@ func backupJSON(r *rigv1.BackupCreateResponse) map[string]any {
 // version, so a reader given one number cannot tell which question it answers.
 // Generation 22 measured 2,568 rows against 1,057 heads in this store while a
 // document said "2,538 records" and was counting neither.
-func backupText(r *rigv1.BackupCreateResponse) string {
+func backupText(r *verbsv1.BackupCreateResponse) string {
 	var b strings.Builder
 	row := func(label, value string) {
 		fmt.Fprintf(&b, "%-*s%s\n", backupColumn, label, value)
@@ -165,7 +165,7 @@ const backupColumn = 7 + 2
 // did not travel, which is a defect in the daemon that answered rather than a
 // fact about the archive - the same argument estateEpochCell spends a paragraph
 // on, for the same class of mistake.
-func backupTakenCell(r *rigv1.BackupCreateResponse) string {
+func backupTakenCell(r *verbsv1.BackupCreateResponse) string {
 	n := r.GetCreatedUnixNano()
 	if n == 0 {
 		return "(not said) - the daemon did not report when the snapshot was " +

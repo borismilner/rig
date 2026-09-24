@@ -9,6 +9,7 @@ import (
 
 	"github.com/borismilner/rig/client"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // B15: NO SURFACE IN THIS PACKAGE MAY RENDER AN ENUM VALUE AS A BARE DIGIT.
@@ -34,9 +35,9 @@ func TestNoRendererEmitsABareDigitForAnEnumValueItCannotName(t *testing.T) {
 	for name, got := range map[string]string{
 		"effects":  effectsLabel(&rigv1.Command{Effects: rigv1.Effects(unknown)}),
 		"duration": durationLabel(&rigv1.Command{Duration: rigv1.Duration(unknown)}),
-		"coverage": coverageLabel(&rigv1.Program{Coverage: rigv1.Coverage(unknown)}),
+		"coverage": coverageLabel(&registryv1.Program{Coverage: rigv1.Coverage(unknown)}),
 		"code":     codeWord(rigv1.Code(unknown)),
-		"role":     mustSkew(t, rigv1.EstateRole(unknown)),
+		"role":     mustSkew(t, registryv1.EstateRole(unknown)),
 		"shape":    shapeWord(rigv1.Shape(unknown)),
 		"tristate": tristateWord(rigv1.Tristate(unknown)),
 	} {
@@ -56,9 +57,9 @@ func TestNoRendererEmitsABareDigitForAnEnumValueItCannotName(t *testing.T) {
 	}
 }
 
-func mustSkew(t *testing.T, r rigv1.EstateRole) string {
+func mustSkew(t *testing.T, r registryv1.EstateRole) string {
 	t.Helper()
-	s, _ := estateJSON(&rigv1.EstateResponse{Role: r})["role"].(string)
+	s, _ := estateJSON(&registryv1.EstateResponse{Role: r})["role"].(string)
 	return s
 }
 
@@ -76,9 +77,9 @@ func TestEverySurfaceUsesTheOneSkewSpelling(t *testing.T) {
 	for name, got := range map[string]string{
 		"effects":  effectsLabel(&rigv1.Command{Effects: rigv1.Effects(99)}),
 		"duration": durationLabel(&rigv1.Command{Duration: rigv1.Duration(99)}),
-		"coverage": coverageLabel(&rigv1.Program{Coverage: rigv1.Coverage(99)}),
+		"coverage": coverageLabel(&registryv1.Program{Coverage: rigv1.Coverage(99)}),
 		"code":     codeWord(rigv1.Code(99)),
-		"role":     mustSkew(t, rigv1.EstateRole(99)),
+		"role":     mustSkew(t, registryv1.EstateRole(99)),
 	} {
 		if got != want {
 			t.Errorf("%s emits %q for an unknown value; every surface emits "+
@@ -106,8 +107,8 @@ func TestAKnownValueNeverRendersAsSkew(t *testing.T) {
 	var checked int
 	for _, e := range []protoreflect.Enum{
 		rigv1.Effects(0), rigv1.Duration(0), rigv1.Coverage(0),
-		rigv1.Code(0), rigv1.EstateRole(0), rigv1.Shape(0),
-		rigv1.Tristate(0), rigv1.Depth(0),
+		rigv1.Code(0), registryv1.EstateRole(0), rigv1.Shape(0),
+		rigv1.Tristate(0), registryv1.Depth(0),
 	} {
 		values := e.Descriptor().Values()
 		for i := range values.Len() {
@@ -144,14 +145,14 @@ func shiftTo(e protoreflect.Enum, n protoreflect.EnumNumber) protoreflect.Enum {
 		return rigv1.Coverage(n)
 	case rigv1.Code:
 		return rigv1.Code(n)
-	case rigv1.EstateRole:
-		return rigv1.EstateRole(n)
+	case registryv1.EstateRole:
+		return registryv1.EstateRole(n)
 	case rigv1.Shape:
 		return rigv1.Shape(n)
 	case rigv1.Tristate:
 		return rigv1.Tristate(n)
-	case rigv1.Depth:
-		return rigv1.Depth(n)
+	case registryv1.Depth:
+		return registryv1.Depth(n)
 	}
 	return e
 }

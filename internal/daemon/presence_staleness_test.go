@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/borismilner/rig/client"
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // THE AGE OF AN ACTIVITY LINE IS THE ONLY THING ON THIS ROSTER THAT CAN SAY A
@@ -60,10 +60,10 @@ func activityAge(t *testing.T, watcher *client.Client) int64 {
 
 // setActivityLine sends one activity line and returns what the occupant itself
 // was told, so both readers of the timestamp can be held to the same answer.
-func setActivityLine(t *testing.T, c *client.Client, line string) *rigv1.Seat {
+func setActivityLine(t *testing.T, c *client.Client, line string) *verbsv1.Seat {
 	t.Helper()
-	resp := &rigv1.ActivityResponse{}
-	err := c.Call(ctx5(t), "rig.activity", &rigv1.ActivityRequest{Activity: line}, resp)
+	resp := &verbsv1.ActivityResponse{}
+	err := c.Call(ctx5(t), "rig.activity", &verbsv1.ActivityRequest{Activity: line}, resp)
 	if err != nil {
 		t.Fatalf("rig.activity(%q): %v", line, err)
 	}

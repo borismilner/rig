@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // THE ONE THING THIS VERB EXISTS TO KEEP APART: the zero and UNNAMED.
@@ -21,13 +21,13 @@ import (
 // Asserted on BOTH surfaces, because they are two renderings and only one of
 // them was ever going to be checked by eye.
 func TestTheUnsetRoleAndTheUnnamedRoleNeverRenderAsEachOther(t *testing.T) {
-	unspecified := &rigv1.EstateResponse{
+	unspecified := &registryv1.EstateResponse{
 		Name: "somethingelse",
-		Role: rigv1.EstateRole_ESTATE_ROLE_UNSPECIFIED,
+		Role: registryv1.EstateRole_ESTATE_ROLE_UNSPECIFIED,
 	}
-	unnamed := &rigv1.EstateResponse{
+	unnamed := &registryv1.EstateResponse{
 		Name: "",
-		Role: rigv1.EstateRole_ESTATE_ROLE_UNNAMED,
+		Role: registryv1.EstateRole_ESTATE_ROLE_UNNAMED,
 	}
 
 	if a, b := estateRoleCell(unspecified), estateRoleCell(unnamed); a == b {
@@ -57,15 +57,15 @@ func TestTheUnsetRoleAndTheUnnamedRoleNeverRenderAsEachOther(t *testing.T) {
 // the descriptor so a fifth role added to the proto is covered the day it
 // lands rather than the day somebody remembers this test.
 func TestEveryDeclaredRoleRendersAsSomethingOfItsOwn(t *testing.T) {
-	values := rigv1.EstateRole(0).Descriptor().Values()
+	values := registryv1.EstateRole(0).Descriptor().Values()
 	seenJSON := map[string]string{}
 	seenText := map[string]string{}
 
 	var checked int
 	for i := range values.Len() {
 		v := values.Get(i)
-		r := rigv1.EstateRole(v.Number())
-		resp := &rigv1.EstateResponse{Role: r}
+		r := registryv1.EstateRole(v.Number())
+		resp := &registryv1.EstateResponse{Role: r}
 		checked++
 
 		label, ok := roleLabel(r)
@@ -111,9 +111,9 @@ func TestEveryDeclaredRoleRendersAsSomethingOfItsOwn(t *testing.T) {
 // where every other answer is a word - and the dangerous rendering reports the
 // skew as "nothing was said", which is a different and false statement.
 func TestARoleThisBuildDoesNotKnowIsReportedAsSkewAndNotAsTheZero(t *testing.T) {
-	future := &rigv1.EstateResponse{Role: rigv1.EstateRole(99)}
+	future := &registryv1.EstateResponse{Role: registryv1.EstateRole(99)}
 
-	if _, ok := roleLabel(rigv1.EstateRole(99)); ok {
+	if _, ok := roleLabel(registryv1.EstateRole(99)); ok {
 		t.Fatal("roleLabel claims to know role 99, so this test proves nothing")
 	}
 
@@ -121,7 +121,7 @@ func TestARoleThisBuildDoesNotKnowIsReportedAsSkewAndNotAsTheZero(t *testing.T) 
 	// ONE spelling across the whole CLI, and the number is IN it - this is
 	// skewToken, the same token effects, duration, shape, coverage and the
 	// daemon's own code render an unknown value with.
-	if want := skewToken(rigv1.EstateRole(99)); got != want {
+	if want := skewToken(registryv1.EstateRole(99)); got != want {
 		t.Errorf("--json emits role %q for a role this build has no name for; "+
 			"want %q, the one skew spelling this CLI uses", got, want)
 	}
@@ -149,8 +149,8 @@ func TestARoleThisBuildDoesNotKnowIsReportedAsSkewAndNotAsTheZero(t *testing.T) 
 // a daemon that failed to send one, which is the same collapse as the role's
 // and arrives through the other field.
 func TestAnUnnamedEstateSaysSoRatherThanPrintingABlank(t *testing.T) {
-	unnamed := &rigv1.EstateResponse{
-		Role: rigv1.EstateRole_ESTATE_ROLE_UNNAMED,
+	unnamed := &registryv1.EstateResponse{
+		Role: registryv1.EstateRole_ESTATE_ROLE_UNNAMED,
 	}
 	if cell := estateNameCell(unnamed); strings.TrimSpace(cell) == "" {
 		t.Fatal("an unnamed estate renders its name as a blank, which reads " +
@@ -181,10 +181,10 @@ func TestTheEstateObjectCarriesEveryKeyOnEveryAnswer(t *testing.T) {
 		"epoch",
 	}
 
-	for _, resp := range []*rigv1.EstateResponse{
+	for _, resp := range []*registryv1.EstateResponse{
 		{}, // every field its zero: the shape must not thin out
 		{
-			Name: "production", Role: rigv1.EstateRole_ESTATE_ROLE_PRODUCTION,
+			Name: "production", Role: registryv1.EstateRole_ESTATE_ROLE_PRODUCTION,
 			DaemonVersion: "0.1.0", Wire: "v1", SemanticsGen: 3,
 		},
 	} {
@@ -209,9 +209,9 @@ func TestTheEstateObjectCarriesEveryKeyOnEveryAnswer(t *testing.T) {
 // put that derivation back in the consumer, which is the whole cost the wire
 // paid a field to avoid.
 func TestJSONNeverEmitsANameWithoutARoleOrARoleWithoutAName(t *testing.T) {
-	for _, resp := range []*rigv1.EstateResponse{
-		{Name: "production", Role: rigv1.EstateRole_ESTATE_ROLE_PRODUCTION},
-		{Name: "", Role: rigv1.EstateRole_ESTATE_ROLE_UNNAMED},
+	for _, resp := range []*registryv1.EstateResponse{
+		{Name: "production", Role: registryv1.EstateRole_ESTATE_ROLE_PRODUCTION},
+		{Name: "", Role: registryv1.EstateRole_ESTATE_ROLE_UNNAMED},
 		{},
 	} {
 		obj := estateJSON(resp)
@@ -230,8 +230,8 @@ func TestJSONNeverEmitsANameWithoutARoleOrARoleWithoutAName(t *testing.T) {
 // estateColumn, because a test that derives its expectation from the constant
 // it is testing cannot see that constant move.
 func TestTheHumanBlockPrintsEveryFieldInOneColumn(t *testing.T) {
-	out := estateText(&rigv1.EstateResponse{
-		Name: "development", Role: rigv1.EstateRole_ESTATE_ROLE_DEVELOPMENT,
+	out := estateText(&registryv1.EstateResponse{
+		Name: "development", Role: registryv1.EstateRole_ESTATE_ROLE_DEVELOPMENT,
 		DaemonVersion: "0.1.0", Wire: "v1", SemanticsGen: 3, Epoch: 7,
 	})
 
@@ -289,8 +289,8 @@ func TestEstateRefusesAPositionalBeforeItDialsAnything(t *testing.T) {
 // reading this field was added to make possible, so the collapse would land in
 // the one place the field exists for.
 func TestAZeroEpochNeverRendersAsARealOne(t *testing.T) {
-	zero := estateEpochCell(&rigv1.EstateResponse{
-		Role: rigv1.EstateRole_ESTATE_ROLE_UNNAMED,
+	zero := estateEpochCell(&registryv1.EstateResponse{
+		Role: registryv1.EstateRole_ESTATE_ROLE_UNNAMED,
 	})
 	if zero == "0" {
 		t.Fatal("a zero epoch renders as the bare number 0, which reads as a " +
@@ -299,9 +299,9 @@ func TestAZeroEpochNeverRendersAsARealOne(t *testing.T) {
 	}
 
 	for _, real := range []uint64{1, 2, 10} {
-		got := estateEpochCell(&rigv1.EstateResponse{
+		got := estateEpochCell(&registryv1.EstateResponse{
 			Name: "production",
-			Role: rigv1.EstateRole_ESTATE_ROLE_PRODUCTION, Epoch: real,
+			Role: registryv1.EstateRole_ESTATE_ROLE_PRODUCTION, Epoch: real,
 		})
 		if got == zero {
 			t.Errorf("epoch %d and epoch 0 both render as %q, so a reader "+
@@ -326,11 +326,11 @@ func TestAZeroEpochNeverRendersAsARealOne(t *testing.T) {
 // this renderer can tell them apart rather than guess - and a reader told
 // "no store" about a production estate would go looking in the wrong place.
 func TestTheTwoWaysAnEpochCanBeZeroNeverRenderAsEachOther(t *testing.T) {
-	unnamed := estateEpochCell(&rigv1.EstateResponse{
-		Role: rigv1.EstateRole_ESTATE_ROLE_UNNAMED,
+	unnamed := estateEpochCell(&registryv1.EstateResponse{
+		Role: registryv1.EstateRole_ESTATE_ROLE_UNNAMED,
 	})
-	unpublished := estateEpochCell(&rigv1.EstateResponse{
-		Name: "production", Role: rigv1.EstateRole_ESTATE_ROLE_PRODUCTION,
+	unpublished := estateEpochCell(&registryv1.EstateResponse{
+		Name: "production", Role: registryv1.EstateRole_ESTATE_ROLE_PRODUCTION,
 	})
 
 	if unnamed == unpublished {
@@ -360,17 +360,17 @@ func TestTheTwoWaysAnEpochCanBeZeroNeverRenderAsEachOther(t *testing.T) {
 func TestTheEpochTravelsAsARawNumberInJSON(t *testing.T) {
 	for _, c := range []struct {
 		what string
-		resp *rigv1.EstateResponse
+		resp *registryv1.EstateResponse
 		want uint64
 	}{
-		{"a real epoch", &rigv1.EstateResponse{
+		{"a real epoch", &registryv1.EstateResponse{
 			Name: "production",
-			Role: rigv1.EstateRole_ESTATE_ROLE_PRODUCTION, Epoch: 4,
+			Role: registryv1.EstateRole_ESTATE_ROLE_PRODUCTION, Epoch: 4,
 		}, 4},
-		{"an unnamed estate", &rigv1.EstateResponse{
-			Role: rigv1.EstateRole_ESTATE_ROLE_UNNAMED,
+		{"an unnamed estate", &registryv1.EstateResponse{
+			Role: registryv1.EstateRole_ESTATE_ROLE_UNNAMED,
 		}, 0},
-		{"every field its zero", &rigv1.EstateResponse{}, 0},
+		{"every field its zero", &registryv1.EstateResponse{}, 0},
 	} {
 		got, ok := estateJSON(c.resp)["epoch"]
 		if !ok {

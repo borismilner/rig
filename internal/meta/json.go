@@ -15,7 +15,7 @@ import (
 // day it is written and diverges on the first field either one gains.
 //
 // It is NOT the socket wire's rendering, and that is deliberate rather than
-// an oversight. The wire carries rigv1.Program through the daemon's own
+// an oversight. The wire carries registryv1.Program through the daemon's own
 // converters and is described by schema/declaration.schema.json. Section 10
 // binds the CLI to the MCP tool; it does not bind either to the frame format,
 // and an agent reading this object never sees a frame. Collapsing the two

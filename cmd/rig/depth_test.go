@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // A DEPTH DECIDES WHAT THE DAEMON SENT, SO IT DECIDES WHAT THIS CLIENT MAY
@@ -29,8 +30,8 @@ func TestAShallowDepthOmitsWhatItDidNotFetchRatherThanRenderingItEmpty(t *testin
 	// What the daemon actually sends back at each depth, mirroring
 	// kernel.atDepth: DEPTH_PROGRAMS nils Commands, DEPTH_COMMANDS nils Args
 	// and Sensitive on each command, DEPTH_FULL keeps everything.
-	full := func() *rigv1.Program {
-		return &rigv1.Program{
+	full := func() *registryv1.Program {
+		return &registryv1.Program{
 			Identity: &rigv1.Identity{Id: "fakeapp", Version: "1.2.0"},
 			Coverage: rigv1.Coverage_COVERAGE_FULL,
 			Commands: []*rigv1.Command{{
@@ -42,14 +43,14 @@ func TestAShallowDepthOmitsWhatItDidNotFetchRatherThanRenderingItEmpty(t *testin
 	}
 
 	for _, tc := range []struct {
-		depth           rigv1.Depth
-		program         *rigv1.Program
+		depth           registryv1.Depth
+		program         *registryv1.Program
 		wantCommandsKey bool
 		wantDetailKeys  bool
 	}{
 		{
-			depth: rigv1.Depth_DEPTH_PROGRAMS,
-			program: func() *rigv1.Program {
+			depth: registryv1.Depth_DEPTH_PROGRAMS,
+			program: func() *registryv1.Program {
 				p := full()
 				p.Commands = nil
 				return p
@@ -57,8 +58,8 @@ func TestAShallowDepthOmitsWhatItDidNotFetchRatherThanRenderingItEmpty(t *testin
 			wantCommandsKey: false,
 		},
 		{
-			depth: rigv1.Depth_DEPTH_COMMANDS,
-			program: func() *rigv1.Program {
+			depth: registryv1.Depth_DEPTH_COMMANDS,
+			program: func() *registryv1.Program {
 				p := full()
 				p.Commands[0].Args = nil
 				p.Commands[0].Sensitive = nil
@@ -68,14 +69,14 @@ func TestAShallowDepthOmitsWhatItDidNotFetchRatherThanRenderingItEmpty(t *testin
 			wantDetailKeys:  false,
 		},
 		{
-			depth:           rigv1.Depth_DEPTH_FULL,
+			depth:           registryv1.Depth_DEPTH_FULL,
 			program:         full(),
 			wantCommandsKey: true,
 			wantDetailKeys:  true,
 		},
 	} {
 		t.Run(tc.depth.String(), func(t *testing.T) {
-			rows := appsJSON([]*rigv1.Program{tc.program}, tc.depth)
+			rows := appsJSON([]*registryv1.Program{tc.program}, tc.depth)
 			if len(rows) != 1 {
 				t.Fatalf("appsJSON rendered %d rows from one program", len(rows))
 			}
@@ -137,26 +138,26 @@ func TestAShallowDepthOmitsWhatItDidNotFetchRatherThanRenderingItEmpty(t *testin
 // needs one; this does not, and the fifteen functions that do are this
 // package's documented coverage hole.
 func TestTheCommandCountIsOmittedRatherThanZeroWhenNoCommandsWereFetched(t *testing.T) {
-	twenty := &rigv1.Program{Identity: &rigv1.Identity{Id: "fakeapp"}}
+	twenty := &registryv1.Program{Identity: &rigv1.Identity{Id: "fakeapp"}}
 	for range 20 {
 		twenty.Commands = append(twenty.Commands, &rigv1.Command{Id: "c"})
 	}
 
 	// At DEPTH_PROGRAMS the daemon sends none of them, which is what the
 	// empty program models.
-	none := &rigv1.Program{Identity: &rigv1.Identity{Id: "fakeapp"}}
+	none := &registryv1.Program{Identity: &rigv1.Identity{Id: "fakeapp"}}
 
-	if got := commandCountCell(none, rigv1.Depth_DEPTH_PROGRAMS); got != "" {
+	if got := commandCountCell(none, registryv1.Depth_DEPTH_PROGRAMS); got != "" {
 		t.Errorf("at DEPTH_PROGRAMS the count cell is %q, want empty: a program "+
 			"with twenty commands would be reported as having none, which is a "+
 			"false statement rather than a cheaper one", got)
 	}
-	if got := commandCountCell(twenty, rigv1.Depth_DEPTH_FULL); got != "20 commands, " {
+	if got := commandCountCell(twenty, registryv1.Depth_DEPTH_FULL); got != "20 commands, " {
 		t.Errorf("at DEPTH_FULL the count cell is %q, want %q", got, "20 commands, ")
 	}
 	// The control: a program that genuinely has none still says so at a depth
 	// that asked, or the omission above would be indistinguishable from it.
-	if got := commandCountCell(none, rigv1.Depth_DEPTH_FULL); got != "0 commands, " {
+	if got := commandCountCell(none, registryv1.Depth_DEPTH_FULL); got != "0 commands, " {
 		t.Errorf("at DEPTH_FULL a program with no commands renders %q, want %q - "+
 			"the omission at a shallow depth must not swallow a real zero",
 			got, "0 commands, ")
@@ -167,12 +168,12 @@ func TestTheCommandCountIsOmittedRatherThanZeroWhenNoCommandsWereFetched(t *test
 // it left out; a full one has nothing to disclose and its output is unchanged.
 func TestAShallowListingSaysWhatItWithheldAndAFullOneSaysNothing(t *testing.T) {
 	for _, tc := range []struct {
-		depth rigv1.Depth
+		depth registryv1.Depth
 		want  string
 	}{
-		{rigv1.Depth_DEPTH_PROGRAMS, "no commands were asked for"},
-		{rigv1.Depth_DEPTH_COMMANDS, "without its arguments"},
-		{rigv1.Depth_DEPTH_FULL, ""},
+		{registryv1.Depth_DEPTH_PROGRAMS, "no commands were asked for"},
+		{registryv1.Depth_DEPTH_COMMANDS, "without its arguments"},
+		{registryv1.Depth_DEPTH_FULL, ""},
 	} {
 		got := withheldNote(tc.depth)
 		switch {
@@ -196,7 +197,7 @@ func TestAShallowListingSaysWhatItWithheldAndAFullOneSaysNothing(t *testing.T) {
 // descriptor is the same contract without the dependency, and a depth added
 // to the proto is picked up here with no edit.
 func TestTheDepthSpellingsAreTheWireEnumsOwnAndExcludeTheZero(t *testing.T) {
-	values := rigv1.Depth(0).Descriptor().Values()
+	values := registryv1.Depth(0).Descriptor().Values()
 
 	var want []string
 	for i := range values.Len() {
@@ -227,7 +228,7 @@ func TestParseDepthRefusesTheZeroAndTakesAnAbsentFlagAsAbsent(t *testing.T) {
 	// boundary restores the old wire's meaning - which is the one place that
 	// knows the two disagree.
 	got, err := parseDepth("")
-	if err != nil || got != rigv1.Depth_DEPTH_UNSPECIFIED {
+	if err != nil || got != registryv1.Depth_DEPTH_UNSPECIFIED {
 		t.Errorf("an absent --depth parsed as (%v, %v), want the zero and no "+
 			"error: absence is what the compatibility rule is written against",
 			got, err)
@@ -239,7 +240,7 @@ func TestParseDepthRefusesTheZeroAndTakesAnAbsentFlagAsAbsent(t *testing.T) {
 			t.Errorf("--depth %s was refused: %v", name, err)
 			continue
 		}
-		if d == rigv1.Depth_DEPTH_UNSPECIFIED {
+		if d == registryv1.Depth_DEPTH_UNSPECIFIED {
 			t.Errorf("--depth %s parsed as the zero", name)
 		}
 	}

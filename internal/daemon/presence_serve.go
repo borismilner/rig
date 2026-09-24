@@ -8,11 +8,12 @@ import (
 
 	"github.com/borismilner/rig/internal/paths"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // serveAnnounce takes a seat, or joins the roster without one.
 func (d *Daemon) serveAnnounce(c *conn, f *rigv1.Frame) {
-	var req rigv1.AnnounceRequest
+	var req verbsv1.AnnounceRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "announce: "+err.Error())
 		return
@@ -78,7 +79,7 @@ func (d *Daemon) serveAnnounce(c *conn, f *rigv1.Frame) {
 		return
 	}
 
-	c.reply(f.GetStreamId(), &rigv1.AnnounceResponse{
+	c.reply(f.GetStreamId(), &verbsv1.AnnounceResponse{
 		You:     o.proto(),
 		Crew:    d.presence.crew(),
 		Partial: d.presence.partial(),
@@ -87,7 +88,7 @@ func (d *Daemon) serveAnnounce(c *conn, f *rigv1.Frame) {
 
 // serveActivity updates what this peer is doing now.
 func (d *Daemon) serveActivity(c *conn, f *rigv1.Frame) {
-	var req rigv1.ActivityRequest
+	var req verbsv1.ActivityRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "activity: "+err.Error())
 		return
@@ -108,12 +109,12 @@ func (d *Daemon) serveActivity(c *conn, f *rigv1.Frame) {
 				"to update. Call rig.announce with a purpose first")
 		return
 	}
-	c.reply(f.GetStreamId(), &rigv1.ActivityResponse{You: o.proto()})
+	c.reply(f.GetStreamId(), &verbsv1.ActivityResponse{You: o.proto()})
 }
 
 // servePeers reads the roster.
 func (d *Daemon) servePeers(c *conn, f *rigv1.Frame) {
-	c.reply(f.GetStreamId(), &rigv1.PeersResponse{
+	c.reply(f.GetStreamId(), &verbsv1.PeersResponse{
 		Crew:    d.presence.crew(),
 		Partial: d.presence.partial(),
 	})

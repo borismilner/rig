@@ -15,6 +15,7 @@ import (
 	"github.com/borismilner/rig/internal/coord"
 	"github.com/borismilner/rig/internal/instance"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // Section 16's leases over the real wire. internal/coord's own tests prove the
@@ -73,13 +74,13 @@ func upLeaseDaemon(t testing.TB) (string, *coord.Store) {
 	return sock, st
 }
 
-func leaseList(ctx context.Context, t *testing.T, c *client.Client) map[string]*rigv1.Lease {
+func leaseList(ctx context.Context, t *testing.T, c *client.Client) map[string]*verbsv1.Lease {
 	t.Helper()
-	var resp rigv1.LeaseListResponse
-	if err := c.Call(ctx, "rig.lease.list", &rigv1.LeaseListRequest{}, &resp); err != nil {
+	var resp verbsv1.LeaseListResponse
+	if err := c.Call(ctx, "rig.lease.list", &verbsv1.LeaseListRequest{}, &resp); err != nil {
 		t.Fatalf("rig.lease.list: %v", err)
 	}
-	out := map[string]*rigv1.Lease{}
+	out := map[string]*verbsv1.Lease{}
 	for _, l := range resp.GetLeases() {
 		out[l.GetName()] = l
 	}
@@ -106,8 +107,8 @@ func TestALeaseIsHeldBySeatAndWitnessedByTheCallersProcess(t *testing.T) {
 	a := seated(t, sock, "seat-a")
 	b := seated(t, sock, "seat-b")
 
-	var got rigv1.LeaseAcquireResponse
-	if err := a.Call(ctx, "rig.lease.acquire", &rigv1.LeaseAcquireRequest{
+	var got verbsv1.LeaseAcquireResponse
+	if err := a.Call(ctx, "rig.lease.acquire", &verbsv1.LeaseAcquireRequest{
 		Name: "deploy", TtlMs: 60_000,
 	}, &got); err != nil {
 		t.Fatalf("rig.lease.acquire: %v", err)
@@ -121,47 +122,47 @@ func TestALeaseIsHeldBySeatAndWitnessedByTheCallersProcess(t *testing.T) {
 	}
 
 	l := leaseList(ctx, t, a)["deploy"]
-	if l.GetState() != rigv1.LeaseState_LEASE_STATE_HELD || l.GetHolder() != "seat-a" {
+	if l.GetState() != verbsv1.LeaseState_LEASE_STATE_HELD || l.GetHolder() != "seat-a" {
 		t.Fatalf("the list shows %+v, want deploy HELD by seat-a", l)
 	}
 	if want := "pid " + strconv.Itoa(os.Getpid()); l.GetWitness() != want {
 		t.Errorf("the lease is witnessed by %q, want %q: the witness is the "+
 			"pid the socket reports for the caller", l.GetWitness(), want)
 	}
-	if l.GetLiveness() != rigv1.Liveness_LIVENESS_ALIVE || l.GetOwnerGone() {
+	if l.GetLiveness() != verbsv1.Liveness_LIVENESS_ALIVE || l.GetOwnerGone() {
 		t.Errorf("a live holder reads as %s, owner_gone=%v", l.GetLiveness(), l.GetOwnerGone())
 	}
 
-	err := b.Call(ctx, "rig.lease.acquire", &rigv1.LeaseAcquireRequest{
+	err := b.Call(ctx, "rig.lease.acquire", &verbsv1.LeaseAcquireRequest{
 		Name: "deploy", TtlMs: 60_000,
-	}, &rigv1.LeaseAcquireResponse{})
+	}, &verbsv1.LeaseAcquireResponse{})
 	wantCode(t, err, rigv1.Code_CODE_CONFLICT, "a second seat acquiring a held lease")
 
-	if err := a.Call(ctx, "rig.lease.renew", &rigv1.LeaseRenewRequest{
+	if err := a.Call(ctx, "rig.lease.renew", &verbsv1.LeaseRenewRequest{
 		Name: "deploy", Token: h.GetToken(), Epoch: h.GetEpoch(), TtlMs: 60_000,
-	}, &rigv1.LeaseRenewResponse{}); err != nil {
+	}, &verbsv1.LeaseRenewResponse{}); err != nil {
 		t.Fatalf("renewing with the handle: %v", err)
 	}
-	err = a.Call(ctx, "rig.lease.renew", &rigv1.LeaseRenewRequest{
+	err = a.Call(ctx, "rig.lease.renew", &verbsv1.LeaseRenewRequest{
 		Name: "deploy", Token: h.GetToken() + 1, Epoch: h.GetEpoch(), TtlMs: 60_000,
-	}, &rigv1.LeaseRenewResponse{})
+	}, &verbsv1.LeaseRenewResponse{})
 	wantCode(t, err, rigv1.Code_CODE_CONFLICT, "renewing with a token that is not the current one")
-	err = a.Call(ctx, "rig.lease.renew", &rigv1.LeaseRenewRequest{
+	err = a.Call(ctx, "rig.lease.renew", &verbsv1.LeaseRenewRequest{
 		Name: "deploy", Token: h.GetToken(), Epoch: h.GetEpoch() + 1, TtlMs: 60_000,
-	}, &rigv1.LeaseRenewResponse{})
+	}, &verbsv1.LeaseRenewResponse{})
 	wantCode(t, err, rigv1.Code_CODE_CONFLICT, "renewing with another epoch's handle")
 
-	if err := a.Call(ctx, "rig.lease.release", &rigv1.LeaseReleaseRequest{
+	if err := a.Call(ctx, "rig.lease.release", &verbsv1.LeaseReleaseRequest{
 		Name: "deploy", Token: h.GetToken(), Epoch: h.GetEpoch(),
-	}, &rigv1.LeaseReleaseResponse{}); err != nil {
+	}, &verbsv1.LeaseReleaseResponse{}); err != nil {
 		t.Fatalf("releasing: %v", err)
 	}
-	if l := leaseList(ctx, t, a)["deploy"]; l.GetState() != rigv1.LeaseState_LEASE_STATE_FREE {
+	if l := leaseList(ctx, t, a)["deploy"]; l.GetState() != verbsv1.LeaseState_LEASE_STATE_FREE {
 		t.Fatalf("after release the lease is %s, want FREE", l.GetState())
 	}
-	err = a.Call(ctx, "rig.lease.release", &rigv1.LeaseReleaseRequest{
+	err = a.Call(ctx, "rig.lease.release", &verbsv1.LeaseReleaseRequest{
 		Name: "deploy", Token: h.GetToken(), Epoch: h.GetEpoch(),
-	}, &rigv1.LeaseReleaseResponse{})
+	}, &verbsv1.LeaseReleaseResponse{})
 	wantCode(t, err, rigv1.Code_CODE_NOT_FOUND, "releasing a free lease")
 }
 
@@ -174,40 +175,40 @@ func TestAnUnwitnessedOrphanNeedsARecordedBreak(t *testing.T) {
 	a := seated(t, sock, "seat-a")
 	b := seated(t, sock, "seat-b")
 
-	if err := a.Call(ctx, "rig.lease.acquire", &rigv1.LeaseAcquireRequest{
+	if err := a.Call(ctx, "rig.lease.acquire", &verbsv1.LeaseAcquireRequest{
 		Name: "vm", TtlMs: 1, Unwitnessed: true,
-	}, &rigv1.LeaseAcquireResponse{}); err != nil {
+	}, &verbsv1.LeaseAcquireResponse{}); err != nil {
 		t.Fatalf("rig.lease.acquire: %v", err)
 	}
 	time.Sleep(20 * time.Millisecond)
 
 	l := leaseList(ctx, t, b)["vm"]
-	if l.GetState() != rigv1.LeaseState_LEASE_STATE_ORPHANED || !l.GetNeedsBreak() {
+	if l.GetState() != verbsv1.LeaseState_LEASE_STATE_ORPHANED || !l.GetNeedsBreak() {
 		t.Fatalf("an unwitnessed lease past its deadline reads %+v, want "+
 			"ORPHANED and needs_break", l)
 	}
-	if l.GetWitness() != "unwitnessed" || l.GetLiveness() != rigv1.Liveness_LIVENESS_UNKNOWN {
+	if l.GetWitness() != "unwitnessed" || l.GetLiveness() != verbsv1.Liveness_LIVENESS_UNKNOWN {
 		t.Errorf("witness %q liveness %s, want unwitnessed and UNKNOWN", l.GetWitness(), l.GetLiveness())
 	}
 	if l.GetRemainingMs() >= 0 {
 		t.Errorf("remaining_ms is %d for a lease past its deadline, want negative", l.GetRemainingMs())
 	}
 
-	err := b.Call(ctx, "rig.lease.acquire", &rigv1.LeaseAcquireRequest{
+	err := b.Call(ctx, "rig.lease.acquire", &verbsv1.LeaseAcquireRequest{
 		Name: "vm", TtlMs: 60_000,
-	}, &rigv1.LeaseAcquireResponse{})
+	}, &verbsv1.LeaseAcquireResponse{})
 	wantCode(t, err, rigv1.Code_CODE_CONFLICT, "acquiring an orphan")
 
-	err = b.Call(ctx, "rig.lease.break", &rigv1.LeaseBreakRequest{Name: "vm"}, &rigv1.LeaseBreakResponse{})
+	err = b.Call(ctx, "rig.lease.break", &verbsv1.LeaseBreakRequest{Name: "vm"}, &verbsv1.LeaseBreakResponse{})
 	wantCode(t, err, rigv1.Code_CODE_INVALID, "a break with no reason")
 
-	if err := b.Call(ctx, "rig.lease.break", &rigv1.LeaseBreakRequest{
+	if err := b.Call(ctx, "rig.lease.break", &verbsv1.LeaseBreakRequest{
 		Name: "vm", Reason: "the holder's VM was torn down",
-	}, &rigv1.LeaseBreakResponse{}); err != nil {
+	}, &verbsv1.LeaseBreakResponse{}); err != nil {
 		t.Fatalf("rig.lease.break: %v", err)
 	}
 	l = leaseList(ctx, t, a)["vm"]
-	if l.GetState() != rigv1.LeaseState_LEASE_STATE_FREE {
+	if l.GetState() != verbsv1.LeaseState_LEASE_STATE_FREE {
 		t.Fatalf("after the break the lease is %s, want FREE", l.GetState())
 	}
 	if l.GetBrokenBy() != "seat-b" || l.GetBrokenReason() != "the holder's VM was torn down" {
@@ -227,19 +228,19 @@ func TestALeaseNeedsASeatAndATTL(t *testing.T) {
 
 	// A program connection: scoped, with no terminal fallback seat.
 	p := program(t, sock, "shelf")
-	err := p.Call(ctx, "rig.lease.acquire", &rigv1.LeaseAcquireRequest{
+	err := p.Call(ctx, "rig.lease.acquire", &verbsv1.LeaseAcquireRequest{
 		Name: "x", TtlMs: 1000,
-	}, &rigv1.LeaseAcquireResponse{})
+	}, &verbsv1.LeaseAcquireResponse{})
 	wantCode(t, err, rigv1.Code_CODE_DENIED, "an acquire from a connection with no seat")
 
 	a := seated(t, sock, "seat-a")
-	err = a.Call(ctx, "rig.lease.acquire", &rigv1.LeaseAcquireRequest{Name: "x"}, &rigv1.LeaseAcquireResponse{})
+	err = a.Call(ctx, "rig.lease.acquire", &verbsv1.LeaseAcquireRequest{Name: "x"}, &verbsv1.LeaseAcquireResponse{})
 	wantCode(t, err, rigv1.Code_CODE_INVALID, "an acquire with no TTL")
 
 	long := strings.Repeat("n", maxLeaseText+1)
-	err = a.Call(ctx, "rig.lease.acquire", &rigv1.LeaseAcquireRequest{Name: long, TtlMs: 1000}, &rigv1.LeaseAcquireResponse{})
+	err = a.Call(ctx, "rig.lease.acquire", &verbsv1.LeaseAcquireRequest{Name: long, TtlMs: 1000}, &verbsv1.LeaseAcquireResponse{})
 	wantCode(t, err, rigv1.Code_CODE_INVALID, "a lease name over the bound")
-	err = a.Call(ctx, "rig.lease.break", &rigv1.LeaseBreakRequest{Name: "x", Reason: long}, &rigv1.LeaseBreakResponse{})
+	err = a.Call(ctx, "rig.lease.break", &verbsv1.LeaseBreakRequest{Name: "x", Reason: long}, &verbsv1.LeaseBreakResponse{})
 	wantCode(t, err, rigv1.Code_CODE_INVALID, "a break reason over the bound")
 }
 
@@ -247,7 +248,7 @@ func TestALeaseNeedsASeatAndATTL(t *testing.T) {
 func TestAnEstateWithNoLeaseStoreRefusesTheLeaseVerbs(t *testing.T) {
 	sock := upRecordDaemon(t)
 	c := seated(t, sock, "seat-a")
-	err := c.Call(recordCtx(t), "rig.lease.list", &rigv1.LeaseListRequest{}, &rigv1.LeaseListResponse{})
+	err := c.Call(recordCtx(t), "rig.lease.list", &verbsv1.LeaseListRequest{}, &verbsv1.LeaseListResponse{})
 	wantCode(t, err, rigv1.Code_CODE_UNAVAILABLE, "rig.lease.list with no lease store")
 	// The code alone cannot tell this refusal from coord's own ErrClosed on a
 	// nil store, which maps to the same code and explains nothing. The

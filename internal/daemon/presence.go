@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/borismilner/rig/internal/paths"
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // occupancy is WHAT PRESENCE COUNTS AN OCCUPANT BY: an identity, and not a
@@ -115,7 +115,7 @@ type occupant struct {
 	estate     string
 	purpose    string
 	activity   string
-	state      rigv1.SeatState
+	state      verbsv1.SeatState
 	announced  time.Time
 	moved      time.Time
 }
@@ -219,7 +219,7 @@ func (p *presence) announce(c *occupancy, seat, purpose, activity string) (occup
 		epoch:     p.epoch,
 		estate:    p.estate,
 		purpose:   purpose,
-		state:     rigv1.SeatState_SEAT_STATE_ACTIVE,
+		state:     verbsv1.SeatState_SEAT_STATE_ACTIVE,
 		announced: t,
 		moved:     t,
 	}
@@ -298,7 +298,7 @@ func (o *occupant) setLine(line string, t time.Time) {
 // resets itself every time a peer says what it is doing is a state nobody can
 // hold, and HANDING_OFF is precisely a state that must survive several
 // activity lines while a successor is briefed.
-func (p *presence) setActivity(c *occupancy, activity string, state rigv1.SeatState) (occupant, bool) {
+func (p *presence) setActivity(c *occupancy, activity string, state verbsv1.SeatState) (occupant, bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -307,7 +307,7 @@ func (p *presence) setActivity(c *occupancy, activity string, state rigv1.SeatSt
 		return occupant{}, false
 	}
 	o.setLine(activity, p.now())
-	if state != rigv1.SeatState_SEAT_STATE_UNSPECIFIED {
+	if state != verbsv1.SeatState_SEAT_STATE_UNSPECIFIED {
 		o.state = state
 	}
 	return *o, true
@@ -349,11 +349,11 @@ func (p *presence) leave(c *occupancy) {
 // crew is every occupant, ordered so two callers reading the same roster in
 // the same instant get the same bytes. Seated peers first, then by seat name,
 // then by when they announced - an unstable roster is one a human cannot scan.
-func (p *presence) crew() []*rigv1.Seat {
+func (p *presence) crew() []*verbsv1.Seat {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	out := make([]*rigv1.Seat, 0, len(p.by))
+	out := make([]*verbsv1.Seat, 0, len(p.by))
 	for _, o := range p.by {
 		out = append(out, o.proto())
 	}
@@ -385,8 +385,8 @@ func (p *presence) partial() bool {
 	return len(p.others()) > 0
 }
 
-func (o *occupant) proto() *rigv1.Seat {
-	return &rigv1.Seat{
+func (o *occupant) proto() *verbsv1.Seat {
+	return &verbsv1.Seat{
 		Seat:              o.seat,
 		Generation:        o.generation,
 		Epoch:             o.epoch,

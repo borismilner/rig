@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // The functions under test here are the ones that turn a declaration into the
@@ -23,13 +24,13 @@ import (
 func TestAnUnsaidCoverageDoesNotReadAsFull(t *testing.T) {
 	for _, tc := range []struct {
 		name string
-		p    *rigv1.Program
+		p    *registryv1.Program
 		want string
 	}{
-		{"unspecified", &rigv1.Program{}, "coverage?"},
+		{"unspecified", &registryv1.Program{}, "coverage?"},
 		{"absent program", nil, "coverage?"},
-		{"partial", &rigv1.Program{Coverage: rigv1.Coverage_COVERAGE_PARTIAL}, "partial"},
-		{"full", &rigv1.Program{Coverage: rigv1.Coverage_COVERAGE_FULL}, "full"},
+		{"partial", &registryv1.Program{Coverage: rigv1.Coverage_COVERAGE_PARTIAL}, "partial"},
+		{"full", &registryv1.Program{Coverage: rigv1.Coverage_COVERAGE_FULL}, "full"},
 	} {
 		if got := coverageLabel(tc.p); got != tc.want {
 			t.Errorf("%s: coverageLabel = %q, want %q", tc.name, got, tc.want)
@@ -100,7 +101,7 @@ func TestEnumLabelLeavesAStringThatDoesNotCarryThePrefix(t *testing.T) {
 }
 
 func TestCommandIDsAreSortedAndAnEmptyProgramSaysNothing(t *testing.T) {
-	p := &rigv1.Program{Commands: []*rigv1.Command{
+	p := &registryv1.Program{Commands: []*rigv1.Command{
 		{Id: "reindex"}, {Id: "purge"}, {Id: "audit"},
 	}}
 	if got, want := commandIDs(p), []string{"audit", "purge", "reindex"}; !reflect.DeepEqual(got, want) {
@@ -112,7 +113,7 @@ func TestCommandIDsAreSortedAndAnEmptyProgramSaysNothing(t *testing.T) {
 	// make an empty program indistinguishable from one command called
 	// nothing, so if this ever stops being a placeholder the test should say
 	// so rather than the completion list should.
-	if got, want := commandIDs(&rigv1.Program{}), []string{"nothing"}; !reflect.DeepEqual(got, want) {
+	if got, want := commandIDs(&registryv1.Program{}), []string{"nothing"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("commandIDs of an empty program = %v, want %v", got, want)
 	}
 }
@@ -183,7 +184,7 @@ func TestPointersIsEmptyRatherThanNull(t *testing.T) {
 }
 
 func TestAppsJSONNeverEmitsNullAndOmitsWhatWasNotDeclared(t *testing.T) {
-	ps := []*rigv1.Program{{
+	ps := []*registryv1.Program{{
 		Identity: &rigv1.Identity{Id: "fakeapp", Version: "0.1.0"},
 		Coverage: rigv1.Coverage_COVERAGE_PARTIAL,
 		Commands: []*rigv1.Command{
@@ -192,7 +193,7 @@ func TestAppsJSONNeverEmitsNullAndOmitsWhatWasNotDeclared(t *testing.T) {
 		},
 	}}
 
-	out, err := json.Marshal(appsJSON(ps, rigv1.Depth_DEPTH_FULL))
+	out, err := json.Marshal(appsJSON(ps, registryv1.Depth_DEPTH_FULL))
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
@@ -221,10 +222,10 @@ func TestAppsJSONRendersAnUnsaidTristateAsFalse(t *testing.T) {
 	// A tristate has three states and JSON gets two, so the mapping has to be
 	// "yes, or not yes". Reading unspecified as true would turn a program
 	// that never answered into one that promised something.
-	rows := appsJSON([]*rigv1.Program{{
+	rows := appsJSON([]*registryv1.Program{{
 		Identity: &rigv1.Identity{Id: "fakeapp"},
 		Commands: []*rigv1.Command{{Id: "purge"}},
-	}}, rigv1.Depth_DEPTH_FULL)
+	}}, registryv1.Depth_DEPTH_FULL)
 	cmd := rows[0]["commands"].([]map[string]any)[0]
 
 	for _, key := range []string{"idempotent", "needs_display", "interactive", "confirms"} {

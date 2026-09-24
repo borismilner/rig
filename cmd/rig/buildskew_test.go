@@ -14,6 +14,7 @@ import (
 	"github.com/borismilner/rig/client"
 	"github.com/borismilner/rig/internal/paths"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // PRECONDITION 3, ONE CASE PER ROW OF THE RULING (section 37, 2026-09-14).
@@ -23,8 +24,8 @@ import (
 // everything would pass a test that only checked the equal case, so the equal
 // case is one row among eight rather than the test.
 func TestSkewLineCoversEveryRowOfTheRuling(t *testing.T) {
-	prod := func(v string) *rigv1.EstateResponse {
-		return &rigv1.EstateResponse{Name: "production", DaemonVersion: v}
+	prod := func(v string) *registryv1.EstateResponse {
+		return &registryv1.EstateResponse{Name: "production", DaemonVersion: v}
 	}
 	notFound := &client.CallError{
 		Method: "rig.estate",
@@ -38,7 +39,7 @@ func TestSkewLineCoversEveryRowOfTheRuling(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
 		build string
-		resp  *rigv1.EstateResponse
+		resp  *registryv1.EstateResponse
 		err   error
 		want  []string // every one must appear; nil means the line must be empty
 	}{
@@ -50,7 +51,7 @@ func TestSkewLineCoversEveryRowOfTheRuling(t *testing.T) {
 		},
 		{
 			"an unnamed estate says so rather than printing an empty name",
-			"v2", &rigv1.EstateResponse{DaemonVersion: "v1"}, nil,
+			"v2", &registryv1.EstateResponse{DaemonVersion: "v1"}, nil,
 			[]string{"build skew:", "no name claimed"},
 		},
 		{
@@ -114,7 +115,7 @@ func TestSkewLineCoversEveryRowOfTheRuling(t *testing.T) {
 // sent and answers with a build, and the control run with a matching build
 // proves the line depends on the answer rather than being printed regardless.
 func TestTheSkewCheckAsksTheDaemonWhoItIs(t *testing.T) {
-	d := startFakeDaemon(t, &rigv1.EstateResponse{Name: "production", DaemonVersion: "v0.4.0"})
+	d := startFakeDaemon(t, &registryv1.EstateResponse{Name: "production", DaemonVersion: "v0.4.0"})
 	c, err := client.Dial(d.socket)
 	if err != nil {
 		t.Fatal(err)
@@ -166,7 +167,7 @@ func TestARealVerbWarnsOnSkew(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(sock), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	d := serveFakeDaemonAt(t, sock, &rigv1.EstateResponse{Name: "production", DaemonVersion: "v0.4.0"})
+	d := serveFakeDaemonAt(t, sock, &registryv1.EstateResponse{Name: "production", DaemonVersion: "v0.4.0"})
 
 	var out bytes.Buffer
 	oldOut, oldVersion := skewOut, version

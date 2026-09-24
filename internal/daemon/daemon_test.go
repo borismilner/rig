@@ -16,6 +16,7 @@ import (
 	"github.com/borismilner/rig/client"
 	"github.com/borismilner/rig/internal/instance"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // Section 5f puts the flock before the bind. Prose keeps an ordering rule one
@@ -357,8 +358,8 @@ func TestConcurrentCallersAreNotCrossed(t *testing.T) {
 // programs asks the registry what this connection may see.
 func programs(t *testing.T, c *client.Client) []string {
 	t.Helper()
-	resp := &rigv1.ProgramsResponse{}
-	if err := c.Call(ctx5(t), "rig.programs", &rigv1.ProgramsRequest{}, resp); err != nil {
+	resp := &registryv1.ProgramsResponse{}
+	if err := c.Call(ctx5(t), "rig.programs", &registryv1.ProgramsRequest{}, resp); err != nil {
 		t.Fatal(err)
 	}
 	var out []string
@@ -431,9 +432,9 @@ func TestAnEmptySensitiveListSurvivesTheWire(t *testing.T) {
 	p := program(t, sock, "sens")
 	defer p.Close()
 
-	resp := &rigv1.ProgramsResponse{}
+	resp := &registryv1.ProgramsResponse{}
 	if err := dial(t, sock).Call(ctx5(t), "rig.programs",
-		&rigv1.ProgramsRequest{}, resp); err != nil {
+		&registryv1.ProgramsRequest{}, resp); err != nil {
 		t.Fatal(err)
 	}
 	if len(resp.GetPrograms()) != 1 {
@@ -531,9 +532,9 @@ func TestTheDeclarationSurvivesTheRoundTripWhole(t *testing.T) {
 	p := program(t, sock, "whole")
 	defer p.Close()
 
-	resp := &rigv1.ProgramsResponse{}
+	resp := &registryv1.ProgramsResponse{}
 	if err := dial(t, sock).Call(ctx5(t), "rig.programs",
-		&rigv1.ProgramsRequest{}, resp); err != nil {
+		&registryv1.ProgramsRequest{}, resp); err != nil {
 		t.Fatal(err)
 	}
 	got := resp.GetPrograms()[0]

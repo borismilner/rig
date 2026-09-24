@@ -19,6 +19,7 @@ import (
 	"github.com/borismilner/rig/internal/paths"
 	"github.com/borismilner/rig/internal/record"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // The backup verb over the real wire (PLAN.md section 46).
@@ -86,8 +87,8 @@ func upBackupDaemon(t *testing.T) (string, *Daemon) {
 // `heads` different numbers.
 func putNote(t *testing.T, c *client.Client, id string, ifVersion, n uint64) string {
 	t.Helper()
-	var resp rigv1.RecordPutResponse
-	if err := c.Call(recordCtx(t), "rig.record.put", &rigv1.RecordPutRequest{
+	var resp verbsv1.RecordPutResponse
+	if err := c.Call(recordCtx(t), "rig.record.put", &verbsv1.RecordPutRequest{
 		Id: id, IfVersion: ifVersion, Kind: "note", Project: "rig",
 		Body:   "a note the archive has to carry",
 		Fields: map[string]string{"n": strconv.FormatUint(n, 10)},
@@ -133,9 +134,9 @@ func TestBackupCreateAnswersWithTheArchiveItActuallyWrote(t *testing.T) {
 		putNote(t, c, "", 0, uint64(i))
 	}
 
-	var resp rigv1.BackupCreateResponse
+	var resp verbsv1.BackupCreateResponse
 	if err := c.Call(recordCtx(t), "rig.backup.create",
-		&rigv1.BackupCreateRequest{}, &resp); err != nil {
+		&verbsv1.BackupCreateRequest{}, &resp); err != nil {
 		t.Fatalf("rig.backup.create: %v", err)
 	}
 
@@ -251,9 +252,9 @@ func TestARestoredArchiveAnswersTheSameQueryTheOriginalDid(t *testing.T) {
 		putNote(t, c, id, 1, 99)
 	}
 
-	var resp rigv1.BackupCreateResponse
+	var resp verbsv1.BackupCreateResponse
 	if err := c.Call(recordCtx(t), "rig.backup.create",
-		&rigv1.BackupCreateRequest{}, &resp); err != nil {
+		&verbsv1.BackupCreateRequest{}, &resp); err != nil {
 		t.Fatalf("rig.backup.create: %v", err)
 	}
 	if resp.GetRecords() <= resp.GetHeads() {
@@ -319,7 +320,7 @@ func TestBackupCreateRefusesAnUnnamedEstate(t *testing.T) {
 
 	c := dial(t, sock)
 	err := c.Call(recordCtx(t), "rig.backup.create",
-		&rigv1.BackupCreateRequest{}, &rigv1.BackupCreateResponse{})
+		&verbsv1.BackupCreateRequest{}, &verbsv1.BackupCreateResponse{})
 	if err == nil {
 		t.Fatal("an unnamed estate was backed up. Its store is discarded at " +
 			"every start, so the archive would describe a store that will not " +

@@ -12,6 +12,7 @@ import (
 
 	"github.com/borismilner/rig/client"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // `rig <app> <cmd>` (PLAN.md section 10, M1 slice 5).
@@ -154,7 +155,7 @@ func splitOwnFlags(argv []string) (callFlags, []string, error) {
 // of its 20 commands" is the difference between a typo and a command that
 // exists but has not been adopted yet.
 func lookup(ctx context.Context, c *client.Client, program, command string) (*rigv1.Command, error) {
-	p, err := programAt(ctx, c, program, rigv1.Depth_DEPTH_FULL)
+	p, err := programAt(ctx, c, program, registryv1.Depth_DEPTH_FULL)
 	if err != nil {
 		return nil, err
 	}
@@ -187,10 +188,10 @@ func lookup(ctx context.Context, c *client.Client, program, command string) (*ri
 // surface should be resting its definition on. Asking for what it needs costs
 // one field and cannot be quietly re-pointed by a change to that rule.
 func programAt(ctx context.Context, c *client.Client, program string,
-	d rigv1.Depth,
-) (*rigv1.Program, error) {
-	var resp rigv1.ProgramsResponse
-	req := &rigv1.ProgramsRequest{Depth: d}
+	d registryv1.Depth,
+) (*registryv1.Program, error) {
+	var resp registryv1.ProgramsResponse
+	req := &registryv1.ProgramsRequest{Depth: d}
 	if err := call(ctx, c, "rig.programs", req, &resp); err != nil {
 		return nil, err
 	}
@@ -223,7 +224,7 @@ func programAt(ctx context.Context, c *client.Client, program string,
 	})
 }
 
-func commandIDs(p *rigv1.Program) []string {
+func commandIDs(p *registryv1.Program) []string {
 	var out []string
 	for _, c := range p.GetCommands() {
 		out = append(out, c.GetId())

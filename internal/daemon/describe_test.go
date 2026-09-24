@@ -8,6 +8,7 @@ import (
 
 	"github.com/borismilner/rig/client"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // ⛔ rig.describe ANSWERS THE MCP describe TOOL'S OBJECT, BYTE FOR BYTE.
@@ -28,8 +29,8 @@ func TestDescribeOnTheWireIsTheMCPToolsObject(t *testing.T) {
 		{"one command", "shelf", "search"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			var resp rigv1.DescribeResponse
-			if err := c.Call(ctx, "rig.describe", &rigv1.DescribeRequest{
+			var resp verbsv1.DescribeResponse
+			if err := c.Call(ctx, "rig.describe", &verbsv1.DescribeRequest{
 				Program: tc.program, Command: tc.command,
 			}, &resp); err != nil {
 				t.Fatalf("rig.describe: %v", err)
@@ -66,15 +67,15 @@ func TestDescribeOnTheWireRefusesWhatItCannotSee(t *testing.T) {
 
 	for _, tc := range []struct {
 		name string
-		req  *rigv1.DescribeRequest
+		req  *verbsv1.DescribeRequest
 		code rigv1.Code
 	}{
-		{"no program", &rigv1.DescribeRequest{}, rigv1.Code_CODE_INVALID},
-		{"unknown program", &rigv1.DescribeRequest{Program: "nope"}, rigv1.Code_CODE_NOT_FOUND},
-		{"unknown command", &rigv1.DescribeRequest{Program: "shelf", Command: "nope"}, rigv1.Code_CODE_NOT_FOUND},
+		{"no program", &verbsv1.DescribeRequest{}, rigv1.Code_CODE_INVALID},
+		{"unknown program", &verbsv1.DescribeRequest{Program: "nope"}, rigv1.Code_CODE_NOT_FOUND},
+		{"unknown command", &verbsv1.DescribeRequest{Program: "shelf", Command: "nope"}, rigv1.Code_CODE_NOT_FOUND},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			err := c.Call(ctx, "rig.describe", tc.req, &rigv1.DescribeResponse{})
+			err := c.Call(ctx, "rig.describe", tc.req, &verbsv1.DescribeResponse{})
 			var re *client.CallError
 			if !errors.As(err, &re) {
 				t.Fatalf("rig.describe(%v) gave %v, want a refusal", tc.req, err)

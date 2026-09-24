@@ -3,7 +3,7 @@ package daemon
 import (
 	"testing"
 
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // THE ADDRESSABLE IDENTITY IS (estate, seat, epoch, generation), AND THE
@@ -42,7 +42,7 @@ import (
 // configured" would catch the same mutation, but it would not say what is
 // wrong with the row it caught - and a reader meeting this failure needs to
 // know the row is incoherent, not merely unexpected.
-func coherentIdentity(t *testing.T, where string, s *rigv1.Seat) {
+func coherentIdentity(t *testing.T, where string, s *verbsv1.Seat) {
 	t.Helper()
 	switch {
 	case s.GetEstate() == "" && s.GetEpoch() != 0:
@@ -110,8 +110,8 @@ func TestEverySeatServedCarriesTheEstateItIsIn(t *testing.T) {
 
 	// SITE 3: activity answers with the caller's row, and it is the site a
 	// per-response field would have missed entirely.
-	act := &rigv1.ActivityResponse{}
-	if err := seated.Call(ctx5(t), "rig.activity", &rigv1.ActivityRequest{
+	act := &verbsv1.ActivityResponse{}
+	if err := seated.Call(ctx5(t), "rig.activity", &verbsv1.ActivityRequest{
 		Activity: "still working",
 	}, act); err != nil {
 		t.Fatal(err)
@@ -191,7 +191,7 @@ func TestTheEstateIsWhatSeparatesTwoRostersAtTheSameEpoch(t *testing.T) {
 	// case depends on it.
 	for _, c := range []struct {
 		where string
-		crew  []*rigv1.Seat
+		crew  []*verbsv1.Seat
 	}{
 		{"production", roster(t, prod).GetCrew()},
 		{"development", roster(t, dev).GetCrew()},

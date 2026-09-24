@@ -8,10 +8,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/borismilner/rig/internal/record"
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/borismilner/rig/internal/record"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // B116's daemon half: the page budget and the opaque cursor that carries a
@@ -148,9 +149,9 @@ func decodeRecordCursor(s string) (record.Cursor, error) {
 // failure and not this one.
 func recordPage(
 	ctx context.Context, st *record.Store, f record.QueryFilter, after record.Cursor, limit int,
-) ([]*rigv1.Record, record.Cursor, error) {
+) ([]*verbsv1.Record, record.Cursor, error) {
 	var (
-		out  []*rigv1.Record
+		out  []*verbsv1.Record
 		cur  = after
 		size int
 	)

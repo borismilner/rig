@@ -7,10 +7,12 @@ import (
 	"os/user"
 	"strconv"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/borismilner/rig/internal/kernel"
 	"github.com/borismilner/rig/internal/record"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
-	"google.golang.org/protobuf/proto"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // The record verbs (PLAN.md section 39).
@@ -258,15 +260,15 @@ func (d *Daemon) refuseUnattributed(c *conn, f *rigv1.Frame, command string) {
 	})
 }
 
-func recordToWire(r record.Record) *rigv1.Record {
-	return &rigv1.Record{
+func recordToWire(r record.Record) *verbsv1.Record {
+	return &verbsv1.Record{
 		Id:      r.ID,
 		Version: r.Version,
 		Kind:    r.Kind,
 		Project: r.Project,
 		Body:    r.Body,
 		Fields:  r.Fields,
-		Prov: &rigv1.Provenance{
+		Prov: &verbsv1.Provenance{
 			Session:    r.Prov.Session,
 			Seat:       r.Prov.Seat,
 			Epoch:      r.Prov.Epoch,
@@ -281,7 +283,7 @@ func recordToWire(r record.Record) *rigv1.Record {
 }
 
 func (d *Daemon) serveRecordPut(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
-	var req rigv1.RecordPutRequest
+	var req verbsv1.RecordPutRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.put: "+err.Error())
 		return
@@ -306,11 +308,11 @@ func (d *Daemon) serveRecordPut(ctx context.Context, c *conn, f *rigv1.Frame, st
 		c.failErr(f.GetStreamId(), recordCode(err), err)
 		return
 	}
-	c.reply(f.GetStreamId(), &rigv1.RecordPutResponse{Record: recordToWire(rec)})
+	c.reply(f.GetStreamId(), &verbsv1.RecordPutResponse{Record: recordToWire(rec)})
 }
 
 func (d *Daemon) serveRecordGet(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
-	var req rigv1.RecordGetRequest
+	var req verbsv1.RecordGetRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.get: "+err.Error())
 		return
@@ -330,11 +332,11 @@ func (d *Daemon) serveRecordGet(ctx context.Context, c *conn, f *rigv1.Frame, st
 		c.failErr(f.GetStreamId(), recordCode(err), err)
 		return
 	}
-	c.reply(f.GetStreamId(), &rigv1.RecordGetResponse{Record: recordToWire(rec)})
+	c.reply(f.GetStreamId(), &verbsv1.RecordGetResponse{Record: recordToWire(rec)})
 }
 
 func (d *Daemon) serveRecordQuery(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
-	var req rigv1.RecordQueryRequest
+	var req verbsv1.RecordQueryRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.query: "+err.Error())
 		return
@@ -399,7 +401,7 @@ func (d *Daemon) serveRecordQuery(ctx context.Context, c *conn, f *rigv1.Frame, 
 		c.failErr(f.GetStreamId(), recordCode(err), err)
 		return
 	}
-	resp := &rigv1.RecordQueryResponse{Records: recs}
+	resp := &verbsv1.RecordQueryResponse{Records: recs}
 	if next != (record.Cursor{}) {
 		cursor, err := encodeRecordCursor(next)
 		if err != nil {
@@ -412,7 +414,7 @@ func (d *Daemon) serveRecordQuery(ctx context.Context, c *conn, f *rigv1.Frame, 
 }
 
 func (d *Daemon) serveRecordHistory(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
-	var req rigv1.RecordHistoryRequest
+	var req verbsv1.RecordHistoryRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.history: "+err.Error())
 		return
@@ -422,7 +424,7 @@ func (d *Daemon) serveRecordHistory(ctx context.Context, c *conn, f *rigv1.Frame
 		c.failErr(f.GetStreamId(), recordCode(err), err)
 		return
 	}
-	resp := &rigv1.RecordHistoryResponse{}
+	resp := &verbsv1.RecordHistoryResponse{}
 	for _, r := range recs {
 		resp.Versions = append(resp.Versions, recordToWire(r))
 	}
@@ -436,7 +438,7 @@ func (d *Daemon) serveRecordHistory(ctx context.Context, c *conn, f *rigv1.Frame
 // a second thing to keep in step with section 39: two validators drift, one
 // does not.
 func (d *Daemon) serveRecordLink(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
-	var req rigv1.RecordLinkRequest
+	var req verbsv1.RecordLinkRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.link: "+err.Error())
 		return
@@ -449,11 +451,11 @@ func (d *Daemon) serveRecordLink(ctx context.Context, c *conn, f *rigv1.Frame, s
 		c.failErr(f.GetStreamId(), recordCode(err), err)
 		return
 	}
-	c.reply(f.GetStreamId(), &rigv1.RecordLinkResponse{})
+	c.reply(f.GetStreamId(), &verbsv1.RecordLinkResponse{})
 }
 
 func (d *Daemon) serveRecordUnlink(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
-	var req rigv1.RecordUnlinkRequest
+	var req verbsv1.RecordUnlinkRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.unlink: "+err.Error())
 		return
@@ -466,7 +468,7 @@ func (d *Daemon) serveRecordUnlink(ctx context.Context, c *conn, f *rigv1.Frame,
 		c.failErr(f.GetStreamId(), recordCode(err), err)
 		return
 	}
-	c.reply(f.GetStreamId(), &rigv1.RecordUnlinkResponse{})
+	c.reply(f.GetStreamId(), &verbsv1.RecordUnlinkResponse{})
 }
 
 // stepStateNames maps the wire's enum to the store's strings.
@@ -476,14 +478,14 @@ func (d *Daemon) serveRecordUnlink(ctx context.Context, c *conn, f *rigv1.Frame,
 // proto and this map enforces at the boundary.
 // TestTheStepVocabularyIsTheWireEnumAndNothingElse pins it to the enum and to
 // the store's set.
-var stepStateNames = map[rigv1.StepState]string{
-	rigv1.StepState_STEP_STATE_STARTED: "started",
-	rigv1.StepState_STEP_STATE_BLOCKED: "blocked",
-	rigv1.StepState_STEP_STATE_DONE:    "done",
+var stepStateNames = map[verbsv1.StepState]string{
+	verbsv1.StepState_STEP_STATE_STARTED: "started",
+	verbsv1.StepState_STEP_STATE_BLOCKED: "blocked",
+	verbsv1.StepState_STEP_STATE_DONE:    "done",
 }
 
 func (d *Daemon) serveProgressStep(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
-	var req rigv1.ProgressStepRequest
+	var req verbsv1.ProgressStepRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "progress.step: "+err.Error())
 		return
@@ -525,7 +527,7 @@ func (d *Daemon) serveProgressStep(ctx context.Context, c *conn, f *rigv1.Frame,
 		c.failErr(f.GetStreamId(), recordCode(err), err)
 		return
 	}
-	c.reply(f.GetStreamId(), &rigv1.ProgressStepResponse{Step: recordToWire(rec)})
+	c.reply(f.GetStreamId(), &verbsv1.ProgressStepResponse{Step: recordToWire(rec)})
 }
 
 // serveRecordRefs answers what points AT a record - section 39's "correlated",
@@ -537,7 +539,7 @@ func (d *Daemon) serveProgressStep(ctx context.Context, c *conn, f *rigv1.Frame,
 // capability exists to prevent. The truncation flag is the same argument at the
 // other end of the walk.
 func (d *Daemon) serveRecordRefs(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
-	var req rigv1.RecordRefsRequest
+	var req verbsv1.RecordRefsRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.refs: "+err.Error())
 		return
@@ -573,7 +575,7 @@ const maxRefsIDs = 256
 // caller waits out its deadline with nothing said - so the size is measured
 // here against the budget record.query pages by, and a batch over it is told
 // to ask for fewer.
-func (d *Daemon) serveRecordRefsMany(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store, req *rigv1.RecordRefsRequest) {
+func (d *Daemon) serveRecordRefsMany(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store, req *verbsv1.RecordRefsRequest) {
 	if req.GetId() != "" {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID,
 			"record.refs: set id or ids, not both; ids answers every subject it names")
@@ -586,7 +588,7 @@ func (d *Daemon) serveRecordRefsMany(ctx context.Context, c *conn, f *rigv1.Fram
 			n, maxRefsIDs, maxRefsIDs))
 		return
 	}
-	out := &rigv1.RecordRefsResponse{}
+	out := &verbsv1.RecordRefsResponse{}
 	for _, id := range req.GetIds() {
 		one, err := refsFor(ctx, st, id, req)
 		if err != nil {
@@ -607,7 +609,7 @@ func (d *Daemon) serveRecordRefsMany(ctx context.Context, c *conn, f *rigv1.Fram
 
 // refsFor walks one subject and renders it for the wire. Both forms of
 // record.refs answer through it.
-func refsFor(ctx context.Context, st *record.Store, id string, req *rigv1.RecordRefsRequest) (*rigv1.RecordRefsResponse, error) {
+func refsFor(ctx context.Context, st *record.Store, id string, req *verbsv1.RecordRefsRequest) (*verbsv1.RecordRefsResponse, error) {
 	refs, err := st.Refs(ctx, record.RefsRequest{
 		ID: id,
 		// The store reads zero as its own default and says which depth it
@@ -635,13 +637,13 @@ func refsFor(ctx context.Context, st *record.Store, id string, req *rigv1.Record
 	if answered == 0 {
 		answered = uint32(record.DefaultRefsDepth)
 	}
-	resp := &rigv1.RecordRefsResponse{
+	resp := &verbsv1.RecordRefsResponse{
 		Id:        refs.ID,
 		Depth:     answered,
 		Truncated: refs.Truncated,
 	}
 	for _, r := range refs.Refs {
-		w := &rigv1.Ref{
+		w := &verbsv1.Ref{
 			Src:   r.ID,
 			Type:  r.Type,
 			Kind:  r.Kind,
@@ -667,7 +669,7 @@ func refsFor(ctx context.Context, st *record.Store, id string, req *rigv1.Record
 	// edge to break, because choosing which one is wrong is a judgement about
 	// the work rather than about the graph.
 	for _, cy := range refs.Cycles {
-		resp.Cycles = append(resp.Cycles, &rigv1.Cycle{Items: cy})
+		resp.Cycles = append(resp.Cycles, &verbsv1.Cycle{Items: cy})
 	}
 	return resp, nil
 }
@@ -754,15 +756,15 @@ func recordCode(err error) rigv1.Code {
 // ⛔ nil AND NOT AN EMPTY MESSAGE. An empty Retraction would decode as "this
 // record is withdrawn and every fact about the withdrawal is missing", which is
 // the reassuring-lie direction: a reader would treat a live record as gone.
-func retractionToWire(r *record.Retraction) *rigv1.Retraction {
+func retractionToWire(r *record.Retraction) *verbsv1.Retraction {
 	if r == nil {
 		return nil
 	}
-	return &rigv1.Retraction{
+	return &verbsv1.Retraction{
 		Id:         r.ID,
 		Reason:     r.Reason,
 		ReplacedBy: r.ReplacedBy,
-		Prov: &rigv1.Provenance{
+		Prov: &verbsv1.Provenance{
 			Session:    r.Prov.Session,
 			Seat:       r.Prov.Seat,
 			Epoch:      r.Prov.Epoch,
@@ -772,16 +774,16 @@ func retractionToWire(r *record.Retraction) *rigv1.Retraction {
 }
 
 // edgesToWire maps an account of dropped or moved edges.
-func edgesToWire(in []record.Edge) []*rigv1.Edge {
-	out := make([]*rigv1.Edge, 0, len(in))
+func edgesToWire(in []record.Edge) []*verbsv1.Edge {
+	out := make([]*verbsv1.Edge, 0, len(in))
 	for _, e := range in {
-		out = append(out, &rigv1.Edge{Src: e.Src, Type: e.Type, Dst: e.Dst})
+		out = append(out, &verbsv1.Edge{Src: e.Src, Type: e.Type, Dst: e.Dst})
 	}
 	return out
 }
 
 func (d *Daemon) serveRecordRetract(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
-	var req rigv1.RecordRetractRequest
+	var req verbsv1.RecordRetractRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.retract: "+err.Error())
 		return
@@ -799,13 +801,13 @@ func (d *Daemon) serveRecordRetract(ctx context.Context, c *conn, f *rigv1.Frame
 		c.failErr(f.GetStreamId(), recordCode(err), err)
 		return
 	}
-	c.reply(f.GetStreamId(), &rigv1.RecordRetractResponse{
+	c.reply(f.GetStreamId(), &verbsv1.RecordRetractResponse{
 		Retraction: retractionToWire(&out), Already: out.Already,
 	})
 }
 
 func (d *Daemon) serveRecordDelete(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
-	var req rigv1.RecordDeleteRequest
+	var req verbsv1.RecordDeleteRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.delete: "+err.Error())
 		return
@@ -824,14 +826,14 @@ func (d *Daemon) serveRecordDelete(ctx context.Context, c *conn, f *rigv1.Frame,
 		c.failErr(f.GetStreamId(), recordCode(err), err)
 		return
 	}
-	c.reply(f.GetStreamId(), &rigv1.RecordDeleteResponse{
+	c.reply(f.GetStreamId(), &verbsv1.RecordDeleteResponse{
 		Id: out.ID, Versions: out.Versions,
 		Edges: edgesToWire(out.Edges), DryRun: out.DryRun,
 	})
 }
 
 func (d *Daemon) serveRecordReplace(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
-	var req rigv1.RecordReplaceRequest
+	var req verbsv1.RecordReplaceRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.replace: "+err.Error())
 		return
@@ -849,7 +851,7 @@ func (d *Daemon) serveRecordReplace(ctx context.Context, c *conn, f *rigv1.Frame
 		c.failErr(f.GetStreamId(), recordCode(err), err)
 		return
 	}
-	c.reply(f.GetStreamId(), &rigv1.RecordReplaceResponse{
+	c.reply(f.GetStreamId(), &verbsv1.RecordReplaceResponse{
 		Old: out.Old, New: out.New,
 		Moved: edgesToWire(out.Moved), Merged: edgesToWire(out.Merged),
 		Dropped: edgesToWire(out.Dropped),

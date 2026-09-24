@@ -6,6 +6,7 @@ import (
 
 	"github.com/borismilner/rig/internal/kernel"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // The wire and the kernel do not share types, and the translation lives here
@@ -177,11 +178,11 @@ func commandFromWire(c *rigv1.Command) kernel.Command {
 // what the wire used to mean. Section 21's enum rule is about what a zero may
 // MEAN in a decision; restoring a previous wire's behaviour at the boundary is
 // not a decision the sender is being credited with.
-func depthIn(d rigv1.Depth) kernel.Depth {
+func depthIn(d registryv1.Depth) kernel.Depth {
 	switch d {
-	case rigv1.Depth_DEPTH_PROGRAMS:
+	case registryv1.Depth_DEPTH_PROGRAMS:
 		return kernel.DepthPrograms
-	case rigv1.Depth_DEPTH_COMMANDS:
+	case registryv1.Depth_DEPTH_COMMANDS:
 		return kernel.DepthCommands
 	default:
 		return kernel.DepthFull
@@ -189,8 +190,8 @@ func depthIn(d rigv1.Depth) kernel.Depth {
 }
 
 // programToWire renders one program as a principal was allowed to see it.
-func programToWire(p kernel.Program) *rigv1.Program {
-	out := &rigv1.Program{
+func programToWire(p kernel.Program) *registryv1.Program {
+	out := &registryv1.Program{
 		Identity: &rigv1.Identity{
 			Id:          p.Identity.ID,
 			Name:        p.Identity.Name,

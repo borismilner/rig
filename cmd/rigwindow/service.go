@@ -8,6 +8,7 @@ import (
 	"github.com/borismilner/rig/client"
 	"github.com/borismilner/rig/internal/paths"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // readDeadline is short on purpose. A surface that hangs is worse than one that
@@ -81,8 +82,8 @@ func (RigService) Programs() ([]Program, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), readDeadline)
 	defer cancel()
 
-	resp := &rigv1.ProgramsResponse{}
-	if err := c.Call(ctx, "rig.programs", &rigv1.ProgramsRequest{}, resp); err != nil {
+	resp := &registryv1.ProgramsResponse{}
+	if err := c.Call(ctx, "rig.programs", &registryv1.ProgramsRequest{}, resp); err != nil {
 		return nil, err
 	}
 
@@ -124,8 +125,8 @@ func (RigService) Health() Health {
 	ctx, cancel := context.WithTimeout(context.Background(), readDeadline)
 	defer cancel()
 
-	resp := &rigv1.ProgramsResponse{}
-	if err := c.Call(ctx, "rig.programs", &rigv1.ProgramsRequest{}, resp); err != nil {
+	resp := &registryv1.ProgramsResponse{}
+	if err := c.Call(ctx, "rig.programs", &registryv1.ProgramsRequest{}, resp); err != nil {
 		h.Detail = fmt.Sprintf("connected, but the registry did not answer: %v", err)
 		return h
 	}

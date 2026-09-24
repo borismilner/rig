@@ -14,6 +14,7 @@ import (
 
 	"github.com/borismilner/rig/client"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // B43. A WORD rig CANNOT RESOLVE AS A PROGRAM HAS TWO READINGS AND THE REFUSAL
@@ -33,11 +34,11 @@ import (
 func TestEveryNotConnectedRefusalOffersTheSecondReading(t *testing.T) {
 	// The zero-programs case is the one B43 was filed from: it is what an
 	// operator on an old build actually sees.
-	none := startFakeDaemon(t, &rigv1.ProgramsResponse{})
+	none := startFakeDaemon(t, &registryv1.ProgramsResponse{})
 	// And the case where programs ARE connected, because the word is no less
 	// likely to have been a subcommand just because something else is running.
-	some := startFakeDaemon(t, &rigv1.ProgramsResponse{
-		Programs: []*rigv1.Program{{Identity: &rigv1.Identity{Id: "ledger"}}},
+	some := startFakeDaemon(t, &registryv1.ProgramsResponse{
+		Programs: []*registryv1.Program{{Identity: &rigv1.Identity{Id: "ledger"}}},
 	})
 
 	for _, c := range []struct {

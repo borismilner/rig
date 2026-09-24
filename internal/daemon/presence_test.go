@@ -9,13 +9,13 @@ import (
 
 	"github.com/borismilner/rig/client"
 	"github.com/borismilner/rig/internal/instance"
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
-func announce(t *testing.T, c *client.Client, seat, purpose, activity string) *rigv1.AnnounceResponse {
+func announce(t *testing.T, c *client.Client, seat, purpose, activity string) *verbsv1.AnnounceResponse {
 	t.Helper()
-	resp := &rigv1.AnnounceResponse{}
-	err := c.Call(ctx5(t), "rig.announce", &rigv1.AnnounceRequest{
+	resp := &verbsv1.AnnounceResponse{}
+	err := c.Call(ctx5(t), "rig.announce", &verbsv1.AnnounceRequest{
 		Seat: seat, Purpose: purpose, Activity: activity,
 	}, resp)
 	if err != nil {
@@ -24,10 +24,10 @@ func announce(t *testing.T, c *client.Client, seat, purpose, activity string) *r
 	return resp
 }
 
-func roster(t *testing.T, c *client.Client) *rigv1.PeersResponse {
+func roster(t *testing.T, c *client.Client) *verbsv1.PeersResponse {
 	t.Helper()
-	resp := &rigv1.PeersResponse{}
-	if err := c.Call(ctx5(t), "rig.peers", &rigv1.PeersRequest{}, resp); err != nil {
+	resp := &verbsv1.PeersResponse{}
+	if err := c.Call(ctx5(t), "rig.peers", &verbsv1.PeersRequest{}, resp); err != nil {
 		t.Fatalf("rig.peers: %v", err)
 	}
 	return resp
@@ -56,7 +56,7 @@ func TestASeatKeepsItsNameAndCountsItsOccupants(t *testing.T) {
 	// "backend-1 generation 1" could not tell which session it reached, which
 	// is the defect this whole mechanism exists to close.
 	second := dial(t, sock)
-	var got2 *rigv1.AnnounceResponse
+	var got2 *verbsv1.AnnounceResponse
 	for range 50 {
 		got2 = announce(t, second, "backend-1", "the successor", "taking over")
 		if got2.GetYou().GetGeneration() == 2 {
@@ -83,9 +83,9 @@ func TestAHeldSeatIsRefusedAndTheRefusalNamesTheHolder(t *testing.T) {
 	announce(t, held, "team-lead", "sequencing the cutover", "writing the plan")
 
 	intruder := dial(t, sock)
-	err := intruder.Call(ctx5(t), "rig.announce", &rigv1.AnnounceRequest{
+	err := intruder.Call(ctx5(t), "rig.announce", &verbsv1.AnnounceRequest{
 		Seat: "team-lead", Purpose: "also sequencing the cutover",
-	}, &rigv1.AnnounceResponse{})
+	}, &verbsv1.AnnounceResponse{})
 	if err == nil {
 		t.Fatal("a second live peer took a held seat; both now believe they " +
 			"are team-lead and neither will find out")
@@ -128,10 +128,10 @@ func TestHandingOffSurvivesLaterActivityLines(t *testing.T) {
 	c := dial(t, sock)
 	announce(t, c, "backend-2", "the session token", "building")
 
-	set := func(activity string, state rigv1.SeatState) *rigv1.Seat {
+	set := func(activity string, state verbsv1.SeatState) *verbsv1.Seat {
 		t.Helper()
-		resp := &rigv1.ActivityResponse{}
-		err := c.Call(ctx5(t), "rig.activity", &rigv1.ActivityRequest{
+		resp := &verbsv1.ActivityResponse{}
+		err := c.Call(ctx5(t), "rig.activity", &verbsv1.ActivityRequest{
 			Activity: activity, State: state,
 		}, resp)
 		if err != nil {
@@ -140,13 +140,13 @@ func TestHandingOffSurvivesLaterActivityLines(t *testing.T) {
 		return resp.GetYou()
 	}
 
-	if s := set("briefing my successor", rigv1.SeatState_SEAT_STATE_HANDING_OFF).GetState(); s != rigv1.SeatState_SEAT_STATE_HANDING_OFF {
+	if s := set("briefing my successor", verbsv1.SeatState_SEAT_STATE_HANDING_OFF).GetState(); s != verbsv1.SeatState_SEAT_STATE_HANDING_OFF {
 		t.Fatalf("state = %v, want HANDING_OFF", s)
 	}
 	// UNSPECIFIED means "leave it alone". A state that resets itself whenever
 	// a peer says what it is doing is a state nobody can hold.
-	got := set("answering its questions", rigv1.SeatState_SEAT_STATE_UNSPECIFIED)
-	if got.GetState() != rigv1.SeatState_SEAT_STATE_HANDING_OFF {
+	got := set("answering its questions", verbsv1.SeatState_SEAT_STATE_UNSPECIFIED)
+	if got.GetState() != verbsv1.SeatState_SEAT_STATE_HANDING_OFF {
 		t.Fatalf("state fell back to %v after an ordinary activity call; "+
 			"UNSPECIFIED must leave the state alone", got.GetState())
 	}
@@ -160,7 +160,7 @@ func TestHandingOffSurvivesLaterActivityLines(t *testing.T) {
 func TestActivityWithoutAnnounceIsRefused(t *testing.T) {
 	sock, _ := upDaemon(t, nil)
 	err := dial(t, sock).Call(ctx5(t), "rig.activity",
-		&rigv1.ActivityRequest{Activity: "working"}, &rigv1.ActivityResponse{})
+		&verbsv1.ActivityRequest{Activity: "working"}, &verbsv1.ActivityResponse{})
 	if err == nil {
 		t.Fatal("activity created a row with no purpose")
 	}
@@ -174,7 +174,7 @@ func TestActivityWithoutAnnounceIsRefused(t *testing.T) {
 func TestAnnounceRefusesABlankPurpose(t *testing.T) {
 	sock, _ := upDaemon(t, nil)
 	err := dial(t, sock).Call(ctx5(t), "rig.announce",
-		&rigv1.AnnounceRequest{Seat: "backend-1"}, &rigv1.AnnounceResponse{})
+		&verbsv1.AnnounceRequest{Seat: "backend-1"}, &verbsv1.AnnounceResponse{})
 	if err == nil {
 		t.Fatal("a row with no purpose was accepted")
 	}

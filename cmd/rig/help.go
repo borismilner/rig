@@ -10,6 +10,7 @@ import (
 
 	"github.com/borismilner/rig/client"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // Generated help (PLAN.md section 10, M1 slice 6).
@@ -236,9 +237,9 @@ func enumList(vals []any) string {
 }
 
 // lookupProgram finds one program, and lists the others when it is not there.
-func lookupProgram(ctx context.Context, c *client.Client, program string) (*rigv1.Program, error) {
-	var resp rigv1.ProgramsResponse
-	if err := call(ctx, c, "rig.programs", &rigv1.ProgramsRequest{}, &resp); err != nil {
+func lookupProgram(ctx context.Context, c *client.Client, program string) (*registryv1.Program, error) {
+	var resp registryv1.ProgramsResponse
+	if err := call(ctx, c, "rig.programs", &registryv1.ProgramsRequest{}, &resp); err != nil {
 		return nil, err
 	}
 	var names []string

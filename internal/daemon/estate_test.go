@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/borismilner/rig/internal/instance"
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // upEstate is upDaemon with a claimed estate name, which the shared helper has
@@ -47,10 +47,10 @@ func upEstate(t *testing.T, name string) string {
 	return sock
 }
 
-func estateOf(t *testing.T, sock string) *rigv1.EstateResponse {
+func estateOf(t *testing.T, sock string) *registryv1.EstateResponse {
 	t.Helper()
-	resp := &rigv1.EstateResponse{}
-	if err := dial(t, sock).Call(ctx5(t), "rig.estate", &rigv1.EstateRequest{}, resp); err != nil {
+	resp := &registryv1.EstateResponse{}
+	if err := dial(t, sock).Call(ctx5(t), "rig.estate", &registryv1.EstateRequest{}, resp); err != nil {
 		t.Fatalf("rig.estate: %v", err)
 	}
 	return resp
@@ -63,11 +63,11 @@ func estateOf(t *testing.T, sock string) *rigv1.EstateResponse {
 func TestEstateAnswersItsNameAndItsDerivedRole(t *testing.T) {
 	for _, tc := range []struct {
 		name string
-		want rigv1.EstateRole
+		want registryv1.EstateRole
 	}{
-		{"production", rigv1.EstateRole_ESTATE_ROLE_PRODUCTION},
-		{"development", rigv1.EstateRole_ESTATE_ROLE_DEVELOPMENT},
-		{"", rigv1.EstateRole_ESTATE_ROLE_UNNAMED},
+		{"production", registryv1.EstateRole_ESTATE_ROLE_PRODUCTION},
+		{"development", registryv1.EstateRole_ESTATE_ROLE_DEVELOPMENT},
+		{"", registryv1.EstateRole_ESTATE_ROLE_UNNAMED},
 	} {
 		label := tc.name
 		if label == "" {
@@ -106,12 +106,12 @@ func TestEstateAnswersItsNameAndItsDerivedRole(t *testing.T) {
 // 21's "nothing was said" and the identity fact has a number of its own.
 func TestAnUnnamedEstateIsAFactAndNotAnAbsence(t *testing.T) {
 	got := estateOf(t, upEstate(t, ""))
-	if got.GetRole() == rigv1.EstateRole_ESTATE_ROLE_UNSPECIFIED {
+	if got.GetRole() == registryv1.EstateRole_ESTATE_ROLE_UNSPECIFIED {
 		t.Fatal("an unnamed estate answered UNSPECIFIED, which is what a " +
 			"daemon that forgot to set the field also answers. The two must " +
 			"never be the same value")
 	}
-	if got.GetRole() != rigv1.EstateRole_ESTATE_ROLE_UNNAMED {
+	if got.GetRole() != registryv1.EstateRole_ESTATE_ROLE_UNNAMED {
 		t.Fatalf("role is %v, want UNNAMED", got.GetRole())
 	}
 }
@@ -130,9 +130,9 @@ func TestEstateIsUnscopedSoAScopedCallerGetsTheSameAnswer(t *testing.T) {
 	unscoped := estateOf(t, sock)
 
 	// A registered program: the caller kind whose other reads ARE filtered.
-	scoped := &rigv1.EstateResponse{}
+	scoped := &registryv1.EstateResponse{}
 	p := program(t, sock, "shelf")
-	if err := p.Call(ctx5(t), "rig.estate", &rigv1.EstateRequest{}, scoped); err != nil {
+	if err := p.Call(ctx5(t), "rig.estate", &registryv1.EstateRequest{}, scoped); err != nil {
 		t.Fatalf("a registered program was refused rig.estate: %v", err)
 	}
 
@@ -147,7 +147,7 @@ func TestEstateIsUnscopedSoAScopedCallerGetsTheSameAnswer(t *testing.T) {
 // rather than enforced: EstateRequest carries nothing at all, so there is no
 // second place to write a role from.
 func TestTheRoleCannotBeSentByAClient(t *testing.T) {
-	if n := (&rigv1.EstateRequest{}).ProtoReflect().Descriptor().Fields().Len(); n != 0 {
+	if n := (&registryv1.EstateRequest{}).ProtoReflect().Descriptor().Fields().Len(); n != 0 {
 		t.Fatalf("EstateRequest has %d fields; it must have none, so a client "+
 			"can never send a role and the derivation has exactly one home", n)
 	}

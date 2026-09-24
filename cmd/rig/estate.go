@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // cmdEstate answers "which estate did I just reach" (PLAN.md section 37).
@@ -49,8 +49,8 @@ func cmdEstate(args []string) (err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 
-	resp := &rigv1.EstateResponse{}
-	if err := call(ctx, c, "rig.estate", &rigv1.EstateRequest{}, resp); err != nil {
+	resp := &registryv1.EstateResponse{}
+	if err := call(ctx, c, "rig.estate", &registryv1.EstateRequest{}, resp); err != nil {
 		return err
 	}
 
@@ -101,7 +101,7 @@ func estateFlagSet() (fs *flag.FlagSet, asJSON *bool, timeout *time.Duration) {
 // package that walks a descriptor. This function was the FIRST of the three
 // that did it and the only one that did it correctly; B15 made the other two
 // agree with it rather than the other way round.
-func roleLabel(r rigv1.EstateRole) (string, bool) {
+func roleLabel(r registryv1.EstateRole) (string, bool) {
 	return enumWord(r, "ESTATE_ROLE_")
 }
 
@@ -123,7 +123,7 @@ func roleLabel(r rigv1.EstateRole) (string, bool) {
 // It is emitted ALWAYS rather than only in that case, because a key that
 // appears only when something is wrong is a key nobody's parser has a branch
 // for at the moment it first appears.
-func estateJSON(r *rigv1.EstateResponse) map[string]any {
+func estateJSON(r *registryv1.EstateResponse) map[string]any {
 	label, ok := roleLabel(r.GetRole())
 	if !ok {
 		// ONE SPELLING FOR THIS ACROSS THE WHOLE CLI. This used to be a bare
@@ -158,7 +158,7 @@ func estateJSON(r *rigv1.EstateResponse) map[string]any {
 // response rather than reaching the wire, so every case below is testable
 // without a live daemon - including the two this daemon cannot currently
 // produce.
-func estateText(r *rigv1.EstateResponse) string {
+func estateText(r *registryv1.EstateResponse) string {
 	var b strings.Builder
 	row := func(label, value string) {
 		fmt.Fprintf(&b, "%-*s%s\n", estateColumn, label, value)
@@ -184,7 +184,7 @@ const estateColumn = 9 + 2
 // estate that claimed no name from a daemon that failed to send one. The
 // parenthesised form cannot be a name, because a name is drawn from a closed
 // set that contains neither parentheses nor spaces.
-func estateNameCell(r *rigv1.EstateResponse) string {
+func estateNameCell(r *registryv1.EstateResponse) string {
 	if r.GetName() == "" {
 		return "(none claimed)"
 	}
@@ -206,11 +206,11 @@ func estateNameCell(r *rigv1.EstateResponse) string {
 // what it should have - and because the role travels in the SAME response, this
 // is one of the few renderers that can tell the two apart instead of guessing
 // which it is looking at.
-func estateEpochCell(r *rigv1.EstateResponse) string {
+func estateEpochCell(r *registryv1.EstateResponse) string {
 	if e := r.GetEpoch(); e != 0 {
 		return strconv.FormatUint(e, 10)
 	}
-	if r.GetRole() == rigv1.EstateRole_ESTATE_ROLE_UNNAMED {
+	if r.GetRole() == registryv1.EstateRole_ESTATE_ROLE_UNNAMED {
 		return "(none - an unnamed estate opens no store)"
 	}
 	// Covers the unspecified role too, and says nothing about whether this
@@ -222,7 +222,7 @@ func estateEpochCell(r *rigv1.EstateResponse) string {
 
 // estateRoleCell renders the role, and the two cases that are not facts about
 // the estate say so in the line rather than leaving the reader to know.
-func estateRoleCell(r *rigv1.EstateResponse) string {
+func estateRoleCell(r *registryv1.EstateResponse) string {
 	label, ok := roleLabel(r.GetRole())
 	switch {
 	case !ok:
@@ -230,7 +230,7 @@ func estateRoleCell(r *rigv1.EstateResponse) string {
 		// is the only actionable thing here, and the sentence says which side
 		// is old so the reader does not go looking at the daemon.
 		return skewWord(r.GetRole()) + " and has no name for that role"
-	case r.GetRole() == rigv1.EstateRole_ESTATE_ROLE_UNSPECIFIED:
+	case r.GetRole() == registryv1.EstateRole_ESTATE_ROLE_UNSPECIFIED:
 		// SECTION 21: the zero means nothing was said, and it is never a fact
 		// about an estate. It cannot be reached through today's rigd, which
 		// refuses a name outside the closed set before the daemon is built -

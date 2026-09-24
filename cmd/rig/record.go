@@ -17,13 +17,14 @@ import (
 	"unicode/utf8"
 
 	"github.com/borismilner/rig/client"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
+
 	// ALIASED, AND NOT BY PREFERENCE. `wire` is already a package-level
 	// identifier here - main.go's `wire = "v1"`, the wire VERSION this build
 	// speaks - and Go refuses an import whose name collides with one, in any
 	// file of the package. The alias follows rigv1's spelling below so the
 	// two rig packages read as a pair.
 	rigwire "github.com/borismilner/rig/internal/wire"
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // The continuity record at a prompt (PLAN.md section 39).
@@ -342,7 +343,7 @@ type RefsArgs struct {
 //
 // ⛔ THE PROVISIONAL SHAPE IS GONE AND THIS ONE IS THE WIRE'S. The comment
 // here used to say "PROVISIONAL UNTIL SLICE 2 ... when the wire lands, the
-// lead's message is the contract and these follow it". `rigv1.Ref` landed
+// lead's message is the contract and these follow it". `verbsv1.Ref` landed
 // carrying src, type, distance, kind, title and via, and this is that promise
 // kept: field for field, with the wire's own words.
 //
@@ -2363,8 +2364,8 @@ func (w wireRecord) Put(ctx context.Context, a PutArgs) (Record, error) {
 	// CARRY THEM. PutArgs says why at length: a client that can name a seat
 	// can name somebody else's, on the one field section 39 makes
 	// load-bearing. The daemon stamps all three from the connection.
-	resp := &rigv1.RecordPutResponse{}
-	if err := call(ctx, w.c, "rig.record.put", &rigv1.RecordPutRequest{
+	resp := &verbsv1.RecordPutResponse{}
+	if err := call(ctx, w.c, "rig.record.put", &verbsv1.RecordPutRequest{
 		Id:        a.ID,
 		IfVersion: a.IfVersion,
 		Kind:      a.Kind,
@@ -2381,8 +2382,8 @@ func (w wireRecord) Get(ctx context.Context, id string, version uint64) (Record,
 	// VERSION 0 IS SENT AS 0 AND MEANS HEAD. Not "version zero", which no
 	// record has - the first write is version 1 - so there is no value this
 	// field could carry that a zero collides with.
-	resp := &rigv1.RecordGetResponse{}
-	if err := call(ctx, w.c, "rig.record.get", &rigv1.RecordGetRequest{
+	resp := &verbsv1.RecordGetResponse{}
+	if err := call(ctx, w.c, "rig.record.get", &verbsv1.RecordGetRequest{
 		Id:      id,
 		Version: version,
 	}, resp); err != nil {
@@ -2408,8 +2409,8 @@ func (w wireRecord) Query(ctx context.Context, a QueryArgs) ([]Record, error) {
 		after string
 	)
 	for {
-		resp := &rigv1.RecordQueryResponse{}
-		if err := call(ctx, w.c, "rig.record.query", &rigv1.RecordQueryRequest{
+		resp := &verbsv1.RecordQueryResponse{}
+		if err := call(ctx, w.c, "rig.record.query", &verbsv1.RecordQueryRequest{
 			Project: a.Project,
 			Kind:    a.Kind,
 			Field:   a.Field,
@@ -2443,9 +2444,9 @@ func (w wireRecord) Query(ctx context.Context, a QueryArgs) ([]Record, error) {
 }
 
 func (w wireRecord) History(ctx context.Context, id string) ([]Record, error) {
-	resp := &rigv1.RecordHistoryResponse{}
+	resp := &verbsv1.RecordHistoryResponse{}
 	if err := call(ctx, w.c, "rig.record.history",
-		&rigv1.RecordHistoryRequest{Id: id}, resp); err != nil {
+		&verbsv1.RecordHistoryRequest{Id: id}, resp); err != nil {
 		return nil, err
 	}
 	return recordsFromWire(resp.GetVersions()), nil
@@ -2458,21 +2459,21 @@ func (w wireRecord) Link(ctx context.Context, src, linkType, dst string) error {
 	// this wire as a STRING, so the caller's own word survives to the refusal
 	// that names it. That is the whole difference between this method and
 	// Step below, and it is why one pre-validates and the other does not.
-	return call(ctx, w.c, "rig.record.link", &rigv1.RecordLinkRequest{
+	return call(ctx, w.c, "rig.record.link", &verbsv1.RecordLinkRequest{
 		Src: src, Type: linkType, Dst: dst,
-	}, &rigv1.RecordLinkResponse{})
+	}, &verbsv1.RecordLinkResponse{})
 }
 
 func (w wireRecord) Unlink(ctx context.Context, src, linkType, dst string) error {
-	return call(ctx, w.c, "rig.record.unlink", &rigv1.RecordUnlinkRequest{
+	return call(ctx, w.c, "rig.record.unlink", &verbsv1.RecordUnlinkRequest{
 		Src: src, Type: linkType, Dst: dst,
-	}, &rigv1.RecordUnlinkResponse{})
+	}, &verbsv1.RecordUnlinkResponse{})
 }
 
 func (w wireRecord) Retract(ctx context.Context, id, reason string) (Retraction, bool, error) {
-	var resp rigv1.RecordRetractResponse
+	var resp verbsv1.RecordRetractResponse
 	if err := call(ctx, w.c, "rig.record.retract",
-		&rigv1.RecordRetractRequest{Id: id, Reason: reason}, &resp); err != nil {
+		&verbsv1.RecordRetractRequest{Id: id, Reason: reason}, &resp); err != nil {
 		return Retraction{}, false, err
 	}
 	r := retractionFromWire(resp.GetRetraction())
@@ -2490,9 +2491,9 @@ func (w wireRecord) Retract(ctx context.Context, id, reason string) (Retraction,
 }
 
 func (w wireRecord) Delete(ctx context.Context, id string, dryRun bool) (Deletion, error) {
-	var resp rigv1.RecordDeleteResponse
+	var resp verbsv1.RecordDeleteResponse
 	if err := call(ctx, w.c, "rig.record.delete",
-		&rigv1.RecordDeleteRequest{Id: id, DryRun: dryRun}, &resp); err != nil {
+		&verbsv1.RecordDeleteRequest{Id: id, DryRun: dryRun}, &resp); err != nil {
 		return Deletion{}, err
 	}
 	// ⛔ dry_run IS READ BACK OFF THE ANSWER RATHER THAN CARRIED FROM THE
@@ -2506,8 +2507,8 @@ func (w wireRecord) Delete(ctx context.Context, id string, dryRun bool) (Deletio
 }
 
 func (w wireRecord) Replace(ctx context.Context, old, replacement, reason string) (Replacement, error) {
-	var resp rigv1.RecordReplaceResponse
-	if err := call(ctx, w.c, "rig.record.replace", &rigv1.RecordReplaceRequest{
+	var resp verbsv1.RecordReplaceResponse
+	if err := call(ctx, w.c, "rig.record.replace", &verbsv1.RecordReplaceRequest{
 		Old: old, New: replacement, Reason: reason,
 	}, &resp); err != nil {
 		return Replacement{}, err
@@ -2521,7 +2522,7 @@ func (w wireRecord) Replace(ctx context.Context, old, replacement, reason string
 	}, nil
 }
 
-func retractionFromWire(r *rigv1.Retraction) *Retraction {
+func retractionFromWire(r *verbsv1.Retraction) *Retraction {
 	if r == nil {
 		return nil
 	}
@@ -2531,7 +2532,7 @@ func retractionFromWire(r *rigv1.Retraction) *Retraction {
 	}
 }
 
-func edgesFromWire(es []*rigv1.Edge) []Edge {
+func edgesFromWire(es []*verbsv1.Edge) []Edge {
 	if len(es) == 0 {
 		return nil
 	}
@@ -2554,11 +2555,11 @@ func (w wireRecord) Refs(ctx context.Context, a RefsArgs) (Refs, error) {
 	// - the one direction in which a wrong number looks plausible. A negative
 	// cannot arrive: recordRefs refuses a typed depth below 1. The guard is
 	// what lets a reader see that without holding that function open.
-	req := &rigv1.RecordRefsRequest{Id: a.ID, CrossProject: a.CrossProject}
+	req := &verbsv1.RecordRefsRequest{Id: a.ID, CrossProject: a.CrossProject}
 	if a.Depth > 0 && a.Depth <= math.MaxUint32 {
 		req.Depth = uint32(a.Depth)
 	}
-	resp := &rigv1.RecordRefsResponse{}
+	resp := &verbsv1.RecordRefsResponse{}
 	if err := call(ctx, w.c, "rig.record.refs", req, resp); err != nil {
 		return Refs{}, err
 	}
@@ -2596,8 +2597,8 @@ func (w wireRecord) Step(ctx context.Context, a StepArgs) (Record, error) {
 	// about the item rather than a choice the caller makes. StepArgs.Project
 	// is still parsed and still refused when empty - by rigd, which needs the
 	// item to exist before it can say anything about a project at all.
-	resp := &rigv1.ProgressStepResponse{}
-	if err := call(ctx, w.c, "rig.progress.step", &rigv1.ProgressStepRequest{
+	resp := &verbsv1.ProgressStepResponse{}
+	if err := call(ctx, w.c, "rig.progress.step", &verbsv1.ProgressStepRequest{
 		Item:  a.Item,
 		State: state,
 		Note:  a.Note,
@@ -2630,11 +2631,11 @@ func (w wireRecord) Step(ctx context.Context, a StepArgs) (Record, error) {
 // An EMPTY --state is passed through rather than refused, deliberately: rigd
 // already answers that one in a sentence naming the flag, and there is no
 // caller word to lose.
-func stepStateOnTheWire(word string) (rigv1.StepState, error) {
+func stepStateOnTheWire(word string) (verbsv1.StepState, error) {
 	if word == "" {
-		return rigv1.StepState_STEP_STATE_UNSPECIFIED, nil
+		return verbsv1.StepState_STEP_STATE_UNSPECIFIED, nil
 	}
-	values := rigv1.StepState_STEP_STATE_UNSPECIFIED.Descriptor().Values()
+	values := verbsv1.StepState_STEP_STATE_UNSPECIFIED.Descriptor().Values()
 	var known []string
 	for i := range values.Len() {
 		v := values.Get(i)
@@ -2646,11 +2647,11 @@ func stepStateOnTheWire(word string) (rigv1.StepState, error) {
 			continue
 		}
 		if label == word {
-			return rigv1.StepState(v.Number()), nil
+			return verbsv1.StepState(v.Number()), nil
 		}
 		known = append(known, label)
 	}
-	return rigv1.StepState_STEP_STATE_UNSPECIFIED, badArgumentf(
+	return verbsv1.StepState_STEP_STATE_UNSPECIFIED, badArgumentf(
 		"%q is not a step state; this build knows %s.\n"+
 			"       rig refuses it here rather than sending it, because the "+
 			"state travels as an enum: a word with no value arrives at rigd "+
@@ -2666,7 +2667,7 @@ func stepStateOnTheWire(word string) (rigv1.StepState, error) {
 // provenanceLine says "(not said)" and provTime returns "" for a stamp that
 // never arrived. A daemon that replies with an empty payload is a bug, and the
 // surface that shows it must not be a crash.
-func recordFromWire(r *rigv1.Record) Record {
+func recordFromWire(r *verbsv1.Record) Record {
 	return Record{
 		ID:      r.GetId(),
 		Version: r.GetVersion(),
@@ -2682,7 +2683,7 @@ func recordFromWire(r *rigv1.Record) Record {
 	}
 }
 
-func recordsFromWire(rs []*rigv1.Record) []Record {
+func recordsFromWire(rs []*verbsv1.Record) []Record {
 	if len(rs) == 0 {
 		// nil rather than an empty slice, because every renderer above
 		// branches on len() and recordsJSON already builds the [] a consumer
@@ -2704,7 +2705,7 @@ func recordsFromWire(rs []*rigv1.Record) []Record {
 // refuses to write a record without provenance, so a zero arriving here is a
 // defect between the store and this client - which is a thing to report, not a
 // year to hand the reader.
-func provFromWire(p *rigv1.Provenance) Provenance {
+func provFromWire(p *verbsv1.Provenance) Provenance {
 	out := Provenance{
 		Session: p.GetSession(),
 		Seat:    p.GetSeat(),

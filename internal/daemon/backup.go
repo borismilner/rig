@@ -7,11 +7,13 @@ import (
 	"path/filepath"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/borismilner/rig/internal/backup"
 	"github.com/borismilner/rig/internal/paths"
 	"github.com/borismilner/rig/internal/record"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
-	"google.golang.org/protobuf/proto"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // The backup verb (PLAN.md section 46).
@@ -40,7 +42,7 @@ import (
 // happily. A backup of a store that is discarded at the next start would be an
 // archive of nothing, which is why this is a refusal rather than an empty file.
 func (d *Daemon) serveBackupCreate(ctx context.Context, c *conn, f *rigv1.Frame) {
-	var req rigv1.BackupCreateRequest
+	var req verbsv1.BackupCreateRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "backup.create: "+err.Error())
 		return
@@ -72,7 +74,7 @@ func (d *Daemon) serveBackupCreate(ctx context.Context, c *conn, f *rigv1.Frame)
 // Split out so a test can run the real thing - a real store, a real snapshot, a
 // real archive on a real disk - without a socket, and so the clock is an
 // argument rather than something a test has to work around.
-func (d *Daemon) createBackup(ctx context.Context, st *record.Store, at time.Time) (*rigv1.BackupCreateResponse, error) {
+func (d *Daemon) createBackup(ctx context.Context, st *record.Store, at time.Time) (*verbsv1.BackupCreateResponse, error) {
 	dir, err := paths.BackupDir()
 	if err != nil {
 		return nil, fmt.Errorf("backup.create: %w", err)
@@ -140,7 +142,7 @@ func (d *Daemon) createBackup(ctx context.Context, st *record.Store, at time.Tim
 			"bytes, which is not a length", written.Path, written.Bytes)
 	}
 
-	return &rigv1.BackupCreateResponse{
+	return &verbsv1.BackupCreateResponse{
 		Path:            written.Path,
 		Sha256:          written.SHA256,
 		Bytes:           uint64(written.Bytes),

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // cmdPeers prints the estate's roster (BACKLOG.md B41).
@@ -57,8 +57,8 @@ func cmdPeers(args []string) (err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 
-	resp := &rigv1.PeersResponse{}
-	if err := call(ctx, c, "rig.peers", &rigv1.PeersRequest{}, resp); err != nil {
+	resp := &verbsv1.PeersResponse{}
+	if err := call(ctx, c, "rig.peers", &verbsv1.PeersRequest{}, resp); err != nil {
 		return err
 	}
 
@@ -68,9 +68,9 @@ func cmdPeers(args []string) (err error) {
 	// estate with no lease store, or a daemon older than the verb, refuses
 	// rig.lease.list, and that refusal is reported beside the roster rather
 	// than failing it: the roster is still true.
-	leases := &rigv1.LeaseListResponse{}
+	leases := &verbsv1.LeaseListResponse{}
 	unavailable := ""
-	if err := call(ctx, c, "rig.lease.list", &rigv1.LeaseListRequest{}, leases); err != nil {
+	if err := call(ctx, c, "rig.lease.list", &verbsv1.LeaseListRequest{}, leases); err != nil {
 		unavailable = err.Error()
 	}
 
@@ -87,7 +87,7 @@ func cmdPeers(args []string) (err error) {
 
 // leasesJSON is every lease as the wire spells it, each key present on every
 // row, and an empty array rather than null when nothing is held.
-func leasesJSON(r *rigv1.LeaseListResponse) []map[string]any {
+func leasesJSON(r *verbsv1.LeaseListResponse) []map[string]any {
 	out := make([]map[string]any, 0, len(r.GetLeases()))
 	for _, l := range r.GetLeases() {
 		state, ok := enumWord(l.GetState(), "LEASE_STATE_")
@@ -121,7 +121,7 @@ func leasesJSON(r *rigv1.LeaseListResponse) []map[string]any {
 // THE TWO FACTS A READER ACTS ON GET WORDS, NOT FLAGS: an owner observed dead,
 // and an orphan that needs a recorded break. Both are why section 16 makes a
 // read report liveness at all.
-func leasesText(r *rigv1.LeaseListResponse, unavailable string) string {
+func leasesText(r *verbsv1.LeaseListResponse, unavailable string) string {
 	var b strings.Builder
 	b.WriteString("\n")
 	if unavailable != "" {
@@ -146,7 +146,7 @@ func leasesText(r *rigv1.LeaseListResponse, unavailable string) string {
 	return b.String()
 }
 
-func leaseHolderCell(l *rigv1.Lease) string {
+func leaseHolderCell(l *verbsv1.Lease) string {
 	if l.GetHolder() == "" {
 		return "-"
 	}
@@ -155,20 +155,20 @@ func leaseHolderCell(l *rigv1.Lease) string {
 
 // leaseLeftCell is the time to the deadline, and only a held lease has one
 // worth reading.
-func leaseLeftCell(l *rigv1.Lease) string {
-	if l.GetState() != rigv1.LeaseState_LEASE_STATE_HELD {
+func leaseLeftCell(l *verbsv1.Lease) string {
+	if l.GetState() != verbsv1.LeaseState_LEASE_STATE_HELD {
 		return "-"
 	}
 	return (time.Duration(l.GetRemainingMs()) * time.Millisecond).Round(time.Second).String()
 }
 
-func leaseNoteCell(l *rigv1.Lease) string {
+func leaseNoteCell(l *verbsv1.Lease) string {
 	switch {
 	case l.GetNeedsBreak():
 		return "orphaned and unwitnessed: needs a recorded break"
-	case l.GetOwnerGone() && l.GetState() == rigv1.LeaseState_LEASE_STATE_HELD:
+	case l.GetOwnerGone() && l.GetState() == verbsv1.LeaseState_LEASE_STATE_HELD:
 		return "holder observed dead: frees at its deadline"
-	case l.GetBrokenBy() != "" && l.GetState() == rigv1.LeaseState_LEASE_STATE_FREE:
+	case l.GetBrokenBy() != "" && l.GetState() == verbsv1.LeaseState_LEASE_STATE_FREE:
 		return "broken by " + l.GetBrokenBy() + ": " + l.GetBrokenReason()
 	case l.GetOwnerGone():
 		return "holder observed dead"
@@ -196,7 +196,7 @@ func peersFlagSet() (fs *flag.FlagSet, asJSON *bool, timeout *time.Duration) {
 // within a major - and the caller renders that as its own case. It must NOT
 // fall back to the zero's spelling, which would report a skew as "nothing was
 // said".
-func stateLabel(s rigv1.SeatState) (string, bool) {
+func stateLabel(s verbsv1.SeatState) (string, bool) {
 	return enumWord(s, "SEAT_STATE_")
 }
 
@@ -213,7 +213,7 @@ func stateLabel(s rigv1.SeatState) (string, bool) {
 // there is indistinguishable from a field this build failed to set, and the
 // empty roster is a state a reader reaches often - `rig peers` on a daemon
 // nothing has announced to is the ordinary first call.
-func peersJSON(r *rigv1.PeersResponse, now time.Time) map[string]any {
+func peersJSON(r *verbsv1.PeersResponse, now time.Time) map[string]any {
 	crew := make([]map[string]any, 0, len(r.GetCrew()))
 	for _, s := range r.GetCrew() {
 		crew = append(crew, seatJSON(s, now))
@@ -235,7 +235,7 @@ func peersJSON(r *rigv1.PeersResponse, now time.Time) map[string]any {
 // The two ages are derived here rather than left to the reader. The timestamps
 // are emitted too, unchanged, because a consumer that wants to compute against
 // its own clock must not be forced through this one.
-func seatJSON(s *rigv1.Seat, now time.Time) map[string]any {
+func seatJSON(s *verbsv1.Seat, now time.Time) map[string]any {
 	label, ok := stateLabel(s.GetState())
 	if !ok {
 		label = skewToken(s.GetState())
@@ -280,7 +280,7 @@ func ageSeconds(unixNano int64, now time.Time) int64 {
 
 // peersText is the human rendering. It takes the response and the clock rather
 // than reaching either, so every case below is testable without a live daemon.
-func peersText(r *rigv1.PeersResponse, now time.Time) string {
+func peersText(r *verbsv1.PeersResponse, now time.Time) string {
 	var b strings.Builder
 
 	// THE EMPTY ROSTER IS A SENTENCE, NOT A BLANK. A bare header over nothing
@@ -326,7 +326,7 @@ func peersText(r *rigv1.PeersResponse, now time.Time) string {
 // because the two are one identity: `backend-1` at generation 2 is a different
 // occupancy from `backend-1` at generation 1, and a reader scanning a column
 // of names sees one seat where there were two.
-func peersSeatCell(s *rigv1.Seat) string {
+func peersSeatCell(s *verbsv1.Seat) string {
 	if s.GetSeat() == "" {
 		return "(no seat)"
 	}
@@ -335,14 +335,14 @@ func peersSeatCell(s *rigv1.Seat) string {
 
 // peersStateCell renders the state, and the two cases that are not facts about
 // the seat say so in the cell rather than leaving the reader to know.
-func peersStateCell(s *rigv1.Seat) string {
+func peersStateCell(s *verbsv1.Seat) string {
 	label, ok := stateLabel(s.GetState())
 	switch {
 	case !ok:
 		// A newer daemon on this wire major. The word says which side is old,
 		// so the reader does not go looking at the daemon.
 		return skewToken(s.GetState())
-	case s.GetState() == rigv1.SeatState_SEAT_STATE_UNSPECIFIED:
+	case s.GetState() == verbsv1.SeatState_SEAT_STATE_UNSPECIFIED:
 		// Section 21: the zero means nothing was said and is never a fact
 		// about a seat. A reader who sees this is looking at a defect.
 		return "(not said)"

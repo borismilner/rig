@@ -16,6 +16,7 @@ import (
 	"github.com/borismilner/rig/client"
 	wirepkg "github.com/borismilner/rig/internal/wire"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // A FAKE DAEMON, SO THE REQUEST THIS PACKAGE SENDS CAN BE ASSERTED.
@@ -141,13 +142,13 @@ func (d *fakeDaemon) serve(nc net.Conn) {
 }
 
 // sent returns the requests this daemon was sent, decoded into out.
-func (d *fakeDaemon) sent(t *testing.T) []*rigv1.ProgramsRequest {
+func (d *fakeDaemon) sent(t *testing.T) []*registryv1.ProgramsRequest {
 	t.Helper()
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	var out []*rigv1.ProgramsRequest
+	var out []*registryv1.ProgramsRequest
 	for _, f := range d.requests {
-		req := &rigv1.ProgramsRequest{}
+		req := &registryv1.ProgramsRequest{}
 		if err := proto.Unmarshal(f.GetPayload(), req); err != nil {
 			t.Fatalf("the request payload did not decode: %v", err)
 		}
@@ -168,8 +169,8 @@ func (d *fakeDaemon) sent(t *testing.T) []*rigv1.ProgramsRequest {
 // from the request survived the entire suite - every renderer test still passed,
 // because a renderer cannot see what was asked for.
 func TestTheDepthIsAskedForRatherThanInherited(t *testing.T) {
-	d := startFakeDaemon(t, &rigv1.ProgramsResponse{
-		Programs: []*rigv1.Program{{
+	d := startFakeDaemon(t, &registryv1.ProgramsResponse{
+		Programs: []*registryv1.Program{{
 			Identity: &rigv1.Identity{Id: "fakeapp", Version: "1.0.0"},
 		}},
 	})
@@ -182,7 +183,7 @@ func TestTheDepthIsAskedForRatherThanInherited(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if _, err := programAt(ctx, c, "fakeapp", rigv1.Depth_DEPTH_FULL); err != nil {
+	if _, err := programAt(ctx, c, "fakeapp", registryv1.Depth_DEPTH_FULL); err != nil {
 		t.Fatalf("programAt: %v", err)
 	}
 
@@ -190,7 +191,7 @@ func TestTheDepthIsAskedForRatherThanInherited(t *testing.T) {
 	if len(sent) != 1 {
 		t.Fatalf("the daemon was sent %d requests, want 1", len(sent))
 	}
-	if got := sent[0].GetDepth(); got != rigv1.Depth_DEPTH_FULL {
+	if got := sent[0].GetDepth(); got != registryv1.Depth_DEPTH_FULL {
 		t.Errorf("the request carried depth %s, want DEPTH_FULL. An omitted "+
 			"depth is restored to full by a COMPATIBILITY rule, so this would "+
 			"still look right today and would stop being right the moment that "+
@@ -200,14 +201,14 @@ func TestTheDepthIsAskedForRatherThanInherited(t *testing.T) {
 	// The control, and it is what makes the assertion above mean anything: a
 	// different depth must actually travel differently. Without it the test
 	// passes against a wire that ignores the field entirely.
-	if _, err := programAt(ctx, c, "fakeapp", rigv1.Depth_DEPTH_PROGRAMS); err != nil {
+	if _, err := programAt(ctx, c, "fakeapp", registryv1.Depth_DEPTH_PROGRAMS); err != nil {
 		t.Fatalf("programAt at programs depth: %v", err)
 	}
 	sent = d.sent(t)
 	if len(sent) != 2 {
 		t.Fatalf("the daemon was sent %d requests, want 2", len(sent))
 	}
-	if got := sent[1].GetDepth(); got != rigv1.Depth_DEPTH_PROGRAMS {
+	if got := sent[1].GetDepth(); got != registryv1.Depth_DEPTH_PROGRAMS {
 		t.Errorf("the second request carried depth %s, want DEPTH_PROGRAMS: "+
 			"the field is not travelling at all", got)
 	}
@@ -218,8 +219,8 @@ func TestTheDepthIsAskedForRatherThanInherited(t *testing.T) {
 // such program" and "that program is not running right now" send a reader in
 // different directions.
 func TestAProgramThatIsNotConnectedIsRefusedWithTheOnesThatAre(t *testing.T) {
-	d := startFakeDaemon(t, &rigv1.ProgramsResponse{
-		Programs: []*rigv1.Program{
+	d := startFakeDaemon(t, &registryv1.ProgramsResponse{
+		Programs: []*registryv1.Program{
 			{Identity: &rigv1.Identity{Id: "ledger"}},
 			{Identity: &rigv1.Identity{Id: "abacus"}},
 		},
@@ -233,7 +234,7 @@ func TestAProgramThatIsNotConnectedIsRefusedWithTheOnesThatAre(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err = programAt(ctx, c, "fakeapp", rigv1.Depth_DEPTH_FULL)
+	_, err = programAt(ctx, c, "fakeapp", registryv1.Depth_DEPTH_FULL)
 	if err == nil {
 		t.Fatal("a program the daemon never listed was accepted")
 	}
@@ -270,8 +271,8 @@ func (d *fakeDaemon) frames(t *testing.T) []*rigv1.Frame {
 // left standing, because a gap that has been closed and still reads as open
 // sends the next reader to close it twice.
 func TestEveryCallCarriesARequestID(t *testing.T) {
-	d := startFakeDaemon(t, &rigv1.ProgramsResponse{
-		Programs: []*rigv1.Program{{
+	d := startFakeDaemon(t, &registryv1.ProgramsResponse{
+		Programs: []*registryv1.Program{{
 			Identity: &rigv1.Identity{Id: "fakeapp", Version: "1.0.0"},
 		}},
 	})
@@ -284,7 +285,7 @@ func TestEveryCallCarriesARequestID(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if _, err := programAt(ctx, c, "fakeapp", rigv1.Depth_DEPTH_FULL); err != nil {
+	if _, err := programAt(ctx, c, "fakeapp", registryv1.Depth_DEPTH_FULL); err != nil {
 		t.Fatalf("programAt: %v", err)
 	}
 
@@ -318,8 +319,8 @@ func TestEveryCallCarriesARequestID(t *testing.T) {
 //
 // So this asserts the id is a property of the INVOCATION. Two calls, two ids.
 func TestTwoCallsDoNotShareARequestID(t *testing.T) {
-	d := startFakeDaemon(t, &rigv1.ProgramsResponse{
-		Programs: []*rigv1.Program{{
+	d := startFakeDaemon(t, &registryv1.ProgramsResponse{
+		Programs: []*registryv1.Program{{
 			Identity: &rigv1.Identity{Id: "fakeapp", Version: "1.0.0"},
 		}},
 	})
@@ -333,7 +334,7 @@ func TestTwoCallsDoNotShareARequestID(t *testing.T) {
 	defer cancel()
 
 	for range 2 {
-		if _, err := programAt(ctx, c, "fakeapp", rigv1.Depth_DEPTH_FULL); err != nil {
+		if _, err := programAt(ctx, c, "fakeapp", registryv1.Depth_DEPTH_FULL); err != nil {
 			t.Fatalf("programAt: %v", err)
 		}
 	}
@@ -366,8 +367,8 @@ func TestTwoCallsDoNotShareARequestID(t *testing.T) {
 // per attempt would make the re-send look like a second call, which is the
 // inversion internal/daemon/meta.go warns about in as many words.
 func TestARetriedCallKeepsItsRequestID(t *testing.T) {
-	d := startFakeDaemon(t, &rigv1.ProgramsResponse{
-		Programs: []*rigv1.Program{{
+	d := startFakeDaemon(t, &registryv1.ProgramsResponse{
+		Programs: []*registryv1.Program{{
 			Identity: &rigv1.Identity{Id: "fakeapp", Version: "1.0.0"},
 		}},
 	})
@@ -382,7 +383,7 @@ func TestARetriedCallKeepsItsRequestID(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if _, err := programAt(ctx, c, "fakeapp", rigv1.Depth_DEPTH_FULL); err != nil {
+	if _, err := programAt(ctx, c, "fakeapp", registryv1.Depth_DEPTH_FULL); err != nil {
 		t.Fatalf("the call did not survive one dropped connection: %v", err)
 	}
 
@@ -420,7 +421,7 @@ func TestAnAbsentRigIsOneTypedError(t *testing.T) {
 	t.Cleanup(func() { _ = os.RemoveAll(dir) })
 
 	// A daemon that is up for the dial and gone for every retry.
-	d := startFakeDaemon(t, &rigv1.ProgramsResponse{})
+	d := startFakeDaemon(t, &registryv1.ProgramsResponse{})
 	d.dropFirst = 1000
 	c, err := client.Dial(d.socket)
 	if err != nil {
@@ -436,9 +437,9 @@ func TestAnAbsentRigIsOneTypedError(t *testing.T) {
 	// Going through programAt would test cmd/rig's refusal wrapper instead:
 	// the CLI deliberately converts a CallError into its own rendered refusal,
 	// which is right for a terminal and is a different claim from this one.
-	err = c.Call(ctx, "rig.programs", &rigv1.ProgramsRequest{
-		Depth: rigv1.Depth_DEPTH_FULL,
-	}, &rigv1.ProgramsResponse{})
+	err = c.Call(ctx, "rig.programs", &registryv1.ProgramsRequest{
+		Depth: registryv1.Depth_DEPTH_FULL,
+	}, &registryv1.ProgramsResponse{})
 	if err == nil {
 		t.Fatal("calling an absent rig returned no error at all")
 	}
@@ -467,7 +468,7 @@ func TestAnAbsentRigIsOneTypedError(t *testing.T) {
 // unwelcome, and only a connection that was not there or died mid-call earns
 // another attempt.
 func TestARefusalIsNotRetried(t *testing.T) {
-	d := startFakeDaemon(t, &rigv1.ProgramsResponse{})
+	d := startFakeDaemon(t, &registryv1.ProgramsResponse{})
 	d.replyError = &rigv1.Status{
 		Code:    rigv1.Code_CODE_DENIED,
 		Message: "refused by house rules",
@@ -485,7 +486,7 @@ func TestARefusalIsNotRetried(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	err = c.Call(ctx, "rig.programs", &rigv1.ProgramsRequest{}, &rigv1.ProgramsResponse{})
+	err = c.Call(ctx, "rig.programs", &registryv1.ProgramsRequest{}, &registryv1.ProgramsResponse{})
 	var ce *client.CallError
 	if !errors.As(err, &ce) {
 		t.Fatalf("a refused call returned %T (%v), want *client.CallError", err, err)

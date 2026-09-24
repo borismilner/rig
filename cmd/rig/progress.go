@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // `rig progress` - a work item's stream (PLAN.md section 39).
@@ -142,7 +142,7 @@ func cmdProgress(args []string) (err error) {
 // vocabulary (internal/record/progress.go has the ruling), so this file
 // writes none of the words down.
 func stepStateSpellings() []string {
-	values := rigv1.StepState_STEP_STATE_UNSPECIFIED.Descriptor().Values()
+	values := verbsv1.StepState_STEP_STATE_UNSPECIFIED.Descriptor().Values()
 	var out []string
 	for i := range values.Len() {
 		if v := values.Get(i); v.Number() != 0 {

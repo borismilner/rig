@@ -9,11 +9,11 @@ import (
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/borismilner/rig/client"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 
 	"github.com/borismilner/rig/internal/kernel"
 	"github.com/borismilner/rig/internal/mcpserver"
 	"github.com/borismilner/rig/internal/meta"
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // TestSliceFourDemoAcrossTheTwoSockets is M2 slice 4's demo, corrected.
@@ -224,9 +224,9 @@ func readMap(ctx context.Context, t *testing.T, s *sdk.ClientSession) map[string
 // program itself, which is the only caller in the system that is scoped.
 func scopedEstate(ctx context.Context, t *testing.T, c *client.Client) []string {
 	t.Helper()
-	var resp rigv1.ProgramsResponse
-	if err := c.Call(ctx, "rig.programs", &rigv1.ProgramsRequest{
-		Depth: rigv1.Depth_DEPTH_COMMANDS,
+	var resp registryv1.ProgramsResponse
+	if err := c.Call(ctx, "rig.programs", &registryv1.ProgramsRequest{
+		Depth: registryv1.Depth_DEPTH_COMMANDS,
 	}, &resp); err != nil {
 		t.Fatalf("rig.programs as the program itself: %v", err)
 	}

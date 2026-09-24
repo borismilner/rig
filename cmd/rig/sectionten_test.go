@@ -7,11 +7,13 @@ import (
 	"strings"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+
 	"github.com/borismilner/rig/internal/kernel"
 	"github.com/borismilner/rig/internal/meta"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // Section 10 says --json returns "exactly what the MCP tool returns", and the
@@ -208,7 +210,7 @@ func TestTheCLIsBooleanTristatesAreSafeOnlyBecauseTheKernelRefusesUnsaid(t *test
 // test would quietly stop covering one.
 func declaredFacts() []string {
 	var out []string
-	program := (&rigv1.Program{}).ProtoReflect().Descriptor()
+	program := (&registryv1.Program{}).ProtoReflect().Descriptor()
 	for i := range program.Fields().Len() {
 		f := program.Fields().Get(i)
 		switch f.Name() {
@@ -288,9 +290,9 @@ func metaJSONOf(t *testing.T, p kernel.Program) map[string]any {
 	return envelope.Estate[0]
 }
 
-func cliJSONOf(t *testing.T, p *rigv1.Program) map[string]any {
+func cliJSONOf(t *testing.T, p *registryv1.Program) map[string]any {
 	t.Helper()
-	rows := appsJSON([]*rigv1.Program{p}, rigv1.Depth_DEPTH_FULL)
+	rows := appsJSON([]*registryv1.Program{p}, registryv1.Depth_DEPTH_FULL)
 	if len(rows) != 1 {
 		t.Fatalf("appsJSON rendered %d rows from one program", len(rows))
 	}
@@ -373,9 +375,9 @@ func declarationFixture() kernel.Declaration {
 }
 
 // wireFixture mirrors kernelFixture on the wire, with the same guard.
-func wireFixture(t *testing.T) *rigv1.Program {
+func wireFixture(t *testing.T) *registryv1.Program {
 	t.Helper()
-	p := &rigv1.Program{
+	p := &registryv1.Program{
 		Identity: &rigv1.Identity{
 			Id: "fakeapp", Name: "Fake App", Version: "1.2.0",
 			Icon: "box", Description: "the reference program",

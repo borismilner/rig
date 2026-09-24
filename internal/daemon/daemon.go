@@ -33,6 +33,8 @@ import (
 	"github.com/borismilner/rig/internal/record"
 	"github.com/borismilner/rig/internal/wire"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // CallTimeout bounds a routed call.
@@ -184,7 +186,7 @@ type Daemon struct {
 // deleting a defer whose comment says not to, rather than moving a line.
 func (d *Daemon) replyThenStop(c *conn, streamID uint32, stop context.CancelFunc) {
 	defer stop()
-	c.reply(streamID, &rigv1.DownResponse{
+	c.reply(streamID, &verbsv1.DownResponse{
 		// A Linux pid is bounded by /proc/sys/kernel/pid_max, whose own
 		// ceiling is 2^22 (PID_MAX_LIMIT), so it cannot overflow int32 - and
 		// the proto field is int32 for that same reason rather than by
@@ -548,7 +550,7 @@ func (d *Daemon) serveSession(c *conn, f *rigv1.Frame) {
 	//        nothing. That is why the empty check below is explicit: a
 	//        caller with no token must be refused rather than handed a
 	//        session it could never have owned.
-	var req rigv1.SessionRequest
+	var req verbsv1.SessionRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID,
 			"rig.session: "+err.Error())
@@ -599,7 +601,7 @@ func (d *Daemon) serveSession(c *conn, f *rigv1.Frame) {
 	// DECLARED read-only AND idempotent. It is minted at accept for every
 	// connection, so asking twice is the same answer and never a second
 	// session.
-	c.reply(f.GetStreamId(), &rigv1.SessionResponse{
+	c.reply(f.GetStreamId(), &verbsv1.SessionResponse{
 		Session: me.Token,
 		Resumed: false,
 	})
@@ -748,7 +750,7 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 		// took an empty request before it took a depth, so a caller that
 		// sends nothing at all is an old caller rather than a broken one, and
 		// depthIn turns its zero into the estate it used to get.
-		var req rigv1.ProgramsRequest
+		var req registryv1.ProgramsRequest
 		_ = proto.Unmarshal(f.GetPayload(), &req)
 
 		// The depth decides how much is said about each program and never
@@ -759,7 +761,7 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 			c.failErr(f.GetStreamId(), rigv1.Code_CODE_INVALID, err)
 			return
 		}
-		var resp rigv1.ProgramsResponse
+		var resp registryv1.ProgramsResponse
 		for _, p := range estate {
 			resp.Programs = append(resp.Programs, programToWire(p))
 		}
@@ -804,7 +806,7 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 		// to another principal, so there is nothing to filter. A later field
 		// could quietly destroy that, which is why adding one means walking
 		// the table again.
-		c.reply(f.GetStreamId(), &rigv1.EstateResponse{
+		c.reply(f.GetStreamId(), &registryv1.EstateResponse{
 			Name:          d.estate,
 			Role:          estateRole(d.estate),
 			DaemonVersion: d.version,

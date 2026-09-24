@@ -11,6 +11,7 @@ import (
 	"github.com/borismilner/rig/client"
 	"github.com/borismilner/rig/internal/wire"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // The two request paths this branch added that take caller-shaped strings:
@@ -59,9 +60,9 @@ func FuzzRecordRefsIDs(f *testing.F) {
 	}
 	f.Cleanup(func() { _ = c.Close() })
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	if err := c.Call(ctx, "rig.announce", &rigv1.AnnounceRequest{
+	if err := c.Call(ctx, "rig.announce", &verbsv1.AnnounceRequest{
 		Seat: "fuzz", Purpose: "fuzzing record.refs", Activity: "fuzzing",
-	}, &rigv1.AnnounceResponse{}); err != nil {
+	}, &verbsv1.AnnounceResponse{}); err != nil {
 		f.Fatal(err)
 	}
 	refsFixture(ctx, f, c, 3)
@@ -71,9 +72,9 @@ func FuzzRecordRefsIDs(f *testing.F) {
 		// The Go client refuses to marshal invalid UTF-8, so such bytes never
 		// reach rigd through it; FuzzRawPayload sends them raw instead.
 		ids := strings.Split(strings.ToValidUTF8(joined, "?"), "\x00")
-		var resp rigv1.RecordRefsResponse
+		var resp verbsv1.RecordRefsResponse
 		ce := answered(t, "rig.record.refs", c.Call(fuzzCtx(t), "rig.record.refs",
-			&rigv1.RecordRefsRequest{Ids: ids, Depth: depth, CrossProject: cross}, &resp))
+			&verbsv1.RecordRefsRequest{Ids: ids, Depth: depth, CrossProject: cross}, &resp))
 		if len(ids) > maxRefsIDs && ce == nil {
 			t.Fatalf("%d ids were answered; the cap is %d", len(ids), maxRefsIDs)
 		}
@@ -97,9 +98,9 @@ func FuzzLeaseText(f *testing.F) {
 	}
 	f.Cleanup(func() { _ = c.Close() })
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	if err := c.Call(ctx, "rig.announce", &rigv1.AnnounceRequest{
+	if err := c.Call(ctx, "rig.announce", &verbsv1.AnnounceRequest{
 		Seat: "fuzz", Purpose: "fuzzing the lease verbs", Activity: "fuzzing",
-	}, &rigv1.AnnounceResponse{}); err != nil {
+	}, &verbsv1.AnnounceResponse{}); err != nil {
 		f.Fatal(err)
 	}
 	cancel()
@@ -107,27 +108,27 @@ func FuzzLeaseText(f *testing.F) {
 	f.Fuzz(func(t *testing.T, name, reason string, ttl uint32, unwitnessed bool) {
 		name, reason = strings.ToValidUTF8(name, "?"), strings.ToValidUTF8(reason, "?")
 		ctx := fuzzCtx(t)
-		var got rigv1.LeaseAcquireResponse
+		var got verbsv1.LeaseAcquireResponse
 		ce := answered(t, "rig.lease.acquire", c.Call(ctx, "rig.lease.acquire",
-			&rigv1.LeaseAcquireRequest{Name: name, TtlMs: ttl, Unwitnessed: unwitnessed}, &got))
+			&verbsv1.LeaseAcquireRequest{Name: name, TtlMs: ttl, Unwitnessed: unwitnessed}, &got))
 		if len(name) > maxLeaseText && (ce == nil || ce.Code() != rigv1.Code_CODE_INVALID) {
 			t.Fatalf("a %d-byte lease name was not refused as INVALID: %v", len(name), ce)
 		}
 		if ce == nil {
 			h := got.GetHandle()
 			answered(t, "rig.lease.release", c.Call(ctx, "rig.lease.release",
-				&rigv1.LeaseReleaseRequest{Name: h.GetName(), Token: h.GetToken(), Epoch: h.GetEpoch()},
-				&rigv1.LeaseReleaseResponse{}))
+				&verbsv1.LeaseReleaseRequest{Name: h.GetName(), Token: h.GetToken(), Epoch: h.GetEpoch()},
+				&verbsv1.LeaseReleaseResponse{}))
 		}
 		bce := answered(t, "rig.lease.break", c.Call(ctx, "rig.lease.break",
-			&rigv1.LeaseBreakRequest{Name: name, Reason: reason}, &rigv1.LeaseBreakResponse{}))
+			&verbsv1.LeaseBreakRequest{Name: name, Reason: reason}, &verbsv1.LeaseBreakResponse{}))
 		if (len(name) > maxLeaseText || len(reason) > maxLeaseText) &&
 			(bce == nil || bce.Code() != rigv1.Code_CODE_INVALID) {
 			t.Fatalf("a break with a %d-byte name and a %d-byte reason was not refused as INVALID: %v",
 				len(name), len(reason), bce)
 		}
 		answered(t, "rig.lease.list", c.Call(ctx, "rig.lease.list",
-			&rigv1.LeaseListRequest{}, &rigv1.LeaseListResponse{}))
+			&verbsv1.LeaseListRequest{}, &verbsv1.LeaseListResponse{}))
 	})
 }
 

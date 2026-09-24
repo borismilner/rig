@@ -16,6 +16,7 @@ import (
 	"github.com/borismilner/rig/internal/record"
 	"github.com/borismilner/rig/internal/wire"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // B116 over the real wire: `record.query --kind requirement` over the whole
@@ -45,8 +46,8 @@ func bigFixture(ctx context.Context, t *testing.T, c *client.Client, n, bodyLen 
 	ids := make([]string, 0, n)
 	for i := range n {
 		id := fmt.Sprintf("P%03d", i)
-		var put rigv1.RecordPutResponse
-		if err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
+		var put verbsv1.RecordPutResponse
+		if err := c.Call(ctx, "rig.record.put", &verbsv1.RecordPutRequest{
 			Id: id, Kind: "requirement", Project: "rig", Body: body,
 		}, &put); err != nil {
 			t.Fatalf("writing %s: %v", id, err)
@@ -80,8 +81,8 @@ func TestAnAnswerLargerThanAFrameArrivesInPages(t *testing.T) {
 		pages int
 	)
 	for {
-		var resp rigv1.RecordQueryResponse
-		if err := c.Call(ctx, "rig.record.query", &rigv1.RecordQueryRequest{
+		var resp verbsv1.RecordQueryResponse
+		if err := c.Call(ctx, "rig.record.query", &verbsv1.RecordQueryRequest{
 			Project: "rig", Kind: "requirement", After: next,
 		}, &resp); err != nil {
 			t.Fatalf("page %d: %v", pages, err)
@@ -161,10 +162,10 @@ func TestAQueryWithNoLimitAndNoCursorIsWhatItWas(t *testing.T) {
 	c := seated(t, sock, "paging")
 	ctx := pagingCtx(t)
 
-	old := &rigv1.RecordQueryResponse{}
+	old := &verbsv1.RecordQueryResponse{}
 	for _, id := range []string{"A", "B", "C"} {
-		var put rigv1.RecordPutResponse
-		if err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
+		var put verbsv1.RecordPutResponse
+		if err := c.Call(ctx, "rig.record.put", &verbsv1.RecordPutRequest{
 			Id: id, Kind: "note", Project: "rig", Body: "body of " + id,
 		}, &put); err != nil {
 			t.Fatalf("writing %s: %v", id, err)
@@ -174,8 +175,8 @@ func TestAQueryWithNoLimitAndNoCursorIsWhatItWas(t *testing.T) {
 		old.Records = append(old.Records, put.GetRecord())
 	}
 
-	var resp rigv1.RecordQueryResponse
-	if err := c.Call(ctx, "rig.record.query", &rigv1.RecordQueryRequest{
+	var resp verbsv1.RecordQueryResponse
+	if err := c.Call(ctx, "rig.record.query", &verbsv1.RecordQueryRequest{
 		Project: "rig", Kind: "note",
 	}, &resp); err != nil {
 		t.Fatalf("rig.record.query: %v", err)
@@ -229,8 +230,8 @@ func TestAGarbageCursorIsRefused(t *testing.T) {
 		base64.RawURLEncoding.EncodeToString([]byte(`{"p":"rig","k":"note","i":"A"} trailing`)),
 		valid + strings.Repeat("A", maxRecordCursor),
 	} {
-		var resp rigv1.RecordQueryResponse
-		err := c.Call(ctx, "rig.record.query", &rigv1.RecordQueryRequest{
+		var resp verbsv1.RecordQueryResponse
+		err := c.Call(ctx, "rig.record.query", &verbsv1.RecordQueryRequest{
 			Project: "rig", After: after,
 		}, &resp)
 		if err == nil {
@@ -263,21 +264,21 @@ func TestAnEmptyCursorIsTheFirstPage(t *testing.T) {
 	ctx := pagingCtx(t)
 
 	for _, id := range []string{"A", "B"} {
-		var put rigv1.RecordPutResponse
-		if err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
+		var put verbsv1.RecordPutResponse
+		if err := c.Call(ctx, "rig.record.put", &verbsv1.RecordPutRequest{
 			Id: id, Kind: "note", Project: "rig", Body: "b",
 		}, &put); err != nil {
 			t.Fatalf("writing %s: %v", id, err)
 		}
 	}
 
-	var absent, empty rigv1.RecordQueryResponse
-	if err := c.Call(ctx, "rig.record.query", &rigv1.RecordQueryRequest{
+	var absent, empty verbsv1.RecordQueryResponse
+	if err := c.Call(ctx, "rig.record.query", &verbsv1.RecordQueryRequest{
 		Project: "rig",
 	}, &absent); err != nil {
 		t.Fatalf("with no cursor: %v", err)
 	}
-	if err := c.Call(ctx, "rig.record.query", &rigv1.RecordQueryRequest{
+	if err := c.Call(ctx, "rig.record.query", &verbsv1.RecordQueryRequest{
 		Project: "rig", After: "",
 	}, &empty); err != nil {
 		t.Fatalf("with an empty cursor: %v", err)
@@ -308,8 +309,8 @@ func TestALimitCapsThePageCount(t *testing.T) {
 		if i > len(want)+1 {
 			t.Fatalf("the walk did not end after %d pages of 3", i)
 		}
-		var resp rigv1.RecordQueryResponse
-		if err := c.Call(ctx, "rig.record.query", &rigv1.RecordQueryRequest{
+		var resp verbsv1.RecordQueryResponse
+		if err := c.Call(ctx, "rig.record.query", &verbsv1.RecordQueryRequest{
 			Project: "rig", Kind: "requirement", Limit: 3, After: next,
 		}, &resp); err != nil {
 			t.Fatalf("page %d: %v", i, err)
@@ -331,8 +332,8 @@ func TestALimitCapsThePageCount(t *testing.T) {
 
 	// A limit larger than the answer is one page and no cursor: the cap is a
 	// maximum, not a page size.
-	var whole rigv1.RecordQueryResponse
-	if err := c.Call(ctx, "rig.record.query", &rigv1.RecordQueryRequest{
+	var whole verbsv1.RecordQueryResponse
+	if err := c.Call(ctx, "rig.record.query", &verbsv1.RecordQueryRequest{
 		Project: "rig", Kind: "requirement", Limit: 1000,
 	}, &whole); err != nil {
 		t.Fatalf("with a limit over the answer: %v", err)

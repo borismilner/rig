@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/borismilner/rig/internal/record"
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // ⛔ THE STEP VOCABULARY IS THE WIRE ENUM AND NOTHING ELSE. The ruling is in
@@ -15,12 +15,12 @@ import (
 // enum's order. A value added to any one of the three copies and not the
 // others fails here rather than as a refusal in front of a caller.
 func TestTheStepVocabularyIsTheWireEnumAndNothingElse(t *testing.T) {
-	values := rigv1.StepState_STEP_STATE_UNSPECIFIED.Descriptor().Values()
+	values := verbsv1.StepState_STEP_STATE_UNSPECIFIED.Descriptor().Values()
 	var fromEnum []string
 	for i := range values.Len() {
-		v := rigv1.StepState(values.Get(i).Number())
+		v := verbsv1.StepState(values.Get(i).Number())
 		name, ok := stepStateNames[v]
-		if v == rigv1.StepState_STEP_STATE_UNSPECIFIED {
+		if v == verbsv1.StepState_STEP_STATE_UNSPECIFIED {
 			if ok {
 				t.Errorf("the zero StepState maps to %q; an unset field would "+
 					"decode as a decision", name)

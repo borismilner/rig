@@ -19,7 +19,7 @@ import (
 
 	"github.com/borismilner/rig/client"
 	"github.com/borismilner/rig/internal/paths"
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // The fake is the whole reason this surface is testable. Every record verb
@@ -1170,7 +1170,7 @@ func TestEveryRecordMethodNamesItselfWithTheRigPrefix(t *testing.T) {
 			// An EMPTY reply message, which marshals to zero bytes and so
 			// decodes into whichever response type the method expects. The
 			// answer is not what this test is about; the envelope is.
-			api, d := wiredTo(t, &rigv1.RecordGetResponse{})
+			api, d := wiredTo(t, &verbsv1.RecordGetResponse{})
 			if err := tc.call(wireCtx(t), api); err != nil {
 				t.Fatalf("%s: %v", tc.want, err)
 			}
@@ -1201,7 +1201,7 @@ func TestEveryRecordMethodNamesItselfWithTheRigPrefix(t *testing.T) {
 // depth must travel differently, or the test passes against a client that
 // never sets the field at all.
 func TestAnUnsetDepthAsksTheDaemonForItsOwnDefault(t *testing.T) {
-	api, d := wiredTo(t, &rigv1.RecordRefsResponse{})
+	api, d := wiredTo(t, &verbsv1.RecordRefsResponse{})
 	ctx := wireCtx(t)
 
 	if _, err := api.Refs(ctx, RefsArgs{ID: "x"}); err != nil {
@@ -1240,11 +1240,11 @@ func TestAnUnsetDepthAsksTheDaemonForItsOwnDefault(t *testing.T) {
 	}
 }
 
-func refsRequests(t *testing.T, d *fakeDaemon) []*rigv1.RecordRefsRequest {
+func refsRequests(t *testing.T, d *fakeDaemon) []*verbsv1.RecordRefsRequest {
 	t.Helper()
-	var out []*rigv1.RecordRefsRequest
+	var out []*verbsv1.RecordRefsRequest
 	for _, f := range d.frames(t) {
-		req := &rigv1.RecordRefsRequest{}
+		req := &verbsv1.RecordRefsRequest{}
 		if err := proto.Unmarshal(f.GetPayload(), req); err != nil {
 			t.Fatalf("a refs request did not decode: %v", err)
 		}
@@ -1263,7 +1263,7 @@ func refsRequests(t *testing.T, d *fakeDaemon) []*rigv1.RecordRefsRequest {
 // `"" is not a step state` and the caller's own word is gone. This client is
 // the last place it exists.
 func TestAStepStateWithNoValueOnTheWireIsRefusedBeforeItIsSent(t *testing.T) {
-	api, d := wiredTo(t, &rigv1.ProgressStepResponse{})
+	api, d := wiredTo(t, &verbsv1.ProgressStepResponse{})
 
 	_, err := api.Step(wireCtx(t), StepArgs{Item: "x", State: "banana", Project: "rig"})
 	if err == nil {
@@ -1299,7 +1299,7 @@ func TestAStepStateWithNoValueOnTheWireIsRefusedBeforeItIsSent(t *testing.T) {
 // This is the half that makes the refusal above safe rather than a second
 // source of truth - which is what progress.go was right to refuse.
 func TestEveryStepStateTheWireDeclaresIsAcceptedByName(t *testing.T) {
-	values := rigv1.StepState_STEP_STATE_UNSPECIFIED.Descriptor().Values()
+	values := verbsv1.StepState_STEP_STATE_UNSPECIFIED.Descriptor().Values()
 	seen := 0
 	for i := range values.Len() {
 		v := values.Get(i)
@@ -1422,7 +1422,7 @@ func TestTheRefsObjectAlwaysCarriesTruncatedAndCycles(t *testing.T) {
 // without provenance, so a zero here is a defect between the store and this
 // client - a thing to report, not a year to hand the reader.
 func TestAProvenanceWithNoStampDoesNotBecomeTheUnixEpoch(t *testing.T) {
-	p := provFromWire(&rigv1.Provenance{Session: "s", Seat: "cli", Epoch: 7})
+	p := provFromWire(&verbsv1.Provenance{Session: "s", Seat: "cli", Epoch: 7})
 	if !p.CreatedAt.IsZero() {
 		t.Errorf("an unset stamp became %s, which renders as a date",
 			p.CreatedAt)
@@ -1434,7 +1434,7 @@ func TestAProvenanceWithNoStampDoesNotBecomeTheUnixEpoch(t *testing.T) {
 	// The control: a real stamp must survive, or the assertion above passes
 	// against a converter that drops the field entirely.
 	at := time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC)
-	p = provFromWire(&rigv1.Provenance{AtUnixNano: at.UnixNano()})
+	p = provFromWire(&verbsv1.Provenance{AtUnixNano: at.UnixNano()})
 	if !p.CreatedAt.Equal(at) {
 		t.Errorf("a real stamp arrived as %s, want %s", p.CreatedAt, at)
 	}
@@ -1519,7 +1519,7 @@ func TestATypedFieldReachesTheWireWithItsSpellingUnchanged(t *testing.T) {
 // the carriage and a different mechanism: the first test ends at PutArgs, this
 // one reads the bytes the daemon was sent.
 func TestATypedFieldReachesTheDaemonUnderTheKeyItWasTyped(t *testing.T) {
-	api, d := wiredTo(t, &rigv1.RecordPutResponse{})
+	api, d := wiredTo(t, &verbsv1.RecordPutResponse{})
 
 	sent := map[string]string{"must_read": "true", "Must-Read": "true"}
 	if _, err := api.Put(wireCtx(t), PutArgs{
@@ -1532,7 +1532,7 @@ func TestATypedFieldReachesTheDaemonUnderTheKeyItWasTyped(t *testing.T) {
 	if len(frames) != 1 {
 		t.Fatalf("the daemon was sent %d frames, want 1", len(frames))
 	}
-	req := &rigv1.RecordPutRequest{}
+	req := &verbsv1.RecordPutRequest{}
 	if err := proto.Unmarshal(frames[0].GetPayload(), req); err != nil {
 		t.Fatal(err)
 	}
@@ -1594,14 +1594,14 @@ func atAFakeDaemon(t *testing.T, reply proto.Message) *fakeDaemon {
 // unmarshal and the provenance conversion together.
 func TestRecordGetDialsARealSocketAndRendersWhatCameBack(t *testing.T) {
 	at := time.Date(2026, 9, 16, 21, 0, 0, 0, time.UTC)
-	d := atAFakeDaemon(t, &rigv1.RecordGetResponse{Record: &rigv1.Record{
+	d := atAFakeDaemon(t, &verbsv1.RecordGetResponse{Record: &verbsv1.Record{
 		Id:      "01927-abc",
 		Version: 3,
 		Kind:    "requirement",
 		Project: "rig",
 		Body:    "the grain is the heading",
 		Fields:  map[string]string{titleKey: "the grain"},
-		Prov: &rigv1.Provenance{
+		Prov: &verbsv1.Provenance{
 			Session: "sess-4f2", Seat: "terminal:someone", Epoch: 7,
 			AtUnixNano: at.UnixNano(),
 		},
@@ -1676,7 +1676,7 @@ func TestRecordGetDialsARealSocketAndRendersWhatCameBack(t *testing.T) {
 // package and to a person running one command, and would show up only as a
 // daemon accumulating connections under an agent that calls rig in a loop.
 func TestTheSeamsReleaseClosesTheConnection(t *testing.T) {
-	atAFakeDaemon(t, &rigv1.RecordGetResponse{})
+	atAFakeDaemon(t, &verbsv1.RecordGetResponse{})
 
 	api, release, err := openRecordAPI()
 	if err != nil {
@@ -1709,7 +1709,7 @@ func TestTheSeamsReleaseClosesTheConnection(t *testing.T) {
 // NOT FIX. Measured 2026-09-17 against a two-project store, client and daemon
 // both at `6c768c4`: `record refs --cross-project` returns the foreign edge and
 // NOTHING IN THE ANSWER SAYS WHICH ROWS CROSSED. No layer carries `project` on
-// a ref - not `internal/record.Ref`, not `rigv1.Ref`, not this package's - even
+// a ref - not `internal/record.Ref`, not `verbsv1.Ref`, not this package's - even
 // though `internal/record/refs.go` reads a record's project to make the pruning
 // decision and then drops it. The wire is not this seat's to change, so the
 // repair is the lead's and the store seat's.
@@ -1720,7 +1720,7 @@ func TestTheSeamsReleaseClosesTheConnection(t *testing.T) {
 // commit it was written.
 func TestEveryFieldTheWireCarriesOnARefIsRendered(t *testing.T) {
 	var onTheWire []string
-	fields := (&rigv1.Ref{}).ProtoReflect().Descriptor().Fields()
+	fields := (&verbsv1.Ref{}).ProtoReflect().Descriptor().Fields()
 	for i := range fields.Len() {
 		onTheWire = append(onTheWire, string(fields.Get(i).Name()))
 	}
@@ -1765,7 +1765,7 @@ func TestEveryFieldTheWireCarriesOnARefIsRendered(t *testing.T) {
 // `refsText` would skip the three of those most likely to be wrong.
 func TestACrossProjectAnswerStillRendersTheEdgeThatDidNotCross(t *testing.T) {
 	const subject = "01927-subject"
-	near := &rigv1.Ref{
+	near := &verbsv1.Ref{
 		Src: "01927-near", Type: "cites", Via: subject,
 		Kind: "decision", Title: "a decision inside alpha", Distance: 1,
 	}
@@ -1774,12 +1774,12 @@ func TestACrossProjectAnswerStillRendersTheEdgeThatDidNotCross(t *testing.T) {
 	// the title, which is the defect stated as a construction rather than as a
 	// complaint. A reader whose records are titled less helpfully gets two
 	// identical rows.
-	far := &rigv1.Ref{
+	far := &verbsv1.Ref{
 		Src: "01927-far", Type: "cites", Via: subject,
 		Kind: "decision", Title: "a decision inside beta", Distance: 1,
 	}
-	atAFakeDaemon(t, &rigv1.RecordRefsResponse{
-		Id: subject, Depth: 4, Refs: []*rigv1.Ref{near, far},
+	atAFakeDaemon(t, &verbsv1.RecordRefsResponse{
+		Id: subject, Depth: 4, Refs: []*verbsv1.Ref{near, far},
 	})
 
 	out, err := captureStdout(t, func() error {
@@ -2004,7 +2004,7 @@ func TestTheObjectCarriesTheStoredSeatAndNeverTheDisplayName(t *testing.T) {
 	}
 }
 
-// recordWireRendering declares, per `rigv1.Record` field, the key or keys
+// recordWireRendering declares, per `verbsv1.Record` field, the key or keys
 // `recordJSON` emits for it. A wire field absent from this map is expected to
 // be rendered under its own name.
 //
@@ -2034,7 +2034,7 @@ var recordProvWireRendering = map[string][]string{
 	"at_unix_nano": {"created_at", "created_age_s", "created_at_unix"},
 }
 
-// recordWireFieldsNotRendered names every field on `rigv1.Record` that
+// recordWireFieldsNotRendered names every field on `verbsv1.Record` that
 // `recordJSON` deliberately does not emit, WITH THE REASON.
 //
 // ⛔ IT IS EMPTY, AND EMPTY IS A RESULT HERE RATHER THAN AN OVERSIGHT: every
@@ -2043,7 +2043,7 @@ var recordProvWireRendering = map[string][]string{
 // instead of in a commit message nobody greps.
 var recordWireFieldsNotRendered = map[string]string{}
 
-// recordProvWireFieldsNotRendered is the same for `rigv1.Provenance`, and is
+// recordProvWireFieldsNotRendered is the same for `verbsv1.Provenance`, and is
 // empty for the same reason.
 var recordProvWireFieldsNotRendered = map[string]string{}
 
@@ -2077,9 +2077,9 @@ func TestEveryFieldTheWireCarriesOnARecordIsRenderedOrSaysWhyNot(t *testing.T) {
 			"before reading its result", len(obj), obj["provenance"])
 	}
 
-	wireCoverage(t, "rigv1.Record", (&rigv1.Record{}).ProtoReflect().Descriptor().Fields(),
+	wireCoverage(t, "verbsv1.Record", (&verbsv1.Record{}).ProtoReflect().Descriptor().Fields(),
 		obj, recordWireRendering, recordWireFieldsNotRendered)
-	wireCoverage(t, "rigv1.Provenance", (&rigv1.Provenance{}).ProtoReflect().Descriptor().Fields(),
+	wireCoverage(t, "verbsv1.Provenance", (&verbsv1.Provenance{}).ProtoReflect().Descriptor().Fields(),
 		prov, recordProvWireRendering, recordProvWireFieldsNotRendered)
 }
 
@@ -2423,7 +2423,7 @@ func TestTheJSONKeysAreTheWiresOwnFieldNames(t *testing.T) {
 		Cycles: [][]string{{"a", "b"}},
 	})
 
-	top := (&rigv1.RecordRefsResponse{}).ProtoReflect().Descriptor().Fields()
+	top := (&verbsv1.RecordRefsResponse{}).ProtoReflect().Descriptor().Fields()
 	for i := range top.Len() {
 		name := string(top.Get(i).Name())
 		if _, ok := got[name]; !ok {
@@ -2438,7 +2438,7 @@ func TestTheJSONKeysAreTheWiresOwnFieldNames(t *testing.T) {
 	if !ok || len(rows) != 1 {
 		t.Fatalf("the `refs` key is %T, want a list of one row", got["refs"])
 	}
-	row := rigv1.Ref{}
+	row := verbsv1.Ref{}
 	rf := row.ProtoReflect().Descriptor().Fields()
 	for i := range rf.Len() {
 		name := string(rf.Get(i).Name())

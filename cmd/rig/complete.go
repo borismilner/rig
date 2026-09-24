@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/borismilner/rig/client"
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // Shell completion, from the same declaration as everything else (PLAN.md
@@ -258,7 +258,7 @@ func flagsOf(program, command string) []string {
 //
 // A completion is typed into a live shell. There is no useful way to report
 // that rigd is down, and every unhelpful way makes the shell unusable.
-func programsQuietly() (*rigv1.ProgramsResponse, bool) {
+func programsQuietly() (*registryv1.ProgramsResponse, bool) {
 	c, err := client.Connect()
 	if err != nil {
 		return nil, false
@@ -269,8 +269,8 @@ func programsQuietly() (*rigv1.ProgramsResponse, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 700*time.Millisecond)
 	defer cancel()
 
-	var resp rigv1.ProgramsResponse
-	if err := call(ctx, c, "rig.programs", &rigv1.ProgramsRequest{}, &resp); err != nil {
+	var resp registryv1.ProgramsResponse
+	if err := call(ctx, c, "rig.programs", &registryv1.ProgramsRequest{}, &resp); err != nil {
 		return nil, false
 	}
 	return &resp, true

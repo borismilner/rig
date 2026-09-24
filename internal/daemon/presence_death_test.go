@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // WHAT HAPPENS WHEN THE HOLDER DIES, and the harder half: what happens when
@@ -96,7 +96,7 @@ func TestAnIdleSeatIsNeverReapedBecauseThereIsNoClockToReapOn(t *testing.T) {
 		t.Fatalf("row is %q at generation %d after a day, want backend-1 at %d",
 			row.GetSeat(), row.GetGeneration(), seated.generation)
 	}
-	if row.GetState() != rigv1.SeatState_SEAT_STATE_ACTIVE {
+	if row.GetState() != verbsv1.SeatState_SEAT_STATE_ACTIVE {
 		t.Errorf("state is %v after a day of silence, want ACTIVE. Presence "+
 			"reports what a peer SAID it was doing, and nothing here is "+
 			"entitled to downgrade that on a timer", row.GetState())

@@ -2,7 +2,7 @@ package daemon
 
 import (
 	"github.com/borismilner/rig/internal/kernel"
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // selfDeclaration is rig declaring its own commands the way every program
@@ -453,15 +453,15 @@ func declareSelf(k *kernel.Kernel) error { return k.DeclareSelf(selfDeclaration(
 // rather than guessed at, because "nothing was said" is the honest answer to a
 // name this function does not understand, and inventing a role for it would be
 // the guess that section 21's zero exists to prevent.
-func estateRole(name string) rigv1.EstateRole {
+func estateRole(name string) registryv1.EstateRole {
 	switch name {
 	case "":
-		return rigv1.EstateRole_ESTATE_ROLE_UNNAMED
+		return registryv1.EstateRole_ESTATE_ROLE_UNNAMED
 	case "production":
-		return rigv1.EstateRole_ESTATE_ROLE_PRODUCTION
+		return registryv1.EstateRole_ESTATE_ROLE_PRODUCTION
 	case "development":
-		return rigv1.EstateRole_ESTATE_ROLE_DEVELOPMENT
+		return registryv1.EstateRole_ESTATE_ROLE_DEVELOPMENT
 	default:
-		return rigv1.EstateRole_ESTATE_ROLE_UNSPECIFIED
+		return registryv1.EstateRole_ESTATE_ROLE_UNSPECIFIED
 	}
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/borismilner/rig/client"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // SECTION 37, PRECONDITION 3: BUILD SKEW IS DETECTED, NOT DISCOVERED.
@@ -67,8 +68,8 @@ func checkSkew(w io.Writer, c *client.Client, build string) {
 	ctx, cancel := context.WithTimeout(context.Background(), skewCheckTimeout)
 	defer cancel()
 
-	resp := &rigv1.EstateResponse{}
-	err := call(ctx, c, "rig.estate", &rigv1.EstateRequest{}, resp)
+	resp := &registryv1.EstateResponse{}
+	err := call(ctx, c, "rig.estate", &registryv1.EstateRequest{}, resp)
 	if line := skewLine(build, resp, err); line != "" {
 		fmt.Fprintln(w, line)
 	}
@@ -76,7 +77,7 @@ func checkSkew(w io.Writer, c *client.Client, build string) {
 
 // skewLine is the whole policy, as a pure function so every row of the ruling
 // is a test case. It returns "" only when both builds are stamped and equal.
-func skewLine(build string, r *rigv1.EstateResponse, err error) string {
+func skewLine(build string, r *registryv1.EstateResponse, err error) string {
 	const warn = "rig: warning: "
 
 	// call() wraps a daemon refusal as *refusal, which embeds the CallError
@@ -138,7 +139,7 @@ func buildWord(b string) string {
 
 // skewEstate names the daemon by the estate it serves, because "which rig did
 // I reach" is the question the reader has to answer next.
-func skewEstate(r *rigv1.EstateResponse) string {
+func skewEstate(r *registryv1.EstateResponse) string {
 	if r.GetName() == "" {
 		return "the daemon of an estate with no name claimed"
 	}

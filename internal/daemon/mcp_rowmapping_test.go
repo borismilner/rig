@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // TestEverySeatFieldReachesTheRosterRow is the guard seatToOccupant does not
@@ -51,8 +51,8 @@ func TestEverySeatFieldReachesTheRosterRow(t *testing.T) {
 	// field of our own appears, this goes red rather than quietly widening.
 	wantSkipped := []string{"sizeCache", "state", "unknownFields"}
 
-	zero := seatToOccupant(&rigv1.Seat{})
-	st := reflect.TypeOf(rigv1.Seat{})
+	zero := seatToOccupant(&verbsv1.Seat{})
+	st := reflect.TypeOf(verbsv1.Seat{})
 
 	var walked, skipped []string
 	for i := range st.NumField() {
@@ -63,7 +63,7 @@ func TestEverySeatFieldReachesTheRosterRow(t *testing.T) {
 		}
 		walked = append(walked, f.Name)
 
-		one := &rigv1.Seat{}
+		one := &verbsv1.Seat{}
 		if err := setDistinct(reflect.ValueOf(one).Elem().Field(i)); err != "" {
 			t.Fatalf("Seat.%s is a %s and this walk cannot set one: %s. "+
 				"EXTEND setDistinct rather than skipping the field - a walk "+
@@ -83,13 +83,13 @@ func TestEverySeatFieldReachesTheRosterRow(t *testing.T) {
 
 	// A WALK OVER NOTHING PASSES EVERY ASSERTION ABOVE. Say so out loud.
 	if len(walked) == 0 {
-		t.Fatal("this walk found no exported fields on rigv1.Seat at all, so " +
+		t.Fatal("this walk found no exported fields on verbsv1.Seat at all, so " +
 			"it proved nothing. The test is broken, not the mapping")
 	}
 
 	sort.Strings(skipped)
 	if !slicesEqual(skipped, wantSkipped) {
-		t.Errorf("the unexported fields of rigv1.Seat are %v, and this test "+
+		t.Errorf("the unexported fields of verbsv1.Seat are %v, and this test "+
 			"skips exactly %v. They differ, so the walk is skipping something "+
 			"it was never reviewed for. Decide which it is and update the "+
 			"list deliberately - do not widen it to make this pass",

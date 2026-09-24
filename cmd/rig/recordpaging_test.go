@@ -16,6 +16,7 @@ import (
 	"github.com/borismilner/rig/client"
 	wirepkg "github.com/borismilner/rig/internal/wire"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // B116's CLI half: `record.query` answers a page at a time, and `rig record
@@ -88,7 +89,7 @@ func (f *pagingFake) serve(nc net.Conn) {
 		if err != nil {
 			return
 		}
-		var req rigv1.RecordQueryRequest
+		var req verbsv1.RecordQueryRequest
 		if err := proto.Unmarshal(frame.GetPayload(), &req); err != nil {
 			return
 		}
@@ -104,13 +105,13 @@ func (f *pagingFake) serve(nc net.Conn) {
 		if !ok {
 			page = len(f.pages)
 		}
-		resp := &rigv1.RecordQueryResponse{}
+		resp := &verbsv1.RecordQueryResponse{}
 		if page < len(f.pages) {
 			for _, id := range f.pages[page] {
-				resp.Records = append(resp.Records, &rigv1.Record{
+				resp.Records = append(resp.Records, &verbsv1.Record{
 					Id: id, Version: 1, Kind: "note", Project: "rig",
 					Body: "body of " + id,
-					Prov: &rigv1.Provenance{Session: "s", Seat: "fake"},
+					Prov: &verbsv1.Provenance{Session: "s", Seat: "fake"},
 				})
 			}
 		}

@@ -3,7 +3,7 @@ package daemon
 import (
 	"testing"
 
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 // ⛔ A RETRACTED RECORD LEAVES EVERY LIST THE WIRE ANSWERS, AND record.get
@@ -32,30 +32,30 @@ func TestARetractedRecordLeavesEveryListOnTheWireAndStillExplainsItself(t *testi
 		{"B91", "work-item"},
 		{"B92", "work-item"},
 	} {
-		if err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
+		if err := c.Call(ctx, "rig.record.put", &verbsv1.RecordPutRequest{
 			Id: r.id, Kind: r.kind, Project: "rig", Body: r.id,
 			Fields: map[string]string{"title": r.id, "status": "active"},
-		}, &rigv1.RecordPutResponse{}); err != nil {
+		}, &verbsv1.RecordPutResponse{}); err != nil {
 			t.Fatalf("rig.record.put(%s): %v", r.id, err)
 		}
 	}
 
 	const gone = "B91"
-	if err := c.Call(ctx, "rig.record.retract", &rigv1.RecordRetractRequest{
+	if err := c.Call(ctx, "rig.record.retract", &verbsv1.RecordRetractRequest{
 		Id: gone, Reason: "written by mistake",
-	}, &rigv1.RecordRetractResponse{}); err != nil {
+	}, &verbsv1.RecordRetractResponse{}); err != nil {
 		t.Fatalf("rig.record.retract: %v", err)
 	}
 
-	query := func(req *rigv1.RecordQueryRequest) *rigv1.RecordQueryResponse {
+	query := func(req *verbsv1.RecordQueryRequest) *verbsv1.RecordQueryResponse {
 		t.Helper()
-		var resp rigv1.RecordQueryResponse
+		var resp verbsv1.RecordQueryResponse
 		if err := c.Call(ctx, "rig.record.query", req, &resp); err != nil {
 			t.Fatalf("rig.record.query(%v): %v", req, err)
 		}
 		return &resp
 	}
-	ids := func(rs []*rigv1.Record) map[string]bool {
+	ids := func(rs []*verbsv1.Record) map[string]bool {
 		out := map[string]bool{}
 		for _, r := range rs {
 			out[r.GetId()] = true
@@ -77,14 +77,14 @@ func TestARetractedRecordLeavesEveryListOnTheWireAndStillExplainsItself(t *testi
 	}
 
 	// 1. The project's work items, which is what open and next-up are cut from.
-	check("by kind", ids(query(&rigv1.RecordQueryRequest{
+	check("by kind", ids(query(&verbsv1.RecordQueryRequest{
 		Project: "rig", Kind: "work-item",
 	}).GetRecords()))
 
 	// 2. The same narrowed by a field, which is how a derivation files by
 	// status. Closed was never a place a retracted record could hide: a
 	// retraction is not a closing word, it is an absence.
-	check("by field", ids(query(&rigv1.RecordQueryRequest{
+	check("by field", ids(query(&verbsv1.RecordQueryRequest{
 		Project: "rig", Kind: "work-item", Field: "status", Value: "active",
 	}).GetRecords()))
 
@@ -94,7 +94,7 @@ func TestARetractedRecordLeavesEveryListOnTheWireAndStillExplainsItself(t *testi
 	paged := map[string]bool{}
 	after := ""
 	for range 10 {
-		resp := query(&rigv1.RecordQueryRequest{
+		resp := query(&verbsv1.RecordQueryRequest{
 			Project: "rig", Kind: "work-item", Limit: 1, After: after,
 		})
 		for id := range ids(resp.GetRecords()) {
@@ -112,14 +112,14 @@ func TestARetractedRecordLeavesEveryListOnTheWireAndStillExplainsItself(t *testi
 	// 4. And record.refs, which docket reads once per head: a retracted record
 	// pointing at a live one is not a ref to it.
 	for _, src := range []string{"B90", gone} {
-		if err := c.Call(ctx, "rig.record.link", &rigv1.RecordLinkRequest{
+		if err := c.Call(ctx, "rig.record.link", &verbsv1.RecordLinkRequest{
 			Src: src, Type: "cites", Dst: "B92",
-		}, &rigv1.RecordLinkResponse{}); err != nil {
+		}, &verbsv1.RecordLinkResponse{}); err != nil {
 			t.Fatalf("rig.record.link(%s): %v", src, err)
 		}
 	}
-	var refs rigv1.RecordRefsResponse
-	if err := c.Call(ctx, "rig.record.refs", &rigv1.RecordRefsRequest{Id: "B92"}, &refs); err != nil {
+	var refs verbsv1.RecordRefsResponse
+	if err := c.Call(ctx, "rig.record.refs", &verbsv1.RecordRefsRequest{Id: "B92"}, &refs); err != nil {
 		t.Fatalf("rig.record.refs: %v", err)
 	}
 	if len(refs.GetRefs()) != 1 || refs.GetRefs()[0].GetSrc() != "B90" || refs.GetTruncated() {
@@ -129,8 +129,8 @@ func TestARetractedRecordLeavesEveryListOnTheWireAndStillExplainsItself(t *testi
 
 	// ⛔ AND record.get MUST STILL ANSWER, WITH THE FACT AND ITS REASON. A
 	// NotFound here would make retract indistinguishable from delete.
-	var got rigv1.RecordGetResponse
-	if err := c.Call(ctx, "rig.record.get", &rigv1.RecordGetRequest{Id: gone}, &got); err != nil {
+	var got verbsv1.RecordGetResponse
+	if err := c.Call(ctx, "rig.record.get", &verbsv1.RecordGetRequest{Id: gone}, &got); err != nil {
 		t.Fatalf("rig.record.get on a retracted record: %v - it must still "+
 			"explain what the record was and that it was retracted", err)
 	}

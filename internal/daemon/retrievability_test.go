@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // notRetrievable is every declaration field a caller is deliberately NOT given
@@ -128,7 +129,7 @@ func TestEveryDeclaredFieldIsRetrievable(t *testing.T) {
 		t.Fatalf("the maximal declaration was refused: %v", err)
 	}
 
-	got := find(estate(t, dial(t, sock), rigv1.Depth_DEPTH_FULL), "shelf")
+	got := find(estate(t, dial(t, sock), registryv1.Depth_DEPTH_FULL), "shelf")
 	if got == nil {
 		t.Fatal("shelf is not in the estate")
 	}
