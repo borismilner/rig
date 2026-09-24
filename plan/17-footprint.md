@@ -73,7 +73,7 @@ reintroduce one as a gate without asking again.
 | Cold start to first command served | **< 100 ms** | measured in CI. Daemon-only measured 83 ms; daemon plus TUI was 115.81 ms, which is why they are two binaries |
 | A no-op command, end to end | **< 10 ms** | the wire is 6.2µs of it (§4); the rest is process |
 | A fully recorded call | **< 2 µs** | history + span + slog, §15 |
-| The window, when closed | **zero** | it is not the same process |
+| The window, when closed | **zero** | it is not the same process. **Broken until 2026-09-24:** the tray kept a hidden window and its renderer, ~202 MB idle. Since rig `cf337e6` the tray is its own WebKit-free process (24-28 MB PSS) and the window a child that exits on close (§11) |
 | **`righand`, when nothing is being driven** | **zero** | same argument, and the same mechanism. `rig hand` starts it, a released lease can stop it, and the X11 dependency measured at **1,015,911 bytes** is never linked into `rigd` at all (§5m) |
 
 **A warning about the gates themselves:** the problem is entirely fixed cost, so `bench-scale`

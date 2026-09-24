@@ -452,6 +452,31 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
     supervising it) would not have had it, and **choosing this one makes the
     close path load-bearing rather than cosmetic.**
 
+    ✅ ⛔ **SUPERSEDED 2026-09-24 BY THE FOOTPRINT RULING: THE TRAY IS NOW ITS
+    OWN PROCESS AND THE WINDOW A CHILD IT SPAWNS.** Boris, 2026-09-24,
+    verbatim: *"We can't afford any unnecessary costs! The footprint of both
+    AgentBox and rig must be absolutely minimal - you are allowed to do
+    anything for this cause!"* The hidden window kept its WebKit renderer
+    alive: **202 MB in the unit's cgroup with nothing on screen**, 173 MB of
+    it the renderer. That broke §17's row *"The window, when closed: zero"*.
+
+    | | before (rig `2b01af2`) | after (rig `cf337e6`) |
+    |---|---|---|
+    | process shape | one process: tray + hidden window | tray process; `rigwindow --window` child on demand |
+    | idle, window closed | ~202 MB cgroup | **24-28 MB PSS**, no WebKit process |
+    | window open | same process | 363-369 MB PSS, all of it gone on close |
+    | close (tray or WM X) | hide | the child exits; the tray stays |
+
+    **Requirements 4 and 5 still hold, by structure now rather than by a
+    hook.** The tray never owns a window, so no close can take the icon
+    (4), and it starts with no window at all (5). The `WindowClosing` hook
+    is gone: Wails' default destroy + quit-on-last-window is exactly the
+    exit wanted. **Measured on a private Xvfb + openbox, three trials** of
+    three tray toggles (over the item's D-Bus `Activate`) and one `wmctrl
+    -ic` close each; every close returned the tree to the tray alone. **Not
+    yet exercised: the installed unit on the live panel** - that is the
+    redeploy. The table below describes the pre-`cf337e6` shape.
+
     **WHAT IS BUILT AGAINST REQUIREMENT 4, and what is not:**
 
     | | |
