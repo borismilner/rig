@@ -49,7 +49,7 @@ RATCHET    := size-ratchet.json
 # bench-size, bench-size-update and bench-size-one cannot drift apart. The
 # window is deliberately not here: it needs cgo and a webview, and ci must
 # not assume either, so it keeps its own pair of targets.
-RATCHET_BINS := $(BIND) $(BIN) fakeapp ledger abacus
+RATCHET_BINS := $(BIND) $(BIN) fakeapp ledger abacus lantern
 # Only used to serve the window's built page to the contrast gate. Nothing
 # listens on it outside that target.
 CONTRAST_PORT ?= 8731
@@ -94,7 +94,7 @@ SHELL := bash
 # cold checkout while passing on a warm one. build-abacus was missing and
 # bench-size measured build/abacus anyway, so ci depended on a binary it never
 # built - invisible locally because the file was left over from an earlier run.
-build: build-rigd build-rig build-fakeapp build-ledger build-abacus ## Build every binary into build/
+build: build-rigd build-rig build-fakeapp build-ledger build-abacus build-lantern ## Build every binary into build/
 
 build-rigd: ## Build the daemon (links none of the terminal stack)
 	@mkdir -p build
@@ -131,6 +131,14 @@ build-abacus: ## Build M1a's second fake application, on dispatch's shape
 	@find cmd/abacus/kit -mindepth 1 ! -name .gitkeep -delete
 	cp design/kit/kit.css design/kit/kit.js design/kit/pane.js cmd/abacus/kit/
 	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o build/abacus ./cmd/abacus
+
+# The embedded tier's demo (section 11). It takes pane.js and nothing else of
+# design/kit: pane.js alone is the embedded tier, pane.js plus kit.js the kit.
+build-lantern: ## Build the embedded-tier demo program
+	@mkdir -p build cmd/lantern/rig
+	@find cmd/lantern/rig -mindepth 1 ! -name .gitkeep -delete
+	cp design/kit/pane.js cmd/lantern/rig/
+	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o build/lantern ./cmd/lantern
 
 # The window is the third binary (section 17, section 22) and deliberately not
 # part of `build`: it is the only one that needs cgo, gtk and a webview, so a
@@ -707,7 +715,7 @@ help: ## Show this help
 	  /^[a-zA-Z_-]+:.*##/ {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo
 
-.PHONY: build build-rigd build-rig build-fakeapp build-ledger build-abacus deps-frontend build-frontend build-rigwindow build-all install uninstall \
+.PHONY: build build-rigd build-rig build-fakeapp build-ledger build-abacus build-lantern deps-frontend build-frontend build-rigwindow build-all install uninstall \
         run dev clean test test-unit test-race \
         test-chaos test-e2e test-wire fuzz cover cover-html lint lint-house fmt vet audit \
         vet-window test-window verify contrast contrast-selftest contrast-window theme-gate generate proto schema types docs bench bench-ipc profile \

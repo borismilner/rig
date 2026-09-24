@@ -49,7 +49,7 @@ fi
 if [ "$build" = 1 ]; then
   make build build-rigwindow >/dev/null
 fi
-for b in rigd rig fakeapp ledger abacus rigwindow; do
+for b in rigd rig fakeapp ledger abacus lantern rigwindow; do
   [ -x "build/$b" ] || { echo "f8-demo: build/$b is missing; run without --no-build" >&2; exit 1; }
 done
 
@@ -91,27 +91,29 @@ start rigd build/rigd --estate development
 for _ in $(seq 1 50); do build/rig estate >/dev/null 2>&1 && break; sleep 0.2; done
 build/rig estate >/dev/null 2>&1 || { echo "f8-demo: rigd did not answer; log:" >&2; cat "$demo/rigd.log" >&2; exit 1; }
 
-# Ports away from ledger's and abacus's defaults (7451, 7452), so a copy
+# Ports away from ledger's, abacus's and lantern's defaults (7451-7453), so a copy
 # already running on this machine does not collide with the demo's.
 start fakeapp build/fakeapp
 start ledger build/ledger --addr 127.0.0.1:17451
 start abacus build/abacus --addr 127.0.0.1:17452
+start lantern build/lantern --addr 127.0.0.1:17453
 for _ in $(seq 1 50); do
-  n=$( (build/rig apps list --json 2>/dev/null || true) | { grep -o '"id": *"\(fakeapp\|ledger\|abacus\)"' || true; } | wc -l)
-  [ "$n" -ge 3 ] && break
+  n=$( (build/rig apps list --json 2>/dev/null || true) | { grep -o '"id": *"\(fakeapp\|ledger\|abacus\|lantern\)"' || true; } | wc -l)
+  [ "$n" -ge 4 ] && break
   sleep 0.2
 done
 start window build/rigwindow --window
 
 cat <<'EOF'
 
-rig F8 demo: a private development estate, three programs, the window.
+rig F8 demo: a private development estate, four programs, the window.
 
-The window opens on the Dashboard: "3 programs registered", the three in
+The window opens on the Dashboard: "4 programs registered", the four in
 "The estate", and "What is deployed" saying the daemon and the window are the
 same build (this script builds both from one tree).
 
-The rail on the left lists abacus, fakeapp and ledger (ab, fa, le). Click each:
+The rail on the left lists abacus, fakeapp, lantern and ledger (ab, fa, la,
+le). Click each:
 
   fakeapp  GENERATED tier. rig draws the pane itself from what the program
            declared: its identity, version, coverage, services and commands,
@@ -129,9 +131,13 @@ The rail on the left lists abacus, fakeapp and ledger (ab, fa, le). Click each:
            rather than text cells, and an empty message that changes with the
            filter. Also follows the theme switch.
 
-  EMBEDDED tier: no demo program exists. A program there serves its own HTML
-           with its own components and receives only the token set; the
-           window side is the same frame and handoff the kit tier uses.
+  lantern  EMBEDDED tier. The program's own page with its own components (a
+           status line, three cards, a toggle button) and no rig element:
+           only the token set reaches it. The status line reads "themed by
+           the window: dark" (or light) and the cards count the tokens
+           received and the theme sets received (already 2 or so, the
+           window sends it more than once on load). Switch the theme in
+           Settings: the page recolours and that count goes up by one.
 
 Also check: closing the window ends only the window (the tray is a separate
 process, not started by this demo), and the status strip names the

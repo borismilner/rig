@@ -16,6 +16,8 @@ cmd/ledger/kit/*
 !cmd/ledger/kit/.gitkeep
 cmd/abacus/kit/*
 !cmd/abacus/kit/.gitkeep
+cmd/lantern/rig/*
+!cmd/lantern/rig/.gitkeep
 cmd/rigwindow/icons/*
 !cmd/rigwindow/icons/.gitkeep
 node_modules/

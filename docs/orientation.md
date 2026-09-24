@@ -53,7 +53,7 @@ ruled a non-goal.
 | `rig` | the client: `rig <program> <command>`, generated help and completion, `--json` everywhere | built |
 | `rigwindow` | the tray icon and the window (Wails v3, Svelte). The tray is its own WebKit-free process and spawns `rigwindow --window` as a child on demand, so a closed window holds no renderer (`cf337e6`) | partial |
 | `fakeapp` | the reference program the conformance suite drives | built |
-| `ledger`, `abacus` | fake adopting programs that prove the pane tiers | built |
+| `ledger`, `abacus`, `lantern` | fake adopting programs that prove the pane tiers: ledger and abacus the kit tier, lantern the embedded tier (`tools/f8-demo.sh` shows all three tiers) | built |
 | `gate`, `depscheck`, `footprint`, `sizeratchet`, `schemagen`, `pkgdeb`, `ipcbench` | build gates and tools: lint gate, dependency audit, binary-size ratchet, schema generation, `.deb` packaging, the IPC benchmark | built |
 
 ### The client, `rig --help`
