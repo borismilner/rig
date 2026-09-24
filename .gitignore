@@ -56,3 +56,6 @@ DECISIONS.md
 # every brief resolves verbatim from the repo root. Without it those paths
 # are dead and each arriving session pays the same wasted lookup.
 /logbook
+
+# make types output: generated from schema/, imported by nothing yet.
+frontend/src/lib/schema/

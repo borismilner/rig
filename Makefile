@@ -462,7 +462,11 @@ contrast-selftest: ## Prove the contrast instruments against known answers first
 
 ##@ Generate
 
-generate: proto schema types docs ## Regenerate everything that is generated
+# There is no `docs` step. It ran `rig docs --out docs/cli.md`, a verb that
+# never existed and that no section of the plan specifies, so `make generate`
+# failed at its last step. The capability map it also named is served live as
+# the MCP `capabilities` resource and is not a file to regenerate.
+generate: proto schema types ## Regenerate everything that is generated
 
 proto: ## Generate Go from proto/
 	# protoc directly, not buf: buf earns its keep on a multi-module workspace
@@ -490,9 +494,6 @@ schema-check: ## Fail if the committed schema is not what schemagen emits
 
 types: schema ## Generate TypeScript types from the JSON Schemas
 	cd frontend && npm run gen:types
-
-docs: ## Regenerate the CLI reference and the capability map
-	go run ./cmd/rig docs --out docs/cli.md
 
 ##@ Measure
 
@@ -700,7 +701,7 @@ help: ## Show this help
 .PHONY: build build-rigd build-rig build-fakeapp build-ledger build-abacus deps-frontend build-frontend build-rigwindow build-all install uninstall \
         run dev clean test test-unit test-race \
         test-chaos test-e2e test-wire fuzz cover cover-html lint lint-house fmt vet audit \
-        vet-window test-window verify contrast contrast-selftest contrast-window theme-gate generate proto schema types docs bench bench-ipc profile \
+        vet-window test-window verify contrast contrast-selftest contrast-window theme-gate generate proto schema types bench bench-ipc profile \
         up down doctor apps logs tui tidy deps-check release package ci fmt-check \
         bench-idle bench-scale bench-size bench-size-update bench-size-one build-minimal \
         bench-size-window bench-size-window-update \
