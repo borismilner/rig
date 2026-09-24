@@ -281,34 +281,42 @@ func (s *Store) Acquire(name, holder string, w Witness, ttl time.Duration) (Hand
 
 	var h Handle
 	err = s.db.Update(func(tx *bolt.Tx) error {
-		r, err := getRecord(tx, name)
-		if err != nil {
-			return err
-		}
-		token := uint64(0)
-		if r != nil {
-			token = r.Token
-			state, live := r.evaluate(at, s.bootID)
-			if state != Free && r.Holder != holder {
-				return &HeldError{Status: r.status(state, live)}
-			}
-		}
-		next := &record{
-			Name:     name,
-			Holder:   holder,
-			Token:    token + 1,
-			Epoch:    s.epoch,
-			Witness:  w,
-			BootID:   s.bootID,
-			Deadline: at.Add(ttl),
-		}
-		h = Handle{Name: name, Holder: holder, Token: next.Token, Epoch: next.Epoch, Deadline: next.Deadline}
-		return putRecord(tx, next)
+		var err error
+		h, err = s.acquireTx(tx, at, name, holder, w, ttl)
+		return err
 	})
 	if err != nil {
 		return Handle{}, err
 	}
 	return h, nil
+}
+
+// acquireTx is Acquire inside a transaction the caller already holds, so a
+// queue claim takes its task and the task's lease in one commit.
+func (s *Store) acquireTx(tx *bolt.Tx, at Instant, name, holder string, w Witness, ttl time.Duration) (Handle, error) {
+	r, err := getRecord(tx, name)
+	if err != nil {
+		return Handle{}, err
+	}
+	token := uint64(0)
+	if r != nil {
+		token = r.Token
+		state, live := r.evaluate(at, s.bootID)
+		if state != Free && r.Holder != holder {
+			return Handle{}, &HeldError{Status: r.status(state, live)}
+		}
+	}
+	next := &record{
+		Name:     name,
+		Holder:   holder,
+		Token:    token + 1,
+		Epoch:    s.epoch,
+		Witness:  w,
+		BootID:   s.bootID,
+		Deadline: at.Add(ttl),
+	}
+	return Handle{Name: name, Holder: holder, Token: next.Token, Epoch: next.Epoch, Deadline: next.Deadline},
+		putRecord(tx, next)
 }
 
 // Renew extends a lease against the handle that holds it.
