@@ -539,6 +539,65 @@ func (TaskState) EnumDescriptor() ([]byte, []int) {
 	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{7}
 }
 
+// AgentBox's five, in rising order of how loudly they are drawn.
+type Severity int32
+
+const (
+	Severity_SEVERITY_UNSPECIFIED Severity = 0
+	Severity_SEVERITY_INFO        Severity = 1
+	Severity_SEVERITY_SUCCESS     Severity = 2
+	Severity_SEVERITY_WARNING     Severity = 3
+	Severity_SEVERITY_ERROR       Severity = 4
+	Severity_SEVERITY_URGENT      Severity = 5
+)
+
+// Enum value maps for Severity.
+var (
+	Severity_name = map[int32]string{
+		0: "SEVERITY_UNSPECIFIED",
+		1: "SEVERITY_INFO",
+		2: "SEVERITY_SUCCESS",
+		3: "SEVERITY_WARNING",
+		4: "SEVERITY_ERROR",
+		5: "SEVERITY_URGENT",
+	}
+	Severity_value = map[string]int32{
+		"SEVERITY_UNSPECIFIED": 0,
+		"SEVERITY_INFO":        1,
+		"SEVERITY_SUCCESS":     2,
+		"SEVERITY_WARNING":     3,
+		"SEVERITY_ERROR":       4,
+		"SEVERITY_URGENT":      5,
+	}
+)
+
+func (x Severity) Enum() *Severity {
+	p := new(Severity)
+	*p = x
+	return p
+}
+
+func (x Severity) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Severity) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_rig_v1_verbs_proto_enumTypes[8].Descriptor()
+}
+
+func (Severity) Type() protoreflect.EnumType {
+	return &file_proto_rig_v1_verbs_proto_enumTypes[8]
+}
+
+func (x Severity) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Severity.Descriptor instead.
+func (Severity) EnumDescriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{8}
+}
+
 type DescribeRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The program to describe. Required.
@@ -6707,6 +6766,315 @@ func (x *LeaseCheckResponse) GetLease() *Lease {
 	return nil
 }
 
+type Toast struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Monotonic for this daemon's life; the waiter's cursor.
+	Seq uint64 `protobuf:"varint,1,opt,name=seq,proto3" json:"seq,omitempty"`
+	// The notification record's id.
+	RecordId string   `protobuf:"bytes,2,opt,name=record_id,json=recordId,proto3" json:"record_id,omitempty"`
+	Severity Severity `protobuf:"varint,3,opt,name=severity,proto3,enum=rig.v1.Severity" json:"severity,omitempty"`
+	Title    string   `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
+	Body     string   `protobuf:"bytes,5,opt,name=body,proto3" json:"body,omitempty"`
+	// The sender: a registered program's id, else the caller's seat.
+	Sender        string `protobuf:"bytes,6,opt,name=sender,proto3" json:"sender,omitempty"`
+	AtUnixNano    int64  `protobuf:"varint,7,opt,name=at_unix_nano,json=atUnixNano,proto3" json:"at_unix_nano,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Toast) Reset() {
+	*x = Toast{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[89]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Toast) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Toast) ProtoMessage() {}
+
+func (x *Toast) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[89]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Toast.ProtoReflect.Descriptor instead.
+func (*Toast) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{89}
+}
+
+func (x *Toast) GetSeq() uint64 {
+	if x != nil {
+		return x.Seq
+	}
+	return 0
+}
+
+func (x *Toast) GetRecordId() string {
+	if x != nil {
+		return x.RecordId
+	}
+	return ""
+}
+
+func (x *Toast) GetSeverity() Severity {
+	if x != nil {
+		return x.Severity
+	}
+	return Severity_SEVERITY_UNSPECIFIED
+}
+
+func (x *Toast) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *Toast) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *Toast) GetSender() string {
+	if x != nil {
+		return x.Sender
+	}
+	return ""
+}
+
+func (x *Toast) GetAtUnixNano() int64 {
+	if x != nil {
+		return x.AtUnixNano
+	}
+	return 0
+}
+
+// NotifyRequest sends one. Severity is required; title up to 200 bytes, body
+// up to 4 KiB.
+type NotifyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Severity      Severity               `protobuf:"varint,1,opt,name=severity,proto3,enum=rig.v1.Severity" json:"severity,omitempty"`
+	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Body          string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NotifyRequest) Reset() {
+	*x = NotifyRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[90]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NotifyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NotifyRequest) ProtoMessage() {}
+
+func (x *NotifyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[90]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NotifyRequest.ProtoReflect.Descriptor instead.
+func (*NotifyRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{90}
+}
+
+func (x *NotifyRequest) GetSeverity() Severity {
+	if x != nil {
+		return x.Severity
+	}
+	return Severity_SEVERITY_UNSPECIFIED
+}
+
+func (x *NotifyRequest) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *NotifyRequest) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+type NotifyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Toast         *Toast                 `protobuf:"bytes,1,opt,name=toast,proto3" json:"toast,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NotifyResponse) Reset() {
+	*x = NotifyResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[91]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NotifyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NotifyResponse) ProtoMessage() {}
+
+func (x *NotifyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[91]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NotifyResponse.ProtoReflect.Descriptor instead.
+func (*NotifyResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{91}
+}
+
+func (x *NotifyResponse) GetToast() *Toast {
+	if x != nil {
+		return x.Toast
+	}
+	return nil
+}
+
+// ToastWaitRequest answers the toasts after `after` as soon as there are any,
+// or an empty list once `timeout_ms` (at most 60000) has passed.
+type ToastWaitRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	After         uint64                 `protobuf:"varint,1,opt,name=after,proto3" json:"after,omitempty"`
+	TimeoutMs     uint32                 `protobuf:"varint,2,opt,name=timeout_ms,json=timeoutMs,proto3" json:"timeout_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ToastWaitRequest) Reset() {
+	*x = ToastWaitRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[92]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ToastWaitRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ToastWaitRequest) ProtoMessage() {}
+
+func (x *ToastWaitRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[92]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ToastWaitRequest.ProtoReflect.Descriptor instead.
+func (*ToastWaitRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{92}
+}
+
+func (x *ToastWaitRequest) GetAfter() uint64 {
+	if x != nil {
+		return x.After
+	}
+	return 0
+}
+
+func (x *ToastWaitRequest) GetTimeoutMs() uint32 {
+	if x != nil {
+		return x.TimeoutMs
+	}
+	return 0
+}
+
+type ToastWaitResponse struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Toasts []*Toast               `protobuf:"bytes,1,rep,name=toasts,proto3" json:"toasts,omitempty"`
+	// The newest seq the daemon has issued, so a waiter that starts late can
+	// skip the backlog.
+	Latest        uint64 `protobuf:"varint,2,opt,name=latest,proto3" json:"latest,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ToastWaitResponse) Reset() {
+	*x = ToastWaitResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[93]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ToastWaitResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ToastWaitResponse) ProtoMessage() {}
+
+func (x *ToastWaitResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[93]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ToastWaitResponse.ProtoReflect.Descriptor instead.
+func (*ToastWaitResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{93}
+}
+
+func (x *ToastWaitResponse) GetToasts() []*Toast {
+	if x != nil {
+		return x.Toasts
+	}
+	return nil
+}
+
+func (x *ToastWaitResponse) GetLatest() uint64 {
+	if x != nil {
+		return x.Latest
+	}
+	return 0
+}
+
 var File_proto_rig_v1_verbs_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_verbs_proto_rawDesc = "" +
@@ -7112,7 +7480,29 @@ const file_proto_rig_v1_verbs_proto_rawDesc = "" +
 	"\x05token\x18\x02 \x01(\x04R\x05token\"S\n" +
 	"\x12LeaseCheckResponse\x12\x18\n" +
 	"\acurrent\x18\x01 \x01(\bR\acurrent\x12#\n" +
-	"\x05lease\x18\x02 \x01(\v2\r.rig.v1.LeaseR\x05lease*Z\n" +
+	"\x05lease\x18\x02 \x01(\v2\r.rig.v1.LeaseR\x05lease\"\xc8\x01\n" +
+	"\x05Toast\x12\x10\n" +
+	"\x03seq\x18\x01 \x01(\x04R\x03seq\x12\x1b\n" +
+	"\trecord_id\x18\x02 \x01(\tR\brecordId\x12,\n" +
+	"\bseverity\x18\x03 \x01(\x0e2\x10.rig.v1.SeverityR\bseverity\x12\x14\n" +
+	"\x05title\x18\x04 \x01(\tR\x05title\x12\x12\n" +
+	"\x04body\x18\x05 \x01(\tR\x04body\x12\x16\n" +
+	"\x06sender\x18\x06 \x01(\tR\x06sender\x12 \n" +
+	"\fat_unix_nano\x18\a \x01(\x03R\n" +
+	"atUnixNano\"g\n" +
+	"\rNotifyRequest\x12,\n" +
+	"\bseverity\x18\x01 \x01(\x0e2\x10.rig.v1.SeverityR\bseverity\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\x12\n" +
+	"\x04body\x18\x03 \x01(\tR\x04body\"5\n" +
+	"\x0eNotifyResponse\x12#\n" +
+	"\x05toast\x18\x01 \x01(\v2\r.rig.v1.ToastR\x05toast\"G\n" +
+	"\x10ToastWaitRequest\x12\x14\n" +
+	"\x05after\x18\x01 \x01(\x04R\x05after\x12\x1d\n" +
+	"\n" +
+	"timeout_ms\x18\x02 \x01(\rR\ttimeoutMs\"R\n" +
+	"\x11ToastWaitResponse\x12%\n" +
+	"\x06toasts\x18\x01 \x03(\v2\r.rig.v1.ToastR\x06toasts\x12\x16\n" +
+	"\x06latest\x18\x02 \x01(\x04R\x06latest*Z\n" +
 	"\tSeatState\x12\x1a\n" +
 	"\x16SEAT_STATE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11SEAT_STATE_ACTIVE\x10\x01\x12\x1a\n" +
@@ -7163,7 +7553,14 @@ const file_proto_rig_v1_verbs_proto_rawDesc = "" +
 	"\x10TASK_STATE_READY\x10\x01\x12\x16\n" +
 	"\x12TASK_STATE_CLAIMED\x10\x02\x12\x17\n" +
 	"\x13TASK_STATE_ORPHANED\x10\x03\x12\x13\n" +
-	"\x0fTASK_STATE_DONE\x10\x04B9Z7github.com/borismilner/rig/proto/rig/v1/verbsv1;verbsv1b\x06proto3"
+	"\x0fTASK_STATE_DONE\x10\x04*\x8c\x01\n" +
+	"\bSeverity\x12\x18\n" +
+	"\x14SEVERITY_UNSPECIFIED\x10\x00\x12\x11\n" +
+	"\rSEVERITY_INFO\x10\x01\x12\x14\n" +
+	"\x10SEVERITY_SUCCESS\x10\x02\x12\x14\n" +
+	"\x10SEVERITY_WARNING\x10\x03\x12\x12\n" +
+	"\x0eSEVERITY_ERROR\x10\x04\x12\x13\n" +
+	"\x0fSEVERITY_URGENT\x10\x05B9Z7github.com/borismilner/rig/proto/rig/v1/verbsv1;verbsv1b\x06proto3"
 
 var (
 	file_proto_rig_v1_verbs_proto_rawDescOnce sync.Once
@@ -7177,8 +7574,8 @@ func file_proto_rig_v1_verbs_proto_rawDescGZIP() []byte {
 	return file_proto_rig_v1_verbs_proto_rawDescData
 }
 
-var file_proto_rig_v1_verbs_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
-var file_proto_rig_v1_verbs_proto_msgTypes = make([]protoimpl.MessageInfo, 91)
+var file_proto_rig_v1_verbs_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
+var file_proto_rig_v1_verbs_proto_msgTypes = make([]protoimpl.MessageInfo, 96)
 var file_proto_rig_v1_verbs_proto_goTypes = []any{
 	(SeatState)(0),                  // 0: rig.v1.SeatState
 	(LeaseState)(0),                 // 1: rig.v1.LeaseState
@@ -7188,170 +7585,180 @@ var file_proto_rig_v1_verbs_proto_goTypes = []any{
 	(BriefSection)(0),               // 5: rig.v1.BriefSection
 	(SectionState)(0),               // 6: rig.v1.SectionState
 	(TaskState)(0),                  // 7: rig.v1.TaskState
-	(*DescribeRequest)(nil),         // 8: rig.v1.DescribeRequest
-	(*DescribeResponse)(nil),        // 9: rig.v1.DescribeResponse
-	(*DownRequest)(nil),             // 10: rig.v1.DownRequest
-	(*DownResponse)(nil),            // 11: rig.v1.DownResponse
-	(*SessionRequest)(nil),          // 12: rig.v1.SessionRequest
-	(*SessionResponse)(nil),         // 13: rig.v1.SessionResponse
-	(*Seat)(nil),                    // 14: rig.v1.Seat
-	(*AnnounceRequest)(nil),         // 15: rig.v1.AnnounceRequest
-	(*AnnounceResponse)(nil),        // 16: rig.v1.AnnounceResponse
-	(*ActivityRequest)(nil),         // 17: rig.v1.ActivityRequest
-	(*ActivityResponse)(nil),        // 18: rig.v1.ActivityResponse
-	(*PeersRequest)(nil),            // 19: rig.v1.PeersRequest
-	(*PeersResponse)(nil),           // 20: rig.v1.PeersResponse
-	(*Lease)(nil),                   // 21: rig.v1.Lease
-	(*LeaseHandle)(nil),             // 22: rig.v1.LeaseHandle
-	(*LeaseAcquireRequest)(nil),     // 23: rig.v1.LeaseAcquireRequest
-	(*LeaseAcquireResponse)(nil),    // 24: rig.v1.LeaseAcquireResponse
-	(*LeaseRenewRequest)(nil),       // 25: rig.v1.LeaseRenewRequest
-	(*LeaseRenewResponse)(nil),      // 26: rig.v1.LeaseRenewResponse
-	(*LeaseReleaseRequest)(nil),     // 27: rig.v1.LeaseReleaseRequest
-	(*LeaseReleaseResponse)(nil),    // 28: rig.v1.LeaseReleaseResponse
-	(*LeaseBreakRequest)(nil),       // 29: rig.v1.LeaseBreakRequest
-	(*LeaseBreakResponse)(nil),      // 30: rig.v1.LeaseBreakResponse
-	(*LeaseListRequest)(nil),        // 31: rig.v1.LeaseListRequest
-	(*LeaseListResponse)(nil),       // 32: rig.v1.LeaseListResponse
-	(*Provenance)(nil),              // 33: rig.v1.Provenance
-	(*Record)(nil),                  // 34: rig.v1.Record
-	(*Retraction)(nil),              // 35: rig.v1.Retraction
-	(*RecordPutRequest)(nil),        // 36: rig.v1.RecordPutRequest
-	(*RecordPutResponse)(nil),       // 37: rig.v1.RecordPutResponse
-	(*RecordGetRequest)(nil),        // 38: rig.v1.RecordGetRequest
-	(*RecordGetResponse)(nil),       // 39: rig.v1.RecordGetResponse
-	(*RecordQueryRequest)(nil),      // 40: rig.v1.RecordQueryRequest
-	(*RecordQueryResponse)(nil),     // 41: rig.v1.RecordQueryResponse
-	(*RecordHistoryRequest)(nil),    // 42: rig.v1.RecordHistoryRequest
-	(*RecordHistoryResponse)(nil),   // 43: rig.v1.RecordHistoryResponse
-	(*RecordLinkRequest)(nil),       // 44: rig.v1.RecordLinkRequest
-	(*RecordLinkResponse)(nil),      // 45: rig.v1.RecordLinkResponse
-	(*RecordUnlinkRequest)(nil),     // 46: rig.v1.RecordUnlinkRequest
-	(*RecordUnlinkResponse)(nil),    // 47: rig.v1.RecordUnlinkResponse
-	(*RecordRefsRequest)(nil),       // 48: rig.v1.RecordRefsRequest
-	(*Ref)(nil),                     // 49: rig.v1.Ref
-	(*RecordRetractRequest)(nil),    // 50: rig.v1.RecordRetractRequest
-	(*RecordRetractResponse)(nil),   // 51: rig.v1.RecordRetractResponse
-	(*Edge)(nil),                    // 52: rig.v1.Edge
-	(*RecordDeleteRequest)(nil),     // 53: rig.v1.RecordDeleteRequest
-	(*RecordDeleteResponse)(nil),    // 54: rig.v1.RecordDeleteResponse
-	(*RecordReplaceRequest)(nil),    // 55: rig.v1.RecordReplaceRequest
-	(*RecordReplaceResponse)(nil),   // 56: rig.v1.RecordReplaceResponse
-	(*RecordRefsResponse)(nil),      // 57: rig.v1.RecordRefsResponse
-	(*Cycle)(nil),                   // 58: rig.v1.Cycle
-	(*ProgressStepRequest)(nil),     // 59: rig.v1.ProgressStepRequest
-	(*ProgressStepResponse)(nil),    // 60: rig.v1.ProgressStepResponse
-	(*ItemState)(nil),               // 61: rig.v1.ItemState
-	(*Blocker)(nil),                 // 62: rig.v1.Blocker
-	(*Blockage)(nil),                // 63: rig.v1.Blockage
-	(*ProjectBriefRequest)(nil),     // 64: rig.v1.ProjectBriefRequest
-	(*BriefSectionStatus)(nil),      // 65: rig.v1.BriefSectionStatus
-	(*BriefNote)(nil),               // 66: rig.v1.BriefNote
-	(*Drift)(nil),                   // 67: rig.v1.Drift
-	(*Feature)(nil),                 // 68: rig.v1.Feature
-	(*StageCount)(nil),              // 69: rig.v1.StageCount
-	(*BriefHealth)(nil),             // 70: rig.v1.BriefHealth
-	(*GoverningRecord)(nil),         // 71: rig.v1.GoverningRecord
-	(*KindCount)(nil),               // 72: rig.v1.KindCount
-	(*ClosedItem)(nil),              // 73: rig.v1.ClosedItem
-	(*WordCount)(nil),               // 74: rig.v1.WordCount
-	(*ProjectBriefResponse)(nil),    // 75: rig.v1.ProjectBriefResponse
-	(*BackupCreateRequest)(nil),     // 76: rig.v1.BackupCreateRequest
-	(*BackupCreateResponse)(nil),    // 77: rig.v1.BackupCreateResponse
-	(*Lesson)(nil),                  // 78: rig.v1.Lesson
-	(*LessonHit)(nil),               // 79: rig.v1.LessonHit
-	(*KnowledgeAddRequest)(nil),     // 80: rig.v1.KnowledgeAddRequest
-	(*KnowledgeAddResponse)(nil),    // 81: rig.v1.KnowledgeAddResponse
-	(*KnowledgeSearchRequest)(nil),  // 82: rig.v1.KnowledgeSearchRequest
-	(*KnowledgeSearchResponse)(nil), // 83: rig.v1.KnowledgeSearchResponse
-	(*KnowledgeGetRequest)(nil),     // 84: rig.v1.KnowledgeGetRequest
-	(*KnowledgeGetResponse)(nil),    // 85: rig.v1.KnowledgeGetResponse
-	(*Task)(nil),                    // 86: rig.v1.Task
-	(*QueuePushRequest)(nil),        // 87: rig.v1.QueuePushRequest
-	(*QueuePushResponse)(nil),       // 88: rig.v1.QueuePushResponse
-	(*QueueClaimRequest)(nil),       // 89: rig.v1.QueueClaimRequest
-	(*QueueClaimResponse)(nil),      // 90: rig.v1.QueueClaimResponse
-	(*QueueCompleteRequest)(nil),    // 91: rig.v1.QueueCompleteRequest
-	(*QueueCompleteResponse)(nil),   // 92: rig.v1.QueueCompleteResponse
-	(*QueueListRequest)(nil),        // 93: rig.v1.QueueListRequest
-	(*QueueListResponse)(nil),       // 94: rig.v1.QueueListResponse
-	(*LeaseCheckRequest)(nil),       // 95: rig.v1.LeaseCheckRequest
-	(*LeaseCheckResponse)(nil),      // 96: rig.v1.LeaseCheckResponse
-	nil,                             // 97: rig.v1.Record.FieldsEntry
-	nil,                             // 98: rig.v1.RecordPutRequest.FieldsEntry
-	(v1.Tristate)(0),                // 99: rig.v1.Tristate
+	(Severity)(0),                   // 8: rig.v1.Severity
+	(*DescribeRequest)(nil),         // 9: rig.v1.DescribeRequest
+	(*DescribeResponse)(nil),        // 10: rig.v1.DescribeResponse
+	(*DownRequest)(nil),             // 11: rig.v1.DownRequest
+	(*DownResponse)(nil),            // 12: rig.v1.DownResponse
+	(*SessionRequest)(nil),          // 13: rig.v1.SessionRequest
+	(*SessionResponse)(nil),         // 14: rig.v1.SessionResponse
+	(*Seat)(nil),                    // 15: rig.v1.Seat
+	(*AnnounceRequest)(nil),         // 16: rig.v1.AnnounceRequest
+	(*AnnounceResponse)(nil),        // 17: rig.v1.AnnounceResponse
+	(*ActivityRequest)(nil),         // 18: rig.v1.ActivityRequest
+	(*ActivityResponse)(nil),        // 19: rig.v1.ActivityResponse
+	(*PeersRequest)(nil),            // 20: rig.v1.PeersRequest
+	(*PeersResponse)(nil),           // 21: rig.v1.PeersResponse
+	(*Lease)(nil),                   // 22: rig.v1.Lease
+	(*LeaseHandle)(nil),             // 23: rig.v1.LeaseHandle
+	(*LeaseAcquireRequest)(nil),     // 24: rig.v1.LeaseAcquireRequest
+	(*LeaseAcquireResponse)(nil),    // 25: rig.v1.LeaseAcquireResponse
+	(*LeaseRenewRequest)(nil),       // 26: rig.v1.LeaseRenewRequest
+	(*LeaseRenewResponse)(nil),      // 27: rig.v1.LeaseRenewResponse
+	(*LeaseReleaseRequest)(nil),     // 28: rig.v1.LeaseReleaseRequest
+	(*LeaseReleaseResponse)(nil),    // 29: rig.v1.LeaseReleaseResponse
+	(*LeaseBreakRequest)(nil),       // 30: rig.v1.LeaseBreakRequest
+	(*LeaseBreakResponse)(nil),      // 31: rig.v1.LeaseBreakResponse
+	(*LeaseListRequest)(nil),        // 32: rig.v1.LeaseListRequest
+	(*LeaseListResponse)(nil),       // 33: rig.v1.LeaseListResponse
+	(*Provenance)(nil),              // 34: rig.v1.Provenance
+	(*Record)(nil),                  // 35: rig.v1.Record
+	(*Retraction)(nil),              // 36: rig.v1.Retraction
+	(*RecordPutRequest)(nil),        // 37: rig.v1.RecordPutRequest
+	(*RecordPutResponse)(nil),       // 38: rig.v1.RecordPutResponse
+	(*RecordGetRequest)(nil),        // 39: rig.v1.RecordGetRequest
+	(*RecordGetResponse)(nil),       // 40: rig.v1.RecordGetResponse
+	(*RecordQueryRequest)(nil),      // 41: rig.v1.RecordQueryRequest
+	(*RecordQueryResponse)(nil),     // 42: rig.v1.RecordQueryResponse
+	(*RecordHistoryRequest)(nil),    // 43: rig.v1.RecordHistoryRequest
+	(*RecordHistoryResponse)(nil),   // 44: rig.v1.RecordHistoryResponse
+	(*RecordLinkRequest)(nil),       // 45: rig.v1.RecordLinkRequest
+	(*RecordLinkResponse)(nil),      // 46: rig.v1.RecordLinkResponse
+	(*RecordUnlinkRequest)(nil),     // 47: rig.v1.RecordUnlinkRequest
+	(*RecordUnlinkResponse)(nil),    // 48: rig.v1.RecordUnlinkResponse
+	(*RecordRefsRequest)(nil),       // 49: rig.v1.RecordRefsRequest
+	(*Ref)(nil),                     // 50: rig.v1.Ref
+	(*RecordRetractRequest)(nil),    // 51: rig.v1.RecordRetractRequest
+	(*RecordRetractResponse)(nil),   // 52: rig.v1.RecordRetractResponse
+	(*Edge)(nil),                    // 53: rig.v1.Edge
+	(*RecordDeleteRequest)(nil),     // 54: rig.v1.RecordDeleteRequest
+	(*RecordDeleteResponse)(nil),    // 55: rig.v1.RecordDeleteResponse
+	(*RecordReplaceRequest)(nil),    // 56: rig.v1.RecordReplaceRequest
+	(*RecordReplaceResponse)(nil),   // 57: rig.v1.RecordReplaceResponse
+	(*RecordRefsResponse)(nil),      // 58: rig.v1.RecordRefsResponse
+	(*Cycle)(nil),                   // 59: rig.v1.Cycle
+	(*ProgressStepRequest)(nil),     // 60: rig.v1.ProgressStepRequest
+	(*ProgressStepResponse)(nil),    // 61: rig.v1.ProgressStepResponse
+	(*ItemState)(nil),               // 62: rig.v1.ItemState
+	(*Blocker)(nil),                 // 63: rig.v1.Blocker
+	(*Blockage)(nil),                // 64: rig.v1.Blockage
+	(*ProjectBriefRequest)(nil),     // 65: rig.v1.ProjectBriefRequest
+	(*BriefSectionStatus)(nil),      // 66: rig.v1.BriefSectionStatus
+	(*BriefNote)(nil),               // 67: rig.v1.BriefNote
+	(*Drift)(nil),                   // 68: rig.v1.Drift
+	(*Feature)(nil),                 // 69: rig.v1.Feature
+	(*StageCount)(nil),              // 70: rig.v1.StageCount
+	(*BriefHealth)(nil),             // 71: rig.v1.BriefHealth
+	(*GoverningRecord)(nil),         // 72: rig.v1.GoverningRecord
+	(*KindCount)(nil),               // 73: rig.v1.KindCount
+	(*ClosedItem)(nil),              // 74: rig.v1.ClosedItem
+	(*WordCount)(nil),               // 75: rig.v1.WordCount
+	(*ProjectBriefResponse)(nil),    // 76: rig.v1.ProjectBriefResponse
+	(*BackupCreateRequest)(nil),     // 77: rig.v1.BackupCreateRequest
+	(*BackupCreateResponse)(nil),    // 78: rig.v1.BackupCreateResponse
+	(*Lesson)(nil),                  // 79: rig.v1.Lesson
+	(*LessonHit)(nil),               // 80: rig.v1.LessonHit
+	(*KnowledgeAddRequest)(nil),     // 81: rig.v1.KnowledgeAddRequest
+	(*KnowledgeAddResponse)(nil),    // 82: rig.v1.KnowledgeAddResponse
+	(*KnowledgeSearchRequest)(nil),  // 83: rig.v1.KnowledgeSearchRequest
+	(*KnowledgeSearchResponse)(nil), // 84: rig.v1.KnowledgeSearchResponse
+	(*KnowledgeGetRequest)(nil),     // 85: rig.v1.KnowledgeGetRequest
+	(*KnowledgeGetResponse)(nil),    // 86: rig.v1.KnowledgeGetResponse
+	(*Task)(nil),                    // 87: rig.v1.Task
+	(*QueuePushRequest)(nil),        // 88: rig.v1.QueuePushRequest
+	(*QueuePushResponse)(nil),       // 89: rig.v1.QueuePushResponse
+	(*QueueClaimRequest)(nil),       // 90: rig.v1.QueueClaimRequest
+	(*QueueClaimResponse)(nil),      // 91: rig.v1.QueueClaimResponse
+	(*QueueCompleteRequest)(nil),    // 92: rig.v1.QueueCompleteRequest
+	(*QueueCompleteResponse)(nil),   // 93: rig.v1.QueueCompleteResponse
+	(*QueueListRequest)(nil),        // 94: rig.v1.QueueListRequest
+	(*QueueListResponse)(nil),       // 95: rig.v1.QueueListResponse
+	(*LeaseCheckRequest)(nil),       // 96: rig.v1.LeaseCheckRequest
+	(*LeaseCheckResponse)(nil),      // 97: rig.v1.LeaseCheckResponse
+	(*Toast)(nil),                   // 98: rig.v1.Toast
+	(*NotifyRequest)(nil),           // 99: rig.v1.NotifyRequest
+	(*NotifyResponse)(nil),          // 100: rig.v1.NotifyResponse
+	(*ToastWaitRequest)(nil),        // 101: rig.v1.ToastWaitRequest
+	(*ToastWaitResponse)(nil),       // 102: rig.v1.ToastWaitResponse
+	nil,                             // 103: rig.v1.Record.FieldsEntry
+	nil,                             // 104: rig.v1.RecordPutRequest.FieldsEntry
+	(v1.Tristate)(0),                // 105: rig.v1.Tristate
 }
 var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
-	0,  // 0: rig.v1.Seat.state:type_name -> rig.v1.SeatState
-	14, // 1: rig.v1.AnnounceResponse.you:type_name -> rig.v1.Seat
-	14, // 2: rig.v1.AnnounceResponse.crew:type_name -> rig.v1.Seat
-	0,  // 3: rig.v1.ActivityRequest.state:type_name -> rig.v1.SeatState
-	14, // 4: rig.v1.ActivityResponse.you:type_name -> rig.v1.Seat
-	14, // 5: rig.v1.PeersResponse.crew:type_name -> rig.v1.Seat
-	1,  // 6: rig.v1.Lease.state:type_name -> rig.v1.LeaseState
-	2,  // 7: rig.v1.Lease.liveness:type_name -> rig.v1.Liveness
-	22, // 8: rig.v1.LeaseAcquireResponse.handle:type_name -> rig.v1.LeaseHandle
-	22, // 9: rig.v1.LeaseRenewResponse.handle:type_name -> rig.v1.LeaseHandle
-	21, // 10: rig.v1.LeaseListResponse.leases:type_name -> rig.v1.Lease
-	97, // 11: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
-	33, // 12: rig.v1.Record.prov:type_name -> rig.v1.Provenance
-	35, // 13: rig.v1.Record.retraction:type_name -> rig.v1.Retraction
-	33, // 14: rig.v1.Retraction.prov:type_name -> rig.v1.Provenance
-	98, // 15: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
-	34, // 16: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
-	34, // 17: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
-	34, // 18: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
-	34, // 19: rig.v1.RecordHistoryResponse.versions:type_name -> rig.v1.Record
-	35, // 20: rig.v1.RecordRetractResponse.retraction:type_name -> rig.v1.Retraction
-	52, // 21: rig.v1.RecordDeleteResponse.edges:type_name -> rig.v1.Edge
-	52, // 22: rig.v1.RecordReplaceResponse.moved:type_name -> rig.v1.Edge
-	52, // 23: rig.v1.RecordReplaceResponse.merged:type_name -> rig.v1.Edge
-	52, // 24: rig.v1.RecordReplaceResponse.dropped:type_name -> rig.v1.Edge
-	35, // 25: rig.v1.RecordReplaceResponse.retraction:type_name -> rig.v1.Retraction
-	49, // 26: rig.v1.RecordRefsResponse.refs:type_name -> rig.v1.Ref
-	58, // 27: rig.v1.RecordRefsResponse.cycles:type_name -> rig.v1.Cycle
-	57, // 28: rig.v1.RecordRefsResponse.results:type_name -> rig.v1.RecordRefsResponse
-	3,  // 29: rig.v1.ProgressStepRequest.state:type_name -> rig.v1.StepState
-	34, // 30: rig.v1.ProgressStepResponse.step:type_name -> rig.v1.Record
-	3,  // 31: rig.v1.ItemState.state:type_name -> rig.v1.StepState
-	3,  // 32: rig.v1.Blocker.state:type_name -> rig.v1.StepState
-	62, // 33: rig.v1.Blockage.blockers:type_name -> rig.v1.Blocker
-	5,  // 34: rig.v1.BriefSectionStatus.section:type_name -> rig.v1.BriefSection
-	6,  // 35: rig.v1.BriefSectionStatus.state:type_name -> rig.v1.SectionState
-	33, // 36: rig.v1.BriefNote.prov:type_name -> rig.v1.Provenance
-	61, // 37: rig.v1.ProjectBriefResponse.open:type_name -> rig.v1.ItemState
-	61, // 38: rig.v1.ProjectBriefResponse.next_up:type_name -> rig.v1.ItemState
-	63, // 39: rig.v1.ProjectBriefResponse.blocked:type_name -> rig.v1.Blockage
-	58, // 40: rig.v1.ProjectBriefResponse.cycles:type_name -> rig.v1.Cycle
-	66, // 41: rig.v1.ProjectBriefResponse.notes:type_name -> rig.v1.BriefNote
-	67, // 42: rig.v1.ProjectBriefResponse.drift:type_name -> rig.v1.Drift
-	70, // 43: rig.v1.ProjectBriefResponse.health:type_name -> rig.v1.BriefHealth
-	68, // 44: rig.v1.ProjectBriefResponse.features:type_name -> rig.v1.Feature
-	69, // 45: rig.v1.ProjectBriefResponse.feature_stages:type_name -> rig.v1.StageCount
-	66, // 46: rig.v1.ProjectBriefResponse.case_notes:type_name -> rig.v1.BriefNote
-	65, // 47: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
-	71, // 48: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
-	72, // 49: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
-	99, // 50: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
-	73, // 51: rig.v1.ProjectBriefResponse.closed:type_name -> rig.v1.ClosedItem
-	74, // 52: rig.v1.ProjectBriefResponse.closed_counts:type_name -> rig.v1.WordCount
-	33, // 53: rig.v1.Lesson.prov:type_name -> rig.v1.Provenance
-	78, // 54: rig.v1.KnowledgeAddResponse.lesson:type_name -> rig.v1.Lesson
-	79, // 55: rig.v1.KnowledgeSearchResponse.hits:type_name -> rig.v1.LessonHit
-	78, // 56: rig.v1.KnowledgeGetResponse.lesson:type_name -> rig.v1.Lesson
-	7,  // 57: rig.v1.Task.state:type_name -> rig.v1.TaskState
-	21, // 58: rig.v1.Task.claim:type_name -> rig.v1.Lease
-	86, // 59: rig.v1.QueuePushResponse.task:type_name -> rig.v1.Task
-	86, // 60: rig.v1.QueueClaimResponse.task:type_name -> rig.v1.Task
-	22, // 61: rig.v1.QueueClaimResponse.handle:type_name -> rig.v1.LeaseHandle
-	86, // 62: rig.v1.QueueCompleteResponse.task:type_name -> rig.v1.Task
-	86, // 63: rig.v1.QueueListResponse.tasks:type_name -> rig.v1.Task
-	21, // 64: rig.v1.LeaseCheckResponse.lease:type_name -> rig.v1.Lease
-	65, // [65:65] is the sub-list for method output_type
-	65, // [65:65] is the sub-list for method input_type
-	65, // [65:65] is the sub-list for extension type_name
-	65, // [65:65] is the sub-list for extension extendee
-	0,  // [0:65] is the sub-list for field type_name
+	0,   // 0: rig.v1.Seat.state:type_name -> rig.v1.SeatState
+	15,  // 1: rig.v1.AnnounceResponse.you:type_name -> rig.v1.Seat
+	15,  // 2: rig.v1.AnnounceResponse.crew:type_name -> rig.v1.Seat
+	0,   // 3: rig.v1.ActivityRequest.state:type_name -> rig.v1.SeatState
+	15,  // 4: rig.v1.ActivityResponse.you:type_name -> rig.v1.Seat
+	15,  // 5: rig.v1.PeersResponse.crew:type_name -> rig.v1.Seat
+	1,   // 6: rig.v1.Lease.state:type_name -> rig.v1.LeaseState
+	2,   // 7: rig.v1.Lease.liveness:type_name -> rig.v1.Liveness
+	23,  // 8: rig.v1.LeaseAcquireResponse.handle:type_name -> rig.v1.LeaseHandle
+	23,  // 9: rig.v1.LeaseRenewResponse.handle:type_name -> rig.v1.LeaseHandle
+	22,  // 10: rig.v1.LeaseListResponse.leases:type_name -> rig.v1.Lease
+	103, // 11: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
+	34,  // 12: rig.v1.Record.prov:type_name -> rig.v1.Provenance
+	36,  // 13: rig.v1.Record.retraction:type_name -> rig.v1.Retraction
+	34,  // 14: rig.v1.Retraction.prov:type_name -> rig.v1.Provenance
+	104, // 15: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
+	35,  // 16: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
+	35,  // 17: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
+	35,  // 18: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
+	35,  // 19: rig.v1.RecordHistoryResponse.versions:type_name -> rig.v1.Record
+	36,  // 20: rig.v1.RecordRetractResponse.retraction:type_name -> rig.v1.Retraction
+	53,  // 21: rig.v1.RecordDeleteResponse.edges:type_name -> rig.v1.Edge
+	53,  // 22: rig.v1.RecordReplaceResponse.moved:type_name -> rig.v1.Edge
+	53,  // 23: rig.v1.RecordReplaceResponse.merged:type_name -> rig.v1.Edge
+	53,  // 24: rig.v1.RecordReplaceResponse.dropped:type_name -> rig.v1.Edge
+	36,  // 25: rig.v1.RecordReplaceResponse.retraction:type_name -> rig.v1.Retraction
+	50,  // 26: rig.v1.RecordRefsResponse.refs:type_name -> rig.v1.Ref
+	59,  // 27: rig.v1.RecordRefsResponse.cycles:type_name -> rig.v1.Cycle
+	58,  // 28: rig.v1.RecordRefsResponse.results:type_name -> rig.v1.RecordRefsResponse
+	3,   // 29: rig.v1.ProgressStepRequest.state:type_name -> rig.v1.StepState
+	35,  // 30: rig.v1.ProgressStepResponse.step:type_name -> rig.v1.Record
+	3,   // 31: rig.v1.ItemState.state:type_name -> rig.v1.StepState
+	3,   // 32: rig.v1.Blocker.state:type_name -> rig.v1.StepState
+	63,  // 33: rig.v1.Blockage.blockers:type_name -> rig.v1.Blocker
+	5,   // 34: rig.v1.BriefSectionStatus.section:type_name -> rig.v1.BriefSection
+	6,   // 35: rig.v1.BriefSectionStatus.state:type_name -> rig.v1.SectionState
+	34,  // 36: rig.v1.BriefNote.prov:type_name -> rig.v1.Provenance
+	62,  // 37: rig.v1.ProjectBriefResponse.open:type_name -> rig.v1.ItemState
+	62,  // 38: rig.v1.ProjectBriefResponse.next_up:type_name -> rig.v1.ItemState
+	64,  // 39: rig.v1.ProjectBriefResponse.blocked:type_name -> rig.v1.Blockage
+	59,  // 40: rig.v1.ProjectBriefResponse.cycles:type_name -> rig.v1.Cycle
+	67,  // 41: rig.v1.ProjectBriefResponse.notes:type_name -> rig.v1.BriefNote
+	68,  // 42: rig.v1.ProjectBriefResponse.drift:type_name -> rig.v1.Drift
+	71,  // 43: rig.v1.ProjectBriefResponse.health:type_name -> rig.v1.BriefHealth
+	69,  // 44: rig.v1.ProjectBriefResponse.features:type_name -> rig.v1.Feature
+	70,  // 45: rig.v1.ProjectBriefResponse.feature_stages:type_name -> rig.v1.StageCount
+	67,  // 46: rig.v1.ProjectBriefResponse.case_notes:type_name -> rig.v1.BriefNote
+	66,  // 47: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
+	72,  // 48: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
+	73,  // 49: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
+	105, // 50: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
+	74,  // 51: rig.v1.ProjectBriefResponse.closed:type_name -> rig.v1.ClosedItem
+	75,  // 52: rig.v1.ProjectBriefResponse.closed_counts:type_name -> rig.v1.WordCount
+	34,  // 53: rig.v1.Lesson.prov:type_name -> rig.v1.Provenance
+	79,  // 54: rig.v1.KnowledgeAddResponse.lesson:type_name -> rig.v1.Lesson
+	80,  // 55: rig.v1.KnowledgeSearchResponse.hits:type_name -> rig.v1.LessonHit
+	79,  // 56: rig.v1.KnowledgeGetResponse.lesson:type_name -> rig.v1.Lesson
+	7,   // 57: rig.v1.Task.state:type_name -> rig.v1.TaskState
+	22,  // 58: rig.v1.Task.claim:type_name -> rig.v1.Lease
+	87,  // 59: rig.v1.QueuePushResponse.task:type_name -> rig.v1.Task
+	87,  // 60: rig.v1.QueueClaimResponse.task:type_name -> rig.v1.Task
+	23,  // 61: rig.v1.QueueClaimResponse.handle:type_name -> rig.v1.LeaseHandle
+	87,  // 62: rig.v1.QueueCompleteResponse.task:type_name -> rig.v1.Task
+	87,  // 63: rig.v1.QueueListResponse.tasks:type_name -> rig.v1.Task
+	22,  // 64: rig.v1.LeaseCheckResponse.lease:type_name -> rig.v1.Lease
+	8,   // 65: rig.v1.Toast.severity:type_name -> rig.v1.Severity
+	8,   // 66: rig.v1.NotifyRequest.severity:type_name -> rig.v1.Severity
+	98,  // 67: rig.v1.NotifyResponse.toast:type_name -> rig.v1.Toast
+	98,  // 68: rig.v1.ToastWaitResponse.toasts:type_name -> rig.v1.Toast
+	69,  // [69:69] is the sub-list for method output_type
+	69,  // [69:69] is the sub-list for method input_type
+	69,  // [69:69] is the sub-list for extension type_name
+	69,  // [69:69] is the sub-list for extension extendee
+	0,   // [0:69] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_verbs_proto_init() }
@@ -7364,8 +7771,8 @@ func file_proto_rig_v1_verbs_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_verbs_proto_rawDesc), len(file_proto_rig_v1_verbs_proto_rawDesc)),
-			NumEnums:      8,
-			NumMessages:   91,
+			NumEnums:      9,
+			NumMessages:   96,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

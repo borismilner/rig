@@ -383,6 +383,17 @@ func selfDeclaration() kernel.Declaration {
 				"Every lease in the estate, with its owner's liveness",
 				"Answers every lease this estate knows about, evaluated now: held, orphaned or free, who holds or last held it, how it is witnessed, whether the witness was observed dead, and whether it needs a recorded break. Expiry is derived on read, never swept.",
 				"Every lease, by name."),
+			// SECTION 12's TOASTS. notify writes a notification record (the
+			// daemon writes it, with the sender as provenance), a file write;
+			// toast.wait only reads the in-memory ring.
+			leaseWriter("notify", "Notify", kernel.No,
+				"Show a toast, and file it in the record",
+				"Sends a notification at one of five severities - info, success, warning, error, urgent - with a title and a body. The daemon writes it into the record as kind notification with the sender as provenance, so nothing is only a toast, and the tray draws it as a speech bubble at the tray's corner of the screen.",
+				"The toast as filed, with its record id."),
+			readOnly("toast.wait", "Toast wait",
+				"Wait for the next toasts",
+				"Answers the toasts after a cursor as soon as there are any, or nothing once the timeout (at most 60 seconds) passes. The tray holds this so waiting costs nothing.",
+				"The new toasts and the latest cursor."),
 			readOnly("lease.check", "Lease check",
 				"Whether a fencing token is still the current one",
 				"Answers whether the token is the lease's current fencing token: the lease carries it and is held or orphaned, so nobody has been granted it since. A resource asks this before accepting a write, and refuses a stale token. Tokens are monotonic per lease, so a token that stops being current never becomes current again.",
