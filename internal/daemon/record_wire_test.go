@@ -494,7 +494,7 @@ func TestNoServedRequestFieldIsSilentlyDropped(t *testing.T) {
 	read := map[string][]string{
 		"RecordPutRequest":     {"id", "if_version", "kind", "project", "body", "fields"},
 		"RecordGetRequest":     {"id", "version"},
-		"RecordQueryRequest":   {"project", "kind", "field", "value"},
+		"RecordQueryRequest":   {"project", "kind", "field", "value", "limit", "after"},
 		"RecordHistoryRequest": {"id"},
 		"RecordLinkRequest":    {"src", "type", "dst"},
 		"RecordUnlinkRequest":  {"src", "type", "dst"},

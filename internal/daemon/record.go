@@ -387,19 +387,42 @@ func (d *Daemon) serveRecordQuery(ctx context.Context, c *conn, f *rigv1.Frame, 
 	// the wildcard to collide with, which is exactly what project and kind do
 	// not have. A `value` with no `field` is REFUSED by the store rather than
 	// dropped, and the refusal travels back as an INVALID.
-	recs, err := st.Find(ctx, record.QueryFilter{
+	//
+	// ⛔ AND THE ANSWER IS PAGED, WHICH IS B116. An unbounded answer is not
+	// a large answer, it is NO answer: the requirement query over the whole
+	// plan reached 1,123,924 bytes, past wire.MaxFrameSize, and the query died
+	// where nothing could read it. internal/daemon/recordpaging.go carries the
+	// budget and the cursor; plan/50, "B116, the answer is paged", carries the
+	// specification.
+	after, err := decodeRecordCursor(req.GetAfter())
+	if err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.query: "+err.Error())
+		return
+	}
+
+	// ⛔ CLAMPED RATHER THAN CONVERTED: int(uint32) is NEGATIVE on a 32-bit
+	// build for anything over 2^31, and a negative limit reads as "no cap at
+	// all" - the widening direction this verb is careful about everywhere
+	// else. The budget bounds the page either way, so the clamp costs a
+	// caller nothing it could have used.
+	recs, next, err := recordPage(ctx, st, record.QueryFilter{
 		Project: req.GetProject(),
 		Kind:    req.GetKind(),
 		Field:   req.GetField(),
 		Value:   req.GetValue(),
-	})
+	}, after, int(min(req.GetLimit(), recordPageMaxLimit)))
 	if err != nil {
 		c.failErr(f.GetStreamId(), recordCode(err), err)
 		return
 	}
-	resp := &rigv1.RecordQueryResponse{}
-	for _, r := range recs {
-		resp.Records = append(resp.Records, recordToWire(r))
+	resp := &rigv1.RecordQueryResponse{Records: recs}
+	if next != (record.Cursor{}) {
+		cursor, err := encodeRecordCursor(next)
+		if err != nil {
+			c.failErr(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err)
+			return
+		}
+		resp.Next = cursor
 	}
 	c.reply(f.GetStreamId(), resp)
 }
