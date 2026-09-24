@@ -62,6 +62,7 @@ func upRecordDaemon(t testing.TB) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = d.Close() })
 	if d.records == nil {
 		t.Fatalf("estate %q opened no record store, so nothing below tests the wire", estate)
 	}

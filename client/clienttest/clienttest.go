@@ -74,6 +74,9 @@ func Start(tb testing.TB) string {
 		if err := <-done; err != nil && !errors.Is(err, context.Canceled) {
 			tb.Errorf("clienttest: rigd stopped with %v", err)
 		}
+		if err := d.Close(); err != nil {
+			tb.Errorf("clienttest: closing rigd's store: %v", err)
+		}
 	})
 	return sock
 }

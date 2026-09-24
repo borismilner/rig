@@ -89,6 +89,7 @@ func upDaemonLogged(t *testing.T, ask Asker, log *slog.Logger) (string, *Daemon)
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = d.Close() })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
@@ -628,6 +629,7 @@ func TestAConnectedProgramDoesNotBlockShutdown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = d.Close() })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	served := make(chan error, 1)

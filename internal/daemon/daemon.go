@@ -299,6 +299,17 @@ func New(cfg Config) (*Daemon, error) {
 	}, nil
 }
 
+// Close releases what New opened: the record store. Call it after Serve and
+// ServeMCP have both returned, because either can still be answering from
+// the store until then. The lease store is not closed here: rigd opened it
+// and rigd closes it. Safe to call on a daemon with no store.
+func (d *Daemon) Close() error {
+	if d.records == nil {
+		return nil
+	}
+	return d.records.Close()
+}
+
 // track records a live connection, or refuses it because rig is stopping.
 func (d *Daemon) track(nc net.Conn) bool {
 	d.cmu.Lock()
