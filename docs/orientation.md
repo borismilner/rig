@@ -108,9 +108,11 @@ prefix on a unix socket. gRPC was measured (+9.8 MiB resident) and rejected.
 | backup and restore | whole-estate archive including the WAL | built | §46 |
 | presence | announce, activity, peers | built | §16 |
 | leases with a liveness witness | TTL leases, pid witness, two-step expiry; `rig.lease.*` on the wire, listed by `rig peers` | built | §16 |
-| fencing, barriers, semaphores, queues, signals, deadlock detection | the rest of the peers service | specified | §16 |
+| claimable work queues | claim under a lease, heartbeat, requeue once the worker is observed dead, mandatory idempotency key, at-least-once; `rig.queue.*`, `rig queue push/list`, `examples/queueworker` | built | §16 |
+| fencing tokens | monotonic per lease; `rig.lease.check` lets a resource refuse a stale one; queue completion is fenced | built | §16 |
+| barriers, semaphores, signals, deadlock detection | the rest of the peers service | specified | §16 |
 | working notes for agents | never lost, tagged, linked, handed back on resume | specified | §9 |
-| knowledge-sharing section | lessons written once, indexed so an agent never reads it whole | specified; index mechanism unchosen | §40 |
+| knowledge-sharing section | lessons written once, searched with SQLite FTS5 so an agent never reads them whole; `rig.knowledge.*`, `knowledge_*` MCP tools, `rig knowledge` | built | §40 |
 | configuration | layers, schema, provenance, live push | specified (S1 drafted) | §6, §47 |
 | logging, tracing, metrics | ingest, query, redaction at write time | specified (S3 drafted) | §8, §49 |
 | operator ledger | who used what, redacted | specified | §15 |
@@ -118,7 +120,8 @@ prefix on a unix socket. gRPC was measured (+9.8 MiB resident) and rejected.
 | supervision | start, stop, health as evidence of progress, restart budgets | partial (window supervisor only) | §18 |
 | the window | three pane tiers: generated, kit, embedded | partial | §11 |
 | one tray | one icon for every program | built for rig itself | §11 |
-| toasts and speech | frameless toasts, severities, inline actions | specified | §12 |
+| toasts | five severities as speech bubbles at the tray's corner, an on-demand renderer, freedesktop fallback, filed in the record; `rig.notify`, `rig notify` | built (inline actions, DND, centre UI not yet) | §12 |
+| speech | the notification centre said out loud | specified | §12 |
 | palette, search, scheduler, URL scheme | cross-program surfaces | specified | M13 |
 | packaging and updates | `.deb`, signed update channel | partial (`pkgdeb`) | M15 |
 

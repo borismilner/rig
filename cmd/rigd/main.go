@@ -290,6 +290,16 @@ func run() error {
 	}
 	stopMCP()
 	<-mcpDone
+	closeDaemon(d, log)
 	log.Info("rigd down")
 	return nil
+}
+
+// closeDaemon releases the daemon's record store once both surfaces have
+// stopped. A failure is logged rather than returned: the daemon is already
+// down, and the exit status belongs to why it stopped.
+func closeDaemon(d *daemon.Daemon, log *slog.Logger) {
+	if err := d.Close(); err != nil {
+		log.Warn("closing the record store", "err", err)
+	}
 }

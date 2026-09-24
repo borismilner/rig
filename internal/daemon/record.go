@@ -66,6 +66,8 @@ func (d *Daemon) serveRecord(ctx context.Context, c *conn, f *rigv1.Frame, comma
 		d.serveRecordReplace(ctx, c, f, st)
 	case "progress.step":
 		d.serveProgressStep(ctx, c, f, st)
+	case "knowledge.add", "knowledge.search", "knowledge.get":
+		d.serveKnowledge(ctx, c, f, st, command)
 	// ⛔ DECLARED, MOVED, AND STILL ANSWERING. plan/50 decision 4: the
 	// derivation left for the docket program and section 21 forbids the verb
 	// vanishing from a shipped wire version, so the arm remains and refuses in

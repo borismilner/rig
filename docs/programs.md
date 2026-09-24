@@ -38,8 +38,8 @@ resp, err := c.Hello(ctx, &rigv1.Declaration{...})
 
 Import `github.com/borismilner/rig/client` and
 `github.com/borismilner/rig/proto/rig/v1` (package `rigv1`). A program links
-only those two; `proto/rig/v1/registryv1` and `verbsv1` are for rig's own
-verbs and a program never needs them. `examples/greeter` is the complete
+only those two to register and answer; `proto/rig/v1/verbsv1` is for calling
+rig's own verbs, such as the lessons and queues below. `examples/greeter` is the complete
 program, about 150 lines with comments.
 
 Set the handler before `Hello`, or a request can arrive with nothing to
@@ -152,6 +152,26 @@ language, send an `ERROR` frame with the Status yourself.
   serves, so a program can check for a verb before calling it rather than
   learning its absence from a `NOT_FOUND`.
 
+## Pinning a version
+
+A release is a git tag on the one module, `github.com/borismilner/rig`, and a
+tag versions everything a program touches: the client, the proto files and
+the daemon they were tested against. Tags are `vMAJOR.MINOR.PATCH`, with major
+`v0` or `v1` (the module path has no `/vN` suffix), and milestones and release
+candidates as `vX.Y.Z-mN` and `vX.Y.Z-rc.N`. `make tag-check` enforces this.
+
+- **Go:** `go get github.com/borismilner/rig@v0.1.0`, which writes
+  `require github.com/borismilner/rig v0.1.0` into your `go.mod`. You link
+  only `client` and `proto/rig/v1`, whatever the tag.
+- **Any other language:** generate from the proto files at the tag, for
+  example
+  `https://raw.githubusercontent.com/borismilner/rig/v0.1.0/proto/rig/v1/wire.proto`,
+  and record the tag beside the generated code.
+- **At run time:** `HelloResponse.daemon_version` is the version of the daemon
+  you reached and `HelloResponse.wire` its wire major. A daemon newer than your
+  pin still serves your wire major (see Versioning above), so a mismatch is a
+  line to log, not a reason to refuse.
+
 ## Panes
 
 The window shows each program in one of three tiers, decided by your
@@ -179,6 +199,92 @@ through the same wire the CLI uses, with nothing installed. See its godoc and
 `examples/greeter`'s test. Any language can instead start `rigd` with a
 private `XDG_RUNTIME_DIR` and `XDG_STATE_HOME` (two `mktemp -d` directories),
 which is how `tools/f8-demo.sh` does it.
+
+## Lessons
+
+rig keeps an estate-wide store of lessons (PLAN.md section 40): something one
+seat learned that another should not have to learn again. A program reaches it
+with `Call`, like any other rig verb:
+
+| method | request | answer |
+|---|---|---|
+| `rig.knowledge.search` | `query`, `limit` (1 to 20, default 5) | hits: id, title, summary, snippet, score. Never a body |
+| `rig.knowledge.get` | `id` | the whole lesson and who wrote it |
+| `rig.knowledge.add` | `title`, `summary`, `body`, `tags` | the lesson as stored |
+
+Search before a long investigation and fetch only the hit that fits. The
+words in `query` are matched as words; there is no query syntax. A write
+needs a seat (`rig.announce` first; a terminal has one) and is attributed to
+it. At a terminal the same verbs are `rig knowledge search|get|add`; agents
+get `knowledge_search`, `knowledge_get` and `knowledge_add`.
+
+## Work queues
+
+A named estate keeps claimable work queues (PLAN.md section 16). A producer
+pushes a task; a worker claims the oldest ready one, heartbeats it, and
+completes it. `examples/queueworker` is a complete worker with a test.
+
+| method | request | answer |
+|---|---|---|
+| `rig.queue.push` | `queue`, `idempotency_key` (mandatory), `payload` | the task, and `duplicate` when the key was pushed before |
+| `rig.queue.claim` | `queue`, `ttl_ms` | the task and the claim's lease handle, or `NOT_FOUND` when nothing is ready |
+| `rig.queue.complete` | the handle's `name`, `token`, `epoch` | the finished task, or `CONFLICT` when the claim moved on |
+| `rig.queue.list` | `queue`, or nothing for every queue's name | unfinished tasks, oldest first, and how many are done |
+
+**A claim is a lease** named `queue/<queue>/<id>`, held by your seat and
+witnessed by your process. Heartbeat it with `rig.lease.renew`; give it back
+unfinished with `rig.lease.release`. Past its deadline, a claim whose worker
+is still alive is `ORPHANED` and not handed to anyone else, because the worker
+may only be slow. Once rig observes the worker's process gone, the task is
+`READY` again and `attempts` counts the redelivery.
+
+**Delivery is at-least-once.** A worker that finishes the work and dies
+before `complete` leaves a task that runs again. Make the work safe to repeat
+under the task's `idempotency_key`. A key pushed a second time returns the
+existing task, finished or not, so a producer that retries does not queue
+the work twice. The same key with a different payload is refused.
+
+At a terminal: `rig queue push <queue> <key> [--payload P]` and
+`rig queue list [<queue>]`. There is no `rig queue claim`, because the claim
+would be witnessed by a process that exits as soon as it prints.
+
+## Fencing tokens
+
+Every grant of a lease carries a token that is monotonic per lease: each new
+holder gets a higher one, and a released lease keeps its count. A writer
+holding a lease hands its token to the resource it writes to, and the
+resource asks rig whether that token is still current before accepting:
+
+| method | request | answer |
+|---|---|---|
+| `rig.lease.check` | `name`, `token` | `current`, and the lease as it stands |
+
+A token is current while the lease carries it and is held or orphaned, so
+nobody else has been granted it since. Once the lease is released, broken,
+freed because its holder was observed dead, or granted again, the token is
+not current, and it never becomes current again. A stale token is an answer
+(`current: false`), not an error, and the check needs no seat.
+
+This protects only resources that ask. rig cannot stop a write to something
+that never checks, such as git, a deploy or a VM (PLAN.md section 16).
+
+## Toasts
+
+`rig.notify` shows a toast at the tray's corner of the screen and files it in
+the record, so nothing is only a toast:
+
+| method | request | answer |
+|---|---|---|
+| `rig.notify` | `severity` (info, success, warning, error, urgent), `title`, `body` | the toast as filed, with its record id |
+
+The severity is required: there is no default, because a default would decide
+how loudly your message is drawn. The sender is your program's id (or your
+seat), never a field you set. From a shell: `rig notify warning "Disk 91%
+full" --body "/var is filling"`.
+
+While Do Not Disturb is on (`rig dnd on`, or the tray menu), a notification
+is filed and not drawn, and the answer's `suppressed` says so. An urgent one
+is always drawn.
 
 ## Agents
 

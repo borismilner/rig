@@ -97,6 +97,10 @@ func takesValue(arg string) bool {
 // and shadow the package of the same name.
 var valuedFlags = map[string]bool{
 	"timeout": true,
+	// rig knowledge (section 40).
+	"limit": true, "title": true, "summary": true, "tag": true,
+	// rig queue (section 16).
+	"payload": true,
 	"depth":   true,
 
 	// Section 39's record verbs. Every one of these is a flag `rig record`,
@@ -176,6 +180,10 @@ func usage() {
   ping <program>   round-trip a program through rigd ("rig" pings the daemon)
   estate           which estate this shell reached, and what it is for
   peers            who else is here, what each is for and what each is doing
+  knowledge <cmd>  lessons other sessions learned: search, get, add
+  queue <cmd>      claimable work queues: push, list
+  notify <sev> <title>  a toast at the tray: info, success, warning, error, urgent
+  dnd on|off|status  do not disturb: toasts go to the record only, urgent still shows
   record <cmd>     the continuity record: put, get, query, history, link,
                    unlink, refs, retract, delete, replace
   progress step <item>
@@ -202,6 +210,17 @@ being the exact argument object when a flag will not do.
 rig <app> --help and rig <app> <cmd> --help are generated from what the
 program declared, so they list what it actually has.
 `)
+}
+
+// plainVerbs are the verbs that take their arguments and nothing else, looked
+// up rather than each given a case, so run's switch stays under gocyclo's
+// ceiling as verbs arrive.
+var plainVerbs = map[string]func([]string) error{
+	"peers":     cmdPeers,
+	"knowledge": cmdKnowledge,
+	"queue":     cmdQueue,
+	"notify":    cmdNotify,
+	"dnd":       cmdDND,
 }
 
 // verbAt is the index of the command word, so rig's own flags may come BEFORE
@@ -282,8 +301,8 @@ func run(args []string) error {
 		// It also happens to be the honest shape: `plan/46` specifies one
 		// capability with two halves, and this is its single seam into run.
 		return cmdBackupOrRestore(args[0], with(args[1:], lead))
-	case "peers":
-		return cmdPeers(with(args[1:], lead))
+	case "peers", "knowledge", "queue", "notify", "dnd":
+		return plainVerbs[args[0]](with(args[1:], lead))
 	case "record":
 		return cmdRecord(with(args[1:], lead))
 	case "progress":

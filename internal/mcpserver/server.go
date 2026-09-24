@@ -107,11 +107,11 @@ announce first; the seat comes from your row, never from the request.
   record_get / record_put / record_history   read one, write one, and every
                   version it ever had. Nothing is ever overwritten.
   record_link / record_unlink / record_refs   typed edges between records.
-  progress_step   a work item started, blocked or finished.
+  progress_step   a work item moved. knowledge_search, _get, _add: lessons.
 
 rig is not in the program map, so invoke and describe cannot reach it; asking
 invoke for program "rig" is the common first mistake. Any tool beyond the
-fifteen above is a promoted program command.
+eighteen above is a promoted program command.
 
 IF set_activity SAYS YOU HAVE NO ROW, YOU ARE NOT WHERE YOU THINK YOU ARE. A
 row lives exactly as long as its connection, so if you announced earlier and
@@ -345,6 +345,39 @@ func New(m *meta.Server, who kernel.Principal, version string) *Server {
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, a recordGetArgs) (*mcp.CallToolResult, any, error) {
 		return answer(m.Answer(ctx, who, meta.Request{
 			Tool: meta.RecordGetTool, RecordID: a.ID, Version: a.Version,
+		}))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "knowledge_search",
+		Description: "Search the estate's lessons by words. Each hit is an id, a " +
+			"title, a summary and a short snippet, ranked best first; fetch the " +
+			"one you want with knowledge_get. Your words are matched as words, " +
+			"so there is no query syntax to get wrong.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a knowledgeSearchArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.KnowledgeSearchTool, Query: a.Query, Limit: a.Limit,
+		}))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "knowledge_get",
+		Description: "Read one lesson whole, by the id knowledge_search gave you.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a knowledgeGetArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.KnowledgeGetTool, RecordID: a.ID,
+		}))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "knowledge_add",
+		Description: "Write a lesson: what you learned, so the next seat does " +
+			"not learn it again. Needs a seat, so announce first; the lesson " +
+			"carries your seat, never one you name.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a knowledgeAddArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.KnowledgeAddTool, Title: a.Title, Summary: a.Summary,
+			Body: a.Body, Tags: a.Tags,
 		}))
 	})
 
@@ -768,6 +801,22 @@ type recordPutArgs struct {
 	Body      string            `json:"body,omitempty" jsonschema:"the prose. Optional, and it is the half a typed field cannot carry."`
 	Fields    map[string]string `json:"fields,omitempty" jsonschema:"typed fields beside the prose, such as title or status. These are what a brief renders and a query filters on - prefer them to prose an agent has to parse back out."`
 	IfVersion uint64            `json:"if_version,omitempty" jsonschema:"the version you believe is current, for compare-and-swap. Omit to CREATE, which refuses if the id already exists. This is the only thing standing between two agents and a lost write."`
+}
+
+type knowledgeSearchArgs struct {
+	Query string `json:"query" jsonschema:"the words to look for. Matched as words, never as query syntax."`
+	Limit int    `json:"limit,omitempty" jsonschema:"how many hits, 1 to 20. Omit for 5."`
+}
+
+type knowledgeGetArgs struct {
+	ID string `json:"id" jsonschema:"the lesson id, from knowledge_search"`
+}
+
+type knowledgeAddArgs struct {
+	Title   string   `json:"title" jsonschema:"one line naming the lesson, up to 200 bytes"`
+	Summary string   `json:"summary" jsonschema:"what a searcher reads to decide whether to open it, up to 400 bytes"`
+	Body    string   `json:"body" jsonschema:"the lesson itself, up to 64 KiB"`
+	Tags    []string `json:"tags,omitempty" jsonschema:"up to 16 words to file it under"`
 }
 
 type recordGetArgs struct {

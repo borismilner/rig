@@ -1,0 +1,5 @@
+$ rig dnd maybe
+exit 1
+--- stdout (0 bytes)
+--- stderr (34 bytes)
+rig: usage: rig dnd on|off|status

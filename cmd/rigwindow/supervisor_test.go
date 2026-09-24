@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -12,14 +13,33 @@ import (
 type fakeWindow struct {
 	stops  int
 	exited chan struct{}
+	once   sync.Once
 }
 
 func (f *fakeWindow) stop() { f.stops++ }
+
+// exit ends the fake window, once however often it is asked.
+func (f *fakeWindow) exit() { f.once.Do(func() { close(f.exited) }) }
 
 type fakeSpawner struct {
 	mu      sync.Mutex
 	started []*fakeWindow
 	fail    error
+}
+
+// newFakeSpawner ends every window it started when the test does, so the
+// supervisor's watcher for each one returns: a window left open by a test is
+// a goroutine the package's goleak check refuses.
+func newFakeSpawner(t *testing.T, fail error) *fakeSpawner {
+	f := &fakeSpawner{fail: fail}
+	t.Cleanup(func() {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		for _, w := range f.started {
+			w.exit()
+		}
+	})
+	return f
 }
 
 func (f *fakeSpawner) spawn() (windowProcess, <-chan struct{}, error) {
@@ -46,10 +66,12 @@ func waitUntil(t *testing.T, cond func() bool) {
 }
 
 func TestTheFirstClickStartsOneWindowAndTheSecondAsksItToClose(t *testing.T) {
-	f := &fakeSpawner{}
-	changes := 0
+	f := newFakeSpawner(t, nil)
+	// Atomic: onChange runs on the supervisor's watcher goroutine, after it
+	// releases its lock, so a plain int here raced with the read below.
+	var changes atomic.Int32
 	s := newSupervisor(f.spawn, func(string) { t.Fatal("no warning expected") })
-	s.onChange = func() { changes++ }
+	s.onChange = func() { changes.Add(1) }
 
 	s.toggle()
 	if len(f.started) != 1 || !s.open() {
@@ -66,20 +88,21 @@ func TestTheFirstClickStartsOneWindowAndTheSecondAsksItToClose(t *testing.T) {
 	if !s.open() {
 		t.Fatal("open() went false before the process ended")
 	}
-	close(f.started[0].exited)
+	f.started[0].exit()
 	waitUntil(t, func() bool { return !s.open() })
-	if changes < 2 {
-		t.Fatalf("onChange fired %d times, want at least the start and the end", changes)
+	waitUntil(t, func() bool { return changes.Load() >= 2 })
+	if n := changes.Load(); n < 2 {
+		t.Fatalf("onChange fired %d times, want at least the start and the end", n)
 	}
 }
 
 func TestAWindowClosedFromItsOwnTitleBarIsNoticed(t *testing.T) {
 	// The user closes the window with the WM; nobody clicked the tray. The
 	// child exits, and the tray has to learn it without being told.
-	f := &fakeSpawner{}
+	f := newFakeSpawner(t, nil)
 	s := newSupervisor(f.spawn, func(string) {})
 	s.toggle()
-	close(f.started[0].exited)
+	f.started[0].exit()
 	waitUntil(t, func() bool { return !s.open() })
 	s.toggle()
 	if len(f.started) != 2 {
@@ -88,7 +111,7 @@ func TestAWindowClosedFromItsOwnTitleBarIsNoticed(t *testing.T) {
 }
 
 func TestAWindowThatWillNotStartLeavesTheTrayUpAndSaysWhy(t *testing.T) {
-	f := &fakeSpawner{fail: errors.New("no such file")}
+	f := newFakeSpawner(t, errors.New("no such file"))
 	var warned string
 	s := newSupervisor(f.spawn, func(msg string) { warned = msg })
 	s.toggle()

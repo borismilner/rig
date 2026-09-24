@@ -5,6 +5,7 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
+	"os"
 	"strings"
 	"time"
 
@@ -92,6 +93,16 @@ func runTraySupervisor(sup *supervisor) {
 
 		systray.AddSeparator()
 		menuWindow = systray.AddMenuItem(windowTitle(false), "Open or close the rig window")
+		menuDND = systray.AddMenuItemCheckbox("Do Not Disturb", "toasts go to the record only; urgent ones still show", false)
+		go func() {
+			for range menuDND.ClickedCh {
+				change := registryv1.DndChange_DND_CHANGE_ON
+				if menuDND.Checked() {
+					change = registryv1.DndChange_DND_CHANGE_OFF
+				}
+				showDND(toastDND(change))
+			}
+		}()
 		systray.AddSeparator()
 
 		// ⛔ THERE IS NO QUIT ROW, AND ITS ABSENCE IS THE REQUIREMENT.
@@ -132,6 +143,10 @@ func runTraySupervisor(sup *supervisor) {
 		}()
 
 		go pollEstate(sup)
+		go watchToasts(&toastWatcher{
+			spawn: spawnToasts, fallback: notifyDesktop,
+			warn: func(msg string) { fmt.Fprintln(os.Stderr, "rigwindow: "+msg) },
+		})
 	}, nil)
 }
 
@@ -212,6 +227,9 @@ func pollEstate(sup *supervisor) {
 			setDetached()
 		}
 		retitleWindowItem(sup)
+		if connected {
+			showDND(toastDND(registryv1.DndChange_DND_CHANGE_QUERY))
+		}
 		time.Sleep(trayRefresh)
 	}
 }
