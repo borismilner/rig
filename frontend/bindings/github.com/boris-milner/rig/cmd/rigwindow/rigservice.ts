@@ -21,22 +21,12 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
- * Brief reads one project's brief. Named rather than discovered, because
- * Projects is what discovers.
- */
-export function Brief(project: string): $CancellablePromise<$models.Brief> {
-    return $Call.ByID(2495945197, project).then(($result: any) => {
-        return $$createType0($result);
-    });
-}
-
-/**
  * Build is the four versions the binary carries, so the strip can show which
  * window is running without a person going to a terminal.
  */
 export function Build(): $CancellablePromise<{ [_ in string]?: string }> {
     return $Call.ByID(1191479857).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType0($result);
     });
 }
 
@@ -46,7 +36,7 @@ export function Build(): $CancellablePromise<{ [_ in string]?: string }> {
  */
 export function Deployment(): $CancellablePromise<$models.Deployment> {
     return $Call.ByID(69816036).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType1($result);
     });
 }
 
@@ -56,7 +46,7 @@ export function Deployment(): $CancellablePromise<$models.Deployment> {
  */
 export function Health(): $CancellablePromise<$models.Health> {
     return $Call.ByID(2625630141).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType2($result);
     });
 }
 
@@ -67,51 +57,13 @@ export function Health(): $CancellablePromise<$models.Health> {
  */
 export function Programs(): $CancellablePromise<$models.Program[]> {
     return $Call.ByID(1823204778).then(($result: any) => {
-        return $$createType5($result);
-    });
-}
-
-/**
- * Projects answers what the store actually holds, rather than what the window
- * was compiled believing.
- * 
- * ⛔ IT ASKS WITH AN EMPTY PROJECT ON PURPOSE, and if the daemon refuses that,
- * the refusal is REPORTED rather than papered over with a hard-coded "rig".
- * There is no verb on this wire that enumerates projects - the nine record
- * verbs are put, get, query, history, link, unlink, refs, progress.step and
- * project.brief, and none of them answers "what is in here". Asking
- * `record.query` for every `project` record is the closest honest question,
- * and a window that hard-coded one name would be lying the day a second
- * project exists.
- */
-export function Projects(): $CancellablePromise<$models.ProjectRef[]> {
-    return $Call.ByID(2659636225).then(($result: any) => {
-        return $$createType7($result);
-    });
-}
-
-/**
- * Records answers every record of one kind in one project, ordered for reading.
- * 
- * ⛔ THE KIND IS REQUIRED AND THE REFUSAL SAYS WHAT THE ALTERNATIVES ARE. An
- * unfiltered query over this store returns 2,538 records and 2.6 MB through a
- * single frame; a list that big is not a screen, it is a download. The caller
- * asks for what it is about to render.
- */
-export function Records(project: string, kind: string): $CancellablePromise<$models.RecordRow[]> {
-    return $Call.ByID(1013544747, project, kind).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType4($result);
     });
 }
 
 // Private type creation functions
-const $$createType0 = $models.Brief.createFrom;
-const $$createType1 = $Create.Map($Create.Any, $Create.Any);
-const $$createType2 = $models.Deployment.createFrom;
-const $$createType3 = $models.Health.createFrom;
-const $$createType4 = $models.Program.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = $models.ProjectRef.createFrom;
-const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = $models.RecordRow.createFrom;
-const $$createType9 = $Create.Array($$createType8);
+const $$createType0 = $Create.Map($Create.Any, $Create.Any);
+const $$createType1 = $models.Deployment.createFrom;
+const $$createType2 = $models.Health.createFrom;
+const $$createType3 = $models.Program.createFrom;
+const $$createType4 = $Create.Array($$createType3);

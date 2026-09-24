@@ -38,23 +38,24 @@ export type InternalGui = {
   icon: string;
 };
 
-/* The project and case GUI, and it is the only internal one so far.
+/* ⛔ EMPTY, AND EMPTY IS A STATE RATHER THAN A GAP.
  *
- * The icon is three stacked bars of unequal length - a plan, read as a list
- * rather than as a document or a folder, because what this GUI shows is work
- * items and their state and not files.
+ * It held PROJECT_CASE_GUI, the project and case GUI, wearing `indigo`. That
+ * GUI left this window at plan/50 move 7: the planner is a program now, it
+ * serves its own pane, and rig draws it through the pane tier like any other
+ * program's. Requirement 16's mechanism stays because requirement 16 is his
+ * and the next internal capability goes straight in here.
+ *
+ * ⛔ WHOEVER ADDS THE NEXT ONE HAS TO PUT THE BRANCH BACK IN App.svelte.
+ * While this list is empty `internalGui()` answers null for every id, so the
+ * shell's `gui` is always null and the branch that drew an internal GUI's own
+ * layout was removed with the GUI. A new entry here alone would put a rail
+ * icon on screen that lands on the unserved pane.
+ *
+ * `indigo` and `lilac` are both free again; the other five carry a semantic
+ * role and an identity hue must not be mistaken for a status.
  */
-export const PROJECT_CASE_GUI: InternalGui = {
-  id: "projects",
-  title: "Projects and cases",
-  note: "rig's own project and case record. Read once; there are no live updates yet.",
-  hue: "indigo",
-  icon:
-    "M1.5 2.2h13a1 1 0 0 1 0 2h-13a1 1 0 0 1 0-2zm0 4.8h9a1 1 0 0 1 0 2h-9a1 1 0 0 1 0-2z" +
-    "m0 4.8h11a1 1 0 0 1 0 2h-11a1 1 0 0 1 0-2z",
-};
-
-export const INTERNAL_GUIS: InternalGui[] = [PROJECT_CASE_GUI];
+export const INTERNAL_GUIS: InternalGui[] = [];
 
 export function internalGui(id: string | null): InternalGui | null {
   if (!id) return null;

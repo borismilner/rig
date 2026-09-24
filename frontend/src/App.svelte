@@ -47,17 +47,8 @@
   import StatusStrip from "./lib/StatusStrip.svelte";
   import Settings from "./lib/Settings.svelte";
   import Dashboard from "./lib/Dashboard.svelte";
-  import ProjectCaseGui from "./lib/ProjectCaseGui.svelte";
-  import { INTERNAL_GUIS, internalGui, PROJECT_CASE_GUI } from "./lib/guis";
-  import { createRigStore } from "./lib/rigstore.svelte";
-  import {
-    PROGRAMS,
-    BUILD,
-    BRIEF,
-    DEPLOYMENT,
-    SPEC,
-    DECISIONS,
-  } from "./lib/fixtures";
+  import { INTERNAL_GUIS, internalGui } from "./lib/guis";
+  import { PROGRAMS, BUILD, DEPLOYMENT } from "./lib/fixtures";
 
   /* ── the fixtures, and none of them is a mock of the product path ────────
    *
@@ -72,33 +63,20 @@
    *   ?pane=1           a program's own pane, and its unserved state
    *   ?settings=1       the settings panel over a seeded rail
    *   ?dash=1           the dashboard, which is the default destination
-   *   ?gui=projects     the project/case GUI, projects side, one project tab
-   *   ?gui=cases        the same GUI on its cases side, which has no records
    *
-   * ⛔ THE LAST THREE ARE NOT IN `make contrast-window` YET. That target lives
-   * in the Makefile, which this seat does not own. Until the URLs are added to
-   * it the gate measures the shell and NOT these surfaces, which is the exact
-   * defect the fixture mechanism exists to close. They were measured by hand
-   * instead; the numbers are in the agent-work STATUS.md.
+   * ⛔ `?gui=projects`, `?gui=cases`, `?gui=spec` and `?gui=decisions` WERE
+   * HERE AND ARE GONE. They seeded the project and case GUI, which left this
+   * window at plan/50 move 7 and is now docket's own pane. `make
+   * contrast-window` still names three of them; the Makefile is not this
+   * seat's to edit and the lines are reported rather than deleted here.
    */
   const params = new URLSearchParams(location.search);
   const paneFixture = params.get("pane") === "1";
   const settingsFixture = params.get("settings") === "1";
   const dashFixture = params.get("dash") === "1";
-  const guiParam = params.get("gui");
-  /* ⛔ FOUR VALUES, BECAUSE THE GUI NOW HOLDS FOUR PAGES AND THE GATE MUST SEE
-     ALL OF THEM. `?gui=spec` and `?gui=decisions` open the record views, whose
-     colours - group headings, the retracted pill, the find box, the mono body -
-     appear on no other page. Without them those tokens ship unmeasured, which
-     is this project's named defect: a gate that cannot fail reads as a pass. */
-  const guiFixture =
-    guiParam === "projects" ||
-    guiParam === "cases" ||
-    guiParam === "spec" ||
-    guiParam === "decisions";
   const railFixture = params.get("fixture") === "1";
   const fixture =
-    railFixture || paneFixture || settingsFixture || dashFixture || guiFixture;
+    railFixture || paneFixture || settingsFixture || dashFixture;
 
   let programs: Program[] = $state(fixture ? PROGRAMS : []);
   let health: Health = $state(
@@ -120,24 +98,11 @@
   // WHERE YOU ARE, as two pieces rather than one. `atHome` is not
   // `selected === null`: the dashboard is a destination in its own right, and
   // leaving a GUI for it must not forget which GUI you were in.
-  let atHome = $state(!(paneFixture || guiFixture || railFixture));
+  let atHome = $state(!(paneFixture || railFixture));
   let selected: string | null = $state(
-    paneFixture
-      ? "quarry"
-      : guiFixture
-        ? PROJECT_CASE_GUI.id
-        : fixture
-          ? "graft"
-          : null,
+    paneFixture ? "quarry" : fixture ? "graft" : null,
   );
   let lastRead = $state(fixture ? "09:53:41" : "");
-
-  // rig's own project and case records. One store shared by the dashboard and
-  // by the project/case GUI, so two surfaces cannot show two answers with no
-  // way to tell which is older. There is no poll on it - see
-  // rigstore.svelte.ts, which says why at length.
-  const rig = createRigStore();
-  if (fixture) rig.seed([], "rig", BRIEF, "09:53:41");
 
   // Held rather than only applied, because the pane has to push the token set
   // into a program's own page and a mode change has to reach it too. One
@@ -384,31 +349,9 @@
           {health}
           {programs}
           {build}
-          store={rig}
           {lastRead}
           {deployment}
           onselect={pick}
-        />
-      </div>
-    {:else if gui}
-      <!-- An internal GUI owns the whole pane area and draws its own internal
-           layout, which is what makes the tabs one level down rather than
-           shell chrome. -->
-      <div class="pane bleed">
-        <ProjectCaseGui
-          store={rig}
-          initialSide={guiParam === "cases" ? "cases" : "projects"}
-          openRows={guiFixture}
-          initialView={guiParam === "spec"
-            ? "spec"
-            : guiParam === "decisions"
-              ? "decisions"
-              : "now"}
-          recordSeed={guiParam === "spec"
-            ? SPEC
-            : guiParam === "decisions"
-              ? DECISIONS
-              : null}
         />
       </div>
     {:else}

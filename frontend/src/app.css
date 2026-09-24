@@ -286,11 +286,14 @@ kbd {
   min-height: 0;
 }
 
-/* An internal GUI draws its own internal layout - a toggle, a tab strip and a
-   scrolling panel (section 11 requirement 18) - so the shell hands it the
-   whole area and keeps none of the padding for itself. The GUI owns the
-   scroll from here down; .pane must not also scroll, or a person gets two
-   scrollbars for one list. */
+/* ⛔ KEPT WITH NOTHING WEARING IT, ON PURPOSE. An internal GUI draws its own
+   internal layout (section 11 requirement 18), so the shell hands it the whole
+   area and keeps none of the padding for itself: the GUI owns the scroll from
+   here down, and .pane must not also scroll or a person gets two scrollbars
+   for one list. The only internal GUI there was left at plan/50 move 7, so
+   guis.ts's list is empty and nothing sets this class today. It is four lines
+   and it is the half of requirement 18 that is easiest to get wrong; deleting
+   it would make the next internal GUI rediscover the double scrollbar. */
 .pane.bleed {
   padding: 0;
   overflow: hidden;

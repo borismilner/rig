@@ -9,8 +9,8 @@
      without a new wire verb, and nothing else.
 
      ⛔ NOTHING ON THIS PAGE IS INVENTED. Every number is read from the three
-     calls the window already makes - Health, Programs, Build - plus rig's own
-     brief. There is no uptime, no error rate, no activity feed and no
+     calls the window already makes - Health, Programs, Build. There is no
+     uptime, no error rate, no activity feed and no
      sparkline, because nothing on this wire carries any of them, and a metric
      with no data behind it is worse on a dashboard than a gap. -->
 <script lang="ts">
@@ -19,8 +19,6 @@
     Health,
     Program,
   } from "../../bindings/github.com/boris-milner/rig/cmd/rigwindow/models.js";
-  import type { RigStore } from "./rigstore.svelte";
-  import { planVsExec } from "./brief";
   import { INTERNAL_GUIS } from "./guis";
   import Deployment from "./Deployment.svelte";
 
@@ -28,7 +26,6 @@
     health: Health;
     programs: Program[];
     build: Record<string, string> | null;
-    store: RigStore;
     lastRead: string;
     /* ⛔ WHAT IS RUNNING, AND IT REPLACED A CARD THAT RESTATED THE PROJECT
        VIEW. The rail already lands on that view directly, so this page linking
@@ -39,17 +36,8 @@
     onselect: (id: string) => void;
   }
 
-  let { health, programs, build, store, lastRead, deployment, onselect }: Props =
+  let { health, programs, build, lastRead, deployment, onselect }: Props =
     $props();
-
-  // Read once when the dashboard is first shown. The store keeps what it
-  // read, so arriving here after visiting the project GUI costs no dial.
-  $effect(() => {
-    void store.open();
-  });
-
-  let held = $derived(store.held(store.current));
-  let p = $derived(planVsExec(held.brief));
 
   // Declared facts, summed. Coverage is a field every program declares at
   // registration, so "3 declared full coverage" is a reading rather than a
@@ -85,27 +73,16 @@
     loud?: boolean;
   };
 
+  /* ⛔ TWO FIGURES, AND THE TWO THAT WENT WERE THE PLANNER'S. This strip
+     also carried "open work items in rig's own plan" and "with any step
+     recorded", read from a brief. plan/50 move 7 moved the planner's views
+     out of this window, and a dashboard that kept counting a plan rig no
+     longer holds would be the invented-metric failure the note at the top of
+     this file refuses. The planner declares its own pane and draws them
+     there. */
   let figures: Figure[] = $derived([
     { n: String(programs.length), label: "programs registered" },
     { n: String(commands), label: "commands declared" },
-    ...(held.brief
-      ? [
-          {
-            n: String(p.planned),
-            label: "open work items in rig's own plan",
-          },
-          {
-            n: String(p.recorded),
-            label: "with any step recorded",
-            /* ⛔ ONLY WHEN THERE IS SOMETHING TO HAVE RECORDED. A project
-               with no open items reads 0 of 0, and lighting the warn hue
-               there would be the shell inventing an alarm out of an empty
-               plan - the opposite failure to the one requirement 15 names,
-               and just as dishonest. */
-            loud: p.planned > 0 && p.recorded === 0,
-          },
-        ]
-      : []),
   ]);
 </script>
 
@@ -208,13 +185,18 @@
       <!-- The rail lists GUIs, not programs (requirement 16), so the count
            above is not the count of rail entries. Saying only one of the two
            numbers would make the rail look wrong. -->
-      <p class="also">
-        The rail also carries {INTERNAL_GUIS.length} internal GUI{INTERNAL_GUIS.length ===
-        1
-          ? ""
-          : "s"} that rig provides itself. An internal GUI is not a registered program
-        and needs no registration.
-      </p>
+      <!-- Said only when there is one to say it about. The list is empty
+           since the planner's GUI became a program's own pane, and "the rail
+           also carries 0 internal GUIs" is a sentence about nothing. -->
+      {#if INTERNAL_GUIS.length > 0}
+        <p class="also">
+          The rail also carries {INTERNAL_GUIS.length} internal GUI{INTERNAL_GUIS.length ===
+          1
+            ? ""
+            : "s"} that rig provides itself. An internal GUI is not a registered
+          program and needs no registration.
+        </p>
+      {/if}
     </section>
 
     <!-- what is deployed, and it replaced a card that restated the project
