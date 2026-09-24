@@ -62,7 +62,7 @@ ruled a non-goal.
 |---|---|---|
 | `rig <app> <cmd>` | run a command a program declared, with its declared flags, `--timeout`, `--args '<json>'` | built |
 | `rig apps list` | what every program declared, as this client may see it | built |
-| `rig describe <app> [<cmd>]` | one thing in full | built (no `--json` yet) |
+| `rig describe <app> [<cmd>]` | one thing in full; `--json` prints the MCP describe object the daemon renders | built |
 | `rig ping <program>` | round trip through rigd | built |
 | `rig estate` | which estate this shell reached | built |
 | `rig peers` | who else is here, their purpose and activity | built |
@@ -103,7 +103,7 @@ prefix on a unix socket. gRPC was measured (+9.8 MiB resident) and rejected.
 | record store | kinds, versions, links, refs, query with paging, retract, progress streams (SQLite) | built | §39, §48 |
 | backup and restore | whole-estate archive including the WAL | built | §46 |
 | presence | announce, activity, peers | built | §16 |
-| leases with a liveness witness | TTL leases, pid witness, two-step expiry | partial: `internal/coord`, not yet on the wire | §16 |
+| leases with a liveness witness | TTL leases, pid witness, two-step expiry; `rig.lease.*` on the wire, listed by `rig peers` | built | §16 |
 | fencing, barriers, semaphores, queues, signals, deadlock detection | the rest of the peers service | specified | §16 |
 | working notes for agents | never lost, tagged, linked, handed back on resume | specified | §9 |
 | knowledge-sharing section | lessons written once, indexed so an agent never reads it whole | specified; index mechanism unchosen | §40 |

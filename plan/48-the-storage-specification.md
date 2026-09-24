@@ -276,7 +276,7 @@ moves DOWN in its own commit.
 | **`bbolt` leaves and coord moves onto SQLite** (decision 1) | **yes.** One engine is what §44 owes, B28's search already ran, and the byte cost is a removal | nothing waits |
 | **the `store.*` verbs are specified, not built, until an adopter exists** (decision 8) | **yes.** Building them now is §44's finding repeated. The planner's extraction is where the first adopter appears, and this row is what keeps S1 and the planner from waiting on each other | the shape table stands for the extraction specification to be written against |
 | **§43 Q1** | **STAYS** (§43's recommendation table). This section is drafted for it; GOES changes decision 5 and nothing else in the code | B108 is done; the finding holds either way |
-| **the wire pushdown in this build is `fields` alone;** multi-id refs and the aggregate wait for the brief to move | **agree.** `fields` has a consumer today; the other two do not | both are in the shape table |
+| **the wire pushdown in this build is `fields` alone;** multi-id refs and the aggregate wait for the brief to move | **agree.** `fields` has a consumer today; the other two do not | both are in the shape table. ✅ **multi-id `record.refs` BUILT 2026-09-24 at `85089de`**, the brief having moved |
 | **S1 spawns after B104's last commit** (decision 10) | **yes**, and it is the first case of §45's one-build-at-a-time recommendation | B104 finishes |
 
 ---
