@@ -201,6 +201,8 @@ func (c *Client) Err() error {
 	return cn.err()
 }
 
+// Close ends the client: the connection closes, Done is closed, and no
+// reconnect is attempted. A program's registration ends with it.
 func (c *Client) Close() error {
 	var err error
 	c.closeOnce.Do(func() {
@@ -563,11 +565,16 @@ func requestID() string {
 }
 
 // CallError is a wire-level refusal, carrying rig's own status.
+//
+// A caller receives one from Call when rig or the program it reached refused;
+// branch on Code rather than on the message. A Handler returns one to refuse
+// a request with that Status, which reaches the caller unchanged.
 type CallError struct {
 	Method string
 	Status *rigv1.Status
 }
 
+// Error renders the method, the code and the message on one line.
 func (e *CallError) Error() string {
 	return fmt.Sprintf("%s: %s: %s", e.Method,
 		e.Status.GetCode(), e.Status.GetMessage())
