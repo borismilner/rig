@@ -1,7 +1,7 @@
 $ rig help
 exit 0
 --- stdout (0 bytes)
---- stderr (1931 bytes)
+--- stderr (1999 bytes)
 usage: rig <command> [flags]
 
   <app> <cmd>      run a command a program declared, with its declared flags
@@ -12,6 +12,7 @@ usage: rig <command> [flags]
   ping <program>   round-trip a program through rigd ("rig" pings the daemon)
   estate           which estate this shell reached, and what it is for
   peers            who else is here, what each is for and what each is doing
+  knowledge <cmd>  lessons other sessions learned: search, get, add
   record <cmd>     the continuity record: put, get, query, history, link,
                    unlink, refs, retract, delete, replace
   progress step <item>

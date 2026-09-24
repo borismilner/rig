@@ -242,6 +242,7 @@ func TestTheBinary(t *testing.T) {
 		{name: "apps-refuses-an-unknown-depth", argv: []string{"apps", "list", "--depth", "wat"}},
 		{name: "down-refuses-a-positional", argv: []string{"down", "somewhere"}},
 		{name: "estate-refuses-a-positional", argv: []string{"estate", "somewhere"}},
+		{name: "knowledge-needs-a-subcommand", argv: []string{"knowledge"}},
 
 		// ⛔ SECTION 46's TWO VERBS, AND ALL FOUR OF THESE ARE REFUSED WITH
 		// THE DISK UNTOUCHED. `rig restore` is the only verb in this table
