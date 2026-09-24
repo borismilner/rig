@@ -2394,17 +2394,55 @@ func (w wireRecord) Get(ctx context.Context, id string, version uint64) (Record,
 	return recordFromWire(resp.GetRecord()), nil
 }
 
+// Query walks every page and answers the whole set, because B116 made an
+// answer arrive in more than one frame.
+//
+// ⛔ THE PAGES ARE THE WIRE'S AND THEY STOP HERE. Nothing above this
+// function knows a page exists: there is no flag, no cursor in QueryArgs and
+// no change to what the renderers are handed, which is what lets `cmd/rigseed`
+// and every other caller stay exactly as they were. Section 50, "B116, the
+// answer is paged".
+//
+// Against a daemon built before B116 the answer carries no `next`, so this is
+// one call - the loop costs nothing and needs no version check.
 func (w wireRecord) Query(ctx context.Context, a QueryArgs) ([]Record, error) {
-	resp := &rigv1.RecordQueryResponse{}
-	if err := call(ctx, w.c, "rig.record.query", &rigv1.RecordQueryRequest{
-		Project: a.Project,
-		Kind:    a.Kind,
-		Field:   a.Field,
-		Value:   a.Value,
-	}, resp); err != nil {
-		return nil, err
+	var (
+		out   []Record
+		after string
+	)
+	for {
+		resp := &rigv1.RecordQueryResponse{}
+		if err := call(ctx, w.c, "rig.record.query", &rigv1.RecordQueryRequest{
+			Project: a.Project,
+			Kind:    a.Kind,
+			Field:   a.Field,
+			Value:   a.Value,
+			After:   after,
+		}, resp); err != nil {
+			return nil, err
+		}
+		out = append(out, recordsFromWire(resp.GetRecords())...)
+
+		next := resp.GetNext()
+		if next == "" {
+			return out, nil
+		}
+
+		// ⛔ A CURSOR THAT DOES NOT MOVE IS REFUSED RATHER THAN FOLLOWED.
+		// A daemon that answers the same cursor twice - or a page with no
+		// records and a cursor still set - is an unbounded loop in this
+		// process, and a client that hangs on a malformed answer is worse
+		// than one that says what it got. The daemon guarantees neither can
+		// happen; this is the caller not taking that on trust.
+		if next == after {
+			return nil, fmt.Errorf(
+				"rig answered the same page cursor twice for %s, so the "+
+					"listing cannot advance. This is a rig defect, not a "+
+					"bad argument: report the query that produced it",
+				queryScope(a, len(out)))
+		}
+		after = next
 	}
-	return recordsFromWire(resp.GetRecords()), nil
 }
 
 func (w wireRecord) History(ctx context.Context, id string) ([]Record, error) {
