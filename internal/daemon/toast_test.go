@@ -6,6 +6,7 @@ import (
 	"time"
 
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
@@ -17,19 +18,19 @@ func TestANotificationIsFiledAndWakesTheWaiter(t *testing.T) {
 	sender := seated(t, sock, "backend-1")
 	tray := dial(t, sock)
 
-	woke := make(chan *verbsv1.ToastWaitResponse, 1)
+	woke := make(chan *registryv1.ToastWaitResponse, 1)
 	go func() {
-		var resp verbsv1.ToastWaitResponse
-		if err := tray.Call(ctx, "rig.toast.wait", &verbsv1.ToastWaitRequest{TimeoutMs: 10_000}, &resp); err != nil {
+		var resp registryv1.ToastWaitResponse
+		if err := tray.Call(ctx, "rig.toast.wait", &registryv1.ToastWaitRequest{TimeoutMs: 10_000}, &resp); err != nil {
 			t.Errorf("rig.toast.wait: %v", err)
 		}
 		woke <- &resp
 	}()
 	time.Sleep(50 * time.Millisecond) // let the waiter park
 
-	var sent verbsv1.NotifyResponse
-	if err := sender.Call(ctx, "rig.notify", &verbsv1.NotifyRequest{
-		Severity: verbsv1.Severity_SEVERITY_WARNING, Title: "disk 91% full", Body: "/var is filling",
+	var sent registryv1.NotifyResponse
+	if err := sender.Call(ctx, "rig.notify", &registryv1.NotifyRequest{
+		Severity: registryv1.Severity_SEVERITY_WARNING, Title: "disk 91% full", Body: "/var is filling",
 	}, &sent); err != nil {
 		t.Fatalf("rig.notify: %v", err)
 	}
@@ -60,14 +61,14 @@ func TestANotificationWithoutASeverityIsRefusedAndAWaitTimesOut(t *testing.T) {
 	sock := upRecordDaemon(t)
 	ctx := recordCtx(t)
 	c := seated(t, sock, "backend-1")
-	err := c.Call(ctx, "rig.notify", &verbsv1.NotifyRequest{Title: "x"}, &verbsv1.NotifyResponse{})
+	err := c.Call(ctx, "rig.notify", &registryv1.NotifyRequest{Title: "x"}, &registryv1.NotifyResponse{})
 	wantCode(t, err, rigv1.Code_CODE_INVALID, "a notification without a severity")
 
 	start := time.Now()
-	var resp verbsv1.ToastWaitResponse
+	var resp registryv1.ToastWaitResponse
 	wctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	if err := c.Call(wctx, "rig.toast.wait", &verbsv1.ToastWaitRequest{TimeoutMs: 100}, &resp); err != nil {
+	if err := c.Call(wctx, "rig.toast.wait", &registryv1.ToastWaitRequest{TimeoutMs: 100}, &resp); err != nil {
 		t.Fatal(err)
 	}
 	if len(resp.GetToasts()) != 0 || time.Since(start) < 90*time.Millisecond {

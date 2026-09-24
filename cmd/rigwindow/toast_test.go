@@ -6,13 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
-func toastsOf(seqs ...uint64) []*verbsv1.Toast {
-	var out []*verbsv1.Toast
+func toastsOf(seqs ...uint64) []*registryv1.Toast {
+	var out []*registryv1.Toast
 	for _, s := range seqs {
-		out = append(out, &verbsv1.Toast{Seq: s, Severity: verbsv1.Severity_SEVERITY_INFO, Title: "t"})
+		out = append(out, &registryv1.Toast{Seq: s, Severity: registryv1.Severity_SEVERITY_INFO, Title: "t"})
 	}
 	return out
 }
@@ -30,7 +30,7 @@ func TestTheTrayStartsOneRendererFromTheFirstToast(t *testing.T) {
 			spawned = append(spawned, after)
 			return exit, nil
 		},
-		fallback: func(*verbsv1.Toast) error { t.Error("fell back with a renderer running"); return nil },
+		fallback: func(*registryv1.Toast) error { t.Error("fell back with a renderer running"); return nil },
 		warn:     func(string) {},
 		grace:    time.Millisecond,
 	}
@@ -71,7 +71,7 @@ func TestTheTrayStartsOneRendererFromTheFirstToast(t *testing.T) {
 func TestARendererThatCannotStartFallsBackToTheDesktop(t *testing.T) {
 	var mu sync.Mutex
 	var fell []uint64
-	fb := func(tt *verbsv1.Toast) error { mu.Lock(); fell = append(fell, tt.GetSeq()); mu.Unlock(); return nil }
+	fb := func(tt *registryv1.Toast) error { mu.Lock(); fell = append(fell, tt.GetSeq()); mu.Unlock(); return nil }
 
 	w := &toastWatcher{
 		spawn:    func(uint64) (<-chan error, error) { return nil, errors.New("no display") },
@@ -121,10 +121,10 @@ func TestTheRendererLeavesOnlyWhenTheLastBubbleHasGone(t *testing.T) {
 }
 
 func TestTheFiveSeveritiesMapOntoFreedesktopUrgency(t *testing.T) {
-	want := map[verbsv1.Severity]byte{
-		verbsv1.Severity_SEVERITY_INFO: 0, verbsv1.Severity_SEVERITY_SUCCESS: 1,
-		verbsv1.Severity_SEVERITY_WARNING: 1, verbsv1.Severity_SEVERITY_ERROR: 2,
-		verbsv1.Severity_SEVERITY_URGENT: 2,
+	want := map[registryv1.Severity]byte{
+		registryv1.Severity_SEVERITY_INFO: 0, registryv1.Severity_SEVERITY_SUCCESS: 1,
+		registryv1.Severity_SEVERITY_WARNING: 1, registryv1.Severity_SEVERITY_ERROR: 2,
+		registryv1.Severity_SEVERITY_URGENT: 2,
 	}
 	for s, u := range want {
 		if got := freedesktopUrgency(s); got != u {

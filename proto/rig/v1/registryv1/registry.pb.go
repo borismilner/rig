@@ -161,6 +161,65 @@ func (EstateRole) EnumDescriptor() ([]byte, []int) {
 	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{1}
 }
 
+// AgentBox's five, in rising order of how loudly they are drawn.
+type Severity int32
+
+const (
+	Severity_SEVERITY_UNSPECIFIED Severity = 0
+	Severity_SEVERITY_INFO        Severity = 1
+	Severity_SEVERITY_SUCCESS     Severity = 2
+	Severity_SEVERITY_WARNING     Severity = 3
+	Severity_SEVERITY_ERROR       Severity = 4
+	Severity_SEVERITY_URGENT      Severity = 5
+)
+
+// Enum value maps for Severity.
+var (
+	Severity_name = map[int32]string{
+		0: "SEVERITY_UNSPECIFIED",
+		1: "SEVERITY_INFO",
+		2: "SEVERITY_SUCCESS",
+		3: "SEVERITY_WARNING",
+		4: "SEVERITY_ERROR",
+		5: "SEVERITY_URGENT",
+	}
+	Severity_value = map[string]int32{
+		"SEVERITY_UNSPECIFIED": 0,
+		"SEVERITY_INFO":        1,
+		"SEVERITY_SUCCESS":     2,
+		"SEVERITY_WARNING":     3,
+		"SEVERITY_ERROR":       4,
+		"SEVERITY_URGENT":      5,
+	}
+)
+
+func (x Severity) Enum() *Severity {
+	p := new(Severity)
+	*p = x
+	return p
+}
+
+func (x Severity) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Severity) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_rig_v1_registry_proto_enumTypes[2].Descriptor()
+}
+
+func (Severity) Type() protoreflect.EnumType {
+	return &file_proto_rig_v1_registry_proto_enumTypes[2]
+}
+
+func (x Severity) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Severity.Descriptor instead.
+func (Severity) EnumDescriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{2}
+}
+
 // Program is one program as one principal may see it (section 14).
 //
 // It is Declaration minus scope: what a reader is shown, not what was stored.
@@ -564,6 +623,315 @@ func (x *EstateResponse) GetEpoch() uint64 {
 	return 0
 }
 
+type Toast struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Monotonic for this daemon's life; the waiter's cursor.
+	Seq uint64 `protobuf:"varint,1,opt,name=seq,proto3" json:"seq,omitempty"`
+	// The notification record's id.
+	RecordId string   `protobuf:"bytes,2,opt,name=record_id,json=recordId,proto3" json:"record_id,omitempty"`
+	Severity Severity `protobuf:"varint,3,opt,name=severity,proto3,enum=rig.v1.Severity" json:"severity,omitempty"`
+	Title    string   `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
+	Body     string   `protobuf:"bytes,5,opt,name=body,proto3" json:"body,omitempty"`
+	// The sender: a registered program's id, else the caller's seat.
+	Sender        string `protobuf:"bytes,6,opt,name=sender,proto3" json:"sender,omitempty"`
+	AtUnixNano    int64  `protobuf:"varint,7,opt,name=at_unix_nano,json=atUnixNano,proto3" json:"at_unix_nano,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Toast) Reset() {
+	*x = Toast{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Toast) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Toast) ProtoMessage() {}
+
+func (x *Toast) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Toast.ProtoReflect.Descriptor instead.
+func (*Toast) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *Toast) GetSeq() uint64 {
+	if x != nil {
+		return x.Seq
+	}
+	return 0
+}
+
+func (x *Toast) GetRecordId() string {
+	if x != nil {
+		return x.RecordId
+	}
+	return ""
+}
+
+func (x *Toast) GetSeverity() Severity {
+	if x != nil {
+		return x.Severity
+	}
+	return Severity_SEVERITY_UNSPECIFIED
+}
+
+func (x *Toast) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *Toast) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *Toast) GetSender() string {
+	if x != nil {
+		return x.Sender
+	}
+	return ""
+}
+
+func (x *Toast) GetAtUnixNano() int64 {
+	if x != nil {
+		return x.AtUnixNano
+	}
+	return 0
+}
+
+// NotifyRequest sends one. Severity is required; title up to 200 bytes, body
+// up to 4 KiB.
+type NotifyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Severity      Severity               `protobuf:"varint,1,opt,name=severity,proto3,enum=rig.v1.Severity" json:"severity,omitempty"`
+	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Body          string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NotifyRequest) Reset() {
+	*x = NotifyRequest{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NotifyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NotifyRequest) ProtoMessage() {}
+
+func (x *NotifyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NotifyRequest.ProtoReflect.Descriptor instead.
+func (*NotifyRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *NotifyRequest) GetSeverity() Severity {
+	if x != nil {
+		return x.Severity
+	}
+	return Severity_SEVERITY_UNSPECIFIED
+}
+
+func (x *NotifyRequest) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *NotifyRequest) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+type NotifyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Toast         *Toast                 `protobuf:"bytes,1,opt,name=toast,proto3" json:"toast,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NotifyResponse) Reset() {
+	*x = NotifyResponse{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NotifyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NotifyResponse) ProtoMessage() {}
+
+func (x *NotifyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NotifyResponse.ProtoReflect.Descriptor instead.
+func (*NotifyResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *NotifyResponse) GetToast() *Toast {
+	if x != nil {
+		return x.Toast
+	}
+	return nil
+}
+
+// ToastWaitRequest answers the toasts after `after` as soon as there are any,
+// or an empty list once `timeout_ms` (at most 60000) has passed.
+type ToastWaitRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	After         uint64                 `protobuf:"varint,1,opt,name=after,proto3" json:"after,omitempty"`
+	TimeoutMs     uint32                 `protobuf:"varint,2,opt,name=timeout_ms,json=timeoutMs,proto3" json:"timeout_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ToastWaitRequest) Reset() {
+	*x = ToastWaitRequest{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ToastWaitRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ToastWaitRequest) ProtoMessage() {}
+
+func (x *ToastWaitRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ToastWaitRequest.ProtoReflect.Descriptor instead.
+func (*ToastWaitRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ToastWaitRequest) GetAfter() uint64 {
+	if x != nil {
+		return x.After
+	}
+	return 0
+}
+
+func (x *ToastWaitRequest) GetTimeoutMs() uint32 {
+	if x != nil {
+		return x.TimeoutMs
+	}
+	return 0
+}
+
+type ToastWaitResponse struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Toasts []*Toast               `protobuf:"bytes,1,rep,name=toasts,proto3" json:"toasts,omitempty"`
+	// The newest seq the daemon has issued, so a waiter that starts late can
+	// skip the backlog.
+	Latest        uint64 `protobuf:"varint,2,opt,name=latest,proto3" json:"latest,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ToastWaitResponse) Reset() {
+	*x = ToastWaitResponse{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ToastWaitResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ToastWaitResponse) ProtoMessage() {}
+
+func (x *ToastWaitResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ToastWaitResponse.ProtoReflect.Descriptor instead.
+func (*ToastWaitResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ToastWaitResponse) GetToasts() []*Toast {
+	if x != nil {
+		return x.Toasts
+	}
+	return nil
+}
+
+func (x *ToastWaitResponse) GetLatest() uint64 {
+	if x != nil {
+		return x.Latest
+	}
+	return 0
+}
+
 var File_proto_rig_v1_registry_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_registry_proto_rawDesc = "" +
@@ -592,7 +960,29 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\x0edaemon_version\x18\x03 \x01(\tR\rdaemonVersion\x12\x12\n" +
 	"\x04wire\x18\x04 \x01(\tR\x04wire\x12#\n" +
 	"\rsemantics_gen\x18\x05 \x01(\x05R\fsemanticsGen\x12\x14\n" +
-	"\x05epoch\x18\x06 \x01(\x04R\x05epoch*V\n" +
+	"\x05epoch\x18\x06 \x01(\x04R\x05epoch\"\xc8\x01\n" +
+	"\x05Toast\x12\x10\n" +
+	"\x03seq\x18\x01 \x01(\x04R\x03seq\x12\x1b\n" +
+	"\trecord_id\x18\x02 \x01(\tR\brecordId\x12,\n" +
+	"\bseverity\x18\x03 \x01(\x0e2\x10.rig.v1.SeverityR\bseverity\x12\x14\n" +
+	"\x05title\x18\x04 \x01(\tR\x05title\x12\x12\n" +
+	"\x04body\x18\x05 \x01(\tR\x04body\x12\x16\n" +
+	"\x06sender\x18\x06 \x01(\tR\x06sender\x12 \n" +
+	"\fat_unix_nano\x18\a \x01(\x03R\n" +
+	"atUnixNano\"g\n" +
+	"\rNotifyRequest\x12,\n" +
+	"\bseverity\x18\x01 \x01(\x0e2\x10.rig.v1.SeverityR\bseverity\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\x12\n" +
+	"\x04body\x18\x03 \x01(\tR\x04body\"5\n" +
+	"\x0eNotifyResponse\x12#\n" +
+	"\x05toast\x18\x01 \x01(\v2\r.rig.v1.ToastR\x05toast\"G\n" +
+	"\x10ToastWaitRequest\x12\x14\n" +
+	"\x05after\x18\x01 \x01(\x04R\x05after\x12\x1d\n" +
+	"\n" +
+	"timeout_ms\x18\x02 \x01(\rR\ttimeoutMs\"R\n" +
+	"\x11ToastWaitResponse\x12%\n" +
+	"\x06toasts\x18\x01 \x03(\v2\r.rig.v1.ToastR\x06toasts\x12\x16\n" +
+	"\x06latest\x18\x02 \x01(\x04R\x06latest*V\n" +
 	"\x05Depth\x12\x15\n" +
 	"\x11DEPTH_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eDEPTH_PROGRAMS\x10\x01\x12\x12\n" +
@@ -604,7 +994,14 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\x17ESTATE_ROLE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13ESTATE_ROLE_UNNAMED\x10\x01\x12\x1a\n" +
 	"\x16ESTATE_ROLE_PRODUCTION\x10\x02\x12\x1b\n" +
-	"\x17ESTATE_ROLE_DEVELOPMENT\x10\x03B?Z=github.com/borismilner/rig/proto/rig/v1/registryv1;registryv1b\x06proto3"
+	"\x17ESTATE_ROLE_DEVELOPMENT\x10\x03*\x8c\x01\n" +
+	"\bSeverity\x12\x18\n" +
+	"\x14SEVERITY_UNSPECIFIED\x10\x00\x12\x11\n" +
+	"\rSEVERITY_INFO\x10\x01\x12\x14\n" +
+	"\x10SEVERITY_SUCCESS\x10\x02\x12\x14\n" +
+	"\x10SEVERITY_WARNING\x10\x03\x12\x12\n" +
+	"\x0eSEVERITY_ERROR\x10\x04\x12\x13\n" +
+	"\x0fSEVERITY_URGENT\x10\x05B?Z=github.com/borismilner/rig/proto/rig/v1/registryv1;registryv1b\x06proto3"
 
 var (
 	file_proto_rig_v1_registry_proto_rawDescOnce sync.Once
@@ -618,32 +1015,42 @@ func file_proto_rig_v1_registry_proto_rawDescGZIP() []byte {
 	return file_proto_rig_v1_registry_proto_rawDescData
 }
 
-var file_proto_rig_v1_registry_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_proto_rig_v1_registry_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_proto_rig_v1_registry_proto_goTypes = []any{
-	(Depth)(0),               // 0: rig.v1.Depth
-	(EstateRole)(0),          // 1: rig.v1.EstateRole
-	(*Program)(nil),          // 2: rig.v1.Program
-	(*ProgramsRequest)(nil),  // 3: rig.v1.ProgramsRequest
-	(*ProgramsResponse)(nil), // 4: rig.v1.ProgramsResponse
-	(*EstateRequest)(nil),    // 5: rig.v1.EstateRequest
-	(*EstateResponse)(nil),   // 6: rig.v1.EstateResponse
-	(*v1.Identity)(nil),      // 7: rig.v1.Identity
-	(v1.Coverage)(0),         // 8: rig.v1.Coverage
-	(*v1.Command)(nil),       // 9: rig.v1.Command
+	(Depth)(0),                // 0: rig.v1.Depth
+	(EstateRole)(0),           // 1: rig.v1.EstateRole
+	(Severity)(0),             // 2: rig.v1.Severity
+	(*Program)(nil),           // 3: rig.v1.Program
+	(*ProgramsRequest)(nil),   // 4: rig.v1.ProgramsRequest
+	(*ProgramsResponse)(nil),  // 5: rig.v1.ProgramsResponse
+	(*EstateRequest)(nil),     // 6: rig.v1.EstateRequest
+	(*EstateResponse)(nil),    // 7: rig.v1.EstateResponse
+	(*Toast)(nil),             // 8: rig.v1.Toast
+	(*NotifyRequest)(nil),     // 9: rig.v1.NotifyRequest
+	(*NotifyResponse)(nil),    // 10: rig.v1.NotifyResponse
+	(*ToastWaitRequest)(nil),  // 11: rig.v1.ToastWaitRequest
+	(*ToastWaitResponse)(nil), // 12: rig.v1.ToastWaitResponse
+	(*v1.Identity)(nil),       // 13: rig.v1.Identity
+	(v1.Coverage)(0),          // 14: rig.v1.Coverage
+	(*v1.Command)(nil),        // 15: rig.v1.Command
 }
 var file_proto_rig_v1_registry_proto_depIdxs = []int32{
-	7, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
-	8, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
-	9, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
-	0, // 3: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
-	2, // 4: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
-	1, // 5: rig.v1.EstateResponse.role:type_name -> rig.v1.EstateRole
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	13, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
+	14, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
+	15, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
+	0,  // 3: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
+	3,  // 4: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
+	1,  // 5: rig.v1.EstateResponse.role:type_name -> rig.v1.EstateRole
+	2,  // 6: rig.v1.Toast.severity:type_name -> rig.v1.Severity
+	2,  // 7: rig.v1.NotifyRequest.severity:type_name -> rig.v1.Severity
+	8,  // 8: rig.v1.NotifyResponse.toast:type_name -> rig.v1.Toast
+	8,  // 9: rig.v1.ToastWaitResponse.toasts:type_name -> rig.v1.Toast
+	10, // [10:10] is the sub-list for method output_type
+	10, // [10:10] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_registry_proto_init() }
@@ -656,8 +1063,8 @@ func file_proto_rig_v1_registry_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_registry_proto_rawDesc), len(file_proto_rig_v1_registry_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   5,
+			NumEnums:      3,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

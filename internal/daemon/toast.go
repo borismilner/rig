@@ -11,7 +11,7 @@ import (
 
 	"github.com/borismilner/rig/internal/record"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
-	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // Section 12's toasts, the daemon's half. rig.notify writes the notification
@@ -41,11 +41,11 @@ const (
 type toastRing struct {
 	mu    sync.Mutex
 	seq   uint64
-	items []*verbsv1.Toast
+	items []*registryv1.Toast
 	wake  chan struct{}
 }
 
-func (r *toastRing) add(t *verbsv1.Toast) {
+func (r *toastRing) add(t *registryv1.Toast) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.seq++
@@ -62,10 +62,10 @@ func (r *toastRing) add(t *verbsv1.Toast) {
 
 // after answers the toasts newer than seq, the latest seq, and a channel that
 // closes when the next toast arrives.
-func (r *toastRing) after(seq uint64) ([]*verbsv1.Toast, uint64, <-chan struct{}) {
+func (r *toastRing) after(seq uint64) ([]*registryv1.Toast, uint64, <-chan struct{}) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	var out []*verbsv1.Toast
+	var out []*registryv1.Toast
 	for _, t := range r.items {
 		if t.GetSeq() > seq {
 			out = append(out, t)
@@ -78,13 +78,13 @@ func (r *toastRing) after(seq uint64) ([]*verbsv1.Toast, uint64, <-chan struct{}
 }
 
 func (d *Daemon) serveNotify(ctx context.Context, c *conn, f *rigv1.Frame) {
-	var req verbsv1.NotifyRequest
+	var req registryv1.NotifyRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "notify: "+err.Error())
 		return
 	}
 	sev := req.GetSeverity()
-	if _, known := verbsv1.Severity_name[int32(sev)]; !known || sev == verbsv1.Severity_SEVERITY_UNSPECIFIED {
+	if _, known := registryv1.Severity_name[int32(sev)]; !known || sev == registryv1.Severity_SEVERITY_UNSPECIFIED {
 		c.failStatus(f.GetStreamId(), &rigv1.Status{
 			Code:         rigv1.Code_CODE_INVALID,
 			Message:      "rig.notify: a notification needs a severity",
@@ -131,16 +131,16 @@ func (d *Daemon) serveNotify(ctx context.Context, c *conn, f *rigv1.Frame) {
 		c.failErr(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err)
 		return
 	}
-	t := &verbsv1.Toast{
+	t := &registryv1.Toast{
 		RecordId: rec.ID, Severity: sev, Title: req.GetTitle(), Body: req.GetBody(),
 		Sender: sender, AtUnixNano: time.Now().UnixNano(),
 	}
 	d.toasts.add(t)
-	c.reply(f.GetStreamId(), &verbsv1.NotifyResponse{Toast: t})
+	c.reply(f.GetStreamId(), &registryv1.NotifyResponse{Toast: t})
 }
 
 func (d *Daemon) serveToastWait(ctx context.Context, c *conn, f *rigv1.Frame) {
-	var req verbsv1.ToastWaitRequest
+	var req registryv1.ToastWaitRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "toast.wait: "+err.Error())
 		return
@@ -151,13 +151,13 @@ func (d *Daemon) serveToastWait(ctx context.Context, c *conn, f *rigv1.Frame) {
 	for {
 		got, latest, wake := d.toasts.after(req.GetAfter())
 		if len(got) > 0 {
-			c.reply(f.GetStreamId(), &verbsv1.ToastWaitResponse{Toasts: got, Latest: latest})
+			c.reply(f.GetStreamId(), &registryv1.ToastWaitResponse{Toasts: got, Latest: latest})
 			return
 		}
 		select {
 		case <-wake:
 		case <-timer.C:
-			c.reply(f.GetStreamId(), &verbsv1.ToastWaitResponse{Latest: latest})
+			c.reply(f.GetStreamId(), &registryv1.ToastWaitResponse{Latest: latest})
 			return
 		case <-ctx.Done():
 			return

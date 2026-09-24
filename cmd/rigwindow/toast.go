@@ -18,7 +18,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"github.com/borismilner/rig/client"
-	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // Section 12's toasts, the screen's half. Three rulings shape this file
@@ -56,7 +56,7 @@ type toastSpawn func(after uint64) (exited <-chan error, err error)
 // renderer is alive.
 type toastWatcher struct {
 	spawn    toastSpawn
-	fallback func(*verbsv1.Toast) error
+	fallback func(*registryv1.Toast) error
 	warn     func(string)
 	// grace is how soon an exit still counts as dying at start; zero means
 	// five seconds.
@@ -70,7 +70,7 @@ type toastWatcher struct {
 // alive it starts one from the first toast's cursor; the renderer then waits
 // on the daemon itself. A renderer that cannot start, or dies before it
 // could draw, sends the batch to the desktop's notification service.
-func (w *toastWatcher) deliver(batch []*verbsv1.Toast) {
+func (w *toastWatcher) deliver(batch []*registryv1.Toast) {
 	if len(batch) == 0 {
 		return
 	}
@@ -105,7 +105,7 @@ func (w *toastWatcher) deliver(batch []*verbsv1.Toast) {
 	}()
 }
 
-func (w *toastWatcher) fallbackAll(batch []*verbsv1.Toast) {
+func (w *toastWatcher) fallbackAll(batch []*registryv1.Toast) {
 	for _, t := range batch {
 		if err := w.fallback(t); err != nil {
 			w.warn("the desktop's notification service refused too; the toast is in the record only: " + err.Error())
@@ -137,7 +137,7 @@ func watchToasts(w *toastWatcher) {
 
 // toastWait is one rig.toast.wait. Unprimed, it asks with no wait at all,
 // only to learn the latest cursor.
-func toastWait(after uint64, wait bool) (*verbsv1.ToastWaitResponse, error) {
+func toastWait(after uint64, wait bool) (*registryv1.ToastWaitResponse, error) {
 	c, err := client.Connect()
 	if err != nil {
 		return nil, err
@@ -149,8 +149,8 @@ func toastWait(after uint64, wait bool) (*verbsv1.ToastWaitResponse, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout+readDeadline)
 	defer cancel()
-	resp := &verbsv1.ToastWaitResponse{}
-	err = c.Call(ctx, "rig.toast.wait", &verbsv1.ToastWaitRequest{
+	resp := &registryv1.ToastWaitResponse{}
+	err = c.Call(ctx, "rig.toast.wait", &registryv1.ToastWaitRequest{
 		After: after, TimeoutMs: uint32(timeout.Milliseconds()),
 	}, resp)
 	return resp, err
@@ -176,11 +176,11 @@ func spawnToasts(after uint64) (<-chan error, error) {
 // freedesktopUrgency maps the five severities onto the spec's three levels:
 // low 0, normal 1, critical 2. Critical stays until dismissed, which is what
 // error and urgent ask for.
-func freedesktopUrgency(s verbsv1.Severity) byte {
+func freedesktopUrgency(s registryv1.Severity) byte {
 	switch s {
-	case verbsv1.Severity_SEVERITY_ERROR, verbsv1.Severity_SEVERITY_URGENT:
+	case registryv1.Severity_SEVERITY_ERROR, registryv1.Severity_SEVERITY_URGENT:
 		return 2
-	case verbsv1.Severity_SEVERITY_INFO:
+	case registryv1.Severity_SEVERITY_INFO:
 		return 0
 	default:
 		return 1
@@ -189,7 +189,7 @@ func freedesktopUrgency(s verbsv1.Severity) byte {
 
 // notifyDesktop is the fallback: org.freedesktop.Notifications on the session
 // bus, the service GNOME, KDE and every notification daemon implement.
-func notifyDesktop(t *verbsv1.Toast) error {
+func notifyDesktop(t *registryv1.Toast) error {
 	conn, err := dbus.ConnectSessionBus()
 	if err != nil {
 		return err
@@ -203,7 +203,7 @@ func notifyDesktop(t *verbsv1.Toast) error {
 		int32(-1)).Err
 }
 
-func severityWord(s verbsv1.Severity) string {
+func severityWord(s registryv1.Severity) string {
 	return strings.ToLower(strings.TrimPrefix(s.String(), "SEVERITY_"))
 }
 
@@ -230,7 +230,7 @@ type toastFeed struct {
 	started bool      // a bubble has been handed to the page
 }
 
-func (f *toastFeed) add(ts []*verbsv1.Toast) {
+func (f *toastFeed) add(ts []*registryv1.Toast) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	for _, t := range ts {

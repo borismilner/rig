@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // `rig notify <severity> <title> [--body B]` - section 12's toast from a shell.
@@ -32,7 +32,7 @@ func notifyFlagSet() *notifyFlags {
 
 // severities are the enum's words, lowercased, UNSPECIFIED left out.
 func severities() []string {
-	values := verbsv1.Severity_SEVERITY_UNSPECIFIED.Descriptor().Values()
+	values := registryv1.Severity_SEVERITY_UNSPECIFIED.Descriptor().Values()
 	var out []string
 	for i := range values.Len() {
 		if v := values.Get(i); v.Number() != 0 {
@@ -52,8 +52,8 @@ func cmdNotify(args []string) (err error) {
 	if len(positional) != 2 {
 		return badArgumentf("usage: rig notify <%s> <title> [--body B]", strings.Join(severities(), "|"))
 	}
-	sev := verbsv1.Severity(verbsv1.Severity_value["SEVERITY_"+strings.ToUpper(positional[0])])
-	if sev == verbsv1.Severity_SEVERITY_UNSPECIFIED {
+	sev := registryv1.Severity(registryv1.Severity_value["SEVERITY_"+strings.ToUpper(positional[0])])
+	if sev == registryv1.Severity_SEVERITY_UNSPECIFIED {
 		return badArgumentf("%q is not a severity; one of %s", positional[0], strings.Join(severities(), ", "))
 	}
 	c, err := connect()
@@ -63,8 +63,8 @@ func cmdNotify(args []string) (err error) {
 	defer c.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), *n.timeout)
 	defer cancel()
-	var resp verbsv1.NotifyResponse
-	if err := call(ctx, c, "rig.notify", &verbsv1.NotifyRequest{
+	var resp registryv1.NotifyResponse
+	if err := call(ctx, c, "rig.notify", &registryv1.NotifyRequest{
 		Severity: sev, Title: positional[1], Body: *n.body,
 	}, &resp); err != nil {
 		return err
