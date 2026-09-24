@@ -110,7 +110,7 @@ prefix on a unix socket. gRPC was measured (+9.8 MiB resident) and rejected.
 | leases with a liveness witness | TTL leases, pid witness, two-step expiry; `rig.lease.*` on the wire, listed by `rig peers` | built | §16 |
 | fencing, barriers, semaphores, queues, signals, deadlock detection | the rest of the peers service | specified | §16 |
 | working notes for agents | never lost, tagged, linked, handed back on resume | specified | §9 |
-| knowledge-sharing section | lessons written once, indexed so an agent never reads it whole | specified; index mechanism unchosen | §40 |
+| knowledge-sharing section | lessons written once, searched with SQLite FTS5 so an agent never reads them whole; `rig.knowledge.*`, `knowledge_*` MCP tools, `rig knowledge` | built | §40 |
 | configuration | layers, schema, provenance, live push | specified (S1 drafted) | §6, §47 |
 | logging, tracing, metrics | ingest, query, redaction at write time | specified (S3 drafted) | §8, §49 |
 | operator ledger | who used what, redacted | specified | §15 |

@@ -180,6 +180,24 @@ through the same wire the CLI uses, with nothing installed. See its godoc and
 private `XDG_RUNTIME_DIR` and `XDG_STATE_HOME` (two `mktemp -d` directories),
 which is how `tools/f8-demo.sh` does it.
 
+## Lessons
+
+rig keeps an estate-wide store of lessons (PLAN.md section 40): something one
+seat learned that another should not have to learn again. A program reaches it
+with `Call`, like any other rig verb:
+
+| method | request | answer |
+|---|---|---|
+| `rig.knowledge.search` | `query`, `limit` (1 to 20, default 5) | hits: id, title, summary, snippet, score. Never a body |
+| `rig.knowledge.get` | `id` | the whole lesson and who wrote it |
+| `rig.knowledge.add` | `title`, `summary`, `body`, `tags` | the lesson as stored |
+
+Search before a long investigation and fetch only the hit that fits. The
+words in `query` are matched as words; there is no query syntax. A write
+needs a seat (`rig.announce` first; a terminal has one) and is attributed to
+it. At a terminal the same verbs are `rig knowledge search|get|add`; agents
+get `knowledge_search`, `knowledge_get` and `knowledge_add`.
+
 ## Agents
 
 Nothing extra is needed: every declared command reaches agents through rig's
