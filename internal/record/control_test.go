@@ -72,7 +72,7 @@ func TestARetractedRecordKeepsItsIDAndEveryVersionOfItsHistory(t *testing.T) {
 	}
 }
 
-// ⛔ IT LEAVES THE BRIEF AND THE QUERIES AND IT DOES NOT LEAVE record.get,
+// ⛔ IT LEAVES THE QUERIES AND IT DOES NOT LEAVE record.get,
 // which is the half of the contract a delete cannot satisfy: "record.get still
 // explains what it was and that it was retracted".
 func TestARetractedRecordLeavesEveryListAndStillExplainsItselfToGet(t *testing.T) {
@@ -105,22 +105,12 @@ func TestARetractedRecordLeavesEveryListAndStillExplainsItselfToGet(t *testing.T
 		t.Fatalf("Query returned %+v, want only %s", q, live)
 	}
 
-	b, err := s.Brief(tctx, "rig")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, it := range append(append([]ItemState{}, b.Open...), b.NextUp...) {
-		if it.ID == gone {
-			t.Fatalf("%s is retracted and the brief still lists it as work", gone)
-		}
-	}
-	for _, c := range b.Closed {
-		if c.ID == gone {
-			t.Fatalf("%s is retracted and the brief files it under CLOSED - "+
-				"retraction is not a closing word, it is an absence", gone)
-		}
-	}
-
+	// ⛔ THE BRIEF'S HALF OF THIS TEST LEFT WITH THE BRIEF. plan/50 move 8:
+	// the derivation moved to the docket program, so "a retracted record is
+	// not in next-up, not in open, and NOT filed under closed either" is now
+	// docket's assertion to make against these same two lists. What rig can
+	// still prove is what rig still answers, which is the three verbs above
+	// and below: Find and Query drop it, Get keeps explaining it.
 	// ⛔ AND record.get MUST STILL ANSWER, WITH THE FACT AND ITS REASON. A
 	// NotFound here would make retract indistinguishable from delete to every
 	// reader, which is the collapse Boris's table exists to prevent.

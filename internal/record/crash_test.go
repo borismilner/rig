@@ -204,11 +204,16 @@ func TestAKilledWriterLeavesNothingHalfWritten(t *testing.T) {
 		t.Fatalf("writing after recovery: %v", err)
 	}
 
-	// 5. AND THE DERIVATION STILL ANSWERS. A store that opens and reads but
-	// cannot produce a brief has recovered its bytes and not its usefulness,
-	// and the brief is the one thing every arriving session calls.
-	if _, err := s.Brief(tctx, "crash"); err != nil {
-		t.Fatalf("the brief after recovery: %v", err)
+	// 5. AND A READ ACROSS THE WHOLE PROJECT STILL ANSWERS. A store that opens
+	// and answers one row but cannot walk a project has recovered its bytes and
+	// not its usefulness.
+	//
+	// ⛔ THIS WAS `s.Brief(tctx, "crash")` UNTIL plan/50 move 8, and the
+	// substitution is not a weakening: the brief's own first act was this
+	// query, and the derivation built on top of it is the docket program's
+	// now. What rig owes a recovering session is that the store answers.
+	if _, err := s.Query(tctx, "crash", ""); err != nil {
+		t.Fatalf("a project-wide read after recovery: %v", err)
 	}
 
 	// 6. NO STRAY JOURNAL OR WAL LEFT UNRECOVERED. SQLite checkpoints and

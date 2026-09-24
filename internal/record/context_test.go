@@ -80,7 +80,6 @@ func TestEveryVerbRefusesOnACancelledContext(t *testing.T) {
 			return err
 		},
 		"Stream": func() error { _, err := s.Stream(dead, "wi-1"); return err },
-		"Brief":  func() error { _, err := s.Brief(dead, "ctx"); return err },
 		"Refs":   func() error { _, err := s.Refs(dead, RefsRequest{ID: "wi-2"}); return err },
 	}
 
@@ -130,7 +129,7 @@ func TestEveryVerbRefusesOnACancelledContext(t *testing.T) {
 // the point the verb is added, not later.
 var storeVerbsTakingContext = []string{
 	"Put", "Get", "GetVersion", "Query", "History",
-	"Link", "Unlink", "LinksFrom", "Step", "Stream", "Brief", "Refs",
+	"Link", "Unlink", "LinksFrom", "Step", "Stream", "Refs",
 }
 
 // ⛔ THE TABLE ABOVE CANNOT SEE checkEdge, AND A SURVIVING MUTATION IS WHAT
