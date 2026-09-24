@@ -156,6 +156,14 @@ daemon's state). While it is on, a notification is filed in the record with a
 lives in the daemon's memory, so a restart turns it off rather than bringing
 a daemon back silent. The fullscreen-focus rule is not built.
 
+**The fallback, shown live 2026-09-24.** Under Xvfb, with a session bus and
+dunst as the notification server, the tray ran with no display so its
+renderer died at start. The tray logged that, then sent
+`org.freedesktop.Notifications.Notify` (app `rig`, summary
+`[error] Deploy failed`, urgency byte 2, captured by dbus-monitor), and dunst
+drew it as a critical notification top-right. Each later batch retries the
+renderer before falling back again.
+
 **Not built yet**, and each is a line of the list above: inline actions wired
 to a program's commands, deck collapse and fan-out, markdown and code in a
 body, the notification centre as a surface (the record holds
