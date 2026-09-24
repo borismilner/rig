@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // `rig progress` - a work item's stream (PLAN.md section 39).
@@ -58,12 +60,11 @@ func progressFlagSet() *progressFlags {
 	// the store's refusal quotes "" and the caller's word is gone. The check
 	// moved here because this is the last place that word exists.
 	//
-	// It is still not a second source of truth: stepStateOnTheWire WALKS the
-	// enum's descriptor. This string does not, and it is the one hand-kept
-	// spelling left - which is tolerable for the same reason it was written,
-	// that a caller cannot discover the set from a daemon they have not
-	// called yet, and intolerable the moment it decides anything.
-	p.state = p.fs.String("state", "", "started, blocked or done")
+	// Neither is a second source of truth: stepStateOnTheWire and
+	// stepStateSpellings both WALK the enum's descriptor, so this help text
+	// names the set a caller cannot discover from a daemon they have not
+	// called yet without writing it down a second time.
+	p.state = p.fs.String("state", "", stepStateHelp())
 	p.note = p.fs.String("note", "", "one line of what happened")
 	return p
 }
@@ -87,10 +88,11 @@ func cmdProgress(args []string) (err error) {
 			positional[0], strings.Join(progressSubcommands, ", "))
 	}
 	if len(positional) != 2 {
-		return badArgumentf("usage: rig progress step <item> --project " +
-			"<project> --state <started|blocked|done> [--note <text>]\n" +
-			"       the item is the work item's RECORD ID, which " +
-			"`rig record query <project> work-item` lists")
+		return badArgumentf("usage: rig progress step <item> --project "+
+			"<project> --state <%s> [--note <text>]\n"+
+			"       the item is the work item's RECORD ID, which "+
+			"`rig record query <project> work-item` lists",
+			strings.Join(stepStateSpellings(), "|"))
 	}
 	item := positional[1]
 
@@ -135,11 +137,28 @@ func cmdProgress(args []string) (err error) {
 	})
 }
 
-// stepStateSpellings is the set, for a usage line. It is the one place this
-// file writes them down; see the --state flag's comment for why it is not a
-// check.
+// stepStateSpellings is the set, for a usage line, read off the wire enum's
+// descriptor the same way stepStateOnTheWire reads it. The enum is the
+// vocabulary (internal/record/progress.go has the ruling), so this file
+// writes none of the words down.
 func stepStateSpellings() []string {
-	return []string{"started", "blocked", "done"}
+	values := rigv1.StepState_STEP_STATE_UNSPECIFIED.Descriptor().Values()
+	var out []string
+	for i := range values.Len() {
+		if v := values.Get(i); v.Number() != 0 {
+			out = append(out, enumLabel(string(v.Name()), "STEP_STATE_"))
+		}
+	}
+	return out
+}
+
+// stepStateHelp is the set as a sentence, for the --state flag's help.
+func stepStateHelp() string {
+	s := stepStateSpellings()
+	if len(s) < 2 {
+		return strings.Join(s, "")
+	}
+	return strings.Join(s[:len(s)-1], ", ") + " or " + s[len(s)-1]
 }
 
 // stepText is the confirmation a person reads.

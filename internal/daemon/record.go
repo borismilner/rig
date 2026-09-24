@@ -473,6 +473,8 @@ func (d *Daemon) serveRecordUnlink(ctx context.Context, c *conn, f *rigv1.Frame,
 // UNSPECIFIED IS ABSENT FROM THIS MAP ON PURPOSE, so an unset field cannot
 // decode as a decision - section 21's rule, which noenumzero enforces on the
 // proto and this map enforces at the boundary.
+// TestTheStepVocabularyIsTheWireEnumAndNothingElse pins it to the enum and to
+// the store's set.
 var stepStateNames = map[rigv1.StepState]string{
 	rigv1.StepState_STEP_STATE_STARTED: "started",
 	rigv1.StepState_STEP_STATE_BLOCKED: "blocked",

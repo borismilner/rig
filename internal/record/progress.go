@@ -13,16 +13,35 @@ import (
 // Section 39: "the live state (started/blocked/done) is the latest
 // progress.step, not a second field to keep in sync."
 //
-// ⛔ THE VOCABULARY HAS FOUR COPIES AND NOTHING MERGES THEM: this map,
-// `stepStateSpellings` in cmd/rig/progress.go, `stepStateWire` in
-// internal/daemon/record.go, and the `StepState` enum in wire.proto. The
-// exported `IsStepState` predicate existed so the seeder could ask instead of
-// assuming - it was written to file a disposition the store would have taken
-// and the CLI refuses, and it got as far as row B55 of a live run before
-// anything said so. The seeder left rig at plan/50 move 6 and took the only
-// caller with it, so the predicate went too; the four copies did not, and a
-// program outside rig can only learn the set by being refused.
-var stepStates = map[string]bool{"started": true, "blocked": true, "done": true}
+// ⛔ RULED: THE `StepState` ENUM IN wire.proto IS THE VOCABULARY, and every
+// other copy is derived from it or pinned to it by a test. A program outside
+// rig learns the set from the enum it already compiles against, never by
+// being refused.
+//
+// There were four copies and nothing merged them: this map,
+// `stepStateSpellings` in cmd/rig/progress.go, `stepStateNames` in
+// internal/daemon/record.go, and the enum. The exported `IsStepState`
+// predicate left with the seeder at plan/50 move 6. Now the CLI's spellings
+// walk the enum's descriptor, and
+// TestTheStepVocabularyIsTheWireEnumAndNothingElse in internal/daemon pins
+// both this set and the daemon's map to the enum. The store keeps its own copy
+// because it does not import the wire, and StepStates exports it so that test
+// can hold it to the enum.
+var stepStateOrder = []string{"started", "blocked", "done"}
+
+var stepStates = func() map[string]bool {
+	m := make(map[string]bool, len(stepStateOrder))
+	for _, s := range stepStateOrder {
+		m[s] = true
+	}
+	return m
+}()
+
+// StepStates is the set a step may carry, in the wire enum's order. It is a
+// copy, so a caller cannot widen what the store accepts.
+func StepStates() []string {
+	return append([]string(nil), stepStateOrder...)
+}
 
 // StepRequest appends one step to a work item's stream.
 type StepRequest struct {
