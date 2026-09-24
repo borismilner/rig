@@ -39,6 +39,10 @@ surface**: CLI, MCP, window, tray, toast, cron, palette, URL.
 Ruled 2026-09-17, `plan/01`. Token cost is a first-order constraint for any
 agent-facing surface.
 
+**Writing a program for rig?** Start with `docs/programs.md` and
+`examples/`: the wire, the handshake, the declaration, errors, versioning and
+panes, for Go and for any other language.
+
 ## What exists today
 
 State legend: **built** = in the code and tested. **partial** = some of it

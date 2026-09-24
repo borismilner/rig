@@ -123,6 +123,8 @@ and not an approximation of them.
 
 ```
 docs/orientation.md  start here: what exists today, where it lives
+docs/programs.md     integrating a program: Go, Python and any other language
+examples/            a Go and a Python program to copy
 PLAN.md              the generated index of the specification
 plan/                the specification, one file per section (50)
 cmd/                 rigd, rig, rigwindow, the fake programs, the gates
