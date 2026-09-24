@@ -3680,8 +3680,29 @@ type RecordQueryRequest struct {
 	// ⛔ A value WITH NO field IS REFUSED rather than ignored, because ignoring
 	// it WIDENS the answer: a caller whose field name expanded to nothing would
 	// get every record back and nothing would say its predicate had vanished.
-	Field         string `protobuf:"bytes,3,opt,name=field,proto3" json:"field,omitempty"`
-	Value         string `protobuf:"bytes,4,opt,name=value,proto3" json:"value,omitempty"`
+	Field string `protobuf:"bytes,3,opt,name=field,proto3" json:"field,omitempty"`
+	Value string `protobuf:"bytes,4,opt,name=value,proto3" json:"value,omitempty"`
+	// limit and after page the answer - section 50, "B116, the answer is paged".
+	// Empty `after` is the first page; an empty `next` in the answer is the last
+	// one. A request carrying neither field is what it always was, and its
+	// answer carries an empty `next` (section 21, additive).
+	//
+	// limit 0 means the daemon's byte budget alone decides where a page ends;
+	// non-zero caps the page's COUNT as well. The budget applies either way, so
+	// a large limit cannot buy a frame over MaxFrameSize.
+	Limit uint32 `protobuf:"varint,6,opt,name=limit,proto3" json:"limit,omitempty"`
+	// ⛔ OPAQUE, AND NO CLIENT DECODES IT. It is the daemon's cursor over the
+	// store's order, and a value this daemon did not issue is REFUSED with
+	// CODE_INVALID rather than read as a position - a cursor that positions
+	// somewhere arbitrary would skip records silently, which is the wrong
+	// direction for a read to fail in. One that names a row since removed still
+	// positions, because the store compares rather than looks up.
+	//
+	// DECISION 6 (COORDINATION.md) binds it as it binds every string on this
+	// wire: protojson omits the empty string, so absent and unserved are the
+	// same bytes, and a test that proves it travels owes TWO mutations - empty,
+	// and a wrong non-empty value.
+	After         string `protobuf:"bytes,7,opt,name=after,proto3" json:"after,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3744,10 +3765,29 @@ func (x *RecordQueryRequest) GetValue() string {
 	return ""
 }
 
+func (x *RecordQueryRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *RecordQueryRequest) GetAfter() string {
+	if x != nil {
+		return x.After
+	}
+	return ""
+}
+
 type RecordQueryResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The HEAD of every matching record. Section 39's "indexed".
-	Records       []*Record `protobuf:"bytes,1,rep,name=records,proto3" json:"records,omitempty"`
+	Records []*Record `protobuf:"bytes,1,rep,name=records,proto3" json:"records,omitempty"`
+	// ⛔ THE CURSOR FOR THE NEXT PAGE, AND EMPTY ON THE LAST ONE. Section 50,
+	// "B116, the answer is paged": a caller passes it back as `after` and stops
+	// when it comes back empty. A daemon built before B116 never sets it, so a
+	// client that loops is one page against one.
+	Next          string `protobuf:"bytes,2,opt,name=next,proto3" json:"next,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3787,6 +3827,13 @@ func (x *RecordQueryResponse) GetRecords() []*Record {
 		return x.Records
 	}
 	return nil
+}
+
+func (x *RecordQueryResponse) GetNext() string {
+	if x != nil {
+		return x.Next
+	}
+	return ""
 }
 
 type RecordHistoryRequest struct {
@@ -6799,14 +6846,17 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x04R\aversion\";\n" +
 	"\x11RecordGetResponse\x12&\n" +
-	"\x06record\x18\x01 \x01(\v2\x0e.rig.v1.RecordR\x06record\"n\n" +
+	"\x06record\x18\x01 \x01(\v2\x0e.rig.v1.RecordR\x06record\"\x9a\x01\n" +
 	"\x12RecordQueryRequest\x12\x18\n" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x14\n" +
 	"\x05field\x18\x03 \x01(\tR\x05field\x12\x14\n" +
-	"\x05value\x18\x04 \x01(\tR\x05value\"?\n" +
+	"\x05value\x18\x04 \x01(\tR\x05value\x12\x14\n" +
+	"\x05limit\x18\x06 \x01(\rR\x05limit\x12\x14\n" +
+	"\x05after\x18\a \x01(\tR\x05after\"S\n" +
 	"\x13RecordQueryResponse\x12(\n" +
-	"\arecords\x18\x01 \x03(\v2\x0e.rig.v1.RecordR\arecords\"&\n" +
+	"\arecords\x18\x01 \x03(\v2\x0e.rig.v1.RecordR\arecords\x12\x12\n" +
+	"\x04next\x18\x02 \x01(\tR\x04next\"&\n" +
 	"\x14RecordHistoryRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"C\n" +
 	"\x15RecordHistoryResponse\x12*\n" +
