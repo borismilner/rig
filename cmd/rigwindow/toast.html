@@ -7,75 +7,118 @@
 /* The dark theme's tokens, as design/theme.js computes them for DEFAULTS.
    Severity colours are the theme's semantic hues, never new ones. */
 :root {
-  --bg: #121a23; --panel: #212a34; --glow: #242d37; --border: #64778c;
-  --fg: #dae5f3; --fg-dim: #a1b1c5; --on-hue: #0d1117;
+  --card-top: #27303c; --card-bot: #1c232d; --line: rgba(255,255,255,.09);
+  --fg: #e6edf6; --fg-dim: #a1b1c5; --fg-faint: #7d8ea3; --on-hue: #0d1117;
   --sem-info: #8fc2fb; --sem-good: #92cf9a; --sem-warn: #e1b673; --sem-bad: #f7a59c;
   --sans: "Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif;
+  --w: 360px; --radius: 18px;
 }
-html, body { margin: 0; background: transparent; overflow: hidden; }
-body { font: 14px/1.4 var(--sans); color: var(--fg); -webkit-user-select: none; user-select: none; }
-#stack { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; padding: 14px 14px 18px 26px; }
+html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+body { font: 14px/1.4 var(--sans); color: var(--fg); -webkit-user-select: none; user-select: none;
+       -webkit-font-smoothing: antialiased; }
+
+/* The stack hugs the edge the tray is on, so the window can grow or shrink
+   on the far side without the bubbles moving. Newest is nearest the tray. */
+#stack { box-sizing: border-box; height: 100%; display: flex; align-items: flex-end;
+         padding: 22px 20px 22px 30px; }
+body[data-edge=bottom] #stack { flex-direction: column; justify-content: flex-end; }
+body[data-edge=top]    #stack { flex-direction: column-reverse; justify-content: flex-end; }
+
+.slot { width: var(--w); flex: none; }
+body[data-edge=bottom] .slot + .slot { margin-top: 14px; }
+body[data-edge=top]    .slot + .slot { margin-bottom: 14px; }
 
 .toast {
   --hue: var(--sem-info);
-  position: relative; box-sizing: border-box; width: 360px;
-  display: grid; grid-template-columns: 26px 1fr; gap: 2px 10px;
-  padding: 12px 14px 12px 12px; border-radius: 14px;
-  background: color-mix(in srgb, var(--panel) 92%, transparent);
-  border: 1px solid color-mix(in srgb, var(--hue) 55%, var(--border));
-  box-shadow: 0 10px 28px rgba(0,0,0,.45), inset 3px 0 0 var(--hue);
-  animation: in .38s cubic-bezier(.2,1.4,.4,1) both;
+  position: relative; box-sizing: border-box; width: var(--w);
+  display: grid; grid-template-columns: 36px 1fr; column-gap: 12px;
+  padding: 13px 38px 15px 13px; border-radius: var(--radius);
+  background:
+    radial-gradient(120px 80px at 30px 28px, color-mix(in srgb, var(--hue) 16%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--card-top), var(--card-bot));
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 0 rgba(255,255,255,.06) inset,
+              0 18px 36px -12px rgba(0,0,0,.65), 0 3px 10px rgba(0,0,0,.35);
   cursor: default;
 }
-.toast.leaving { animation: out .22s ease-in both; }
-@keyframes in  { from { opacity: 0; transform: translate(12px,-10px) scale(.92); } }
-@keyframes out { to   { opacity: 0; transform: translate(14px,-6px) scale(.96); } }
 
-/* The speech bubble's tail. Only the first bubble has one, and it points
-   into the top-right corner of the work area, where GNOME's tray sits:
-   Linux gives no tray icon position, so the tail aims at the corner and
-   never at the icon on a guess. */
-.toast:first-child::after {
-  content: ""; position: absolute; top: -9px; right: 22px; width: 16px; height: 16px;
-  background: inherit; border-left: inherit; border-top: inherit;
-  transform: rotate(45deg) skew(8deg,8deg); border-top-left-radius: 3px;
-}
+.toast > * { position: relative; z-index: 1; }
 
-.glyph {
-  grid-row: span 2; width: 24px; height: 24px; border-radius: 50%;
-  display: grid; place-items: center; font-weight: 700; font-size: 14px;
-  background: var(--hue); color: var(--on-hue);
+.icon {
+  grid-row: span 3; width: 36px; height: 36px; border-radius: 11px;
+  display: grid; place-items: center; color: var(--hue);
+  background: color-mix(in srgb, var(--hue) 15%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hue) 28%, transparent);
 }
-.title { font-weight: 600; color: var(--fg); overflow-wrap: anywhere; }
-.body { color: var(--fg-dim); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 7.2em; overflow: hidden; }
-.meta { grid-column: 2; color: var(--fg-dim); font-size: 12px; opacity: .75; }
+.icon svg { width: 20px; height: 20px; }
+.title { font-weight: 650; font-size: 14.5px; letter-spacing: -.005em; color: var(--fg);
+         overflow-wrap: anywhere; padding-top: 1px; }
+.body  { color: var(--fg-dim); margin-top: 2px; white-space: pre-wrap; overflow-wrap: anywhere;
+         max-height: 7.2em; overflow: hidden; }
+.meta  { display: flex; align-items: center; gap: 7px; margin-top: 6px;
+         color: var(--fg-faint); font-size: 12px; }
+.pill  { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+         color: var(--hue); padding: 1px 7px; border-radius: 999px;
+         background: color-mix(in srgb, var(--hue) 13%, transparent); }
+.dot::before { content: "·"; margin-right: 7px; }
+
+.close {
+  position: absolute; top: 9px; right: 9px; width: 24px; height: 24px; border-radius: 8px;
+  display: grid; place-items: center; color: var(--fg-dim); opacity: 0;
+  transition: opacity .15s, background .15s;
+}
+.close svg { width: 14px; height: 14px; }
+.toast:hover .close { opacity: 1; }
+.close:hover { background: rgba(255,255,255,.08); color: var(--fg); }
+
+/* The dwell, as a draining line. It pauses with the countdown on hover. */
+.bar { position: absolute; left: 16px; right: 16px; bottom: 6px; height: 2px; border-radius: 2px;
+       background: color-mix(in srgb, var(--hue) 75%, transparent); transform-origin: left center;
+       opacity: .8; z-index: 2; }
 
 .info    { --hue: var(--sem-info); }
 .success { --hue: var(--sem-good); }
 .warning { --hue: var(--sem-warn); }
 .error   { --hue: var(--sem-bad); }
-.error .title { color: var(--sem-bad); }
-/* Urgent is the one drawn filled, pulses, and never leaves on its own. */
-.urgent {
-  --hue: var(--sem-bad);
-  background: var(--sem-bad); border-color: var(--sem-bad);
-  box-shadow: 0 10px 28px rgba(0,0,0,.5), 0 0 0 0 color-mix(in srgb, var(--sem-bad) 70%, transparent);
-  animation: in .38s cubic-bezier(.2,1.4,.4,1) both, pulse 1.6s ease-out .4s infinite;
+.urgent  { --hue: var(--sem-bad); border-color: color-mix(in srgb, var(--sem-bad) 70%, transparent);
+           animation: pulse 1.8s ease-out .5s infinite; }
+.urgent .icon { background: var(--sem-bad); color: var(--on-hue); box-shadow: none; }
+.urgent .title { color: var(--sem-bad); }
+@keyframes pulse {
+  0%   { box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 18px 36px -12px rgba(0,0,0,.65),
+                     0 0 0 0 color-mix(in srgb, var(--sem-bad) 55%, transparent); }
+  70%, 100% { box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 18px 36px -12px rgba(0,0,0,.65),
+                     0 0 0 12px transparent; }
 }
-.urgent .title, .urgent .body, .urgent .meta { color: var(--on-hue); }
-.urgent .glyph { background: var(--on-hue); color: var(--sem-bad); }
-@keyframes pulse { 70% { box-shadow: 0 10px 28px rgba(0,0,0,.5), 0 0 0 10px transparent; } }
+@media (prefers-reduced-motion: reduce) { .urgent { animation: none; } }
 </style>
 </head>
-<body>
+<body data-edge="bottom">
 <div id="stack"></div>
 <script>
 "use strict";
-const GLYPH = { info: "i", success: "✓", warning: "!", error: "✕", urgent: "!!" };
+// Icons are Lucide's (ISC licence), inlined so the page loads nothing.
+const SVG = (paths) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" ' +
+  'stroke-linecap="round" stroke-linejoin="round">' + paths.map(d => '<path d="' + d + '"/>').join("") + "</svg>";
+const ICON = {
+  info:    SVG(["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z", "M12 16v-4", "M12 8h.01"]),
+  success: SVG(["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z", "m9 12 2 2 4-4"]),
+  warning: SVG(["m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3", "M12 9v4", "M12 17h.01"]),
+  error:   SVG(["M2.586 16.726A2 2 0 0 1 2 15.312V8.688a2 2 0 0 1 .586-1.414l4.688-4.688A2 2 0 0 1 8.688 2h6.624a2 2 0 0 1 1.414.586l4.688 4.688A2 2 0 0 1 22 8.688v6.624a2 2 0 0 1-.586 1.414l-4.688 4.688a2 2 0 0 1-1.414.586H8.688a2 2 0 0 1-1.414-.586z", "m15 9-6 6", "m9 9 6 6"]),
+  urgent:  SVG(["M10.268 21a2 2 0 0 0 3.464 0", "M22 8c0-2.3-.8-4.3-2-6", "M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326", "M4 2C2.8 3.7 2 5.7 2 8"]),
+};
+const CLOSE = SVG(["M18 6 6 18", "m6 6 12 12"]);
+const MAX_SHOWN = 4; // more than this is a wall, not a toast; the rest are in the record
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 const stack = document.getElementById("stack");
 let hovered = false;
 stack.addEventListener("mouseenter", () => { hovered = true; });
 stack.addEventListener("mouseleave", () => { hovered = false; });
+
+// The Go side calls this once it knows which edge of the screen the tray is on.
+window.setEdge = (edge) => { document.body.dataset.edge = edge; };
+const fromTray = () => (document.body.dataset.edge === "top" ? -1 : 1) * 18;
 
 // Section 12: roughly ten seconds plus five per line; hover pauses. Error
 // stays twice as long, and urgent stays until it is clicked.
@@ -86,49 +129,104 @@ function dwellFor(t) {
   return t.severity === "error" ? 2 * ms : ms;
 }
 
-function leave(el) {
-  if (el.classList.contains("leaving")) return;
-  el.classList.add("leaving");
-  setTimeout(() => el.remove(), 230);
+function live() { return [...stack.querySelectorAll(".slot:not(.leaving)")]; }
+
+function leave(slot) {
+  if (slot.classList.contains("leaving")) return;
+  slot.classList.add("leaving");
+  const card = slot.firstChild, h = slot.offsetHeight;
+  const out = REDUCED ? 0 : 200;
+  card.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateX(28px) scale(.97)" }],
+    { duration: out, easing: "cubic-bezier(.4,0,1,1)", fill: "forwards" }).finished.then(() => {
+      slot.style.overflow = "hidden";
+      return slot.animate([{ height: h + "px" }, { height: "0px", marginTop: "0px", marginBottom: "0px" }],
+        { duration: REDUCED ? 0 : 220, easing: "cubic-bezier(.3,0,.2,1)", fill: "forwards" }).finished;
+    }).then(() => slot.remove());
+}
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
 }
 
 function show(t) {
-  const el = document.createElement("div");
-  el.className = "toast " + t.severity;
-  el.setAttribute("role", t.severity === "urgent" || t.severity === "error" ? "alert" : "status");
-  const g = document.createElement("div"); g.className = "glyph"; g.textContent = GLYPH[t.severity] || "i";
-  const ti = document.createElement("div"); ti.className = "title"; ti.textContent = t.title;
-  el.append(g, ti);
-  if (t.body) { const b = document.createElement("div"); b.className = "body"; b.textContent = t.body; el.append(b); }
-  const m = document.createElement("div"); m.className = "meta"; m.textContent = t.sender + " · " + t.severity;
-  el.append(m);
-  el.dataset.left = String(dwellFor(t));
-  el.addEventListener("click", () => leave(el));
-  stack.prepend(el); // newest nearest the corner
+  const slot = el("div", "slot");
+  const card = el("div", "toast " + t.severity);
+  card.setAttribute("role", t.severity === "urgent" || t.severity === "error" ? "alert" : "status");
+  const icon = el("div", "icon"); icon.innerHTML = ICON[t.severity] || ICON.info;
+  card.append(icon, el("div", "title", t.title));
+  if (t.body) card.append(el("div", "body", t.body));
+  const meta = el("div", "meta");
+  meta.append(el("span", "pill", t.severity), el("span", "", t.sender), el("span", "dot when", "now"));
+  card.append(meta);
+  const x = el("div", "close"); x.innerHTML = CLOSE; x.title = "Dismiss";
+  card.append(x);
+  const dwell = dwellFor(t);
+  if (dwell !== Infinity) { const bar = el("div", "bar"); card.append(bar); slot._bar = bar; }
+  slot._total = dwell; slot._left = dwell; slot._born = Date.now();
+  card.addEventListener("click", () => leave(slot));
+  slot.append(card);
+  stack.append(slot); // the DOM order is oldest first; the edge's flex direction puts newest at the tray
+
+  const h = slot.offsetHeight;
+  if (!REDUCED) {
+    slot.style.overflow = "visible";
+    slot.animate([{ height: "0px" }, { height: h + "px" }], { duration: 260, easing: "cubic-bezier(.2,.8,.2,1)" });
+    card.animate([{ opacity: 0, transform: `translateY(${fromTray()}px) scale(.94)` },
+                  { opacity: 1, transform: "none" }],
+      { duration: 420, easing: "cubic-bezier(.2,1.3,.35,1)", fill: "backwards" });
+  }
+
+  // A wall of toasts helps nobody: past MAX_SHOWN the oldest leaves early,
+  // urgent never. It is still in the record.
+  const extra = live().filter(s => !s.firstChild.classList.contains("urgent"));
+  while (live().length > MAX_SHOWN && extra.length) leave(extra.shift());
+}
+
+function ago(ms) {
+  const s = Math.round(ms / 1000);
+  return s < 45 ? "now" : s < 3600 ? Math.round(s / 60) + "m ago" : Math.round(s / 3600) + "h ago";
 }
 
 // Count down every bubble's dwell, paused while the pointer is over the stack.
 let last = performance.now();
 setInterval(() => {
   const now = performance.now(), dt = now - last; last = now;
-  if (hovered) return;
-  for (const el of stack.querySelectorAll(".toast:not(.leaving)")) {
-    const left = Number(el.dataset.left) - dt;
-    el.dataset.left = String(left);
-    if (left <= 0) leave(el);
+  for (const slot of live()) {
+    slot.querySelector(".when").textContent = ago(Date.now() - slot._born);
+    if (hovered || slot._total === Infinity) continue;
+    slot._left -= dt;
+    slot._bar.style.transform = `scaleX(${Math.max(slot._left, 0) / slot._total})`;
+    if (slot._left <= 0) leave(slot);
   }
-}, 200);
+}, 100);
 
 // The page's one door to Go: report how many bubbles are up and how tall the
-// stack is, and take whatever toasts arrived.
+// stack will be once they settle, and take whatever toasts arrived. The
+// height is the settled one, measured without the running animations, so the
+// window is already big enough when a bubble grows into it.
+function settledHeight() {
+  const cs = getComputedStyle(stack);
+  let h = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  const slots = [...stack.children];
+  slots.forEach((s, i) => {
+    // A leaving bubble still counts at its shrinking height, or the window
+    // would cut it off before it has finished going.
+    const own = s.classList.contains("leaving") ? s.offsetHeight : s.firstChild.offsetHeight;
+    h += own + (i > 0 ? 14 : 0);
+  });
+  return Math.ceil(h);
+}
+
 async function poll() {
-  const shown = stack.querySelectorAll(".toast:not(.leaving)").length;
-  const h = Math.ceil(stack.getBoundingClientRect().height);
+  const shown = stack.children.length;
   try {
-    const r = await fetch("/toast/poll?shown=" + shown + "&h=" + h);
+    const r = await fetch("/toast/poll?shown=" + shown + "&h=" + (shown ? settledHeight() : 0));
     for (const t of await r.json() || []) show(t);
   } catch (e) { /* the renderer is quitting */ }
-  setTimeout(poll, 150);
+  setTimeout(poll, 120);
 }
 poll();
 </script>

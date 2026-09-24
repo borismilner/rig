@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/wailsapp/wails/v3/pkg/application"
+
 	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
@@ -129,6 +131,25 @@ func TestTheFiveSeveritiesMapOntoFreedesktopUrgency(t *testing.T) {
 	for s, u := range want {
 		if got := freedesktopUrgency(s); got != u {
 			t.Errorf("%s maps to urgency %d, want %d", s, got, u)
+		}
+	}
+}
+
+// The tray is on whichever edge the panel took room from. Boris's panel is at
+// the bottom, and the first build assumed GNOME's top bar.
+func TestTheBubblesFaceThePanelsEdge(t *testing.T) {
+	screen := application.Rect{X: 0, Y: 0, Width: 3000, Height: 1920}
+	for _, c := range []struct {
+		name string
+		wa   application.Rect
+		want string
+	}{
+		{"bottom panel", application.Rect{X: 0, Y: 0, Width: 3000, Height: 1860}, "bottom"},
+		{"top bar", application.Rect{X: 0, Y: 48, Width: 3000, Height: 1872}, "top"},
+		{"no panel", screen, "top"},
+	} {
+		if got := panelEdge(screen, c.wa); got != c.want {
+			t.Errorf("%s: panelEdge = %q, want %q", c.name, got, c.want)
 		}
 	}
 }

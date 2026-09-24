@@ -34,15 +34,16 @@ import (
 //   - RECORD: the daemon files every notification before any of this runs,
 //     so nothing here is the only copy.
 //   - POSITION: Linux gives no tray icon position, so the bubbles anchor at
-//     the corner of the monitor's work area where the tray sits (top-right
-//     on GNOME), and the first bubble's tail points into that corner. A tail
-//     is never aimed at the icon on a guess.
+//     the right-hand corner of the work area on the edge the panel is on,
+//     and the newest bubble sits nearest it. The edge is read from the
+//     work area rather than assumed: Boris's panel is at the BOTTOM, and the
+//     first build's top-right anchor pointed away from his tray.
 
 //go:embed toast.html
 var toastPage []byte
 
 const (
-	toastWidth  = 400 // the window's width; the page's bubbles are 360 plus the tail's room
+	toastWidth  = 410 // the window's width; the page's bubbles are 360 plus room for shadows
 	toastMargin = 8   // from the work area's corner
 	toastLinger = 1500 * time.Millisecond
 	toastPoll   = 55 * time.Second
@@ -353,23 +354,56 @@ func runToasts(after uint64) error {
 	return app.Run()
 }
 
-// placeToasts sizes the window to the bubbles and puts it in the work area's
-// top-right corner, where GNOME's tray sits.
+// placeToasts sizes the window to the bubbles and puts it in the right-hand
+// corner of the work area on the panel's edge.
 func placeToasts(app *application.App, win *application.WebviewWindow, height int) {
 	scr := app.Screen.GetPrimary()
 	if scr == nil {
 		return
 	}
 	wa := scr.WorkArea
+	if x11, ok := application.InvokeSyncWithResult(func() workArea {
+		r, ok := x11WorkArea()
+		return workArea{r, ok}
+	}).get(); ok && x11.Width > 0 && x11.Height > 0 {
+		wa = x11
+	}
+	edge := panelEdge(scr.Bounds, wa)
 	h := min(height, wa.Height-2*toastMargin)
 	x, y := wa.X+wa.Width-toastWidth-toastMargin, wa.Y+toastMargin
+	if edge == "bottom" {
+		y = wa.Y + wa.Height - h - toastMargin
+	}
 	win.SetSize(toastWidth, h)
 	if !win.IsVisible() {
+		themeOnce.Do(func() { application.InvokeSync(clearThemeBackground) })
+		win.ExecJS("setEdge(" + strconv.Quote(edge) + ")")
 		win.Show()
 	}
 	// After Show as well as before it: GTK drops a move asked of a window
 	// that is not yet mapped, which put the stack top-left under Xvfb.
 	win.SetPosition(x, y)
+}
+
+var themeOnce sync.Once
+
+type workArea struct {
+	r  application.Rect
+	ok bool
+}
+
+func (w workArea) get() (application.Rect, bool) { return w.r, w.ok }
+
+// panelEdge says which edge of the screen the panel, and so the tray, is on:
+// the side where the work area gives up the most room. With no panel at all
+// it answers "top", GNOME's default.
+func panelEdge(bounds, wa application.Rect) string {
+	top := wa.Y - bounds.Y
+	bottom := (bounds.Y + bounds.Height) - (wa.Y + wa.Height)
+	if bottom > top {
+		return "bottom"
+	}
+	return "top"
 }
 
 // toastAfter parses --after for the renderer.
