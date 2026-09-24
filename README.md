@@ -119,6 +119,7 @@ and not an approximation of them.
 ## Layout
 
 ```
+docs/orientation.md  start here: what exists today, where it lives
 PLAN.md              the specification: 33 sections, 17 milestones
 design/              the visual system, live in one HTML file
   theme.js             the engine: a small config object to the whole token set
