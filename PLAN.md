@@ -22,7 +22,7 @@ laptop, see section 4).
 
 ## Map - this file is the INDEX. The sections live in `plan/`.
 
-**The specification is 13644 lines across 50 files and nobody reads it
+**The specification is 13669 lines across 50 files and nobody reads it
 whole.** It is a reference to query, and it is queried with two questions:
 *"what is rig supposed to do"* and *"what did he already rule on this"*.
 **This index exists so a requirement cannot hide**, which is the failure this
@@ -56,7 +56,7 @@ the original byte for byte before writing anything.
 | 8 | Observability | 97 | [`plan/08-observability.md`](plan/08-observability.md) |
 | 9 | Built for agents | 381 | [`plan/09-built-for-agents.md`](plan/09-built-for-agents.md) |
 | 10 | The terminal client | 135 | [`plan/10-the-terminal-client.md`](plan/10-the-terminal-client.md) |
-| 11 | The window | 1225 | [`plan/11-the-window.md`](plan/11-the-window.md) |
+| 11 | The window | 1250 | [`plan/11-the-window.md`](plan/11-the-window.md) |
 | 12 | Toasts | 98 | [`plan/12-toasts.md`](plan/12-toasts.md) |
 | 13 | Capabilities and trust | 288 | [`plan/13-capabilities-and-trust.md`](plan/13-capabilities-and-trust.md) |
 | 14 | Isolation | 239 | [`plan/14-isolation.md`](plan/14-isolation.md) |
@@ -121,7 +121,7 @@ the original byte for byte before writing anything.
 | **what do agents get, and when?** | §16 for the coordination primitives, **§39 for the continuity record**, §37 for the minimum set and the staged migration |
 | **has he already ruled on this?** | `logbook/projects/rig/DECISIONS.md` first, then §31-38. **Grep before proposing** - proposing what already exists is this project's named failure mode |
 
-**§31-38 ARE A CHANGELOG INSIDE A SPECIFICATION** - 7925 of 13644 lines,
+**§31-38 ARE A CHANGELOG INSIDE A SPECIFICATION** - 7925 of 13669 lines,
 58%. Splitting the file did not fix that; it made it visible and
 cheap to act on, since those eight sections are now eight files that can move to
 the logbook in one commit. `BACKLOG.md` B24. **Until they do, a reader after the
