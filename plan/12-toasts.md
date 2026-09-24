@@ -149,9 +149,16 @@ Hover pauses every countdown; a click dismisses a bubble. The newest bubble
 is nearest the corner. `rig notify <severity> <title> [--body B]` sends one
 from a shell.
 
+**Do Not Disturb, built 2026-09-24.** `rig.toast.dnd` turns it on or off
+(`rig dnd on|off|status`, and a checkbox on the tray menu that shows the
+daemon's state). While it is on, a notification is filed in the record with a
+`suppressed` field and is not drawn; **an urgent one is always drawn**. It
+lives in the daemon's memory, so a restart turns it off rather than bringing
+a daemon back silent. The fullscreen-focus rule is not built.
+
 **Not built yet**, and each is a line of the list above: inline actions wired
 to a program's commands, deck collapse and fan-out, markdown and code in a
-body, Do Not Disturb, the notification centre as a surface (the record holds
+body, the notification centre as a surface (the record holds
 every notification; nothing lists them yet), and speech. The backdrop is
 transparent only under a compositor; Xvfb has none, so the demo screenshots
 show the window's own ground around the bubbles.

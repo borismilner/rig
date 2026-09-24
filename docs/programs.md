@@ -262,6 +262,10 @@ how loudly your message is drawn. The sender is your program's id (or your
 seat), never a field you set. From a shell: `rig notify warning "Disk 91%
 full" --body "/var is filling"`.
 
+While Do Not Disturb is on (`rig dnd on`, or the tray menu), a notification
+is filed and not drawn, and the answer's `suppressed` says so. An urgent one
+is always drawn.
+
 ## Agents
 
 Nothing extra is needed: every declared command reaches agents through rig's
