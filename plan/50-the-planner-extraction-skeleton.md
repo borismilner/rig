@@ -28,6 +28,14 @@ whether to start B114 or hold for the nine batched rows:**
 | **what runs without waiting** | **moves 1 and 2 (B102, B100) as the `seam` seat; the `cmd/docket` rename as the `rename` seat; move 3, the repository, as the `docket` seat** - all spawned 2026-09-24. Moves 4 to 9 are specified below and start as their inputs land |
 | **what does not change** | the two commands stay his; nothing is pushed; §45's loop still hands the build to a subagent from a written specification |
 
+**RULED AGAIN 2026-09-24 07:30, on the generation-27 brief that offered the
+B116 shape as a choice:** *"Apply all and be as pro-active as possible, we
+don't have this account for much longer so I need you to do as much as
+possible with the time left."* **What it settles:** the lead's picks in this
+section (B116 by paging, decision 4 narrowed, four tracks at once, F no
+longer waiting on E) proceed without a further ask; each is recorded here
+and in `DECISIONS.md` so he can reverse any of them in one word.
+
 > **In one line: the project and case model, its importers, its brief and its
 > views move to a program called `docket` that talks to rig over the socket
 > like every other in-house program; the record store, the `record.*` verbs
@@ -114,7 +122,7 @@ the seat's; the line counts are measured.
 | **1** | **The planner imports nothing of rig BUT THE STUB.** `github.com/boris-milner/rig/client` is *"the one piece of rig code that lives inside a program"* (§5d), placed outside `internal/` precisely so that a program in another module can reach rig; `go list -deps ./...` in docket's module names that package, its own three dependencies (`internal/paths`, `internal/wire`, `proto/rig/v1`, measured 2026-09-24) and no other rig package. ⛔ **CORRECTED 2026-09-24 by the lead: the skeleton said "nothing of rig" and had not read §5d.** `cmd/fakeapp` is the working example of a program on the stub | §5: *"No in-house program imports rig. They talk to it over a socket"* - and the stub IS the socket, budgeted and frozen by §3 and §5d so that importing it is not importing rig's semantics | a second client; copying `internal/wire`; importing `internal/record` or any store package. **A `replace github.com/boris-milner/rig => ../rig` is tolerated ONLY until rig is pushed** (his command), named in `go.mod` with the reason, and replaced by a `require` at a pseudo-version the moment it is; acceptance E checks for it |
 | **2** | **The 12 coupled methods become `record.query` and `record.refs` calls through the stub, assembled in docket - FIRST on the verbs rig has today, correctness proven by acceptance C; THEN §48's `fields` projection if the measured brief exceeds the bound below.** ⛔ **Sequenced this way 2026-09-24 for ASAP:** B108 priced the naive shape at 231 round trips, 5.6 ms at rigd's measured 24.25 us plus ~1.9 MiB of rows, against a 27.4 ms in-process derivation - so a brief on today's verbs lands well inside a CLI's budget and needs no rig change. **The bound: `docket brief` end to end at more than 2x `rig brief` measured the same way at the cut-sha (B108: 36.5 ms median), OR any single brief over 100 ms, opens the projection slice**, a `fields` list on `RecordQueryRequest`, which is rig's to build (the store stays) and S1's §48 already specifies | B108's verdict: serialising the answer is 3.555 ms, 69x the socket, so projection beats batching and shared memory is not justified; §44's *"the query API must push the work down"*. **The interface B100 gives `Store` proves the seam compiles; it is not the end state** | a `project.brief` served by rig on the planner's behalf; a brief that pays N+1 round trips *without a measurement saying so*; a transport picked before the measurement (§4) |
 | **3** | **`project.brief` leaves `self.go` and the brief's seven messages leave `wire.proto`** | §43: rig may name no program, project or plan, and a brief names all three | keeping a planner verb on rig's wire "for compatibility" |
-| **4** | ⛔ **`project.brief` on wire v1 is §21-frozen and cannot simply vanish:** *"rig serves every wire version it has ever shipped."* **Recommendation: v1 keeps the verb name and answers it by invoking the planner's registered `brief` command (M1's invoke), and the message set is dropped at the next wire major** | §21 is a ruling and this section does not overturn it; forwarding costs one invoke and keeps every frozen conformance fixture green | deleting the arm from v1; a v2 opened for this alone |
+| **4** | ⛔ **`project.brief` on wire v1 is §21-frozen and cannot simply vanish:** *"rig serves every wire version it has ever shipped."* **Recommendation: v1 keeps the verb name and answers it by invoking the planner's registered `brief` command (M1's invoke), and the message set is dropped at the next wire major** ⛔ **NARROWED 2026-09-24 07:40 by the lead, for ASAP: the v1 arm stays DECLARED and answers a structured refusal (`FAILED_PRECONDITION`) whose message names `rig docket brief`; nothing is forwarded.** Measured: `ProjectBriefResponse` is structured (`open` and `next_up` as `ItemState` lists) and `rig brief --json` emits its own `briefJSON` shape rather than protojson, so a forward would need a mapping layer built for a deprecated arm - §45's breadth. The seven messages stay in `wire.proto` until the next major; the `retire` seat re-records any conformance fixture that asserted a full brief to the refusal, and that re-recording is the evidence the arm still answers | §21 is a ruling and this section does not overturn it; a refusal is an answer on every shipped version, and it costs no mapping layer | deleting the arm from v1; a v2 opened for this alone; a forward built before a client asks for one |
 | **5** | **The planner declares its kinds in its own code, and rig's store stays kind-agnostic - which it already is.** Measured 2026-09-24: `Put` refuses only an EMPTY kind or project (`store.go:434`), `records.go:157` says an unknown kind is invisible by construction, and `Declaration` on the wire carries no kinds. So the planner's kinds - project, case, work item, requirement, decision, note, section - live in a `kinds` package in docket (move 3 creates it), and rig's `records.go` loses its planner constants at move 6. **A rig-side "validate against the declaring program's kinds" mechanism is S1's (§48) and is NOT built for the split** - narrowed by the lead for ASAP; nothing rig does today depends on it | §43 Q1 STAYS: *"the planner declares ITS kinds"*; §39's nouns survive as the planner's declaration. The narrowing keeps move 6 to a deletion proven by `git grep` | rig's `records.go` carrying `KindWorkItem`; a store that knows what a backlog is; a new wire field built before a program needs it |
 | **6** | **History stays in rig.** The planner's first commit names the rig sha it was cut from, and moved files are copied, not rewritten | rig's history is the evidence this project keeps citing; a filter-repo would make every `PLAN.md section N` citation in the logbook resolve against a rewritten tree | `git filter-repo`; a subtree split that leaves two histories of one file |
 | **7** | **The planner's views are served through rig's pane tier** (M1a, built at the pre-kit tier) **and rig's own window keeps only platform data**: peers, presence, deployment, the estate, settings | §43's table: *"its own views, served through rig"*; §3: *"zero frontend code and no rig-specific logic"* | `Records.svelte` staying in `cmd/rigwindow` because it is already there |
@@ -135,10 +143,11 @@ row it depends on has landed, never before.** The lead owns this table and
 | **B** | `rename` | rig, `cmd/docket/` to `cmd/abacus/`, `Makefile` size rows, the size baseline | frees the name | **DONE 2026-09-24 02:03, rig `83a1695` and `2ebe4a5`**; `abacus` chosen because every plainer noun was live rig vocabulary (its FINDINGS). The fictional program id `docket` in five `internal/` tests became `satchel` at `9f40679`, the lead's |
 | **C** | `docket` | `~/me/projects/docket`, NEW tree | 3 | **DONE 2026-09-24 02:14, docket `e7ba4a8` (six commits), cut-sha rig `2fedfaa`**; proofs A, B, D taken, D on a reduced plan set because of the frame-cap defect below |
 | **D** | lead | `plan/50` | the specification of 4 to 8 perfected: the client mechanism, the kinds declaration, the forward arm | reading, no code |
-| **E** | `docket`, continued | `~/me/projects/docket` | 4 | C. The client decision is taken: decision 1, the stub |
-| **F** | a rig seat | rig, `cmd/rig/brief.go`, the `serveProjectBrief` and `project_brief` arms, `self.go`'s one block, `records.go`'s constants | 5, 6, 8 | A, E proven by acceptance C |
-| **G** | a window seat | rig `frontend/src/lib/`; `docket/frontend/` and the embed in docket's binary | 7 | C, and docket having a binary that registers (move 4 gives it one). The mechanism is known: `cmd/abacus` |
-| **H** | lead | `Makefile` under `rig-makefile` | 9 | everything above |
+| **E** | `wire-brief` | `~/me/projects/docket`, whole, except `frontend/` and `cmd/docket/pane.go` (G's) | 4 | C. **SPAWNED 2026-09-24 07:45.** Decision 1, the stub; its query helper loops on `next` (B116) from its first commit |
+| **F** | `retire` | rig, `cmd/rig/brief.go` + goldens + entries; `internal/record`'s importers, `brief.go` and the tests that reach only them; `cmd/rigseed/` deleted; `mcp_records.go`'s arm; `self.go`; `serveProjectBrief` in `internal/daemon/record.go` LAST, after track I's commit to that file | 5, 6, 8 | A. **SPAWNED 07:45, and E is NOT a dependency** - acceptance C's old brief is built from the cut-sha whatever the tree holds, so deleting rig's brief cannot block C; only E can. `record.go` is sequenced behind track I by commit rather than split by file |
+| **G** | `pane` | rig `frontend/`, `cmd/rigwindow/`; `docket/frontend/`, `docket/cmd/docket/pane.go`; ONE line of `docket/cmd/docket/main.go` after E is COMPLETE | 7 | C. **SPAWNED 07:45 for slice 1** (the nine files and the toolchain move; rig's window keeps platform data). Slice 2 (the embed, `/pane`, `pane_url`) waits on E's STATUS saying COMPLETE. `cmd/abacus` is the shape |
+| **H** | lead | `Makefile` under `rig-makefile`; the ratchet rows the shrink moves | 9 | everything above |
+| **I** | `paging` | rig, `proto/rig/v1/wire.proto` + `wire.pb.go` for three fields (lent), `internal/record/store.go` for one paged read, `serveRecordQuery` in `internal/daemon/record.go`, `cmd/rig/record.go`'s query verb, its own test files | **B116** | nothing. **SPAWNED 07:45.** Specified below, "B116, the answer is paged" |
 
 ### The moves, in order, and what proves each one
 
@@ -166,10 +175,44 @@ rig.
 
 | Found | Where it went |
 |---|---|
-| ⛔ **`rigseed --check` over the whole 50-section `plan/` cannot complete, and it is rig's wire:** `record.query --kind requirement` answers 1,123,924 bytes, over `MaxFrameSize`, so the query dies and the seeder's 30 s deadline kills the child. Rig's own seeder fails byte-identically, so it predates docket. **It bites his production re-seed too** the moment `plan/47-50` are in the store | **B116**, the lead's, before or with his re-seed. Decision 2's `fields` projection is one fix; paging the answer is the other; the cap alone is not a fix |
+| ⛔ **`rigseed --check` over the whole 50-section `plan/` cannot complete, and it is rig's wire:** `record.query --kind requirement` answers 1,123,924 bytes, over `MaxFrameSize`, so the query dies and the seeder's 30 s deadline kills the child. Rig's own seeder fails byte-identically, so it predates docket. **It bites his production re-seed too** the moment `plan/47-50` are in the store | **B116**, the lead's, before or with his re-seed. Decision 2's `fields` projection is one fix; paging the answer is the other; the cap alone is not a fix. ⛔ **PICKED 2026-09-24 07:40: PAGING.** The seeder's check compares BODIES (`cmd/rigseed/main.go`, `storeRecords`), so the projection cannot bring the requirement query under the cap; paging bounds every answer by construction. Specified below |
 | decision 5 missed three symbols the seeder reaches: `IsStepState` (`progress.go`), `EncodeTags` and `DecodeTags` (`brief.go`) | docket carries them in `internal/kinds`; move 6 finds them on rig's side and the `git grep` in its proof row grows by three names |
 | two plan pins passed over nothing: `os.DirFS` on a missing directory returns no error, so `TestTheRealPlanKeysAreUnique` and `TestNoPlanKeyRunsPastTheMeasuredBound` ran over zero entries | docket's copies skip loudly with the reason; rig's originals are correct today only because the directory exists - the B87 class, a check that passes by not checking |
 | the seat's layout: `internal/importers`, `internal/kinds`, `cmd/rigseed`, and `internal/docs` (eight lines resolving `DOCKET_DOC_ROOT` so the 21 live-document pins run from the new home) | the "Files a future seat owns" table below is superseded by the repository itself for docket's side; `agent-work/split-move-3-docket-repo/FINDINGS.md` lists every adaptation |
+
+### B116, the answer is paged - specified 2026-09-24 07:40 for the `paging` seat
+
+**Wire, §21-additive.** `RecordQueryRequest` gains `uint32 limit = 6` and
+`string after = 7` (**5 is reserved for §48's `fields`**, and the comment
+says so); `RecordQueryResponse` gains `string next = 2`. Empty `after` is the
+first page; empty `next` is the last. `limit` 0 means the daemon's budget
+alone; non-zero caps the page's count as well.
+
+**Daemon.** A page is filled in the store's existing order (`ORDER BY
+r.project, r.kind, r.id`, unchanged since `5a158a6`) while the running
+`proto.Size` of the answer stays under `RecordPageBudget = 256 KiB`; a page
+always carries at least one record, because `record.put` already caps a body
+below a frame. `next` is an OPAQUE cursor encoding the last row's (project,
+kind, id); no client decodes it. A cursor that does not decode is refused
+`INVALID_ARGUMENT`; one that decodes but names a row no longer present still
+positions, because the store compares rather than looks up. Decision 6 binds
+the string field: two mutations, empty and wrong non-empty.
+
+**Store.** `Query`'s signature does not change (the MCP door and the brief
+call it in-process). A paged read is a second method, cursor and count in.
+
+**CLI.** `rig record query` loops until `next` is empty and prints what it
+printed before, so `cmd/rigseed` (either copy) does not change. No new flag.
+
+**Docket.** Its query helper loops on `next` from its first commit (track E);
+against a daemon without B116, `next` is empty and the loop is one page.
+
+| Acceptance | Command |
+|---|---|
+| **the whole plan seeds and checks** | a PRIVATE estate (state AND runtime roots private), seeded by docket's `cmd/rigseed --rig <scratchpad rig>` from the current 50-section `plan/`; `rigseed --check` exits **0**; `rig record query rig requirement --json \| jq length` equals the seeder's count; rigd's log has no `frame exceeds` |
+| **pages are exact** | a daemon test: records whose wire size exceeds the budget answer in N pages, every frame under `MaxFrameSize`, union complete, no duplicate, no gap |
+| **additive** | with no `limit` and no `after`, a small fixture's answer is byte-identical to before and `next` is empty |
+| **the guards bite** | `after` = garbage is refused `INVALID_ARGUMENT`; the budget mutated to 0 still yields one record per page; the CLI against a three-page daemon prints every record once |
 
 ### Acceptance, restated so it can be checked rather than read
 
@@ -179,7 +222,7 @@ by `git grep`, and §45's: the test is stated before the seat starts.**
 | | Test | Command |
 |---|---|---|
 | **A** | **the planner imports nothing of rig but the stub and the stub's closure** (decision 1) | `go list -deps ./... \| grep github.com/boris-milner/rig \| grep -v -E '/client$\|/internal/paths$\|/internal/wire$\|/proto/rig/v1$'` prints **nothing** in docket's module. **At move 3, before the stub is needed, the plain `grep -c` prints 0** |
-| **B** | **rig names no program, project or plan** (§43's test for a disputed row) | `git grep -l -E 'BacklogParse\|PlanParse\|DecisionParse\|serveProjectBrief\|ProjectBriefRequest\|KindWorkItem' -- ':!plan/' ':!*.md'` prints nothing in rig |
+| **B** | **rig names no program, project or plan** (§43's test for a disputed row) | `git grep -l -E 'BacklogParse\|PlanParse\|DecisionParse\|serveProjectBrief\|ProjectBriefRequest\|KindWorkItem' -- ':!plan/' ':!*.md' ':!proto/'` prints nothing in rig. **`':!proto/'` added 2026-09-24 07:40:** the seven brief messages stay in `wire.proto` until the next major by decision 4, and the one arm that still decodes `ProjectBriefRequest` to refuse it is named `refuseProjectBrief` |
 | **C** | ⛔ **THE DEMONSTRATION: the same store, two briefs, no difference.** `rig backup` on production (S2); `rig restore --estate development` under a PRIVATE `XDG_STATE_HOME` and a private `XDG_RUNTIME_DIR` (§37's set has two names and `rigd` refuses every other - §46 row 8 was corrected for the same reason); the OLD `rig brief` from a binary built at the pre-extraction sha and the NEW `rig docket brief` both run against that estate | `diff <(old) <(new)` is **empty**. The restore is the fixture, so production is never touched, and the check is a byte comparison rather than a reading |
 | **D** | **the seeder still agrees with the documents from its new home** | `rigseed --check` exits **0** from the planner's repo against that estate |
 | **E** | **both repositories gate green, and docket's `go.mod` carries no `replace` once rig is pushed** | `make ci` 0 and `make lint` 0 in rig; the planner's equivalents 0; `grep -c '^replace' go.mod` in docket prints 0 after his push |
