@@ -11,9 +11,8 @@ import "time"
 // never a probe rig sends - and idle-and-not-blocked is unhealthy rather than
 // a rest state.
 //
-// NOT YET WIRED: the supervisor loop that reads these lands with
-// supervisor.go. The type is here because Spec holds it and the declared
-// programs file deserialises into it.
+// supervisor.go is what reads these, and programs.go is what a declaration
+// deserialises into them.
 type HealthPolicy struct {
 	// Interval is how often health is judged. Section 18: "on the interval,
 	// with a timeout".
@@ -26,6 +25,15 @@ type HealthPolicy struct {
 	// threshold". A marker that has not moved for this long, with nothing
 	// declared as waited for, is one failure.
 	Idle time.Duration
+
+	// Register is how long a launched child has to complete its handshake.
+	//
+	// Section 18 gives STARTING two exits and no third, so a child that is
+	// alive and silent forever would sit in STARTING forever - the state a
+	// supervisor is least able to report on. Past this it has failed a
+	// registration step, which is the section's own harsh row: a quarantine,
+	// not a retry loop.
+	Register time.Duration
 
 	// Degraded is how many consecutive failures make a program DEGRADED.
 	// Section 18: "Three failures is degraded".
@@ -44,6 +52,7 @@ func DefaultHealth() HealthPolicy {
 		Interval: 5 * time.Second,
 		Timeout:  2 * time.Second,
 		Idle:     30 * time.Second,
+		Register: 30 * time.Second,
 		Degraded: 3,
 		Restart:  5,
 	}
@@ -53,7 +62,7 @@ func DefaultHealth() HealthPolicy {
 // budget. Exceeding it is quarantine - a visible state with the full history
 // and a manual restart, never a silent disappearance."
 //
-// NOT YET WIRED: the countdown and the backoff clock land with supervisor.go.
+// The backoff clock and the countdown are in supervisor.go: checkBackoff.
 type Budget struct {
 	// Restarts is how many rig will do inside Window before quarantining.
 	Restarts int
