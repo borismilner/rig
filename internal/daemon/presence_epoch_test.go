@@ -77,6 +77,7 @@ func upDaemonIn(t *testing.T, estate string, epoch uint64) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = d.Close() })
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() { defer close(done); _ = d.Serve(ctx, l) }()

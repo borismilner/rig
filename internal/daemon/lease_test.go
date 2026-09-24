@@ -257,3 +257,52 @@ func TestAnEstateWithNoLeaseStoreRefusesTheLeaseVerbs(t *testing.T) {
 		t.Errorf("the refusal does not name the cause: %v", err)
 	}
 }
+
+// ⛔ A RESOURCE ASKS rig.lease.check BEFORE ACCEPTING A WRITE, and a stale
+// token is answered not current with the lease as it stands, over the wire and
+// from a connection with no seat, which is what a resource usually is.
+func TestAResourceChecksAFencingTokenOverTheWire(t *testing.T) {
+	sock, _ := upLeaseDaemon(t)
+	ctx := recordCtx(t)
+	a := seated(t, sock, "seat-a")
+	resource := dial(t, sock)
+
+	var got verbsv1.LeaseAcquireResponse
+	if err := a.Call(ctx, "rig.lease.acquire", &verbsv1.LeaseAcquireRequest{
+		Name: "db", TtlMs: 60_000,
+	}, &got); err != nil {
+		t.Fatal(err)
+	}
+	h := got.GetHandle()
+	check := func(token uint64) *verbsv1.LeaseCheckResponse {
+		t.Helper()
+		var resp verbsv1.LeaseCheckResponse
+		if err := resource.Call(ctx, "rig.lease.check", &verbsv1.LeaseCheckRequest{
+			Name: "db", Token: token,
+		}, &resp); err != nil {
+			t.Fatalf("rig.lease.check: %v", err)
+		}
+		return &resp
+	}
+	if r := check(h.GetToken()); !r.GetCurrent() || r.GetLease().GetHolder() != "seat-a" {
+		t.Fatalf("the holder's token: %+v", r)
+	}
+	if err := a.Call(ctx, "rig.lease.release", &verbsv1.LeaseReleaseRequest{
+		Name: "db", Token: h.GetToken(), Epoch: h.GetEpoch(),
+	}, &verbsv1.LeaseReleaseResponse{}); err != nil {
+		t.Fatal(err)
+	}
+	var again verbsv1.LeaseAcquireResponse
+	if err := a.Call(ctx, "rig.lease.acquire", &verbsv1.LeaseAcquireRequest{
+		Name: "db", TtlMs: 60_000,
+	}, &again); err != nil {
+		t.Fatal(err)
+	}
+	r := check(h.GetToken())
+	if r.GetCurrent() {
+		t.Fatal("a token from before the lease was granted again was accepted")
+	}
+	if r.GetLease().GetToken() != again.GetHandle().GetToken() {
+		t.Errorf("the answer names token %d, want the current %d", r.GetLease().GetToken(), again.GetHandle().GetToken())
+	}
+}

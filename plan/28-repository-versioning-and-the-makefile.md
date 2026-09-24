@@ -19,6 +19,12 @@ is never an error, only a line in the Programs view.
 - Every milestone in §23 ends in a tagged commit with the demo recorded in the message.
 - `CHANGELOG.md` generated from the commit log at release, never hand-edited.
 - Release is a tag; CI builds, runs the full gate, and publishes the artefacts.
+- **The tag format, fixed 2026-09-24 (integration gap 9).** A release tag versions the one module
+  and is what a program pins. Canonical `vMAJOR.MINOR.PATCH`; major `v0` or `v1`, because the
+  module path has no `/vN` suffix and Go cannot fetch a v2+ tag without one; pre-releases only
+  `-mN` (a milestone) and `-rc.N`; no build metadata; annotated, so the message carries the
+  demo. `make tag-check` (`cmd/tagcheck`, in `make ci`) fails on any `v` tag that breaks this.
+  How a program pins is in `docs/programs.md`, "Pinning a version".
 - The wire contract lives in `proto/` and generated code is checked in, so a clone builds with
   no code generation step and a diff shows contract changes plainly.
 

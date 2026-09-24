@@ -101,3 +101,31 @@ be done soon."* The MVP is §39 slices 1, 2 and 4 - being able to use rig to wor
 on rig. **This is the slice after the ground under it is real**, and it depends
 on the store search (B28) and on the record store already carrying kinds and a
 field predicate, both of which exist.
+
+## What was built, 2026-09-24
+
+**Served on all three doors:** `rig.knowledge.search`, `rig.knowledge.get` and
+`rig.knowledge.add` on the wire, `knowledge_search`, `knowledge_get` and
+`knowledge_add` through MCP, and `rig knowledge search|get|add` at a terminal.
+A lesson carries the writing connection's seat and session, never one the
+caller names.
+
+**The index is SQLite FTS5**, one table in the estate's own store, not records
+of a project, so a lesson is found from any project. Checked against this
+section's candidates: FTS5 is compiled into the modernc SQLite rig already
+links (fts5, bm25() and snippet() probed), so it adds no dependency and no
+binary size. `bleve` would add a second index engine beside a store that
+already ranks. **Semantic search was not taken**; it stays the separate
+decision this section says it is.
+
+**A search never returns a body.** A hit is an id, a title, a one-line summary,
+a snippet of about a dozen words and a bm25 score. A caller's words reach FTS5
+only as quoted terms, so there is no query syntax to get wrong or to inject.
+
+**The number.** `TestALessonIsWrittenOnceAndFoundCheaply` measures one consult
+at 214 bytes on the wire against the 4,013-byte lesson it points at, and fails
+if a consult ever costs more than a tenth of the lesson.
+
+**Not settled by this.** B28's store search has still not been run, so FTS5 is
+the working index rather than a verdict against B28. If B28 finds a better
+engine, the index moves behind the same three verbs.

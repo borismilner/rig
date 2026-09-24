@@ -1569,3 +1569,179 @@ message BackupCreateResponse {
   // When the snapshot was taken, on the daemon's clock.
   int64 created_unix_nano = 7;
 }
+// ============================================================================
+// SECTION 40's KNOWLEDGE-SHARING SECTION.
+//
+// A lesson is written once and found by search, and a search NEVER returns a
+// body: a hit is a title, a one-line summary and a snippet, so consulting
+// costs a few hundred bytes and the one lesson that fits is fetched whole
+// with knowledge.get. The index is SQLite FTS5 (internal/record/knowledge.go
+// has the choice). Lessons are estate-scoped: a lesson learned in one project
+// is found from any other.
+// ============================================================================
+
+// Lesson is one lesson, whole, with the provenance of whoever wrote it.
+message Lesson {
+  string id = 1;
+  string title = 2;
+  string summary = 3;
+  string body = 4;
+  repeated string tags = 5;
+  Provenance prov = 6;
+}
+
+// LessonHit is what a search returns per lesson: enough to decide whether to
+// fetch it, and nothing more.
+message LessonHit {
+  string id = 1;
+  string title = 2;
+  string summary = 3;
+  // About a dozen words around the match, the matched terms in [brackets].
+  string snippet = 4;
+  // bm25's relevance, higher is better. Comparable within one answer only.
+  double score = 5;
+}
+
+// KnowledgeAddRequest writes one lesson. The writer's provenance is the
+// daemon's, never read off the request. Title up to 200 bytes, a one-line
+// summary up to 400, body up to 64 KiB, up to 16 one-word tags.
+message KnowledgeAddRequest {
+  string title = 1;
+  string summary = 2;
+  string body = 3;
+  repeated string tags = 4;
+}
+
+message KnowledgeAddResponse {
+  Lesson lesson = 1;
+}
+
+// KnowledgeSearchRequest finds lessons by the words in `query`. Every word is
+// searched for as a word: no query syntax of any kind is interpreted. Zero
+// `limit` means 5; above 20 is refused.
+message KnowledgeSearchRequest {
+  string query = 1;
+  uint32 limit = 2;
+}
+
+message KnowledgeSearchResponse {
+  // Best first. Empty when nothing matches, which is an answer, not an error.
+  repeated LessonHit hits = 1;
+}
+
+message KnowledgeGetRequest {
+  string id = 1;
+}
+
+message KnowledgeGetResponse {
+  Lesson lesson = 1;
+}
+
+// ============================================================================
+// SECTION 16's CLAIMABLE QUEUES. At-least-once, and it says so: a task carries
+// a mandatory idempotency key, and a worker that dies after doing the work and
+// before completing it leaves a task that runs again. A claim IS a lease named
+// "queue/<queue>/<task id>": heartbeat it with rig.lease.renew, give it back
+// unfinished with rig.lease.release, and complete it with rig.queue.complete.
+// ============================================================================
+
+enum TaskState {
+  TASK_STATE_UNSPECIFIED = 0;
+  // Can be claimed. A task with attempts above zero was offered before.
+  TASK_STATE_READY = 1;
+  // Held by a worker inside its claim's deadline.
+  TASK_STATE_CLAIMED = 2;
+  // Past its claim's deadline and the worker was NOT observed dead. Not
+  // offered again: the worker may only be slow.
+  TASK_STATE_ORPHANED = 3;
+  // Completed by the worker holding its current claim.
+  TASK_STATE_DONE = 4;
+}
+
+message Task {
+  string queue = 1;
+  string id = 2;
+  string idempotency_key = 3;
+  bytes payload = 4;
+  TaskState state = 5;
+  // How many times the task has been claimed. Above one means this delivery
+  // may be a replay.
+  uint32 attempts = 6;
+  // The claim lease, evaluated now. Absent for a task never claimed.
+  Lease claim = 7;
+  // The seat that completed it.
+  string done_by = 8;
+}
+
+// QueuePushRequest adds a task. The key is mandatory, up to 256 bytes; the
+// payload up to 64 KiB; the queue name up to 128 bytes of printable UTF-8.
+// The same key again answers the existing task, done or not, with duplicate
+// set; the same key over a different payload is refused as a conflict.
+message QueuePushRequest {
+  string queue = 1;
+  string idempotency_key = 2;
+  bytes payload = 3;
+}
+
+message QueuePushResponse {
+  Task task = 1;
+  bool duplicate = 2;
+}
+
+// QueueClaimRequest takes the oldest ready task for the caller's seat,
+// witnessed by the caller's process like rig.lease.acquire. An empty queue is
+// NOT_FOUND, naming how many tasks are claimed and orphaned.
+message QueueClaimRequest {
+  string queue = 1;
+  // Required. The claim is a lease and there is no infinite hold.
+  uint32 ttl_ms = 2;
+}
+
+message QueueClaimResponse {
+  Task task = 1;
+  // The claim. Its name, token and epoch renew, release and complete it.
+  LeaseHandle handle = 2;
+}
+
+// QueueCompleteRequest finishes the task a claim names. Fenced like
+// rig.lease.renew: a stale token or epoch is refused as a conflict.
+message QueueCompleteRequest {
+  string name = 1;
+  uint64 token = 2;
+  uint64 epoch = 3;
+}
+
+message QueueCompleteResponse {
+  Task task = 1;
+}
+
+// QueueListRequest reads a queue's unfinished tasks, oldest first, evaluated
+// now. With no queue it names every queue instead.
+message QueueListRequest {
+  string queue = 1;
+}
+
+message QueueListResponse {
+  repeated Task tasks = 1;
+  uint32 done = 2;
+  repeated string queues = 3;
+}
+
+// ============================================================================
+// SECTION 16's FENCING, from the resource's side. A lease's token is monotonic
+// per lease; a resource that rig does not own asks whether the token a writer
+// presents is still the current one before accepting the write.
+// ============================================================================
+
+message LeaseCheckRequest {
+  string name = 1;
+  uint64 token = 2;
+}
+
+// LeaseCheckResponse says whether the token is current: the lease carries it
+// and is held or orphaned, so nobody has been granted it since. A stale token
+// is an answer, not an error; `lease` says who holds it now.
+message LeaseCheckResponse {
+  bool current = 1;
+  Lease lease = 2;
+}

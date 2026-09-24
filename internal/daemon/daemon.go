@@ -100,6 +100,9 @@ type Config struct {
 
 // Daemon serves one socket.
 type Daemon struct {
+	// toasts wakes a renderer when rig.notify is called (toast.go).
+	toasts toastRing
+
 	version string
 	wire    string
 	estate  string
@@ -297,6 +300,17 @@ func New(cfg Config) (*Daemon, error) {
 		records:  records,
 		leases:   cfg.Leases,
 	}, nil
+}
+
+// Close releases what New opened: the record store. Call it after Serve and
+// ServeMCP have both returned, because either can still be answering from
+// the store until then. The lease store is not closed here: rigd opened it
+// and rigd closes it. Safe to call on a daemon with no store.
+func (d *Daemon) Close() error {
+	if d.records == nil {
+		return nil
+	}
+	return d.records.Close()
 }
 
 // track records a live connection, or refuses it because rig is stopping.
@@ -871,13 +885,24 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	case "record.put", "record.get", "record.query", "record.history",
 		"record.link", "record.unlink", "record.refs",
 		"record.retract", "record.delete", "record.replace",
-		"progress.step", "project.brief":
+		"progress.step", "project.brief",
+		"knowledge.add", "knowledge.search", "knowledge.get":
 		d.serveRecord(ctx, c, f, command)
 
 	// SECTION 16's LEASES, all five through one arm. lease.go has why the
 	// holder and the witness come off the connection.
-	case "lease.list", "lease.acquire", "lease.renew", "lease.release", "lease.break":
+	// SECTION 12's TOASTS. toast.go has why the daemon writes the record.
+	case "notify", "toast.wait", "toast.dnd":
+		d.serveToast(ctx, c, f, command)
+
+	case "lease.list", "lease.acquire", "lease.renew", "lease.release", "lease.break",
+		"lease.check":
 		d.serveLease(c, f, command)
+
+	// SECTION 16's QUEUES. A claim is a lease, so the store is the lease
+	// store; queue.go has why the claimer comes off the connection.
+	case "queue.push", "queue.claim", "queue.complete", "queue.list":
+		d.serveQueue(c, f, command)
 
 	case "backup.create":
 		// Its own arm rather than a member of the group above: the record

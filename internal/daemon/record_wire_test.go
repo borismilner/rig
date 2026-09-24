@@ -62,6 +62,7 @@ func upRecordDaemon(t testing.TB) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = d.Close() })
 	if d.records == nil {
 		t.Fatalf("estate %q opened no record store, so nothing below tests the wire", estate)
 	}
@@ -503,13 +504,16 @@ func TestNoServedRequestFieldIsSilentlyDropped(t *testing.T) {
 	// to internal/record. Adding a field here is a claim that record.go reads
 	// it; adding one to the proto without adding it here is the defect.
 	read := map[string][]string{
-		"RecordPutRequest":     {"id", "if_version", "kind", "project", "body", "fields"},
-		"RecordGetRequest":     {"id", "version"},
-		"RecordQueryRequest":   {"project", "kind", "field", "value", "limit", "after"},
-		"RecordHistoryRequest": {"id"},
-		"RecordLinkRequest":    {"src", "type", "dst"},
-		"RecordUnlinkRequest":  {"src", "type", "dst"},
-		"ProgressStepRequest":  {"item", "state", "note"},
+		"RecordPutRequest":       {"id", "if_version", "kind", "project", "body", "fields"},
+		"RecordGetRequest":       {"id", "version"},
+		"RecordQueryRequest":     {"project", "kind", "field", "value", "limit", "after"},
+		"RecordHistoryRequest":   {"id"},
+		"RecordLinkRequest":      {"src", "type", "dst"},
+		"RecordUnlinkRequest":    {"src", "type", "dst"},
+		"ProgressStepRequest":    {"item", "state", "note"},
+		"KnowledgeAddRequest":    {"title", "summary", "body", "tags"},
+		"KnowledgeSearchRequest": {"query", "limit"},
+		"KnowledgeGetRequest":    {"id"},
 
 		// ⛔ THE BRIEF'S REQUEST IS NOT NAMED HERE AND ITS ABSENCE IS THE
 		// POINT. plan/50 move 8 left the arm declared and answering a refusal

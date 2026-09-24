@@ -64,6 +64,7 @@ const openTimeout = 3 * time.Second
 var (
 	bucketMeta   = []byte("meta")
 	bucketLeases = []byte("leases")
+	bucketQueues = []byte("queues")
 
 	// bucketMessages holds ONE SUB-BUCKET PER RECIPIENT SEAT, keyed by the
 	// estate-wide message id. The nesting is what makes "this seat's mail
@@ -185,6 +186,11 @@ func (s *Store) start() error {
 		}
 		if _, err := tx.CreateBucketIfNotExists(bucketLeases); err != nil {
 			return fmt.Errorf("coord: leases bucket: %w", err)
+		}
+		// Section 16's queues. An added bucket, not a new layout: a rigd
+		// that predates it opens this store and never looks inside it.
+		if _, err := tx.CreateBucketIfNotExists(bucketQueues); err != nil {
+			return fmt.Errorf("coord: queues bucket: %w", err)
 		}
 
 		// THE MESSAGE BUCKETS ARE CREATED HERE AND THE SCHEMA VERSION DOES

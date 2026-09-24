@@ -363,10 +363,45 @@ func selfDeclaration() kernel.Declaration {
 			// record writers make above. None is destructive: a break
 			// refuses a lease still inside its deadline, so it only ever
 			// frees one whose holder has already let it lapse.
+			// SECTION 40's KNOWLEDGE SECTION. Search and get read; add writes a
+			// lesson into the estate's store, a file, so it is a file write on
+			// the record writers' argument.
+			readOnly("knowledge.search", "Knowledge search",
+				"Find lessons other sessions already learned",
+				"Searches the estate's lessons by the words given and answers, best first, a title, a one-line summary and a snippet per hit - never a body, so consulting costs a few hundred bytes. No query syntax is interpreted. Consult it before a deep dive: another session may have done the research.",
+				"Up to 20 hits, best first, each with an id to fetch."),
+			readOnly("knowledge.get", "Knowledge get",
+				"Read one lesson whole",
+				"Answers one lesson by id, body and provenance included. Fetch only the hit that fits.",
+				"The lesson."),
+			leaseWriter("knowledge.add", "Knowledge add", kernel.No,
+				"Write a lesson once, for every agent and person on this estate",
+				"Writes a lesson: a title, a one-line summary that searches show, a body with the detail, and one-word tags. For lessons of great importance to many users, not for every note. Attributed to the caller's seat.",
+				"The lesson as written, with its id."),
+
 			readOnly("lease.list", "Lease list",
 				"Every lease in the estate, with its owner's liveness",
 				"Answers every lease this estate knows about, evaluated now: held, orphaned or free, who holds or last held it, how it is witnessed, whether the witness was observed dead, and whether it needs a recorded break. Expiry is derived on read, never swept.",
 				"Every lease, by name."),
+			// SECTION 12's TOASTS. notify writes a notification record (the
+			// daemon writes it, with the sender as provenance), a file write;
+			// toast.wait only reads the in-memory ring.
+			leaseWriter("notify", "Notify", kernel.No,
+				"Show a toast, and file it in the record",
+				"Sends a notification at one of five severities - info, success, warning, error, urgent - with a title and a body. The daemon writes it into the record as kind notification with the sender as provenance, so nothing is only a toast, and the tray draws it as a speech bubble at the tray's corner of the screen.",
+				"The toast as filed, with its record id."),
+			readOnly("toast.wait", "Toast wait",
+				"Wait for the next toasts",
+				"Answers the toasts after a cursor as soon as there are any, or nothing once the timeout (at most 60 seconds) passes. The tray holds this so waiting costs nothing.",
+				"The new toasts and the latest cursor."),
+			leaseWriter("toast.dnd", "Do Not Disturb", kernel.Yes,
+				"Turn Do Not Disturb on or off, or ask",
+				"While it is on, a notification is filed in the record and not drawn; an urgent one is always drawn. It lives in the daemon's memory, so a restart turns it off rather than bringing a daemon back silent.",
+				"Whether it is on, and how many were held back since it went on."),
+			readOnly("lease.check", "Lease check",
+				"Whether a fencing token is still the current one",
+				"Answers whether the token is the lease's current fencing token: the lease carries it and is held or orphaned, so nobody has been granted it since. A resource asks this before accepting a write, and refuses a stale token. Tokens are monotonic per lease, so a token that stops being current never becomes current again.",
+				"Whether the token is current, and the lease as it stands."),
 			leaseWriter("lease.acquire", "Lease acquire", kernel.No,
 				"Take a named lease for a TTL, witnessed by the caller's own process",
 				"Takes the lease for the caller's seat, witnessed by the pid the socket reports for the caller, or declared unwitnessed. Refused with the incumbent's full status when somebody else holds it or it is orphaned. Re-acquiring your own is the reconnect path and issues a new token.",
@@ -383,6 +418,27 @@ func selfDeclaration() kernel.Declaration {
 				"Free an orphaned lease by a recorded human action",
 				"The only way an unwitnessed orphan ever becomes free. Records the caller's seat as who broke it and requires a reason. Refused for a lease still inside its deadline.",
 				"Nothing. The lease is free afterwards, naming who broke it and why."),
+
+			// SECTION 16's QUEUES. The list is a read; push, claim and
+			// complete keep their state in the estate's bbolt file beside
+			// the leases, so they are file writes on the leases' argument.
+			// Complete is not idempotent: a second completion is refused.
+			readOnly("queue.list", "Queue list",
+				"A queue's unfinished tasks, or every queue's name",
+				"Answers a queue's tasks not yet done, oldest first, each ready, claimed or orphaned with its claim lease evaluated now, and how many are done. With no queue it names every queue.",
+				"The tasks and the done count, or the queue names."),
+			leaseWriter("queue.push", "Queue push", kernel.Yes,
+				"Add a task to a queue, under a mandatory idempotency key",
+				"Adds a task with an idempotency key and a payload. The same key again answers the existing task, done or not, and never queues it twice; the same key over a different payload is refused. Delivery is at-least-once, so the key is what makes a replay harmless.",
+				"The task, and whether it was a duplicate."),
+			leaseWriter("queue.claim", "Queue claim", kernel.No,
+				"Take the oldest ready task under a lease, witnessed by the caller's process",
+				"Claims the oldest ready task for the caller's seat as a lease named queue/<queue>/<id>. Heartbeat it with lease.renew; release it unfinished with lease.release. Past its deadline it is orphaned while the worker lives and ready again once the worker is observed dead.",
+				"The task and the claim's handle."),
+			leaseWriter("queue.complete", "Queue complete", kernel.No,
+				"Finish a claimed task",
+				"Marks the task done against its claim's token and epoch, and releases the claim. A worker whose claim moved on is refused, and its work is the duplicate the idempotency key is for.",
+				"The finished task."),
 
 			// The first thing rig declares about itself that is not read-only,
 			// and the properties are the point rather than paperwork: this is

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"go.uber.org/goleak"
+
 	"github.com/borismilner/rig/internal/paths"
 )
 
@@ -61,6 +63,14 @@ func TestMain(m *testing.M) {
 	}
 
 	code := m.Run()
+	// A goroutine still running after every test has returned is a leak in
+	// the daemon or in a test, and rigd is long-lived, so either accumulates.
+	if code == 0 {
+		if err := goleak.Find(); err != nil {
+			fmt.Fprintf(os.Stderr, "daemon tests: %v\n", err)
+			code = 1
+		}
+	}
 	_ = os.RemoveAll(state)
 	_ = os.RemoveAll(runtime)
 	os.Exit(code)

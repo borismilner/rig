@@ -111,4 +111,64 @@ triggers it, because the trigger is what makes it hard to get right: once and
 not every run, naming what changed, and NOT wearing the shape of an error.
 **This heading exists so a reader of the toast surface finds it.**
 
+## Toasts, built 2026-09-24, and the three rulings they were built to
+
+The lead ruled three open questions on 2026-09-24, relaying the owner:
+
+1. **Footprint.** The renderer is an on-demand child process, the window's
+   pattern. The tray holds one long poll on `rig.toast.wait` and nothing
+   else. The first toast starts `rigwindow --toasts`, which exits when its
+   last bubble leaves, so the tray's idle footprint does not change. Measured
+   under Xvfb with software GL: the renderer and its WebKit processes hold
+   about 250 to 440 MB RSS while a toast is up, and all of it returns when the
+   renderer exits (one success toast: gone after 18s). When the renderer
+   cannot start, or dies at start, the tray sends the toast to
+   `org.freedesktop.Notifications`.
+2. **"Lands in a record".** `rig.notify` makes the daemon write the
+   notification record itself, kind `notification`, project `notifications`,
+   with the sender (a registered program's id, else the caller's seat) as
+   provenance. Programs still get no record-write permission.
+3. **Position.** Linux gives no tray icon position: Wails' `bounds()` returns
+   an empty rectangle there and fyne drops the click coordinates. So **the
+   bubbles anchor at the corner of the monitor work area where the tray sits,
+   top-right on GNOME, and the first bubble's tail points into that corner,
+   not at the icon.** This is the "if possible" in his words, answered
+   plainly: it is not possible to aim at the icon itself today.
+
+What each severity looks like, in the theme's own semantic hues:
+
+| Severity | Drawn as | Leaves |
+|---|---|---|
+| `info` | dark panel, steel-blue edge and an `i` disc | after 10s plus 5s per line |
+| `success` | dark panel, sage-green edge and a check disc | the same |
+| `warning` | dark panel, amber edge and a `!` disc | the same |
+| `error` | dark panel, rust edge, rust title and a cross disc | after twice as long |
+| `urgent` | filled rust bubble, dark text, a pulsing ring | only when clicked |
+
+Hover pauses every countdown; a click dismisses a bubble. The newest bubble
+is nearest the corner. `rig notify <severity> <title> [--body B]` sends one
+from a shell.
+
+**Do Not Disturb, built 2026-09-24.** `rig.toast.dnd` turns it on or off
+(`rig dnd on|off|status`, and a checkbox on the tray menu that shows the
+daemon's state). While it is on, a notification is filed in the record with a
+`suppressed` field and is not drawn; **an urgent one is always drawn**. It
+lives in the daemon's memory, so a restart turns it off rather than bringing
+a daemon back silent. The fullscreen-focus rule is not built.
+
+**The fallback, shown live 2026-09-24.** Under Xvfb, with a session bus and
+dunst as the notification server, the tray ran with no display so its
+renderer died at start. The tray logged that, then sent
+`org.freedesktop.Notifications.Notify` (app `rig`, summary
+`[error] Deploy failed`, urgency byte 2, captured by dbus-monitor), and dunst
+drew it as a critical notification top-right. Each later batch retries the
+renderer before falling back again.
+
+**Not built yet**, and each is a line of the list above: inline actions wired
+to a program's commands, deck collapse and fan-out, markdown and code in a
+body, the notification centre as a surface (the record holds
+every notification; nothing lists them yet), and speech. The backdrop is
+transparent only under a compositor; Xvfb has none, so the demo screenshots
+show the window's own ground around the bubbles.
+
 ---

@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>rig toasts</title>
+<style>
+/* The dark theme's tokens, as design/theme.js computes them for DEFAULTS.
+   Severity colours are the theme's semantic hues, never new ones. */
+:root {
+  --card-top: #27303c; --card-bot: #1c232d; --line: rgba(255,255,255,.09);
+  --fg: #e6edf6; --fg-dim: #a1b1c5; --fg-faint: #7d8ea3; --on-hue: #0d1117;
+  --sem-info: #8fc2fb; --sem-good: #92cf9a; --sem-warn: #e1b673; --sem-bad: #f7a59c;
+  --sans: "Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif;
+  --w: 360px; --radius: 18px;
+}
+html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+body { font: 14px/1.4 var(--sans); color: var(--fg); -webkit-user-select: none; user-select: none;
+       -webkit-font-smoothing: antialiased; }
+
+/* The stack hugs the edge the tray is on, so the window can grow or shrink
+   on the far side without the bubbles moving. Newest is nearest the tray. */
+#stack { box-sizing: border-box; height: 100%; display: flex; align-items: flex-end;
+         padding: 22px 20px 22px 30px; }
+body[data-edge=bottom] #stack { flex-direction: column; justify-content: flex-end; }
+body[data-edge=top]    #stack { flex-direction: column-reverse; justify-content: flex-end; }
+
+.slot { width: var(--w); flex: none; }
+body[data-edge=bottom] .slot + .slot { margin-top: 14px; }
+body[data-edge=top]    .slot + .slot { margin-bottom: 14px; }
+
+.toast {
+  --hue: var(--sem-info);
+  position: relative; box-sizing: border-box; width: var(--w);
+  display: grid; grid-template-columns: 36px 1fr; column-gap: 12px;
+  padding: 13px 14px 15px 13px; border-radius: var(--radius);
+  background:
+    radial-gradient(120px 80px at 30px 28px, color-mix(in srgb, var(--hue) 16%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--card-top), var(--card-bot));
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 0 rgba(255,255,255,.06) inset,
+              0 18px 36px -12px rgba(0,0,0,.65), 0 3px 10px rgba(0,0,0,.35);
+  cursor: default;
+}
+
+.toast > * { position: relative; z-index: 1; }
+/* Everything but the icon lives in the second column, however many rows a
+   toast has: with "Show more" there are four, and the icon spans three. */
+.title, .body, .more, .meta { grid-column: 2; }
+
+.icon {
+  grid-row: span 3; width: 36px; height: 36px; border-radius: 11px;
+  display: grid; place-items: center; color: var(--hue);
+  background: color-mix(in srgb, var(--hue) 15%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hue) 28%, transparent);
+}
+.icon svg { width: 20px; height: 20px; }
+.title { font-weight: 650; font-size: 14.5px; letter-spacing: -.005em; color: var(--fg);
+         overflow-wrap: anywhere; padding: 1px 84px 0 0; min-height: 22px; }
+/* A body of any length: three lines, then "Show more"; open, it scrolls
+   inside the bubble and can be selected. The bubble never grows past it. */
+.body  { color: var(--fg-dim); margin-top: 2px; white-space: pre-wrap; overflow-wrap: anywhere;
+         display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.body.open { display: block; -webkit-line-clamp: unset; max-height: 240px; overflow-y: auto;
+             padding-right: 6px; -webkit-user-select: text; user-select: text; cursor: text;
+             mask-image: linear-gradient(180deg, #000 calc(100% - 14px), transparent); }
+.body.open::-webkit-scrollbar { width: 6px; }
+.body.open::-webkit-scrollbar-thumb { background: rgba(255,255,255,.18); border-radius: 3px; }
+.more { grid-column: 2; justify-self: start; margin-top: 3px; padding: 0; border: 0; background: none;
+        color: var(--hue); font: 600 12px var(--sans); cursor: pointer; }
+.more:hover { text-decoration: underline; }
+.meta  { display: flex; align-items: center; gap: 8px; margin-top: 6px;
+         color: var(--fg-faint); font-size: 12px; }
+.pill  { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+         color: var(--hue); padding: 1px 7px; border-radius: 999px;
+         background: color-mix(in srgb, var(--hue) 13%, transparent); }
+/* How long until it goes on its own, in words as well as the bar. */
+.sender { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.left { margin-left: auto; flex: none; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.urgent .left, .pinned .left { color: var(--hue); }
+.pinned .bar { opacity: 0; }
+
+/* Pin, copy, close: always drawn, so nothing has to be discovered by hover. */
+.actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 2px; z-index: 3; }
+.act {
+  width: 26px; height: 26px; border-radius: 8px; border: 0; padding: 0; background: none;
+  display: grid; place-items: center; color: var(--fg-dim); opacity: .6; cursor: pointer;
+  transition: opacity .15s, background .15s, color .15s;
+}
+.act svg { width: 15px; height: 15px; }
+.toast:hover .act { opacity: 1; }
+.act:hover { background: rgba(255,255,255,.09); color: var(--fg); }
+.act.on { color: var(--hue); opacity: 1; }
+.act.on svg { fill: color-mix(in srgb, var(--hue) 35%, transparent); }
+.act.done { color: var(--sem-good); opacity: 1; }
+
+/* The dwell, as a draining line. It pauses with the countdown on hover. */
+.bar { position: absolute; left: 16px; right: 16px; bottom: 6px; height: 2px; border-radius: 2px;
+       background: color-mix(in srgb, var(--hue) 75%, transparent); transform-origin: left center;
+       opacity: .8; z-index: 2; }
+
+.info    { --hue: var(--sem-info); }
+.success { --hue: var(--sem-good); }
+.warning { --hue: var(--sem-warn); }
+.error   { --hue: var(--sem-bad); }
+.urgent  { --hue: var(--sem-bad); border-color: color-mix(in srgb, var(--sem-bad) 70%, transparent);
+           animation: pulse 1.8s ease-out .5s infinite; }
+.urgent .icon { background: var(--sem-bad); color: var(--on-hue); box-shadow: none; }
+.urgent .title { color: var(--sem-bad); }
+@keyframes pulse {
+  0%   { box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 18px 36px -12px rgba(0,0,0,.65),
+                     0 0 0 0 color-mix(in srgb, var(--sem-bad) 55%, transparent); }
+  70%, 100% { box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 18px 36px -12px rgba(0,0,0,.65),
+                     0 0 0 12px transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .urgent { animation: none; } }
+</style>
+</head>
+<body data-edge="bottom">
+<div id="stack"></div>
+<script>
+"use strict";
+// Icons are Lucide's (ISC licence), inlined so the page loads nothing.
+const SVG = (paths) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" ' +
+  'stroke-linecap="round" stroke-linejoin="round">' + paths.map(d => '<path d="' + d + '"/>').join("") + "</svg>";
+const ICON = {
+  info:    SVG(["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z", "M12 16v-4", "M12 8h.01"]),
+  success: SVG(["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z", "m9 12 2 2 4-4"]),
+  warning: SVG(["m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3", "M12 9v4", "M12 17h.01"]),
+  error:   SVG(["M2.586 16.726A2 2 0 0 1 2 15.312V8.688a2 2 0 0 1 .586-1.414l4.688-4.688A2 2 0 0 1 8.688 2h6.624a2 2 0 0 1 1.414.586l4.688 4.688A2 2 0 0 1 22 8.688v6.624a2 2 0 0 1-.586 1.414l-4.688 4.688a2 2 0 0 1-1.414.586H8.688a2 2 0 0 1-1.414-.586z", "m15 9-6 6", "m9 9 6 6"]),
+  urgent:  SVG(["M10.268 21a2 2 0 0 0 3.464 0", "M22 8c0-2.3-.8-4.3-2-6", "M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326", "M4 2C2.8 3.7 2 5.7 2 8"]),
+};
+const CLOSE = SVG(["M18 6 6 18", "m6 6 12 12"]);
+const PIN   = SVG(["M12 17v5", "M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"]);
+const COPY  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+const CHECK = SVG(["M20 6 9 17l-5-5"]);
+let maxHeight = Infinity; // the work area's, from Go; the stack never outgrows it
+const MAX_SHOWN = 4; // more than this is a wall, not a toast; the rest are in the record
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const stack = document.getElementById("stack");
+let hovered = false;
+stack.addEventListener("mouseenter", () => { hovered = true; });
+stack.addEventListener("mouseleave", () => { hovered = false; });
+
+// The Go side calls this once it knows which edge of the screen the tray is on.
+window.setEdge = (edge, maxH) => { document.body.dataset.edge = edge; if (maxH > 0) maxHeight = maxH; fit(); };
+const fromTray = () => (document.body.dataset.edge === "top" ? -1 : 1) * 18;
+
+// Section 12: roughly ten seconds plus five per line; hover pauses. Error
+// stays twice as long, and urgent stays until it is clicked.
+function dwellFor(t) {
+  if (t.severity === "urgent") return Infinity;
+  const lines = 1 + (t.body ? t.body.split("\n").length : 0);
+  const ms = 10000 + 5000 * lines;
+  return t.severity === "error" ? 2 * ms : ms;
+}
+
+function live() { return [...stack.querySelectorAll(".slot:not(.leaving)")]; }
+
+function leave(slot) {
+  if (slot.classList.contains("leaving")) return;
+  slot.classList.add("leaving");
+  const card = slot.firstChild, h = slot.offsetHeight;
+  const out = REDUCED ? 0 : 200;
+  card.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateX(28px) scale(.97)" }],
+    { duration: out, easing: "cubic-bezier(.4,0,1,1)", fill: "forwards" }).finished.then(() => {
+      slot.style.overflow = "hidden";
+      return slot.animate([{ height: h + "px" }, { height: "0px", marginTop: "0px", marginBottom: "0px" }],
+        { duration: REDUCED ? 0 : 220, easing: "cubic-bezier(.3,0,.2,1)", fill: "forwards" }).finished;
+    }).then(() => slot.remove());
+}
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function button(cls, svg, title, onClick) {
+  const b = el("button", "act " + cls); b.innerHTML = svg; b.title = title; b.type = "button";
+  b.addEventListener("click", (e) => { e.stopPropagation(); onClick(b); });
+  return b;
+}
+
+// Copying goes through Go: the webview refuses the async clipboard, as
+// agentbox found (CopyBtn.svelte). The desktop keeps the text after this
+// renderer exits (checked 2026-09-24: mutter's clipboard manager).
+function copy(t, b) {
+  const text = t.body ? t.title + "\n\n" + t.body : t.title;
+  fetch("/toast/copy", { method: "POST", body: text }).then(r => {
+    if (!r.ok) return;
+    b.classList.add("done"); b.innerHTML = CHECK; b.title = "Copied";
+    setTimeout(() => { b.classList.remove("done"); b.innerHTML = COPY; b.title = "Copy to clipboard"; }, 1400);
+  }).catch(() => {});
+}
+
+function togglePin(slot, b) {
+  const pinned = slot.firstChild.classList.toggle("pinned");
+  b.classList.toggle("on", pinned);
+  b.title = pinned ? "Unpin: close on its own again" : "Pin: keep it until I close it";
+  if (!pinned) slot._left = slot._total; // a fresh dwell, not the scraps of the old one
+}
+
+function show(t) {
+  const slot = el("div", "slot");
+  const card = el("div", "toast " + t.severity);
+  card.setAttribute("role", t.severity === "urgent" || t.severity === "error" ? "alert" : "status");
+  const icon = el("div", "icon"); icon.innerHTML = ICON[t.severity] || ICON.info;
+  card.append(icon, el("div", "title", t.title));
+  let body = null, more = null;
+  if (t.body) {
+    body = el("div", "body", t.body);
+    more = el("button", "more", "Show more");
+    more.type = "button"; more.hidden = true;
+    more.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const open = body.classList.toggle("open");
+      more.textContent = open ? "Show less" : "Show more";
+      if (open) body.scrollTop = 0;
+      fit();
+    });
+    card.append(body, more);
+  }
+  const meta = el("div", "meta");
+  meta.append(el("span", "pill", t.severity), el("span", "sender", t.sender), el("span", "left"));
+  card.append(meta);
+  const dwell = dwellFor(t);
+  const actions = el("div", "actions");
+  if (dwell !== Infinity) actions.append(button("pin", PIN, "Pin: keep it until I close it", (b) => togglePin(slot, b)));
+  actions.append(button("copy", COPY, "Copy to clipboard", (b) => copy(t, b)),
+                 button("close", CLOSE, "Close", () => leave(slot)));
+  card.append(actions);
+  if (dwell !== Infinity) { const bar = el("div", "bar"); card.append(bar); slot._bar = bar; }
+  slot._total = dwell; slot._left = dwell; slot._born = Date.now();
+  // A click on the bubble itself closes it, unless there is text to read: a
+  // clamped body opens instead, and an open one is for selecting, not closing.
+  card.addEventListener("click", () => {
+    if (more && !more.hidden) { if (!body.classList.contains("open")) more.click(); return; }
+    leave(slot);
+  });
+  slot.append(card);
+  stack.append(slot); // the DOM order is oldest first; the edge's flex direction puts newest at the tray
+  if (body) more.hidden = body.scrollHeight - body.clientHeight <= 2;
+
+  const h = slot.offsetHeight;
+  if (!REDUCED) {
+    slot.style.overflow = "visible";
+    slot.animate([{ height: "0px" }, { height: h + "px" }], { duration: 260, easing: "cubic-bezier(.2,.8,.2,1)" });
+    card.animate([{ opacity: 0, transform: `translateY(${fromTray()}px) scale(.94)` },
+                  { opacity: 1, transform: "none" }],
+      { duration: 420, easing: "cubic-bezier(.2,1.3,.35,1)", fill: "backwards" });
+  }
+  fit();
+}
+
+// A wall of toasts helps nobody: past MAX_SHOWN, or past the screen's
+// height, the oldest leaves early. Urgent and pinned never do. All of them
+// are in the record.
+function fit() {
+  const evictable = () => live().filter(s => !s.firstChild.classList.contains("urgent") &&
+                                             !s.firstChild.classList.contains("pinned"));
+  let ev = evictable();
+  while ((live().length > MAX_SHOWN || settledHeight(false) > maxHeight) && ev.length > 1) {
+    leave(ev.shift());
+    ev = evictable();
+  }
+}
+
+function ago(ms) {
+  const s = Math.round(ms / 1000);
+  return s < 60 ? s + "s" : s < 3600 ? Math.round(s / 60) + "m ago" : Math.round(s / 3600) + "h ago";
+}
+
+// Count down every bubble's dwell, paused while the pointer is over the stack.
+let last = performance.now();
+setInterval(() => {
+  const now = performance.now(), dt = now - last; last = now;
+  for (const slot of live()) {
+    const left = slot.querySelector(".left");
+    // Urgent never goes on its own, so it says how long it has waited instead.
+    if (slot._total === Infinity) { left.textContent = "waiting " + ago(Date.now() - slot._born); continue; }
+    if (slot.firstChild.classList.contains("pinned")) { left.textContent = "pinned"; continue; }
+    if (hovered) { left.textContent = "paused"; continue; }
+    left.textContent = "closes in " + Math.max(1, Math.ceil(slot._left / 1000)) + "s";
+    slot._left -= dt;
+    slot._bar.style.transform = `scaleX(${Math.max(slot._left, 0) / slot._total})`;
+    if (slot._left <= 0) leave(slot);
+  }
+}, 100);
+
+// The page's one door to Go: report how many bubbles are up and how tall the
+// stack will be once they settle, and take whatever toasts arrived. The
+// height is the settled one, measured without the running animations, so the
+// window is already big enough when a bubble grows into it.
+function settledHeight(withLeaving = true) {
+  const cs = getComputedStyle(stack);
+  let h = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  const slots = [...stack.children];
+  slots.forEach((s, i) => {
+    // A leaving bubble still counts at its shrinking height, or the window
+    // would cut it off before it has finished going.
+    if (!withLeaving && s.classList.contains("leaving")) return;
+    const own = s.classList.contains("leaving") ? s.offsetHeight : s.firstChild.offsetHeight;
+    h += own + (i > 0 ? 14 : 0);
+  });
+  return Math.ceil(h);
+}
+
+async function poll() {
+  const shown = stack.children.length;
+  try {
+    const r = await fetch("/toast/poll?shown=" + shown + "&h=" + (shown ? settledHeight() : 0));
+    for (const t of await r.json() || []) show(t);
+  } catch (e) { /* the renderer is quitting */ }
+  setTimeout(poll, 120);
+}
+poll();
+</script>
+</body>
+</html>

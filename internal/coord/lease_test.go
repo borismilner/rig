@@ -476,3 +476,50 @@ func TestAnUnwitnessedHeldLeaseReportsUnknownRatherThanAlive(t *testing.T) {
 		t.Fatal("owner_gone is true for a holder rig never observed")
 	}
 }
+
+// ⛔ A STALE FENCE TOKEN ACCEPTED, section 16's adversarial row, from the
+// resource's side: the check a resource makes before accepting a write says
+// no to every token but the current holder's, and says no to that one too
+// once the lease is no longer held.
+func TestAResourceRefusesAStaleFencingToken(t *testing.T) {
+	s, clock, proc := setup(t)
+	a, err := s.Acquire("db", "seat-a", witnessFor(t, proc, 101, 7), ttl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, err := s.Check("db", a.Token); err != nil || !ok {
+		t.Fatalf("the holder's own token is not current: %v %v", ok, err)
+	}
+
+	clock.advance(ttl * 2)
+	if _, ok, _ := s.Check("db", a.Token); !ok {
+		t.Fatal("an orphaned lease's token was refused, though nobody else holds it")
+	}
+
+	reap(t, proc, 101)
+	if _, ok, _ := s.Check("db", a.Token); ok {
+		t.Fatal("a token whose holder was observed dead is still current")
+	}
+	b, err := s.Acquire("db", "seat-b", witnessFor(t, proc, 202, 9), ttl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tok := range []uint64{a.Token, 0, b.Token + 1} {
+		if st, ok, _ := s.Check("db", tok); ok {
+			t.Fatalf("token %d was accepted while seat-b holds token %d (%+v)", tok, b.Token, st)
+		}
+	}
+	if _, ok, _ := s.Check("db", b.Token); !ok {
+		t.Fatal("the new holder's token is not current")
+	}
+
+	if err := s.Release(b); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, _ := s.Check("db", b.Token); ok {
+		t.Fatal("a released lease's token is still current")
+	}
+	if _, ok, _ := s.Check("never-taken", 1); ok {
+		t.Fatal("a token for a lease nobody took is current")
+	}
+}
