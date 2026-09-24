@@ -490,7 +490,11 @@ built and measured: `design/visual-system.html`, engine at `design/theme.js`.
     every 5 s and swaps its ICON to carry the estate; nothing renders the
     estate or the version as readable text, and `fyne.io/systray`'s menu items
     are where it would go. **The icon says which estate to somebody who knows
-    the colour convention; he asked to be TOLD.**
+    the colour convention; he asked to be TOLD.** ✅ **BUILT 2026-09-16 at `0d25547`**
+    (*"the tray menu carries the version and the estate"*): two disabled
+    menu items state the window's version and the estate by name, kept
+    current by the same `rig.estate` poll (`cmd/rigwindow/tray.go`,
+    `menuVersion`, `menuEstate`). The paragraph above is the state before it.
 
   - **BORIS, 2026-09-16, verbatim - THE TRAY IS AN ACCESS POINT, NOT A WINDOW
     TOGGLE:** *"The icon-tray is not only for when a window is needed, it is
