@@ -101,9 +101,9 @@ THE PROGRAMS, AND THE ROSTER.
 
 THE CONTINUITY RECORD - this project's memory. Writes need a seat, so
 announce first; the seat comes from your row, never from the request.
-  project_brief   the project in twelve sections. START HERE ON RESUME. Says
-                  whether it EXISTS, so a typo is not "nothing to do".
-  record_query    find records; project and kind are matched EXACTLY.
+  record_query    find records; project and kind are matched EXACTLY. START
+                  HERE ON RESUME. Deriving a brief over these rows belongs to
+                  the program that owns the project model, not to rig.
   record_get / record_put / record_history   read one, write one, and every
                   version it ever had. Nothing is ever overwritten.
   record_link / record_unlink / record_refs   typed edges between records.
@@ -111,7 +111,7 @@ announce first; the seat comes from your row, never from the request.
 
 rig is not in the program map, so invoke and describe cannot reach it; asking
 invoke for program "rig" is the common first mistake. Any tool beyond the
-sixteen above is a promoted program command.
+fifteen above is a promoted program command.
 
 IF set_activity SAYS YOU HAVE NO ROW, YOU ARE NOT WHERE YOU THINK YOU ARE. A
 row lives exactly as long as its connection, so if you announced earlier and
@@ -401,18 +401,6 @@ func New(m *meta.Server, who kernel.Principal, version string) *Server {
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, a recordIDArgs) (*mcp.CallToolResult, any, error) {
 		return answer(m.Answer(ctx, who, meta.Request{
 			Tool: meta.RecordRefsTool, RecordID: a.ID,
-		}))
-	})
-
-	mcp.AddTool(s, &mcp.Tool{
-		Name: "project_brief",
-		Description: "The whole project in twelve sections: what is next, what " +
-			"is blocked, what governs it, what has moved. START HERE WHEN YOU " +
-			"RESUME. It reports whether the project EXISTS as its own fact, so " +
-			"a mistyped slug is never answered as a project with nothing to do.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, a projectArgs) (*mcp.CallToolResult, any, error) {
-		return answer(m.Answer(ctx, who, meta.Request{
-			Tool: meta.ProjectBriefTool, Project: a.Project,
 		}))
 	})
 
@@ -821,10 +809,6 @@ type linkArgs struct {
 	From string `json:"from" jsonschema:"the record the edge starts at"`
 	To   string `json:"to" jsonschema:"the record the edge points at"`
 	Kind string `json:"kind" jsonschema:"the edge type, such as part-of, supersedes, blocks or notes-about"`
-}
-
-type projectArgs struct {
-	Project string `json:"project" jsonschema:"the project to brief"`
 }
 
 type stepArgs struct {

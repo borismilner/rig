@@ -54,19 +54,19 @@ type holdsRecords struct {
 	putSeen  meta.RecordPut
 	rows     []meta.RecordRow
 	refs     []meta.RecordRef
-	brief    meta.BriefAnswer
 	stepSeen meta.ProgressStep
 	linked   [3]string
 	err      error
 
 	// ⛔ THE READ ARGUMENTS ARE RECORDED, AND UNTIL 2026-09-17 THEY WERE NOT.
-	// Query and Brief took their parameters and threw them away, so NO TEST
-	// IN THIS PACKAGE COULD HAVE GONE RED on a read that dropped what the
-	// caller asked for - whatever the real adapter did. Two defects lived
-	// behind that for their whole life: `project_brief` could not find any
-	// project at all, and `record_query` answered only when BOTH project and
-	// kind were supplied. Both were in internal/daemon, and this double is
-	// why nothing here noticed.
+	// Query took its parameter and threw it away, so NO TEST IN THIS PACKAGE
+	// COULD HAVE GONE RED on a read that dropped what the caller asked for -
+	// whatever the real adapter did. Two defects lived behind that for their
+	// whole life: `project_brief` could not find any project at all, and
+	// `record_query` answered only when BOTH project and kind were supplied.
+	// Both were in internal/daemon, and this double is why nothing here
+	// noticed. The first surface left rig at section 50 move 8; the rule it
+	// paid for is why the argument is still recorded here.
 	//
 	// A double that discards its arguments is not a simplification, it is a
 	// check that cannot fail - the eighth recorded instance of that shape in
@@ -75,10 +75,6 @@ type holdsRecords struct {
 		project string
 		kind    string
 		fields  map[string]string
-		calls   int
-	}
-	briefSeen struct {
-		project string
 		calls   int
 	}
 }
@@ -126,12 +122,6 @@ func (h *holdsRecords) Refs(context.Context, string) ([]meta.RecordRef, error) {
 	return h.refs, h.err
 }
 
-func (h *holdsRecords) Brief(_ context.Context, project string) (meta.BriefAnswer, error) {
-	h.briefSeen.project = project
-	h.briefSeen.calls++
-	return h.brief, h.err
-}
-
 func (h *holdsRecords) Step(_ context.Context, in meta.ProgressStep) (meta.RecordRow, error) {
 	h.stepSeen = in
 	return meta.RecordRow{ID: "step-1", Kind: "progress", Seat: "backend-1"}, h.err
@@ -165,7 +155,6 @@ func TestTheContinuityRecordIsReachableFromTheAgentSurface(t *testing.T) {
 		{"link", meta.RecordLinkTool},
 		{"unlink", meta.RecordUnlinkTool},
 		{"refs", meta.RecordRefsTool},
-		{"brief", meta.ProjectBriefTool},
 		{"step", meta.ProgressStepTool},
 
 		// ⛔ B77's THREE. An agent that can WRITE a record and cannot withdraw
@@ -225,53 +214,6 @@ func TestAnUnnamedEstateSaysItHasNoRecordRatherThanAnsweringEmpty(t *testing.T) 
 	}
 }
 
-// TestTheBriefSaysWhetherTheProjectExists is B76 at the surface that can carry
-// the answer.
-//
-// ⛔ `rig brief <a project that does not exist>` EXITS 0, renders a brief and
-// reports "sections 1-4 computed: true" - so a typo in a slug is
-// indistinguishable from a project with no work, and an agent resuming on the
-// wrong slug is told in rig's own voice that there is nothing to do. Every
-// section of a brief separates "nothing to report" from "this build cannot
-// answer"; the container owed the same distinction and did not have it.
-func TestTheBriefSaysWhetherTheProjectExists(t *testing.T) {
-	t.Run("absent", func(t *testing.T) {
-		s := meta.New(estate(t, kernel.CoverageFull),
-			&holdsRecords{brief: meta.BriefAnswer{Found: false, Project: "riig"}})
-		got, err := s.Answer(context.Background(), agent(),
-			meta.Request{Tool: meta.ProjectBriefTool, Project: "riig"})
-		if err != nil {
-			t.Fatalf("project_brief: %v", err)
-		}
-		if got.Record == nil || got.Record.Brief == nil {
-			t.Fatal("no brief came back at all")
-		}
-		if got.Record.Brief.Found {
-			t.Error("a project that does not exist was reported as found")
-		}
-	})
-
-	t.Run("present", func(t *testing.T) {
-		s := meta.New(estate(t, kernel.CoverageFull),
-			&holdsRecords{brief: meta.BriefAnswer{Found: true, Project: "rig", JSON: []byte(`{"project":"rig"}`)}})
-		got, err := s.Answer(context.Background(), agent(),
-			meta.Request{Tool: meta.ProjectBriefTool, Project: "rig"})
-		if err != nil {
-			t.Fatalf("project_brief: %v", err)
-		}
-		if !got.Record.Brief.Found {
-			t.Error("a real project was reported absent")
-		}
-		// ⛔ THE TWO ARMS MUST DIFFER IN THE FIELD UNDER TEST. Asserting only
-		// that a brief came back would pass against a build that hardcoded
-		// Found either way, which is the "every assertion satisfiable by the
-		// broken code" failure this project has already paid for once.
-		if len(got.Record.Brief.JSON) == 0 {
-			t.Error("a found project carried no brief")
-		}
-	})
-}
-
 // TestEveryRecordArgumentReachesTheRecords catches the wiring defect that would
 // otherwise be invisible: a tool dispatched, answering, and dropping what the
 // caller asked for.
@@ -316,12 +258,11 @@ func TestEveryRecordArgumentReachesTheRecords(t *testing.T) {
 		t.Errorf("step lost an argument: %+v", h.stepSeen)
 	}
 
-	// ⛔ THE TWO READS, WHICH THIS TEST DID NOT COVER AND WHICH THE DOUBLE
-	// COULD NOT HAVE FAILED. record_query and project_brief are the surface an
-	// agent resumes through, and both of them shipped a defect that reached
-	// the live door. Neither was a wiring fault here - both were in the
-	// adapter - but a double that discarded its arguments is what made
-	// internal/meta unable to say anything about either.
+	// ⛔ THE READ, WHICH THIS TEST DID NOT COVER AND WHICH THE DOUBLE COULD
+	// NOT HAVE FAILED. record_query is the surface an agent resumes through,
+	// and it shipped a defect that reached the live door. It was not a wiring
+	// fault here - it was in the adapter - but a double that discarded its
+	// arguments is what made internal/meta unable to say anything about it.
 	if _, err := s.Answer(context.Background(), agent(), meta.Request{
 		Tool: meta.RecordQueryTool, Project: "rig", Kind: "decision",
 		Fields: map[string]string{"owner": "read-path"},
@@ -351,19 +292,6 @@ func TestEveryRecordArgumentReachesTheRecords(t *testing.T) {
 			h.querySeen)
 	}
 
-	if _, err := s.Answer(context.Background(), agent(), meta.Request{
-		Tool: meta.ProjectBriefTool, Project: "rig",
-	}); err != nil {
-		t.Fatalf("project_brief: %v", err)
-	}
-	if h.briefSeen.calls != 1 {
-		t.Errorf("project_brief reached the records %d times, want 1",
-			h.briefSeen.calls)
-	}
-	if h.briefSeen.project != "rig" {
-		t.Errorf("brief was asked about %q, not the project requested",
-			h.briefSeen.project)
-	}
 }
 
 // TestEveryDispatchedToolIsNamedInTheRefusal keeps allToolNames honest.
@@ -390,7 +318,7 @@ func TestEveryDispatchedToolIsNamedInTheRefusal(t *testing.T) {
 		meta.Announce, meta.SetActivity, meta.ListAgents,
 		meta.RecordPutTool, meta.RecordGetTool, meta.RecordQueryTool,
 		meta.RecordHistoryTool, meta.RecordLinkTool, meta.RecordUnlinkTool,
-		meta.RecordRefsTool, meta.ProjectBriefTool, meta.ProgressStepTool,
+		meta.RecordRefsTool, meta.ProgressStepTool,
 	} {
 		if !containsSub(msg, string(tool)) {
 			t.Errorf("the refusal does not name %q, so an agent that mistyped "+

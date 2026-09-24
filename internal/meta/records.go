@@ -89,16 +89,6 @@ type Records interface {
 	// Refs answers which records point at this one, by edge kind.
 	Refs(ctx context.Context, id string) ([]RecordRef, error)
 
-	// Brief is section 39's twelve-section answer for one project.
-	//
-	// ⛔ IT RETURNS found=false FOR A PROJECT THAT DOES NOT EXIST, AND THE
-	// SURFACE ABOVE MUST NOT FLATTEN THAT INTO AN EMPTY BRIEF. B76: the CLI
-	// exits 0 on a typo and reports "sections 1-4 computed: true", so a project
-	// that is absent and a project with no work are indistinguishable. Every
-	// section of a brief is written to separate "nothing to report" from "this
-	// build cannot answer"; the container owes the same distinction.
-	Brief(ctx context.Context, project string) (BriefAnswer, error)
-
 	// Step writes one progress entry against a work item.
 	Step(ctx context.Context, in ProgressStep) (RecordRow, error)
 }
@@ -177,23 +167,6 @@ type RecordRef struct {
 	Via string
 }
 
-// BriefAnswer is project.brief, with the one field the CLI does not have.
-type BriefAnswer struct {
-	// Found separates "this project has no work" from "this project does not
-	// exist", which is B76 and is the argument the whole brief is built on.
-	Found bool
-
-	Project string
-
-	// JSON is the brief as the store rendered it. ⛔ IT IS CARRIED WHOLE RATHER
-	// THAN RE-TYPED HERE, deliberately: `briefSections()` is a HAND-KEPT list
-	// whose own comment used to claim it was derived from the store's struct,
-	// and two of its rows went stale behind that false claim. A second hand-kept
-	// mirror of the same twelve sections in this package would be the same
-	// defect with one more place to rot.
-	JSON []byte
-}
-
 // records asks the invoker for the continuity record, if it can give one.
 //
 // The type assertion is where the optional half is resolved, per call rather
@@ -267,7 +240,7 @@ func allToolNames() []string {
 		string(Announce), string(SetActivity), string(ListAgents),
 		string(RecordPutTool), string(RecordGetTool), string(RecordQueryTool),
 		string(RecordHistoryTool), string(RecordLinkTool), string(RecordUnlinkTool),
-		string(RecordRefsTool), string(ProjectBriefTool), string(ProgressStepTool),
+		string(RecordRefsTool), string(ProgressStepTool),
 		string(RecordRetractTool), string(RecordDeleteTool), string(RecordReplaceTool),
 	}
 }
@@ -275,11 +248,10 @@ func allToolNames() []string {
 // RecordAnswer carries whichever shape the tool that produced it returns.
 //
 // ⛔ THE FIELDS ARE NOT INTERCHANGEABLE AND AN EMPTY ONE IS NOT AN ABSENCE.
-// `Rows` empty on a query means the query matched nothing; `Brief` nil on a
-// project_brief means the project was not found, which `Found` states outright
-// rather than leaving to be inferred from a nil. Section 5k's rule is that no
-// surface may imply completeness, and a nil that could mean either is exactly
-// that implication.
+// `Rows` empty on a query means the query matched nothing, and `Linked` false
+// means an edge write did not take effect - neither is "this surface did not
+// run". Section 5k's rule is that no surface may imply completeness, and a
+// zero value that could mean either is exactly that implication.
 type RecordAnswer struct {
 	// Row is put's, get's and step's single answer.
 	Row *RecordRow `json:"row,omitempty"`
@@ -289,9 +261,6 @@ type RecordAnswer struct {
 
 	// Refs is refs'.
 	Refs []RecordRef `json:"refs,omitempty"`
-
-	// Brief is project_brief's, and Found is the field B76 is about.
-	Brief *BriefAnswer `json:"brief,omitempty"`
 
 	// Linked says an edge write took effect. A BOOL RATHER THAN AN EMPTY
 	// ANSWER, because link and unlink otherwise return nothing at all and a
@@ -466,17 +435,6 @@ func (s *Server) recordRefs(ctx context.Context, who kernel.Principal, r Request
 			return err
 		}
 		out.Record = &RecordAnswer{Refs: refs}
-		return nil
-	})
-}
-
-func (s *Server) projectBrief(ctx context.Context, who kernel.Principal, r Request) (Answer, error) {
-	return s.recordTool(who, ProjectBriefTool, func(rc Records, out *Answer) error {
-		b, err := rc.Brief(ctx, r.Project)
-		if err != nil {
-			return err
-		}
-		out.Record = &RecordAnswer{Brief: &b}
 		return nil
 	})
 }

@@ -2,9 +2,7 @@ package daemon
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 
 	"github.com/boris-milner/rig/internal/kernel"
 	"github.com/boris-milner/rig/internal/meta"
@@ -253,75 +251,6 @@ func (m *mcpCaller) Refs(ctx context.Context, id string) ([]meta.RecordRef, erro
 		})
 	}
 	return out, nil
-}
-
-// Brief answers section 39's twelve sections, and says whether the project is
-// there at all.
-//
-// ⛔ THIS IS THE SURFACE B76 IS ABOUT, AND IT IS FIXED HERE RATHER THAN ONLY IN
-// THE CLI. `rig brief <a project that does not exist>` exits 0 and reports
-// "sections 1-4 computed: true", so a typo in a slug is indistinguishable from a
-// project with no work - and an agent resuming on the wrong slug is told, in
-// rig's own voice, that there is nothing to do. The store cannot answer it
-// alone, so the existence question is asked separately and carried as its own
-// field rather than inferred from an empty brief.
-func (m *mcpCaller) Brief(ctx context.Context, project string) (meta.BriefAnswer, error) {
-	st, err := m.store()
-	if err != nil {
-		return meta.BriefAnswer{}, err
-	}
-	known, err := projectExists(ctx, st, project)
-	if err != nil {
-		return meta.BriefAnswer{}, err
-	}
-	if !known {
-		// ⛔ NOT AN ERROR. "This project does not exist" is an ANSWER to the
-		// question asked, and a caller listing candidate slugs needs to
-		// distinguish it from a failure to look.
-		return meta.BriefAnswer{Found: false, Project: project}, nil
-	}
-	b, err := st.Brief(ctx, project)
-	if err != nil {
-		return meta.BriefAnswer{}, err
-	}
-	raw, err := json.Marshal(b)
-	if err != nil {
-		return meta.BriefAnswer{}, fmt.Errorf("rendering the brief: %w", err)
-	}
-	return meta.BriefAnswer{Found: true, Project: project, JSON: raw}, nil
-}
-
-// projectExists asks whether anything at all is filed under this slug.
-//
-// ⛔ ANY RECORD COUNTS, NOT JUST A `project` RECORD. A project whose `project`
-// record was never written but which holds ninety work items exists by every
-// meaning a caller has - and rig's own store is exactly that shape for most of
-// its history. Keying existence on one privileged kind would report the live
-// project as absent, which is the failure this function exists to prevent
-// arriving through its own fix.
-//
-// ⛔ AND IT ARRIVED ANYWAY, WITH THE PRIVILEGED KIND SPELLED "". This asked
-// `(*Store).Query(ctx, project, "")`, whose SQL matches `r.kind = ?`
-// literally; Put refuses an empty kind, so no record could ever match and this
-// returned false for EVERY slug ever passed to it. `Brief` short-circuits on
-// it, so `project_brief` - section 39's resume mechanism and section 9's A6,
-// the one tool behind "use rig to work on rig" - answered `{"Found":false}`
-// for every project in the store, and looked correct doing it, because "this
-// project does not exist" is a well-formed answer.
-//
-// ⛔ THE DOC COMMENT ABOVE IS OLDER THAN THE DEFECT AND DESCRIBED IT EXACTLY.
-// Naming a failure is not preventing it; `Find` is what prevents it, because
-// there the empty filter is a wildcard by construction rather than by
-// intention.
-func projectExists(ctx context.Context, st *record.Store, project string) (bool, error) {
-	if project == "" {
-		return false, nil
-	}
-	recs, err := st.Find(ctx, record.QueryFilter{Project: project})
-	if err != nil {
-		return false, err
-	}
-	return len(recs) > 0, nil
 }
 
 func (m *mcpCaller) Step(ctx context.Context, in meta.ProgressStep) (meta.RecordRow, error) {

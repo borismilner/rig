@@ -11,13 +11,18 @@ import (
 
 // ⛔ THE AGENT DOOR'S READ PATH, AGAINST A REAL STORE RATHER THAN A DOUBLE.
 //
-// Everything in internal/meta that exercises `record_query` and
-// `project_brief` goes through `holdsRecords`, whose Query and Brief DISCARD
-// EVERY ARGUMENT and return a canned value. No test there could have gone red
-// on either defect below, whatever the adapter did - a check that cannot fail
-// reads as a pass, and this project has now recorded that eight times.
+// Everything in internal/meta that exercises `record_query` goes through
+// `holdsRecords`, whose Query DISCARDS EVERY ARGUMENT and returns a canned
+// value. No test there could have gone red on the defect below, whatever the
+// adapter did - a check that cannot fail reads as a pass, and this project has
+// now recorded that eight times.
 //
 // So these tests hold the adapter itself and give it records to find.
+//
+// ⛔ DEFECT A LIVED HERE AND ITS SURFACE IS GONE. `projectExists` and the test
+// that pinned it went out with `project_brief` at PLAN.md section 50 move 8;
+// the defect it recorded was an empty kind read as a value rather than as
+// "every", and `(*Store).Find` is where that rule now lives alone.
 
 // recordStore opens a private store for one test.
 //
@@ -60,60 +65,6 @@ func seedRecords(t *testing.T, st *record.Store) {
 		if _, err := st.Put(ctx, r); err != nil {
 			t.Fatalf("seeding %s: %v", r.ID, err)
 		}
-	}
-}
-
-// ⛔ DEFECT A: `project_brief` COULD NOT FIND ANY PROJECT. NOT ONE. EVER.
-//
-// `projectExists` asked `(*Store).Query(ctx, project, "")`, and that method's
-// SQL is `WHERE r.project = ? AND r.kind = ?` - LITERAL equality on both. An
-// empty kind is not a wildcard there, it is a kind no record can have, because
-// Put refuses to write one. So the count was always zero, `known` was always
-// false, and `Brief` returned `{"Found":false}` for every slug ever asked.
-//
-// ⛔ THE FUNCTION'S OWN DOC COMMENT NAMES THIS AS THE FAILURE IT EXISTS TO
-// PREVENT - "keying existence on one privileged kind would report the live
-// project as absent". It arrived anyway, and the privileged kind was "".
-//
-// ⛔ WHY IT MATTERED MORE THAN ITS SIZE. project_brief is section 39's resume
-// mechanism and section 9's A6: the single tool behind "use rig to work on
-// rig". It was 100% dead on the agent surface and nothing looked wrong,
-// because "this project does not exist" is a well-formed ANSWER.
-//
-// THE CONTROL IS THE SECOND ROW. A fix that returned true unconditionally
-// passes the first row alone, and would be worse than the defect - it would
-// report every typo as a real project, which is B76 inverted.
-func TestTheAgentDoorCanFindAProjectThatExists(t *testing.T) {
-	st := recordStore(t)
-	seedRecords(t, st)
-	ctx := context.Background()
-
-	for _, tc := range []struct {
-		name    string
-		project string
-		want    bool
-	}{
-		{"a project with a container record and work under it", "rig", true},
-		// ⛔ A PROJECT WITH NO `project` RECORD STILL EXISTS. Any record
-		// counts: rig's own store was this shape for most of its history, and
-		// keying on the container would reintroduce the defect through the fix.
-		{"work filed under a slug that has no container record", "other", true},
-		{"a slug nothing was ever filed under", "zzz-no-such-project", false},
-		{"the empty slug is not a wildcard here", "", false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := projectExists(ctx, st, tc.project)
-			if err != nil {
-				t.Fatalf("projectExists(%q): %v", tc.project, err)
-			}
-			if got != tc.want {
-				t.Errorf("projectExists(%q) = %v, want %v.\n"+
-					"project_brief short-circuits on this, so a false here "+
-					"means the agent surface answers {\"Found\":false} for a "+
-					"project that is right there in the store",
-					tc.project, got, tc.want)
-			}
-		})
 	}
 }
 

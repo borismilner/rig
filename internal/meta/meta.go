@@ -67,7 +67,7 @@ const (
 	// agent can act on" - for free.
 	//
 	// THE COST IS STATED RATHER THAN GLOSSED: the tool list goes from seven to
-	// sixteen. That is real, and it is the price of the vocabulary being
+	// fifteen. That is real, and it is the price of the vocabulary being
 	// visible. ⛔ AND THE PREAMBLE'S "any tool beyond these seven is a promoted
 	// program command" IS AMENDED BY THIS, not broken by it - the sentence was
 	// already false-by-construction for rig's own commands the moment the three
@@ -80,7 +80,6 @@ const (
 	RecordLinkTool    Tool = "record_link"
 	RecordUnlinkTool  Tool = "record_unlink"
 	RecordRefsTool    Tool = "record_refs"
-	ProjectBriefTool  Tool = "project_brief"
 	ProgressStepTool  Tool = "progress_step"
 
 	// ⛔ B77's THREE, RULED BY BORIS 2026-09-17: he asked for full control over
@@ -390,8 +389,6 @@ func (s *Server) Answer(ctx context.Context, who kernel.Principal, r Request) (A
 		return s.recordDelete(ctx, who, r)
 	case RecordReplaceTool:
 		return s.recordReplace(ctx, who, r)
-	case ProjectBriefTool:
-		return s.projectBrief(ctx, who, r)
 	case ProgressStepTool:
 		return s.progressStep(ctx, who, r)
 	default:
