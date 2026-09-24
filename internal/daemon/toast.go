@@ -43,6 +43,40 @@ type toastRing struct {
 	seq   uint64
 	items []*registryv1.Toast
 	wake  chan struct{}
+
+	// Do Not Disturb. In memory on purpose: a restart turns it off, so a
+	// daemon never comes back silent without anyone having said so.
+	dnd        bool
+	suppressed uint32
+}
+
+// setDND applies a change and answers the state after it.
+func (r *toastRing) setDND(ch registryv1.DndChange) (on bool, suppressed uint32) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	switch ch {
+	case registryv1.DndChange_DND_CHANGE_ON:
+		if !r.dnd {
+			r.suppressed = 0
+		}
+		r.dnd = true
+	case registryv1.DndChange_DND_CHANGE_OFF:
+		r.dnd = false
+	}
+	return r.dnd, r.suppressed
+}
+
+// suppress reports whether a toast of this severity is held back now, and
+// counts it if so. An urgent toast never is: section 12's rule is that Do Not
+// Disturb suppresses notices, never what someone is blocked on.
+func (r *toastRing) suppress(sev registryv1.Severity) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if !r.dnd || sev == registryv1.Severity_SEVERITY_URGENT {
+		return false
+	}
+	r.suppressed++
+	return true
 }
 
 func (r *toastRing) add(t *registryv1.Toast) {
@@ -75,6 +109,19 @@ func (r *toastRing) after(seq uint64) ([]*registryv1.Toast, uint64, <-chan struc
 		r.wake = make(chan struct{})
 	}
 	return out, r.seq, r.wake
+}
+
+// serveToast dispatches the three toast verbs through one arm of the
+// daemon's switch, which gocyclo holds under its ceiling.
+func (d *Daemon) serveToast(ctx context.Context, c *conn, f *rigv1.Frame, command string) {
+	switch command {
+	case "notify":
+		d.serveNotify(ctx, c, f)
+	case "toast.wait":
+		d.serveToastWait(ctx, c, f)
+	case "toast.dnd":
+		d.serveToastDND(c, f)
+	}
 }
 
 func (d *Daemon) serveNotify(ctx context.Context, c *conn, f *rigv1.Frame) {
@@ -120,11 +167,16 @@ func (d *Daemon) serveNotify(ctx context.Context, c *conn, f *rigv1.Frame) {
 	if session == "" {
 		session = recordSession(c.principal())
 	}
+	suppressed := d.toasts.suppress(sev)
+	fields := map[string]string{
+		"severity": strings.ToLower(strings.TrimPrefix(sev.String(), "SEVERITY_")), "title": req.GetTitle(), "sender": sender,
+	}
+	if suppressed {
+		fields["suppressed"] = "do not disturb"
+	}
 	rec, err := st.Put(ctx, record.PutRequest{
 		Kind: notificationKind, Project: notificationProject, Body: req.GetBody(),
-		Fields: map[string]string{
-			"severity": strings.ToLower(strings.TrimPrefix(sev.String(), "SEVERITY_")), "title": req.GetTitle(), "sender": sender,
-		},
+		Fields:  fields,
 		Session: session, Seat: sender, Epoch: max(epoch, d.epoch),
 	})
 	if err != nil {
@@ -133,9 +185,11 @@ func (d *Daemon) serveNotify(ctx context.Context, c *conn, f *rigv1.Frame) {
 	}
 	t := &registryv1.Toast{
 		RecordId: rec.ID, Severity: sev, Title: req.GetTitle(), Body: req.GetBody(),
-		Sender: sender, AtUnixNano: time.Now().UnixNano(),
+		Sender: sender, AtUnixNano: time.Now().UnixNano(), Suppressed: suppressed,
 	}
-	d.toasts.add(t)
+	if !suppressed {
+		d.toasts.add(t)
+	}
 	c.reply(f.GetStreamId(), &registryv1.NotifyResponse{Toast: t})
 }
 
@@ -163,4 +217,21 @@ func (d *Daemon) serveToastWait(ctx context.Context, c *conn, f *rigv1.Frame) {
 			return
 		}
 	}
+}
+
+func (d *Daemon) serveToastDND(c *conn, f *rigv1.Frame) {
+	var req registryv1.ToastDndRequest
+	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "toast.dnd: "+err.Error())
+		return
+	}
+	switch req.GetChange() {
+	case registryv1.DndChange_DND_CHANGE_QUERY, registryv1.DndChange_DND_CHANGE_ON, registryv1.DndChange_DND_CHANGE_OFF:
+	default:
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID,
+			"rig.toast.dnd: change is one of query, on, off; got "+req.GetChange().String())
+		return
+	}
+	on, n := d.toasts.setDND(req.GetChange())
+	c.reply(f.GetStreamId(), &registryv1.ToastDndResponse{On: on, Suppressed: n})
 }

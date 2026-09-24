@@ -245,6 +245,9 @@ message Toast {
   // The sender: a registered program's id, else the caller's seat.
   string sender = 6;
   int64 at_unix_nano = 7;
+  // Filed while Do Not Disturb was on, so it went to the record and not to
+  // the screen. Never set on an urgent toast.
+  bool suppressed = 8;
 }
 
 // NotifyRequest sends one. Severity is required; title up to 200 bytes, body
@@ -271,4 +274,24 @@ message ToastWaitResponse {
   // The newest seq the daemon has issued, so a waiter that starts late can
   // skip the backlog.
   uint64 latest = 2;
+}
+
+// Do Not Disturb (section 12): while it is on, a notification is filed in the
+// record and not drawn. An urgent one is always drawn.
+enum DndChange {
+  DND_CHANGE_UNSPECIFIED = 0;
+  // Answer the state and change nothing.
+  DND_CHANGE_QUERY = 1;
+  DND_CHANGE_ON = 2;
+  DND_CHANGE_OFF = 3;
+}
+
+message ToastDndRequest {
+  DndChange change = 1;
+}
+
+message ToastDndResponse {
+  bool on = 1;
+  // Notifications filed and not drawn since Do Not Disturb last went on.
+  uint32 suppressed = 2;
 }
