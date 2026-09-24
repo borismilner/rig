@@ -891,6 +891,11 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	case "lease.list", "lease.acquire", "lease.renew", "lease.release", "lease.break":
 		d.serveLease(c, f, command)
 
+	// SECTION 16's QUEUES. A claim is a lease, so the store is the lease
+	// store; queue.go has why the claimer comes off the connection.
+	case "queue.push", "queue.claim", "queue.complete", "queue.list":
+		d.serveQueue(c, f, command)
+
 	case "backup.create":
 		// Its own arm rather than a member of the group above: the record
 		// verbs all take a store and read or write rows in it, and this one

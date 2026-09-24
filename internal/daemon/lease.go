@@ -81,6 +81,13 @@ func (d *Daemon) serveLeaseAcquire(c *conn, f *rigv1.Frame) {
 	if !leaseTextOK(c, f, "lease.acquire", "name", req.GetName()) {
 		return
 	}
+	if coord.IsClaimLease(req.GetName()) {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, fmt.Sprintf(
+			"rig.lease.acquire: %q is a queue claim's name, and a claim is taken "+
+				"with rig.queue.claim; holding it directly would block a task "+
+				"nobody is working on", req.GetName()))
+		return
+	}
 	_, seat, _, ok := d.provenance(c)
 	if !ok {
 		refuseUnseatedLease(c, f, "lease.acquire")

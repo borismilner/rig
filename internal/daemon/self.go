@@ -400,6 +400,27 @@ func selfDeclaration() kernel.Declaration {
 				"The only way an unwitnessed orphan ever becomes free. Records the caller's seat as who broke it and requires a reason. Refused for a lease still inside its deadline.",
 				"Nothing. The lease is free afterwards, naming who broke it and why."),
 
+			// SECTION 16's QUEUES. The list is a read; push, claim and
+			// complete keep their state in the estate's bbolt file beside
+			// the leases, so they are file writes on the leases' argument.
+			// Complete is not idempotent: a second completion is refused.
+			readOnly("queue.list", "Queue list",
+				"A queue's unfinished tasks, or every queue's name",
+				"Answers a queue's tasks not yet done, oldest first, each ready, claimed or orphaned with its claim lease evaluated now, and how many are done. With no queue it names every queue.",
+				"The tasks and the done count, or the queue names."),
+			leaseWriter("queue.push", "Queue push", kernel.Yes,
+				"Add a task to a queue, under a mandatory idempotency key",
+				"Adds a task with an idempotency key and a payload. The same key again answers the existing task, done or not, and never queues it twice; the same key over a different payload is refused. Delivery is at-least-once, so the key is what makes a replay harmless.",
+				"The task, and whether it was a duplicate."),
+			leaseWriter("queue.claim", "Queue claim", kernel.No,
+				"Take the oldest ready task under a lease, witnessed by the caller's process",
+				"Claims the oldest ready task for the caller's seat as a lease named queue/<queue>/<id>. Heartbeat it with lease.renew; release it unfinished with lease.release. Past its deadline it is orphaned while the worker lives and ready again once the worker is observed dead.",
+				"The task and the claim's handle."),
+			leaseWriter("queue.complete", "Queue complete", kernel.No,
+				"Finish a claimed task",
+				"Marks the task done against its claim's token and epoch, and releases the claim. A worker whose claim moved on is refused, and its work is the duplicate the idempotency key is for.",
+				"The finished task."),
+
 			// The first thing rig declares about itself that is not read-only,
 			// and the properties are the point rather than paperwork: this is
 			// the declaration a house rule matches on, so getting `effects`
