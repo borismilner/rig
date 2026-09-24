@@ -249,4 +249,10 @@ func TestAnEstateWithNoLeaseStoreRefusesTheLeaseVerbs(t *testing.T) {
 	c := seated(t, sock, "seat-a")
 	err := c.Call(recordCtx(t), "rig.lease.list", &rigv1.LeaseListRequest{}, &rigv1.LeaseListResponse{})
 	wantCode(t, err, rigv1.Code_CODE_UNAVAILABLE, "rig.lease.list with no lease store")
+	// The code alone cannot tell this refusal from coord's own ErrClosed on a
+	// nil store, which maps to the same code and explains nothing. The
+	// sentence naming the cause is what the guard exists for.
+	if !strings.Contains(err.Error(), "unnamed estate") {
+		t.Errorf("the refusal does not name the cause: %v", err)
+	}
 }

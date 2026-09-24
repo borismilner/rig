@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -146,4 +147,44 @@ func BenchmarkRecordRefs(b *testing.B) {
 			}
 		}
 	})
+}
+
+// ⛔ A BATCH WHOSE ANSWER IS OVER THE PAGE BUDGET IS REFUSED BY NAME, even
+// though it would fit one frame. Without this test the budget check could be
+// removed and every batch under 1 MiB would still pass, because the frame cap
+// only catches what the budget was meant to stop earlier.
+func TestRecordRefsForManyIDsRefusesAnAnswerOverTheBudget(t *testing.T) {
+	sock := upRecordDaemon(t)
+	c := seated(t, sock, "team-lead")
+	ctx := recordCtx(t)
+
+	put := func(id, kind, title string) {
+		t.Helper()
+		if err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
+			Id: id, Kind: kind, Project: "rig", Fields: map[string]string{"title": title},
+		}, &rigv1.RecordPutResponse{}); err != nil {
+			t.Fatalf("rig.record.put(%s): %v", id, err)
+		}
+	}
+	put("rig", "project", "rig")
+	put("R", "requirement", "R")
+	for _, w := range []string{"Wa", "Wb"} {
+		put(w, "work-item", strings.Repeat(w, 1<<10))
+		if err := c.Call(ctx, "rig.record.link", &rigv1.RecordLinkRequest{
+			Src: w, Type: "cites", Dst: "R",
+		}, &rigv1.RecordLinkResponse{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// About 4 KiB per result, 100 results: over the 256 KiB budget and well
+	// under the 1 MiB frame, so only the budget can refuse it.
+	ids := make([]string, 100)
+	for i := range ids {
+		ids[i] = "R"
+	}
+	err := c.Call(ctx, "rig.record.refs", &rigv1.RecordRefsRequest{Ids: ids}, &rigv1.RecordRefsResponse{})
+	wantCode(t, err, rigv1.Code_CODE_INVALID, "a batch over the budget")
+	if !strings.Contains(err.Error(), "budget") {
+		t.Errorf("the refusal does not name the budget: %v", err)
+	}
 }
