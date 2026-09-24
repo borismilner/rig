@@ -51,6 +51,10 @@ jobs:
 
       - name: make lint
         run: make lint
+      - name: install buf
+        run: go install github.com/bufbuild/buf/cmd/buf@v1.57.0
+      - name: make proto-check
+        run: make proto-check
 
       - name: make modules-matrix
         run: make modules-matrix

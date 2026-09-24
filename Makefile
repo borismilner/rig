@@ -498,6 +498,14 @@ proto: ## Generate Go from proto/
 	  proto/rig/v1/wire.proto proto/rig/v1/registry.proto proto/rig/v1/verbs.proto
 	gofmt -s -w proto/
 
+# BUF_AGAINST is what the wire must stay compatible with. main by default;
+# a release check passes the last tag.
+BUF_AGAINST ?= .git\#branch=main
+
+proto-check: ## buf lint, and buf breaking against $(BUF_AGAINST) (needs buf)
+	buf lint
+	buf breaking --against '$(BUF_AGAINST)'
+
 schema: ## Emit the declaration JSON Schema from the proto descriptors
 	go run ./cmd/schemagen -out schema/
 
@@ -734,7 +742,7 @@ help: ## Show this help
 .PHONY: build build-rigd build-rig build-fakeapp build-ledger build-abacus build-lantern deps-frontend build-frontend build-rigwindow build-all install uninstall \
         run dev clean test test-unit test-race \
         test-chaos test-e2e test-wire fuzz cover cover-html lint lint-house fmt vet audit \
-        vet-window test-window verify contrast contrast-selftest contrast-window theme-gate generate proto schema types docs bench bench-ipc profile \
+        vet-window test-window verify contrast contrast-selftest contrast-window theme-gate generate proto proto-check schema types docs bench bench-ipc profile \
         up down doctor apps logs tui tidy deps-check release package ci fmt-check \
         bench-idle bench-scale bench-size bench-size-update bench-size-one build-minimal \
         bench-size-window bench-size-window-update \

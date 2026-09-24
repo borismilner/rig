@@ -1,0 +1,24 @@
+# buf's lint and breaking-change checks for rig's wire (make proto-check).
+#
+# protoc, not buf, still GENERATES the code (Makefile `proto`); buf only
+# checks. Two STANDARD lint rules are excepted, each for a recorded reason:
+#
+#   PACKAGE_DIRECTORY_MATCH  the proto root is the repository root, because
+#                            the source path is embedded in the descriptor
+#                            and the Makefile generates with -I . on purpose
+#   PACKAGE_SAME_GO_PACKAGE  rig.v1 is split into three Go packages by door
+#                            so a program links only the handshake; the proto
+#                            package and the bytes on the wire are one
+#
+# Breaking changes are checked at WIRE_JSON: field numbers, types and JSON
+# names, which is everything a peer or a --json reader depends on. Moving a
+# message between files is deliberately not a break.
+version: v2
+modules:
+  - path: .
+    includes: [proto]
+lint:
+  use: [STANDARD]
+  except: [PACKAGE_DIRECTORY_MATCH, PACKAGE_SAME_GO_PACKAGE]
+breaking:
+  use: [WIRE_JSON]
