@@ -26,7 +26,7 @@ import (
 // upLeaseDaemon stands up a named estate with its lease store, the way rigd
 // does: the store is opened once, outside the daemon, and handed in with its
 // epoch.
-func upLeaseDaemon(t *testing.T) (string, *coord.Store) {
+func upLeaseDaemon(t testing.TB) (string, *coord.Store) {
 	t.Helper()
 	const estate = "leasewire"
 	dir, err := os.MkdirTemp("", "rigl")

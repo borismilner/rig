@@ -334,10 +334,19 @@ test-e2e: ## Drive the real window and TUI (Playwright + teatest)
 test-wire: ## Golden-wire: last release's binary against HEAD
 	go test -run TestGoldenWire -count=1 ./internal/wire/...
 
-fuzz: ## Fuzz the registration parser, schemas and frame codec for $(FUZZ_TIME) each
-	@for t in FuzzRegistration FuzzSchema FuzzFrame; do \
-	  echo "  $$t"; go test -run=NONE -fuzz=$$t -fuzztime=$(FUZZ_TIME) ./internal/... ; \
+# One package per `go test -fuzz`, because Go refuses -fuzz over several: the
+# old loop passed ./internal/... and named FuzzRegistration and FuzzSchema,
+# which have never been written, so it could not run at all.
+FUZZ_TARGETS := internal/wire:FuzzFrame internal/daemon:FuzzRecordRefsIDs \
+                internal/daemon:FuzzLeaseText internal/daemon:FuzzRawPayload
+
+fuzz: ## Fuzz the frame codec and the new request paths for $(FUZZ_TIME) each
+	@for pt in $(FUZZ_TARGETS); do \
+	  pkg=$${pt%%:*}; t=$${pt##*:}; echo "  $$t ($$pkg)"; \
+	  go test -run=NONE -fuzz="^$$t\$$" -fuzztime=$(FUZZ_TIME) ./$$pkg || exit 1; \
 	done
+	@echo "  not written yet, and plan/20 lists them: the registration parser,"
+	@echo "  JSON Schema inputs and the postMessage bridge (fuzz corpora are M14)"
 
 cover: ## Run tests with coverage and fail below $(COVER_MIN)%
 	@mkdir -p build
