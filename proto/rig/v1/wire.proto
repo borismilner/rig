@@ -1311,6 +1311,19 @@ message RecordRefsRequest {
   // with serves only the default, so "correlated" would stop at the project
   // boundary for every agent, permanently and silently.
   bool cross_project = 3;
+
+  // ⛔ MANY SUBJECTS IN ONE CALL, EACH ANSWERED AS IF ASKED ALONE. plan/48:
+  // a derivation that needs what points at each of 220 records makes 220
+  // INDEPENDENT lookups, and a verb that takes one id cannot let it say so -
+  // it pays a round trip per subject. Set this OR `id`, never both; `depth`
+  // and `cross_project` apply to every subject. The answer is `results`, one
+  // per id in the order asked.
+  //
+  // IT FAILS WHOLE. An id that does not exist refuses the call naming it, as
+  // the one-id form does, rather than answering a list with a hole a reader
+  // could mistake for "nothing points here". The number of ids is bounded and
+  // an answer too large for one frame is refused by name, never truncated.
+  repeated string ids = 4;
 }
 
 // Ref is one edge arriving at the record that was asked about.
@@ -1483,6 +1496,11 @@ message RecordRefsResponse {
   // reported, ordered around, NEVER resolved - rig does not pick an edge to
   // break, because choosing which one is wrong is a judgement about the work.
   repeated Cycle cycles = 5;
+
+  // One answer per id, in the order asked, when the request carried `ids`.
+  // Each is exactly what the one-id form answers for that id. Empty for a
+  // one-id request, whose answer is the fields above.
+  repeated RecordRefsResponse results = 6;
 }
 
 // Cycle is one cycle, naming its items. A bare bool cannot be acted on.

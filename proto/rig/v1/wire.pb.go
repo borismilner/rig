@@ -5061,7 +5061,19 @@ type RecordRefsRequest struct {
 	// crossing is "asked for, never arrived at". A wire with no field to ask
 	// with serves only the default, so "correlated" would stop at the project
 	// boundary for every agent, permanently and silently.
-	CrossProject  bool `protobuf:"varint,3,opt,name=cross_project,json=crossProject,proto3" json:"cross_project,omitempty"`
+	CrossProject bool `protobuf:"varint,3,opt,name=cross_project,json=crossProject,proto3" json:"cross_project,omitempty"`
+	// ⛔ MANY SUBJECTS IN ONE CALL, EACH ANSWERED AS IF ASKED ALONE. plan/48:
+	// a derivation that needs what points at each of 220 records makes 220
+	// INDEPENDENT lookups, and a verb that takes one id cannot let it say so -
+	// it pays a round trip per subject. Set this OR `id`, never both; `depth`
+	// and `cross_project` apply to every subject. The answer is `results`, one
+	// per id in the order asked.
+	//
+	// IT FAILS WHOLE. An id that does not exist refuses the call naming it, as
+	// the one-id form does, rather than answering a list with a hole a reader
+	// could mistake for "nothing points here". The number of ids is bounded and
+	// an answer too large for one frame is refused by name, never truncated.
+	Ids           []string `protobuf:"bytes,4,rep,name=ids,proto3" json:"ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5115,6 +5127,13 @@ func (x *RecordRefsRequest) GetCrossProject() bool {
 		return x.CrossProject
 	}
 	return false
+}
+
+func (x *RecordRefsRequest) GetIds() []string {
+	if x != nil {
+		return x.Ids
+	}
+	return nil
 }
 
 // Ref is one edge arriving at the record that was asked about.
@@ -5729,7 +5748,11 @@ type RecordRefsResponse struct {
 	// Any cycle the walk crossed, each naming its items. Section 39: detected,
 	// reported, ordered around, NEVER resolved - rig does not pick an edge to
 	// break, because choosing which one is wrong is a judgement about the work.
-	Cycles        []*Cycle `protobuf:"bytes,5,rep,name=cycles,proto3" json:"cycles,omitempty"`
+	Cycles []*Cycle `protobuf:"bytes,5,rep,name=cycles,proto3" json:"cycles,omitempty"`
+	// One answer per id, in the order asked, when the request carried `ids`.
+	// Each is exactly what the one-id form answers for that id. Empty for a
+	// one-id request, whose answer is the fields above.
+	Results       []*RecordRefsResponse `protobuf:"bytes,6,rep,name=results,proto3" json:"results,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5795,6 +5818,13 @@ func (x *RecordRefsResponse) GetTruncated() bool {
 func (x *RecordRefsResponse) GetCycles() []*Cycle {
 	if x != nil {
 		return x.Cycles
+	}
+	return nil
+}
+
+func (x *RecordRefsResponse) GetResults() []*RecordRefsResponse {
+	if x != nil {
+		return x.Results
 	}
 	return nil
 }
@@ -7836,11 +7866,12 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x03src\x18\x01 \x01(\tR\x03src\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x10\n" +
 	"\x03dst\x18\x03 \x01(\tR\x03dst\"\x16\n" +
-	"\x14RecordUnlinkResponse\"^\n" +
+	"\x14RecordUnlinkResponse\"p\n" +
 	"\x11RecordRefsRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05depth\x18\x02 \x01(\rR\x05depth\x12#\n" +
-	"\rcross_project\x18\x03 \x01(\bR\fcrossProject\"\x83\x01\n" +
+	"\rcross_project\x18\x03 \x01(\bR\fcrossProject\x12\x10\n" +
+	"\x03ids\x18\x04 \x03(\tR\x03ids\"\x83\x01\n" +
 	"\x03Ref\x12\x10\n" +
 	"\x03src\x18\x01 \x01(\tR\x03src\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x1a\n" +
@@ -7880,13 +7911,14 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\adropped\x18\x05 \x03(\v2\f.rig.v1.EdgeR\adropped\x122\n" +
 	"\n" +
 	"retraction\x18\x06 \x01(\v2\x12.rig.v1.RetractionR\n" +
-	"retraction\"\xa0\x01\n" +
+	"retraction\"\xd6\x01\n" +
 	"\x12RecordRefsResponse\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05depth\x18\x02 \x01(\rR\x05depth\x12\x1f\n" +
 	"\x04refs\x18\x03 \x03(\v2\v.rig.v1.RefR\x04refs\x12\x1c\n" +
 	"\ttruncated\x18\x04 \x01(\bR\ttruncated\x12%\n" +
-	"\x06cycles\x18\x05 \x03(\v2\r.rig.v1.CycleR\x06cycles\"\x1d\n" +
+	"\x06cycles\x18\x05 \x03(\v2\r.rig.v1.CycleR\x06cycles\x124\n" +
+	"\aresults\x18\x06 \x03(\v2\x1a.rig.v1.RecordRefsResponseR\aresults\"\x1d\n" +
 	"\x05Cycle\x12\x14\n" +
 	"\x05items\x18\x01 \x03(\tR\x05items\"v\n" +
 	"\x13ProgressStepRequest\x12\x12\n" +
@@ -8282,35 +8314,36 @@ var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	60,  // 47: rig.v1.RecordReplaceResponse.retraction:type_name -> rig.v1.Retraction
 	74,  // 48: rig.v1.RecordRefsResponse.refs:type_name -> rig.v1.Ref
 	83,  // 49: rig.v1.RecordRefsResponse.cycles:type_name -> rig.v1.Cycle
-	12,  // 50: rig.v1.ProgressStepRequest.state:type_name -> rig.v1.StepState
-	59,  // 51: rig.v1.ProgressStepResponse.step:type_name -> rig.v1.Record
-	12,  // 52: rig.v1.ItemState.state:type_name -> rig.v1.StepState
-	12,  // 53: rig.v1.Blocker.state:type_name -> rig.v1.StepState
-	87,  // 54: rig.v1.Blockage.blockers:type_name -> rig.v1.Blocker
-	14,  // 55: rig.v1.BriefSectionStatus.section:type_name -> rig.v1.BriefSection
-	15,  // 56: rig.v1.BriefSectionStatus.state:type_name -> rig.v1.SectionState
-	58,  // 57: rig.v1.BriefNote.prov:type_name -> rig.v1.Provenance
-	86,  // 58: rig.v1.ProjectBriefResponse.open:type_name -> rig.v1.ItemState
-	86,  // 59: rig.v1.ProjectBriefResponse.next_up:type_name -> rig.v1.ItemState
-	88,  // 60: rig.v1.ProjectBriefResponse.blocked:type_name -> rig.v1.Blockage
-	83,  // 61: rig.v1.ProjectBriefResponse.cycles:type_name -> rig.v1.Cycle
-	91,  // 62: rig.v1.ProjectBriefResponse.notes:type_name -> rig.v1.BriefNote
-	92,  // 63: rig.v1.ProjectBriefResponse.drift:type_name -> rig.v1.Drift
-	95,  // 64: rig.v1.ProjectBriefResponse.health:type_name -> rig.v1.BriefHealth
-	93,  // 65: rig.v1.ProjectBriefResponse.features:type_name -> rig.v1.Feature
-	94,  // 66: rig.v1.ProjectBriefResponse.feature_stages:type_name -> rig.v1.StageCount
-	91,  // 67: rig.v1.ProjectBriefResponse.case_notes:type_name -> rig.v1.BriefNote
-	90,  // 68: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
-	96,  // 69: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
-	97,  // 70: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
-	6,   // 71: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
-	98,  // 72: rig.v1.ProjectBriefResponse.closed:type_name -> rig.v1.ClosedItem
-	99,  // 73: rig.v1.ProjectBriefResponse.closed_counts:type_name -> rig.v1.WordCount
-	74,  // [74:74] is the sub-list for method output_type
-	74,  // [74:74] is the sub-list for method input_type
-	74,  // [74:74] is the sub-list for extension type_name
-	74,  // [74:74] is the sub-list for extension extendee
-	0,   // [0:74] is the sub-list for field type_name
+	82,  // 50: rig.v1.RecordRefsResponse.results:type_name -> rig.v1.RecordRefsResponse
+	12,  // 51: rig.v1.ProgressStepRequest.state:type_name -> rig.v1.StepState
+	59,  // 52: rig.v1.ProgressStepResponse.step:type_name -> rig.v1.Record
+	12,  // 53: rig.v1.ItemState.state:type_name -> rig.v1.StepState
+	12,  // 54: rig.v1.Blocker.state:type_name -> rig.v1.StepState
+	87,  // 55: rig.v1.Blockage.blockers:type_name -> rig.v1.Blocker
+	14,  // 56: rig.v1.BriefSectionStatus.section:type_name -> rig.v1.BriefSection
+	15,  // 57: rig.v1.BriefSectionStatus.state:type_name -> rig.v1.SectionState
+	58,  // 58: rig.v1.BriefNote.prov:type_name -> rig.v1.Provenance
+	86,  // 59: rig.v1.ProjectBriefResponse.open:type_name -> rig.v1.ItemState
+	86,  // 60: rig.v1.ProjectBriefResponse.next_up:type_name -> rig.v1.ItemState
+	88,  // 61: rig.v1.ProjectBriefResponse.blocked:type_name -> rig.v1.Blockage
+	83,  // 62: rig.v1.ProjectBriefResponse.cycles:type_name -> rig.v1.Cycle
+	91,  // 63: rig.v1.ProjectBriefResponse.notes:type_name -> rig.v1.BriefNote
+	92,  // 64: rig.v1.ProjectBriefResponse.drift:type_name -> rig.v1.Drift
+	95,  // 65: rig.v1.ProjectBriefResponse.health:type_name -> rig.v1.BriefHealth
+	93,  // 66: rig.v1.ProjectBriefResponse.features:type_name -> rig.v1.Feature
+	94,  // 67: rig.v1.ProjectBriefResponse.feature_stages:type_name -> rig.v1.StageCount
+	91,  // 68: rig.v1.ProjectBriefResponse.case_notes:type_name -> rig.v1.BriefNote
+	90,  // 69: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
+	96,  // 70: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
+	97,  // 71: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
+	6,   // 72: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
+	98,  // 73: rig.v1.ProjectBriefResponse.closed:type_name -> rig.v1.ClosedItem
+	99,  // 74: rig.v1.ProjectBriefResponse.closed_counts:type_name -> rig.v1.WordCount
+	75,  // [75:75] is the sub-list for method output_type
+	75,  // [75:75] is the sub-list for method input_type
+	75,  // [75:75] is the sub-list for extension type_name
+	75,  // [75:75] is the sub-list for extension extendee
+	0,   // [0:75] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_wire_proto_init() }

@@ -31,7 +31,7 @@ import (
 // paths.EstateStateDir(name), so an unnamed estate has nowhere to put a record
 // and the verbs refuse. XDG_STATE_HOME is redirected so the test never touches
 // the developer's own record.
-func upRecordDaemon(t *testing.T) string {
+func upRecordDaemon(t testing.TB) string {
 	const estate = "recordwire"
 	t.Helper()
 	// Short, deliberately: sun_path is 108 bytes and t.TempDir under a long

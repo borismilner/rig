@@ -2119,6 +2119,10 @@ func refsJSON(r Refs) map[string]any {
 		// nobody's parser has a branch for at the moment it first appears.
 		"truncated": r.Truncated,
 		"cycles":    cycles,
+		// The wire's many-id answer. This client asks about one id, and for
+		// a one-id request the wire's `results` is empty by definition, so
+		// the key is present and empty rather than absent.
+		"results": []map[string]any{},
 	}
 }
 

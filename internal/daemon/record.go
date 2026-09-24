@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os/user"
 	"strconv"
 
@@ -541,8 +542,74 @@ func (d *Daemon) serveRecordRefs(ctx context.Context, c *conn, f *rigv1.Frame, s
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.refs: "+err.Error())
 		return
 	}
+	if len(req.GetIds()) > 0 {
+		d.serveRecordRefsMany(ctx, c, f, st, &req)
+		return
+	}
+	resp, err := refsFor(ctx, st, req.GetId(), &req)
+	if err != nil {
+		c.failErr(f.GetStreamId(), recordCode(err), err)
+		return
+	}
+	c.reply(f.GetStreamId(), resp)
+}
+
+// maxRefsIDs bounds the subjects one record.refs call may name.
+//
+// plan/48's case is 220 lookups for one brief, so the bound admits it with
+// room. Above it the call is REFUSED BY NAME, never clamped, for the reason
+// the depth is: a caller that asked about 400 and heard about 256 has an
+// answer that looks complete.
+const maxRefsIDs = 256
+
+// serveRecordRefsMany answers record.refs for many subjects in one round trip.
+//
+// Each subject is walked exactly as the one-id form walks it, through the same
+// conversion, so the two forms cannot answer one id differently. It fails
+// whole: an unknown id refuses the call naming it.
+//
+// ⛔ AN ANSWER TOO LARGE FOR A FRAME IS REFUSED BEFORE IT IS SENT. A reply
+// over wire.MaxFrameSize is not delivered at all - the write fails and the
+// caller waits out its deadline with nothing said - so the size is measured
+// here against the budget record.query pages by, and a batch over it is told
+// to ask for fewer.
+func (d *Daemon) serveRecordRefsMany(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store, req *rigv1.RecordRefsRequest) {
+	if req.GetId() != "" {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID,
+			"record.refs: set id or ids, not both; ids answers every subject it names")
+		return
+	}
+	if n := len(req.GetIds()); n > maxRefsIDs {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, fmt.Sprintf(
+			"record.refs: %d ids is above the cap of %d; ask in batches of %d "+
+				"or fewer, because a batch silently cut at the cap would look complete",
+			n, maxRefsIDs, maxRefsIDs))
+		return
+	}
+	out := &rigv1.RecordRefsResponse{}
+	for _, id := range req.GetIds() {
+		one, err := refsFor(ctx, st, id, req)
+		if err != nil {
+			c.failErr(f.GetStreamId(), recordCode(err), err)
+			return
+		}
+		out.Results = append(out.Results, one)
+	}
+	if size := proto.Size(out); size > RecordPageBudget {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, fmt.Sprintf(
+			"record.refs: the answer for %d ids is %d bytes, over the %d-byte "+
+				"budget one frame can carry; ask for fewer ids per call",
+			len(req.GetIds()), size, RecordPageBudget))
+		return
+	}
+	c.reply(f.GetStreamId(), out)
+}
+
+// refsFor walks one subject and renders it for the wire. Both forms of
+// record.refs answer through it.
+func refsFor(ctx context.Context, st *record.Store, id string, req *rigv1.RecordRefsRequest) (*rigv1.RecordRefsResponse, error) {
 	refs, err := st.Refs(ctx, record.RefsRequest{
-		ID: req.GetId(),
+		ID: id,
 		// The store reads zero as its own default and says which depth it
 		// actually served, so the conversion carries the zero through rather
 		// than substituting a number here - two places deciding one default is
@@ -551,8 +618,7 @@ func (d *Daemon) serveRecordRefs(ctx context.Context, c *conn, f *rigv1.Frame, s
 		CrossProject: req.GetCrossProject(),
 	})
 	if err != nil {
-		c.failErr(f.GetStreamId(), recordCode(err), err)
-		return
+		return nil, err
 	}
 
 	// ⛔ THE DEPTH ANSWERED IS DERIVED HERE BECAUSE record.Refs DOES NOT REPORT
@@ -603,7 +669,7 @@ func (d *Daemon) serveRecordRefs(ctx context.Context, c *conn, f *rigv1.Frame, s
 	for _, cy := range refs.Cycles {
 		resp.Cycles = append(resp.Cycles, &rigv1.Cycle{Items: cy})
 	}
-	c.reply(f.GetStreamId(), resp)
+	return resp, nil
 }
 
 // refuseProjectBrief answers the verb rig no longer carries.
