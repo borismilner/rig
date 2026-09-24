@@ -321,13 +321,16 @@
     color: var(--fg);
   }
 
-  /* ⛔ THE ONE LOUD FIGURE, AND IT IS THE ZERO. Requirement 15 makes an
-     honest ugly reading the job and a flattering one a failure, so the
-     number that carries the finding is the one that gets the hue - the same
-     treatment and the same token PlanVsExec already gives it, so the two
-     surfaces cannot disagree about which number matters. Amber is the warn
-     member: section 11's rule is that a hue appears only when something
-     wants you, and this is the thing that wants him. */
+  /* ⛔ THE LOUD FIGURE, AND NOTHING CLAIMS IT ON THIS PAGE TODAY. Requirement
+     15 makes an honest ugly reading the job and a flattering one a failure,
+     so the number that carries the finding is the one that gets the hue.
+     The figure that used to claim it was "with any step recorded", which
+     left at plan/50 move 7 with the rest of the planner's views; the rule
+     and the token stay because the next figure that carries a finding takes
+     them, and because the planner's own pane draws the same reading with the
+     same token, so the two surfaces cannot disagree about which number
+     matters. Amber is the warn member: section 11's rule is that a hue
+     appears only when something wants you. */
   .fn.loud {
     color: var(--sem-warn);
   }
