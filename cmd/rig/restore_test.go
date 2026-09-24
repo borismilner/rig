@@ -53,7 +53,7 @@ func manifest() backup.Manifest {
 func restoreResult() backup.RestoreResult {
 	return backup.RestoreResult{
 		Manifest: manifest(),
-		Dir:      "/home/x/.local/state/rig/estates/b",
+		Dir:      "/home/x/.local/state/rig/estates/development",
 	}
 }
 
@@ -321,14 +321,14 @@ func TestEveryTypedRestoreFailureGetsItsOwnRefusalRatherThanTheGenericOne(t *tes
 // reassuring answer rather than the useful one, so it ends with the two
 // commands to run and the number to expect.
 func TestTheRestoreRenderingEndsWithTheCheckToRun(t *testing.T) {
-	got := restoreText("b", restoreResult())
+	got := restoreText("development", restoreResult())
 
 	for _, want := range []string{
-		"estate    b",
-		"at        /home/x/.local/state/rig/estates/b",
+		"estate    development",
+		"at        /home/x/.local/state/rig/estates/development",
 		"heads     17",
 		"records   22",
-		"rigd --estate b",
+		"rigd --estate development",
 		"expect \"17 records\"",
 	} {
 		if !strings.Contains(got, want) {
@@ -349,9 +349,9 @@ func TestTheRestoreRenderingEndsWithTheCheckToRun(t *testing.T) {
 // back, and the moment it is only in a log it is effectively gone.
 func TestAForcedRestorePrintsHowToUndoItself(t *testing.T) {
 	res := restoreResult()
-	res.Replaced = "/home/x/.local/state/rig/estates/b.replaced-20260924T101112Z"
+	res.Replaced = "/home/x/.local/state/rig/estates/development.replaced-20260924T101112Z"
 
-	got := restoreText("b", res)
+	got := restoreText("development", res)
 	if !strings.Contains(got, res.Replaced) {
 		t.Errorf("the rendering does not print where the old state went:\n%s", got)
 	}
@@ -407,11 +407,11 @@ func TestTheRestoreObjectCarriesEveryFieldOnEveryAnswer(t *testing.T) {
 
 	// And it must actually encode: a map[string]any holding an unencodable
 	// value is a runtime failure on the one path a caller parses.
-	b, err := json.Marshal(restoreJSON("b", restoreResult()))
+	b, err := json.Marshal(restoreJSON("development", restoreResult()))
 	if err != nil {
 		t.Fatalf("the --json object does not encode: %v", err)
 	}
-	for _, want := range []string{`"estate":"b"`, `"heads":17`, `"from_estate":"a"`} {
+	for _, want := range []string{`"estate":"development"`, `"heads":17`, `"from_estate":"a"`} {
 		if !strings.Contains(string(b), want) {
 			t.Errorf("the encoded object has no %s in it: %s", want, b)
 		}

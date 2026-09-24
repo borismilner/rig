@@ -81,9 +81,17 @@ var updateGolden = flag.Bool("update", false,
 var rigBin string
 
 func TestMain(m *testing.M) {
+	// Private state and runtime roots for the whole package, before any test
+	// resolves either; isolation_test.go says what was measured.
+	unisolate, err := isolateRoots()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "exec test: %v\n", err)
+		os.Exit(1)
+	}
 	dir, err := os.MkdirTemp("", "rigexec")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "exec test: no temp dir: %v\n", err)
+		unisolate()
 		os.Exit(1)
 	}
 	rigBin = filepath.Join(dir, "rig")
@@ -100,6 +108,7 @@ func TestMain(m *testing.M) {
 
 	code := m.Run()
 	os.RemoveAll(dir)
+	unisolate()
 	os.Exit(code)
 }
 
