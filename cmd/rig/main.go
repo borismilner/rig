@@ -99,7 +99,9 @@ var valuedFlags = map[string]bool{
 	"timeout": true,
 	// rig knowledge (section 40).
 	"limit": true, "title": true, "summary": true, "tag": true,
-	"depth": true,
+	// rig queue (section 16).
+	"payload": true,
+	"depth":   true,
 
 	// Section 39's record verbs. Every one of these is a flag `rig record`,
 	// `rig progress` or `rig brief` declares as a non-boolean, and a missing
@@ -179,6 +181,7 @@ func usage() {
   estate           which estate this shell reached, and what it is for
   peers            who else is here, what each is for and what each is doing
   knowledge <cmd>  lessons other sessions learned: search, get, add
+  queue <cmd>      claimable work queues: push, list
   record <cmd>     the continuity record: put, get, query, history, link,
                    unlink, refs, retract, delete, replace
   progress step <item>
@@ -213,6 +216,7 @@ program declared, so they list what it actually has.
 var plainVerbs = map[string]func([]string) error{
 	"peers":     cmdPeers,
 	"knowledge": cmdKnowledge,
+	"queue":     cmdQueue,
 }
 
 // verbAt is the index of the command word, so rig's own flags may come BEFORE
@@ -293,7 +297,7 @@ func run(args []string) error {
 		// It also happens to be the honest shape: `plan/46` specifies one
 		// capability with two halves, and this is its single seam into run.
 		return cmdBackupOrRestore(args[0], with(args[1:], lead))
-	case "peers", "knowledge":
+	case "peers", "knowledge", "queue":
 		return plainVerbs[args[0]](with(args[1:], lead))
 	case "record":
 		return cmdRecord(with(args[1:], lead))
