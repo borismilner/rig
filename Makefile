@@ -462,10 +462,8 @@ contrast-selftest: ## Prove the contrast instruments against known answers first
 
 ##@ Generate
 
-# There is no `docs` step. It ran `rig docs --out docs/cli.md`, a verb that
-# never existed and that no section of the plan specifies, so `make generate`
-# failed at its last step. The capability map it also named is served live as
-# the MCP `capabilities` resource and is not a file to regenerate.
+# `docs` is NOT a step of generate: it names a `rig docs` verb that has never
+# existed, and as a step it made `make generate` fail at its last target.
 generate: proto schema types ## Regenerate everything that is generated
 
 proto: ## Generate Go from proto/
@@ -494,6 +492,17 @@ schema-check: ## Fail if the committed schema is not what schemagen emits
 
 types: schema ## Generate TypeScript types from the JSON Schemas
 	cd frontend && npm run gen:types
+
+# plan/28 lists `docs` in the Generate group, so the target stays and says it
+# is not built rather than disappearing. What it named, `rig docs --out
+# docs/cli.md`, never existed; the capability map it also named is served live
+# as the MCP `capabilities` resource.
+docs: ## NOT YET: `rig docs` does not exist (plan/28 lists the target)
+	@echo 'make docs: not implemented. It named `rig docs --out docs/cli.md`, a'
+	@echo '  verb no commit has ever added. plan/28 lists the target and no'
+	@echo '  section specifies what the reference contains. The capability map'
+	@echo '  is served live as the MCP `capabilities` resource.'
+	@exit 1
 
 ##@ Measure
 
@@ -701,7 +710,7 @@ help: ## Show this help
 .PHONY: build build-rigd build-rig build-fakeapp build-ledger build-abacus deps-frontend build-frontend build-rigwindow build-all install uninstall \
         run dev clean test test-unit test-race \
         test-chaos test-e2e test-wire fuzz cover cover-html lint lint-house fmt vet audit \
-        vet-window test-window verify contrast contrast-selftest contrast-window theme-gate generate proto schema types bench bench-ipc profile \
+        vet-window test-window verify contrast contrast-selftest contrast-window theme-gate generate proto schema types docs bench bench-ipc profile \
         up down doctor apps logs tui tidy deps-check release package ci fmt-check \
         bench-idle bench-scale bench-size bench-size-update bench-size-one build-minimal \
         bench-size-window bench-size-window-update \
