@@ -228,6 +228,26 @@ At a terminal: `rig queue push <queue> <key> [--payload P]` and
 `rig queue list [<queue>]`. There is no `rig queue claim`, because the claim
 would be witnessed by a process that exits as soon as it prints.
 
+## Fencing tokens
+
+Every grant of a lease carries a token that is monotonic per lease: each new
+holder gets a higher one, and a released lease keeps its count. A writer
+holding a lease hands its token to the resource it writes to, and the
+resource asks rig whether that token is still current before accepting:
+
+| method | request | answer |
+|---|---|---|
+| `rig.lease.check` | `name`, `token` | `current`, and the lease as it stands |
+
+A token is current while the lease carries it and is held or orphaned, so
+nobody else has been granted it since. Once the lease is released, broken,
+freed because its holder was observed dead, or granted again, the token is
+not current, and it never becomes current again. A stale token is an answer
+(`current: false`), not an error, and the check needs no seat.
+
+This protects only resources that ask. rig cannot stop a write to something
+that never checks, such as git, a deploy or a VM (PLAN.md section 16).
+
 ## Agents
 
 Nothing extra is needed: every declared command reaches agents through rig's
