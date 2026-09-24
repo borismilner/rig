@@ -158,7 +158,13 @@ deps-frontend: ## Install the frontend's pinned dependencies from the lockfile
 	# workflow step is a second definition of how this repo installs.
 	cd frontend && npm ci
 
-build-frontend: ## Build the window's frontend into cmd/rigwindow/dist
+# The lockfile's stamp inside node_modules: a fresh clone or worktree has no
+# node_modules, and `vite: not found` was the first thing a redeploy from one
+# said (2026-09-24). npm ci runs again only when the lockfile moves.
+frontend/node_modules/.package-lock.json: frontend/package-lock.json
+	cd frontend && npm ci
+
+build-frontend: frontend/node_modules/.package-lock.json ## Build the window's frontend into cmd/rigwindow/dist
 	@find cmd/rigwindow/dist -mindepth 1 ! -name .gitkeep -delete
 	cd frontend && npm run build
 
@@ -292,6 +298,31 @@ redeploy: build build-rigwindow ## Build and redeploy EVERYTHING live - daemon, 
 	@echo
 	@echo "NOT TOUCHED, on purpose - each is a separate deployment:"
 	@echo "    rig-team.service, and any daemon on a private XDG_RUNTIME_DIR"
+
+# deploy is the one command to remember (Boris, 2026-09-24: "make sure there is
+# a make command that deploys the latest and the greatest so that I don't
+# need to remember to deploy every part on its own"). It is redeploy with the
+# two checks a person forgets: that this tree IS the latest (origin/main, and
+# nothing uncommitted), and afterwards that every live part answers with the
+# version just built. FORCE=1 deploys a tree that is not origin/main.
+deploy: ## THE deploy: latest main, every part (daemon, client, window, tray), verified live
+	@git fetch -q origin main 2>/dev/null || echo "  (could not reach origin; checking against the last fetch)"
+	@if [ -n "$$(git status --porcelain --untracked-files=no)" ] && [ -z "$(FORCE)" ]; then \
+	  echo "this tree has uncommitted changes, so it is not the latest main. Commit, or FORCE=1."; exit 1; fi
+	@if [ "$$(git rev-parse HEAD)" != "$$(git rev-parse origin/main)" ] && [ -z "$(FORCE)" ]; then \
+	  echo "HEAD $$(git rev-parse --short HEAD) is not origin/main $$(git rev-parse --short origin/main)."; \
+	  echo "  git switch main && git pull --ff-only, then make deploy again (or FORCE=1)."; exit 1; fi
+	@$(MAKE) --no-print-directory redeploy
+	@echo
+	@echo "  Verifying what is live now, not what was copied:"
+	@live=$$($(PREFIX)/bin/$(BIN) estate 2>/dev/null | awk '/^daemon/ {print $$2}'); \
+	  if [ "$$live" = "$(VERSION)" ]; then echo "    rigd       $$live"; \
+	  else echo "    rigd answers $$live, not $(VERSION): the deploy did NOT take"; exit 1; fi
+	@$(PREFIX)/bin/$(BIN) version 2>/dev/null | awk '/^product/ {print "    rig        " $$2}'
+	@$(PREFIX)/bin/rigwindow --version 2>/dev/null | awk '/^product/ {print "    rigwindow  " $$2}'
+	@systemctl --user is-active --quiet rigwindow.service && echo "    tray       running" || \
+	  { echo "    rigwindow.service is not running"; exit 1; }
+	@echo "  deployed $(VERSION)."
 
 uninstall: ## Remove the installed binaries and the user service
 	-@systemctl --user disable --now $(BIND).service 2>/dev/null || true
@@ -743,7 +774,7 @@ help: ## Show this help
 	  /^[a-zA-Z_-]+:.*##/ {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo
 
-.PHONY: build build-rigd build-rig build-fakeapp build-ledger build-abacus build-lantern deps-frontend build-frontend build-rigwindow build-all install uninstall \
+.PHONY: build build-rigd build-rig build-fakeapp build-ledger build-abacus build-lantern deps-frontend build-frontend build-rigwindow build-all install deploy uninstall \
         run dev clean test test-unit test-race \
         test-chaos test-e2e test-wire fuzz cover cover-html lint lint-house fmt vet audit \
         vet-window test-window verify contrast contrast-selftest contrast-window theme-gate generate proto proto-check schema types docs bench bench-ipc profile \
