@@ -238,10 +238,10 @@ func (RigService) Deployment() Deployment {
 // itself cannot be compared, and reporting that as a skew would send a person
 // to reinstall a window that is already correct.
 func deploymentVerdict(daemonVersion, windowVersion string) (bool, string) {
-	switch {
-	case daemonVersion == "":
+	switch daemonVersion {
+	case "":
 		return false, "this daemon does not report a version, so the two cannot be compared."
-	case daemonVersion == windowVersion:
+	case windowVersion:
 		return true, "the daemon and the window are the same build."
 	default:
 		return false, "THE WINDOW AND THE DAEMON ARE DIFFERENT BUILDS. " +
