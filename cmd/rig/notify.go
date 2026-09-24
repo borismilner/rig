@@ -73,8 +73,50 @@ func cmdNotify(args []string) (err error) {
 	if *n.asJSON {
 		return json.NewEncoder(os.Stdout).Encode(map[string]any{
 			"record_id": t.GetRecordId(), "severity": positional[0], "title": t.GetTitle(), "sender": t.GetSender(),
+			"suppressed": t.GetSuppressed(),
 		})
 	}
 	fmt.Printf("%s: %s (filed as %s, from %s)\n", enumLabel(t.GetSeverity().String(), "SEVERITY_"), t.GetTitle(), t.GetRecordId(), t.GetSender())
+	if t.GetSuppressed() {
+		fmt.Println("not shown: do not disturb is on. It is in the record; `rig dnd off` to see toasts again")
+	}
+	return nil
+}
+
+// `rig dnd on|off|status` - section 12's Do Not Disturb. While it is on,
+// notifications are filed in the record and not drawn; urgent ones still are.
+func cmdDND(args []string) (err error) {
+	n := notifyFlagSet()
+	flags, positional := partition(args)
+	if err := n.fs.Parse(flags); err != nil {
+		return err
+	}
+	defer func() { err = inMode(err, *n.asJSON) }()
+	changes := map[string]registryv1.DndChange{
+		"on": registryv1.DndChange_DND_CHANGE_ON, "off": registryv1.DndChange_DND_CHANGE_OFF,
+		"status": registryv1.DndChange_DND_CHANGE_QUERY,
+	}
+	if len(positional) != 1 || changes[positional[0]] == registryv1.DndChange_DND_CHANGE_UNSPECIFIED {
+		return badArgumentf("usage: rig dnd on|off|status")
+	}
+	c, err := connect()
+	if err != nil {
+		return noDaemon(err)
+	}
+	defer c.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), *n.timeout)
+	defer cancel()
+	var resp registryv1.ToastDndResponse
+	if err := call(ctx, c, "rig.toast.dnd", &registryv1.ToastDndRequest{Change: changes[positional[0]]}, &resp); err != nil {
+		return err
+	}
+	if *n.asJSON {
+		return json.NewEncoder(os.Stdout).Encode(map[string]any{"on": resp.GetOn(), "suppressed": resp.GetSuppressed()})
+	}
+	if resp.GetOn() {
+		fmt.Printf("do not disturb is on: %d held back so far, all in the record; urgent still shows\n", resp.GetSuppressed())
+	} else {
+		fmt.Println("do not disturb is off")
+	}
 	return nil
 }
