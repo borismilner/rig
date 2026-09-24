@@ -882,7 +882,8 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	case "record.put", "record.get", "record.query", "record.history",
 		"record.link", "record.unlink", "record.refs",
 		"record.retract", "record.delete", "record.replace",
-		"progress.step", "project.brief":
+		"progress.step", "project.brief",
+		"knowledge.add", "knowledge.search", "knowledge.get":
 		d.serveRecord(ctx, c, f, command)
 
 	// SECTION 16's LEASES, all five through one arm. lease.go has why the

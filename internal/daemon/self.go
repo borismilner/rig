@@ -363,6 +363,22 @@ func selfDeclaration() kernel.Declaration {
 			// record writers make above. None is destructive: a break
 			// refuses a lease still inside its deadline, so it only ever
 			// frees one whose holder has already let it lapse.
+			// SECTION 40's KNOWLEDGE SECTION. Search and get read; add writes a
+			// lesson into the estate's store, a file, so it is a file write on
+			// the record writers' argument.
+			readOnly("knowledge.search", "Knowledge search",
+				"Find lessons other sessions already learned",
+				"Searches the estate's lessons by the words given and answers, best first, a title, a one-line summary and a snippet per hit - never a body, so consulting costs a few hundred bytes. No query syntax is interpreted. Consult it before a deep dive: another session may have done the research.",
+				"Up to 20 hits, best first, each with an id to fetch."),
+			readOnly("knowledge.get", "Knowledge get",
+				"Read one lesson whole",
+				"Answers one lesson by id, body and provenance included. Fetch only the hit that fits.",
+				"The lesson."),
+			leaseWriter("knowledge.add", "Knowledge add", kernel.No,
+				"Write a lesson once, for every agent and person on this estate",
+				"Writes a lesson: a title, a one-line summary that searches show, a body with the detail, and one-word tags. For lessons of great importance to many users, not for every note. Attributed to the caller's seat.",
+				"The lesson as written, with its id."),
+
 			readOnly("lease.list", "Lease list",
 				"Every lease in the estate, with its owner's liveness",
 				"Answers every lease this estate knows about, evaluated now: held, orphaned or free, who holds or last held it, how it is witnessed, whether the witness was observed dead, and whether it needs a recorded break. Expiry is derived on read, never swept.",
