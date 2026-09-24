@@ -108,7 +108,8 @@ prefix on a unix socket. gRPC was measured (+9.8 MiB resident) and rejected.
 | backup and restore | whole-estate archive including the WAL | built | §46 |
 | presence | announce, activity, peers | built | §16 |
 | leases with a liveness witness | TTL leases, pid witness, two-step expiry; `rig.lease.*` on the wire, listed by `rig peers` | built | §16 |
-| fencing, barriers, semaphores, queues, signals, deadlock detection | the rest of the peers service | specified | §16 |
+| claimable work queues | claim under a lease, heartbeat, requeue once the worker is observed dead, mandatory idempotency key, at-least-once; `rig.queue.*`, `rig queue push/list`, `examples/queueworker` | built | §16 |
+| fencing, barriers, semaphores, signals, deadlock detection | the rest of the peers service | specified | §16 |
 | working notes for agents | never lost, tagged, linked, handed back on resume | specified | §9 |
 | knowledge-sharing section | lessons written once, searched with SQLite FTS5 so an agent never reads them whole; `rig.knowledge.*`, `knowledge_*` MCP tools, `rig knowledge` | built | §40 |
 | configuration | layers, schema, provenance, live push | specified (S1 drafted) | §6, §47 |

@@ -38,8 +38,8 @@ resp, err := c.Hello(ctx, &rigv1.Declaration{...})
 
 Import `github.com/borismilner/rig/client` and
 `github.com/borismilner/rig/proto/rig/v1` (package `rigv1`). A program links
-only those two; `proto/rig/v1/registryv1` and `verbsv1` are for rig's own
-verbs and a program never needs them. `examples/greeter` is the complete
+only those two to register and answer; `proto/rig/v1/verbsv1` is for calling
+rig's own verbs, such as the lessons and queues below. `examples/greeter` is the complete
 program, about 150 lines with comments.
 
 Set the handler before `Hello`, or a request can arrive with nothing to
@@ -197,6 +197,36 @@ words in `query` are matched as words; there is no query syntax. A write
 needs a seat (`rig.announce` first; a terminal has one) and is attributed to
 it. At a terminal the same verbs are `rig knowledge search|get|add`; agents
 get `knowledge_search`, `knowledge_get` and `knowledge_add`.
+
+## Work queues
+
+A named estate keeps claimable work queues (PLAN.md section 16). A producer
+pushes a task; a worker claims the oldest ready one, heartbeats it, and
+completes it. `examples/queueworker` is a complete worker with a test.
+
+| method | request | answer |
+|---|---|---|
+| `rig.queue.push` | `queue`, `idempotency_key` (mandatory), `payload` | the task, and `duplicate` when the key was pushed before |
+| `rig.queue.claim` | `queue`, `ttl_ms` | the task and the claim's lease handle, or `NOT_FOUND` when nothing is ready |
+| `rig.queue.complete` | the handle's `name`, `token`, `epoch` | the finished task, or `CONFLICT` when the claim moved on |
+| `rig.queue.list` | `queue`, or nothing for every queue's name | unfinished tasks, oldest first, and how many are done |
+
+**A claim is a lease** named `queue/<queue>/<id>`, held by your seat and
+witnessed by your process. Heartbeat it with `rig.lease.renew`; give it back
+unfinished with `rig.lease.release`. Past its deadline, a claim whose worker
+is still alive is `ORPHANED` and not handed to anyone else, because the worker
+may only be slow. Once rig observes the worker's process gone, the task is
+`READY` again and `attempts` counts the redelivery.
+
+**Delivery is at-least-once.** A worker that finishes the work and dies
+before `complete` leaves a task that runs again. Make the work safe to repeat
+under the task's `idempotency_key`. A key pushed a second time returns the
+existing task, finished or not, so a producer that retries does not queue
+the work twice. The same key with a different payload is refused.
+
+At a terminal: `rig queue push <queue> <key> [--payload P]` and
+`rig queue list [<queue>]`. There is no `rig queue claim`, because the claim
+would be witnessed by a process that exits as soon as it prints.
 
 ## Agents
 
