@@ -11,7 +11,6 @@ import (
 	"fyne.io/systray"
 	"github.com/boris-milner/rig/client"
 	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
-	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // design/tray is the source (section 11); cmd/rigwindow/icons is where the
@@ -75,7 +74,7 @@ var (
 // app for was app.Quit() behind the tray's quit row, and that row is gone
 // because a tray that can remove itself is not "always available". Keeping the
 // parameter would leave the capability one line from returning.
-func runTraySupervisor(win application.Window) {
+func runTraySupervisor(sup *supervisor) {
 	systray.Run(func() {
 		systray.SetTooltip("rig")
 
@@ -91,7 +90,7 @@ func runTraySupervisor(win application.Window) {
 		menuDetail.Hide()
 
 		systray.AddSeparator()
-		menuWindow = systray.AddMenuItem("Show rig", "Open or hide the rig window")
+		menuWindow = systray.AddMenuItem(windowTitle(false), "Open or close the rig window")
 		systray.AddSeparator()
 
 		// ⛔ THERE IS NO QUIT ROW, AND ITS ABSENCE IS THE REQUIREMENT.
@@ -119,7 +118,7 @@ func runTraySupervisor(win application.Window) {
 		// replacement: section 11 says the tray is an access point, and
 		// taking away the one-click toggle to add options would trade one
 		// for the other.
-		systray.SetOnTapped(func() { toggleWindow(win) })
+		systray.SetOnTapped(sup.toggle)
 
 		// One receiver, because there is one clickable row. It stays a
 		// goroutine with a loop rather than collapsing to a single receive:
@@ -127,37 +126,32 @@ func runTraySupervisor(win application.Window) {
 		// the menu work once.
 		go func() {
 			for range menuWindow.ClickedCh {
-				toggleWindow(win)
+				sup.toggle()
 			}
 		}()
 
-		go pollEstate(win)
+		go pollEstate(sup)
 	}, nil)
 }
 
-func toggleWindow(win application.Window) {
-	if win.IsVisible() && !win.IsMinimised() {
-		win.Hide()
-	} else {
-		win.Show()
-		win.Focus()
+// windowTitle is what the window row says, and it says what the click will
+// DO: with a window process alive the click closes it, otherwise it opens
+// one. "Hide" would be a lie now that a close ends the process.
+func windowTitle(open bool) string {
+	if open {
+		return "Close rig"
 	}
-	retitleWindowItem(win)
+	return "Show rig"
 }
 
 // retitleWindowItem keeps the entry describing what clicking it will DO, the
-// way AgentBox's own tray does. Called from the click path for immediacy and
-// from the poll loop so it self-corrects when the window is hidden or shown
-// by anything other than this menu.
-func retitleWindowItem(win application.Window) {
+// way AgentBox's own tray does. Called from the supervisor on every change of
+// the window process and from the poll loop so it self-corrects.
+func retitleWindowItem(sup *supervisor) {
 	if menuWindow == nil {
 		return
 	}
-	if win.IsVisible() && !win.IsMinimised() {
-		menuWindow.SetTitle("Hide rig")
-		return
-	}
-	menuWindow.SetTitle("Show rig")
+	menuWindow.SetTitle(windowTitle(sup.open()))
 }
 
 // pollEstate keeps the icon AND the two fact rows honest for the life of the
@@ -167,13 +161,13 @@ func retitleWindowItem(win application.Window) {
 // calls SetIcon once a named estate answers, and quits the tray if that ever
 // reverts.
 //
-// Detached (rigd unreachable) is different: the window is still up, so the
-// tray stays up too, on its last-known icon. A dedicated detached glyph is
+// Detached (rigd unreachable) is different: the tray is its own process and
+// stays up, on its last-known icon. A dedicated detached glyph is
 // one of the three dimensions section 11 still owes and is not decided here.
 // The TEXT does not stay on its last-known value, though, and that asymmetry
 // is deliberate: a stale icon is ambiguous, a stale VERSION is a lie, so the
 // rows say the daemon is gone while the icon holds.
-func pollEstate(win application.Window) {
+func pollEstate(sup *supervisor) {
 	for {
 		est, connected := estateSnapshot()
 		switch {
@@ -216,7 +210,7 @@ func pollEstate(win application.Window) {
 			setTrayIcon(downIcon(lastIcon), "rig - no daemon answering")
 			setDetached()
 		}
-		retitleWindowItem(win)
+		retitleWindowItem(sup)
 		time.Sleep(trayRefresh)
 	}
 }

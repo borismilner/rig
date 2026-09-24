@@ -1,11 +1,16 @@
-// Command rigwindow is the window, and being its own process is the point.
+// Command rigwindow is the tray, and the window is its child process.
 //
 // The third binary (PLAN.md section 17, section 22). The daemon links no Wails
-// and no webview, and neither does the CLI: `rig window` starts this one, so
-// closing the window returns every byte and a beta webview can crash without
-// touching anything that matters. It carries its own row in size-ratchet.json
-// for the same reason - Wails plus a webview is not a rounding error against
-// the CLI's six megabytes.
+// and no webview, and neither does the CLI. This binary runs in two modes:
+// with no flags it is the TRAY - a systray icon over D-Bus, a poll of the
+// daemon, and nothing else resident - and with --window it is the window
+// itself, started by the tray on a click and gone when the window closes. So
+// closing the window returns every byte, and a beta webview can crash without
+// touching the icon or anything that matters. The split is section 17's rule
+// ("the window is a separate process") applied one level further after Boris's
+// 2026-09-24 ruling on footprint; supervisor.go carries his words and the
+// numbers. It carries its own row in size-ratchet.json for the same reason -
+// Wails plus a webview is not a rounding error against the CLI's six megabytes.
 package main
 
 import (
@@ -16,7 +21,6 @@ import (
 	"os"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
-	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 // The built frontend, not its sources. Vite writes into dist/ beside this
@@ -43,19 +47,42 @@ var background = application.NewRGB(0x12, 0x1a, 0x23)
 
 func main() {
 	showVersion := flag.Bool("version", false, "print every version this build carries and exit")
+	window := flag.Bool("window", false, "be the window rather than the tray (the tray starts this itself)")
 	flag.Parse()
 	if *showVersion {
 		fmt.Printf("product %s\nwire    %s\ncommit  %s\nbuilt   %s\n", version, wire, sha, date)
 		return
 	}
 
-	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, "rigwindow: "+err.Error())
-		os.Exit(1)
+	if *window {
+		if err := runWindow(); err != nil {
+			fmt.Fprintln(os.Stderr, "rigwindow: "+err.Error())
+			os.Exit(1)
+		}
+		return
 	}
+	runTray()
 }
 
-func run() error {
+// runTray is the resident process: the icon, the menu, the poll of rigd. It
+// never calls into Wails, so no GTK is initialised and no webview exists
+// while the window is closed - that is the whole footprint argument in
+// supervisor.go, and the reason this function does not take an *application.App.
+func runTray() {
+	sup := newSupervisor(spawnWindow, func(msg string) {
+		fmt.Fprintln(os.Stderr, "rigwindow: "+msg)
+	})
+	sup.onChange = func() { retitleWindowItem(sup) }
+	runTraySupervisor(sup)
+}
+
+// runWindow is the window process. It shows one window and returns when that
+// window closes: Wails' default WindowClosing listener destroys the window
+// and, once none remain, quits the application (application_linux_gtk3.go's
+// unregisterWindow calling a.destroy()), which is exactly the exit wanted.
+// The tray is another process, so nothing here can take the icon down
+// (section 11 requirement 4).
+func runWindow() error {
 	app := application.New(application.Options{
 		Name:        "rig",
 		Description: "The platform every in-house program runs on",
@@ -85,22 +112,16 @@ func run() error {
 		BackgroundColour: background,
 		URL:              "/",
 
-		// HIDDEN AT BIRTH, AND IT IS A REQUIREMENT RATHER THAN A DEFAULT.
-		// Boris, 2026-09-17, on seeing the unit come back after a reboot: "the
-		// window should be hidden by default, it is usually a background
-		// worker and shown ad-hoc." Section 11 requirement 5. The unit starts
-		// this PROCESS at login so the tray is up whenever the graphical
-		// session is; the window is one entry on that tray's menu and must
-		// wait to be asked for.
-		//
-		// It is honoured on this platform, which is worth stating because the
-		// field is a no-op on some: webview_window_linux.go:453 guards
-		// `w.show()` on `!options.Hidden`. Note what else that guard skips -
-		// applyScreenPlacement - so a window first shown from the tray takes
-		// GTK's placement rather than any StartState this struct asks for. We
-		// ask for none, so there is nothing to lose today; a future
-		// StartState here would be silently dropped until the first show.
-		Hidden: true,
+		// NOT HIDDEN, AND THAT IS NOT A REVERSAL OF REQUIREMENT 5. Boris,
+		// 2026-09-17: "the window should be hidden by default, it is usually a
+		// background worker and shown ad-hoc." Section 11 requirement 5. The
+		// tray process autostarts at login and shows no window; THIS process
+		// exists only because he clicked, so its one window is shown at birth
+		// and the requirement is met one process earlier. (Hidden: true here
+		// would be a window nobody can reach.) The placement note from the
+		// old shape still applies: webview_window_linux.go:453 runs
+		// applyScreenPlacement only on this show path, so a StartState asked
+		// for here would now be honoured.
 
 		// No zoom keybinding here, and it is not an omission. Wails cannot
 		// deliver one on Linux at beta.19: keys_linux.go's VirtualKeyCodes
@@ -113,34 +134,15 @@ func run() error {
 		// type scale (section 6), which is where step 2 puts it.
 	})
 
-	// The tray is the access point (section 11), the window a toggle on it -
-	// so closing the window must hide it, not tear it down. Wails' own
-	// default WindowClosing listener destroys the window and, once none
-	// remain, quits the whole process (application_linux_gtk3.go's
-	// unregisterWindow calling a.destroy()) - taking the tray down with it.
-	// Cancelling here runs before that listener and skips it entirely; it
-	// is skipped rather than overridden, so Hide is this handler's job too.
-	win.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
-		e.Cancel()
-		win.Hide()
+	// In front, not merely on screen: this process exists because he clicked.
+	win.Focus()
 
-		// RETITLE HERE TOO, AND IT IS A MEASURED DEFECT RATHER THAN TIDINESS.
-		// `[ran it]` 2026-09-17 against the installed unit: close the window
-		// with _NET_CLOSE_WINDOW and the tray entry still reads "Hide rig" for
-		// an already-hidden window. Clicking it then SHOWS the window, so the
-		// label says the opposite of what the click does. pollEstate does
-		// self-correct it - retitleWindowItem is on its every-5s path - so the
-		// window is bounded at trayRefresh and never permanent, which is why
-		// nobody caught it by reading. toggleWindow already retitles on its own
-		// click path for exactly this reason; this hook is the other way the
-		// window's visibility changes and it was the one that did not.
-		retitleWindowItem(win)
-	})
-
-	// The tray (section 11) is a separate goroutine because both it and
-	// app.Run() block. fyne.io/systray, not Wails' own SystemTray - see the
-	// comment on runTraySupervisor.
-	go runTraySupervisor(win)
+	// No WindowClosing hook. The old one cancelled the close and hid the
+	// window so the tray in this process would survive; the tray is now the
+	// parent process, so the default listener - destroy, and quit on the last
+	// window - is the behaviour wanted, and the parent notices the exit and
+	// retitles its menu (supervisor.go). Measured 2026-09-24: every WebKit
+	// process under this one is gone within four seconds of its exit.
 
 	return app.Run()
 }
