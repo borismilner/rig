@@ -279,9 +279,22 @@ type inEdge struct {
 // linksTo reads the edges pointing AT a record. It is a lookup rather than a
 // scan - links_by_dst exists for exactly this, because rig's own citation graph
 // has a node at in-degree 758 and a scan there is not interactive.
+//
+// ⛔ AN EDGE FROM A RETRACTED RECORD IS NOT READ. Section 39: a retracted
+// record "stops appearing in a brief or a query", and a refs answer is what
+// a brief is assembled from - a withdrawn record that still pointed here
+// would reach the brief through this door with nothing saying it was
+// withdrawn. Filtering HERE rather than on the answer covers both readers:
+// the walk does not follow it, and moreBeyond does not count it as somewhere
+// still to go, so it cannot raise the truncation flag either. The edge row
+// itself survives, as retraction promises: un-retracting is not a verb today,
+// but nothing was destroyed that one would need.
 func (s *Store) linksTo(ctx context.Context, dst string) ([]inEdge, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT src, type FROM links WHERE dst = ? ORDER BY src, type`, dst)
+		`SELECT l.src, l.type FROM links l
+		 WHERE l.dst = ?
+		   AND NOT EXISTS (SELECT 1 FROM retractions x WHERE x.id = l.src)
+		 ORDER BY l.src, l.type`, dst)
 	if err != nil {
 		return nil, fmt.Errorf("record: reading what points at %s: %w", dst, err)
 	}

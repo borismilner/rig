@@ -17,9 +17,10 @@ import (
 // and docket assembles those three lists from rig.record.query over this
 // socket, so the three lists rig answers are the three query shapes a
 // derivation reads: a project's work items by kind, the same narrowed by a
-// field, and the paged form docket's stub loops on. A retracted record that
-// survived any one of them would reach a brief again from outside rig, where
-// no rig test could see it.
+// field, and the paged form docket's stub loops on - and record.refs, which
+// docket reads once per head. A retracted record that survived any one of
+// them would reach a brief again from outside rig, where no rig test could
+// see it.
 func TestARetractedRecordLeavesEveryListOnTheWireAndStillExplainsItself(t *testing.T) {
 	sock := upRecordDaemon(t)
 	c := seated(t, sock, "backend-record")
@@ -107,6 +108,24 @@ func TestARetractedRecordLeavesEveryListOnTheWireAndStillExplainsItself(t *testi
 		t.Fatal("the paged query never ended, so the paged list was never read whole")
 	}
 	check("paged", paged)
+
+	// 4. And record.refs, which docket reads once per head: a retracted record
+	// pointing at a live one is not a ref to it.
+	for _, src := range []string{"B90", gone} {
+		if err := c.Call(ctx, "rig.record.link", &rigv1.RecordLinkRequest{
+			Src: src, Type: "cites", Dst: "B92",
+		}, &rigv1.RecordLinkResponse{}); err != nil {
+			t.Fatalf("rig.record.link(%s): %v", src, err)
+		}
+	}
+	var refs rigv1.RecordRefsResponse
+	if err := c.Call(ctx, "rig.record.refs", &rigv1.RecordRefsRequest{Id: "B92"}, &refs); err != nil {
+		t.Fatalf("rig.record.refs: %v", err)
+	}
+	if len(refs.GetRefs()) != 1 || refs.GetRefs()[0].GetSrc() != "B90" || refs.GetTruncated() {
+		t.Errorf("refs: %v truncated=%v, want only B90 and complete - %s is "+
+			"retracted and still reaches a brief this way", refs.GetRefs(), refs.GetTruncated(), gone)
+	}
 
 	// ⛔ AND record.get MUST STILL ANSWER, WITH THE FACT AND ITS REASON. A
 	// NotFound here would make retract indistinguishable from delete.

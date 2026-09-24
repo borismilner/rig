@@ -113,6 +113,25 @@ func TestARetractedRecordLeavesEveryListAndStillExplainsItselfToGet(t *testing.T
 	// and below: Find and Query drop it, Get keeps explaining it. The
 	// three-list form of this assertion is back over the wire, in
 	// internal/daemon/control_test.go, against the query shapes docket reads.
+	// ⛔ AND IT LEAVES Refs, WHICH IS THE OTHER LIST A BRIEF IS BUILT FROM. A
+	// retracted record that cited something still answered as a ref to it,
+	// indistinguishable from live work, until the walk stopped reading edges
+	// out of withdrawn records.
+	if err := s.Link(tctx, live, LinkCites, "rig"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Link(tctx, gone, LinkCites, "rig"); err != nil {
+		t.Fatal(err)
+	}
+	refs, err := s.Refs(tctx, RefsRequest{ID: "rig"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(refs.Refs) != 1 || refs.Refs[0].ID != live || refs.Truncated {
+		t.Fatalf("Refs returned %+v truncated=%v, want only %s and complete - "+
+			"a retracted record is still in the answer", refs.Refs, refs.Truncated, live)
+	}
+
 	// ⛔ AND record.get MUST STILL ANSWER, WITH THE FACT AND ITS REASON. A
 	// NotFound here would make retract indistinguishable from delete to every
 	// reader, which is the collapse Boris's table exists to prevent.
