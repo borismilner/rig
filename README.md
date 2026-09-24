@@ -38,23 +38,26 @@ app, and every program already has it without being touched.
 
 ## Where this is
 
-**A specification, and a daemon that now runs against it.** `PLAN.md` is the
-whole design, ordered into seventeen milestones, and it is what the rest of this
-repo exists to support.
+**A specification, and a daemon that runs against it.** `PLAN.md` indexes the
+design, fifty sections in `plan/`, ordered into seventeen milestones. M0 is
+tagged; M1 and the MCP door of M2 are largely built. `docs/orientation.md` is
+the full, checked inventory of what exists.
 
 | Piece | State |
 |---|---|
-| `PLAN.md` | Complete. Architecture, wire protocol, capability model, isolation, the conformance suite, the milestone order |
+| `plan/` | The specification: architecture, wire protocol, capability model, isolation, conformance suite, milestone order |
+| `cmd/rigd` | Built. The daemon: kernel, wire, registry, house rules, record store, estates, backup, MCP socket |
+| `cmd/rig` | Built. `rig <program> <command>`, generated help and completion, `--json` on every answer and every error, `record`, `backup`, `restore` |
+| `cmd/rigwindow` | Partial. The tray and the window; the tray is its own process |
+| `client/` | Built. The stub a program embeds to reach rigd; the only rig code inside a program |
+| `cmd/fakeapp`, `cmd/ledger`, `cmd/abacus` | Built. The reference program and two fake adopters |
 | `design/` | Built. A live, self-contained visual system with a theme engine that measures its own contrast |
 | `cmd/ipcbench/` | Built and measured. The transport numbers the daemon architecture rests on |
-| `cmd/rigd` | Built. The daemon, the kernel, the wire, house rules and the registry |
-| `cmd/rig` | Built. `rig <program> <command>`, generated help and completion, `--json` on every answer and every error |
-| `cmd/fakeapp` | Built. The reference program the conformance suite drives |
 
-**This table said "`cmd/rigd`, `cmd/rig` - not started, milestone M0" until
-2026-09-11**, by which point M0 was tagged and M1 was six slices in. **It is the
-first table a reader meets**, and it was the last thing to be updated. Corrected
-after a seat ran the repository's own claims rather than reading them.
+**The planner left rig on 2026-09-24.** Projects, work items, decisions and
+the brief live in [docket](https://github.com/borismilner/docket), which
+reaches rig over the socket like any other program. The record store stays
+here.
 
 ## Measured before it was designed
 
@@ -120,7 +123,15 @@ and not an approximation of them.
 
 ```
 docs/orientation.md  start here: what exists today, where it lives
-PLAN.md              the specification: 33 sections, 17 milestones
+PLAN.md              the generated index of the specification
+plan/                the specification, one file per section (50)
+cmd/                 rigd, rig, rigwindow, the fake programs, the gates
+internal/            the daemon: kernel, wire, record store, MCP, estates
+client/              the stub a program embeds
+proto/, schema/      the wire schema and the JSON schema generated from it
+frontend/            the window's Svelte app
+packaging/           systemd user units
+tools/               installer, plan splitter, contrast audit
 design/              the visual system, live in one HTML file
   theme.js             the engine: a small config object to the whole token set
   visual-system.src.html   markup and CSS. Edit this, not the built file

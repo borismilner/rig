@@ -1,8 +1,9 @@
 # rig - orientation
 
 Read this first. It says what rig is, what exists today, where each piece
-lives, and where to go deeper. It was written against commit `af29f2d`
-(2026-09-24) and every "built" row was checked against the code, not the plan.
+lives, and where to go deeper. It was last checked against commit `8bdcba8`
+(2026-09-24, after the planner split) and every "built" row was checked
+against the code, not the plan.
 When this file and the code disagree, the code wins and this file gets fixed.
 
 ## What rig is, in five lines
@@ -50,7 +51,7 @@ ruled a non-goal.
 |---|---|---|
 | `rigd` | the daemon: kernel, wire, registry, house rules, record store, coordination store, MCP socket | built |
 | `rig` | the client: `rig <program> <command>`, generated help and completion, `--json` everywhere | built |
-| `rigwindow` | the tray icon and the window (Wails v3, Svelte), plus a supervisor that keeps the window process alive | partial |
+| `rigwindow` | the tray icon and the window (Wails v3, Svelte). The tray is its own WebKit-free process and spawns `rigwindow --window` as a child on demand, so a closed window holds no renderer (`cf337e6`) | partial |
 | `fakeapp` | the reference program the conformance suite drives | built |
 | `ledger`, `abacus` | fake adopting programs that prove the pane tiers | built |
 | `gate`, `depscheck`, `footprint`, `sizeratchet`, `schemagen`, `pkgdeb`, `ipcbench` | build gates and tools: lint gate, dependency audit, binary-size ratchet, schema generation, `.deb` packaging, the IPC benchmark | built |
@@ -65,7 +66,8 @@ ruled a non-goal.
 | `rig ping <program>` | round trip through rigd | built |
 | `rig estate` | which estate this shell reached | built |
 | `rig peers` | who else is here, their purpose and activity | built |
-| `rig record put/get/query/history/link/unlink/refs` | the record store | built |
+| `rig record put/get/query/history/link/unlink/refs` | the record store; `query` pages under the 1 MiB frame | built |
+| `rig record retract/delete/replace` | withdraw a record (history kept), destroy one, or supersede one | built |
 | `rig progress step <item>` | append one step to a work item's stream | built |
 | `rig backup` / `rig restore --estate` | archive and restore an estate, offline, `--force` moves the old aside | built |
 | `rig down`, `rig version`, `rig completion <sh>` | stop the daemon, versions, shell completion | built |
@@ -76,7 +78,9 @@ ruled a non-goal.
 `rig.hello`, `rig.ping`, `rig.programs`, `rig.estate`, `rig.session`,
 `rig.announce`, `rig.activity`, `rig.peers`, `rig.down`,
 `rig.record.{put,get,query,history,link,unlink,refs,replace,retract,delete}`,
-`rig.progress.step`, `rig.backup.create`. Framing is protobuf behind a length
+`rig.progress.step`, `rig.backup.create`, and `rig.project.brief`, which
+only refuses and names docket: rig serves every wire version it has shipped,
+so the method stays until the next major (plan/50 decision 4). Framing is protobuf behind a length
 prefix on a unix socket. gRPC was measured (+9.8 MiB resident) and rejected.
 
 ### The MCP door
@@ -128,9 +132,21 @@ rig is from being developed with rig. Ask it, not this file.
 
 Project and case management (projects, work items, decisions, notes, the
 brief) was ruled out of rig (`plan/43`) and moved to **docket**,
-`~/me/projects/docket`, which talks to rig over the socket like any program.
-**The record store and the `record.*` verbs stay in rig.** Ideas about
-briefs, work items or backlogs go to docket.
+`~/me/projects/docket` (`github.com/borismilner/docket`, private). docket
+talks to rig through the `client` stub like any program, and imports nothing
+else of rig. **The record store and the `record.*` verbs stay in rig.**
+
+| Moved to docket | Run it as |
+|---|---|
+| the brief | `docket brief <project>`, or `rig docket brief --project <p>` while `docket serve` is registered |
+| the seeder that loads plan, backlog and decisions into the store | `go build -o /tmp/rigseed ./cmd/rigseed` in docket, then `--check`. `go run` reports exit 2 as 1 |
+| the importers and the planner's pane | `docket pane` |
+
+The split passed all six acceptance tests on 2026-09-24, two of them on a
+restore of production (`plan/50`). Ideas about briefs, work items or
+backlogs go to docket, not here. **The seeder never retracts:** a renamed
+heading leaves its old record behind, cleared by `rig record retract` and
+`rig record unlink`.
 
 ## Non-goals, and what they rule out
 
@@ -156,28 +172,38 @@ briefs, work items or backlogs go to docket.
 | `internal/mcpserver` | the MCP door |
 | `internal/estate`, `internal/instance`, `internal/paths` | estates, single instance, XDG paths |
 | `internal/backup` | backup and restore |
+| `internal/analysis` | the house analyzers `make lint-house` runs (for example `nocontextfree`) |
 | `internal/meta` | the meta tools behind `list`, `describe`, `capabilities`: the roster, estate answers, tombstones for departed programs |
 | `client/` | the dumb stub a program embeds; the only rig code inside a program |
 | `proto/`, `schema/` | the wire schema and generated JSON schema |
 | `frontend/` | the window's Svelte app |
 | `design/` | the visual system: `visual-system.html` is live, `theme.js` generates the tokens |
 | `packaging/` | systemd user units (`rigd.service` runs `--estate=production`) |
+| `tools/` | installer, plan splitter (`plansplit.py`), contrast audit, theme gate, window restart |
+| `size-ratchet.json` | the binary-size ceilings `make bench-size` holds every binary to |
 
 ## Build, run, test
 
 ```sh
 make help          # every target
-make build-all     # rigd, rig, fakeapp, ledger, abacus, rigwindow
-make ci            # the gate: fmt, vet, lint, race tests, size ratchet
-make run           # a development daemon from this tree
-make redeploy      # install and restart the production estate
+make build           # rigd, rig, fakeapp, ledger, abacus into build/
+make build-rigwindow # the window (needs the frontend built)
+make ci              # fmt-check, vet, lint-house, test-race, schema-check,
+                     #   deps-check, theme-gate
+make lint            # golangci-lint plus the house analyzers; NOT in ci
+make bench-size      # the binary-size ratchet; NOT in ci, run it by hand
+make run             # rigd in the foreground, debug logs, unnamed estate
+make redeploy        # rebuild, install and restart daemon, client and window
 make bench-ipc     # re-take the transport numbers
 make contrast      # the contrast gate over the visual system
 rig version        # what the running binaries carry
 ```
 
 Tests never touch a live estate; a test that opens a real store is a bug
-(found and fixed 2026-09-24, `a9c7ab8`).
+(found and fixed 2026-09-24, `a9c7ab8` and `54b0cf3`). Any daemon you start by
+hand needs a private `XDG_STATE_HOME` AND `XDG_RUNTIME_DIR`, or it reaches
+production. `make build-all` cross-compiles for release; it is not the local
+build.
 
 ## Where to go next
 

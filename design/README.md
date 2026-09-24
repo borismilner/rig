@@ -13,6 +13,9 @@ drag.
 | `visual-system.src.html` | Markup and CSS. **Edit this**, not the built file |
 | `build.py` | Inlines the two scripts into `visual-system.html` |
 | `visual-system.html` | Generated. Do not edit |
+| `kit/` | `kit.css`, `kit.js`, `pane.js`: the pane kit a program's embedded pane is written against (`cmd/ledger` is the worked example) |
+| `tray/` | the tray icons per estate, up and down, embedded by `rigwindow`; `make-down-icons.py` derives the down variants |
+| `readme/`, `readme-art.mjs` | the banner and projection diagram on the top-level README, generated from `theme.js` |
 
 ```
 python3 design/build.py          # rebuild after changing any source
@@ -61,7 +64,7 @@ Both are in the source now; both are worth knowing before adding anything.
 **An overlay is invisible to a contrast audit.** The stage's `.floor` gradient
 was painted over the window at `z-index:3`, and the window's own status strip
 sits inside it: `--fg-dim` on `--bg-2` measures 7.34:1 and landed at **1.15:1**
-under the gradient. `audit-pages.mjs` reads computed text and background
+under the gradient. The audit (`tools/contrast-audit.mjs`) reads computed text and background
 colours, so it passed every time. The floor is now behind the window
 (`z-index:1`), which is structural rather than a tuned alpha.
 
