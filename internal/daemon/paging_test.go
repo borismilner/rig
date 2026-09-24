@@ -39,7 +39,7 @@ func pagingCtx(t *testing.T) context.Context {
 
 // bigFixture writes n records of bodyLen bytes each and returns their ids in
 // the store's order, which for one project and one kind is the id order.
-func bigFixture(t *testing.T, c *client.Client, ctx context.Context, n, bodyLen int) []string {
+func bigFixture(ctx context.Context, t *testing.T, c *client.Client, n, bodyLen int) []string {
 	t.Helper()
 	body := strings.Repeat("x", bodyLen)
 	ids := make([]string, 0, n)
@@ -68,7 +68,7 @@ func TestAnAnswerLargerThanAFrameArrivesInPages(t *testing.T) {
 	c := seated(t, sock, "paging")
 	ctx := pagingCtx(t)
 
-	want := bigFixture(t, c, ctx, records, bodyLen)
+	want := bigFixture(ctx, t, c, records, bodyLen)
 	if records*bodyLen <= wire.MaxFrameSize {
 		t.Fatalf("the fixture is %d bytes of bodies, which fits in a frame: "+
 			"it cannot demonstrate paging", records*bodyLen)
@@ -298,7 +298,7 @@ func TestALimitCapsThePageCount(t *testing.T) {
 	c := seated(t, sock, "paging")
 	ctx := pagingCtx(t)
 
-	want := bigFixture(t, c, ctx, 10, 64)
+	want := bigFixture(ctx, t, c, 10, 64)
 
 	var (
 		got  []string
