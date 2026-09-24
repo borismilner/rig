@@ -110,7 +110,9 @@ func TestARetractedRecordLeavesEveryListAndStillExplainsItselfToGet(t *testing.T
 	// not in next-up, not in open, and NOT filed under closed either" is now
 	// docket's assertion to make against these same two lists. What rig can
 	// still prove is what rig still answers, which is the three verbs above
-	// and below: Find and Query drop it, Get keeps explaining it.
+	// and below: Find and Query drop it, Get keeps explaining it. The
+	// three-list form of this assertion is back over the wire, in
+	// internal/daemon/control_test.go, against the query shapes docket reads.
 	// ⛔ AND record.get MUST STILL ANSWER, WITH THE FACT AND ITS REASON. A
 	// NotFound here would make retract indistinguishable from delete to every
 	// reader, which is the collapse Boris's table exists to prevent.
