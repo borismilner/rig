@@ -284,7 +284,13 @@ func TestTheBinary(t *testing.T) {
 		{name: "record-duplicate-field", argv: []string{"record", "put", "--kind", "note", "--project", "rig", "--field", "a=1", "--field", "a=2"}},
 		{name: "progress-usage", argv: []string{"progress", "step"}},
 		{name: "progress-unknown-subcommand", argv: []string{"progress", "stamp"}},
-		{name: "brief-usage", argv: []string{"brief"}},
+		// ⛔ THE BRIEF LEFT rig AND THE ARM DID NOT (PLAN.md section 50,
+		// move 5 and decision 4). The transcript is what proves the
+		// difference: a verb that had been DELETED from run's switch would
+		// fall through to the default branch and be answered as a missing
+		// PROGRAM, which names neither the move nor what replaced it. One
+		// row, because a refusal that ignores its arguments has one shape.
+		{name: "brief-moved", argv: []string{"brief", "rig"}},
 
 		// The no-daemon refusal on every surface that dials. This is the set
 		// that proves the channel and the exit code, because the object and the
@@ -315,7 +321,6 @@ func TestTheBinary(t *testing.T) {
 		// are the same failure rendered two ways.
 		{name: "record-get-no-daemon", argv: []string{"record", "get", "01927-abc"}},
 		{name: "record-get-no-daemon-json", argv: []string{"record", "get", "01927-abc", "--json"}},
-		{name: "brief-no-daemon", argv: []string{"brief", "rig"}},
 
 		// ⛔ A FIFTH ABSENTEE, FOUND BY COUNTING RATHER THAN BY READING. The
 		// four above were the ones a reader notices; `peers` was missing too,

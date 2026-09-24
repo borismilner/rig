@@ -1,0 +1,8 @@
+$ rig brief rig
+exit 1
+--- stdout (0 bytes)
+--- stderr (415 bytes)
+rig: the brief is not rig's to derive: it moved to the docket program, which reaches this store over the socket like every other program here
+       precondition  rig carries the command being asked for
+       actual        rig carries the record store and the record verbs; the brief is derived on top of them by a program
+       fix           ask the program that owns it, through rig: rig docket brief <project>

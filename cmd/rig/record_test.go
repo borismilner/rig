@@ -946,7 +946,6 @@ func TestABadCommandIsRefusedBeforeTheDaemonIsReachedFor(t *testing.T) {
 		{"a link with two arguments", []string{"record", "link", "a", "cites"}, "usage"},
 		{"refs at depth nothing", []string{"record", "refs", "x", "--depth", "0"}, "--depth"},
 		{"a step with no item", []string{"progress", "step"}, "usage"},
-		{"a brief with no container", []string{"brief"}, "usage"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			err := run(tc.argv)
@@ -980,7 +979,6 @@ func TestEveryRecordVerbReachesTheSeam(t *testing.T) {
 		{"record", "unlink", "a", "b", "c"},
 		{"record", "refs", "x"},
 		{"progress", "step", "x", "--project", "rig", "--state", "done"},
-		{"brief", "rig"},
 	} {
 		t.Run(strings.Join(argv, " "), func(t *testing.T) {
 			f := serving(t, &fakeRecord{})
@@ -1011,7 +1009,6 @@ func TestEveryRecordVerbReachesTheSeam(t *testing.T) {
 // duplicate, in that order.
 func TestEveryRecordFlagThatTakesAValueIsDeclaredToThePartitioner(t *testing.T) {
 	sets := map[string]*flag.FlagSet{
-		"brief":         briefFlagSet().fs,
 		"progress step": progressFlagSet().fs,
 	}
 	for _, sub := range recordSubcommands {
@@ -1044,9 +1041,9 @@ func TestEveryRecordFlagThatTakesAValueIsDeclaredToThePartitioner(t *testing.T) 
 	// And the second control, which the canonical walk had to learn: a count
 	// alone passes whether the map holds one set or nine, because dropping a
 	// set drops its flags from the count too.
-	if len(sets) != len(recordSubcommands)+2 {
+	if len(sets) != len(recordSubcommands)+1 {
 		t.Fatalf("the walk covers %d flag sets, want one per record "+
-			"subcommand plus progress and brief", len(sets))
+			"subcommand plus progress", len(sets))
 	}
 }
 
@@ -1682,61 +1679,6 @@ func TestRecordGetDialsARealSocketAndRendersWhatCameBack(t *testing.T) {
 	if asked != 1 {
 		t.Errorf("the daemon was sent %d rig.record.get frames, want 1: %v",
 			asked, d.frames(t))
-	}
-}
-
-// ⛔ THE BRIEF RENDERS FROM WIRE BYTES RATHER THAN FROM A STRUCT A TEST BUILT,
-// which is the only way briefFromWire and the renderer are exercised as one
-// thing. Every other brief test builds a Brief and hands it to a renderer, so
-// a mapping that dropped a field and a renderer that ignored one look the same.
-func TestTheBriefRendersWhatArrivedOnTheWire(t *testing.T) {
-	atAFakeDaemon(t, &rigv1.ProjectBriefResponse{
-		Project: "rig",
-		Kind:    "project",
-		Title:   "the swiss knife and the record under it",
-		Status:  "active",
-		Semver:  "0.4.1",
-		NextUp: []*rigv1.ItemState{{
-			Id: "01927-n", Title: "the seam",
-			State:         rigv1.StepState_STEP_STATE_STARTED,
-			SinceUnixNano: time.Now().Add(-2 * time.Minute).UnixNano(),
-			Note:          "dialling now",
-		}},
-		Open:     []*rigv1.ItemState{{Id: "01927-o", Title: "the coverage hole"}},
-		Features: []*rigv1.Feature{{Id: "01927-f", Title: "the record", Stage: "building"}},
-		Sections: []*rigv1.BriefSectionStatus{
-			{
-				Section: rigv1.BriefSection_BRIEF_SECTION_DRIFT,
-				State:   rigv1.SectionState_SECTION_STATE_NOT_COMPUTED,
-				Reason:  "the standards register is slice 6",
-			},
-		},
-	})
-
-	out, err := captureStdout(t, func() error { return run([]string{"brief", "rig"}) })
-	if err != nil {
-		t.Fatalf("rig brief against the fake: %v", err)
-	}
-
-	for _, want := range []string{
-		"the swiss knife and the record under it", "active", "v0.4.1",
-		// next-up, with the three columns the realigned BriefItem carries.
-		"01927-n", "started", "dialling now",
-		// open, as its OWN section rather than folded in.
-		"ALSO OPEN", "01927-o",
-		// features, and a not-computed section with the daemon's own reason.
-		"FEATURES", "the record", "building",
-		"the standards register is slice 6",
-	} {
-		if !strings.Contains(out, want) {
-			t.Errorf("the brief does not carry %q:\n%s", want, out)
-		}
-	}
-	// ⛔ AND THE OPEN ITEM IS NOT ALSO IN NEXT-UP. Disjointness, asserted on
-	// the path where the mapping could break it rather than on a struct.
-	if n := strings.Count(out, "01927-o"); n != 1 {
-		t.Errorf("the open item appears %d times, so the two lists were "+
-			"merged somewhere between the wire and the page:\n%s", n, out)
 	}
 }
 

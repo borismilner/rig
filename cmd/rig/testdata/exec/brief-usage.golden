@@ -1,6 +1,0 @@
-$ rig brief
-exit 1
---- stdout (0 bytes)
---- stderr (122 bytes)
-rig: usage: rig brief <project> [--json]
-       the argument is a project's or a case's SLUG, which is also its record id

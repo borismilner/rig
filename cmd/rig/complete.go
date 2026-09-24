@@ -45,7 +45,7 @@ const verbVersion = "version"
 // staticVerbs are rig's own, and the only names in this file.
 var staticVerbs = []string{
 	"apps", "ping", "down", "estate", "peers", "describe", "mcp",
-	"record", "progress", "brief", "backup", "restore",
+	"record", "progress", "backup", "restore",
 	verbVersion, "completion", "help",
 }
 
@@ -151,15 +151,6 @@ func candidates(argv []string) []string {
 			return append([]string{}, recordSubcommands...)
 		case "progress":
 			return append([]string{}, progressSubcommands...)
-		case "brief":
-			// NOT answersNothingElse(), and the difference is a fact rather
-			// than a style: `rig brief` DOES take a positional - a project's
-			// or a case's slug - and rig simply cannot name them from here.
-			// The slugs live in the record store, which this completion has
-			// no verb to read; offering nothing is honest, and offering the
-			// estate's programs would be worse than offering nothing, since
-			// a program id is a name that exists and is never a project.
-			return flagNames(briefFlagSet().fs)
 		case verbVersion, "help":
 			return []string{"--json"}
 		}
@@ -177,9 +168,6 @@ func candidates(argv []string) []string {
 		}
 		if argv[0] == "progress" && len(argv) == 2 {
 			return flagNames(progressFlagSet().fs)
-		}
-		if argv[0] == "brief" {
-			return flagNames(briefFlagSet().fs)
 		}
 		// The same guard for section 46's two verbs. Without it `rig restore
 		// --estate a <TAB>` falls through to flagsOf, which asks the registry
