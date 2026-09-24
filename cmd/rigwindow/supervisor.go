@@ -111,8 +111,7 @@ func spawnWindow() (windowProcess, <-chan struct{}, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	// A background context: the child outlives this call by design, and its
-	// end is the exit channel, not a cancellation.
+	//rig:allow nocontextfree: the window child lives until the user closes it, so its end is the exit channel rather than a deadline
 	cmd := exec.CommandContext(context.Background(), exe, "--window")
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	if err := cmd.Start(); err != nil {
