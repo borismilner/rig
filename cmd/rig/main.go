@@ -182,6 +182,7 @@ func usage() {
   peers            who else is here, what each is for and what each is doing
   knowledge <cmd>  lessons other sessions learned: search, get, add
   queue <cmd>      claimable work queues: push, list
+  notify <sev> <title>  a toast at the tray: info, success, warning, error, urgent
   record <cmd>     the continuity record: put, get, query, history, link,
                    unlink, refs, retract, delete, replace
   progress step <item>
@@ -217,6 +218,7 @@ var plainVerbs = map[string]func([]string) error{
 	"peers":     cmdPeers,
 	"knowledge": cmdKnowledge,
 	"queue":     cmdQueue,
+	"notify":    cmdNotify,
 }
 
 // verbAt is the index of the command word, so rig's own flags may come BEFORE
@@ -297,7 +299,7 @@ func run(args []string) error {
 		// It also happens to be the honest shape: `plan/46` specifies one
 		// capability with two halves, and this is its single seam into run.
 		return cmdBackupOrRestore(args[0], with(args[1:], lead))
-	case "peers", "knowledge", "queue":
+	case "peers", "knowledge", "queue", "notify":
 		return plainVerbs[args[0]](with(args[1:], lead))
 	case "record":
 		return cmdRecord(with(args[1:], lead))
