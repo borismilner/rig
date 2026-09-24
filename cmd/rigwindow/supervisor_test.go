@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -66,9 +67,11 @@ func waitUntil(t *testing.T, cond func() bool) {
 
 func TestTheFirstClickStartsOneWindowAndTheSecondAsksItToClose(t *testing.T) {
 	f := newFakeSpawner(t, nil)
-	changes := 0
+	// Atomic: onChange runs on the supervisor's watcher goroutine, after it
+	// releases its lock, so a plain int here raced with the read below.
+	var changes atomic.Int32
 	s := newSupervisor(f.spawn, func(string) { t.Fatal("no warning expected") })
-	s.onChange = func() { changes++ }
+	s.onChange = func() { changes.Add(1) }
 
 	s.toggle()
 	if len(f.started) != 1 || !s.open() {
@@ -87,8 +90,9 @@ func TestTheFirstClickStartsOneWindowAndTheSecondAsksItToClose(t *testing.T) {
 	}
 	f.started[0].exit()
 	waitUntil(t, func() bool { return !s.open() })
-	if changes < 2 {
-		t.Fatalf("onChange fired %d times, want at least the start and the end", changes)
+	waitUntil(t, func() bool { return changes.Load() >= 2 })
+	if n := changes.Load(); n < 2 {
+		t.Fatalf("onChange fired %d times, want at least the start and the end", n)
 	}
 }
 
