@@ -9,55 +9,67 @@
 
 ## What it is
 
-Every program in the estate needs the same infrastructure: configuration,
-storage, secrets, logging, tracing, notifications, a window, a tray. Today each
-one carries its own copy, badly. rig supplies all of it from a single daemon,
-and controls the programs as well: starting, stopping, invoking, scheduling and
-wiring them to each other.
-
-**No program imports rig.** They talk to it over a unix socket. That is the
-whole point. rig upgrades on its own, and every program gets the improvement
-without being rebuilt.
-
-## The idea, in one line
-
-**An app declares what it can do, once. rig projects that onto every way anyone
-might reach it.**
+**One daemon that every in-house program and every agent session on this
+machine leans on.** A program declares its commands once and gets a CLI, MCP
+tools and a window pane; a session gets a record, lessons, queues and toasts.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="design/readme/projection-dark.svg">
   <img alt="Six programs declare once into rig, which projects the declaration onto nine surfaces" src="design/readme/projection-light.svg" width="900">
 </picture>
 
-The bottom row is free. A program writes nothing to get a CLI subcommand, an MCP
-tool, a tray entry, a schedulable job or a button inside a notification. It
-declared its commands; rig did the rest.
+## Quick start
 
-And it compounds. Add a surface to rig in 2028, a voice interface or a phone
-app, and every program already has it without being touched.
+```sh
+git clone https://github.com/borismilner/rig && cd rig
+make deploy
+```
 
-## Where this is
+`make deploy` builds and installs every part (the daemon `rigd`, the client
+`rig`, the window and tray `rigwindow`) from the latest `main`, restarts them,
+and checks that the version answering is the one it built. It refuses a tree
+with uncommitted changes or a HEAD that is not `origin/main` (`FORCE=1`
+overrides). It needs Go, plus cgo with GTK and WebKitGTK and Node for the
+window.
+`make help` lists every other target.
 
-**A specification, and a daemon that runs against it.** `PLAN.md` indexes the
-design, fifty sections in `plan/`, ordered into seventeen milestones. M0 is
-tagged; M1 and the MCP door of M2 are largely built. `docs/orientation.md` is
-the full, checked inventory of what exists.
+```sh
+rig estate                    # which daemon this shell reached
+rig apps list                 # every registered program
+rig notify success "hello"    # a toast at the tray's corner
+```
 
-| Piece | State |
+## What a program gets
+
+A program connects to `$XDG_RUNTIME_DIR/rig/rigd.sock`, says hello with a
+declaration, and answers its own commands. rig never runs code inside it.
+
+| From one declaration | |
 |---|---|
-| `plan/` | The specification: architecture, wire protocol, capability model, isolation, conformance suite, milestone order |
-| `cmd/rigd` | Built. The daemon: kernel, wire, registry, house rules, record store, estates, backup, MCP socket |
-| `cmd/rig` | Built. `rig <program> <command>`, generated help and completion, `--json` on every answer and every error, `record`, `backup`, `restore` |
-| `cmd/rigwindow` | Partial. The tray and the window; the tray is its own process |
-| `client/` | Built. The stub a program embeds to reach rigd; the only rig code inside a program |
-| `cmd/fakeapp`, `cmd/ledger`, `cmd/abacus` | Built. The reference program and two fake adopters |
-| `design/` | Built. A live, self-contained visual system with a theme engine that measures its own contrast |
-| `cmd/ipcbench/` | Built and measured. The transport numbers the daemon architecture rests on |
+| a CLI | `rig <program> <command>`, generated help and completion, `--json` on every answer and error |
+| agents | every command through the MCP door (`list`, `describe`, `invoke`); a promoted one as its own tool |
+| a pane | generated from the declaration, or a page you serve, themed by the window |
+| errors | one `Status` shape: code, message, precondition, actual, fix |
 
-**The planner left rig on 2026-09-24.** Projects, work items, decisions and
-the brief live in [docket](https://github.com/borismilner/docket), which
-reaches rig over the socket like any other program. The record store stays
-here.
+Go links `client` and `proto/rig/v1`; any other language speaks the wire from
+the proto files. **[docs/programs.md](docs/programs.md)** is the contract, with
+Go and Python examples in `examples/`, `client/clienttest` for testing against
+a real daemon.
+
+## What an agent session gets
+
+| | CLI | MCP |
+|---|---|---|
+| **Toasts** in five severities: info, success, warning, error, urgent. Copy and close on every toast, pin on any that would close on its own; filed in the record first; Do Not Disturb never holds back urgent | `rig notify`, `rig dnd` | |
+| **Lessons**: written once, searched with SQLite FTS5, answered as snippets, never whole documents | `rig knowledge` | `knowledge_search`, `knowledge_get`, `knowledge_add` |
+| **The record**: append-only, versioned records with typed links, retract, delete and replace | `rig record` | `record_*` |
+| **Progress**: a work item started, blocked or finished | `rig progress step` | `progress_step` |
+| **Queues**: claim under a lease, heartbeat, requeue once the worker is observed dead; at-least-once, with a mandatory idempotency key | `rig queue` | |
+| **Peers**: who else is here, what each is for and doing; leases with fencing tokens | `rig peers` | `announce`, `set_activity`, `list_agents` |
+
+Everything in the table is also a `rig.*` verb on the socket.
+`docs/orientation.md` is the checked inventory of what exists and what does
+not yet.
 
 ## Measured before it was designed
 
@@ -96,28 +108,25 @@ re-runnable from this repository. **Said here because "re-take them" over a
 table whose most consequential row cannot be re-taken is the kind of claim this
 project keeps catching in its own instruments.**
 
-## The visual system
+### What it costs on disk
 
-`design/visual-system.html` is one self-contained file. Open it in a browser:
-pick a program in the rail, fire a toast, watch a pane crash and recover, then
-open **Lab** and drag any visual parameter of the product while the contrast
-table re-measures live.
+Measured and held by `make bench-size`, which fails a build that grows a
+binary without a recorded reason (`size-ratchet.json`):
 
-Two rules the theme engine enforces, so that a tweak cannot quietly break
-legibility:
+| Binary | Bytes |
+|---|---|
+| `rigd` | 16,638,215 |
+| `rig` | 7,074,055 |
+| `rigwindow` | 14,291,976 |
 
-**Hues are generated in oklch.** Six evenly spaced at one lightness and one
-chroma, so "a family" is arithmetic rather than a promise. Move the lightness
-and all six move together and stay a family.
+## Where the plan lives
 
-**Neutrals are solved, not chosen.** `--border`, `--fg-dim` and `--fg-faint` are
-binary-searched to the dimmest value that still clears their WCAG target on
-*every* surface they can land on. The inherited `#556579` border measured 2.40:1
-on a panel, and is now not something anyone can type.
-
-The banner and diagram above are generated from that same engine by
-`design/readme-art.mjs`, which is why their colours are the product's colours
-and not an approximation of them.
+`PLAN.md` indexes the specification: fifty sections in `plan/`, ordered into
+seventeen milestones. M0 is tagged; M1 and the MCP door of M2 are largely
+built. The planner (projects, work items, the brief) moved out to
+[docket](https://github.com/borismilner/docket), which reaches rig over the
+socket like any other program. `design/visual-system.html` is the live visual
+system: one file, open it in a browser.
 
 ## Layout
 
