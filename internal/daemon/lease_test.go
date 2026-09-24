@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -234,6 +235,12 @@ func TestALeaseNeedsASeatAndATTL(t *testing.T) {
 	a := seated(t, sock, "seat-a")
 	err = a.Call(ctx, "rig.lease.acquire", &rigv1.LeaseAcquireRequest{Name: "x"}, &rigv1.LeaseAcquireResponse{})
 	wantCode(t, err, rigv1.Code_CODE_INVALID, "an acquire with no TTL")
+
+	long := strings.Repeat("n", maxLeaseText+1)
+	err = a.Call(ctx, "rig.lease.acquire", &rigv1.LeaseAcquireRequest{Name: long, TtlMs: 1000}, &rigv1.LeaseAcquireResponse{})
+	wantCode(t, err, rigv1.Code_CODE_INVALID, "a lease name over the bound")
+	err = a.Call(ctx, "rig.lease.break", &rigv1.LeaseBreakRequest{Name: "x", Reason: long}, &rigv1.LeaseBreakResponse{})
+	wantCode(t, err, rigv1.Code_CODE_INVALID, "a break reason over the bound")
 }
 
 // An estate with no lease store refuses by name rather than answering empty.

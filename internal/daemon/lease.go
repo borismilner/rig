@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 	"time"
 
@@ -76,6 +77,9 @@ func (d *Daemon) serveLeaseAcquire(c *conn, f *rigv1.Frame) {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "lease.acquire: "+err.Error())
 		return
 	}
+	if !leaseTextOK(c, f, "lease.acquire", "name", req.GetName()) {
+		return
+	}
 	_, seat, _, ok := d.provenance(c)
 	if !ok {
 		refuseUnseatedLease(c, f, "lease.acquire")
@@ -145,6 +149,10 @@ func (d *Daemon) serveLeaseBreak(c *conn, f *rigv1.Frame) {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "lease.break: "+err.Error())
 		return
 	}
+	if !leaseTextOK(c, f, "lease.break", "name", req.GetName()) ||
+		!leaseTextOK(c, f, "lease.break", "reason", req.GetReason()) {
+		return
+	}
 	_, seat, _, ok := d.provenance(c)
 	if !ok {
 		refuseUnseatedLease(c, f, "lease.break")
@@ -167,6 +175,21 @@ func refuseUnseatedLease(c *conn, f *rigv1.Frame, command string) {
 		Fix: "call rig.announce on this connection first, with a seat. The " +
 			"holder is the daemon's to name and is never read off the request",
 	})
+}
+
+// maxLeaseText bounds a lease name and a break reason. Both are stored and
+// echoed in every lease.list, so an unbounded one is a caller growing every
+// other caller's answer; a name is an identifier and a reason a sentence.
+const maxLeaseText = 256
+
+// leaseTextOK refuses a name or reason over maxLeaseText by name.
+func leaseTextOK(c *conn, f *rigv1.Frame, command, what, v string) bool {
+	if len(v) <= maxLeaseText {
+		return true
+	}
+	c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, fmt.Sprintf(
+		"rig.%s: the %s is %d bytes, over the %d-byte bound", command, what, len(v), maxLeaseText))
+	return false
 }
 
 // ttlOf turns the wire's milliseconds into a duration. Zero stays zero, and
