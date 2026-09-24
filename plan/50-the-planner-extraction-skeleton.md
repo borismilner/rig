@@ -147,7 +147,7 @@ row it depends on has landed, never before.** The lead owns this table and
 | **F** | `retire` | rig, `cmd/rig/brief.go` + goldens + entries; `internal/record`'s importers, `brief.go` and the tests that reach only them; `cmd/rigseed/` deleted; `mcp_records.go`'s arm; `self.go`; `serveProjectBrief` in `internal/daemon/record.go` LAST, after track I's commit to that file | 5, 6, 8 | A. **SPAWNED 07:45, and E is NOT a dependency** - acceptance C's old brief is built from the cut-sha whatever the tree holds, so deleting rig's brief cannot block C; only E can. `record.go` is sequenced behind track I by commit rather than split by file |
 | **G** | `pane` | rig `frontend/`, `cmd/rigwindow/`; `docket/frontend/`, `docket/cmd/docket/pane.go`; ONE line of `docket/cmd/docket/main.go` after E is COMPLETE | 7 | C. **SPAWNED 07:45 for slice 1** (the nine files and the toolchain move; rig's window keeps platform data). Slice 2 (the embed, `/pane`, `pane_url`) waits on E's STATUS saying COMPLETE. `cmd/abacus` is the shape |
 | **H** | lead | `Makefile` under `rig-makefile`; the ratchet rows the shrink moves | 9 | everything above |
-| **I** | `paging` | rig, `proto/rig/v1/wire.proto` + `wire.pb.go` for three fields (lent), `internal/record/store.go` for one paged read, `serveRecordQuery` in `internal/daemon/record.go`, `cmd/rig/record.go`'s query verb, its own test files | **B116** | nothing. **SPAWNED 07:45.** Specified below, "B116, the answer is paged" |
+| **I** | `paging` | rig, `proto/rig/v1/wire.proto` + `wire.pb.go` for three fields (lent), `internal/record/store.go` for one paged read, `serveRecordQuery` in `internal/daemon/record.go`, `cmd/rig/record.go`'s query verb, its own test files | **B116** | nothing. **SPAWNED 07:45.** Specified below, "B116, the answer is paged" ✅ **DONE 2026-09-24 08:30 at rig `0eab674`** (six commits from `b15749c`): the requirement query was 1,116,733 B in one frame, 68,157 over the cap; now 5 pages, the largest 262,050 B. `decision` (801,308 B) was next to die, now 4 pages. The whole plan seeded a private estate (1214 records, 13.1 s) and `rigseed --check` exited 0. Notes `agent-work/b116-record-query-paging/` |
 
 ### The moves, in order, and what proves each one
 
@@ -175,7 +175,7 @@ rig.
 
 | Found | Where it went |
 |---|---|
-| ⛔ **`rigseed --check` over the whole 50-section `plan/` cannot complete, and it is rig's wire:** `record.query --kind requirement` answers 1,123,924 bytes, over `MaxFrameSize`, so the query dies and the seeder's 30 s deadline kills the child. Rig's own seeder fails byte-identically, so it predates docket. **It bites his production re-seed too** the moment `plan/47-50` are in the store | **B116**, the lead's, before or with his re-seed. Decision 2's `fields` projection is one fix; paging the answer is the other; the cap alone is not a fix. ⛔ **PICKED 2026-09-24 07:40: PAGING.** The seeder's check compares BODIES (`cmd/rigseed/main.go`, `storeRecords`), so the projection cannot bring the requirement query under the cap; paging bounds every answer by construction. Specified below |
+| ⛔ **`rigseed --check` over the whole 50-section `plan/` cannot complete, and it is rig's wire:** `record.query --kind requirement` answers 1,123,924 bytes, over `MaxFrameSize`, so the query dies and the seeder's 30 s deadline kills the child. Rig's own seeder fails byte-identically, so it predates docket. **It bites his production re-seed too** the moment `plan/47-50` are in the store | **B116**, the lead's, before or with his re-seed. Decision 2's `fields` projection is one fix; paging the answer is the other; the cap alone is not a fix. ⛔ **PICKED 2026-09-24 07:40: PAGING.** The seeder's check compares BODIES (`cmd/rigseed/main.go`, `storeRecords`), so the projection cannot bring the requirement query under the cap; paging bounds every answer by construction. Specified below ✅ **CLOSED 2026-09-24 at `0eab674`**: row I above and the table below carry the numbers |
 | decision 5 missed three symbols the seeder reaches: `IsStepState` (`progress.go`), `EncodeTags` and `DecodeTags` (`brief.go`) | docket carries them in `internal/kinds`; move 6 finds them on rig's side and the `git grep` in its proof row grows by three names |
 | two plan pins passed over nothing: `os.DirFS` on a missing directory returns no error, so `TestTheRealPlanKeysAreUnique` and `TestNoPlanKeyRunsPastTheMeasuredBound` ran over zero entries | docket's copies skip loudly with the reason; rig's originals are correct today only because the directory exists - the B87 class, a check that passes by not checking |
 | the seat's layout: `internal/importers`, `internal/kinds`, `cmd/rigseed`, and `internal/docs` (eight lines resolving `DOCKET_DOC_ROOT` so the 21 live-document pins run from the new home) | the "Files a future seat owns" table below is superseded by the repository itself for docket's side; `agent-work/split-move-3-docket-repo/FINDINGS.md` lists every adaptation |
@@ -209,10 +209,22 @@ against a daemon without B116, `next` is empty and the loop is one page.
 
 | Acceptance | Command |
 |---|---|
-| **the whole plan seeds and checks** | a PRIVATE estate (state AND runtime roots private), seeded by docket's `cmd/rigseed --rig <scratchpad rig>` from the current 50-section `plan/`; `rigseed --check` exits **0**; `rig record query rig requirement --json \| jq length` equals the seeder's count; rigd's log has no `frame exceeds` |
-| **pages are exact** | a daemon test: records whose wire size exceeds the budget answer in N pages, every frame under `MaxFrameSize`, union complete, no duplicate, no gap |
-| **additive** | with no `limit` and no `after`, a small fixture's answer is byte-identical to before and `next` is empty |
-| **the guards bite** | `after` = garbage is refused `INVALID_ARGUMENT`; the budget mutated to 0 still yields one record per page; the CLI against a three-page daemon prints every record once |
+| **the whole plan seeds and checks** | a PRIVATE estate (state AND runtime roots private), seeded by docket's `cmd/rigseed --rig <scratchpad rig>` from the current 50-section `plan/`; `rigseed --check` exits **0**; `rig record query rig requirement --json \| jq length` equals the seeder's count; rigd's log has no `frame exceeds` ✅ 1214 records seeded, `--check` exit 0, `rig record query rig requirement --json \| jq length` = 489 = the seeder's count with 489 unique ids, 0 `frame exceeds` in the daemon log, production `record.db` size and mtime unchanged (FINDINGS) |
+| **pages are exact** | a daemon test: records whose wire size exceeds the budget answer in N pages, every frame under `MaxFrameSize`, union complete, no duplicate, no gap ✅ `279fadd` |
+| **additive** | with no `limit` and no `after`, a small fixture's answer is byte-identical to before and `next` is empty ✅ `279fadd` |
+| **the guards bite** | `after` = garbage is refused `INVALID_ARGUMENT`; the budget mutated to 0 still yields one record per page; the CLI against a three-page daemon prints every record once ✅ four mutations in a detached copy: budget 0 gives 64 records in 64 pages with the union complete; `>` to `>=` on the cursor, the CLI dropping `after`, and a permissive decode each turn a test red |
+
+**Recorded from the seat's report, 2026-09-24 08:35 (lead).** Three
+properties nobody ruled on and nothing in rig needs today: a paged answer is
+N queries rather than a snapshot, so a concurrent write is seen or missed by
+where it sorts; the MCP door's `record.query` stays unbounded because it is
+in-process and has no frame; a single record larger than `MaxFrameSize`
+cannot be answered, and cannot enter either, so at-least-one holds by
+construction rather than by a check. The cursor codec lives in
+`internal/daemon/recordpaging.go`. **Cost, §37:** the wire commit landed
+7 m 47 s before its handler and `TestNoServedRequestFieldIsSilentlyDropped`
+held `internal/daemon` red for every gate in between; the rule is now in
+`COORDINATION.md`: a wire field and its handler are ONE commit.
 
 ### Acceptance, restated so it can be checked rather than read
 
