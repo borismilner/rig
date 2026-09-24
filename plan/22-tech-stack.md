@@ -97,3 +97,35 @@ is treated as met, and until it does the figure is a design target rather than a
 which is the exact defect §31 says the last round of budgets had.
 
 ---
+
+### ⛔ The library audit, 2026-09-24, for Boris's "best of the absolute best" ruling (§12's header quotes it)
+
+Every direct dependency, what it is for, the named alternatives, and the verdict. **Measured**
+means a number taken on this date; **reasoned** means the verdict rests on the alternatives'
+known properties and was not re-measured here, and says so.
+
+| Dependency | For | Alternatives | Verdict |
+|---|---|---|---|
+| `google.golang.org/protobuf` | the wire | gogo/protobuf (dead), vtprotobuf (generated fast marshal on top of this) | **keep.** Reasoned. vtprotobuf is the one worth measuring: §48 found serialising, not transport, dominates a large answer. **For the lead**: a measured trial on `record.query` pages |
+| `modernc.org/sqlite` | the record store | mattn/go-sqlite3 (cgo), ncruces/go-sqlite3 (wasm) | **keep.** Pure Go keeps `rigd` free of cgo (§17, §22). Measured today: 13% of daemon CPU under the soak, the rest is syscalls and scheduling |
+| `go.etcd.io/bbolt` | the lease and epoch store | SQLite (already linked) | **replace, as §48 decision 1 already rules** (one engine). Not done here: it is S1's build. **For the lead** |
+| `github.com/wailsapp/wails/v3` (beta) | the window | webview/webview_go, gotk4 by hand, Tauri (Rust) | **keep, with the beta risk named.** It is the only Go option with typed bindings and a maintained GTK4/WebKitGTK-6 backend; its Linux tray cannot report the icon's position (measured in source: `bounds()` returns an empty rect) |
+| `fyne.io/systray` | the tray process | Wails' own tray (needs GTK in the tray process), getlantern/systray (unmaintained) | **keep.** It keeps the tray process free of GTK and WebKit, the footprint ruling's reason for the separate process |
+| `github.com/modelcontextprotocol/go-sdk` | the MCP door | mark3labs/mcp-go | **keep.** The official SDK, maintained with the spec |
+| `github.com/santhosh-tekuri/jsonschema/v6` | argument schemas | xeipuuv/gojsonschema (draft-07, unmaintained), qri-io/jsonschema | **keep.** Full 2020-12 and the strictest of the three |
+| `github.com/google/uuid` | UUIDv7 record ids | gofrs/uuid | **keep.** Either would do; this one was already indirect (row above) |
+| `golang.org/x/sys` | SO_PEERCRED, CLOCK_BOOTTIME, getsid | syscall (frozen) | **keep.** Required |
+| `go.uber.org/goleak` (test only) | goroutine-leak checks | NumGoroutine counts | **keep.** Adopted today; linked into no binary |
+| `github.com/godbus/dbus/v5` | the toast fallback to `org.freedesktop.Notifications` (§12), in `rigwindow` | exec of `notify-send` (a binary that may be absent), gdbus | **keep.** Promoted indirect to direct 2026-09-24: `fyne.io/systray` already links it into `rigwindow`, so no new module enters the graph. The one D-Bus library Go has that is maintained |
+| `golang.org/x/mod` | `cmd/tagcheck`: reading release tags as Go reads them (`semver`) | a hand-written semver regex | **keep.** Promoted indirect to direct 2026-09-24: it was already in the module graph, it is the Go toolchain's own reading of a version, and `tagcheck` is linked into no shipped binary |
+| `@wailsio/runtime` | the window's bridge | none: it is Wails' own | **keep** |
+| `svelte`, `vite`, `@sveltejs/vite-plugin-svelte`, `tailwindcss`, `@tailwindcss/vite` | the window's frontend | React, Solid; webpack | **keep.** Reasoned: Svelte 5 compiles to the smallest runtime of the three, which is the footprint ruling's question |
+| `marked` | markdown in panes | markdown-it, micromark | **keep.** Reasoned: the smallest and fastest of the three for trusted input |
+| `@playwright/test` | the contrast gates | puppeteer | **keep.** It drives the real browser the gates need |
+| `typescript`, `tslib`, `@tsconfig/svelte`, `prettier`, `prettier-plugin-svelte`, `vitest`, `json-schema-to-typescript` | build and test tools | - | **keep.** Dev-only; none ships in a binary |
+
+**Performance leaks, measured 2026-09-24:** goleak now runs at the end of the daemon and client
+test packages and found two leaks, both fixed (`Daemon.Close`, a test's dialer). The daemon soak
+(`RIG_SOAK=3m`) ran 68,078 rounds with goroutines 5 -> 5 and heap 1,170 KiB -> 1,212 KiB. Under
+load the CPU profile is syscalls 15%, futex 10%, SQLite 13%; in-use heap 2 MB. `rigd` idle: 17.3 MB
+resident, 10 ms of CPU in 12 s.

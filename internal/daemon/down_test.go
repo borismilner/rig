@@ -252,6 +252,7 @@ func TestRigDownOnADaemonThatIsNotServingSaysSo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = d.Close() })
 	if d.stopper() != nil {
 		t.Fatal("a daemon that was never served reports something to stop")
 	}

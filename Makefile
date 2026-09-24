@@ -158,7 +158,13 @@ deps-frontend: ## Install the frontend's pinned dependencies from the lockfile
 	# workflow step is a second definition of how this repo installs.
 	cd frontend && npm ci
 
-build-frontend: ## Build the window's frontend into cmd/rigwindow/dist
+# The lockfile's stamp inside node_modules: a fresh clone or worktree has no
+# node_modules, and `vite: not found` was the first thing a redeploy from one
+# said (2026-09-24). npm ci runs again only when the lockfile moves.
+frontend/node_modules/.package-lock.json: frontend/package-lock.json
+	cd frontend && npm ci
+
+build-frontend: frontend/node_modules/.package-lock.json ## Build the window's frontend into cmd/rigwindow/dist
 	@find cmd/rigwindow/dist -mindepth 1 ! -name .gitkeep -delete
 	cd frontend && npm run build
 
@@ -292,6 +298,31 @@ redeploy: build build-rigwindow ## Build and redeploy EVERYTHING live - daemon, 
 	@echo
 	@echo "NOT TOUCHED, on purpose - each is a separate deployment:"
 	@echo "    rig-team.service, and any daemon on a private XDG_RUNTIME_DIR"
+
+# deploy is the one command to remember (Boris, 2026-09-24: "make sure there is
+# a make command that deploys the latest and the greatest so that I don't
+# need to remember to deploy every part on its own"). It is redeploy with the
+# two checks a person forgets: that this tree IS the latest (origin/main, and
+# nothing uncommitted), and afterwards that every live part answers with the
+# version just built. FORCE=1 deploys a tree that is not origin/main.
+deploy: ## THE deploy: latest main, every part (daemon, client, window, tray), verified live
+	@git fetch -q origin main 2>/dev/null || echo "  (could not reach origin; checking against the last fetch)"
+	@if [ -n "$$(git status --porcelain --untracked-files=no)" ] && [ -z "$(FORCE)" ]; then \
+	  echo "this tree has uncommitted changes, so it is not the latest main. Commit, or FORCE=1."; exit 1; fi
+	@if [ "$$(git rev-parse HEAD)" != "$$(git rev-parse origin/main)" ] && [ -z "$(FORCE)" ]; then \
+	  echo "HEAD $$(git rev-parse --short HEAD) is not origin/main $$(git rev-parse --short origin/main)."; \
+	  echo "  git switch main && git pull --ff-only, then make deploy again (or FORCE=1)."; exit 1; fi
+	@$(MAKE) --no-print-directory redeploy
+	@echo
+	@echo "  Verifying what is live now, not what was copied:"
+	@live=$$($(PREFIX)/bin/$(BIN) estate 2>/dev/null | awk '/^daemon/ {print $$2}'); \
+	  if [ "$$live" = "$(VERSION)" ]; then echo "    rigd       $$live"; \
+	  else echo "    rigd answers $$live, not $(VERSION): the deploy did NOT take"; exit 1; fi
+	@$(PREFIX)/bin/$(BIN) version 2>/dev/null | awk '/^product/ {print "    rig        " $$2}'
+	@$(PREFIX)/bin/rigwindow --version 2>/dev/null | awk '/^product/ {print "    rigwindow  " $$2}'
+	@systemctl --user is-active --quiet rigwindow.service && echo "    tray       running" || \
+	  { echo "    rigwindow.service is not running"; exit 1; }
+	@echo "  deployed $(VERSION)."
 
 uninstall: ## Remove the installed binaries and the user service
 	-@systemctl --user disable --now $(BIND).service 2>/dev/null || true
@@ -679,6 +710,12 @@ tidy: ## Tidy go.mod and npm dependencies
 	go mod tidy
 	cd frontend && npm prune
 
+# Release tags are what a program pins (section 28, integration gap 9):
+# canonical vMAJOR.MINOR.PATCH, major v0 or v1 because the module path has no
+# /vN suffix, pre-release only -mN or -rc.N, annotated. cmd/tagcheck has why.
+tag-check: ## Fail if a release tag is one a program could not pin
+	go run ./cmd/tagcheck
+
 deps-check: ## Check the build against the stack table, plan section 22 (NOT upstream drift: that needs the network)
 # PLAN.md became an index on 2026-09-12 and the sections live in plan/. depscheck
 # needed no code change: it finds the "## 22. Tech stack" heading and reads to the
@@ -696,7 +733,7 @@ package: build ## Build the .deb from freshly built binaries
 	@mkdir -p dist
 	go run ./cmd/pkgdeb --version $(VERSION) --out dist/
 
-ci: fmt-check vet lint-house test-race schema-check deps-check theme-gate ## Everything CI runs
+ci: fmt-check vet lint-house test-race schema-check deps-check theme-gate tag-check ## Everything CI runs
 	@echo
 	@echo "  M0's gate. Targets not yet in ci, each waiting on the milestone"
 	@echo "  that gives it something to check:"
@@ -743,11 +780,11 @@ help: ## Show this help
 	  /^[a-zA-Z_-]+:.*##/ {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo
 
-.PHONY: build build-rigd build-rig build-fakeapp build-ledger build-abacus build-lantern deps-frontend build-frontend build-rigwindow build-all install uninstall \
+.PHONY: build build-rigd build-rig build-fakeapp build-ledger build-abacus build-lantern deps-frontend build-frontend build-rigwindow build-all install deploy uninstall \
         run dev clean test test-unit test-race \
         test-chaos test-e2e test-wire fuzz cover cover-html lint lint-house fmt vet audit \
         vet-window test-window verify contrast contrast-selftest contrast-window theme-gate generate proto proto-check schema types docs bench bench-ipc profile \
-        up down doctor apps logs tui tidy deps-check release package ci fmt-check \
+        up down doctor apps logs tui tidy deps-check tag-check release package ci fmt-check \
         bench-idle bench-scale bench-size bench-size-update bench-size-one build-minimal \
         bench-size-window bench-size-window-update \
         modules modules-matrix version help

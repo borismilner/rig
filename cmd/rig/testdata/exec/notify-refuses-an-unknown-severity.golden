@@ -1,0 +1,5 @@
+$ rig notify loud x
+exit 1
+--- stdout (0 bytes)
+--- stderr (76 bytes)
+rig: "loud" is not a severity; one of info, success, warning, error, urgent

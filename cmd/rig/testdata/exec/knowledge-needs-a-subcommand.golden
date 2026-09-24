@@ -1,0 +1,5 @@
+$ rig knowledge
+exit 1
+--- stdout (0 bytes)
+--- stderr (119 bytes)
+rig: usage: rig knowledge search <words...> [--limit N] | get <id> | add --title T --summary S [--body B] [--tag t]...

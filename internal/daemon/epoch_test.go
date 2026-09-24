@@ -46,6 +46,7 @@ func upIncarnation(t *testing.T, name string, epoch uint64) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = d.Close() })
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() { defer close(done); _ = d.Serve(ctx, l) }()
@@ -107,6 +108,7 @@ func TestTheTwoSurfacesAgreeAboutTheEpoch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = d.Close() })
 	if got := d.EstateIdentity().Epoch; got != epoch {
 		t.Errorf("the MCP surface reports epoch %d, the daemon published %d", got, epoch)
 	}

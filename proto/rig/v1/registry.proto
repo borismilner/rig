@@ -209,3 +209,89 @@ message EstateResponse {
   // confused with a real one.
   uint64 epoch = 6;
 }
+
+
+
+// ============================================================================
+// SECTION 12's TOASTS. They live in this file rather than verbs.proto so the
+// tray, which links only this package, does not link every verb's messages
+// to wait for a toast (measured: +364,448 bytes on rigwindow otherwise). Same
+// proto package, so the full names and the bytes on the wire are unchanged.
+// A program or a seat sends a notification; the daemon
+// writes it into the record itself (kind "notification", the sender as its
+// provenance), so nothing is ever only a toast, and a sender needs no
+// record-write permission. The tray waits on rig.toast.wait and starts the
+// renderer when the first one arrives.
+// ============================================================================
+
+// AgentBox's five, in rising order of how loudly they are drawn.
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  SEVERITY_INFO = 1;
+  SEVERITY_SUCCESS = 2;
+  SEVERITY_WARNING = 3;
+  SEVERITY_ERROR = 4;
+  SEVERITY_URGENT = 5;
+}
+
+message Toast {
+  // Monotonic for this daemon's life; the waiter's cursor.
+  uint64 seq = 1;
+  // The notification record's id.
+  string record_id = 2;
+  Severity severity = 3;
+  string title = 4;
+  string body = 5;
+  // The sender: a registered program's id, else the caller's seat.
+  string sender = 6;
+  int64 at_unix_nano = 7;
+  // Filed while Do Not Disturb was on, so it went to the record and not to
+  // the screen. Never set on an urgent toast.
+  bool suppressed = 8;
+}
+
+// NotifyRequest sends one. Severity is required; title up to 200 bytes, body
+// up to 4 KiB.
+message NotifyRequest {
+  Severity severity = 1;
+  string title = 2;
+  string body = 3;
+}
+
+message NotifyResponse {
+  Toast toast = 1;
+}
+
+// ToastWaitRequest answers the toasts after `after` as soon as there are any,
+// or an empty list once `timeout_ms` (at most 60000) has passed.
+message ToastWaitRequest {
+  uint64 after = 1;
+  uint32 timeout_ms = 2;
+}
+
+message ToastWaitResponse {
+  repeated Toast toasts = 1;
+  // The newest seq the daemon has issued, so a waiter that starts late can
+  // skip the backlog.
+  uint64 latest = 2;
+}
+
+// Do Not Disturb (section 12): while it is on, a notification is filed in the
+// record and not drawn. An urgent one is always drawn.
+enum DndChange {
+  DND_CHANGE_UNSPECIFIED = 0;
+  // Answer the state and change nothing.
+  DND_CHANGE_QUERY = 1;
+  DND_CHANGE_ON = 2;
+  DND_CHANGE_OFF = 3;
+}
+
+message ToastDndRequest {
+  DndChange change = 1;
+}
+
+message ToastDndResponse {
+  bool on = 1;
+  // Notifications filed and not drawn since Do Not Disturb last went on.
+  uint32 suppressed = 2;
+}

@@ -281,34 +281,42 @@ func (s *Store) Acquire(name, holder string, w Witness, ttl time.Duration) (Hand
 
 	var h Handle
 	err = s.db.Update(func(tx *bolt.Tx) error {
-		r, err := getRecord(tx, name)
-		if err != nil {
-			return err
-		}
-		token := uint64(0)
-		if r != nil {
-			token = r.Token
-			state, live := r.evaluate(at, s.bootID)
-			if state != Free && r.Holder != holder {
-				return &HeldError{Status: r.status(state, live)}
-			}
-		}
-		next := &record{
-			Name:     name,
-			Holder:   holder,
-			Token:    token + 1,
-			Epoch:    s.epoch,
-			Witness:  w,
-			BootID:   s.bootID,
-			Deadline: at.Add(ttl),
-		}
-		h = Handle{Name: name, Holder: holder, Token: next.Token, Epoch: next.Epoch, Deadline: next.Deadline}
-		return putRecord(tx, next)
+		var err error
+		h, err = s.acquireTx(tx, at, name, holder, w, ttl)
+		return err
 	})
 	if err != nil {
 		return Handle{}, err
 	}
 	return h, nil
+}
+
+// acquireTx is Acquire inside a transaction the caller already holds, so a
+// queue claim takes its task and the task's lease in one commit.
+func (s *Store) acquireTx(tx *bolt.Tx, at Instant, name, holder string, w Witness, ttl time.Duration) (Handle, error) {
+	r, err := getRecord(tx, name)
+	if err != nil {
+		return Handle{}, err
+	}
+	token := uint64(0)
+	if r != nil {
+		token = r.Token
+		state, live := r.evaluate(at, s.bootID)
+		if state != Free && r.Holder != holder {
+			return Handle{}, &HeldError{Status: r.status(state, live)}
+		}
+	}
+	next := &record{
+		Name:     name,
+		Holder:   holder,
+		Token:    token + 1,
+		Epoch:    s.epoch,
+		Witness:  w,
+		BootID:   s.bootID,
+		Deadline: at.Add(ttl),
+	}
+	return Handle{Name: name, Holder: holder, Token: next.Token, Epoch: next.Epoch, Deadline: next.Deadline},
+		putRecord(tx, next)
 }
 
 // Renew extends a lease against the handle that holds it.
@@ -481,4 +489,27 @@ func (s *Store) Leases() ([]Status, error) {
 		})
 	})
 	return out, err
+}
+
+// Check answers whether token is the lease's CURRENT fencing token, for a
+// resource deciding whether to accept a write (section 16's fencing row).
+//
+// A token is current while the lease record carries it and the lease is held
+// or orphaned: in both, nobody else has been granted it since. It stops being
+// current the moment the lease is released, broken, freed by its witness
+// being observed dead, or granted again - and it never becomes current again,
+// because tokens are monotonic per lease and survive a release.
+//
+// THE EPOCH IS NOT ASKED FOR, deliberately. A restart fences a HANDLE, so the
+// holder must re-acquire before renewing; it does not hand the lease to
+// anybody else, so a write under the old token conflicts with no newer holder.
+// What a resource needs to refuse is a token older than the newest one
+// granted, and that is exactly this comparison.
+func (s *Store) Check(name string, token uint64) (Status, bool, error) {
+	st, err := s.Inspect(name)
+	if err != nil {
+		return Status{}, false, err
+	}
+	current := token != 0 && st.Token == token && (st.State == Held || st.State == Orphaned)
+	return st, current, nil
 }

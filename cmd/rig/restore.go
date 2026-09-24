@@ -32,7 +32,7 @@ import (
 // ⛔ BUMPING THE STORE'S SCHEMA WITHOUT BUMPING THIS ONE MAKES `rig restore`
 // REFUSE EVERY FRESH ARCHIVE, and the test above is what turns that into a
 // build failure instead of a support question.
-const schemaCeiling = 2
+const schemaCeiling = 3
 
 // cmdRestore puts an archive back onto an estate (PLAN.md section 46).
 //

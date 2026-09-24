@@ -79,6 +79,12 @@ func TestEveryVerbRefusesOnACancelledContext(t *testing.T) {
 			return err
 		},
 		"Refs": func() error { _, err := s.Refs(dead, RefsRequest{ID: "wi-2"}); return err },
+		"AddLesson": func() error {
+			_, err := s.AddLesson(dead, LessonRequest{Title: "t", Summary: "s", Session: "s", Seat: "x"})
+			return err
+		},
+		"SearchLessons": func() error { _, err := s.SearchLessons(dead, "word", 0); return err },
+		"GetLesson":     func() error { _, err := s.GetLesson(dead, "x"); return err },
 	}
 
 	for name, call := range verbs {
@@ -128,6 +134,7 @@ func TestEveryVerbRefusesOnACancelledContext(t *testing.T) {
 var storeVerbsTakingContext = []string{
 	"Put", "Get", "GetVersion", "Query", "History",
 	"Link", "Unlink", "Step", "Refs",
+	"AddLesson", "SearchLessons", "GetLesson",
 }
 
 // ⛔ THE TABLE ABOVE CANNOT SEE checkEdge, AND A SURVIVING MUTATION IS WHAT

@@ -413,4 +413,39 @@ exactly once when the client retries.*
 Only after all five does the agent tooling point at rig. AgentBox stays running and untouched
 until then, and stays available afterwards until a month has passed with no regression.
 
+### Claimable queues, built 2026-09-24
+
+The queue row above is built as specified, in `internal/coord/queue.go`, and
+served as `rig.queue.push`, `claim`, `complete` and `list`.
+
+- **A claim is a lease**, named `queue/<queue>/<id>`, so it is one mechanism,
+  as the row asks: the heartbeat is `rig.lease.renew`, and requeue is the
+  lease's two-step expiry. Past the deadline with the worker alive, the task
+  is ORPHANED and not offered again. Once the witness is observed dead it is
+  READY, and `attempts` counts the redelivery.
+- **The idempotency key is mandatory.** A key pushed again returns the
+  existing task, finished or not. The same key over a different payload is
+  refused.
+- **Two of the Adversarial gate's named tests exist for queues:** a claimed
+  task run twice (the stale worker is fenced by the claim's token and cannot
+  complete) and a claim across a restart (the old handle is fenced by the
+  epoch, and the worker takes its task back).
+- **Not built:** the witnessed-run path (`rig peers run`) that would let a
+  requeue kill a stalled worker. Until it exists, replay safety is the
+  consumer's contract, as the row says.
+
+### Fencing tokens, the resource's check, built 2026-09-24
+
+The fencing row's token already existed, monotonic per lease. What was
+missing was a way for a resource to use it. `rig.lease.check {name, token}`
+answers whether the token is current: the lease carries it and is held or
+orphaned. A released, broken, dead-witness or re-granted lease makes it
+stale for good. The epoch is not asked for, because a restart fences a
+handle, not the lease. `rig.queue.complete` is the one rig-mediated write,
+and it is fenced by the claim's token and epoch.
+
+The row's own caveat still holds: this only protects a resource that asks.
+The Fenced gate, proving that a stalled holder's work stops, needs the
+witnessed-run path and is not built.
+
 ---
