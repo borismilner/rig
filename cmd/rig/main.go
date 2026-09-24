@@ -99,6 +99,9 @@ var valuedFlags = map[string]bool{
 	"timeout": true,
 	// rig knowledge (section 40).
 	"limit": true, "title": true, "summary": true, "tag": true,
+	// rig worknote (section 09). --body, --body-file and --project are
+	// already declared below with the record verbs' flags.
+	"part-of": true,
 	// rig queue (section 16).
 	"payload": true,
 	"depth":   true,
@@ -181,6 +184,8 @@ func usage() {
   estate           which estate this shell reached, and what it is for
   peers            who else is here, what each is for and what each is doing
   knowledge <cmd>  lessons other sessions learned: search, get, add
+  worknote <cmd>   your own working notes, kept past this session: write,
+                   mine, about
   queue <cmd>      claimable work queues: push, list
   notify <sev> <title>  a toast at the tray: info, success, warning, error, urgent
   dnd on|off|status  do not disturb: toasts go to the record only, urgent still shows
@@ -218,6 +223,7 @@ program declared, so they list what it actually has.
 var plainVerbs = map[string]func([]string) error{
 	"peers":     cmdPeers,
 	"knowledge": cmdKnowledge,
+	"worknote":  cmdWorkNote,
 	"queue":     cmdQueue,
 	"notify":    cmdNotify,
 	"dnd":       cmdDND,
@@ -301,7 +307,7 @@ func run(args []string) error {
 		// It also happens to be the honest shape: `plan/46` specifies one
 		// capability with two halves, and this is its single seam into run.
 		return cmdBackupOrRestore(args[0], with(args[1:], lead))
-	case "peers", "knowledge", "queue", "notify", "dnd":
+	case "peers", "knowledge", "worknote", "queue", "notify", "dnd":
 		return plainVerbs[args[0]](with(args[1:], lead))
 	case "record":
 		return cmdRecord(with(args[1:], lead))

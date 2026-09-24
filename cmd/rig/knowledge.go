@@ -130,7 +130,7 @@ func printLesson(out *json.Encoder, l *verbsv1.Lesson, asJSON bool) error {
 		}
 		return out.Encode(map[string]any{
 			"id": l.GetId(), titleKey: l.GetTitle(), "summary": l.GetSummary(),
-			"body": l.GetBody(), "tags": tags, "seat": l.GetProv().GetSeat(),
+			"body": l.GetBody(), "tags": tags, seatKey: l.GetProv().GetSeat(),
 			epochKey: l.GetProv().GetEpoch(), "at_unix_nano": l.GetProv().GetAtUnixNano(),
 		})
 	}

@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/borismilner/rig/internal/record"
@@ -137,7 +138,15 @@ type Note struct {
 	Seat    string
 	Session string
 	Epoch   uint64
-	Written string
+
+	// At is when the note was written, the DAEMON's stamp.
+	//
+	// ⛔ A time.Time AND NOT A FORMATTED STRING, so there is exactly one
+	// representation of one fact in this package and the rendering choice
+	// belongs to whichever surface has a reader. "What did I think at 14:00"
+	// is asked in wall-clock terms, and a wire that carried both the instant
+	// and a rendering of it would let the two disagree.
+	At time.Time
 }
 
 // Notes is a bounded answer with the unbounded count beside it.
@@ -358,7 +367,7 @@ func noteOf(r record.Record) Note {
 		Seat:    r.Prov.Seat,
 		Session: r.Prov.Session,
 		Epoch:   r.Prov.Epoch,
-		Written: r.Prov.CreatedAt.UTC().Format(stamp),
+		At:      r.Prov.CreatedAt.UTC(),
 	}
 	for k, v := range r.Fields {
 		if t, ok := strings.CutPrefix(k, TagPrefix); ok {
@@ -376,12 +385,12 @@ func noteOf(r record.Record) Note {
 	return n
 }
 
-// stamp is the note's written time, to the second, in UTC.
+// Stamp is how a note's time is rendered for a PERSON, to the second, in UTC.
 //
-// RFC3339 rather than the record's raw nanoseconds because a note is read by a
-// person as often as by an agent, and "what did I think at 14:00" is a
-// question asked in wall-clock terms.
-const stamp = "2006-01-02T15:04:05Z"
+// It lives here rather than in each surface so the CLI and any other reader
+// agree, and it is to the second because "what did I think at 14:00" is a
+// question asked in wall-clock terms and nanoseconds answer it worse.
+const Stamp = "2006-01-02T15:04:05Z"
 
 func notesOf(r record.Recent) Notes {
 	out := Notes{Notes: make([]Note, 0, len(r.Records)), Total: r.Total}

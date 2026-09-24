@@ -93,8 +93,8 @@ func TestASeatGetsItsNotesBackUnderADifferentSession(t *testing.T) {
 		if n.Seat != "p2" {
 			t.Errorf("a %s note is in p2's answer", n.Seat)
 		}
-		if n.Written == "" || !strings.HasSuffix(n.Written, "Z") {
-			t.Errorf("note %s has no written stamp: %q", n.ID, n.Written)
+		if n.At.IsZero() {
+			t.Errorf("note %s has no written stamp", n.ID)
 		}
 	}
 	// AND THE TAGS SURVIVE THE ROUND TRIP AS A LIST, not as tag: fields.

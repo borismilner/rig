@@ -877,7 +877,19 @@ var stdinSource = func() *os.File { return os.Stdin }
 // A refusal naming the flag is one keystroke from fixed. A silent success is
 // not discoverable at all.
 func putBody(rf *recordFlags) (string, error) {
-	bodyNamed, fileNamed := rf.wasSet("body"), rf.wasSet("body-file")
+	return resolveBody("rig record put", rf.wasSet("body"), rf.wasSet("body-file"), *rf.body, *rf.bodyFile)
+}
+
+// resolveBody is putBody's body, with the flags passed in rather than read off
+// one subcommand's struct.
+//
+// ⛔ EXTRACTED SO `rig worknote write` GETS B60 AND B75 RATHER THAN A SECOND
+// IMPLEMENTATION OF THEM. plan/09 names B60 - "record put takes its body
+// through argv only" - as a working note's HARD BLOCKER, because a note is
+// prose. A copy of these five branches would be a copy that drifts, and the
+// branch that matters most is the one that refuses silently dropping a pipe.
+// `verb` is in the B75 message because it names the command the caller typed.
+func resolveBody(verb string, bodyNamed, fileNamed bool, body, bodyFile string) (string, error) {
 	switch {
 	case bodyNamed && fileNamed:
 		// TWO BODIES AND NO RULE FOR PICKING ONE, which is the duplicate
@@ -890,7 +902,7 @@ func putBody(rf *recordFlags) (string, error) {
 				"       --body-file <path> the prose is in a file, or on " +
 				"standard input as -")
 
-	case fileNamed && *rf.bodyFile == "":
+	case fileNamed && bodyFile == "":
 		// The same accident every other flag on this surface guards: a shell
 		// variable that expanded to nothing. An empty path is not the current
 		// directory and it is not standard input.
@@ -900,7 +912,7 @@ func putBody(rf *recordFlags) (string, error) {
 				"       --body-file <path> read the prose from a file\n" +
 				"       --body-file -      read it from standard input")
 
-	case fileNamed && *rf.bodyFile == bodyFileStdin:
+	case fileNamed && bodyFile == bodyFileStdin:
 		return readBody(stdinSource(), "standard input")
 
 	case fileNamed:
@@ -910,14 +922,14 @@ func putBody(rf *recordFlags) (string, error) {
 		// have read the file with `cat`. What IS checked is the SIZE, in
 		// readBody, because an unbounded read of a caller-named path is an
 		// allocation nobody limits.
-		f, err := os.Open(*rf.bodyFile)
+		f, err := os.Open(bodyFile)
 		if err != nil {
 			// The error already names the path - "open /x/y: no such file or
 			// directory" - so naming it again would print it twice.
 			return "", badArgumentf("--body-file could not be read: %v", err)
 		}
 		defer func() { _ = f.Close() }()
-		return readBody(f, *rf.bodyFile)
+		return readBody(f, bodyFile)
 
 	case !bodyNamed && stdinIsOffering():
 		// ⛔ THIS IS B75. Nothing is read; the mode alone says that something
@@ -932,7 +944,7 @@ func putBody(rf *recordFlags) (string, error) {
 		// caller who meant no body is one flag: --body ''. Measured by running
 		// it - do not "fix" this by reading first.
 		return "", badArgumentf(
-			"rig record put was given no body, and standard input is not a "+
+			verb+" was given no body, and standard input is not a "+
 				"terminal - something is piped in and nothing here would "+
 				"read it.\n"+
 				"       rig will not create a record that silently drops "+
@@ -942,7 +954,7 @@ func putBody(rf *recordFlags) (string, error) {
 				"       %-18s create the record with an empty body, on purpose",
 			"--body-file -", "--body <text>", "--body ''")
 	}
-	return *rf.body, nil
+	return body, nil
 }
 
 // stdinIsOffering reports whether standard input is a stream that could be
@@ -1405,7 +1417,7 @@ func recordJSON(r Record, now time.Time) map[string]any {
 		// called `seat`.
 		"provenance": map[string]any{
 			"session": r.Prov.Session,
-			"seat":    r.Prov.Seat,
+			seatKey:   r.Prov.Seat,
 			epochKey:  r.Prov.Epoch,
 			// The timestamp is emitted unchanged AS WELL AS the age, because
 			// a consumer computing against its own clock must not be forced

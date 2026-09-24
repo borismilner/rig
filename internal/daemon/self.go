@@ -379,6 +379,26 @@ func selfDeclaration() kernel.Declaration {
 				"Writes a lesson: a title, a one-line summary that searches show, a body with the detail, and one-word tags. For lessons of great importance to many users, not for every note. Attributed to the caller's seat.",
 				"The lesson as written, with its id."),
 
+			// SECTION 09's WORKING NOTES. A write is a file write on the
+			// record writers' argument; the two reads only read. ⛔ ALL THREE
+			// NEED A SEAT, WHICH THE TWO KNOWLEDGE READS ABOVE DO NOT, and
+			// the reason is what the verb means rather than what it costs:
+			// `worknote.mine` is defined as "what THIS seat wrote", so a
+			// connection with no seat has no question to ask rather than a
+			// wide one.
+			leaseWriter("worknote.write", "Work note write", kernel.No,
+				"Write down what you are thinking, so it survives this session",
+				"Appends one working note: prose, any tags you like, and an association to anything in the record - a work item, a project, a task. A target id that holds no record is reported back rather than losing your prose. Attributed to the caller's seat, never to one named in the request.",
+				"The note as written, with its id, and an account of which associations took and which ids held no record."),
+			readOnly("worknote.mine", "Work note mine",
+				"Get your own working notes back after the session that wrote them died",
+				"Answers the working notes THIS SEAT wrote, newest first. The seat comes from your row, so this can only ever answer your own notes. Start here on resume: a session dies with its process and the seat does not.",
+				"Your notes, newest first, bounded, with the unbounded total beside them so you know what was left out."),
+			readOnly("worknote.about", "Work note about",
+				"Every seat's working notes on one record",
+				"Answers the working notes attached to one record, by ANY seat, newest first. This is the handover read: `mine` is your own memory, this is what the estate knows about the thing you are picking up.",
+				"The notes on that record, newest first, bounded, with the unbounded total beside them."),
+
 			readOnly("lease.list", "Lease list",
 				"Every lease in the estate, with its owner's liveness",
 				"Answers every lease this estate knows about, evaluated now: held, orphaned or free, who holds or last held it, how it is witnessed, whether the witness was observed dead, and whether it needs a recorded break. Expiry is derived on read, never swept.",

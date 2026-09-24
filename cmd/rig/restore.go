@@ -244,6 +244,10 @@ const estateKey = "estate"
 // provenance. One spelling for one fact.
 const epochKey = "epoch"
 
+// seatKey is the JSON key for a seat, beside epochKey for the same reason:
+// four surfaces emit one, and one spelling for one fact.
+const seatKey = "seat"
+
 // restoreJSON is the object --json emits.
 //
 // The parameter is `name` rather than `estate` because internal/estate is

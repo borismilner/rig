@@ -1,0 +1,5 @@
+$ rig worknote
+exit 1
+--- stdout (0 bytes)
+--- stderr (163 bytes)
+rig: usage: rig worknote write [--body B | --body-file F|-] [--tag t]... [--part-of ID]... [--project P] | mine [--project P] [--limit N] | about <id> [--limit N]

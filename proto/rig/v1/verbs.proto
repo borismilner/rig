@@ -1745,3 +1745,87 @@ message LeaseCheckResponse {
   bool current = 1;
   Lease lease = 2;
 }
+
+// ============================================================================
+// SECTION 09's WORKING NOTES (A1-A6). An agent's prose, written as it works,
+// attached to anything in the record, tagged however it likes, and handed back
+// to the SEAT that wrote it however many processes have died in between.
+//
+// THE SEAT AND NOT THE SESSION IS WHAT MAKES THIS WORK. A session dies with
+// its process, so a session-keyed read after a kill always answers nothing.
+// The seat is section 16's addressable identity and outlives every occupancy
+// of it, which is what makes "nothing is ever lost" survive the death the
+// feature is named for.
+//
+// The stored kind is `working-note` (A5 rules the name and refuses to reuse
+// section 39's `note`, which is a PROJECT note a person reads in a brief); the
+// verbs say `worknote`, because `note` is the word that left rig for docket.
+// ============================================================================
+
+// WorkNote is one working note, whole, with the provenance of whoever wrote
+// it. WHEN IT WAS WRITTEN IS `prov.at_unix_nano` AND THERE IS NO SECOND
+// RENDERED STAMP BESIDE IT: every other record answer on this wire carries the
+// time exactly once, in exactly that field, and a formatted copy would be a
+// second source of truth for one fact. The CLI formats it for a person.
+message WorkNote {
+  string id = 1;
+  string project = 2;
+  string body = 3;
+  repeated string tags = 4;
+  map<string, string> fields = 5;
+  Provenance prov = 6;
+  // The ids an edge was written to, and the ids that held no record so no
+  // edge was written. BOTH ARE A WRITE's ACCOUNT and are empty on a read.
+  repeated string attached = 7;
+  repeated string missing = 8;
+}
+
+// WorkNoteWriteRequest appends one note. The writer's provenance is the
+// daemon's, never read off the request. Body up to 64 KiB and required; up to
+// 16 tags of at most 64 bytes each, with no whitespace in them; `part_of` is
+// A2's association to anything, and an id that holds no record lands in
+// `missing` rather than failing the write, so the prose is never lost to a
+// typo. A field key that starts with `tag:` is refused: pass it as a tag.
+message WorkNoteWriteRequest {
+  string project = 1;
+  string body = 2;
+  repeated string tags = 3;
+  map<string, string> fields = 4;
+  repeated string part_of = 5;
+}
+
+message WorkNoteWriteResponse {
+  WorkNote note = 1;
+}
+
+// WorkNoteMineRequest asks for the notes THIS CONNECTION's seat wrote, newest
+// first. It carries no seat: the seat is the daemon's, read off the occupancy,
+// so one agent can never ask for another's notes. Empty `project` means every
+// project, which is the right default on resume. Zero `limit` means 20; above
+// 200 is clamped rather than refused, because `total` says what was left out.
+message WorkNoteMineRequest {
+  string project = 1;
+  uint32 limit = 2;
+}
+
+// WorkNoteMineResponse is bounded, and `total` is NOT the length of `notes`.
+// An answer that is cut without saying so is indistinguishable from a complete
+// one.
+message WorkNoteMineResponse {
+  repeated WorkNote notes = 1;
+  uint64 total = 2;
+}
+
+// WorkNoteAboutRequest asks for the notes attached to one record, by ANY seat.
+// It is deliberately not filtered by seat: `mine` is one agent's memory, this
+// is what the estate knows about one thing, which is the question a second
+// agent picking that thing up actually has.
+message WorkNoteAboutRequest {
+  string id = 1;
+  uint32 limit = 2;
+}
+
+message WorkNoteAboutResponse {
+  repeated WorkNote notes = 1;
+  uint64 total = 2;
+}

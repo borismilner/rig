@@ -6707,6 +6707,459 @@ func (x *LeaseCheckResponse) GetLease() *Lease {
 	return nil
 }
 
+// WorkNote is one working note, whole, with the provenance of whoever wrote
+// it. WHEN IT WAS WRITTEN IS `prov.at_unix_nano` AND THERE IS NO SECOND
+// RENDERED STAMP BESIDE IT: every other record answer on this wire carries the
+// time exactly once, in exactly that field, and a formatted copy would be a
+// second source of truth for one fact. The CLI formats it for a person.
+type WorkNote struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Id      string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Project string                 `protobuf:"bytes,2,opt,name=project,proto3" json:"project,omitempty"`
+	Body    string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	Tags    []string               `protobuf:"bytes,4,rep,name=tags,proto3" json:"tags,omitempty"`
+	Fields  map[string]string      `protobuf:"bytes,5,rep,name=fields,proto3" json:"fields,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Prov    *Provenance            `protobuf:"bytes,6,opt,name=prov,proto3" json:"prov,omitempty"`
+	// The ids an edge was written to, and the ids that held no record so no
+	// edge was written. BOTH ARE A WRITE's ACCOUNT and are empty on a read.
+	Attached      []string `protobuf:"bytes,7,rep,name=attached,proto3" json:"attached,omitempty"`
+	Missing       []string `protobuf:"bytes,8,rep,name=missing,proto3" json:"missing,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkNote) Reset() {
+	*x = WorkNote{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[89]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkNote) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkNote) ProtoMessage() {}
+
+func (x *WorkNote) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[89]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkNote.ProtoReflect.Descriptor instead.
+func (*WorkNote) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{89}
+}
+
+func (x *WorkNote) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *WorkNote) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *WorkNote) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *WorkNote) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+func (x *WorkNote) GetFields() map[string]string {
+	if x != nil {
+		return x.Fields
+	}
+	return nil
+}
+
+func (x *WorkNote) GetProv() *Provenance {
+	if x != nil {
+		return x.Prov
+	}
+	return nil
+}
+
+func (x *WorkNote) GetAttached() []string {
+	if x != nil {
+		return x.Attached
+	}
+	return nil
+}
+
+func (x *WorkNote) GetMissing() []string {
+	if x != nil {
+		return x.Missing
+	}
+	return nil
+}
+
+// WorkNoteWriteRequest appends one note. The writer's provenance is the
+// daemon's, never read off the request. Body up to 64 KiB and required; up to
+// 16 tags of at most 64 bytes each, with no whitespace in them; `part_of` is
+// A2's association to anything, and an id that holds no record lands in
+// `missing` rather than failing the write, so the prose is never lost to a
+// typo. A field key that starts with `tag:` is refused: pass it as a tag.
+type WorkNoteWriteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Project       string                 `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	Body          string                 `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
+	Tags          []string               `protobuf:"bytes,3,rep,name=tags,proto3" json:"tags,omitempty"`
+	Fields        map[string]string      `protobuf:"bytes,4,rep,name=fields,proto3" json:"fields,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	PartOf        []string               `protobuf:"bytes,5,rep,name=part_of,json=partOf,proto3" json:"part_of,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkNoteWriteRequest) Reset() {
+	*x = WorkNoteWriteRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[90]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkNoteWriteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkNoteWriteRequest) ProtoMessage() {}
+
+func (x *WorkNoteWriteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[90]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkNoteWriteRequest.ProtoReflect.Descriptor instead.
+func (*WorkNoteWriteRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{90}
+}
+
+func (x *WorkNoteWriteRequest) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *WorkNoteWriteRequest) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *WorkNoteWriteRequest) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+func (x *WorkNoteWriteRequest) GetFields() map[string]string {
+	if x != nil {
+		return x.Fields
+	}
+	return nil
+}
+
+func (x *WorkNoteWriteRequest) GetPartOf() []string {
+	if x != nil {
+		return x.PartOf
+	}
+	return nil
+}
+
+type WorkNoteWriteResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Note          *WorkNote              `protobuf:"bytes,1,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkNoteWriteResponse) Reset() {
+	*x = WorkNoteWriteResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[91]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkNoteWriteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkNoteWriteResponse) ProtoMessage() {}
+
+func (x *WorkNoteWriteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[91]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkNoteWriteResponse.ProtoReflect.Descriptor instead.
+func (*WorkNoteWriteResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{91}
+}
+
+func (x *WorkNoteWriteResponse) GetNote() *WorkNote {
+	if x != nil {
+		return x.Note
+	}
+	return nil
+}
+
+// WorkNoteMineRequest asks for the notes THIS CONNECTION's seat wrote, newest
+// first. It carries no seat: the seat is the daemon's, read off the occupancy,
+// so one agent can never ask for another's notes. Empty `project` means every
+// project, which is the right default on resume. Zero `limit` means 20; above
+// 200 is clamped rather than refused, because `total` says what was left out.
+type WorkNoteMineRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Project       string                 `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	Limit         uint32                 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkNoteMineRequest) Reset() {
+	*x = WorkNoteMineRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[92]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkNoteMineRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkNoteMineRequest) ProtoMessage() {}
+
+func (x *WorkNoteMineRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[92]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkNoteMineRequest.ProtoReflect.Descriptor instead.
+func (*WorkNoteMineRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{92}
+}
+
+func (x *WorkNoteMineRequest) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *WorkNoteMineRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+// WorkNoteMineResponse is bounded, and `total` is NOT the length of `notes`.
+// An answer that is cut without saying so is indistinguishable from a complete
+// one.
+type WorkNoteMineResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Notes         []*WorkNote            `protobuf:"bytes,1,rep,name=notes,proto3" json:"notes,omitempty"`
+	Total         uint64                 `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkNoteMineResponse) Reset() {
+	*x = WorkNoteMineResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[93]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkNoteMineResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkNoteMineResponse) ProtoMessage() {}
+
+func (x *WorkNoteMineResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[93]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkNoteMineResponse.ProtoReflect.Descriptor instead.
+func (*WorkNoteMineResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{93}
+}
+
+func (x *WorkNoteMineResponse) GetNotes() []*WorkNote {
+	if x != nil {
+		return x.Notes
+	}
+	return nil
+}
+
+func (x *WorkNoteMineResponse) GetTotal() uint64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+// WorkNoteAboutRequest asks for the notes attached to one record, by ANY seat.
+// It is deliberately not filtered by seat: `mine` is one agent's memory, this
+// is what the estate knows about one thing, which is the question a second
+// agent picking that thing up actually has.
+type WorkNoteAboutRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Limit         uint32                 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkNoteAboutRequest) Reset() {
+	*x = WorkNoteAboutRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[94]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkNoteAboutRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkNoteAboutRequest) ProtoMessage() {}
+
+func (x *WorkNoteAboutRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[94]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkNoteAboutRequest.ProtoReflect.Descriptor instead.
+func (*WorkNoteAboutRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{94}
+}
+
+func (x *WorkNoteAboutRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *WorkNoteAboutRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type WorkNoteAboutResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Notes         []*WorkNote            `protobuf:"bytes,1,rep,name=notes,proto3" json:"notes,omitempty"`
+	Total         uint64                 `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkNoteAboutResponse) Reset() {
+	*x = WorkNoteAboutResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[95]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkNoteAboutResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkNoteAboutResponse) ProtoMessage() {}
+
+func (x *WorkNoteAboutResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[95]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkNoteAboutResponse.ProtoReflect.Descriptor instead.
+func (*WorkNoteAboutResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{95}
+}
+
+func (x *WorkNoteAboutResponse) GetNotes() []*WorkNote {
+	if x != nil {
+		return x.Notes
+	}
+	return nil
+}
+
+func (x *WorkNoteAboutResponse) GetTotal() uint64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
 var File_proto_rig_v1_verbs_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_verbs_proto_rawDesc = "" +
@@ -7112,7 +7565,42 @@ const file_proto_rig_v1_verbs_proto_rawDesc = "" +
 	"\x05token\x18\x02 \x01(\x04R\x05token\"S\n" +
 	"\x12LeaseCheckResponse\x12\x18\n" +
 	"\acurrent\x18\x01 \x01(\bR\acurrent\x12#\n" +
-	"\x05lease\x18\x02 \x01(\v2\r.rig.v1.LeaseR\x05lease*Z\n" +
+	"\x05lease\x18\x02 \x01(\v2\r.rig.v1.LeaseR\x05lease\"\xab\x02\n" +
+	"\bWorkNote\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\aproject\x18\x02 \x01(\tR\aproject\x12\x12\n" +
+	"\x04body\x18\x03 \x01(\tR\x04body\x12\x12\n" +
+	"\x04tags\x18\x04 \x03(\tR\x04tags\x124\n" +
+	"\x06fields\x18\x05 \x03(\v2\x1c.rig.v1.WorkNote.FieldsEntryR\x06fields\x12&\n" +
+	"\x04prov\x18\x06 \x01(\v2\x12.rig.v1.ProvenanceR\x04prov\x12\x1a\n" +
+	"\battached\x18\a \x03(\tR\battached\x12\x18\n" +
+	"\amissing\x18\b \x03(\tR\amissing\x1a9\n" +
+	"\vFieldsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xee\x01\n" +
+	"\x14WorkNoteWriteRequest\x12\x18\n" +
+	"\aproject\x18\x01 \x01(\tR\aproject\x12\x12\n" +
+	"\x04body\x18\x02 \x01(\tR\x04body\x12\x12\n" +
+	"\x04tags\x18\x03 \x03(\tR\x04tags\x12@\n" +
+	"\x06fields\x18\x04 \x03(\v2(.rig.v1.WorkNoteWriteRequest.FieldsEntryR\x06fields\x12\x17\n" +
+	"\apart_of\x18\x05 \x03(\tR\x06partOf\x1a9\n" +
+	"\vFieldsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"=\n" +
+	"\x15WorkNoteWriteResponse\x12$\n" +
+	"\x04note\x18\x01 \x01(\v2\x10.rig.v1.WorkNoteR\x04note\"E\n" +
+	"\x13WorkNoteMineRequest\x12\x18\n" +
+	"\aproject\x18\x01 \x01(\tR\aproject\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\rR\x05limit\"T\n" +
+	"\x14WorkNoteMineResponse\x12&\n" +
+	"\x05notes\x18\x01 \x03(\v2\x10.rig.v1.WorkNoteR\x05notes\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\x04R\x05total\"<\n" +
+	"\x14WorkNoteAboutRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\rR\x05limit\"U\n" +
+	"\x15WorkNoteAboutResponse\x12&\n" +
+	"\x05notes\x18\x01 \x03(\v2\x10.rig.v1.WorkNoteR\x05notes\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\x04R\x05total*Z\n" +
 	"\tSeatState\x12\x1a\n" +
 	"\x16SEAT_STATE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11SEAT_STATE_ACTIVE\x10\x01\x12\x1a\n" +
@@ -7178,7 +7666,7 @@ func file_proto_rig_v1_verbs_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_verbs_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
-var file_proto_rig_v1_verbs_proto_msgTypes = make([]protoimpl.MessageInfo, 91)
+var file_proto_rig_v1_verbs_proto_msgTypes = make([]protoimpl.MessageInfo, 100)
 var file_proto_rig_v1_verbs_proto_goTypes = []any{
 	(SeatState)(0),                  // 0: rig.v1.SeatState
 	(LeaseState)(0),                 // 1: rig.v1.LeaseState
@@ -7277,81 +7765,96 @@ var file_proto_rig_v1_verbs_proto_goTypes = []any{
 	(*QueueListResponse)(nil),       // 94: rig.v1.QueueListResponse
 	(*LeaseCheckRequest)(nil),       // 95: rig.v1.LeaseCheckRequest
 	(*LeaseCheckResponse)(nil),      // 96: rig.v1.LeaseCheckResponse
-	nil,                             // 97: rig.v1.Record.FieldsEntry
-	nil,                             // 98: rig.v1.RecordPutRequest.FieldsEntry
-	(v1.Tristate)(0),                // 99: rig.v1.Tristate
+	(*WorkNote)(nil),                // 97: rig.v1.WorkNote
+	(*WorkNoteWriteRequest)(nil),    // 98: rig.v1.WorkNoteWriteRequest
+	(*WorkNoteWriteResponse)(nil),   // 99: rig.v1.WorkNoteWriteResponse
+	(*WorkNoteMineRequest)(nil),     // 100: rig.v1.WorkNoteMineRequest
+	(*WorkNoteMineResponse)(nil),    // 101: rig.v1.WorkNoteMineResponse
+	(*WorkNoteAboutRequest)(nil),    // 102: rig.v1.WorkNoteAboutRequest
+	(*WorkNoteAboutResponse)(nil),   // 103: rig.v1.WorkNoteAboutResponse
+	nil,                             // 104: rig.v1.Record.FieldsEntry
+	nil,                             // 105: rig.v1.RecordPutRequest.FieldsEntry
+	nil,                             // 106: rig.v1.WorkNote.FieldsEntry
+	nil,                             // 107: rig.v1.WorkNoteWriteRequest.FieldsEntry
+	(v1.Tristate)(0),                // 108: rig.v1.Tristate
 }
 var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
-	0,  // 0: rig.v1.Seat.state:type_name -> rig.v1.SeatState
-	14, // 1: rig.v1.AnnounceResponse.you:type_name -> rig.v1.Seat
-	14, // 2: rig.v1.AnnounceResponse.crew:type_name -> rig.v1.Seat
-	0,  // 3: rig.v1.ActivityRequest.state:type_name -> rig.v1.SeatState
-	14, // 4: rig.v1.ActivityResponse.you:type_name -> rig.v1.Seat
-	14, // 5: rig.v1.PeersResponse.crew:type_name -> rig.v1.Seat
-	1,  // 6: rig.v1.Lease.state:type_name -> rig.v1.LeaseState
-	2,  // 7: rig.v1.Lease.liveness:type_name -> rig.v1.Liveness
-	22, // 8: rig.v1.LeaseAcquireResponse.handle:type_name -> rig.v1.LeaseHandle
-	22, // 9: rig.v1.LeaseRenewResponse.handle:type_name -> rig.v1.LeaseHandle
-	21, // 10: rig.v1.LeaseListResponse.leases:type_name -> rig.v1.Lease
-	97, // 11: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
-	33, // 12: rig.v1.Record.prov:type_name -> rig.v1.Provenance
-	35, // 13: rig.v1.Record.retraction:type_name -> rig.v1.Retraction
-	33, // 14: rig.v1.Retraction.prov:type_name -> rig.v1.Provenance
-	98, // 15: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
-	34, // 16: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
-	34, // 17: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
-	34, // 18: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
-	34, // 19: rig.v1.RecordHistoryResponse.versions:type_name -> rig.v1.Record
-	35, // 20: rig.v1.RecordRetractResponse.retraction:type_name -> rig.v1.Retraction
-	52, // 21: rig.v1.RecordDeleteResponse.edges:type_name -> rig.v1.Edge
-	52, // 22: rig.v1.RecordReplaceResponse.moved:type_name -> rig.v1.Edge
-	52, // 23: rig.v1.RecordReplaceResponse.merged:type_name -> rig.v1.Edge
-	52, // 24: rig.v1.RecordReplaceResponse.dropped:type_name -> rig.v1.Edge
-	35, // 25: rig.v1.RecordReplaceResponse.retraction:type_name -> rig.v1.Retraction
-	49, // 26: rig.v1.RecordRefsResponse.refs:type_name -> rig.v1.Ref
-	58, // 27: rig.v1.RecordRefsResponse.cycles:type_name -> rig.v1.Cycle
-	57, // 28: rig.v1.RecordRefsResponse.results:type_name -> rig.v1.RecordRefsResponse
-	3,  // 29: rig.v1.ProgressStepRequest.state:type_name -> rig.v1.StepState
-	34, // 30: rig.v1.ProgressStepResponse.step:type_name -> rig.v1.Record
-	3,  // 31: rig.v1.ItemState.state:type_name -> rig.v1.StepState
-	3,  // 32: rig.v1.Blocker.state:type_name -> rig.v1.StepState
-	62, // 33: rig.v1.Blockage.blockers:type_name -> rig.v1.Blocker
-	5,  // 34: rig.v1.BriefSectionStatus.section:type_name -> rig.v1.BriefSection
-	6,  // 35: rig.v1.BriefSectionStatus.state:type_name -> rig.v1.SectionState
-	33, // 36: rig.v1.BriefNote.prov:type_name -> rig.v1.Provenance
-	61, // 37: rig.v1.ProjectBriefResponse.open:type_name -> rig.v1.ItemState
-	61, // 38: rig.v1.ProjectBriefResponse.next_up:type_name -> rig.v1.ItemState
-	63, // 39: rig.v1.ProjectBriefResponse.blocked:type_name -> rig.v1.Blockage
-	58, // 40: rig.v1.ProjectBriefResponse.cycles:type_name -> rig.v1.Cycle
-	66, // 41: rig.v1.ProjectBriefResponse.notes:type_name -> rig.v1.BriefNote
-	67, // 42: rig.v1.ProjectBriefResponse.drift:type_name -> rig.v1.Drift
-	70, // 43: rig.v1.ProjectBriefResponse.health:type_name -> rig.v1.BriefHealth
-	68, // 44: rig.v1.ProjectBriefResponse.features:type_name -> rig.v1.Feature
-	69, // 45: rig.v1.ProjectBriefResponse.feature_stages:type_name -> rig.v1.StageCount
-	66, // 46: rig.v1.ProjectBriefResponse.case_notes:type_name -> rig.v1.BriefNote
-	65, // 47: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
-	71, // 48: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
-	72, // 49: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
-	99, // 50: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
-	73, // 51: rig.v1.ProjectBriefResponse.closed:type_name -> rig.v1.ClosedItem
-	74, // 52: rig.v1.ProjectBriefResponse.closed_counts:type_name -> rig.v1.WordCount
-	33, // 53: rig.v1.Lesson.prov:type_name -> rig.v1.Provenance
-	78, // 54: rig.v1.KnowledgeAddResponse.lesson:type_name -> rig.v1.Lesson
-	79, // 55: rig.v1.KnowledgeSearchResponse.hits:type_name -> rig.v1.LessonHit
-	78, // 56: rig.v1.KnowledgeGetResponse.lesson:type_name -> rig.v1.Lesson
-	7,  // 57: rig.v1.Task.state:type_name -> rig.v1.TaskState
-	21, // 58: rig.v1.Task.claim:type_name -> rig.v1.Lease
-	86, // 59: rig.v1.QueuePushResponse.task:type_name -> rig.v1.Task
-	86, // 60: rig.v1.QueueClaimResponse.task:type_name -> rig.v1.Task
-	22, // 61: rig.v1.QueueClaimResponse.handle:type_name -> rig.v1.LeaseHandle
-	86, // 62: rig.v1.QueueCompleteResponse.task:type_name -> rig.v1.Task
-	86, // 63: rig.v1.QueueListResponse.tasks:type_name -> rig.v1.Task
-	21, // 64: rig.v1.LeaseCheckResponse.lease:type_name -> rig.v1.Lease
-	65, // [65:65] is the sub-list for method output_type
-	65, // [65:65] is the sub-list for method input_type
-	65, // [65:65] is the sub-list for extension type_name
-	65, // [65:65] is the sub-list for extension extendee
-	0,  // [0:65] is the sub-list for field type_name
+	0,   // 0: rig.v1.Seat.state:type_name -> rig.v1.SeatState
+	14,  // 1: rig.v1.AnnounceResponse.you:type_name -> rig.v1.Seat
+	14,  // 2: rig.v1.AnnounceResponse.crew:type_name -> rig.v1.Seat
+	0,   // 3: rig.v1.ActivityRequest.state:type_name -> rig.v1.SeatState
+	14,  // 4: rig.v1.ActivityResponse.you:type_name -> rig.v1.Seat
+	14,  // 5: rig.v1.PeersResponse.crew:type_name -> rig.v1.Seat
+	1,   // 6: rig.v1.Lease.state:type_name -> rig.v1.LeaseState
+	2,   // 7: rig.v1.Lease.liveness:type_name -> rig.v1.Liveness
+	22,  // 8: rig.v1.LeaseAcquireResponse.handle:type_name -> rig.v1.LeaseHandle
+	22,  // 9: rig.v1.LeaseRenewResponse.handle:type_name -> rig.v1.LeaseHandle
+	21,  // 10: rig.v1.LeaseListResponse.leases:type_name -> rig.v1.Lease
+	104, // 11: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
+	33,  // 12: rig.v1.Record.prov:type_name -> rig.v1.Provenance
+	35,  // 13: rig.v1.Record.retraction:type_name -> rig.v1.Retraction
+	33,  // 14: rig.v1.Retraction.prov:type_name -> rig.v1.Provenance
+	105, // 15: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
+	34,  // 16: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
+	34,  // 17: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
+	34,  // 18: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
+	34,  // 19: rig.v1.RecordHistoryResponse.versions:type_name -> rig.v1.Record
+	35,  // 20: rig.v1.RecordRetractResponse.retraction:type_name -> rig.v1.Retraction
+	52,  // 21: rig.v1.RecordDeleteResponse.edges:type_name -> rig.v1.Edge
+	52,  // 22: rig.v1.RecordReplaceResponse.moved:type_name -> rig.v1.Edge
+	52,  // 23: rig.v1.RecordReplaceResponse.merged:type_name -> rig.v1.Edge
+	52,  // 24: rig.v1.RecordReplaceResponse.dropped:type_name -> rig.v1.Edge
+	35,  // 25: rig.v1.RecordReplaceResponse.retraction:type_name -> rig.v1.Retraction
+	49,  // 26: rig.v1.RecordRefsResponse.refs:type_name -> rig.v1.Ref
+	58,  // 27: rig.v1.RecordRefsResponse.cycles:type_name -> rig.v1.Cycle
+	57,  // 28: rig.v1.RecordRefsResponse.results:type_name -> rig.v1.RecordRefsResponse
+	3,   // 29: rig.v1.ProgressStepRequest.state:type_name -> rig.v1.StepState
+	34,  // 30: rig.v1.ProgressStepResponse.step:type_name -> rig.v1.Record
+	3,   // 31: rig.v1.ItemState.state:type_name -> rig.v1.StepState
+	3,   // 32: rig.v1.Blocker.state:type_name -> rig.v1.StepState
+	62,  // 33: rig.v1.Blockage.blockers:type_name -> rig.v1.Blocker
+	5,   // 34: rig.v1.BriefSectionStatus.section:type_name -> rig.v1.BriefSection
+	6,   // 35: rig.v1.BriefSectionStatus.state:type_name -> rig.v1.SectionState
+	33,  // 36: rig.v1.BriefNote.prov:type_name -> rig.v1.Provenance
+	61,  // 37: rig.v1.ProjectBriefResponse.open:type_name -> rig.v1.ItemState
+	61,  // 38: rig.v1.ProjectBriefResponse.next_up:type_name -> rig.v1.ItemState
+	63,  // 39: rig.v1.ProjectBriefResponse.blocked:type_name -> rig.v1.Blockage
+	58,  // 40: rig.v1.ProjectBriefResponse.cycles:type_name -> rig.v1.Cycle
+	66,  // 41: rig.v1.ProjectBriefResponse.notes:type_name -> rig.v1.BriefNote
+	67,  // 42: rig.v1.ProjectBriefResponse.drift:type_name -> rig.v1.Drift
+	70,  // 43: rig.v1.ProjectBriefResponse.health:type_name -> rig.v1.BriefHealth
+	68,  // 44: rig.v1.ProjectBriefResponse.features:type_name -> rig.v1.Feature
+	69,  // 45: rig.v1.ProjectBriefResponse.feature_stages:type_name -> rig.v1.StageCount
+	66,  // 46: rig.v1.ProjectBriefResponse.case_notes:type_name -> rig.v1.BriefNote
+	65,  // 47: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
+	71,  // 48: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
+	72,  // 49: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
+	108, // 50: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
+	73,  // 51: rig.v1.ProjectBriefResponse.closed:type_name -> rig.v1.ClosedItem
+	74,  // 52: rig.v1.ProjectBriefResponse.closed_counts:type_name -> rig.v1.WordCount
+	33,  // 53: rig.v1.Lesson.prov:type_name -> rig.v1.Provenance
+	78,  // 54: rig.v1.KnowledgeAddResponse.lesson:type_name -> rig.v1.Lesson
+	79,  // 55: rig.v1.KnowledgeSearchResponse.hits:type_name -> rig.v1.LessonHit
+	78,  // 56: rig.v1.KnowledgeGetResponse.lesson:type_name -> rig.v1.Lesson
+	7,   // 57: rig.v1.Task.state:type_name -> rig.v1.TaskState
+	21,  // 58: rig.v1.Task.claim:type_name -> rig.v1.Lease
+	86,  // 59: rig.v1.QueuePushResponse.task:type_name -> rig.v1.Task
+	86,  // 60: rig.v1.QueueClaimResponse.task:type_name -> rig.v1.Task
+	22,  // 61: rig.v1.QueueClaimResponse.handle:type_name -> rig.v1.LeaseHandle
+	86,  // 62: rig.v1.QueueCompleteResponse.task:type_name -> rig.v1.Task
+	86,  // 63: rig.v1.QueueListResponse.tasks:type_name -> rig.v1.Task
+	21,  // 64: rig.v1.LeaseCheckResponse.lease:type_name -> rig.v1.Lease
+	106, // 65: rig.v1.WorkNote.fields:type_name -> rig.v1.WorkNote.FieldsEntry
+	33,  // 66: rig.v1.WorkNote.prov:type_name -> rig.v1.Provenance
+	107, // 67: rig.v1.WorkNoteWriteRequest.fields:type_name -> rig.v1.WorkNoteWriteRequest.FieldsEntry
+	97,  // 68: rig.v1.WorkNoteWriteResponse.note:type_name -> rig.v1.WorkNote
+	97,  // 69: rig.v1.WorkNoteMineResponse.notes:type_name -> rig.v1.WorkNote
+	97,  // 70: rig.v1.WorkNoteAboutResponse.notes:type_name -> rig.v1.WorkNote
+	71,  // [71:71] is the sub-list for method output_type
+	71,  // [71:71] is the sub-list for method input_type
+	71,  // [71:71] is the sub-list for extension type_name
+	71,  // [71:71] is the sub-list for extension extendee
+	0,   // [0:71] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_verbs_proto_init() }
@@ -7365,7 +7868,7 @@ func file_proto_rig_v1_verbs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_verbs_proto_rawDesc), len(file_proto_rig_v1_verbs_proto_rawDesc)),
 			NumEnums:      8,
-			NumMessages:   91,
+			NumMessages:   100,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
