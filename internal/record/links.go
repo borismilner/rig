@@ -92,26 +92,6 @@ func (s *Store) Unlink(ctx context.Context, src, typ, dst string) error {
 	return nil
 }
 
-// LinksFrom returns the destinations of one type of edge leaving a record.
-func (s *Store) LinksFrom(ctx context.Context, src, typ string) ([]string, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT dst FROM links WHERE src = ? AND type = ? ORDER BY dst`, src, typ)
-	if err != nil {
-		return nil, fmt.Errorf("record: reading %s edges from %s: %w", typ, src, err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	var out []string
-	for rows.Next() {
-		var dst string
-		if err := rows.Scan(&dst); err != nil {
-			return nil, err
-		}
-		out = append(out, dst)
-	}
-	return out, rows.Err()
-}
-
 // checkEdge is every refusal both verbs share.
 func (s *Store) checkEdge(ctx context.Context, src, typ, dst string) error {
 	if src == "" {

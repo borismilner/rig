@@ -71,7 +71,6 @@ func TestEveryVerbRefusesOnACancelledContext(t *testing.T) {
 		"History":    func() error { _, err := s.History(dead, "wi-1"); return err },
 		"Link":       func() error { return s.Link(dead, "wi-2", LinkBlocks, "wi-1") },
 		"Unlink":     func() error { return s.Unlink(dead, "wi-1", LinkBlocks, "wi-2") },
-		"LinksFrom":  func() error { _, err := s.LinksFrom(dead, "wi-1", LinkBlocks); return err },
 		"Step": func() error {
 			_, err := s.Step(dead, StepRequest{
 				Item: "wi-1", State: "started", Project: "ctx",
@@ -79,8 +78,7 @@ func TestEveryVerbRefusesOnACancelledContext(t *testing.T) {
 			})
 			return err
 		},
-		"Stream": func() error { _, err := s.Stream(dead, "wi-1"); return err },
-		"Refs":   func() error { _, err := s.Refs(dead, RefsRequest{ID: "wi-2"}); return err },
+		"Refs": func() error { _, err := s.Refs(dead, RefsRequest{ID: "wi-2"}); return err },
 	}
 
 	for name, call := range verbs {
@@ -129,7 +127,7 @@ func TestEveryVerbRefusesOnACancelledContext(t *testing.T) {
 // the point the verb is added, not later.
 var storeVerbsTakingContext = []string{
 	"Put", "Get", "GetVersion", "Query", "History",
-	"Link", "Unlink", "LinksFrom", "Step", "Stream", "Refs",
+	"Link", "Unlink", "Step", "Refs",
 }
 
 // ⛔ THE TABLE ABOVE CANNOT SEE checkEdge, AND A SURVIVING MUTATION IS WHAT

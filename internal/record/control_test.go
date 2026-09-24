@@ -272,7 +272,7 @@ func TestDeleteDropsEveryEdgeTouchingTheRecordAndNamesEachOne(t *testing.T) {
 	// ⛔ BOTH DIRECTIONS GO. An implementation that dropped only the inbound
 	// edges would leave the store asserting that a record which no longer
 	// exists is part of something.
-	from, err := s.LinksFrom(tctx, parent, LinkPartOf)
+	from, err := s.linksFrom(tctx, parent, LinkPartOf)
 	if err != nil {
 		t.Fatal(err)
 	}

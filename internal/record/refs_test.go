@@ -256,7 +256,7 @@ func TestACycleIsReportedAndTheTraversalDoesNotHang(t *testing.T) {
 
 		// AND NOTHING WAS RESOLVED: every edge survives.
 		for _, src := range want {
-			out, err := s.LinksFrom(tctx, src, LinkCites)
+			out, err := s.linksFrom(tctx, src, LinkCites)
 			if err != nil {
 				t.Fatal(err)
 			}

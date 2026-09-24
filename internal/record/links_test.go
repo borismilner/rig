@@ -22,7 +22,7 @@ func TestALinkIsWrittenOnceAndAssertingItAgainIsNotAnError(t *testing.T) {
 	}
 
 	// ⛔ A SECOND EDGE OF A DIFFERENT TYPE, OR THIS ASSERTION IS NOT ABOUT
-	// FILTERING. With only one edge present, LinksFrom returns the same answer
+	// FILTERING. With only one edge present, linksFrom returns the same answer
 	// whether it honours the type or ignores it - a mutation that deleted the
 	// type predicate survived this test in exactly that form.
 	c := workItem(t, s, "wi-c", "third")
@@ -30,14 +30,14 @@ func TestALinkIsWrittenOnceAndAssertingItAgainIsNotAnError(t *testing.T) {
 		t.Fatalf("linking a second type: %v", err)
 	}
 
-	out, err := s.LinksFrom(tctx, a, LinkBlocks)
+	out, err := s.linksFrom(tctx, a, LinkBlocks)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(out) != 1 || out[0] != b {
 		t.Fatalf("blocks edges from %s are %v, want exactly [%s] - the cites edge leaked in", a, out, b)
 	}
-	cites, err := s.LinksFrom(tctx, a, LinkCites)
+	cites, err := s.linksFrom(tctx, a, LinkCites)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +51,7 @@ func TestALinkIsWrittenOnceAndAssertingItAgainIsNotAnError(t *testing.T) {
 	if err := s.Unlink(tctx, a, LinkBlocks, b); err != nil {
 		t.Fatalf("unlinking an edge that is already gone should be a no-op, got: %v", err)
 	}
-	out, err = s.LinksFrom(tctx, a, LinkBlocks)
+	out, err = s.linksFrom(tctx, a, LinkBlocks)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +139,7 @@ func TestUnlinkCannotDetachAProgressStepFromItsItem(t *testing.T) {
 	if err := s.Unlink(tctx, step.ID, LinkPartOf, item); err == nil {
 		t.Fatal("a progress step was detached from its item; it is now invisible to every derivation")
 	}
-	stream, err := s.Stream(tctx, item)
+	stream, err := s.stream(tctx, item)
 	if err != nil {
 		t.Fatal(err)
 	}

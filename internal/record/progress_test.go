@@ -32,7 +32,7 @@ func TestEachStepIsItsOwnRecordAndTheStreamReadsOldestFirst(t *testing.T) {
 		}
 	}
 
-	stream, err := s.Stream(tctx, item)
+	stream, err := s.stream(tctx, item)
 	if err != nil {
 		t.Fatal(err)
 	}
