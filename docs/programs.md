@@ -152,6 +152,26 @@ language, send an `ERROR` frame with the Status yourself.
   serves, so a program can check for a verb before calling it rather than
   learning its absence from a `NOT_FOUND`.
 
+## Pinning a version
+
+A release is a git tag on the one module, `github.com/borismilner/rig`, and a
+tag versions everything a program touches: the client, the proto files and
+the daemon they were tested against. Tags are `vMAJOR.MINOR.PATCH`, with major
+`v0` or `v1` (the module path has no `/vN` suffix), and milestones and release
+candidates as `vX.Y.Z-mN` and `vX.Y.Z-rc.N`. `make tag-check` enforces this.
+
+- **Go:** `go get github.com/borismilner/rig@v0.1.0`, which writes
+  `require github.com/borismilner/rig v0.1.0` into your `go.mod`. You link
+  only `client` and `proto/rig/v1`, whatever the tag.
+- **Any other language:** generate from the proto files at the tag, for
+  example
+  `https://raw.githubusercontent.com/borismilner/rig/v0.1.0/proto/rig/v1/wire.proto`,
+  and record the tag beside the generated code.
+- **At run time:** `HelloResponse.daemon_version` is the version of the daemon
+  you reached and `HelloResponse.wire` its wire major. A daemon newer than your
+  pin still serves your wire major (see Versioning above), so a mismatch is a
+  line to log, not a reason to refuse.
+
 ## Panes
 
 The window shows each program in one of three tiers, decided by your
