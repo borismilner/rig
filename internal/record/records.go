@@ -162,23 +162,6 @@ const (
 	KindArtefact    = "artefact"
 )
 
-// KindWorkItem and KindStandard complete section 39's ten.
-//
-// ⛔ THE NAMES LAND HERE AND THE LITERALS ARE NOT CHASED IN THE SAME CHANGE.
-// `work-item` is a bare string in brief.go, in cmd/rigseed and across the
-// tests; replacing them is a wide mechanical diff, and putting one beside a
-// behaviour change makes the behaviour change unreviewable. The names exist so
-// the next writer has something to reach for.
-//
-// KindStandard has no consumer at all yet - the standards register is slice 7
-// and nothing is built. It is named with the others so that the ten kinds are
-// countable in one place, which is the property whose absence let three of them
-// go unrendered for four generations.
-const (
-	KindWorkItem = "work-item"
-	KindStandard = "standard"
-)
-
 // KindProject and KindCase are section 39's two CONTAINERS.
 //
 // A case is "for what is ongoing and never ships" - Boris, 2026-09-15: "we have
@@ -209,50 +192,6 @@ const (
 	StageBuilding   = "building"
 	StageShipped    = "shipped"
 	StageDeprecated = "deprecated"
-)
-
-// The values a work item's `status` field may carry.
-//
-// ⛔ THE SET HAS A TERMINAL HALF BECAUSE WITHOUT ONE THE STORE INVERTS ITS OWN
-// DOCUMENT. `status` was idea-or-active, which has no way to say "this is
-// over", so rigseed wrote `active` over every row it imported - including B19,
-// RETRACTED as falsified, which the store then published as live work with the
-// falsified sentence as its title, and B55 and B56, closed by a ruling, which
-// stood in the brief's open list. Measured on the live production store,
-// 2026-09-17.
-//
-// ⛔ AND THE DISPOSITION IS HERE RATHER THAN IN THE PROGRESS STREAM, WHICH IS
-// WHERE SECTION 39 WOULD PUT IT, FOR A MEASURED REASON. A step's state travels
-// as the `StepState` enum in wire.proto, which has exactly STARTED, BLOCKED
-// and DONE; cmd/rig refuses anything else before it sends. A live seeding run
-// against a throwaway estate stopped on B55 saying so. Until that enum gains
-// members, `done` is the only terminal word the stream can carry, and `done`
-// asserts the work was COMPLETED - which is the opposite of what happened to a
-// retracted item. Nothing is served by a mechanism that can only lie.
-//
-// ⛔ THEY ARE NOT ENFORCED IN Put YET, AND THAT IS DELIBERATE RATHER THAN
-// FORGOTTEN. A container's status is `open` today (a case's, in the brief's
-// own tests), so a closed set enforced here would refuse records the store
-// already holds. Naming the words in one place is the half that costs nothing;
-// the guard needs a decision about containers first.
-const (
-	// StatusIdea means the item has not been picked up. Section 39: no
-	// progress stream is expected yet.
-	StatusIdea = "idea"
-
-	// StatusActive means the item is in hand. It is the ONLY value the brief
-	// treats as open work.
-	StatusActive = "active"
-
-	// StatusClosed means the work is over WITHOUT the claim that it was
-	// finished. It is what a row closed in a document gets when the document
-	// did not say which of DONE, CLOSED, REJECTED or RETRACTED it was.
-	StatusClosed = "closed"
-
-	// StatusClosedByRuling is backlog.go's third closure convention, kept
-	// apart for the reason its own comment gives: "Collapsing it into Done
-	// would assert that a ruling completed the work."
-	StatusClosedByRuling = "closed-by-ruling"
 )
 
 // slugIDKinds are the kinds whose id is a caller-supplied SLUG rather than a

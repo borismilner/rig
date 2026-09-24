@@ -291,7 +291,6 @@ func TestEveryRecordArgumentReachesTheRecords(t *testing.T) {
 		t.Errorf("an omitted kind did not arrive as an empty one: %+v",
 			h.querySeen)
 	}
-
 }
 
 // TestEveryDispatchedToolIsNamedInTheRefusal keeps allToolNames honest.

@@ -41,7 +41,12 @@ func TestSectionTwelveCarriesTheGoverningKindsAndNothingElse(t *testing.T) {
 	govPut(t, s, "d-1", KindDecision, "the retention ladder governs observability")
 	govPut(t, s, "r-1", KindRequirement, "storage does not reset with each release")
 	govPut(t, s, "a-1", KindArtefact, "the attack synthesis")
-	govPut(t, s, "wi-1", KindWorkItem, "a work item, which section 1 already carries")
+	// "work-item" is a literal here because rig no longer names the planner's
+	// kinds: the constant for it left with the importers at plan/50 move 6, and
+	// the declaring program owns the word now (decision 5). Spelling the
+	// constant's name even in a comment fails acceptance B's grep, which is why
+	// this line says it the long way round.
+	govPut(t, s, "wi-1", "work-item", "a work item, which section 1 already carries")
 	govPut(t, s, "f-1", KindFeature, "a feature, which section 10 already carries")
 	govPut(t, s, "n-1", KindNote, "a note, which section 3 already carries")
 
