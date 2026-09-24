@@ -628,6 +628,143 @@ const (
 		` AND r.project = ? AND r.kind = ? AND` + findWhereField + findOrder
 )
 
+// Cursor positions a paged read. It is the LAST row of the page before it,
+// in Find's order (project, kind, id).
+//
+// ⛔ IT IS COMPARED, NEVER LOOKED UP. Paging by "the row after this id"
+// through a lookup breaks the moment that row is retracted or deleted between
+// two pages: the position is gone, and the reader either restarts from the
+// beginning or silently skips everything after it. A comparison on the
+// ordering triple positions against a row that no longer exists exactly as
+// well as against one that does. Section 50, "B116, the answer is paged".
+//
+// ⛔ THE ZERO VALUE IS THE BEGINNING, and that is what keeps the first page
+// from needing a second query shape. No stored record has an empty project,
+// kind or id - Put refuses all three by name - so the empty triple sorts below
+// every row the store can hold.
+type Cursor struct {
+	Project string
+	Kind    string
+	ID      string
+}
+
+// CursorAt is the cursor that resumes AFTER r.
+//
+// It exists so that no caller assembles the triple itself: the parts are three
+// adjacent strings, and a swapped project and kind would position somewhere
+// arbitrary rather than fail - a read that is wrong in the reassuring
+// direction, which is the failure this package keeps recording.
+func CursorAt(r Record) Cursor {
+	return Cursor{Project: r.Project, Kind: r.Kind, ID: r.ID}
+}
+
+// ErrPageLimit refuses a paged read with no bound.
+//
+// ⛔ IT IS REFUSED RATHER THAN READ AS "EVERYTHING", because a paged read
+// whose bound quietly vanished is the defect B116 exists to fix, wearing the
+// clothes of the fix. An unbounded read is Find, and it is one call away.
+var ErrPageLimit = errors.New(
+	"record: a paged read needs a positive limit - an unbounded read is Find")
+
+// FindPage is Find, bounded: at most limit records, strictly after the cursor,
+// in the same order Find returns.
+//
+// This is B116's store half (section 50, "B116, the answer is paged"). Find's
+// answer had no bound, so `record.query --kind requirement` over the whole
+// plan grew past wire.MaxFrameSize and the query died. The byte budget that
+// decides where a page ENDS is the daemon's - it is wire policy, and the store
+// has no business knowing a frame size - so what arrives here is a count.
+//
+// ⛔ Find's SIGNATURE AND ANSWER ARE UNCHANGED, deliberately: the MCP door
+// and every in-process caller read whole answers, and their bodies never cross
+// a socket.
+func (s *Store) FindPage(
+	ctx context.Context, f QueryFilter, after Cursor, limit int,
+) ([]Record, error) {
+	if f.Field == "" && f.Value != "" {
+		return nil, ErrValueWithoutField
+	}
+	if limit <= 0 {
+		return nil, ErrPageLimit
+	}
+
+	// The same eight shapes Find chooses between, with the cursor predicate
+	// and the bound appended. They are constants for the reason Find's are:
+	// assembling a WHERE clause at run time is the shape the next person
+	// extends with a caller's value in it.
+	var q string
+	var args []any
+	switch {
+	case f.Project == "" && f.Kind == "" && f.Field == "":
+		q = pageEverything
+	case f.Kind == "" && f.Field == "":
+		q, args = pageByProject, []any{f.Project}
+	case f.Project == "" && f.Field == "":
+		q, args = pageByKind, []any{f.Kind}
+	case f.Field == "":
+		q, args = pageByProjectAndKind, []any{f.Project, f.Kind}
+
+	case f.Project == "" && f.Kind == "":
+		q, args = pageByField, []any{f.Field, f.Value}
+	case f.Kind == "":
+		q, args = pageByProjectAndField, []any{f.Project, f.Field, f.Value}
+	case f.Project == "":
+		q, args = pageByKindAndField, []any{f.Kind, f.Field, f.Value}
+	default:
+		q, args = pageByProjectKindAndField,
+			[]any{f.Project, f.Kind, f.Field, f.Value}
+	}
+	args = append(args, after.Project, after.Kind, after.ID, limit)
+
+	rows, err := s.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("record: paging %s: %w", f.describe(), err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	out := make([]Record, 0, limit)
+	for rows.Next() {
+		rec, err := scanRecord(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, rec)
+	}
+	return out, rows.Err()
+}
+
+// The eight shapes again, paged. They reuse findSelect, findWhereField and
+// findOrder, so a ninth predicate or a change to the retraction rule lands in
+// one place and both reads inherit it.
+const (
+	// ⛔ A ROW-VALUE COMPARISON, NOT THREE CHAINED OR-CLAUSES. SQLite has
+	// compared row values since 3.15, and the hand-written expansion of this
+	// one (`p > ? OR (p = ? AND (k > ? OR (k = ? AND i > ?)))`) is five
+	// operands, three bound values repeated, and a boundary bug per nesting
+	// level. It is also the form that stops using the index.
+	//
+	// It is ALWAYS present: the zero cursor is below every row, so there is no
+	// first-page shape to write and no way to forget it.
+	pageAfter = ` AND (r.project, r.kind, r.id) > (?, ?, ?)`
+
+	// The bound is last, after the order, because a LIMIT before an ORDER BY
+	// would bound the wrong set.
+	pageTail = pageAfter + findOrder + ` LIMIT ?`
+
+	pageEverything       = findSelect + pageTail
+	pageByProject        = findSelect + ` AND r.project = ?` + pageTail
+	pageByKind           = findSelect + ` AND r.kind = ?` + pageTail
+	pageByProjectAndKind = findSelect + ` AND r.project = ? AND r.kind = ?` + pageTail
+
+	pageByField           = findSelect + ` AND` + findWhereField + pageTail
+	pageByProjectAndField = findSelect + ` AND r.project = ? AND` +
+		findWhereField + pageTail
+	pageByKindAndField = findSelect + ` AND r.kind = ? AND` +
+		findWhereField + pageTail
+	pageByProjectKindAndField = findSelect +
+		` AND r.project = ? AND r.kind = ? AND` + findWhereField + pageTail
+)
+
 // describe names what a filter asked for, in the words a caller would use.
 //
 // IT IS FOR ERRORS AND FOR THE CLI's EMPTY ANSWER, and both need the same
