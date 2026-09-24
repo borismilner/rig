@@ -602,9 +602,13 @@ build-minimal: ## Build the kernel-only daemon, no services, no surfaces
 	go build $(GOFLAGS) -tags minimal -ldflags '$(LDFLAGS)' -o build/$(BIND)-minimal ./cmd/rigd
 	@ls -la build/$(BIND)-minimal
 
-modules: ## List every service, surface and renderer, and prove none imports another
-	go run ./cmd/rig modules list
-	go run ./internal/analysis/cmd/nomodulecross ./...
+modules: ## NOT YET: no module exists, and neither does `rig modules` or its analyzer
+	@echo 'make modules: not implemented. It named `rig modules list` and the'
+	@echo '  nomodulecross analyzer, and neither has been written: there is no'
+	@echo '  module yet (make modules-matrix is the N=0 case, section 5i), so'
+	@echo '  there is nothing to list and no import between modules to refuse.'
+	@echo '  Both arrive with the first module; `make ci` lists it under M1.'
+	@exit 1
 
 modules-matrix: ## Build kernel-plus-one for every module in turn (PLAN.md 5i)
 	@set -e; mods="$$(cat modules.txt 2>/dev/null || true)"; \
