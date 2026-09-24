@@ -16,7 +16,9 @@
 // it cannot run in parallel with another that depends on those variables
 // (testing.T.Setenv refuses a parallel test for the same reason). The estate
 // is unnamed, so nothing is written outside the temporary directory and
-// nothing persists after the test.
+// nothing persists after the test. StartEstate names one, for a program that
+// needs what only a named estate keeps: leases and queues. Its state is still
+// under the test's temporary directory.
 package clienttest
 
 import (
@@ -27,6 +29,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/borismilner/rig/internal/coord"
 	"github.com/borismilner/rig/internal/daemon"
 	"github.com/borismilner/rig/internal/instance"
 )
@@ -35,6 +38,17 @@ import (
 // client.Connect finds the same socket, because Start points
 // XDG_RUNTIME_DIR at it. Everything stops and is removed at test cleanup.
 func Start(tb testing.TB) string {
+	tb.Helper()
+	return start(tb, "")
+}
+
+// StartEstate is Start for a named estate, with its lease and queue store.
+func StartEstate(tb testing.TB, estate string) string {
+	tb.Helper()
+	return start(tb, estate)
+}
+
+func start(tb testing.TB, estate string) string {
 	tb.Helper()
 	// Short on purpose: a unix socket path is capped near 108 bytes and a
 	// test's own temp directory can already be most of that.
@@ -56,7 +70,16 @@ func Start(tb testing.TB) string {
 	}
 	tb.Cleanup(func() { _ = lock.Close() })
 
-	d, err := daemon.New(daemon.Config{Version: "clienttest", Wire: "v1", Lock: lock})
+	cfg := daemon.Config{Version: "clienttest", Wire: "v1", Lock: lock, Estate: estate}
+	if estate != "" {
+		st, err := coord.Open(estate)
+		if err != nil {
+			tb.Fatal(err)
+		}
+		tb.Cleanup(func() { _ = st.Close() })
+		cfg.Epoch, cfg.Leases = st.Epoch(), st
+	}
+	d, err := daemon.New(cfg)
 	if err != nil {
 		tb.Fatal(err)
 	}
