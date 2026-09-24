@@ -48,7 +48,7 @@ anything else"*). rig runs its migration before it starts (M11), backs it up
 **The honest verdict.** The in-process half is plumbing rig already runs twice
 and is low risk. ⛔ **The program-facing half has NO ADOPTER**: no in-house
 program stores anything through rig, the fake adopters persist nothing
-(`cmd/fakeapp`, `cmd/docket`, `cmd/ledger` write JSON to stdout), and §5h's
+(`cmd/fakeapp`, `cmd/abacus`, `cmd/ledger` write JSON to stdout), and §5h's
 gate is *"nothing here ships without a program that adopts it"*. **So this
 section builds what rig uses and specifies the rest**, which is his ordering
 test applied honestly rather than a service shipped to nobody a second time.

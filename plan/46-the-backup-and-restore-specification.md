@@ -201,7 +201,7 @@ store"*.
 | `make ci` | 0 | `fmt-check vet lint-house test-race schema-check deps-check theme-gate`. **`lint-house` is in `ci` and `lint` is not** |
 | `make lint` | 0 | CI runs it as its own step, so red here still blocks a push |
 | `make proto` then `git status --porcelain proto/` | empty | the committed `wire.pb.go` is what the tool generates |
-| `go run ./cmd/rigseed --check` | 0 | untouched by this work; run so the claim is measured rather than assumed |
+| `go run ./cmd/rigseed --check` | 0 | untouched by this work; run so the claim is measured rather than assumed (moved to docket 2026-09-24, no longer a gate in this tree) |
 | `make bench-size` | **may go red, and that is not a defect** | ⛔ **It is outside `ci` by his 2026-09-12 ruling and is NOT reintroduced.** `rig` and `rigd` both grow here. If red, re-record **only the rows this work moved** with `sizeratchet --update --bin build/<name>` under the `rig-makefile` lock, in the same commit, with the growth attributed in the body - rule 7 |
 | `nocontextfree` | passes | `context.Background()` only as the argument of `WithTimeout` and its three siblings; `//rig:allow` needs a reason and expires |
 
