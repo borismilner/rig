@@ -43,6 +43,9 @@ body[data-edge=top]    .slot + .slot { margin-bottom: 14px; }
 }
 
 .toast > * { position: relative; z-index: 1; }
+/* Everything but the icon lives in the second column, however many rows a
+   toast has: with "Show more" there are four, and the icon spans three. */
+.title, .body, .more, .meta { grid-column: 2; }
 
 .icon {
   grid-row: span 3; width: 36px; height: 36px; border-radius: 11px;
