@@ -14,7 +14,7 @@ is never an error, only a line in the Programs view.
 
 ### Git
 
-- One repository, `github.com/boris-milner/rig`, git from the first commit.
+- One repository, `github.com/borismilner/rig`, git from the first commit.
 - Conventional commits, `type(scope): description`, imperative, under 72 characters.
 - Every milestone in §23 ends in a tagged commit with the demo recorded in the message.
 - `CHANGELOG.md` generated from the commit log at release, never hand-edited.

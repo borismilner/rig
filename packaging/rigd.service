@@ -103,7 +103,7 @@
 
 [Unit]
 Description=rig, the estate platform
-Documentation=https://github.com/boris-milner/rig
+Documentation=https://github.com/borismilner/rig
 
 # graphical-session.target, not default.target: rig needs the session bus and
 # the display for section 12's toasts and section 11's tray.

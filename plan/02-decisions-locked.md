@@ -1,6 +1,6 @@
 ## 2. Decisions locked
 
-- **Name:** rig. CLI `rig`, daemon `rigd`, module `github.com/boris-milner/rig`. The UI shell
+- **Name:** rig. CLI `rig`, daemon `rigd`, module `github.com/borismilner/rig`. The UI shell
   UI shell component is **the window**. `turret` was chosen for it after the lathe turret that
   carries many tools and rotates the right one into place, and dropped on 2026-09-10: the
   product is rig, one name is enough, and a second name for a component only Boris ever opens

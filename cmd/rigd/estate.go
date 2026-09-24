@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/boris-milner/rig/internal/estate"
+	"github.com/borismilner/rig/internal/estate"
 )
 
 // checkEstateName refuses a name outside section 37's closed set, naming what

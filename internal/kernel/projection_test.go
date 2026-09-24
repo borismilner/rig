@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/boris-milner/rig/internal/kernel"
+	"github.com/borismilner/rig/internal/kernel"
 )
 
 // withPreamble is a declaration that fills every field the depths trim, so a

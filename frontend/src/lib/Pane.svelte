@@ -20,7 +20,7 @@
      load. The theme is pushed again on every mode change, which is the shape
      section 6's live push needs anyway. -->
 <script lang="ts">
-  import type { Program } from "../../bindings/github.com/boris-milner/rig/cmd/rigwindow/models.js";
+  import type { Program } from "../../bindings/github.com/borismilner/rig/cmd/rigwindow/models.js";
   import { liveTokenSet, type Mode } from "./theme";
 
   interface Props {

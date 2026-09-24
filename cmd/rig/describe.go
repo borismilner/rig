@@ -10,7 +10,7 @@ import (
 
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // Command `describe` - one thing in full (PLAN.md sections 9 and 10, M2 slice 2).

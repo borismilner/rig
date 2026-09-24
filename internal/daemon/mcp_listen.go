@@ -8,8 +8,8 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/boris-milner/rig/internal/mcpserver"
-	"github.com/boris-milner/rig/internal/meta"
+	"github.com/borismilner/rig/internal/mcpserver"
+	"github.com/borismilner/rig/internal/meta"
 )
 
 // ServeMCP serves the MCP surface on its own listener until ctx ends.

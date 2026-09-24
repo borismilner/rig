@@ -407,7 +407,7 @@ func TestThisPackageLinksNothingButTheStandardLibrary(t *testing.T) {
 	//
 	// `go list -deps` includes the named package itself, which is the second
 	// control AND the one exception the loop below skips.
-	const self = "github.com/boris-milner/rig/internal/backup"
+	const self = "github.com/borismilner/rig/internal/backup"
 	for _, control := range []string{"archive/tar", self} {
 		if !slices.Contains(deps, control) {
 			t.Fatalf("the control package %q is not in `go list -deps .`, so the "+

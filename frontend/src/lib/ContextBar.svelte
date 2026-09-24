@@ -7,7 +7,7 @@
      dashboard is a destination, an internal GUI is rig's own surface, and
      everything else is a registered program's. -->
 <script lang="ts">
-  import type { Program } from "../../bindings/github.com/boris-milner/rig/cmd/rigwindow/models.js";
+  import type { Program } from "../../bindings/github.com/borismilner/rig/cmd/rigwindow/models.js";
   import type { InternalGui } from "./guis";
 
   interface Props {

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/boris-milner/rig/internal/estate"
+	"github.com/borismilner/rig/internal/estate"
 )
 
 // unitPath is the systemd --user unit, which lives in packaging/ rather than

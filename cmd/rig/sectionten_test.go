@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/boris-milner/rig/internal/kernel"
-	"github.com/boris-milner/rig/internal/meta"
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/internal/kernel"
+	"github.com/borismilner/rig/internal/meta"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )

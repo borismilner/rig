@@ -10,8 +10,8 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	"github.com/boris-milner/rig/internal/kernel"
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/internal/kernel"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // compiled builds the emitted schema and compiles it, so every test below is

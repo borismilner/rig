@@ -9,8 +9,8 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/boris-milner/rig/internal/instance"
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/internal/instance"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // upEstate is upDaemon with a claimed estate name, which the shared helper has

@@ -13,12 +13,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/boris-milner/rig/client"
-	"github.com/boris-milner/rig/internal/backup"
-	"github.com/boris-milner/rig/internal/instance"
-	"github.com/boris-milner/rig/internal/paths"
-	"github.com/boris-milner/rig/internal/record"
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/client"
+	"github.com/borismilner/rig/internal/backup"
+	"github.com/borismilner/rig/internal/instance"
+	"github.com/borismilner/rig/internal/paths"
+	"github.com/borismilner/rig/internal/record"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // The backup verb over the real wire (PLAN.md section 46).

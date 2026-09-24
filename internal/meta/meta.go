@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/boris-milner/rig/internal/kernel"
+	"github.com/borismilner/rig/internal/kernel"
 )
 
 // Tool names one of the four. There is no fifth, and adding one is a section

@@ -6,7 +6,7 @@
 # dependency's cost to whichever of them actually pays it.
 BIN        := rig
 BIND       := rigd
-MODULE     := github.com/boris-milner/rig
+MODULE     := github.com/borismilner/rig
 PREFIX     ?= $(HOME)/.local
 # Where the systemd --user unit lands. systemd reads XDG_CONFIG_HOME
 # and falls back to ~/.config, so this follows it rather than guessing.

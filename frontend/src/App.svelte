@@ -32,12 +32,12 @@
      that cannot be read says so in the strip. -->
 <script lang="ts">
   import { onMount } from "svelte";
-  import * as RigService from "../bindings/github.com/boris-milner/rig/cmd/rigwindow/rigservice.js";
+  import * as RigService from "../bindings/github.com/borismilner/rig/cmd/rigwindow/rigservice.js";
   import type {
     Deployment,
     Health,
     Program,
-  } from "../bindings/github.com/boris-milner/rig/cmd/rigwindow/models.js";
+  } from "../bindings/github.com/borismilner/rig/cmd/rigwindow/models.js";
   import { applyTheme, preferredMode, watchMode } from "./lib/theme";
   import type { Mode } from "./lib/theme";
   import Rail from "./lib/Rail.svelte";

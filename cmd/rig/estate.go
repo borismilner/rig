@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // cmdEstate answers "which estate did I just reach" (PLAN.md section 37).

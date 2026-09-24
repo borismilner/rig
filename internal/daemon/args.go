@@ -3,7 +3,7 @@ package daemon
 import (
 	"google.golang.org/protobuf/proto"
 
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // ProbeCommand is the command name rig uses to probe a program's liveness,

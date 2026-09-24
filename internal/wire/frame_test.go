@@ -11,7 +11,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // pipe gives two Conns talking to each other over in-memory pipes.

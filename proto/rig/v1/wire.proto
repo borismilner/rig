@@ -10,7 +10,7 @@ syntax = "proto3";
 
 package rig.v1;
 
-option go_package = "github.com/boris-milner/rig/proto/rig/v1;rigv1";
+option go_package = "github.com/borismilner/rig/proto/rig/v1;rigv1";
 
 // FrameKind says what a Frame is for.
 //

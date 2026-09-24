@@ -3,7 +3,7 @@ package daemon
 import (
 	"testing"
 
-	"github.com/boris-milner/rig/internal/kernel"
+	"github.com/borismilner/rig/internal/kernel"
 )
 
 // TestRigIsNotAnInvokeTargetOnAnySurface pins the boundary that keeps rig's

@@ -17,10 +17,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/boris-milner/rig/internal/coord"
-	"github.com/boris-milner/rig/internal/daemon"
-	"github.com/boris-milner/rig/internal/instance"
-	"github.com/boris-milner/rig/internal/paths"
+	"github.com/borismilner/rig/internal/coord"
+	"github.com/borismilner/rig/internal/daemon"
+	"github.com/borismilner/rig/internal/instance"
+	"github.com/borismilner/rig/internal/paths"
 )
 
 // Set by the Makefile's ldflags.

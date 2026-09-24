@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/boris-milner/rig/internal/kernel"
+	"github.com/borismilner/rig/internal/kernel"
 )
 
 // caller is everything the authorization floor needs about one invocation,

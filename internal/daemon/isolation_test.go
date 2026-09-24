@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/boris-milner/rig/internal/paths"
+	"github.com/borismilner/rig/internal/paths"
 )
 
 // privateStatePrefix and privateRuntimePrefix name the roots TestMain makes,

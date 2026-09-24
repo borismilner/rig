@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/boris-milner/rig/internal/kernel"
+	"github.com/borismilner/rig/internal/kernel"
 )
 
 // principalOfKind builds a caller that differs from the next one in exactly

@@ -6,8 +6,8 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/boris-milner/rig/internal/paths"
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/internal/paths"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // serveAnnounce takes a seat, or joins the roster without one.

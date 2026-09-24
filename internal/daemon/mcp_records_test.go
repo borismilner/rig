@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/boris-milner/rig/internal/record"
+	"github.com/borismilner/rig/internal/record"
 )
 
 // ⛔ THE AGENT DOOR'S READ PATH, AGAINST A REAL STORE RATHER THAN A DOUBLE.

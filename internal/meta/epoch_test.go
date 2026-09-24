@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/boris-milner/rig/internal/kernel"
-	"github.com/boris-milner/rig/internal/meta"
+	"github.com/borismilner/rig/internal/kernel"
+	"github.com/borismilner/rig/internal/meta"
 )
 
 // EVERY ASSERTION IN THIS FILE GOES THROUGH MarshalAnswer, AND THAT IS THE

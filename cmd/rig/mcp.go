@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/boris-milner/rig/internal/paths"
+	"github.com/borismilner/rig/internal/paths"
 )
 
 // cmdMCP pumps bytes between this process's stdin/stdout and the daemon's MCP

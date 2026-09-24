@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // backupAnswer is a complete BackupCreateResponse, so a renderer test reads as a

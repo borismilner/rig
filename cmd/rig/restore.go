@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/boris-milner/rig/internal/backup"
-	"github.com/boris-milner/rig/internal/estate"
-	"github.com/boris-milner/rig/internal/instance"
-	"github.com/boris-milner/rig/internal/paths"
+	"github.com/borismilner/rig/internal/backup"
+	"github.com/borismilner/rig/internal/estate"
+	"github.com/borismilner/rig/internal/instance"
+	"github.com/borismilner/rig/internal/paths"
 )
 
 // schemaCeiling is the record schema this build can restore, and it is a

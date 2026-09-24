@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/boris-milner/rig/internal/daemon"
+	"github.com/borismilner/rig/internal/daemon"
 )
 
 // Section 10 promises --json on everything. Go's flag package stops at the

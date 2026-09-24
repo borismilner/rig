@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/boris-milner/rig/internal/instance"
+	"github.com/borismilner/rig/internal/instance"
 )
 
 // THE FIELD THIS FILE COVERS IS THE REASON PRESENCE IS RANK 1, and until this

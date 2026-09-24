@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/boris-milner/rig/internal/kernel"
-	"github.com/boris-milner/rig/internal/meta"
+	"github.com/borismilner/rig/internal/kernel"
+	"github.com/borismilner/rig/internal/meta"
 )
 
 // The window sentence, verbatim. It is a constant here rather than a substring

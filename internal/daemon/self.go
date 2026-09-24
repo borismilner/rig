@@ -1,8 +1,8 @@
 package daemon
 
 import (
-	"github.com/boris-milner/rig/internal/kernel"
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/internal/kernel"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // selfDeclaration is rig declaring its own commands the way every program

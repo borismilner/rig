@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // THE ONE THING THIS VERB EXISTS TO KEEP APART: the zero and UNNAMED.

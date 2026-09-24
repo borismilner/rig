@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/boris-milner/rig/internal/paths"
+	"github.com/borismilner/rig/internal/paths"
 )
 
 // ⛔ THE FIRST `rig` AFTER A REDEPLOYMENT SAYS SO, ONCE. PLAN.md section 28,

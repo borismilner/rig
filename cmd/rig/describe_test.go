@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // A TRISTATE RENDERS THREE WAYS HERE, AND THAT IS THE WHOLE POINT OF DOING IT

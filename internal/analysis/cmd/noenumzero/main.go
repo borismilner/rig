@@ -2,6 +2,6 @@
 // something (PLAN.md section 21).
 package main
 
-import "github.com/boris-milner/rig/internal/analysis"
+import "github.com/borismilner/rig/internal/analysis"
 
 func main() { analysis.Main(analysis.NoEnumZero) }

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/boris-milner/rig/client"
+	"github.com/borismilner/rig/client"
 )
 
 // The stub's public surface does not grow without a decision recorded in the

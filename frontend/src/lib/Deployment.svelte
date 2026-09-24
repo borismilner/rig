@@ -18,7 +18,7 @@
      named. The rail already lands on that view directly; this page was
      duplicating its destination. -->
 <script lang="ts">
-  import type { Deployment } from "../../bindings/github.com/boris-milner/rig/cmd/rigwindow/models.js";
+  import type { Deployment } from "../../bindings/github.com/borismilner/rig/cmd/rigwindow/models.js";
 
   interface Props {
     deployment: Deployment | null;

@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/boris-milner/rig/internal/kernel"
-	"github.com/boris-milner/rig/internal/meta"
+	"github.com/borismilner/rig/internal/kernel"
+	"github.com/borismilner/rig/internal/meta"
 )
 
 // TestEveryCapabilityMapFieldReachesTheResource walks kernel.CapabilityMap by

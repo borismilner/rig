@@ -9,8 +9,8 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/boris-milner/rig/client"
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/client"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // helloErr connects, declares "shelf", and returns whatever the daemon

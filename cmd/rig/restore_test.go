@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/boris-milner/rig/internal/backup"
-	"github.com/boris-milner/rig/internal/instance"
-	"github.com/boris-milner/rig/internal/paths"
+	"github.com/borismilner/rig/internal/backup"
+	"github.com/borismilner/rig/internal/instance"
+	"github.com/borismilner/rig/internal/paths"
 
 	// TEST-ONLY, AND THE IMPORT IS THE WHOLE POINT OF THE FIRST TEST BELOW.
 	//
@@ -32,7 +32,7 @@ import (
 	// package. A collision between a package name and a test fixture is a
 	// compile error, and the alias is the smaller of the two changes: the
 	// fixture is another seat's row.
-	recordstore "github.com/boris-milner/rig/internal/record"
+	recordstore "github.com/borismilner/rig/internal/record"
 )
 
 // manifest is a complete Manifest, so a renderer test reads as a change from a
@@ -109,7 +109,7 @@ func TestTheClientLinksNoSQLiteDriver(t *testing.T) {
 	// absence is what a truncated or misdirected `go list` also produces. The
 	// control is this seat's own package rather than an arbitrary one: it
 	// proves the walk saw the dependency edge the assertion is about.
-	const control = "github.com/boris-milner/rig/internal/backup"
+	const control = "github.com/borismilner/rig/internal/backup"
 	var sawControl bool
 	for _, d := range deps {
 		if d == control {
@@ -126,7 +126,7 @@ func TestTheClientLinksNoSQLiteDriver(t *testing.T) {
 	var linked []string
 	for _, d := range deps {
 		if strings.HasPrefix(d, "modernc.org/") ||
-			d == "github.com/boris-milner/rig/internal/record" {
+			d == "github.com/borismilner/rig/internal/record" {
 			linked = append(linked, d)
 		}
 	}

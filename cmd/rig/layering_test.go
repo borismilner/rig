@@ -14,7 +14,7 @@ import (
 	// without the client linking the package. This file importing it while
 	// TestTheClientLinksNeitherTheDaemonNorItsValidator passes is itself the
 	// demonstration that a test-only import costs the binary nothing.
-	_ "github.com/boris-milner/rig/internal/meta"
+	_ "github.com/borismilner/rig/internal/meta"
 )
 
 // The client must not link the daemon's JSON Schema validator, and this is
@@ -55,7 +55,7 @@ func TestTheClientLinksNeitherTheDaemonNorItsValidator(t *testing.T) {
 	// is what an empty, truncated or misdirected `go list` also produces. So
 	// the first thing asserted is a package this binary certainly does link.
 	// Lose that and the whole file is a clean-looking result over nothing.
-	const control = "github.com/boris-milner/rig/client"
+	const control = "github.com/borismilner/rig/client"
 	if !slices.Contains(deps, control) {
 		t.Fatalf("the control package %q is not in `go list -deps .` output, "+
 			"so the command answered about something other than this binary "+
@@ -70,13 +70,13 @@ func TestTheClientLinksNeitherTheDaemonNorItsValidator(t *testing.T) {
 	// assertion fails and the ratchet row is the next thing to look at.
 	for _, forbidden := range []struct{ prefix, why string }{
 		{
-			"github.com/boris-milner/rig/internal/meta",
+			"github.com/borismilner/rig/internal/meta",
 			"section 10 binds the CLI's --json to what the MCP tool returns, " +
 				"and this file binds the two in a TEST for exactly this reason: " +
 				"the call would drag the kernel and its validator in behind it",
 		},
 		{
-			"github.com/boris-milner/rig/internal/daemon",
+			"github.com/borismilner/rig/internal/daemon",
 			"the client is a client. TestTheClientOutlastsTheDaemonsOwnDeadline " +
 				"reads the daemon's deadline in a test so the two numbers cannot " +
 				"drift, and that is the only way this package may know it",

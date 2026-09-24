@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/boris-milner/rig/internal/kernel"
+	"github.com/borismilner/rig/internal/kernel"
 )
 
 // ⛔ B86: A RECORD'S `session` IS THE DERIVED UNIX SESSION, NOT A FRESH RANDOM

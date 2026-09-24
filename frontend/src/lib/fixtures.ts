@@ -13,7 +13,7 @@
  * and this build's stamps.
  */
 
-import type { Program } from "../../bindings/github.com/boris-milner/rig/cmd/rigwindow/models.js";
+import type { Program } from "../../bindings/github.com/borismilner/rig/cmd/rigwindow/models.js";
 export const PROGRAMS: Program[] = [
   {
     id: "shelf",

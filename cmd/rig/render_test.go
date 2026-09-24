@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // The functions under test here are the ones that turn a declaration into the

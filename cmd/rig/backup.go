@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // cmdBackupOrRestore is section 46's single seam into run's dispatch switch.

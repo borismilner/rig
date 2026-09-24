@@ -3,7 +3,7 @@ package daemon
 import (
 	"testing"
 
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // THE ADDRESSABLE IDENTITY IS (estate, seat, epoch, generation), AND THE

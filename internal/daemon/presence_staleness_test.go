@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/boris-milner/rig/client"
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/client"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // THE AGE OF AN ACTIVITY LINE IS THE ONLY THING ON THIS ROSTER THAT CAN SAY A

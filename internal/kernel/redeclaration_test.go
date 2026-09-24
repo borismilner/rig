@@ -3,7 +3,7 @@ package kernel_test
 import (
 	"testing"
 
-	"github.com/boris-milner/rig/internal/kernel"
+	"github.com/borismilner/rig/internal/kernel"
 )
 
 // TestAProgramCanWeakenItsOwnEffectsByReDeclaring records section 13a's

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // A DEPTH DECIDES WHAT THE DAEMON SENT, SO IT DECIDES WHAT THIS CLIENT MAY

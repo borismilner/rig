@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/boris-milner/rig/internal/kernel"
+	"github.com/borismilner/rig/internal/kernel"
 )
 
 // R7: using an element rig does not serve fails at REGISTRATION.

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/boris-milner/rig/internal/kernel"
+	"github.com/borismilner/rig/internal/kernel"
 )
 
 // TestASuccessorAndACollisionAreTheSameRefusal records section 34 gap 3 as a

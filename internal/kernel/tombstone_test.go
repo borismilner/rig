@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/boris-milner/rig/internal/kernel"
+	"github.com/borismilner/rig/internal/kernel"
 )
 
 // introspecting is the principal every MCP connection gets: newPrincipal sets

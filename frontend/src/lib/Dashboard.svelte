@@ -18,7 +18,7 @@
     Deployment as DeploymentState,
     Health,
     Program,
-  } from "../../bindings/github.com/boris-milner/rig/cmd/rigwindow/models.js";
+  } from "../../bindings/github.com/borismilner/rig/cmd/rigwindow/models.js";
   import { INTERNAL_GUIS } from "./guis";
   import Deployment from "./Deployment.svelte";
 

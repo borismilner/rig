@@ -9,10 +9,10 @@ import (
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/boris-milner/rig/internal/kernel"
-	"github.com/boris-milner/rig/internal/mcpserver"
-	"github.com/boris-milner/rig/internal/meta"
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/internal/kernel"
+	"github.com/borismilner/rig/internal/mcpserver"
+	"github.com/borismilner/rig/internal/meta"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // TestSliceThreeDemoThroughARealMCPServer is section 23's own M2 demo, run

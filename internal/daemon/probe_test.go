@@ -7,8 +7,8 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/boris-milner/rig/internal/kernel"
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/internal/kernel"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // THE M0 GATE (PLAN.md 23), on the method the CLI now sends. `rig ping

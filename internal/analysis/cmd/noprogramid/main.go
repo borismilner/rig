@@ -2,6 +2,6 @@
 // rig's own code (PLAN.md sections 5h, 5i, 29).
 package main
 
-import "github.com/boris-milner/rig/internal/analysis"
+import "github.com/borismilner/rig/internal/analysis"
 
 func main() { analysis.Main(analysis.NoProgramID) }

@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 
-	"github.com/boris-milner/rig/internal/kernel"
-	"github.com/boris-milner/rig/internal/meta"
-	"github.com/boris-milner/rig/internal/record"
+	"github.com/borismilner/rig/internal/kernel"
+	"github.com/borismilner/rig/internal/meta"
+	"github.com/borismilner/rig/internal/record"
 )
 
 // The continuity record is the optional half of the meta surface that the agent

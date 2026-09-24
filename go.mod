@@ -1,4 +1,4 @@
-module github.com/boris-milner/rig
+module github.com/borismilner/rig
 
 go 1.27.1
 

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/boris-milner/rig/client"
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/client"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // Generated help (PLAN.md section 10, M1 slice 6).

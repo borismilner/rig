@@ -3,7 +3,7 @@ package meta
 import (
 	"context"
 
-	"github.com/boris-milner/rig/internal/kernel"
+	"github.com/borismilner/rig/internal/kernel"
 )
 
 // Records is the continuity record, reachable from the agent surface.

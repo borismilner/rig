@@ -6,8 +6,8 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/boris-milner/rig/internal/kernel"
-	"github.com/boris-milner/rig/internal/meta"
+	"github.com/borismilner/rig/internal/kernel"
+	"github.com/borismilner/rig/internal/meta"
 )
 
 // THERE ARE TWO STRUCTURAL DESCRIPTIONS OF A PROGRAM IN THIS REPOSITORY AND

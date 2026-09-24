@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/boris-milner/rig/internal/instance"
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/internal/instance"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // upIncarnation is upEstate with an epoch, which is the one thing that tells

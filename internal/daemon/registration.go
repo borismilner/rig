@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/boris-milner/rig/internal/kernel"
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/internal/kernel"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // The wire and the kernel do not share types, and the translation lives here

@@ -11,9 +11,9 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/boris-milner/rig/client"
-	"github.com/boris-milner/rig/internal/paths"
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/client"
+	"github.com/borismilner/rig/internal/paths"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // PRECONDITION 3, ONE CASE PER ROW OF THE RULING (section 37, 2026-09-14).

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // now is a fixed clock, so an age is a value this file can assert rather than

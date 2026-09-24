@@ -2,6 +2,6 @@
 // from outside the kernel (PLAN.md section 14).
 package main
 
-import "github.com/boris-milner/rig/internal/analysis"
+import "github.com/borismilner/rig/internal/analysis"
 
 func main() { analysis.Main(analysis.NoRegistryHandle) }

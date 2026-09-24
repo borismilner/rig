@@ -10,9 +10,9 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/boris-milner/rig/client"
-	"github.com/boris-milner/rig/internal/kernel"
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/client"
+	"github.com/borismilner/rig/internal/kernel"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // recorder collects the daemon's log so a test can assert on what was NOT

@@ -43,7 +43,7 @@ import (
 	// no cgo, so the daemon cross-compiles and ships as one static binary.
 	_ "modernc.org/sqlite"
 
-	"github.com/boris-milner/rig/internal/paths"
+	"github.com/borismilner/rig/internal/paths"
 )
 
 // SchemaVersion is the on-disk layout this build understands.

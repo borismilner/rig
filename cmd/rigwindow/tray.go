@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"fyne.io/systray"
-	"github.com/boris-milner/rig/client"
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/client"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // design/tray is the source (section 11); cmd/rigwindow/icons is where the

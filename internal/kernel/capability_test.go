@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/boris-milner/rig/internal/kernel"
+	"github.com/borismilner/rig/internal/kernel"
 )
 
 func mapOf(t *testing.T, k *kernel.Kernel, p kernel.Principal, d kernel.Depth) kernel.CapabilityMap {

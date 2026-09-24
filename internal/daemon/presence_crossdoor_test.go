@@ -3,7 +3,7 @@ package daemon
 import (
 	"testing"
 
-	"github.com/boris-milner/rig/client"
+	"github.com/borismilner/rig/client"
 )
 
 // CONDITION A: AN OCCUPANT IS RELEASED WHEN ITS MCP CONNECTION DIES, AND THE

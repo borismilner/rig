@@ -13,9 +13,9 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/boris-milner/rig/client"
-	wirepkg "github.com/boris-milner/rig/internal/wire"
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/client"
+	wirepkg "github.com/borismilner/rig/internal/wire"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // B116's CLI half: `record.query` answers a page at a time, and `rig record

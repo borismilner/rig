@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/boris-milner/rig/internal/analysis"
+	"github.com/borismilner/rig/internal/analysis"
 )
 
 // A gate that cannot fail is what PLAN.md section 5i says the previous
@@ -162,7 +162,7 @@ func TestNoRegistryHandleCatchesANamedImport(t *testing.T) {
 	code, out := run(t, analysis.NoRegistryHandle, map[string]string{
 		"internal/kernel/k.go": "package kernel\n\ntype Registry struct{}\n",
 		"internal/svc/a.go": "package svc\n\n" +
-			"import k \"github.com/boris-milner/rig/internal/kernel\"\n\n" +
+			"import k \"github.com/borismilner/rig/internal/kernel\"\n\n" +
 			"func f(r *k.Registry) {}\n",
 	})
 	wantFail(t, code, out, "names the registry handle from")

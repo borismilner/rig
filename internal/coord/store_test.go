@@ -11,7 +11,7 @@ import (
 
 	bolt "go.etcd.io/bbolt"
 
-	"github.com/boris-milner/rig/internal/paths"
+	"github.com/borismilner/rig/internal/paths"
 )
 
 // SECTION 37 PRECONDITION 4, RULING V15: "the epoch is bumped on every start,

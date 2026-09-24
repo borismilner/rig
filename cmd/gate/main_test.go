@@ -71,7 +71,7 @@ func TestADeletedFileIsNotGated(t *testing.T) {
 // ⛔ A PACKAGE WITH NO TEST MUST BE NAMED, because `go test` prints nothing for
 // it and the summary line then reads exactly like a package that passed.
 func TestAPackageThatRanNoTestIsNamed(t *testing.T) {
-	r := testRun{withTests: map[string]bool{"github.com/boris-milner/rig/internal/record": true}}
+	r := testRun{withTests: map[string]bool{"github.com/borismilner/rig/internal/record": true}}
 	got := r.untested([]string{"./internal/record", "./cmd/gate"})
 	if strings.Join(got, " ") != "./cmd/gate" {
 		t.Errorf("untested = %v; want only ./cmd/gate", got)

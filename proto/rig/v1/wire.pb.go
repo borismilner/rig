@@ -7131,7 +7131,7 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x19SECTION_STATE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16SECTION_STATE_COMPUTED\x10\x01\x12\x1e\n" +
 	"\x1aSECTION_STATE_NOT_COMPUTED\x10\x02\x12\"\n" +
-	"\x1eSECTION_STATE_WITHHELD_BY_VIEW\x10\x03B0Z.github.com/boris-milner/rig/proto/rig/v1;rigv1b\x06proto3"
+	"\x1eSECTION_STATE_WITHHELD_BY_VIEW\x10\x03B/Z-github.com/borismilner/rig/proto/rig/v1;rigv1b\x06proto3"
 
 var (
 	file_proto_rig_v1_wire_proto_rawDescOnce sync.Once

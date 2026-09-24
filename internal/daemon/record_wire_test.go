@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/boris-milner/rig/client"
-	"github.com/boris-milner/rig/internal/instance"
-	"github.com/boris-milner/rig/internal/kernel"
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/client"
+	"github.com/borismilner/rig/internal/instance"
+	"github.com/borismilner/rig/internal/kernel"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // The record verbs over the real wire (PLAN.md section 39).

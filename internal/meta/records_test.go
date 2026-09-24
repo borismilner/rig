@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/boris-milner/rig/internal/kernel"
-	"github.com/boris-milner/rig/internal/meta"
+	"github.com/borismilner/rig/internal/kernel"
+	"github.com/borismilner/rig/internal/meta"
 )
 
 // holdsRecords is a Records an invoker can also be, so the type assertion under

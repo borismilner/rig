@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/boris-milner/rig/internal/kernel"
+	"github.com/borismilner/rig/internal/kernel"
 )
 
 // withCommands is a valid declaration whose commands are exactly the ids and

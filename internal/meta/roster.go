@@ -1,6 +1,6 @@
 package meta
 
-import "github.com/boris-milner/rig/internal/kernel"
+import "github.com/borismilner/rig/internal/kernel"
 
 // Roster is the optional half of Invoker: the thing that can call into an
 // estate usually also knows WHO IS IN IT.

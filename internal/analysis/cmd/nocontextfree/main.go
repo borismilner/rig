@@ -2,6 +2,6 @@
 // deadline (PLAN.md sections 3, 20).
 package main
 
-import "github.com/boris-milner/rig/internal/analysis"
+import "github.com/borismilner/rig/internal/analysis"
 
 func main() { analysis.Main(analysis.NoContextFree) }

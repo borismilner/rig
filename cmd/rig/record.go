@@ -16,14 +16,14 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/boris-milner/rig/client"
+	"github.com/borismilner/rig/client"
 	// ALIASED, AND NOT BY PREFERENCE. `wire` is already a package-level
 	// identifier here - main.go's `wire = "v1"`, the wire VERSION this build
 	// speaks - and Go refuses an import whose name collides with one, in any
 	// file of the package. The alias follows rigv1's spelling below so the
 	// two rig packages read as a pair.
-	rigwire "github.com/boris-milner/rig/internal/wire"
-	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
+	rigwire "github.com/borismilner/rig/internal/wire"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // The continuity record at a prompt (PLAN.md section 39).

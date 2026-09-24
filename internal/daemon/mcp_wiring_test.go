@@ -12,7 +12,7 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/boris-milner/rig/internal/mcpserver"
+	"github.com/borismilner/rig/internal/mcpserver"
 )
 
 // THIS FILE EXISTS BECAUSE TWO MUTATIONS SURVIVED A GREEN GATE.

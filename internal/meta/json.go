@@ -3,7 +3,7 @@ package meta
 import (
 	"encoding/json"
 
-	"github.com/boris-milner/rig/internal/kernel"
+	"github.com/borismilner/rig/internal/kernel"
 )
 
 // MarshalAnswer renders an Answer as THE one object both agent-facing
