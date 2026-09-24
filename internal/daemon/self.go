@@ -126,10 +126,23 @@ func selfDeclaration() kernel.Declaration {
 				"What points AT this record",
 				"Walks the reverse edges and answers what cites, blocks or is part of this record - section 39's \"correlated\", and the direction files cannot go. The walk is bounded by depth and says which depth it ANSWERED, flags a partial answer rather than returning a short list that looks complete, and reports any cycle it crossed by name without resolving it. It stays inside the record's own project unless asked to cross, which is a performance property rather than a preference.",
 				"What points at the record, each edge naming its kind, title and the record it arrived through."),
+			// ⛔ DECLARED BECAUSE IT MOVED, NOT BECAUSE IT WORKS. plan/50
+			// decision 4, narrowed 2026-09-24: the derivation left rig for the
+			// docket program, and section 21 is a ruling - rig serves every
+			// wire version it has ever shipped - so the arm could not vanish
+			// from v1. It stays declared and answers a structured refusal
+			// naming the command that replaced it; the seven brief messages
+			// stay in wire.proto until the next major.
+			//
+			// ⛔ THE PROSE BELOW IS THE REFUSAL AND NOT THE OLD DERIVATION.
+			// Leaving the original sentence here would make this declaration
+			// the last place in rig still claiming rig derives a brief, which
+			// is the failure the whole move exists to end - and a declaration
+			// is the one surface a caller reads BEFORE it calls.
 			readOnly("project.brief", "Project brief",
-				"The derived answer to what is going on here",
-				"Derives next-up work in execution order, what is blocked and on whom, any blocks cycle by name, and the must-read set for this session. Nothing here is stored and no seat writes prose: the whole answer is computed at read time. Asking for it MARKS the must-read set delivered to this session, which is the one side effect on this surface and is per-session state rather than anything written to the record.",
-				"The project's derived state, in the view the caller asked for."),
+				"Moved to the docket program; this arm refuses and says where",
+				"Answers a refusal rather than a brief. The derivation moved to the docket program, which reaches this store over the socket like every other program here; rig keeps the record store and the record verbs the brief is derived on top of. The arm stays on this wire version because rig serves every version it has ever shipped, so a caller that asks is told where the answer went rather than being told there is no such method.",
+				"A refusal naming the program that derives the brief, with the command to ask it instead."),
 
 			// THE FOUR WRITERS, AND THEY ARE NOT readOnly.
 			//

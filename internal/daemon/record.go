@@ -3,7 +3,6 @@ package daemon
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os/user"
 	"strconv"
 
@@ -64,8 +63,13 @@ func (d *Daemon) serveRecord(ctx context.Context, c *conn, f *rigv1.Frame, comma
 		d.serveRecordReplace(ctx, c, f, st)
 	case "progress.step":
 		d.serveProgressStep(ctx, c, f, st)
+	// ⛔ DECLARED, MOVED, AND STILL ANSWERING. plan/50 decision 4: the
+	// derivation left for the docket program and section 21 forbids the verb
+	// vanishing from a shipped wire version, so the arm remains and refuses in
+	// the caller's terms. It takes neither the context nor the store because a
+	// refusal reads neither.
 	case "project.brief":
-		d.serveProjectBrief(ctx, c, f, st)
+		d.refuseProjectBrief(c, f)
 	}
 }
 
@@ -275,27 +279,6 @@ func recordToWire(r record.Record) *rigv1.Record {
 	}
 }
 
-// noteToWire carries one note, and `about` is the field that makes it readable.
-//
-// A note on the project itself and a note on a work item render differently and
-// are not otherwise separable - section 39 scopes this list on the link's
-// DESTINATION, so both arrive in one slice and only `about` tells them apart.
-func noteToWire(n record.Note) *rigv1.BriefNote {
-	return &rigv1.BriefNote{
-		Id:       n.ID,
-		Title:    n.Title,
-		Body:     n.Body,
-		Priority: n.Priority,
-		About:    n.About,
-		Prov: &rigv1.Provenance{
-			Session:    n.Prov.Session,
-			Seat:       n.Prov.Seat,
-			Epoch:      n.Prov.Epoch,
-			AtUnixNano: n.Prov.CreatedAt.UnixNano(),
-		},
-	}
-}
-
 func (d *Daemon) serveRecordPut(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
 	var req rigv1.RecordPutRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
@@ -496,12 +479,6 @@ var stepStateNames = map[rigv1.StepState]string{
 	rigv1.StepState_STEP_STATE_DONE:    "done",
 }
 
-var stepStateWire = map[string]rigv1.StepState{
-	"started": rigv1.StepState_STEP_STATE_STARTED,
-	"blocked": rigv1.StepState_STEP_STATE_BLOCKED,
-	"done":    rigv1.StepState_STEP_STATE_DONE,
-}
-
 func (d *Daemon) serveProgressStep(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
 	var req rigv1.ProgressStepRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
@@ -546,185 +523,6 @@ func (d *Daemon) serveProgressStep(ctx context.Context, c *conn, f *rigv1.Frame,
 		return
 	}
 	c.reply(f.GetStreamId(), &rigv1.ProgressStepResponse{Step: recordToWire(rec)})
-}
-
-func itemToWire(i record.ItemState) *rigv1.ItemState {
-	w := &rigv1.ItemState{
-		Id:    i.ID,
-		Title: i.Title,
-		State: stepStateWire[i.State],
-		Note:  i.Note,
-		// ⛔ ROW 2's FIELDS, WHICH THIS FUNCTION USED TO COMPUTE AND DROP.
-		// The store filled every one of them and only five crossed the wire,
-		// so the window had a truncated title and nothing behind it. That is
-		// the whole of "the rows are not user friendly and clicking them
-		// doesn't show the full description".
-		DescriptionShort: i.DescriptionShort,
-		Priority:         i.Priority,
-		Status:           i.Status,
-		Owner:            i.Owner,
-		Tags:             i.Tags,
-		TargetDate:       i.TargetDate,
-		Semver:           i.Semver,
-		ItemType:         i.ItemType,
-	}
-	// A ZERO Since IS "NOBODY HAS STEPPED THIS YET", and it must not become a
-	// 1970 timestamp on the wire - a reader sorting by age would put it above
-	// every real signal, which is the opposite of what it means.
-	if !i.Since.IsZero() {
-		w.SinceUnixNano = i.Since.UnixNano()
-	}
-	return w
-}
-
-// governingRows maps section 12's rows onto the wire.
-//
-// ⛔ `kind` IS COPIED AND NOT DERIVED FROM POSITION. The rows arrive grouped by
-// kind, so a mapper could infer each row's kind from where it sits in the
-// slice - and would then be correct until the day the derivation orders them
-// any other way, at which point every row would be mislabelled and nothing
-// would fail. The store already put the answer on the row.
-func governingRows(in []record.GoverningRecord) []*rigv1.GoverningRecord {
-	out := make([]*rigv1.GoverningRecord, 0, len(in))
-	for _, g := range in {
-		out = append(out, &rigv1.GoverningRecord{
-			Id: g.ID, Kind: g.Kind, Title: g.Title,
-		})
-	}
-	return out
-}
-
-// governingCounts maps section 12's per-kind counts onto the wire.
-func governingCounts(in []record.KindCount) []*rigv1.KindCount {
-	out := make([]*rigv1.KindCount, 0, len(in))
-	for _, c := range in {
-		out = append(out, &rigv1.KindCount{Kind: c.Kind, Count: c.Count})
-	}
-	return out
-}
-
-// closedRows maps section 13's closed work items onto the wire. B68.
-//
-// ⛔ THE WORD IS COPIED AND NOT RE-DERIVED. The store decided what closed each
-// item - a status word it found, or `done` from the progress stream - and a
-// mapper that looked at the status again here would be the same predicate
-// written twice, which is how the two halves drift apart. Same argument as
-// governingRows makes about `kind`.
-func closedRows(in []record.ClosedItem) []*rigv1.ClosedItem {
-	out := make([]*rigv1.ClosedItem, 0, len(in))
-	for _, c := range in {
-		out = append(out, &rigv1.ClosedItem{
-			Id: c.ID, Title: c.Title, ClosingWord: c.Word,
-		})
-	}
-	return out
-}
-
-// closedCounts maps section 13's per-word census onto the wire.
-func closedCounts(in []record.WordCount) []*rigv1.WordCount {
-	out := make([]*rigv1.WordCount, 0, len(in))
-	for _, c := range in {
-		out = append(out, &rigv1.WordCount{Word: c.Word, Count: c.Count})
-	}
-	return out
-}
-
-// containerFoundOnTheWire spells B76's condition as a Tristate.
-//
-// ⛔ THE POINT OF THE FUNCTION IS THAT IT NEVER RETURNS UNSPECIFIED. A `bool`
-// on the wire would have made the zero mean both "no container" and "this
-// daemon does not answer that", and those are the two things B76 was about
-// telling apart. Spelling the mapping here rather than inline is what keeps
-// the zero unreachable from this end: there is one expression to read.
-func containerFoundOnTheWire(found bool) rigv1.Tristate {
-	if found {
-		return rigv1.Tristate_TRISTATE_YES
-	}
-	return rigv1.Tristate_TRISTATE_NO
-}
-
-// sectionStatuses maps the store's section states onto the wire.
-//
-// ⛔ IT PASSES THEM THROUGH AND DECIDES NOTHING, WHICH IS WHAT THE HAND-KEPT
-// LIST THAT STOOD HERE PROMISED IT WOULD BECOME. That list carried a row per
-// section with a reason written beside it, and its own comment said: "KEEP THIS
-// LIST IN STEP BY HAND UNTIL [the store grows its own section states], and
-// treat every row as a claim that expires." ⛔ **THE CLAIMS DID EXPIRE.** By the
-// time B64 arrived the list still reported `case_notes` as NOT_COMPUTED, citing
-// a derivation that had landed - the third row of that list to go stale in the
-// same way, and the defect BACKLOG B46g was filed for.
-//
-// ⛔ WHY THE STORE IS THE ONLY PLACE THIS CAN LIVE, restated because deleting
-// the list is the easy half and understanding why is the part that stops it
-// coming back: whether a section is computABLE is a property of the code, and
-// whether its slice is populated is a property of the data. A project with
-// genuinely no notes returns an empty Notes, so any rule the daemon could apply
-// from out here - "non-empty means computed" - reports that project's notes as
-// missing. Only the derivation knows which it is, and internal/record's ledger
-// now marks each section at the code that earns it.
-//
-// ⛔ THE SWITCH IS EXHAUSTIVE AND ITS default REFUSES. internal/record names its
-// sections rather than numbering them, deliberately, so that this
-// correspondence has to be written out where it can be read and tested - a cast
-// would be a mapping nobody can see going wrong. A section added to the store
-// with no arm here would otherwise travel as UNSPECIFIED, which section 21's
-// rule says must never be a decision.
-func sectionStatuses(in []record.SectionStatus) ([]*rigv1.BriefSectionStatus, error) {
-	out := make([]*rigv1.BriefSectionStatus, 0, len(in))
-	for _, st := range in {
-		var sec rigv1.BriefSection
-		switch st.Section {
-		case record.SectionOpen:
-			sec = rigv1.BriefSection_BRIEF_SECTION_OPEN
-		case record.SectionNextUp:
-			sec = rigv1.BriefSection_BRIEF_SECTION_NEXT_UP
-		case record.SectionNotes:
-			sec = rigv1.BriefSection_BRIEF_SECTION_NOTES
-		case record.SectionBlocked:
-			sec = rigv1.BriefSection_BRIEF_SECTION_BLOCKED
-		case record.SectionDrift:
-			sec = rigv1.BriefSection_BRIEF_SECTION_DRIFT
-		case record.SectionMustRead:
-			sec = rigv1.BriefSection_BRIEF_SECTION_MUST_READ
-		case record.SectionProjectionBehind:
-			sec = rigv1.BriefSection_BRIEF_SECTION_PROJECTION_BEHIND
-		case record.SectionPending:
-			sec = rigv1.BriefSection_BRIEF_SECTION_PENDING
-		case record.SectionLocalOnly:
-			sec = rigv1.BriefSection_BRIEF_SECTION_LOCAL_ONLY
-		case record.SectionFeatures:
-			sec = rigv1.BriefSection_BRIEF_SECTION_FEATURES
-		case record.SectionCaseNotes:
-			sec = rigv1.BriefSection_BRIEF_SECTION_CASE_NOTES
-		case record.SectionGoverning:
-			sec = rigv1.BriefSection_BRIEF_SECTION_GOVERNING
-		case record.SectionClosed:
-			sec = rigv1.BriefSection_BRIEF_SECTION_CLOSED
-		default:
-			return nil, fmt.Errorf("daemon: the record store reported section %q "+
-				"and this wire has no member for it - a section added on one side "+
-				"and not the other would travel as UNSPECIFIED, which section 21 "+
-				"rules may never be a decision", st.Section)
-		}
-
-		var state rigv1.SectionState
-		switch st.State {
-		case record.SectionComputed:
-			state = rigv1.SectionState_SECTION_STATE_COMPUTED
-		case record.SectionNotComputed:
-			state = rigv1.SectionState_SECTION_STATE_NOT_COMPUTED
-		case record.SectionWithheldByView:
-			state = rigv1.SectionState_SECTION_STATE_WITHHELD_BY_VIEW
-		default:
-			return nil, fmt.Errorf("daemon: section %q reported state %q, which "+
-				"this wire has no member for", st.Section, st.State)
-		}
-
-		out = append(out, &rigv1.BriefSectionStatus{
-			Section: sec, State: state, Reason: st.Reason,
-		})
-	}
-	return out, nil
 }
 
 // serveRecordRefs answers what points AT a record - section 39's "correlated",
@@ -806,194 +604,48 @@ func (d *Daemon) serveRecordRefs(ctx context.Context, c *conn, f *rigv1.Frame, s
 	c.reply(f.GetStreamId(), resp)
 }
 
-func (d *Daemon) serveProjectBrief(ctx context.Context, c *conn, f *rigv1.Frame, st *record.Store) {
-	var req rigv1.ProjectBriefRequest
-	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
-		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "project.brief: "+err.Error())
-		return
-	}
-	b, err := st.Brief(ctx, req.GetProject())
-	if err != nil {
-		c.failErr(f.GetStreamId(), recordCode(err), err)
-		return
-	}
-	// ⛔ A SECTION THE WIRE CANNOT NAME FAILS THE WHOLE BRIEF RATHER THAN
-	// TRAVELLING AS UNSPECIFIED. Same argument as the store's own ledger one
-	// level down: an answer that is silently missing a section reads as an
-	// answer with nothing in that section.
-	sections, err := sectionStatuses(b.Sections)
-	if err != nil {
-		c.fail(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err.Error())
-		return
-	}
-	resp := &rigv1.ProjectBriefResponse{
-		Project: b.Project,
-
-		// ⛔ ALWAYS PRESENT. health is sections 7-9 and its zero value is the
-		// correct encoding of a healthy project AND of a projection that does
-		// not exist - only the section status separates them, which is why it
-		// is never sent without one.
-		Health:   &rigv1.BriefHealth{},
-		Sections: sections,
-
-		// ⛔ SECTION 12, B64, AND IT IS MAPPED FIELD BY FIELD RATHER THAN
-		// SPREAD. The store's GoverningRecord and the wire's have the same three
-		// fields today; writing the correspondence out is what makes it visible
-		// when they stop agreeing, which is the defect `briefFromWire` recorded
-		// against itself when it went on naming five unread fields of six.
-		Governing:       governingRows(b.Governing),
-		GoverningCounts: governingCounts(b.GoverningCounts),
-
-		// ⛔ SECTION 13, B68, AND `unlisted_items` TRAVELS WITH THE LIST OR
-		// THE LIST LIES. A brief carrying the closed rows without the count of
-		// the ones in neither list invites the reader to add two lists up for a
-		// total that is short by every statusless item - the precise inference
-		// the count was ruled in to correct.
-		Closed:        closedRows(b.Closed),
-		ClosedCounts:  closedCounts(b.ClosedCounts),
-		UnlistedItems: b.Unlisted,
-
-		// ⛔ THE PACKAGE COMPUTED THIS AND THIS FUNCTION THREW IT AWAY, SO THE
-		// FIRST BRIEF rig EVER GAVE OF ITSELF SAID "(not said)" ABOUT ITS OWN
-		// KIND. Measured 2026-09-17 on the production store, minutes after
-		// rig's backlog was first seeded: `rig record get rig --json` answered
-		// `"kind":"project"` and `rig brief rig` printed `rig (not said)`.
-		//
-		// brief.go:420 sets b.Kind from the container record whenever the Get
-		// succeeds, and `wire.proto`'s own comment above `string kind = 9` says
-		// these four fields exist because "the CLI renderer was built against
-		// these and the wire did not carry them". ⛔ THE DEFERRAL WAS HONOURED
-		// ON THE WIRE AND ON NEITHER SIDE OF IT - the field was reserved, the
-		// package filled it, and the mapping between them was never written.
-		//
-		// ⛔ THAT DEFERRAL'S PRECONDITION IS GONE, AND THE SENTENCE THAT
-		// STATED IT OUTLIVED IT. Until rig bb0c60f this comment read: "title,
-		// status and semver are the OTHER HALF and are NOT set here on purpose:
-		// `record.Brief` has no field for any of them yet, so setting them would
-		// mean this function reading the store a second time and becoming a
-		// second derivation." ⛔ EVERY CLAUSE OF THAT WAS TRUE WHEN WRITTEN
-		// AND THE FIRST ONE WENT FALSE THE SAME DAY: `record.Brief` now carries
-		// Title, Status and Semver, filled from the container record the
-		// derivation already reads. There is no second read and no second
-		// derivation - the values are on the brief in hand.
-		//
-		// ⛔ IT IS THE FOURTH INSTANCE THIS DAY OF A LABEL OUTLIVING WHAT IT
-		// DESCRIBES, and the only one in the file of the seat collecting the
-		// pattern. The others: a comment naming `B60-2` as the shape its guard
-		// catches, which the guard silently accepts; `briefFromWire`'s comment
-		// predicting its own rot and having already rotted; and a table caption
-		// reading "in expected execution order" over a lexical id sort. ⛔ NO
-		// GATE IN THIS REPOSITORY CHECKS A CAPTION, so each was found by a
-		// person reading, and this one was found by two seats independently.
-		//
-		// ⛔ AND NO GUARD COULD HAVE CAUGHT IT FROM THE OTHER END. The CLI's
-		// descriptor-coverage test proves the client RENDERS every wire field;
-		// it cannot prove the daemon SETS one, because a field the daemon never
-		// populates is byte-identical to a project that genuinely has no title.
-		// That asymmetry is why these four fields are mapped together here,
-		// beside the Kind whose absence was the visible half.
-		Kind:   b.Kind,
-		Title:  b.Title,
-		Status: b.Status,
-		Semver: b.Semver,
-
-		// The container's own description, section 39's two field names.
-		// ⛔ THEY ARE MAPPED HERE AND NOT ONLY DERIVED BECAUSE THIS FUNCTION IS
-		// WHERE THE LAST SEVEN FIELDS WENT MISSING: itemToWire computed
-		// description_short, priority, status, owner, tags, target_date and
-		// semver and carried none of them, and nothing failed - it took a
-		// screenshot from Boris to surface it. A field the store computes and
-		// this file drops ANSWERS rather than refuses, which is worse than the
-		// wire-that-lies section 39 already refuses elsewhere.
-		DescriptionShort: b.DescriptionShort,
-		DescriptionLong:  b.DescriptionLong,
-
-		// ⛔ B76 AS A FACT ON THE WIRE, WHICH IS THE HALF THE FIX ABOVE LEFT
-		// OUT. The derivation has carried `ContainerFound` since rig 072aea4
-		// and this function dropped it, so the CLI re-derived the condition
-		// from an empty Kind - correct only because these four fields happen
-		// to be served, and wrong against every daemon that predates their
-		// being served at all.
-		//
-		// ⛔ IT IS NEVER UNSPECIFIED FROM HERE. This daemon has read the
-		// container, so it knows; UNSPECIFIED is reserved for a daemon that
-		// does not carry the field, and a reader cannot tell "I did not look"
-		// from "I looked and found nothing" if this end ever spends the zero.
-		ContainerFound: containerFoundOnTheWire(b.ContainerFound),
-	}
-
-	// A NEGATIVE COUNT IS A BUG, AND ZERO IS THE HONEST ANSWER TO ONE. The
-	// conversion is guarded rather than asserted because an unchecked int to
-	// uint64 turns a negative into an enormous positive, and this field is
-	// read as "how much of the migration is coarse" - the one direction in
-	// which a wrong number would look alarming rather than wrong.
-	if n := b.CoarseCitations; n > 0 {
-		resp.CoarseCitations = uint64(n)
-	}
-	for _, i := range b.Open {
-		resp.Open = append(resp.Open, itemToWire(i))
-	}
-	for _, i := range b.NextUp {
-		resp.NextUp = append(resp.NextUp, itemToWire(i))
-	}
-	// A BLOCKER IS RESOLVED HERE, NOT LEFT AS AN ID. Once an `idea` item can
-	// block, a blocker need not appear anywhere else in this response, so the
-	// brief has to carry enough to render it. `byID` is every item the brief
-	// knows; a blocker missing from it is one outside the active set, which is
-	// exactly the case the blocked-set ruling added.
-	byID := map[string]record.ItemState{}
-	for _, i := range b.Open {
-		byID[i.ID] = i
-	}
-	for _, i := range b.NextUp {
-		byID[i.ID] = i
-	}
-	for _, bl := range b.Blocked {
-		w := &rigv1.Blockage{Item: bl.Item, Title: bl.Title}
-		for _, id := range bl.BlockedBy {
-			blocker := &rigv1.Blocker{Id: id}
-			if known, ok := byID[id]; ok {
-				blocker.Title = known.Title
-				blocker.State = stepStateWire[known.State]
-			}
-			w.Blockers = append(w.Blockers, blocker)
-		}
-		resp.Blocked = append(resp.Blocked, w)
-	}
-	for _, cy := range b.Cycles {
-		resp.Cycles = append(resp.Cycles, &rigv1.Cycle{Items: cy})
-	}
-
-	// SECTIONS 3 AND 10, AND THE DAEMON WAS THE HALF THAT WAS MISSING. The
-	// derivation landed them at 08ce632 and nothing here read the fields, so
-	// project.brief answered without them while briefSections() reported them
-	// NOT_COMPUTED with a reason blaming the derivation. A response that is
-	// well-formed and short is the shape this file keeps having to catch:
-	// the caller cannot tell a project with no notes from a daemon that never
-	// looked.
-	//
-	// THE JOIN BETWEEN TWO FILES IS WHERE BOTH OF THIS SEAM'S DEFECTS HAVE
-	// BEEN - the other direction was a wire field nothing wrote. Ownership
-	// here is by file, so the join belongs to nobody, and only a seat reading
-	// both sides at once finds either.
-	for _, n := range b.Notes {
-		resp.Notes = append(resp.Notes, noteToWire(n))
-	}
-	for _, ft := range b.Features {
-		resp.Features = append(resp.Features, &rigv1.Feature{
-			Id: ft.ID, Title: ft.Title, Stage: ft.Stage,
-		})
-	}
-	// REPEATED, NOT A MAP, and the reason is a golden test: map iteration
-	// order is unspecified in Go, so a map here would reorder the same answer
-	// between runs. Raised by the record seat before the shape was chosen.
-	for _, sc := range b.Stages {
-		resp.FeatureStages = append(resp.FeatureStages, &rigv1.StageCount{
-			Stage: sc.Stage, Count: sc.Count,
-		})
-	}
-
-	c.reply(f.GetStreamId(), resp)
+// refuseProjectBrief answers the verb rig no longer carries.
+//
+// ⛔ THE ARM STAYS DECLARED AND ANSWERS. Section 21 is a ruling - rig serves
+// every wire version it has ever shipped - so `project.brief` could not simply
+// vanish from v1 when the derivation left for the docket program at plan/50.
+// Deleting the case would send the caller down daemon.go's "no such method"
+// path, which is CODE_NOT_FOUND and is how an UNDECLARED verb answers: a
+// caller could then not tell a verb that moved from a verb that never was.
+// self.go still declares it, and this is what it declares.
+//
+// ⛔ CODE_DENIED RATHER THAN THE FAILED_PRECONDITION plan/50's decision 4
+// NAMES, BECAUSE THIS WIRE HAS NO SUCH CODE. wire.proto's set is UNSPECIFIED,
+// OK, UNAVAILABLE, NOT_FOUND, INVALID, DENIED, DEADLINE, INTERNAL,
+// SESSION_DEAD, CONFLICT. Decision 4's word names the SHAPE - section 9's
+// precondition, actual and fix, which is what a failed precondition is on this
+// wire - and DENIED is the only code whose own comment covers it: "refused by
+// capabilities or house rules". Reported to the lead rather than decided here.
+//
+// ⛔ THE REQUEST IS NOT UNMARSHALLED, and that is deliberate twice over. A
+// refusal that does not read the body cannot refuse differently for different
+// bodies, which is the property that makes it one answer rather than a
+// surface; and naming the brief's request type here would fail plan/50
+// acceptance B, whose grep is over TEXT and does not know a comment from code,
+// so it must print nothing outside proto/ even though the seven brief messages
+// stay in wire.proto until the next major.
+//
+// NO FixCommand, FOR cmd/rig's REASON. The replacement is a PROGRAM's command
+// reached through M1's projection, not a verb this build dispatches, so citing
+// it as runnable would send a caller into the CLI's default branch.
+// refusal_verbs_test.go's dead-verb guard exists for exactly that.
+func (d *Daemon) refuseProjectBrief(c *conn, f *rigv1.Frame) {
+	c.failStatus(f.GetStreamId(), &rigv1.Status{
+		Code: rigv1.Code_CODE_DENIED,
+		Message: "rig.project.brief: the brief is not rig's to derive: it " +
+			"moved to the docket program, which reaches this store over the " +
+			"socket like every other program here",
+		Precondition: "rig carries the derivation being asked for",
+		Actual: "rig carries the record store and the record verbs; the brief " +
+			"is derived on top of them by a program",
+		Fix: "ask the program that owns it, through rig: " +
+			"rig docket brief <project>",
+	})
 }
 
 // recordCode maps a store refusal to a wire code.

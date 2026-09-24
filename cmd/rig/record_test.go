@@ -70,7 +70,6 @@ type fakeRecord struct {
 	history    func(string) ([]Record, error)
 	refs       func(RefsArgs) (Refs, error)
 	step       func(StepArgs) (Record, error)
-	brief      func(string) (Brief, error)
 	linkErr    error
 }
 
@@ -170,14 +169,6 @@ func (f *fakeRecord) Step(_ context.Context, a StepArgs) (Record, error) {
 		return f.step(a)
 	}
 	return step(), nil
-}
-
-func (f *fakeRecord) Brief(_ context.Context, project string) (Brief, error) {
-	f.calls = append(f.calls, "brief")
-	if f.brief != nil {
-		return f.brief(project)
-	}
-	return Brief{Project: project, Kind: "project"}, nil
 }
 
 // serving swaps the seam for the fake and puts it back, so one test's API
@@ -1172,10 +1163,6 @@ func TestEveryRecordMethodNamesItselfWithTheRigPrefix(t *testing.T) {
 		}},
 		{"rig.progress.step", func(ctx context.Context, a RecordAPI) error {
 			_, err := a.Step(ctx, StepArgs{Item: "x", State: "done", Project: "rig"})
-			return err
-		}},
-		{"rig.project.brief", func(ctx context.Context, a RecordAPI) error {
-			_, err := a.Brief(ctx, "rig")
 			return err
 		}},
 	} {

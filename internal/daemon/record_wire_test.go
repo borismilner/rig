@@ -15,7 +15,6 @@ import (
 	"github.com/boris-milner/rig/client"
 	"github.com/boris-milner/rig/internal/instance"
 	"github.com/boris-milner/rig/internal/kernel"
-	"github.com/boris-milner/rig/internal/record"
 	rigv1 "github.com/boris-milner/rig/proto/rig/v1"
 )
 
@@ -153,30 +152,38 @@ func TestTheRecordVerbsAreReachableUnderSection39sOwnNames(t *testing.T) {
 		t.Errorf("a step landed at version %d; a stream is append-only so every step is 1", got)
 	}
 
-	// The brief derives it back. NOTHING HERE WAS STORED AS PROSE.
-	var brief rigv1.ProjectBriefResponse
-	if err := c.Call(ctx, "rig.project.brief", &rigv1.ProjectBriefRequest{
-		Project: "rig",
-	}, &brief); err != nil {
-		t.Fatalf("rig.project.brief: %v", err)
-	}
-	if len(brief.GetNextUp()) == 0 {
-		t.Fatal("the brief derived no next-up item from a started work item")
-	}
-	found := false
-	for _, it := range brief.GetNextUp() {
-		if it.GetId() == id {
-			found = true
-			if it.GetState() != rigv1.StepState_STEP_STATE_STARTED {
-				t.Errorf("the item came back in state %v, not the step that was written", it.GetState())
-			}
-			if it.GetSinceUnixNano() == 0 {
-				t.Error("an item with a step came back with a zero Since, which means 'never stepped'")
-			}
+	// ⛔ project.brief IS STILL DIALLED AND IT ANSWERS A REFUSAL. plan/50
+	// decision 4: the derivation left for the docket program, section 21
+	// forbids the verb vanishing from a shipped wire version, so the arm stays
+	// declared and refuses in the caller's terms. THIS ASSERTION IS THE
+	// EVIDENCE THE ARM STILL ANSWERS - decision 4 asks for it by name - and it
+	// is what separates a moved verb from a deleted one: a deleted verb gets
+	// daemon.go's CODE_NOT_FOUND "no such method".
+	//
+	// ⛔ THE REQUEST IS DELIBERATELY THE WRONG MESSAGE. The arm unmarshals
+	// nothing, so a record.get body must produce exactly the same refusal as a
+	// brief body would; sending the brief's own request type here would also
+	// fail plan/50 acceptance B, whose grep must print nothing outside proto/.
+	if err := c.Call(ctx, "rig.project.brief",
+		&rigv1.RecordGetRequest{Id: "rig"}, &rigv1.RecordGetResponse{}); err == nil {
+		t.Fatal("rig.project.brief answered a brief, so the derivation is still here")
+	} else {
+		var refusal *client.CallError
+		if !errors.As(err, &refusal) {
+			t.Fatalf("the refusal arrived unstructured: %T %v", err, err)
 		}
-	}
-	if !found {
-		t.Errorf("the item just stepped is not in next-up: %+v", brief.GetNextUp())
+		if got := refusal.Status.GetCode(); got != rigv1.Code_CODE_DENIED {
+			t.Errorf("the moved verb answered %v; NOT_FOUND is how an undeclared "+
+				"verb answers and a caller must be able to tell the two apart", got)
+		}
+		if !strings.Contains(refusal.Status.GetFix(), "docket") {
+			t.Errorf("the fix does not name the program that owns the brief: %q",
+				refusal.Status.GetFix())
+		}
+		if refusal.Status.GetPrecondition() == "" || refusal.Status.GetActual() == "" {
+			t.Errorf("the refusal is not structured: precondition %q actual %q",
+				refusal.Status.GetPrecondition(), refusal.Status.GetActual())
+		}
 	}
 }
 
@@ -437,9 +444,12 @@ func TestAnUnnamedEstateServesTheRecordFromAnEphemeralStore(t *testing.T) {
 	sock, _ := upDaemon(t, nil) // unnamed
 	c := dial(t, sock)
 
-	var got rigv1.ProjectBriefResponse
-	if err := c.Call(recordCtx(t), "rig.project.brief",
-		&rigv1.ProjectBriefRequest{Project: "rig"}, &got); err != nil {
+	// The READ half. It was `project.brief` until plan/50 move 8 retired that
+	// arm; `record.query` is the same probe against the same store, and it is a
+	// verb rig still carries.
+	var got rigv1.RecordQueryResponse
+	if err := c.Call(recordCtx(t), "rig.record.query",
+		&rigv1.RecordQueryRequest{Project: "rig"}, &got); err != nil {
 		t.Fatalf("an unnamed estate still cannot serve the record, so an agent "+
 			"has nowhere to write that is not somebody's live estate: %v", err)
 	}
@@ -499,7 +509,14 @@ func TestNoServedRequestFieldIsSilentlyDropped(t *testing.T) {
 		"RecordLinkRequest":    {"src", "type", "dst"},
 		"RecordUnlinkRequest":  {"src", "type", "dst"},
 		"ProgressStepRequest":  {"item", "state", "note"},
-		"ProjectBriefRequest":  {"project"},
+
+		// ⛔ THE BRIEF'S REQUEST IS NOT NAMED HERE AND ITS ABSENCE IS THE
+		// POINT. plan/50 move 8 left the arm declared and answering a refusal
+		// that unmarshals nothing, so every field on that message is now a
+		// field no handler reads - by ruling, not by defect. This walk only
+		// checks the messages it names, and naming it would assert the
+		// opposite of what decision 4 decided. The seven brief messages stay
+		// in wire.proto until the next major.
 	}
 
 	files := (&rigv1.ProgressStepRequest{}).ProtoReflect().Descriptor().ParentFile()
@@ -532,296 +549,6 @@ func TestNoServedRequestFieldIsSilentlyDropped(t *testing.T) {
 		t.Fatalf("checked %d served request messages, expected %d - the "+
 			"descriptor walk found fewer messages than this test names, so it "+
 			"proved nothing about the ones it missed", seen, len(read))
-	}
-}
-
-// TestEveryBriefSectionReportsItsOwnState is the response-side half of the
-// guard above, and it is the one that would have caught the cut.
-//
-// ⛔ THE FAILURE IT EXISTS FOR ALREADY HAPPENED TWICE. `project.brief` is
-// specified with ELEVEN sections and shipped with four; separately,
-// `must_read` and `must_read_cleared` have been on the response since the wire
-// landed with nothing writing either, so a caller reading an empty set would
-// conclude the project requires nothing. Boris ruled all eleven in on
-// 2026-09-16 - "Cover all of them" - and the mechanism that makes that true is
-// SectionState, not a longer message.
-//
-// THE REQUEST-SIDE GUARD CANNOT SEE ANY OF THIS. It walks request messages
-// against the fields serveRecord READS; a response field nothing WRITES is the
-// same defect pointed the other way, and it needs its own walk. Raised by the
-// backend-record seat, which found `must_read` independently and correctly
-// refused to fix a file it does not own.
-//
-// ⛔ REWRITTEN FOR B64, AND IT NOW TESTS THE REAL PATH. It used to iterate a
-// hand-kept briefSections() in this package - a list whose own comment said
-// every row was "a claim that expires", and three of them did. That list is
-// gone; the store's ledger marks each section at the code that earns it and the
-// daemon maps them. So this walks the MAPPER, which is the only thing left in
-// this package that can be wrong about a section.
-func TestEveryBriefSectionReportsItsOwnState(t *testing.T) {
-	// EVERY section in the enum must be reported EXACTLY ONCE. A section that
-	// is simply absent is the original defect: the caller cannot tell it from
-	// a section with nothing in it.
-	vals := rigv1.BriefSection(0).Descriptor().Values()
-	want := map[rigv1.BriefSection]bool{}
-	for i := range vals.Len() {
-		if n := rigv1.BriefSection(vals.Get(i).Number()); n != 0 {
-			want[n] = true
-		}
-	}
-	if len(want) != 13 {
-		t.Fatalf("BriefSection carries %d sections and this wire serves 13 - "+
-			"section 39's eleven, the governing section B64 added and the "+
-			"closed section B68 did. If the specification changed, this "+
-			"number moves with it deliberately", len(want))
-	}
-
-	// ⛔ THE STORE'S TWELVE, TRANSCRIBED, AS A SECOND INSTRUMENT. Feeding this
-	// mapper a list derived from the mapper's own switch would agree with it
-	// whatever it said - the cross-check-with-the-same-blind-spot this seam has
-	// already paid for. internal/record does not export its section list, and
-	// writing the names out here is the point rather than a workaround: a
-	// section added on the store side reaches this wire only when a person adds
-	// an arm, and this is where they find out.
-	from := []record.SectionStatus{
-		{Section: record.SectionOpen, State: record.SectionComputed},
-		{Section: record.SectionNextUp, State: record.SectionComputed},
-		{Section: record.SectionNotes, State: record.SectionComputed},
-		{Section: record.SectionBlocked, State: record.SectionComputed},
-		{Section: record.SectionDrift, State: record.SectionNotComputed, Reason: "r"},
-		{Section: record.SectionMustRead, State: record.SectionNotComputed, Reason: "r"},
-		{Section: record.SectionProjectionBehind, State: record.SectionNotComputed, Reason: "r"},
-		{Section: record.SectionPending, State: record.SectionNotComputed, Reason: "r"},
-		{Section: record.SectionLocalOnly, State: record.SectionNotComputed, Reason: "r"},
-		{Section: record.SectionFeatures, State: record.SectionComputed},
-		{Section: record.SectionCaseNotes, State: record.SectionNotComputed, Reason: "r"},
-		{Section: record.SectionGoverning, State: record.SectionComputed},
-		{Section: record.SectionClosed, State: record.SectionComputed},
-	}
-	got, err := sectionStatuses(from)
-	if err != nil {
-		t.Fatalf("mapping the store's sections onto the wire: %v", err)
-	}
-
-	// ⛔ AND THE MAPPER MUST REFUSE WHAT IT CANNOT NAME, watched going red here
-	// rather than assumed from reading the default arm. A section travelling as
-	// UNSPECIFIED is section 21's rule broken in the quietest possible way.
-	if _, err := sectionStatuses([]record.SectionStatus{
-		{Section: record.Section("invented"), State: record.SectionComputed},
-	}); err == nil {
-		t.Error("the mapper accepted a section this wire has no member for and " +
-			"would have served it as UNSPECIFIED, which reads as an unset field")
-	}
-
-	seen := map[rigv1.BriefSection]int{}
-	for _, st := range got {
-		seen[st.GetSection()]++
-
-		// ⛔ A REASON IS MANDATORY WHENEVER A SECTION CANNOT ANSWER. Without it
-		// NOT_COMPUTED is just a quieter absence: the caller learns the section
-		// is unavailable and not which input it is waiting on.
-		if st.GetState() != rigv1.SectionState_SECTION_STATE_COMPUTED &&
-			strings.TrimSpace(st.GetReason()) == "" {
-			t.Errorf("%v is %v with NO REASON: the caller is told a section is "+
-				"unavailable and not what it waits on, which is an absence with "+
-				"extra steps", st.GetSection(), st.GetState())
-		}
-		if st.GetState() == rigv1.SectionState_SECTION_STATE_UNSPECIFIED {
-			t.Errorf("%v reports UNSPECIFIED, so an unset field has decoded as a "+
-				"decision - section 21's rule, and the reason every enum here has "+
-				"an explicit zero", st.GetSection())
-		}
-	}
-	for s := range want {
-		switch seen[s] {
-		case 1:
-		case 0:
-			t.Errorf("%v is in the enum and the mapper does NOT report it. "+
-				"A missing section reads as covered, which is how seven of eleven "+
-				"were shipped absent", s)
-		default:
-			t.Errorf("%v is reported %d times; a caller reading the first gets a "+
-				"different answer from one reading the last", s, seen[s])
-		}
-	}
-}
-
-// TestTheBriefNeverAnswersWithoutItsSectionStates pins the one property the
-// whole ruling rests on, over the real wire.
-//
-// An all-zero BriefHealth is the correct encoding of a healthy project AND of
-// a projection that does not exist yet. ⛔ SO A BRIEF THAT ARRIVES WITHOUT
-// `sections` IS INDISTINGUISHABLE FROM ONE REPORTING PERFECT HEALTH, which is
-// section 39's recorded injury verbatim: a brief that "reported a
-// healthy-looking project that was not backed up".
-func TestTheBriefNeverAnswersWithoutItsSectionStates(t *testing.T) {
-	sock := upRecordDaemon(t)
-	c := seated(t, sock, "brief-sections")
-
-	var resp rigv1.ProjectBriefResponse
-	if err := c.Call(recordCtx(t), "rig.project.brief",
-		&rigv1.ProjectBriefRequest{Project: "rig"}, &resp); err != nil {
-		t.Fatalf("rig.project.brief: %v", err)
-	}
-	if len(resp.GetSections()) != 13 {
-		t.Fatalf("the brief answered with %d section states, want 13: an empty "+
-			"health block is then indistinguishable from a healthy project",
-			len(resp.GetSections()))
-	}
-	if resp.GetHealth() == nil {
-		t.Error("health is nil on the wire, so sections 7-9 are absent rather " +
-			"than reported - the shape section 39 added rows 7-9 to prevent")
-	}
-	// The must-read gate is the one with a recorded history of reading as
-	// "nothing is required" while being unbuilt.
-	for _, st := range resp.GetSections() {
-		if st.GetSection() != rigv1.BriefSection_BRIEF_SECTION_MUST_READ {
-			continue
-		}
-		if st.GetState() == rigv1.SectionState_SECTION_STATE_COMPUTED &&
-			len(resp.GetMustRead()) == 0 {
-			t.Error("must_read is reported COMPUTED and is empty; if the mark is " +
-				"now built this is right, and if it is not, an empty set is being " +
-				"served as though it meant the project requires nothing")
-		}
-	}
-}
-
-// TestTheBriefCarriesTheNotesAndFeaturesTheDerivationComputes is the guard for
-// the half of this seam that has now failed in BOTH directions.
-//
-// ⛔ THE DEFECT IT CATCHES: internal/record grew Notes, Features and Stages, and
-// serveProjectBrief mapped none of the three. `project.brief` answered, it was
-// well-formed, and it was short - while briefSections() went on reporting NOTES
-// and FEATURES as NOT_COMPUTED with a reason blaming a derivation that had
-// already landed. A caller could not tell a project with no notes from a daemon
-// that never looked.
-//
-// ⛔ AND IT IS THE MIRROR OF THE `must_read` DEFECT, WHICH IS WHY BOTH HALVES
-// ARE ASSERTED HERE RATHER THAN IN TWO TESTS. That one was a WIRE FIELD NOTHING
-// WROTE - read it, always empty. This is a DAEMON THAT DID NOT READ THREE
-// PACKAGE FIELDS THAT EXIST. Same seam, opposite direction, and ownership in
-// this repository is by FILE - so the join between two files belongs to nobody
-// and only a reader holding both sides at once finds either.
-//
-// THE SECTION STATE IS ASSERTED BESIDE THE PAYLOAD DELIBERATELY. A section that
-// carries rows while reporting NOT_COMPUTED, or reports COMPUTED while carrying
-// nothing it was given, is the same lie told from either end.
-func TestTheBriefCarriesTheNotesAndFeaturesTheDerivationComputes(t *testing.T) {
-	sock := upRecordDaemon(t)
-	c := seated(t, sock, "team-lead")
-	ctx := recordCtx(t)
-
-	put := func(what string, req *rigv1.RecordPutRequest) string {
-		t.Helper()
-		var resp rigv1.RecordPutResponse
-		if err := c.Call(ctx, "rig.record.put", req, &resp); err != nil {
-			t.Fatalf("rig.record.put(%s): %v", what, err)
-		}
-		return resp.GetRecord().GetId()
-	}
-
-	put("project", &rigv1.RecordPutRequest{
-		Id: "rig", Kind: "project", Project: "rig", Body: "rig itself",
-	})
-
-	// Section 3: a note, attached to the project by a `part-of` edge. The
-	// derivation scopes this list on the edge's DESTINATION, so the link is not
-	// decoration - without it the note is not in the section at all.
-	note := put("note", &rigv1.RecordPutRequest{
-		Kind: "note", Project: "rig", Body: "the close path panics on a real WM_DELETE_WINDOW",
-		Fields: map[string]string{"priority": "high"},
-	})
-	if err := c.Call(ctx, "rig.record.link", &rigv1.RecordLinkRequest{
-		Src: note, Type: "part-of", Dst: "rig",
-	}, &rigv1.RecordLinkResponse{}); err != nil {
-		t.Fatalf("rig.record.link(note -> project): %v", err)
-	}
-
-	// Section 10: features, and the STAGE is what the section is about. Two
-	// stages so the counts cannot pass by carrying a single row.
-	put("feature building", &rigv1.RecordPutRequest{
-		Kind: "feature", Project: "rig", Body: "the continuity record",
-		Fields: map[string]string{"title": "record", "stage": "building"},
-	})
-	put("feature shipped", &rigv1.RecordPutRequest{
-		Kind: "feature", Project: "rig", Body: "the estate verb",
-		Fields: map[string]string{"title": "estate", "stage": "shipped"},
-	})
-
-	var brief rigv1.ProjectBriefResponse
-	if err := c.Call(ctx, "rig.project.brief",
-		&rigv1.ProjectBriefRequest{Project: "rig"}, &brief); err != nil {
-		t.Fatalf("rig.project.brief: %v", err)
-	}
-
-	// ---- section 3 -----------------------------------------------------
-	if len(brief.GetNotes()) != 1 {
-		t.Fatalf("the brief carries %d notes and the derivation computed 1: "+
-			"the daemon is not reading record.Brief.Notes, so the section "+
-			"answers short rather than refusing", len(brief.GetNotes()))
-	}
-	got := brief.GetNotes()[0]
-	if got.GetId() != note {
-		t.Errorf("the note carries id %q, not %q", got.GetId(), note)
-	}
-	if got.GetPriority() != "high" {
-		t.Errorf("the note's priority is %q, not \"high\" - it is the ordering "+
-			"signal section 11 sorts on, so a dropped one is a wrong list later",
-			got.GetPriority())
-	}
-	// ⛔ `about` IS WHAT MAKES THE LIST READABLE. The section is scoped on the
-	// link's destination, so a note on the project and a note on a work item
-	// arrive in ONE slice and nothing else separates them.
-	if got.GetAbout() != "rig" {
-		t.Errorf("the note says it is about %q, not \"rig\": without it a caller "+
-			"cannot tell a note on the project from a note on an item", got.GetAbout())
-	}
-	if got.GetProv().GetSeat() != "team-lead" {
-		t.Errorf("the note's provenance names %q, not the announcing seat",
-			got.GetProv().GetSeat())
-	}
-
-	// ---- section 10 ----------------------------------------------------
-	// Only `building` features are listed; every stage is COUNTED. Asserting
-	// both is what stops a mutation that returns all features from passing.
-	if len(brief.GetFeatures()) != 1 {
-		t.Fatalf("the brief lists %d features and one is at stage `building`: "+
-			"section 39 lists the building ones and counts them all",
-			len(brief.GetFeatures()))
-	}
-	if s := brief.GetFeatures()[0].GetStage(); s != "building" {
-		t.Errorf("the listed feature is at stage %q, not \"building\"", s)
-	}
-	counts := map[string]uint64{}
-	for _, sc := range brief.GetFeatureStages() {
-		counts[sc.GetStage()] = sc.GetCount()
-	}
-	if counts["building"] != 1 || counts["shipped"] != 1 {
-		t.Errorf("the stage counts are %v and two features were written, one "+
-			"per stage: a short count reads as a smaller project", counts)
-	}
-
-	// ---- the section states, which must agree with the payload ----------
-	state := map[rigv1.BriefSection]*rigv1.BriefSectionStatus{}
-	for _, st := range brief.GetSections() {
-		state[st.GetSection()] = st
-	}
-	for _, s := range []rigv1.BriefSection{
-		rigv1.BriefSection_BRIEF_SECTION_NOTES,
-		rigv1.BriefSection_BRIEF_SECTION_FEATURES,
-	} {
-		st, ok := state[s]
-		if !ok {
-			t.Errorf("%v is absent from the section states entirely", s)
-			continue
-		}
-		if st.GetState() != rigv1.SectionState_SECTION_STATE_COMPUTED {
-			t.Errorf("%v reports %v with reason %q, and this brief just carried "+
-				"its rows: a section that answers while reporting NOT_COMPUTED "+
-				"sends a reader to build what already exists",
-				s, st.GetState(), st.GetReason())
-		}
 	}
 }
 
@@ -971,134 +698,6 @@ func TestRecordRefsCarriesEveryFieldTheStoreComputes(t *testing.T) {
 	}
 }
 
-// TestTheBriefCarriesItsContainersOwnHeaderFields pins the four header fields
-// against the defect that produced them: the derivation read the container
-// record, kept its metadata, and this function sent none of it, so the first
-// brief rig ever gave of itself said "(not said) (no status)" over "(no title)"
-// while every row beneath it was correct.
-//
-// WHY IT IS A SEPARATE TEST FROM THE CLI'S DESCRIPTOR GUARD, WHICH ALREADY
-// EXISTS AND CANNOT COVER THIS. cmd/rig's briefWireFieldsNotRendered proves the
-// client RENDERS every field the wire declares. It cannot prove the daemon SETS
-// one, because a field the daemon never populates arrives byte-identical to a
-// project that genuinely has no title. The two guards are on opposite sides of
-// the same join and neither implies the other - which is exactly how this field
-// spent one wire revision declared, filled by the package, and mapped by
-// nobody.
-//
-// AND IT IS WRITTEN TO GO RED FIELD BY FIELD. Four distinct assertions naming
-// four distinct values, rather than one comparison of a whole struct: deleting
-// any single mapping line in briefResponse must fail this test and name the
-// field that went missing. A struct-equality assertion would have gone red too
-// and would have said only "the header differs".
-func TestTheBriefCarriesItsContainersOwnHeaderFields(t *testing.T) {
-	sock := upRecordDaemon(t)
-	c := seated(t, sock, "team-lead")
-	ctx := recordCtx(t)
-
-	// The container carries all four. `semver` is read rather than suppressed
-	// by kind: section 39 rules a case has no semver, and no case record writes
-	// one, so reading the field satisfies the rule without a second rule.
-	var proj rigv1.RecordPutResponse
-	if err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
-		Id: "rig", Kind: "project", Project: "rig", Body: "rig itself",
-		Fields: map[string]string{
-			"title":  "rig",
-			"status": "active",
-			"semver": "0.1.0",
-		},
-	}, &proj); err != nil {
-		t.Fatalf("rig.record.put(project): %v", err)
-	}
-
-	var brief rigv1.ProjectBriefResponse
-	if err := c.Call(ctx, "rig.project.brief", &rigv1.ProjectBriefRequest{
-		Project: "rig",
-	}, &brief); err != nil {
-		t.Fatalf("rig.project.brief: %v", err)
-	}
-
-	for _, tc := range []struct {
-		field string
-		got   string
-		want  string
-	}{
-		{"kind", brief.GetKind(), "project"},
-		{"title", brief.GetTitle(), "rig"},
-		{"status", brief.GetStatus(), "active"},
-		{"semver", brief.GetSemver(), "0.1.0"},
-	} {
-		if tc.got != tc.want {
-			t.Errorf("the brief's %s came back %q, want %q - the store holds it "+
-				"and this response dropped it, which is the defect this test pins",
-				tc.field, tc.got, tc.want)
-		}
-	}
-}
-
-// ⛔ B76 CROSSES THE WIRE AS A FACT, AND BOTH ANSWERS ARE ASSERTED.
-//
-// `record.Brief.ContainerFound` has existed since rig 072aea4 and this
-// response dropped it, so cmd/rig re-derived the condition from an empty
-// `kind`. That inference was correct only because fields 9-12 happen to be
-// served: against any daemon older than rig af7715d every brief arrives with
-// an empty kind and every brief reads as a missing container.
-//
-// ⛔ THE FOUND CASE IS HALF THE TEST AND IS NOT A COURTESY. A handler that
-// hard-coded TRISTATE_NO would pass a missing-container assertion on its own,
-// and a handler that never set the field would pass nothing while looking
-// like it passed - which is the third row.
-//
-// ⛔ THE THIRD ROW IS WHAT MAKES THE OTHER TWO MEAN ANYTHING: UNSPECIFIED IS
-// UNREACHABLE FROM THIS DAEMON. The zero is reserved for a peer that does not
-// carry field 22, so if this end ever spends it, a reader loses the ability to
-// tell "I did not look" from "I looked and found nothing" - which is the exact
-// distinction B76 is about.
-func TestTheBriefStatesWhetherTheContainerExists(t *testing.T) {
-	sock := upRecordDaemon(t)
-	c := seated(t, sock, "team-lead")
-	ctx := recordCtx(t)
-
-	var put rigv1.RecordPutResponse
-	if err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
-		Id: "rig", Kind: "project", Project: "rig", Body: "rig itself",
-	}, &put); err != nil {
-		t.Fatalf("rig.record.put(project): %v", err)
-	}
-
-	for _, tc := range []struct {
-		name    string
-		project string
-		want    rigv1.Tristate
-	}{
-		{"a container that exists", "rig", rigv1.Tristate_TRISTATE_YES},
-		{
-			"an id nothing was created under", "zzz-no-such-project-42",
-			rigv1.Tristate_TRISTATE_NO,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			var brief rigv1.ProjectBriefResponse
-			if err := c.Call(ctx, "rig.project.brief",
-				&rigv1.ProjectBriefRequest{Project: tc.project}, &brief); err != nil {
-				t.Fatalf("rig.project.brief: %v", err)
-			}
-			got := brief.GetContainerFound()
-			if got == rigv1.Tristate_TRISTATE_UNSPECIFIED {
-				t.Fatalf("container_found came back UNSPECIFIED for %q. This "+
-					"daemon HAS read the container, so the zero is a value it "+
-					"must never spend: it is reserved for a peer that does not "+
-					"carry field 22, and a reader cannot tell that from a "+
-					"container that is genuinely absent", tc.project)
-			}
-			if got != tc.want {
-				t.Errorf("container_found for %q came back %v, want %v",
-					tc.project, got, tc.want)
-			}
-		})
-	}
-}
-
 // ⛔ AN EMPTY project OR kind ON THE WIRE MEANS EVERY ONE, AND A WRONG ONE
 // STILL MEANS NOTHING.
 //
@@ -1192,258 +791,5 @@ func TestAnEmptyQueryFilterMeansEveryValueOverTheWire(t *testing.T) {
 	if got := query("rig", "a-kind-nobody-would-guess"); len(got) != 0 {
 		t.Errorf("a kind that exists only in another project returned %d "+
 			"records for rig, want 0: the filters are AND-ed, not OR-ed", len(got))
-	}
-}
-
-// TestTheBriefCarriesTheGoverningRecordsOverTheWire is B64's wire half, and it
-// is the acceptance test stated end to end: a decision written through
-// record.put comes back out of project.brief WITHOUT the caller knowing its id.
-//
-// ⛔ DECISION 6 BINDS EVERY STRING FIELD THIS ADDS - `id`, `kind` and `title` on
-// GoverningRecord, and `kind` on KindCount. protojson omits the empty string,
-// so absent and unserved are the same bytes and an empty-value mutation asserts
-// nothing about liveness. Each field is therefore asserted against a WRONG
-// NON-EMPTY VALUE it could not hold by accident, not merely against "not
-// empty".
-//
-// ⛔ AND THE NEGATIVE HALF IS WHY THIS IS A TEST RATHER THAN A DEMONSTRATION. A
-// daemon that put every record of the project into `governing` would satisfy
-// every positive assertion here. The work-item below is the assertion that
-// cannot be passed that way.
-func TestTheBriefCarriesTheGoverningRecordsOverTheWire(t *testing.T) {
-	sock := upRecordDaemon(t)
-	c := seated(t, sock, "team-lead")
-	ctx := recordCtx(t)
-
-	// ⛔ IT RETURNS NOTHING, AND THAT IS THE TEST'S WHOLE PREMISE RATHER THAN
-	// tidiness. The sibling helpers in this file hand back the new id because
-	// their subjects need linking; here, keeping an id would let the test reach
-	// a record the way a caller COULD BEFORE B64, and it would then pass
-	// against the store as it was. A helper that cannot return an id cannot
-	// accidentally be used that way.
-	put := func(what string, req *rigv1.RecordPutRequest) {
-		t.Helper()
-		var resp rigv1.RecordPutResponse
-		if err := c.Call(ctx, "rig.record.put", req, &resp); err != nil {
-			t.Fatalf("rig.record.put(%s): %v", what, err)
-		}
-	}
-
-	put("project", &rigv1.RecordPutRequest{
-		Id: "rig", Kind: "project", Project: "rig", Body: "rig itself",
-	})
-	put("decision", &rigv1.RecordPutRequest{
-		Kind: "decision", Project: "rig",
-		Body:   "the retention ladder governs observability, never records",
-		Fields: map[string]string{"title": "the ladder governs observability"},
-	})
-	put("requirement", &rigv1.RecordPutRequest{
-		Kind: "requirement", Project: "rig", Body: "storage does not reset",
-		Fields: map[string]string{"title": "storage survives a release"},
-	})
-	put("artefact", &rigv1.RecordPutRequest{
-		Kind: "artefact", Project: "rig", Body: "the attack synthesis",
-		Fields: map[string]string{"title": "SYNTHESIS.md"},
-	})
-	put("work-item", &rigv1.RecordPutRequest{
-		Id: "B1", Kind: "work-item", Project: "rig", Body: "an ordinary row",
-		Fields: map[string]string{"title": "not governing", "status": "active"},
-	})
-
-	var resp rigv1.ProjectBriefResponse
-	if err := c.Call(ctx, "rig.project.brief",
-		&rigv1.ProjectBriefRequest{Project: "rig"}, &resp); err != nil {
-		t.Fatalf("rig.project.brief: %v", err)
-	}
-
-	byKind := map[string]*rigv1.GoverningRecord{}
-	for _, g := range resp.GetGoverning() {
-		byKind[g.GetKind()] = g
-
-		// ⛔ THE ID IS RESOLVED, NOT MERELY CHECKED FOR EMPTINESS, AND THIS
-		// ASSERTION EXISTS BECAUSE THE WEAKER ONE LET A MUTATION THROUGH.
-		// The first version of this test asserted only `id != ""`, and setting
-		// every row's Id to a constant "x" SURVIVED it: the rows were keyed on
-		// kind, so nothing ever looked at an id's value. That is generation
-		// 11's own finding arriving in the test written to carry its lesson -
-		// every assertion was satisfiable by the broken code.
-		//
-		// Fetching it is the assertion that cannot be satisfied that way, and
-		// it is also the property a reader actually needs: an id in the brief
-		// is worth having only if it resolves. A wrong id fails here whatever
-		// it is, including one copied from a neighbouring row.
-		var got rigv1.RecordGetResponse
-		if err := c.Call(ctx, "rig.record.get",
-			&rigv1.RecordGetRequest{Id: g.GetId()}, &got); err != nil {
-			t.Errorf("the brief offers %s id %q and record.get cannot resolve "+
-				"it (%v) - an id that does not fetch is worse than no id, "+
-				"because a reader will spend a call finding out",
-				g.GetKind(), g.GetId(), err)
-			continue
-		}
-		if k := got.GetRecord().GetKind(); k != g.GetKind() {
-			t.Errorf("the brief says %q is a %s and the store says it is a %s - "+
-				"the row's id and its kind are describing different records",
-				g.GetId(), g.GetKind(), k)
-		}
-	}
-
-	// The positive half, with the wrong-non-empty-value assertion DECISION 6
-	// requires: the title is checked against what was stored, not against "".
-	for _, want := range []struct{ kind, title string }{
-		{"decision", "the ladder governs observability"},
-		{"requirement", "storage survives a release"},
-		{"artefact", "SYNTHESIS.md"},
-	} {
-		g, ok := byKind[want.kind]
-		if !ok {
-			t.Errorf("a %s was written through record.put and the brief does "+
-				"not carry it - it is reachable only by an id the caller would "+
-				"have to have kept, which is B64", want.kind)
-			continue
-		}
-		if g.GetTitle() != want.title {
-			t.Errorf("the %s's title is %q, want %q - an empty title would be "+
-				"the same bytes as an unserved field, so this asserts the value "+
-				"and not its presence", want.kind, g.GetTitle(), want.title)
-		}
-	}
-
-	// ⛔ THE NEGATIVE HALF.
-	if g, ok := byKind["work-item"]; ok {
-		t.Errorf("the brief serves work-item %q in `governing`; sections 1 and "+
-			"2 already carry it, and a daemon dumping every record passes every "+
-			"assertion above", g.GetId())
-	}
-	if n := len(resp.GetGoverning()); n != 3 {
-		t.Errorf("`governing` carries %d rows, want exactly 3", n)
-	}
-
-	counts := map[string]uint64{}
-	for _, c := range resp.GetGoverningCounts() {
-		if c.GetKind() == "" {
-			t.Error("a count arrived with NO kind, so a reader is told a number " +
-				"and not what it counts")
-		}
-		counts[c.GetKind()] = c.GetCount()
-	}
-	for _, k := range []string{"decision", "requirement", "artefact"} {
-		if counts[k] != 1 {
-			t.Errorf("governing_counts says %d %s, want 1", counts[k], k)
-		}
-	}
-	if counts["work-item"] != 0 {
-		t.Errorf("governing_counts counts work-items (%d)", counts["work-item"])
-	}
-}
-
-// ⛔ THE CONTAINER'S DESCRIPTION CROSSES THE WIRE, AND DECISION 6 IS WHY THIS
-// TEST HAS THE SHAPE IT HAS.
-//
-// A new string field on this wire owes TWO mutations, not one: protojson omits
-// the empty string, so "the daemon never set it" and "the daemon set it to
-// empty" are the SAME BYTES. An empty-value mutation therefore asserts nothing
-// about liveness, and a test written with only one is a test that passes
-// against a handler which dropped the field - which is exactly how
-// ProgressStepRequest.evidence and ProjectBriefRequest.view both shipped on the
-// wire, read by nothing, with a green test beside them (B48).
-//
-// So each of the two fields is asserted with a WRONG NON-EMPTY value in the
-// store as well: if the handler dropped it, the response carries "" and the
-// non-empty assertion fails loudly instead of matching a zero.
-//
-// ⛔ AND THE FIELDS ARE SECTION 39'S OWN, NOT NEW VOCABULARY. Its field table
-// gives `description_short` and `description_long` to `project`, and its case
-// table repeats both for `case`. What was missing was a derivation that read
-// them, a wire that carried them, and a writer that set them - never the names.
-func TestTheBriefCarriesTheContainersDescription(t *testing.T) {
-	sock := upRecordDaemon(t)
-	c := seated(t, sock, "team-lead")
-	ctx := recordCtx(t)
-
-	const (
-		short = "an app declares what it can do, once"
-		long  = "every program in the estate needs the same infrastructure, " +
-			"and today each one carries its own copy, badly."
-	)
-
-	var proj rigv1.RecordPutResponse
-	if err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
-		Id: "rig", Kind: "project", Project: "rig", Body: "rig itself",
-		Fields: map[string]string{
-			"title":             "rig",
-			"status":            "active",
-			"description_short": short,
-			"description_long":  long,
-		},
-	}, &proj); err != nil {
-		t.Fatalf("rig.record.put(project): %v", err)
-	}
-
-	var brief rigv1.ProjectBriefResponse
-	if err := c.Call(ctx, "rig.project.brief", &rigv1.ProjectBriefRequest{
-		Project: "rig",
-	}, &brief); err != nil {
-		t.Fatalf("rig.project.brief: %v", err)
-	}
-
-	// MUTATION 1 of each pair: a wrong NON-EMPTY value. A dropped field answers
-	// "" here and this fails; an empty-only assertion would not.
-	if got := brief.GetDescriptionShort(); got != short {
-		t.Errorf("description_short came back %q, want %q - the store holds it "+
-			"and this response dropped it", got, short)
-	}
-	if got := brief.GetDescriptionLong(); got != long {
-		t.Errorf("description_long came back %q, want %q - the store holds it "+
-			"and this response dropped it", got, long)
-	}
-
-	// ⛔ AND THEY MUST NOT BE THE SAME FIELD READ TWICE. A handler mapping both
-	// wire fields from one store field passes every assertion above.
-	if brief.GetDescriptionShort() == brief.GetDescriptionLong() {
-		t.Error("the short and long descriptions are identical, so one of them " +
-			"is being mapped from the other's source")
-	}
-}
-
-// MUTATION 2 of each pair: the EMPTY case, and it is a separate test because it
-// needs a container that carries neither field.
-//
-// ⛔ A PROJECT WITH NO DESCRIPTION IS A REAL STATE AND NOT A DEFECT. Section 39
-// makes both fields optional, so this asserts the daemon answers empty rather
-// than refusing, inventing, or falling back to the title - which is what the
-// seeder did for five generations: `description_short` was seeded as the
-// project's own TITLE, so rig's short description was the word "rig".
-func TestABriefWithNoDescriptionAnswersEmptyRatherThanInventing(t *testing.T) {
-	sock := upRecordDaemon(t)
-	c := seated(t, sock, "team-lead")
-	ctx := recordCtx(t)
-
-	var proj rigv1.RecordPutResponse
-	if err := c.Call(ctx, "rig.record.put", &rigv1.RecordPutRequest{
-		Id: "rig", Kind: "project", Project: "rig", Body: "rig itself",
-		Fields: map[string]string{"title": "rig", "status": "active"},
-	}, &proj); err != nil {
-		t.Fatalf("rig.record.put(project): %v", err)
-	}
-
-	var brief rigv1.ProjectBriefResponse
-	if err := c.Call(ctx, "rig.project.brief", &rigv1.ProjectBriefRequest{
-		Project: "rig",
-	}, &brief); err != nil {
-		t.Fatalf("rig.project.brief: %v", err)
-	}
-
-	if got := brief.GetDescriptionShort(); got != "" {
-		t.Errorf("a project with no description_short answered %q", got)
-	}
-	if got := brief.GetDescriptionLong(); got != "" {
-		t.Errorf("a project with no description_long answered %q", got)
-	}
-	// The positive control: this brief is a real one. Without it the two
-	// assertions above pass against a daemon that answered nothing at all.
-	if brief.GetTitle() != "rig" {
-		t.Fatalf("the brief itself did not answer, so the empty assertions "+
-			"above prove nothing: title %q", brief.GetTitle())
 	}
 }

@@ -121,9 +121,11 @@ type RecordAPI interface {
 	// error also left this surface unable to echo what it wrote.
 	Step(ctx context.Context, a StepArgs) (Record, error)
 
-	// Brief is the derived answer to "what is going on here", over a project
-	// or a case.
-	Brief(ctx context.Context, project string) (Brief, error)
+	// ⛔ NO Brief HERE, AND ITS ABSENCE IS THE SHAPE OF plan/50. The brief is
+	// derived on top of these verbs by the docket program rather than by rig,
+	// so this seam carries the store's verbs and nothing built on them. The
+	// wire arm it used to call still answers - a refusal naming the program
+	// that owns the derivation.
 }
 
 // Provenance is who wrote a version, when, and under which daemon.
@@ -2599,15 +2601,6 @@ func (w wireRecord) Step(ctx context.Context, a StepArgs) (Record, error) {
 		return Record{}, err
 	}
 	return recordFromWire(resp.GetStep()), nil
-}
-
-func (w wireRecord) Brief(ctx context.Context, project string) (Brief, error) {
-	resp := &rigv1.ProjectBriefResponse{}
-	if err := call(ctx, w.c, "rig.project.brief",
-		&rigv1.ProjectBriefRequest{Project: project}, resp); err != nil {
-		return Brief{}, err
-	}
-	return briefFromWire(resp), nil
 }
 
 // ---- the step state, and why this client refuses one it cannot spell -------
