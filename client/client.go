@@ -33,6 +33,9 @@ import (
 )
 
 // Handler answers a request rigd routed to this program.
+//
+// Returning a *CallError refuses the request with that Status, which reaches
+// the caller unchanged; any other error reaches it as INTERNAL.
 type Handler func(method string, payload []byte) (proto.Message, error)
 
 // conn is ONE physical connection, and it is separate from Client because a
@@ -263,7 +266,7 @@ func (c *Client) answer(cn *conn, f *rigv1.Frame) {
 		_ = cn.w.WriteFrame(&rigv1.Frame{
 			StreamId: f.GetStreamId(),
 			Kind:     rigv1.FrameKind_FRAME_KIND_ERROR,
-			Status:   &rigv1.Status{Code: rigv1.Code_CODE_INTERNAL, Message: err.Error()},
+			Status:   refusalOf(err),
 		})
 		return
 	}
@@ -281,6 +284,22 @@ func (c *Client) answer(cn *conn, f *rigv1.Frame) {
 		Kind:     rigv1.FrameKind_FRAME_KIND_RESPONSE,
 		Payload:  body,
 	})
+}
+
+// refusalOf is the Status a handler's error reaches the caller as.
+//
+// A handler that returns a *CallError is REFUSING, and its Status - code,
+// precondition, actual, fix and fix command - is sent unchanged, so a program
+// can answer "invalid argument, and here is the fix" the way rig's own verbs
+// do. Any other error is a failure the program did not describe, and goes out
+// as INTERNAL with its text. A CallError with no Status or with the
+// unspecified code is not a refusal anybody can act on, so it is INTERNAL too.
+func refusalOf(err error) *rigv1.Status {
+	var ce *CallError
+	if errors.As(err, &ce) && ce.Status != nil && ce.Status.GetCode() != rigv1.Code_CODE_UNSPECIFIED {
+		return ce.Status
+	}
+	return &rigv1.Status{Code: rigv1.Code_CODE_INTERNAL, Message: err.Error()}
 }
 
 // Call makes one request and decodes the response into out.
