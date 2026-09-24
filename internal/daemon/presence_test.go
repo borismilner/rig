@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/borismilner/rig/client"
 	"github.com/borismilner/rig/internal/instance"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
@@ -56,15 +58,29 @@ func TestASeatKeepsItsNameAndCountsItsOccupants(t *testing.T) {
 	// "backend-1 generation 1" could not tell which session it reached, which
 	// is the defect this whole mechanism exists to close.
 	second := dial(t, sock)
-	var got2 *verbsv1.AnnounceResponse
-	for range 50 {
-		got2 = announce(t, second, "backend-1", "the successor", "taking over")
+	got2 := &verbsv1.AnnounceResponse{}
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		// The first connection's teardown is concurrent with this call, so
+		// until it lands the seat is still held and the announce is refused
+		// as DENIED. That refusal is the old tenancy still being torn down,
+		// not an answer, and it is retried; any other error is fatal.
+		// Re-announcing on the SAME connection is idempotent, so this loop
+		// cannot manufacture the answer it is waiting for.
+		err := second.Call(ctx5(t), "rig.announce", &verbsv1.AnnounceRequest{
+			Seat: "backend-1", Purpose: "the successor", Activity: "taking over",
+		}, got2)
+		var ce *client.CallError
+		if errors.As(err, &ce) && ce.Code() == rigv1.Code_CODE_DENIED {
+			time.Sleep(5 * time.Millisecond)
+			continue
+		}
+		if err != nil {
+			t.Fatalf("rig.announce(backend-1): %v", err)
+		}
 		if got2.GetYou().GetGeneration() == 2 {
 			break
 		}
-		// The first connection's teardown is concurrent with this call.
-		// Re-announcing on the SAME connection is idempotent, so this loop
-		// cannot manufacture the answer it is waiting for.
 	}
 	if g := got2.GetYou().GetGeneration(); g != 2 {
 		t.Fatalf("second occupancy is generation %d, want 2 - a seat that "+
