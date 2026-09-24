@@ -482,6 +482,32 @@ message ProgramsResponse {
   repeated Program programs = 1;
 }
 
+// ---- rig.describe, one thing in full as the MCP tool answers it ------------
+//
+// Section 10 binds `rig describe --json` to exactly what the MCP describe tool
+// returns, and B10 rules that the DAEMON renders those bytes, with
+// meta.MarshalAnswer, and the CLI prints them through. So the answer is the
+// rendered object and not a Program: a second renderer in the client is a
+// second implementation of an agent-facing contract, and the two would drift
+// on the first field either gained.
+//
+// It answers through the calling principal's own view, as the MCP tool does,
+// and refuses an address that view cannot see with the same sentence.
+
+message DescribeRequest {
+  // The program to describe. Required.
+  string program = 1;
+
+  // One of its commands. Absent describes the program itself.
+  string command = 2;
+}
+
+message DescribeResponse {
+  // The JSON object the MCP describe tool returns for the same request, byte
+  // for byte.
+  bytes answer = 1;
+}
+
 // ---- rig.down, stopping the daemon (PLAN.md section 5f) --------------------
 //
 // A method rather than a signal, and that is the whole decision. The cheap

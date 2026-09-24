@@ -188,13 +188,11 @@ func usage() {
   mcp              bridge stdin/stdout to the daemon's MCP socket, for an
                    agent host to spawn. Not a command to run by hand
 
-Every command that answers takes --json, with three exceptions. completion
+Every command that answers takes --json, with two exceptions. completion
 writes a shell script for eval, which is not an answer to put in an object.
 mcp's stdout IS the MCP stream, so anything written there but the daemon's
-own bytes corrupts it.
-describe does not have it YET: section 10 binds its object to the one the
-MCP tool returns, and that object is rendered by the daemon rather than
-here, so the flag arrives with the renderer rather than ahead of it.
+own bytes corrupts it. describe --json prints the object the MCP describe
+tool returns, rendered by the daemon.
 
 A declared command also takes --timeout and --args '<json>', the second
 being the exact argument object when a flag will not do.

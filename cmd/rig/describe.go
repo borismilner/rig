@@ -10,6 +10,7 @@ import (
 
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	"github.com/borismilner/rig/client"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
@@ -30,50 +31,23 @@ import (
 // back. It was a dead field for as long as it existed, and this verb is the
 // only surface that reads it.
 //
-// `--json` IS DELIBERATELY ABSENT, and it is OWED rather than dropped. Section
-// 10 requires --json to return exactly what the MCP tool returns, and B10
-// rules that the daemon renders those bytes with meta.MarshalAnswer and the
-// CLI prints them through. A hand-written renderer here would be a second
-// implementation of that object, shipped from a verb that has no callers to
-// break, and B10 would delete it. Shipping the flag WRONG is worse than
-// shipping it later.
+// `--json` PRINTS THE DAEMON'S BYTES AND RENDERS NOTHING. Section 10 requires
+// --json to return exactly what the MCP tool returns, and B10 rules that the
+// daemon renders those bytes with meta.MarshalAnswer and the CLI prints them
+// through. rig.describe is that call. A renderer here would be a second
+// implementation of the MCP tool's object, and the two would drift on the
+// first field either gained.
 func cmdDescribe(args []string) (err error) {
 	fs, timeout, asJSON := describeFlagSet()
 	flags, positional := partition(args)
 	if err := fs.Parse(flags); err != nil {
 		return err
 	}
-	// THE REFUSAL RENDERS IN THE MODE IT WAS ASKED IN, even though this verb
-	// has no --json answer. An agent that asked for a machine-readable answer
-	// gets a machine-readable refusal; section 10's promise is --json on every
-	// ERROR as much as on every result.
 	defer func() { err = inMode(err, *asJSON) }()
-
-	// --json IS DECLARED IN ORDER TO BE REFUSED, and that is the whole reason
-	// it is here. Left undeclared, `rig describe fakeapp --json` dies with the
-	// flag package's own "flag provided but not defined: -json" and a usage
-	// dump, which reads as a bug in rig rather than as a deliberate absence -
-	// and an agent reading section 10's "--json on every command" will type it
-	// on its first attempt. This seat's own sweep already found that shape
-	// once, on `rig completion --json`, and a promise the CLI cannot keep is
-	// worth one explicit sentence rather than a parser error.
-	if *asJSON {
-		return local(jsonStatus{
-			Code: codeBadArgument,
-			Message: "rig describe has no --json yet: its object is the one " +
-				"the MCP tool returns, and that object is rendered by the " +
-				"daemon rather than by this client",
-			Precondition: "the verb being asked for --json emits one",
-			Actual:       "describe emits the human rendering only",
-			Fix: "read it as text, or use the MCP describe tool for the " +
-				"object",
-			FixCommand: "rig describe " + strings.Join(positional, " "),
-		})
-	}
 
 	if len(positional) == 0 || len(positional) > 2 {
 		return badArgumentf(
-			"usage: rig describe <program> [<command>] [--timeout=30s]")
+			"usage: rig describe <program> [<command>] [--json] [--timeout=30s]")
 	}
 
 	c, err := connect()
@@ -84,6 +58,14 @@ func cmdDescribe(args []string) (err error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
+
+	if *asJSON {
+		command := ""
+		if len(positional) == 2 {
+			command = positional[1]
+		}
+		return describeJSON(ctx, c, positional[0], command)
+	}
 
 	// DEPTH_FULL asked for explicitly. describe is defined as "one thing in
 	// full", and the preamble travels at DEPTH_FULL only.
@@ -111,8 +93,22 @@ func describeFlagSet() (fs *flag.FlagSet, timeout *time.Duration, asJSON *bool) 
 	fs = flag.NewFlagSet("describe", flag.ContinueOnError)
 	timeout = fs.Duration("timeout", defaultCallTimeout, "how long to wait")
 	asJSON = fs.Bool("json", false,
-		"not emitted yet: describe's object is rendered by the daemon")
+		"emit the MCP describe tool's object, as the daemon renders it")
 	return fs, timeout, asJSON
+}
+
+// describeJSON prints the object rig.describe answers, unchanged. The daemon
+// answers through this caller's own view and refuses what it cannot see, so
+// there is nothing here to check or reshape.
+func describeJSON(ctx context.Context, c *client.Client, program, command string) error {
+	var resp rigv1.DescribeResponse
+	if err := call(ctx, c, "rig.describe", &rigv1.DescribeRequest{
+		Program: program, Command: command,
+	}, &resp); err != nil {
+		return err
+	}
+	_, err := fmt.Println(string(resp.GetAnswer()))
+	return err
 }
 
 // ---- the program ----------------------------------------------------------

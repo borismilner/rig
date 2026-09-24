@@ -400,3 +400,39 @@ func seatToOccupant(s *rigv1.Seat) meta.Occupant {
 func stateWord(s rigv1.SeatState) string {
 	return strings.ToLower(strings.TrimPrefix(s.String(), "SEAT_STATE_"))
 }
+
+// serveDescribe answers rig.describe with the object the MCP describe tool
+// returns for the same request, rendered here and carried as bytes.
+//
+// ⛔ ONE RENDERER, AND IT IS meta.MarshalAnswer. Section 10 binds
+// `rig describe --json` to the MCP tool's object and B10 rules the daemon
+// renders it, so the CLI prints these bytes and never builds the object
+// itself. The answer goes through meta.Server.Answer with this connection's
+// own principal, the same call the MCP door makes with its own, so what a
+// caller may see and the sentence it is refused with are the MCP tool's too.
+func (d *Daemon) serveDescribe(ctx context.Context, c *conn, f *rigv1.Frame) {
+	var req rigv1.DescribeRequest
+	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "describe: "+err.Error())
+		return
+	}
+	if req.GetProgram() == "" {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID,
+			"describe: a program is required; it describes one thing in full")
+		return
+	}
+	a, err := meta.New(d.kernel, nil).Answer(ctx, c.principal(), meta.Request{
+		Tool: meta.Describe, Program: req.GetProgram(), Command: req.GetCommand(),
+	})
+	if err != nil {
+		c.failErr(f.GetStreamId(), rigv1.Code_CODE_NOT_FOUND, err)
+		return
+	}
+	b, err := meta.MarshalAnswer(a)
+	if err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INTERNAL,
+			"describe: rig could not render its own answer: "+err.Error())
+		return
+	}
+	c.reply(f.GetStreamId(), &rigv1.DescribeResponse{Answer: b})
+}

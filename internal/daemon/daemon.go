@@ -819,6 +819,9 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	case "peers":
 		d.servePeers(c, f)
 
+	case "describe":
+		d.serveDescribe(ctx, c, f)
+
 	case "session":
 		d.serveSession(c, f)
 

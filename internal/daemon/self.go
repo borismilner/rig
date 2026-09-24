@@ -48,6 +48,10 @@ func selfDeclaration() kernel.Declaration {
 				"List what this principal may reach",
 				"Reads the registry through the calling principal's own view.",
 				"Every program this principal may see."),
+			readOnly("describe", "Describe",
+				"One program or command in full, as the MCP tool answers it",
+				"Answers the object the MCP describe tool returns for the same program and command, rendered by the daemon so the CLI's --json and the MCP tool cannot disagree. Reads through the calling principal's own view.",
+				"The MCP describe tool's JSON object, as bytes."),
 
 			// READ-ONLY, AND THE WORD IS DOING WORK RATHER THAN BEING
 			// GENEROUS. The effects ladder is about what a call does OUTSIDE

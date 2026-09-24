@@ -1,9 +1,14 @@
 package main
 
 import (
+	"context"
 	"strings"
 	"testing"
+	"time"
 
+	"google.golang.org/protobuf/proto"
+
+	"github.com/borismilner/rig/client"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
@@ -318,39 +323,47 @@ func TestDescribeRefusesTheArgumentCountsItCannotAnswer(t *testing.T) {
 	}
 }
 
-// `--json` IS REFUSED WITH A REASON, NOT WITH A PARSER ERROR.
-//
-// Section 10 promises --json on every command, and describe does not have one
-// yet because its object is the one the MCP tool returns and B10 puts that
-// renderer in the daemon. An agent reading that promise types the flag on its
-// first attempt. Left undeclared it dies with the flag package's own "flag
-// provided but not defined: -json" plus a usage dump, which reads as a bug in
-// rig rather than as a deliberate absence - and this seat's own sweep already
-// found that exact shape once, on `rig completion --json`.
-//
-// FOUND BY RUNNING IT against a live estate, not by a test. Every test in this
-// file passed while it was doing the wrong thing.
-func TestDescribeRefusesJSONWithAReasonRatherThanAParserError(t *testing.T) {
-	err := cmdDescribe([]string{"fakeapp", "--json"})
-	if err == nil {
-		t.Fatal("rig describe --json was accepted, so it emitted an object " +
-			"this client is not supposed to be rendering")
+// `--json` PRINTS WHAT rig.describe ANSWERED, BYTE FOR BYTE, AND ASKS FOR
+// WHAT WAS TYPED. The daemon renders the MCP tool's object (B10), so the
+// client's whole job is to send the address and print the answer unchanged:
+// a reshaped answer is a second renderer, and a dropped command describes the
+// wrong thing.
+func TestDescribeJSONPrintsTheDaemonsObjectUnchanged(t *testing.T) {
+	const object = `{"tool":"describe","depth":"full","program":{"identity":{"id":"fakeapp"}}}`
+	d := startFakeDaemon(t, &rigv1.DescribeResponse{Answer: []byte(object)})
+	c, err := client.Dial(d.socket)
+	if err != nil {
+		t.Fatal(err)
 	}
-	text := errorText(err)
-	if strings.Contains(text, "not defined") {
-		t.Fatalf("--json fails with the flag package's own error:\n%s", text)
+	defer c.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	out, err := captureStdout(t, func() error {
+		return describeJSON(ctx, c, "fakeapp", "reindex")
+	})
+	if err != nil {
+		t.Fatalf("describeJSON: %v", err)
 	}
-	// It has to say WHY, or the next reader files it as a missing feature.
-	for _, want := range []string{"--json", "daemon"} {
-		if !strings.Contains(text, want) {
-			t.Errorf("the refusal does not mention %q, so it does not explain "+
-				"itself:\n%s", want, text)
-		}
+	if out != object+"\n" {
+		t.Errorf("printed %q, want the daemon's bytes unchanged:\n%q", out, object+"\n")
 	}
-	// And it must be the structured refusal, so --json gets an object back.
-	if !strings.Contains(text, "precondition") {
-		t.Errorf("the refusal is prose rather than the structured shape every "+
-			"other rig failure uses:\n%s", text)
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if len(d.requests) != 1 {
+		t.Fatalf("the daemon was sent %d requests, want 1", len(d.requests))
+	}
+	f := d.requests[0]
+	if f.GetMethod() != "rig.describe" {
+		t.Errorf("sent %q, want rig.describe", f.GetMethod())
+	}
+	var req rigv1.DescribeRequest
+	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+		t.Fatal(err)
+	}
+	if req.GetProgram() != "fakeapp" || req.GetCommand() != "reindex" {
+		t.Errorf("asked for %q/%q, want fakeapp/reindex", req.GetProgram(), req.GetCommand())
 	}
 }
 

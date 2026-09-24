@@ -230,13 +230,15 @@ func TestTheBinary(t *testing.T) {
 		{name: "completion-zsh", argv: []string{"completion", "zsh"}},
 		{name: "complete-apps", argv: []string{"__complete", "apps", "list"}},
 		{name: "down-with-nothing-to-stop", argv: []string{"down"}},
+		// describe --json asks the daemon for its object, so with none it
+		// is the no-daemon refusal, rendered as JSON because JSON was asked.
+		{name: "describe-json-with-no-daemon", argv: []string{"describe", "fakeapp", "--json"}},
 
 		// Refused before anything is dialled: these are rig's own argument
 		// handling, and every one of them is a failure transcript.
 		{name: "no-command-at-all", argv: []string{}},
 		{name: "not-a-verb", argv: []string{"--notaverb"}},
 		{name: "completion-refuses-json", argv: []string{"completion", "bash", "--json"}},
-		{name: "describe-refuses-json", argv: []string{"describe", "fakeapp", "--json"}},
 		{name: "apps-refuses-an-unknown-depth", argv: []string{"apps", "list", "--depth", "wat"}},
 		{name: "down-refuses-a-positional", argv: []string{"down", "somewhere"}},
 		{name: "estate-refuses-a-positional", argv: []string{"estate", "somewhere"}},
