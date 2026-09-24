@@ -32,7 +32,7 @@ body[data-edge=top]    .slot + .slot { margin-bottom: 14px; }
   --hue: var(--sem-info);
   position: relative; box-sizing: border-box; width: var(--w);
   display: grid; grid-template-columns: 36px 1fr; column-gap: 12px;
-  padding: 13px 38px 15px 13px; border-radius: var(--radius);
+  padding: 13px 14px 15px 13px; border-radius: var(--radius);
   background:
     radial-gradient(120px 80px at 30px 28px, color-mix(in srgb, var(--hue) 16%, transparent), transparent 70%),
     linear-gradient(180deg, var(--card-top), var(--card-bot));
@@ -52,10 +52,20 @@ body[data-edge=top]    .slot + .slot { margin-bottom: 14px; }
 }
 .icon svg { width: 20px; height: 20px; }
 .title { font-weight: 650; font-size: 14.5px; letter-spacing: -.005em; color: var(--fg);
-         overflow-wrap: anywhere; padding-top: 1px; }
+         overflow-wrap: anywhere; padding: 1px 84px 0 0; min-height: 22px; }
+/* A body of any length: three lines, then "Show more"; open, it scrolls
+   inside the bubble and can be selected. The bubble never grows past it. */
 .body  { color: var(--fg-dim); margin-top: 2px; white-space: pre-wrap; overflow-wrap: anywhere;
-         max-height: 7.2em; overflow: hidden; }
-.meta  { display: flex; align-items: center; gap: 8px; margin-top: 6px; margin-right: -24px;
+         display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.body.open { display: block; -webkit-line-clamp: unset; max-height: 240px; overflow-y: auto;
+             padding-right: 6px; -webkit-user-select: text; user-select: text; cursor: text;
+             mask-image: linear-gradient(180deg, #000 calc(100% - 14px), transparent); }
+.body.open::-webkit-scrollbar { width: 6px; }
+.body.open::-webkit-scrollbar-thumb { background: rgba(255,255,255,.18); border-radius: 3px; }
+.more { grid-column: 2; justify-self: start; margin-top: 3px; padding: 0; border: 0; background: none;
+        color: var(--hue); font: 600 12px var(--sans); cursor: pointer; }
+.more:hover { text-decoration: underline; }
+.meta  { display: flex; align-items: center; gap: 8px; margin-top: 6px;
          color: var(--fg-faint); font-size: 12px; }
 .pill  { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
          color: var(--hue); padding: 1px 7px; border-radius: 999px;
@@ -63,16 +73,22 @@ body[data-edge=top]    .slot + .slot { margin-bottom: 14px; }
 /* How long until it goes on its own, in words as well as the bar. */
 .sender { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .left { margin-left: auto; flex: none; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.urgent .left { color: var(--sem-bad); }
+.urgent .left, .pinned .left { color: var(--hue); }
+.pinned .bar { opacity: 0; }
 
-.close {
-  position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 8px;
-  display: grid; place-items: center; color: var(--fg-dim); opacity: .55; cursor: pointer;
+/* Pin, copy, close: always drawn, so nothing has to be discovered by hover. */
+.actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 2px; z-index: 3; }
+.act {
+  width: 26px; height: 26px; border-radius: 8px; border: 0; padding: 0; background: none;
+  display: grid; place-items: center; color: var(--fg-dim); opacity: .6; cursor: pointer;
   transition: opacity .15s, background .15s, color .15s;
 }
-.close svg { width: 14px; height: 14px; }
-.toast:hover .close { opacity: 1; }
-.close:hover { background: rgba(255,255,255,.08); color: var(--fg); }
+.act svg { width: 15px; height: 15px; }
+.toast:hover .act { opacity: 1; }
+.act:hover { background: rgba(255,255,255,.09); color: var(--fg); }
+.act.on { color: var(--hue); opacity: 1; }
+.act.on svg { fill: color-mix(in srgb, var(--hue) 35%, transparent); }
+.act.done { color: var(--sem-good); opacity: 1; }
 
 /* The dwell, as a draining line. It pauses with the countdown on hover. */
 .bar { position: absolute; left: 16px; right: 16px; bottom: 6px; height: 2px; border-radius: 2px;
@@ -111,6 +127,10 @@ const ICON = {
   urgent:  SVG(["M10.268 21a2 2 0 0 0 3.464 0", "M22 8c0-2.3-.8-4.3-2-6", "M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326", "M4 2C2.8 3.7 2 5.7 2 8"]),
 };
 const CLOSE = SVG(["M18 6 6 18", "m6 6 12 12"]);
+const PIN   = SVG(["M12 17v5", "M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"]);
+const COPY  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+const CHECK = SVG(["M20 6 9 17l-5-5"]);
+let maxHeight = Infinity; // the work area's, from Go; the stack never outgrows it
 const MAX_SHOWN = 4; // more than this is a wall, not a toast; the rest are in the record
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -120,7 +140,7 @@ stack.addEventListener("mouseenter", () => { hovered = true; });
 stack.addEventListener("mouseleave", () => { hovered = false; });
 
 // The Go side calls this once it knows which edge of the screen the tray is on.
-window.setEdge = (edge) => { document.body.dataset.edge = edge; };
+window.setEdge = (edge, maxH) => { document.body.dataset.edge = edge; if (maxH > 0) maxHeight = maxH; fit(); };
 const fromTray = () => (document.body.dataset.edge === "top" ? -1 : 1) * 18;
 
 // Section 12: roughly ten seconds plus five per line; hover pauses. Error
@@ -154,24 +174,71 @@ function el(tag, cls, text) {
   return e;
 }
 
+function button(cls, svg, title, onClick) {
+  const b = el("button", "act " + cls); b.innerHTML = svg; b.title = title; b.type = "button";
+  b.addEventListener("click", (e) => { e.stopPropagation(); onClick(b); });
+  return b;
+}
+
+// Copying goes through Go: the webview refuses the async clipboard, as
+// agentbox found (CopyBtn.svelte). The desktop keeps the text after this
+// renderer exits (checked 2026-09-24: mutter's clipboard manager).
+function copy(t, b) {
+  const text = t.body ? t.title + "\n\n" + t.body : t.title;
+  fetch("/toast/copy", { method: "POST", body: text }).then(r => {
+    if (!r.ok) return;
+    b.classList.add("done"); b.innerHTML = CHECK; b.title = "Copied";
+    setTimeout(() => { b.classList.remove("done"); b.innerHTML = COPY; b.title = "Copy to clipboard"; }, 1400);
+  }).catch(() => {});
+}
+
+function togglePin(slot, b) {
+  const pinned = slot.firstChild.classList.toggle("pinned");
+  b.classList.toggle("on", pinned);
+  b.title = pinned ? "Unpin: close on its own again" : "Pin: keep it until I close it";
+  if (!pinned) slot._left = slot._total; // a fresh dwell, not the scraps of the old one
+}
+
 function show(t) {
   const slot = el("div", "slot");
   const card = el("div", "toast " + t.severity);
   card.setAttribute("role", t.severity === "urgent" || t.severity === "error" ? "alert" : "status");
   const icon = el("div", "icon"); icon.innerHTML = ICON[t.severity] || ICON.info;
   card.append(icon, el("div", "title", t.title));
-  if (t.body) card.append(el("div", "body", t.body));
+  let body = null, more = null;
+  if (t.body) {
+    body = el("div", "body", t.body);
+    more = el("button", "more", "Show more");
+    more.type = "button"; more.hidden = true;
+    more.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const open = body.classList.toggle("open");
+      more.textContent = open ? "Show less" : "Show more";
+      if (open) body.scrollTop = 0;
+      fit();
+    });
+    card.append(body, more);
+  }
   const meta = el("div", "meta");
   meta.append(el("span", "pill", t.severity), el("span", "sender", t.sender), el("span", "left"));
   card.append(meta);
-  const x = el("div", "close"); x.innerHTML = CLOSE; x.title = "Dismiss";
-  card.append(x);
   const dwell = dwellFor(t);
+  const actions = el("div", "actions");
+  if (dwell !== Infinity) actions.append(button("pin", PIN, "Pin: keep it until I close it", (b) => togglePin(slot, b)));
+  actions.append(button("copy", COPY, "Copy to clipboard", (b) => copy(t, b)),
+                 button("close", CLOSE, "Close", () => leave(slot)));
+  card.append(actions);
   if (dwell !== Infinity) { const bar = el("div", "bar"); card.append(bar); slot._bar = bar; }
   slot._total = dwell; slot._left = dwell; slot._born = Date.now();
-  card.addEventListener("click", () => leave(slot));
+  // A click on the bubble itself closes it, unless there is text to read: a
+  // clamped body opens instead, and an open one is for selecting, not closing.
+  card.addEventListener("click", () => {
+    if (more && !more.hidden) { if (!body.classList.contains("open")) more.click(); return; }
+    leave(slot);
+  });
   slot.append(card);
   stack.append(slot); // the DOM order is oldest first; the edge's flex direction puts newest at the tray
+  if (body) more.hidden = body.scrollHeight - body.clientHeight <= 2;
 
   const h = slot.offsetHeight;
   if (!REDUCED) {
@@ -181,11 +248,20 @@ function show(t) {
                   { opacity: 1, transform: "none" }],
       { duration: 420, easing: "cubic-bezier(.2,1.3,.35,1)", fill: "backwards" });
   }
+  fit();
+}
 
-  // A wall of toasts helps nobody: past MAX_SHOWN the oldest leaves early,
-  // urgent never. It is still in the record.
-  const extra = live().filter(s => !s.firstChild.classList.contains("urgent"));
-  while (live().length > MAX_SHOWN && extra.length) leave(extra.shift());
+// A wall of toasts helps nobody: past MAX_SHOWN, or past the screen's
+// height, the oldest leaves early. Urgent and pinned never do. All of them
+// are in the record.
+function fit() {
+  const evictable = () => live().filter(s => !s.firstChild.classList.contains("urgent") &&
+                                             !s.firstChild.classList.contains("pinned"));
+  let ev = evictable();
+  while ((live().length > MAX_SHOWN || settledHeight(false) > maxHeight) && ev.length > 1) {
+    leave(ev.shift());
+    ev = evictable();
+  }
 }
 
 function ago(ms) {
@@ -201,6 +277,7 @@ setInterval(() => {
     const left = slot.querySelector(".left");
     // Urgent never goes on its own, so it says how long it has waited instead.
     if (slot._total === Infinity) { left.textContent = "waiting " + ago(Date.now() - slot._born); continue; }
+    if (slot.firstChild.classList.contains("pinned")) { left.textContent = "pinned"; continue; }
     if (hovered) { left.textContent = "paused"; continue; }
     left.textContent = "closes in " + Math.max(1, Math.ceil(slot._left / 1000)) + "s";
     slot._left -= dt;
@@ -213,13 +290,14 @@ setInterval(() => {
 // stack will be once they settle, and take whatever toasts arrived. The
 // height is the settled one, measured without the running animations, so the
 // window is already big enough when a bubble grows into it.
-function settledHeight() {
+function settledHeight(withLeaving = true) {
   const cs = getComputedStyle(stack);
   let h = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
   const slots = [...stack.children];
   slots.forEach((s, i) => {
     // A leaving bubble still counts at its shrinking height, or the window
     // would cut it off before it has finished going.
+    if (!withLeaving && s.classList.contains("leaving")) return;
     const own = s.classList.contains("leaving") ? s.offsetHeight : s.firstChild.offsetHeight;
     h += own + (i > 0 ? 14 : 0);
   });

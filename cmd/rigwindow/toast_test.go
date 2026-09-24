@@ -2,6 +2,8 @@ package main
 
 import (
 	"errors"
+	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -151,5 +153,33 @@ func TestTheBubblesFaceThePanelsEdge(t *testing.T) {
 		if got := panelEdge(screen, c.wa); got != c.want {
 			t.Errorf("%s: panelEdge = %q, want %q", c.name, got, c.want)
 		}
+	}
+}
+
+// Copy is a POST with a bounded body, and only the renderer can do it.
+func TestCopyPutsTheTextOnTheClipboardAndNothingElse(t *testing.T) {
+	var got []string
+	f := &toastFeed{copyText: func(s string) { got = append(got, s) }}
+	for _, c := range []struct {
+		method, body string
+		want         int
+	}{
+		{"POST", "title\n\nbody", 204},
+		{"GET", "", 405},
+		{"POST", strings.Repeat("x", maxCopy+1), 413},
+	} {
+		rec := httptest.NewRecorder()
+		f.ServeHTTP(rec, httptest.NewRequest(c.method, "/toast/copy", strings.NewReader(c.body)))
+		if rec.Code != c.want {
+			t.Errorf("%s %d bytes: status %d, want %d", c.method, len(c.body), rec.Code, c.want)
+		}
+	}
+	if len(got) != 1 || got[0] != "title\n\nbody" {
+		t.Errorf("clipboard got %q, want exactly the one good copy", got)
+	}
+	rec := httptest.NewRecorder()
+	(&toastFeed{}).ServeHTTP(rec, httptest.NewRequest("POST", "/toast/copy", strings.NewReader("x")))
+	if rec.Code != 405 {
+		t.Errorf("a feed with no clipboard answered %d, want 405", rec.Code)
 	}
 }

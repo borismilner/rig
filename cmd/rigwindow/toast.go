@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -230,7 +231,13 @@ type toastFeed struct {
 	height  int       // the page's content height, as it last reported
 	emptyAt time.Time // when the page last went from some bubbles to none
 	started bool      // a bubble has been handed to the page
+
+	copyText func(string) // puts text on the clipboard; nil refuses
 }
+
+// maxCopy bounds what one copy may put on the clipboard, and so what one
+// request may make this process hold.
+const maxCopy = 1 << 20
 
 func (f *toastFeed) add(ts []*registryv1.Toast) {
 	f.mu.Lock()
@@ -291,6 +298,18 @@ func (f *toastFeed) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		height, _ := strconv.Atoi(r.URL.Query().Get("h"))
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(f.poll(max(shown, 0), max(height, 0), time.Now()))
+	case "/toast/copy":
+		if r.Method != http.MethodPost || f.copyText == nil {
+			http.Error(w, "copy is POST, and only in the renderer", http.StatusMethodNotAllowed)
+			return
+		}
+		text, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxCopy))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusRequestEntityTooLarge)
+			return
+		}
+		f.copyText(string(text))
+		w.WriteHeader(http.StatusNoContent)
 	default:
 		http.NotFound(w, r)
 	}
@@ -318,6 +337,7 @@ func runToasts(after uint64) error {
 		Linux:          application.LinuxWindow{WindowIsTranslucent: true},
 		URL:            "/toast.html",
 	})
+	feed.copyText = func(s string) { application.InvokeSync(func() { app.Clipboard.SetText(s) }) }
 
 	//rig:allow nocontextfree: the renderer lives until its last bubble leaves, so its end is app.Quit rather than a deadline
 	ctx, cancel := context.WithCancel(context.Background())
@@ -377,7 +397,7 @@ func placeToasts(app *application.App, win *application.WebviewWindow, height in
 	win.SetSize(toastWidth, h)
 	if !win.IsVisible() {
 		themeOnce.Do(func() { application.InvokeSync(clearThemeBackground) })
-		win.ExecJS("setEdge(" + strconv.Quote(edge) + ")")
+		win.ExecJS("setEdge(" + strconv.Quote(edge) + "," + strconv.Itoa(wa.Height-2*toastMargin) + ")")
 		win.Show()
 	}
 	// After Show as well as before it: GTK drops a move asked of a window
