@@ -6600,6 +6600,113 @@ func (x *QueueListResponse) GetQueues() []string {
 	return nil
 }
 
+type LeaseCheckRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Token         uint64                 `protobuf:"varint,2,opt,name=token,proto3" json:"token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaseCheckRequest) Reset() {
+	*x = LeaseCheckRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[87]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaseCheckRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaseCheckRequest) ProtoMessage() {}
+
+func (x *LeaseCheckRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[87]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaseCheckRequest.ProtoReflect.Descriptor instead.
+func (*LeaseCheckRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{87}
+}
+
+func (x *LeaseCheckRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *LeaseCheckRequest) GetToken() uint64 {
+	if x != nil {
+		return x.Token
+	}
+	return 0
+}
+
+// LeaseCheckResponse says whether the token is current: the lease carries it
+// and is held or orphaned, so nobody has been granted it since. A stale token
+// is an answer, not an error; `lease` says who holds it now.
+type LeaseCheckResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Current       bool                   `protobuf:"varint,1,opt,name=current,proto3" json:"current,omitempty"`
+	Lease         *Lease                 `protobuf:"bytes,2,opt,name=lease,proto3" json:"lease,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaseCheckResponse) Reset() {
+	*x = LeaseCheckResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[88]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaseCheckResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaseCheckResponse) ProtoMessage() {}
+
+func (x *LeaseCheckResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[88]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaseCheckResponse.ProtoReflect.Descriptor instead.
+func (*LeaseCheckResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{88}
+}
+
+func (x *LeaseCheckResponse) GetCurrent() bool {
+	if x != nil {
+		return x.Current
+	}
+	return false
+}
+
+func (x *LeaseCheckResponse) GetLease() *Lease {
+	if x != nil {
+		return x.Lease
+	}
+	return nil
+}
+
 var File_proto_rig_v1_verbs_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_verbs_proto_rawDesc = "" +
@@ -6999,7 +7106,13 @@ const file_proto_rig_v1_verbs_proto_rawDesc = "" +
 	"\x11QueueListResponse\x12\"\n" +
 	"\x05tasks\x18\x01 \x03(\v2\f.rig.v1.TaskR\x05tasks\x12\x12\n" +
 	"\x04done\x18\x02 \x01(\rR\x04done\x12\x16\n" +
-	"\x06queues\x18\x03 \x03(\tR\x06queues*Z\n" +
+	"\x06queues\x18\x03 \x03(\tR\x06queues\"=\n" +
+	"\x11LeaseCheckRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05token\x18\x02 \x01(\x04R\x05token\"S\n" +
+	"\x12LeaseCheckResponse\x12\x18\n" +
+	"\acurrent\x18\x01 \x01(\bR\acurrent\x12#\n" +
+	"\x05lease\x18\x02 \x01(\v2\r.rig.v1.LeaseR\x05lease*Z\n" +
 	"\tSeatState\x12\x1a\n" +
 	"\x16SEAT_STATE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11SEAT_STATE_ACTIVE\x10\x01\x12\x1a\n" +
@@ -7065,7 +7178,7 @@ func file_proto_rig_v1_verbs_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_verbs_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
-var file_proto_rig_v1_verbs_proto_msgTypes = make([]protoimpl.MessageInfo, 89)
+var file_proto_rig_v1_verbs_proto_msgTypes = make([]protoimpl.MessageInfo, 91)
 var file_proto_rig_v1_verbs_proto_goTypes = []any{
 	(SeatState)(0),                  // 0: rig.v1.SeatState
 	(LeaseState)(0),                 // 1: rig.v1.LeaseState
@@ -7162,9 +7275,11 @@ var file_proto_rig_v1_verbs_proto_goTypes = []any{
 	(*QueueCompleteResponse)(nil),   // 92: rig.v1.QueueCompleteResponse
 	(*QueueListRequest)(nil),        // 93: rig.v1.QueueListRequest
 	(*QueueListResponse)(nil),       // 94: rig.v1.QueueListResponse
-	nil,                             // 95: rig.v1.Record.FieldsEntry
-	nil,                             // 96: rig.v1.RecordPutRequest.FieldsEntry
-	(v1.Tristate)(0),                // 97: rig.v1.Tristate
+	(*LeaseCheckRequest)(nil),       // 95: rig.v1.LeaseCheckRequest
+	(*LeaseCheckResponse)(nil),      // 96: rig.v1.LeaseCheckResponse
+	nil,                             // 97: rig.v1.Record.FieldsEntry
+	nil,                             // 98: rig.v1.RecordPutRequest.FieldsEntry
+	(v1.Tristate)(0),                // 99: rig.v1.Tristate
 }
 var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	0,  // 0: rig.v1.Seat.state:type_name -> rig.v1.SeatState
@@ -7178,11 +7293,11 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	22, // 8: rig.v1.LeaseAcquireResponse.handle:type_name -> rig.v1.LeaseHandle
 	22, // 9: rig.v1.LeaseRenewResponse.handle:type_name -> rig.v1.LeaseHandle
 	21, // 10: rig.v1.LeaseListResponse.leases:type_name -> rig.v1.Lease
-	95, // 11: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
+	97, // 11: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
 	33, // 12: rig.v1.Record.prov:type_name -> rig.v1.Provenance
 	35, // 13: rig.v1.Record.retraction:type_name -> rig.v1.Retraction
 	33, // 14: rig.v1.Retraction.prov:type_name -> rig.v1.Provenance
-	96, // 15: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
+	98, // 15: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
 	34, // 16: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
 	34, // 17: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
 	34, // 18: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
@@ -7217,7 +7332,7 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	65, // 47: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
 	71, // 48: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
 	72, // 49: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
-	97, // 50: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
+	99, // 50: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
 	73, // 51: rig.v1.ProjectBriefResponse.closed:type_name -> rig.v1.ClosedItem
 	74, // 52: rig.v1.ProjectBriefResponse.closed_counts:type_name -> rig.v1.WordCount
 	33, // 53: rig.v1.Lesson.prov:type_name -> rig.v1.Provenance
@@ -7231,11 +7346,12 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	22, // 61: rig.v1.QueueClaimResponse.handle:type_name -> rig.v1.LeaseHandle
 	86, // 62: rig.v1.QueueCompleteResponse.task:type_name -> rig.v1.Task
 	86, // 63: rig.v1.QueueListResponse.tasks:type_name -> rig.v1.Task
-	64, // [64:64] is the sub-list for method output_type
-	64, // [64:64] is the sub-list for method input_type
-	64, // [64:64] is the sub-list for extension type_name
-	64, // [64:64] is the sub-list for extension extendee
-	0,  // [0:64] is the sub-list for field type_name
+	21, // 64: rig.v1.LeaseCheckResponse.lease:type_name -> rig.v1.Lease
+	65, // [65:65] is the sub-list for method output_type
+	65, // [65:65] is the sub-list for method input_type
+	65, // [65:65] is the sub-list for extension type_name
+	65, // [65:65] is the sub-list for extension extendee
+	0,  // [0:65] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_verbs_proto_init() }
@@ -7249,7 +7365,7 @@ func file_proto_rig_v1_verbs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_verbs_proto_rawDesc), len(file_proto_rig_v1_verbs_proto_rawDesc)),
 			NumEnums:      8,
-			NumMessages:   89,
+			NumMessages:   91,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -888,7 +888,8 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 
 	// SECTION 16's LEASES, all five through one arm. lease.go has why the
 	// holder and the witness come off the connection.
-	case "lease.list", "lease.acquire", "lease.renew", "lease.release", "lease.break":
+	case "lease.list", "lease.acquire", "lease.renew", "lease.release", "lease.break",
+		"lease.check":
 		d.serveLease(c, f, command)
 
 	// SECTION 16's QUEUES. A claim is a lease, so the store is the lease

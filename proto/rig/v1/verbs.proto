@@ -1726,3 +1726,22 @@ message QueueListResponse {
   uint32 done = 2;
   repeated string queues = 3;
 }
+
+// ============================================================================
+// SECTION 16's FENCING, from the resource's side. A lease's token is monotonic
+// per lease; a resource that rig does not own asks whether the token a writer
+// presents is still the current one before accepting the write.
+// ============================================================================
+
+message LeaseCheckRequest {
+  string name = 1;
+  uint64 token = 2;
+}
+
+// LeaseCheckResponse says whether the token is current: the lease carries it
+// and is held or orphaned, so nobody has been granted it since. A stale token
+// is an answer, not an error; `lease` says who holds it now.
+message LeaseCheckResponse {
+  bool current = 1;
+  Lease lease = 2;
+}

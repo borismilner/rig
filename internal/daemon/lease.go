@@ -50,6 +50,8 @@ func (d *Daemon) serveLease(c *conn, f *rigv1.Frame, command string) {
 		d.serveLeaseRelease(c, f)
 	case "lease.break":
 		d.serveLeaseBreak(c, f)
+	case "lease.check":
+		d.serveLeaseCheck(c, f)
 	}
 }
 
@@ -171,6 +173,30 @@ func (d *Daemon) serveLeaseBreak(c *conn, f *rigv1.Frame) {
 		return
 	}
 	c.reply(f.GetStreamId(), &verbsv1.LeaseBreakResponse{})
+}
+
+// serveLeaseCheck answers whether a fencing token is current. It needs no
+// seat: the caller is typically a resource checking somebody else's token.
+func (d *Daemon) serveLeaseCheck(c *conn, f *rigv1.Frame) {
+	var req verbsv1.LeaseCheckRequest
+	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "lease.check: "+err.Error())
+		return
+	}
+	if !leaseTextOK(c, f, "lease.check", "name", req.GetName()) {
+		return
+	}
+	st, current, err := d.leases.Check(req.GetName(), req.GetToken())
+	if err != nil {
+		c.failErr(f.GetStreamId(), leaseCode(err), err)
+		return
+	}
+	at, err := coord.Now()
+	if err != nil {
+		c.failErr(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err)
+		return
+	}
+	c.reply(f.GetStreamId(), &verbsv1.LeaseCheckResponse{Current: current, Lease: leaseToWire(st, at)})
 }
 
 func refuseUnseatedLease(c *conn, f *rigv1.Frame, command string) {
