@@ -316,29 +316,6 @@ test-unit: ## Run unit tests
 test-race: ## Run tests under the race detector
 	go test -race $(GO_PKGS)
 
-mvp-demo: ## Section 39's MVP acceptance demonstration, and it CANNOT pass by skipping
-	@echo
-	@echo "  Section 39's MVP, in Boris's words: use rig to work on rig with"
-	@echo "  respect to project and case management. The demonstration seeds"
-	@echo "  rig's OWN backlog - the real rows, real ids, real blocks edges -"
-	@echo "  and reads the answer off project.brief with no seat writing prose."
-	@echo
-	@echo "  IT IS NOT IN ci AND IT CANNOT BE. It reaches the real BACKLOG.md"
-	@echo "  through the repo-root symlink, which is gitignored, so it has"
-	@echo "  nothing to read in a fresh clone, a detached gate worktree or CI."
-	@echo "  A fixture copy was considered and rejected: it fails the one"
-	@echo "  requirement the demonstration exists to meet."
-	@echo
-	@echo "  So this target sets RIG_RECORD_REQUIRE_BACKLOG, which turns the"
-	@echo "  skip into a FAILURE. B46e is that a skip and a pass are the same"
-	@echo "  colour to whatever reads a gate, so a green ci was being read as"
-	@echo "  evidence the MVP demonstration passed. This is the one command"
-	@echo "  whose green is that evidence. Run it in the WORKING TREE."
-	@echo
-	RIG_RECORD_REQUIRE_BACKLOG=1 go test -count=1 -v \
-		-run TestRigsOwnBacklogIsManagedInRigAndTheBriefAnswersIt \
-		./internal/record/
-
 test-chaos: ## Kill, hang, flood and restart fakeapp $(CHAOS_ITER) times
 	go test -run TestChaos -count=1 -timeout 30m ./internal/supervise/... -args -iterations=$(CHAOS_ITER)
 
@@ -693,14 +670,6 @@ ci: fmt-check vet lint-house test-race schema-check deps-check theme-gate ## Eve
 	@echo "                                          are also noisy on a loaded or"
 	@echo "                                          throttled machine. Schedule it"
 	@echo "    audit      govulncheck                any time, needs network"
-	@echo "    mvp-demo   section 39's MVP           CANNOT be in ci: it reads"
-	@echo "               acceptance demonstration   the real BACKLOG.md through"
-	@echo "               (B46b), and it CANNOT      a gitignored symlink, so it"
-	@echo "               pass by skipping           has nothing to read here. A"
-	@echo "               ⛔ A GREEN ci IS NOT        fixture copy was rejected -"
-	@echo "               EVIDENCE THIS PASSED       it fails the requirement the"
-	@echo "               - B46e. Run it in the      demonstration exists to meet."
-	@echo "               working tree."
 	@echo "    bench-size the binary-size ratchet     REMOVED FROM ci 2026-09-12"
 	@echo "               by Boris. It compared strictly-greater against the"
 	@echo "               previous build, so it had no headroom and fired on"
