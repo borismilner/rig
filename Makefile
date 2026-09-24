@@ -710,6 +710,12 @@ tidy: ## Tidy go.mod and npm dependencies
 	go mod tidy
 	cd frontend && npm prune
 
+# Release tags are what a program pins (section 28, integration gap 9):
+# canonical vMAJOR.MINOR.PATCH, major v0 or v1 because the module path has no
+# /vN suffix, pre-release only -mN or -rc.N, annotated. cmd/tagcheck has why.
+tag-check: ## Fail if a release tag is one a program could not pin
+	go run ./cmd/tagcheck
+
 deps-check: ## Check the build against the stack table, plan section 22 (NOT upstream drift: that needs the network)
 # PLAN.md became an index on 2026-09-12 and the sections live in plan/. depscheck
 # needed no code change: it finds the "## 22. Tech stack" heading and reads to the
@@ -727,7 +733,7 @@ package: build ## Build the .deb from freshly built binaries
 	@mkdir -p dist
 	go run ./cmd/pkgdeb --version $(VERSION) --out dist/
 
-ci: fmt-check vet lint-house test-race schema-check deps-check theme-gate ## Everything CI runs
+ci: fmt-check vet lint-house test-race schema-check deps-check theme-gate tag-check ## Everything CI runs
 	@echo
 	@echo "  M0's gate. Targets not yet in ci, each waiting on the milestone"
 	@echo "  that gives it something to check:"
@@ -778,7 +784,7 @@ help: ## Show this help
         run dev clean test test-unit test-race \
         test-chaos test-e2e test-wire fuzz cover cover-html lint lint-house fmt vet audit \
         vet-window test-window verify contrast contrast-selftest contrast-window theme-gate generate proto proto-check schema types docs bench bench-ipc profile \
-        up down doctor apps logs tui tidy deps-check release package ci fmt-check \
+        up down doctor apps logs tui tidy deps-check tag-check release package ci fmt-check \
         bench-idle bench-scale bench-size bench-size-update bench-size-one build-minimal \
         bench-size-window bench-size-window-update \
         modules modules-matrix version help

@@ -117,6 +117,7 @@ known properties and was not re-measured here, and says so.
 | `golang.org/x/sys` | SO_PEERCRED, CLOCK_BOOTTIME, getsid | syscall (frozen) | **keep.** Required |
 | `go.uber.org/goleak` (test only) | goroutine-leak checks | NumGoroutine counts | **keep.** Adopted today; linked into no binary |
 | `github.com/godbus/dbus/v5` | the toast fallback to `org.freedesktop.Notifications` (§12), in `rigwindow` | exec of `notify-send` (a binary that may be absent), gdbus | **keep.** Promoted indirect to direct 2026-09-24: `fyne.io/systray` already links it into `rigwindow`, so no new module enters the graph. The one D-Bus library Go has that is maintained |
+| `golang.org/x/mod` | `cmd/tagcheck`: reading release tags as Go reads them (`semver`) | a hand-written semver regex | **keep.** Promoted indirect to direct 2026-09-24: it was already in the module graph, it is the Go toolchain's own reading of a version, and `tagcheck` is linked into no shipped binary |
 | `@wailsio/runtime` | the window's bridge | none: it is Wails' own | **keep** |
 | `svelte`, `vite`, `@sveltejs/vite-plugin-svelte`, `tailwindcss`, `@tailwindcss/vite` | the window's frontend | React, Solid; webpack | **keep.** Reasoned: Svelte 5 compiles to the smallest runtime of the three, which is the footprint ruling's question |
 | `marked` | markdown in panes | markdown-it, micromark | **keep.** Reasoned: the smallest and fastest of the three for trusted input |
