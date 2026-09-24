@@ -124,6 +124,21 @@ wire version it has ever shipped.
 
 ### 5e. Registration: what a program declares
 
+⛔ **THE INTEGRATION BAR, RULED BY BORIS 2026-09-24, verbatim** (the typo is his and is
+kept, because a corrected quotation is no longer a quotation):
+
+> *"I want the integration interfaces of rig to be iron-clad best and top of the art so
+> that any program such as docket or any other program I have is as easy as possible to
+> integrate into it. It it the current situation? Is nothing missing? Absolutely nothing?
+> If not, make sure the remote agent handles it before we proceed."*
+
+**This section owns that bar**, because registration and the declaration are the contract a
+program integrates against. It covers every surface a program author touches: the program
+door and its handshake, the Go client, the declaration, the pane tiers and `pane.js`, the MCP
+door, `--json`, errors and refusals, versioning (§21), the conformance suite (§19), and the
+docs and examples - and it covers programs that are not written in Go.
+
+
 Once, at connect. This is the whole contract from the program's side, and it is data: no rig
 code runs inside the program to produce it.
 
