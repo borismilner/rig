@@ -629,18 +629,6 @@ func writeVersion(ctx context.Context, tx *sql.Tx, r PutRequest, version uint64,
 	return nil
 }
 
-// unixNano is the store's one place for turning a stored timestamp back into a
-// time, so the two scan paths cannot disagree about the unit.
-func unixNano(n int64) time.Time { return time.Unix(0, n).UTC() }
-
-// decodeFields unmarshals a record's field blob.
-func decodeFields(blob string, rec *Record) error {
-	if err := json.Unmarshal([]byte(blob), &rec.Fields); err != nil {
-		return fmt.Errorf("record: decoding fields of %s v%d: %w", rec.ID, rec.Version, err)
-	}
-	return nil
-}
-
 // ⛔ THE COLUMN IS SIGNED AND THE FIELD IS NOT, SO EVERY CROSSING IS CHECKED.
 //
 // SQLite's INTEGER is int64 and section 39's Version and Epoch are uint64, so

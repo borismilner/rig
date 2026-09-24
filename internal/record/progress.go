@@ -147,12 +147,11 @@ func (s *Store) Step(ctx context.Context, r StepRequest) (Record, error) {
 //
 // ⛔ IT ORDERS BY id ALONE, AND created_at IS NOT A TIE-BREAK BESIDE IT.
 // This read `ORDER BY r.created_at, r.id`, which was correct - id caught every
-// tie - and contradicted lateststeps.go in print, where the same question is
-// argued the other way: the daemon clock has millisecond resolution and tests
-// freeze it outright, so created_at is not usable as an ordering and MAX(id) is
-// both the order and the tie-break. Two files asserting opposite things about
-// one column is the drift section 39 exists to catch, and a later reader
-// believes whichever they open first. One argument now governs both.
+// tie - and contradicted the store's latest-step read in print, where the same
+// question was argued the other way: the daemon clock has millisecond
+// resolution and tests freeze it outright, so created_at is not usable as an
+// ordering and the id is both the order and the tie-break. That read left rig
+// with the brief it served, and the argument stays here.
 func (s *Store) Stream(ctx context.Context, item string) ([]Record, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT r.id, r.version, r.kind, r.project, r.body, r.fields,
