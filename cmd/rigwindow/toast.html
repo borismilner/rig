@@ -55,17 +55,20 @@ body[data-edge=top]    .slot + .slot { margin-bottom: 14px; }
          overflow-wrap: anywhere; padding-top: 1px; }
 .body  { color: var(--fg-dim); margin-top: 2px; white-space: pre-wrap; overflow-wrap: anywhere;
          max-height: 7.2em; overflow: hidden; }
-.meta  { display: flex; align-items: center; gap: 7px; margin-top: 6px;
+.meta  { display: flex; align-items: center; gap: 8px; margin-top: 6px; margin-right: -24px;
          color: var(--fg-faint); font-size: 12px; }
 .pill  { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
          color: var(--hue); padding: 1px 7px; border-radius: 999px;
          background: color-mix(in srgb, var(--hue) 13%, transparent); }
-.dot::before { content: "·"; margin-right: 7px; }
+/* How long until it goes on its own, in words as well as the bar. */
+.sender { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.left { margin-left: auto; flex: none; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.urgent .left { color: var(--sem-bad); }
 
 .close {
-  position: absolute; top: 9px; right: 9px; width: 24px; height: 24px; border-radius: 8px;
-  display: grid; place-items: center; color: var(--fg-dim); opacity: 0;
-  transition: opacity .15s, background .15s;
+  position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 8px;
+  display: grid; place-items: center; color: var(--fg-dim); opacity: .55; cursor: pointer;
+  transition: opacity .15s, background .15s, color .15s;
 }
 .close svg { width: 14px; height: 14px; }
 .toast:hover .close { opacity: 1; }
@@ -159,7 +162,7 @@ function show(t) {
   card.append(icon, el("div", "title", t.title));
   if (t.body) card.append(el("div", "body", t.body));
   const meta = el("div", "meta");
-  meta.append(el("span", "pill", t.severity), el("span", "", t.sender), el("span", "dot when", "now"));
+  meta.append(el("span", "pill", t.severity), el("span", "sender", t.sender), el("span", "left"));
   card.append(meta);
   const x = el("div", "close"); x.innerHTML = CLOSE; x.title = "Dismiss";
   card.append(x);
@@ -187,7 +190,7 @@ function show(t) {
 
 function ago(ms) {
   const s = Math.round(ms / 1000);
-  return s < 45 ? "now" : s < 3600 ? Math.round(s / 60) + "m ago" : Math.round(s / 3600) + "h ago";
+  return s < 60 ? s + "s" : s < 3600 ? Math.round(s / 60) + "m ago" : Math.round(s / 3600) + "h ago";
 }
 
 // Count down every bubble's dwell, paused while the pointer is over the stack.
@@ -195,8 +198,11 @@ let last = performance.now();
 setInterval(() => {
   const now = performance.now(), dt = now - last; last = now;
   for (const slot of live()) {
-    slot.querySelector(".when").textContent = ago(Date.now() - slot._born);
-    if (hovered || slot._total === Infinity) continue;
+    const left = slot.querySelector(".left");
+    // Urgent never goes on its own, so it says how long it has waited instead.
+    if (slot._total === Infinity) { left.textContent = "waiting " + ago(Date.now() - slot._born); continue; }
+    if (hovered) { left.textContent = "paused"; continue; }
+    left.textContent = "closes in " + Math.max(1, Math.ceil(slot._left / 1000)) + "s";
     slot._left -= dt;
     slot._bar.style.transform = `scaleX(${Math.max(slot._left, 0) / slot._total})`;
     if (slot._left <= 0) leave(slot);
