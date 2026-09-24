@@ -52,7 +52,7 @@ import (
 // daemon and a store move for different reasons, and one number for both makes
 // every wire change look like a migration. internal/coord carries its own for
 // the same reason, and the two are independent.
-const SchemaVersion = 2
+const SchemaVersion = 3
 
 // DBName is the store's file inside the estate's state directory.
 const DBName = "record.db"
@@ -360,7 +360,7 @@ CREATE TABLE retractions (
 CREATE INDEX records_by_kind ON records (project, kind);
 CREATE INDEX links_by_dst ON links (dst, type);
 `
-	if _, err := tx.ExecContext(ctx, ddl); err != nil {
+	if _, err := tx.ExecContext(ctx, ddl+lessonsDDL); err != nil {
 		return fmt.Errorf("record: creating schema: %w", err)
 	}
 	return nil
@@ -393,6 +393,13 @@ CREATE TABLE IF NOT EXISTS retractions (
 	epoch       INTEGER NOT NULL,
 	created_at  INTEGER NOT NULL
 ) STRICT;`)
+		return err
+	},
+
+	// 2 -> 3: section 40's lessons, one FTS5 table (knowledge.go). Additive
+	// and idempotent like the step above: IF NOT EXISTS, nothing else touched.
+	2: func(tx *sql.Tx) error {
+		_, err := tx.Exec(lessonsDDL)
 		return err
 	},
 }
