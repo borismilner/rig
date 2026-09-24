@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"fyne.io/systray"
 	"github.com/godbus/dbus/v5"
 	"github.com/wailsapp/wails/v3/pkg/application"
 
@@ -378,4 +379,40 @@ func toastAfter(s string) (uint64, error) {
 		return 0, fmt.Errorf("--after %q: %w", s, err)
 	}
 	return v, nil
+}
+
+// menuDND is the tray's Do Not Disturb row, a checkbox that shows the
+// DAEMON's state: the daemon holds it, so the terminal and the tray cannot
+// disagree for longer than one poll.
+var menuDND *systray.MenuItem
+
+// toastDND asks the daemon to change or report Do Not Disturb. A daemon that
+// cannot be reached answers nil, and the row is left as it was.
+func toastDND(change registryv1.DndChange) *registryv1.ToastDndResponse {
+	c, err := client.Connect()
+	if err != nil {
+		return nil
+	}
+	defer c.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), readDeadline)
+	defer cancel()
+	resp := &registryv1.ToastDndResponse{}
+	if err := c.Call(ctx, "rig.toast.dnd", &registryv1.ToastDndRequest{Change: change}, resp); err != nil {
+		return nil
+	}
+	return resp
+}
+
+// showDND sets the row from the daemon's answer.
+func showDND(resp *registryv1.ToastDndResponse) {
+	if menuDND == nil || resp == nil {
+		return
+	}
+	if resp.GetOn() {
+		menuDND.Check()
+		menuDND.SetTitle(fmt.Sprintf("Do Not Disturb (%d held)", resp.GetSuppressed()))
+	} else {
+		menuDND.Uncheck()
+		menuDND.SetTitle("Do Not Disturb")
+	}
 }
