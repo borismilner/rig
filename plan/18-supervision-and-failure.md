@@ -149,9 +149,20 @@ and 1 s and was QUARANTINED with its full history; `--misbehave stall` went
 DEGRADED on three stalls; `rig restart` took the human row out of quarantine;
 no child survived rigd.
 
-**Not built:** the tray's own supervisor folded onto `supervise.Start`; MCP
-tools for supervision; `TestChaos`; and a child surviving a `kill -9` of rigd,
-which needs the kernel's parent-death signal and is not set.
+**`TestChaos`** (`make test-chaos`, 40 actions on every ci run) drives real
+processes with random kill -9, SIGSTOP, stop, restart and up while the loop
+runs, seeded and replayable. Its first runs found two defects, both fixed: an
+exit was matched to a program by id, so a restarted program's OLD child's exit
+was charged to the NEW child, which was forgotten while still running; and a
+child stopped just before shutdown was not waited for.
+
+**The tray shares the mechanism, not the policy.** Its window child goes
+through `supervise.StartCommand` (SIGTERM, SIGKILL after the grace, the reap)
+but keeps the whole session environment: section 18's allowlist would drop
+`XMODIFIERS` and `GTK_MODULES`, measured on the live unit.
+
+**Not built:** MCP tools for supervision, and a child surviving a `kill -9` of
+rigd, which needs the kernel's parent-death signal and is not set.
 
 ### What survives what: the state ownership matrix
 
