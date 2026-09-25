@@ -349,6 +349,32 @@ caller cannot reach is this specification upside down**, and nothing in §9 said
 out loud that it must not be - so it happened, was shipped, and was found by a
 demonstration rather than by a reader.
 
+### ⛔ The MCP door covers everything rig does. Boris, 2026-09-25
+
+**Boris, verbatim:** *"Make sure MCP covers everything."*
+
+**THE REQUIREMENT: every verb rig declares of itself is reachable from the MCP
+door as a first-class tool**, or it is on a short written list of exclusions,
+each with its reason. A verb that is neither fails the build. It is the
+paragraph above carried to its end: that one made rig *reachable*, this one
+makes it *whole*.
+
+**It does not reopen the ruling above.** rig stays out of the program map and
+out of `invoke`; the tools are first-class, as the roster, record and message
+tools already are, and they reach the daemon through its own dispatch with the
+agent's seat and principal. So the house rules and the effects ladder apply to
+an agent exactly as they apply to a terminal.
+
+| Excluded | Why |
+|---|---|
+| `down` | The ruling above: its protection is unreachability. It stays excluded until Boris rules otherwise |
+| `health.report` | Only the child rig launched may speak for a program (plan/18). An agent's connection never is that child, so the tool could only ever refuse |
+| `hello` | The program handshake. It is not a verb; it mints the caller |
+
+A verb already served under another name (`peers` is `list_agents`, `estate`
+is `query`) counts as covered. The rest take the wire's own name with the dot
+replaced, as the record tools do.
+
 ### Discovery is a resource, not a guess
 
 rig serves one MCP resource that is the whole capability map of the estate, versioned and
