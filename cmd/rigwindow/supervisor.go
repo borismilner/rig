@@ -7,8 +7,9 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
+
+	"github.com/borismilner/rig/internal/supervise"
 )
 
 // The tray is a supervisor and the window is its child process (PLAN.md
@@ -114,36 +115,29 @@ func spawnWindow() (windowProcess, <-chan struct{}, error) {
 	//rig:allow nocontextfree: the window child lives until the user closes it, so its end is the exit channel rather than a deadline
 	cmd := exec.CommandContext(context.Background(), exe, "--window")
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-	if err := cmd.Start(); err != nil {
+	// The mechanism is internal/supervise's, shared with rigd: SIGTERM, then
+	// SIGKILL after the grace, the reap and the exit. The command, and so the
+	// environment, stay the tray's - StartCommand says why.
+	proc, ended, err := supervise.StartCommand(cmd)
+	if err != nil {
 		return nil, nil, err
 	}
 	exited := make(chan struct{})
 	go func() {
-		if err := cmd.Wait(); err != nil {
+		if e := <-ended; !e.OK() {
 			// A close is exit 0. Anything else is the window dying, and the
 			// journal is where that is read.
-			fmt.Fprintln(os.Stderr, "rigwindow: the window process ended: "+err.Error())
+			fmt.Fprintln(os.Stderr, "rigwindow: the window process ended: "+e.String())
 		}
 		close(exited)
 	}()
-	return &childProcess{cmd: cmd, exited: exited}, exited, nil
+	return windowChild{proc}, exited, nil
 }
 
-type childProcess struct {
-	cmd    *exec.Cmd
-	exited <-chan struct{}
-}
+// windowChild is the shared Process behind the tray's one verb.
+type windowChild struct{ supervise.Process }
 
-func (c *childProcess) stop() {
-	_ = c.cmd.Process.Signal(syscall.SIGTERM)
-	go func() {
-		select {
-		case <-c.exited:
-		case <-time.After(stopGrace):
-			_ = c.cmd.Process.Kill()
-		}
-	}()
-}
+func (w windowChild) stop() { w.Stop(stopGrace) }
 
 // selfExecutable is the path this process runs from, made usable after an
 // install replaced the file underneath it. /proc/self/exe then reads

@@ -221,8 +221,25 @@ func Start(spec Spec, handles map[string]string) (Process, <-chan Exit, error) {
 	// Section 5g: "rig collects nothing it did not see", and the journal is
 	// where a crashed program's last words are read today.
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-	if err := cmd.Start(); err != nil {
+	proc, exited, err := StartCommand(cmd)
+	if err != nil {
 		return nil, nil, fmt.Errorf("starting %q: %w", spec.ID, err)
+	}
+	return proc, exited, nil
+}
+
+// StartCommand is the mechanism under Start with none of its policy: it
+// starts a command the caller built, reaps it, and reports its exit, and the
+// Process it returns stops it SIGTERM-then-SIGKILL.
+//
+// ⛔ IT EXISTS FOR THE TRAY, WHOSE CHILD IS NOT A SUPERVISED PROGRAM. The
+// window is the user's own GUI in the user's session and inherits the whole
+// session environment: section 18's allowlist would drop XMODIFIERS (the input
+// method, so no Hebrew in the window) and GTK_MODULES, measured on the live
+// unit 2026-09-25. A program rig supervises always goes through Start.
+func StartCommand(cmd *exec.Cmd) (Process, <-chan Exit, error) {
+	if err := cmd.Start(); err != nil {
+		return nil, nil, err
 	}
 	exited := make(chan Exit, 1)
 	c := &childProcess{cmd: cmd, done: make(chan struct{})}
