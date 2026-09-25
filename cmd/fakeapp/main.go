@@ -4,14 +4,15 @@
 // in the repo. It hangs, crashes, leaks, floods, lies about its schema, ignores
 // cancellation and returns garbage, each on a flag."
 //
-// At M0 it behaves, and answers ping. The misbehaviours arrive with the
-// supervisor that is supposed to catch them (M6) - a flag that nothing asserts
-// against is a flag that rots.
+// It behaves and answers ping unless told otherwise. hang, crash and stall
+// arrived with the supervisor that is supposed to catch them - a flag that
+// nothing asserts against is a flag that rots.
 package main
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -27,16 +28,33 @@ import (
 
 var version = "dev"
 
+// errCrash is --misbehave crash, and main turns it into exit 2 so the
+// supervisor sees a non-zero exit rather than a clean one.
+var errCrash = errors.New("crashing on purpose (--misbehave crash)")
+
 func main() {
-	if err := run(); err != nil {
+	if err := run(); errors.Is(err, errCrash) {
+		fmt.Fprintln(os.Stderr, "fakeapp: "+err.Error())
+		os.Exit(2)
+	} else if err != nil {
 		fmt.Fprintln(os.Stderr, "fakeapp: "+err.Error())
 		os.Exit(1)
 	}
 }
 
 func run() error {
-	name := flag.String("name", "fakeapp", "the program id to announce")
-	misbehave := flag.String("misbehave", "", "hang (M0 implements only this one)")
+	// Under rig's supervisor the id is the one it was launched as, so a
+	// declared program needs no --name.
+	defName := "fakeapp"
+	if id := os.Getenv("RIG_PROGRAM_ID"); id != "" {
+		defName = id
+	}
+	name := flag.String("name", defName, "the program id to announce")
+	misbehave := flag.String("misbehave", "",
+		"hang: never answer a call; crash: exit 2 after --after; stall: report once, then never advance")
+	report := flag.Duration("report", 0,
+		"send rig.health.report this often with an advancing marker (section 18's evidence of progress); 0 sends none")
+	after := flag.Duration("after", 2*time.Second, "crash: how long after hello")
 	flag.Parse()
 
 	sock, err := paths.Socket()
@@ -81,8 +99,40 @@ func run() error {
 	fmt.Printf("%s up: wire %s, rigd %s, scoped %v\n",
 		*name, resp.GetWire(), resp.GetDaemonVersion(), resp.GetScoped())
 
+	if *misbehave == "crash" {
+		time.Sleep(*after)
+		return errCrash
+	}
+	if *report > 0 {
+		go progress(c, *report, *misbehave == "stall")
+	}
+
 	<-c.Done()
 	return c.Err()
+}
+
+// progress is section 18's health input: a marker the program ADVANCES. With
+// stall set it reports once and never again, which is what a wedged program
+// looks like from outside - alive, connected, and doing nothing.
+func progress(c *client.Client, every time.Duration, stall bool) {
+	tick := time.NewTicker(every)
+	defer tick.Stop()
+	for marker := uint64(1); ; marker++ {
+		ctx, cancel := context.WithTimeout(context.Background(), every)
+		err := c.Call(ctx, "rig.health.report", &rigv1.HealthReportRequest{Marker: marker}, &rigv1.HealthReportResponse{})
+		cancel()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "fakeapp: health report: "+err.Error())
+		}
+		if stall {
+			return
+		}
+		select {
+		case <-c.Done():
+			return
+		case <-tick.C:
+		}
+	}
 }
 
 // declaration is what fakeapp tells rig it is (PLAN.md section 5e).
