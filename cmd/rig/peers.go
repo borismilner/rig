@@ -241,7 +241,7 @@ func seatJSON(s *verbsv1.Seat, now time.Time) map[string]any {
 		label = skewToken(s.GetState())
 	}
 	return map[string]any{
-		"seat":                s.GetSeat(),
+		seatKey:               s.GetSeat(),
 		"generation":          s.GetGeneration(),
 		epochKey:              s.GetEpoch(),
 		"estate":              s.GetEstate(),

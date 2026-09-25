@@ -379,6 +379,26 @@ func selfDeclaration() kernel.Declaration {
 				"Writes a lesson: a title, a one-line summary that searches show, a body with the detail, and one-word tags. For lessons of great importance to many users, not for every note. Attributed to the caller's seat.",
 				"The lesson as written, with its id."),
 
+			// SECTION 09's WORKING NOTES. A write is a file write on the
+			// record writers' argument; the two reads only read. ⛔ ALL THREE
+			// NEED A SEAT, WHICH THE TWO KNOWLEDGE READS ABOVE DO NOT, and
+			// the reason is what the verb means rather than what it costs:
+			// `worknote.mine` is defined as "what THIS seat wrote", so a
+			// connection with no seat has no question to ask rather than a
+			// wide one.
+			leaseWriter("worknote.write", "Work note write", kernel.No,
+				"Write down what you are thinking, so it survives this session",
+				"Appends one working note: prose, any tags you like, and an association to anything in the record - a work item, a project, a task. A target id that holds no record is reported back rather than losing your prose. Attributed to the caller's seat, never to one named in the request.",
+				"The note as written, with its id, and an account of which associations took and which ids held no record."),
+			readOnly("worknote.mine", "Work note mine",
+				"Get your own working notes back after the session that wrote them died",
+				"Answers the working notes THIS SEAT wrote, newest first. The seat comes from your row, so this can only ever answer your own notes. Start here on resume: a session dies with its process and the seat does not.",
+				"Your notes, newest first, bounded, with the unbounded total beside them so you know what was left out."),
+			readOnly("worknote.about", "Work note about",
+				"Every seat's working notes on one record",
+				"Answers the working notes attached to one record, by ANY seat, newest first. This is the handover read: `mine` is your own memory, this is what the estate knows about the thing you are picking up.",
+				"The notes on that record, newest first, bounded, with the unbounded total beside them."),
+
 			readOnly("lease.list", "Lease list",
 				"Every lease in the estate, with its owner's liveness",
 				"Answers every lease this estate knows about, evaluated now: held, orphaned or free, who holds or last held it, how it is witnessed, whether the witness was observed dead, and whether it needs a recorded break. Expiry is derived on read, never swept.",
@@ -439,6 +459,38 @@ func selfDeclaration() kernel.Declaration {
 				"Finish a claimed task",
 				"Marks the task done against its claim's token and epoch, and releases the claim. A worker whose claim moved on is refused, and its work is the duplicate the idempotency key is for.",
 				"The finished task."),
+
+			// SECTION 16's DIRECTED MESSAGES. The queue is durable and lives
+			// in the estate's bbolt file beside the leases, so send and ack
+			// are file writes on the same argument; inbox and await write too,
+			// because reading your own mail PROMOTES it - that is the point of
+			// the state ladder and it is not a read dressed up.
+			//
+			// ⛔ AWAIT IS DECLARED SEPARATELY FROM INBOX RATHER THAN BEING A
+			// FLAG ON IT, and the reason is the door rather than the verb: the
+			// MCP server binds one tool to one wire name, and an agent needs
+			// "read my mail" and "wait for mail" to be two things it can see
+			// in a tool list. One handler serves both.
+			readOnly("message.list", "Message list",
+				"Every directed message this estate holds, promoting nothing",
+				"Answers the estate's messages oldest first, or one seat's with a seat. It is the SENDER's surface: acted-on is the only state a sender may plan against, and a sender is never sitting in the recipient's seat. It promotes nothing, so reading it can never be mistaken for the recipient having read anything.",
+				"Every message, with its state, its pin and whether a tenancy it was not addressed to read it."),
+			leaseWriter("message.send", "Message send", kernel.No,
+				"Send a directed message to a SEAT, optionally pinned to its generation",
+				"Queues a message for a seat. The sender is this connection's own seat and is never read off the request. Pin it to a generation AND an epoch to address one tenancy: a pin that no longer matches is refused, naming the generation actually in the seat. A seat that is handing off has the message HELD for its successor rather than delivered into a closing session, and the answer says so. A seat nobody holds is refused, and so is a name nobody has ever used, in different words.",
+				"The message as stored, the recipient seat's state, and how many parked readers it was handed to."),
+			leaseWriter("message.inbox", "Message inbox", kernel.No,
+				"Read YOUR OWN seat's mail after a cursor",
+				"Answers your seat's messages after a cursor, oldest first, and promotes them to READ. The seat is this connection's and is never named in the request. A cursor older than retention comes back with gap set, which means the batch CANNOT be complete: treat what you were tracking as unknown. Anything addressed to a different tenancy of your seat is named in misaddressed - somebody is talking to a session that has gone.",
+				"The messages, the cursor to resume from, whether there is a gap, and which of them were addressed to somebody else's tenancy of your seat."),
+			leaseWriter("message.await", "Message await", kernel.No,
+				"Wait for mail on your own seat, up to 60 seconds",
+				"rig.message.inbox parked: it answers as soon as there is anything after the cursor, or empty with timed_out once the wait passes. Waiting costs nothing while nothing happens. Everything since the cursor arrives in ONE batch, so three messages that landed while you were busy are one wake-up rather than two missed ones.",
+				"The same answer as the inbox, plus whether the wait ended with nothing."),
+			leaseWriter("message.ack", "Message acknowledge", kernel.No,
+				"Say you understood one of your messages, or what you did about it",
+				"Promotes one of YOUR OWN messages to ACKNOWLEDGED, or to ACTED_ON with an outcome. Neither is ever inferred from delivery: a sender treating 'delivered' as agreement is the failure this ladder exists to prevent. Promotion never runs backwards, so acknowledging twice cannot lose the stronger fact.",
+				"The message in its new state, with the outcome you gave."),
 
 			// The first thing rig declares about itself that is not read-only,
 			// and the properties are the point rather than paperwork: this is

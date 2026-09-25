@@ -539,6 +539,75 @@ func (TaskState) EnumDescriptor() ([]byte, []int) {
 	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{7}
 }
 
+// MessageState is the five states a message moves through, and WHO OWNS EACH
+// TRANSITION is the content of the list. The daemon owns queued and delivered;
+// the recipient owns read, acknowledged and acted-on. Nothing is inferred: a
+// sender that treated delivery as agreement is the failure being designed out.
+// Promotion never runs backwards, so a re-read cannot undo an acknowledgement.
+type MessageState int32
+
+const (
+	MessageState_MESSAGE_STATE_UNSPECIFIED MessageState = 0
+	// Accepted and durable. Nobody was parked for it, which is not a loss.
+	MessageState_MESSAGE_STATE_QUEUED MessageState = 1
+	// Handed to a recipient's parked rig.message.await.
+	MessageState_MESSAGE_STATE_DELIVERED MessageState = 2
+	// Returned into the recipient's own context by an inbox or an await.
+	MessageState_MESSAGE_STATE_READ MessageState = 3
+	// The recipient states it understood. NEVER inferred from delivery.
+	MessageState_MESSAGE_STATE_ACKNOWLEDGED MessageState = 4
+	// The recipient states what it did, and `outcome` carries it. The only
+	// state a sender may plan against.
+	MessageState_MESSAGE_STATE_ACTED_ON MessageState = 5
+)
+
+// Enum value maps for MessageState.
+var (
+	MessageState_name = map[int32]string{
+		0: "MESSAGE_STATE_UNSPECIFIED",
+		1: "MESSAGE_STATE_QUEUED",
+		2: "MESSAGE_STATE_DELIVERED",
+		3: "MESSAGE_STATE_READ",
+		4: "MESSAGE_STATE_ACKNOWLEDGED",
+		5: "MESSAGE_STATE_ACTED_ON",
+	}
+	MessageState_value = map[string]int32{
+		"MESSAGE_STATE_UNSPECIFIED":  0,
+		"MESSAGE_STATE_QUEUED":       1,
+		"MESSAGE_STATE_DELIVERED":    2,
+		"MESSAGE_STATE_READ":         3,
+		"MESSAGE_STATE_ACKNOWLEDGED": 4,
+		"MESSAGE_STATE_ACTED_ON":     5,
+	}
+)
+
+func (x MessageState) Enum() *MessageState {
+	p := new(MessageState)
+	*p = x
+	return p
+}
+
+func (x MessageState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (MessageState) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_rig_v1_verbs_proto_enumTypes[8].Descriptor()
+}
+
+func (MessageState) Type() protoreflect.EnumType {
+	return &file_proto_rig_v1_verbs_proto_enumTypes[8]
+}
+
+func (x MessageState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use MessageState.Descriptor instead.
+func (MessageState) EnumDescriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{8}
+}
+
 type DescribeRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The program to describe. Required.
@@ -6707,6 +6776,1290 @@ func (x *LeaseCheckResponse) GetLease() *Lease {
 	return nil
 }
 
+// WorkNote is one working note, whole, with the provenance of whoever wrote
+// it. WHEN IT WAS WRITTEN IS `prov.at_unix_nano` AND THERE IS NO SECOND
+// RENDERED STAMP BESIDE IT: every other record answer on this wire carries the
+// time exactly once, in exactly that field, and a formatted copy would be a
+// second source of truth for one fact. The CLI formats it for a person.
+type WorkNote struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Id      string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Project string                 `protobuf:"bytes,2,opt,name=project,proto3" json:"project,omitempty"`
+	Body    string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	Tags    []string               `protobuf:"bytes,4,rep,name=tags,proto3" json:"tags,omitempty"`
+	Fields  map[string]string      `protobuf:"bytes,5,rep,name=fields,proto3" json:"fields,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Prov    *Provenance            `protobuf:"bytes,6,opt,name=prov,proto3" json:"prov,omitempty"`
+	// The ids an edge was written to, and the ids that held no record so no
+	// edge was written. BOTH ARE A WRITE's ACCOUNT and are empty on a read.
+	Attached      []string `protobuf:"bytes,7,rep,name=attached,proto3" json:"attached,omitempty"`
+	Missing       []string `protobuf:"bytes,8,rep,name=missing,proto3" json:"missing,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkNote) Reset() {
+	*x = WorkNote{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[89]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkNote) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkNote) ProtoMessage() {}
+
+func (x *WorkNote) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[89]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkNote.ProtoReflect.Descriptor instead.
+func (*WorkNote) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{89}
+}
+
+func (x *WorkNote) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *WorkNote) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *WorkNote) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *WorkNote) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+func (x *WorkNote) GetFields() map[string]string {
+	if x != nil {
+		return x.Fields
+	}
+	return nil
+}
+
+func (x *WorkNote) GetProv() *Provenance {
+	if x != nil {
+		return x.Prov
+	}
+	return nil
+}
+
+func (x *WorkNote) GetAttached() []string {
+	if x != nil {
+		return x.Attached
+	}
+	return nil
+}
+
+func (x *WorkNote) GetMissing() []string {
+	if x != nil {
+		return x.Missing
+	}
+	return nil
+}
+
+// WorkNoteWriteRequest appends one note. The writer's provenance is the
+// daemon's, never read off the request. Body up to 64 KiB and required; up to
+// 16 tags of at most 64 bytes each, with no whitespace in them; `part_of` is
+// A2's association to anything, and an id that holds no record lands in
+// `missing` rather than failing the write, so the prose is never lost to a
+// typo. A field key that starts with `tag:` is refused: pass it as a tag.
+type WorkNoteWriteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Project       string                 `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	Body          string                 `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
+	Tags          []string               `protobuf:"bytes,3,rep,name=tags,proto3" json:"tags,omitempty"`
+	Fields        map[string]string      `protobuf:"bytes,4,rep,name=fields,proto3" json:"fields,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	PartOf        []string               `protobuf:"bytes,5,rep,name=part_of,json=partOf,proto3" json:"part_of,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkNoteWriteRequest) Reset() {
+	*x = WorkNoteWriteRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[90]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkNoteWriteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkNoteWriteRequest) ProtoMessage() {}
+
+func (x *WorkNoteWriteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[90]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkNoteWriteRequest.ProtoReflect.Descriptor instead.
+func (*WorkNoteWriteRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{90}
+}
+
+func (x *WorkNoteWriteRequest) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *WorkNoteWriteRequest) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *WorkNoteWriteRequest) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+func (x *WorkNoteWriteRequest) GetFields() map[string]string {
+	if x != nil {
+		return x.Fields
+	}
+	return nil
+}
+
+func (x *WorkNoteWriteRequest) GetPartOf() []string {
+	if x != nil {
+		return x.PartOf
+	}
+	return nil
+}
+
+type WorkNoteWriteResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Note          *WorkNote              `protobuf:"bytes,1,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkNoteWriteResponse) Reset() {
+	*x = WorkNoteWriteResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[91]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkNoteWriteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkNoteWriteResponse) ProtoMessage() {}
+
+func (x *WorkNoteWriteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[91]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkNoteWriteResponse.ProtoReflect.Descriptor instead.
+func (*WorkNoteWriteResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{91}
+}
+
+func (x *WorkNoteWriteResponse) GetNote() *WorkNote {
+	if x != nil {
+		return x.Note
+	}
+	return nil
+}
+
+// WorkNoteMineRequest asks for the notes THIS CONNECTION's seat wrote, newest
+// first. It carries no seat: the seat is the daemon's, read off the occupancy,
+// so one agent can never ask for another's notes. Empty `project` means every
+// project, which is the right default on resume. Zero `limit` means 20; above
+// 200 is clamped rather than refused, because `total` says what was left out.
+type WorkNoteMineRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Project       string                 `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	Limit         uint32                 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkNoteMineRequest) Reset() {
+	*x = WorkNoteMineRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[92]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkNoteMineRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkNoteMineRequest) ProtoMessage() {}
+
+func (x *WorkNoteMineRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[92]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkNoteMineRequest.ProtoReflect.Descriptor instead.
+func (*WorkNoteMineRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{92}
+}
+
+func (x *WorkNoteMineRequest) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *WorkNoteMineRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+// WorkNoteMineResponse is bounded, and `total` is NOT the length of `notes`.
+// An answer that is cut without saying so is indistinguishable from a complete
+// one.
+type WorkNoteMineResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Notes         []*WorkNote            `protobuf:"bytes,1,rep,name=notes,proto3" json:"notes,omitempty"`
+	Total         uint64                 `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkNoteMineResponse) Reset() {
+	*x = WorkNoteMineResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[93]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkNoteMineResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkNoteMineResponse) ProtoMessage() {}
+
+func (x *WorkNoteMineResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[93]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkNoteMineResponse.ProtoReflect.Descriptor instead.
+func (*WorkNoteMineResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{93}
+}
+
+func (x *WorkNoteMineResponse) GetNotes() []*WorkNote {
+	if x != nil {
+		return x.Notes
+	}
+	return nil
+}
+
+func (x *WorkNoteMineResponse) GetTotal() uint64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+// WorkNoteAboutRequest asks for the notes attached to one record, by ANY seat.
+// It is deliberately not filtered by seat: `mine` is one agent's memory, this
+// is what the estate knows about one thing, which is the question a second
+// agent picking that thing up actually has.
+type WorkNoteAboutRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Limit         uint32                 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkNoteAboutRequest) Reset() {
+	*x = WorkNoteAboutRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[94]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkNoteAboutRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkNoteAboutRequest) ProtoMessage() {}
+
+func (x *WorkNoteAboutRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[94]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkNoteAboutRequest.ProtoReflect.Descriptor instead.
+func (*WorkNoteAboutRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{94}
+}
+
+func (x *WorkNoteAboutRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *WorkNoteAboutRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type WorkNoteAboutResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Notes         []*WorkNote            `protobuf:"bytes,1,rep,name=notes,proto3" json:"notes,omitempty"`
+	Total         uint64                 `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkNoteAboutResponse) Reset() {
+	*x = WorkNoteAboutResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[95]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkNoteAboutResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkNoteAboutResponse) ProtoMessage() {}
+
+func (x *WorkNoteAboutResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[95]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkNoteAboutResponse.ProtoReflect.Descriptor instead.
+func (*WorkNoteAboutResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{95}
+}
+
+func (x *WorkNoteAboutResponse) GetNotes() []*WorkNote {
+	if x != nil {
+		return x.Notes
+	}
+	return nil
+}
+
+func (x *WorkNoteAboutResponse) GetTotal() uint64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+// Message is one directed message as any reader sees it.
+type Message struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The estate-wide sequence number, and the CURSOR UNIT. Monotonic across a
+	// daemon restart: it comes from the store's own durable sequence.
+	Id uint64 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	// The recipient SEAT, and the pin. Zero generation and epoch mean the
+	// sender addressed the seat rather than one tenancy of it.
+	To           string `protobuf:"bytes,2,opt,name=to,proto3" json:"to,omitempty"`
+	ToGeneration uint64 `protobuf:"varint,3,opt,name=to_generation,json=toGeneration,proto3" json:"to_generation,omitempty"`
+	ToEpoch      uint64 `protobuf:"varint,4,opt,name=to_epoch,json=toEpoch,proto3" json:"to_epoch,omitempty"`
+	// The sender, taken from its own roster row by the daemon and NEVER read
+	// off the request, exactly as a lease's holder is.
+	From           string `protobuf:"bytes,5,opt,name=from,proto3" json:"from,omitempty"`
+	FromGeneration uint64 `protobuf:"varint,6,opt,name=from_generation,json=fromGeneration,proto3" json:"from_generation,omitempty"`
+	FromEpoch      uint64 `protobuf:"varint,7,opt,name=from_epoch,json=fromEpoch,proto3" json:"from_epoch,omitempty"`
+	// One line, and the message. A message over the bound is refused rather
+	// than truncated, because a recipient acts on what arrived and cannot see
+	// the half that did not.
+	Subject string       `protobuf:"bytes,8,opt,name=subject,proto3" json:"subject,omitempty"`
+	Body    string       `protobuf:"bytes,9,opt,name=body,proto3" json:"body,omitempty"`
+	State   MessageState `protobuf:"varint,10,opt,name=state,proto3,enum=rig.v1.MessageState" json:"state,omitempty"`
+	// The seat was HANDING_OFF when this was accepted, so it was held for the
+	// successor rather than delivered into a session that is closing.
+	HeldForSuccessor bool `protobuf:"varint,11,opt,name=held_for_successor,json=heldForSuccessor,proto3" json:"held_for_successor,omitempty"`
+	// The tenancy that actually read it, recorded on the FIRST read and never
+	// overwritten. Zero means nothing has read it yet.
+	ReadGeneration uint64 `protobuf:"varint,12,opt,name=read_generation,json=readGeneration,proto3" json:"read_generation,omitempty"`
+	ReadEpoch      uint64 `protobuf:"varint,13,opt,name=read_epoch,json=readEpoch,proto3" json:"read_epoch,omitempty"`
+	// What the recipient says it did. Rides with ACTED_ON.
+	Outcome string `protobuf:"bytes,14,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	// Wall clock, unlike every deadline in rig, because these two are read by a
+	// HUMAN beside everything else on their screen. Nothing expires on them.
+	SentUnixNano  int64 `protobuf:"varint,15,opt,name=sent_unix_nano,json=sentUnixNano,proto3" json:"sent_unix_nano,omitempty"`
+	MovedUnixNano int64 `protobuf:"varint,16,opt,name=moved_unix_nano,json=movedUnixNano,proto3" json:"moved_unix_nano,omitempty"`
+	// ⛔ THE FLAG THE FEATURE EXISTS FOR, AFTER THE FACT. True when the message
+	// was PINNED to one tenancy and a DIFFERENT one read it: the sender was
+	// talking to a session that had already gone. It is computed from the two
+	// pairs this message already carries - (to_generation, to_epoch) against
+	// (read_generation, read_epoch) - so every surface derives it identically,
+	// and a message nothing has read yet is false rather than a guess.
+	Misaddressed  bool `protobuf:"varint,17,opt,name=misaddressed,proto3" json:"misaddressed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Message) Reset() {
+	*x = Message{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[96]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Message) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Message) ProtoMessage() {}
+
+func (x *Message) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[96]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Message.ProtoReflect.Descriptor instead.
+func (*Message) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{96}
+}
+
+func (x *Message) GetId() uint64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *Message) GetTo() string {
+	if x != nil {
+		return x.To
+	}
+	return ""
+}
+
+func (x *Message) GetToGeneration() uint64 {
+	if x != nil {
+		return x.ToGeneration
+	}
+	return 0
+}
+
+func (x *Message) GetToEpoch() uint64 {
+	if x != nil {
+		return x.ToEpoch
+	}
+	return 0
+}
+
+func (x *Message) GetFrom() string {
+	if x != nil {
+		return x.From
+	}
+	return ""
+}
+
+func (x *Message) GetFromGeneration() uint64 {
+	if x != nil {
+		return x.FromGeneration
+	}
+	return 0
+}
+
+func (x *Message) GetFromEpoch() uint64 {
+	if x != nil {
+		return x.FromEpoch
+	}
+	return 0
+}
+
+func (x *Message) GetSubject() string {
+	if x != nil {
+		return x.Subject
+	}
+	return ""
+}
+
+func (x *Message) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *Message) GetState() MessageState {
+	if x != nil {
+		return x.State
+	}
+	return MessageState_MESSAGE_STATE_UNSPECIFIED
+}
+
+func (x *Message) GetHeldForSuccessor() bool {
+	if x != nil {
+		return x.HeldForSuccessor
+	}
+	return false
+}
+
+func (x *Message) GetReadGeneration() uint64 {
+	if x != nil {
+		return x.ReadGeneration
+	}
+	return 0
+}
+
+func (x *Message) GetReadEpoch() uint64 {
+	if x != nil {
+		return x.ReadEpoch
+	}
+	return 0
+}
+
+func (x *Message) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
+}
+
+func (x *Message) GetSentUnixNano() int64 {
+	if x != nil {
+		return x.SentUnixNano
+	}
+	return 0
+}
+
+func (x *Message) GetMovedUnixNano() int64 {
+	if x != nil {
+		return x.MovedUnixNano
+	}
+	return 0
+}
+
+func (x *Message) GetMisaddressed() bool {
+	if x != nil {
+		return x.Misaddressed
+	}
+	return false
+}
+
+// MessageSendRequest posts to a seat. `to` is required; the pin is optional
+// and is refused as a conflict when it does not match the seat's current
+// tenancy. Sending to a seat nobody holds is refused rather than queued, so a
+// sender learns at once instead of posting into a void - an ALREADY queued
+// message still survives its recipient and reaches the successor, which is
+// the other half of the same paragraph.
+type MessageSendRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	To            string                 `protobuf:"bytes,1,opt,name=to,proto3" json:"to,omitempty"`
+	ToGeneration  uint64                 `protobuf:"varint,2,opt,name=to_generation,json=toGeneration,proto3" json:"to_generation,omitempty"`
+	ToEpoch       uint64                 `protobuf:"varint,3,opt,name=to_epoch,json=toEpoch,proto3" json:"to_epoch,omitempty"`
+	Subject       string                 `protobuf:"bytes,4,opt,name=subject,proto3" json:"subject,omitempty"`
+	Body          string                 `protobuf:"bytes,5,opt,name=body,proto3" json:"body,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MessageSendRequest) Reset() {
+	*x = MessageSendRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[97]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MessageSendRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MessageSendRequest) ProtoMessage() {}
+
+func (x *MessageSendRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[97]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MessageSendRequest.ProtoReflect.Descriptor instead.
+func (*MessageSendRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{97}
+}
+
+func (x *MessageSendRequest) GetTo() string {
+	if x != nil {
+		return x.To
+	}
+	return ""
+}
+
+func (x *MessageSendRequest) GetToGeneration() uint64 {
+	if x != nil {
+		return x.ToGeneration
+	}
+	return 0
+}
+
+func (x *MessageSendRequest) GetToEpoch() uint64 {
+	if x != nil {
+		return x.ToEpoch
+	}
+	return 0
+}
+
+func (x *MessageSendRequest) GetSubject() string {
+	if x != nil {
+		return x.Subject
+	}
+	return ""
+}
+
+func (x *MessageSendRequest) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+type MessageSendResponse struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Message *Message               `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	// What the recipient seat was doing when this was accepted, so a sender
+	// that posted into a handover learns it from the answer rather than from
+	// the silence that follows.
+	ToState SeatState `protobuf:"varint,2,opt,name=to_state,json=toState,proto3,enum=rig.v1.SeatState" json:"to_state,omitempty"`
+	// How many parked rig.message.await calls this was handed to.
+	//
+	// ZERO MEANS NOBODY WAS PARKED AND IT IS NOT A LOSS. The message is durable
+	// and the seat reads it on its next inbox. The number is here so that
+	// DELIVERED is a state a sender can actually observe: the daemon sets it at
+	// the moment it wakes a subscription, and a later read supersedes it.
+	Delivered     uint32 `protobuf:"varint,3,opt,name=delivered,proto3" json:"delivered,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MessageSendResponse) Reset() {
+	*x = MessageSendResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[98]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MessageSendResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MessageSendResponse) ProtoMessage() {}
+
+func (x *MessageSendResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[98]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MessageSendResponse.ProtoReflect.Descriptor instead.
+func (*MessageSendResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{98}
+}
+
+func (x *MessageSendResponse) GetMessage() *Message {
+	if x != nil {
+		return x.Message
+	}
+	return nil
+}
+
+func (x *MessageSendResponse) GetToState() SeatState {
+	if x != nil {
+		return x.ToState
+	}
+	return SeatState_SEAT_STATE_UNSPECIFIED
+}
+
+func (x *MessageSendResponse) GetDelivered() uint32 {
+	if x != nil {
+		return x.Delivered
+	}
+	return 0
+}
+
+// MessageInboxRequest reads MY OWN seat's mail after a cursor, oldest first,
+// and promotes what it returns to READ. A seat is never named: the inbox is
+// the caller's, taken off the connection.
+type MessageInboxRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Everything after this id. Zero reads from the beginning of retention.
+	After uint64 `protobuf:"varint,1,opt,name=after,proto3" json:"after,omitempty"`
+	// How many at most. Zero means no bound beyond the queue's own retention.
+	Limit         uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MessageInboxRequest) Reset() {
+	*x = MessageInboxRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[99]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MessageInboxRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MessageInboxRequest) ProtoMessage() {}
+
+func (x *MessageInboxRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[99]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MessageInboxRequest.ProtoReflect.Descriptor instead.
+func (*MessageInboxRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{99}
+}
+
+func (x *MessageInboxRequest) GetAfter() uint64 {
+	if x != nil {
+		return x.After
+	}
+	return 0
+}
+
+func (x *MessageInboxRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type MessageInboxResponse struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Messages []*Message             `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
+	// Where to resume. The highest id CONSIDERED rather than the highest
+	// returned, so a bounded batch still leaves an honest cursor.
+	Cursor uint64 `protobuf:"varint,2,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	// ⛔ THIS BATCH CANNOT BE COMPLETE: the cursor was older than retention, so
+	// messages were dropped before this read. Treat what you were tracking as
+	// UNKNOWN, never as not having happened. A silently short batch is how two
+	// agents come to believe they each own one chunk of the same work.
+	Gap bool `protobuf:"varint,3,opt,name=gap,proto3" json:"gap,omitempty"`
+	// The ids IN THIS BATCH addressed to a DIFFERENT tenancy of your seat than
+	// yours. THIS IS THE LIVE WARNING, and it is separate from
+	// Message.misaddressed, which is the record of who read what afterwards:
+	// this one is about YOU, the reader, and is computed against the generation
+	// and epoch this connection holds right now.
+	Misaddressed  []uint64 `protobuf:"varint,4,rep,packed,name=misaddressed,proto3" json:"misaddressed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MessageInboxResponse) Reset() {
+	*x = MessageInboxResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[100]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MessageInboxResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MessageInboxResponse) ProtoMessage() {}
+
+func (x *MessageInboxResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[100]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MessageInboxResponse.ProtoReflect.Descriptor instead.
+func (*MessageInboxResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{100}
+}
+
+func (x *MessageInboxResponse) GetMessages() []*Message {
+	if x != nil {
+		return x.Messages
+	}
+	return nil
+}
+
+func (x *MessageInboxResponse) GetCursor() uint64 {
+	if x != nil {
+		return x.Cursor
+	}
+	return 0
+}
+
+func (x *MessageInboxResponse) GetGap() bool {
+	if x != nil {
+		return x.Gap
+	}
+	return false
+}
+
+func (x *MessageInboxResponse) GetMisaddressed() []uint64 {
+	if x != nil {
+		return x.Misaddressed
+	}
+	return nil
+}
+
+// MessageAwaitRequest is rig.message.inbox parked: it answers as soon as there
+// is anything after the cursor, or empty once the timeout passes. What it
+// wakes on is promoted to DELIVERED and then to READ, and the two transitions
+// stay separate because one is the daemon's and one is the recipient's.
+//
+// IT IS A SECOND VERB RATHER THAN A FLAG on the inbox because rig's MCP door
+// binds one tool to one wire name, and an agent needs both "read my mail" and
+// "wait for mail" as things it can see in a tool list.
+type MessageAwaitRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	After uint64                 `protobuf:"varint,1,opt,name=after,proto3" json:"after,omitempty"`
+	Limit uint32                 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	// How long to park, at most 60 seconds. Zero means the default.
+	WaitMs        uint32 `protobuf:"varint,3,opt,name=wait_ms,json=waitMs,proto3" json:"wait_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MessageAwaitRequest) Reset() {
+	*x = MessageAwaitRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[101]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MessageAwaitRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MessageAwaitRequest) ProtoMessage() {}
+
+func (x *MessageAwaitRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[101]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MessageAwaitRequest.ProtoReflect.Descriptor instead.
+func (*MessageAwaitRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{101}
+}
+
+func (x *MessageAwaitRequest) GetAfter() uint64 {
+	if x != nil {
+		return x.After
+	}
+	return 0
+}
+
+func (x *MessageAwaitRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *MessageAwaitRequest) GetWaitMs() uint32 {
+	if x != nil {
+		return x.WaitMs
+	}
+	return 0
+}
+
+type MessageAwaitResponse struct {
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Messages     []*Message             `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
+	Cursor       uint64                 `protobuf:"varint,2,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	Gap          bool                   `protobuf:"varint,3,opt,name=gap,proto3" json:"gap,omitempty"`
+	Misaddressed []uint64               `protobuf:"varint,4,rep,packed,name=misaddressed,proto3" json:"misaddressed,omitempty"`
+	// The wait ended with nothing rather than with mail. An answer, not an
+	// error: ask again with the same cursor.
+	TimedOut      bool `protobuf:"varint,5,opt,name=timed_out,json=timedOut,proto3" json:"timed_out,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MessageAwaitResponse) Reset() {
+	*x = MessageAwaitResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[102]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MessageAwaitResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MessageAwaitResponse) ProtoMessage() {}
+
+func (x *MessageAwaitResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[102]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MessageAwaitResponse.ProtoReflect.Descriptor instead.
+func (*MessageAwaitResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{102}
+}
+
+func (x *MessageAwaitResponse) GetMessages() []*Message {
+	if x != nil {
+		return x.Messages
+	}
+	return nil
+}
+
+func (x *MessageAwaitResponse) GetCursor() uint64 {
+	if x != nil {
+		return x.Cursor
+	}
+	return 0
+}
+
+func (x *MessageAwaitResponse) GetGap() bool {
+	if x != nil {
+		return x.Gap
+	}
+	return false
+}
+
+func (x *MessageAwaitResponse) GetMisaddressed() []uint64 {
+	if x != nil {
+		return x.Misaddressed
+	}
+	return nil
+}
+
+func (x *MessageAwaitResponse) GetTimedOut() bool {
+	if x != nil {
+		return x.TimedOut
+	}
+	return false
+}
+
+// MessageAckRequest is the recipient's own statement about one of ITS OWN
+// messages. `state` may only be ACKNOWLEDGED or ACTED_ON: queued and delivered
+// are the daemon's, and read is what a read does.
+type MessageAckRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	State MessageState           `protobuf:"varint,2,opt,name=state,proto3,enum=rig.v1.MessageState" json:"state,omitempty"`
+	// What you did, up to 256 bytes. It rides with ACTED_ON and is the reason
+	// that state is worth having to a sender.
+	Outcome       string `protobuf:"bytes,3,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MessageAckRequest) Reset() {
+	*x = MessageAckRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[103]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MessageAckRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MessageAckRequest) ProtoMessage() {}
+
+func (x *MessageAckRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[103]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MessageAckRequest.ProtoReflect.Descriptor instead.
+func (*MessageAckRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{103}
+}
+
+func (x *MessageAckRequest) GetId() uint64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *MessageAckRequest) GetState() MessageState {
+	if x != nil {
+		return x.State
+	}
+	return MessageState_MESSAGE_STATE_UNSPECIFIED
+}
+
+func (x *MessageAckRequest) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
+}
+
+type MessageAckResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Message       *Message               `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MessageAckResponse) Reset() {
+	*x = MessageAckResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[104]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MessageAckResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MessageAckResponse) ProtoMessage() {}
+
+func (x *MessageAckResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[104]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MessageAckResponse.ProtoReflect.Descriptor instead.
+func (*MessageAckResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{104}
+}
+
+func (x *MessageAckResponse) GetMessage() *Message {
+	if x != nil {
+		return x.Message
+	}
+	return nil
+}
+
+// MessageListRequest is the read-only estate view, and IT PROMOTES NOTHING,
+// which is what makes it safe on a human's prompt and is also the SENDER's
+// only surface: acted-on is the one state a sender may plan against, and a
+// state a sender cannot observe is not one it can plan against. With no seat
+// it answers every seat's queue.
+type MessageListRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Seat          string                 `protobuf:"bytes,1,opt,name=seat,proto3" json:"seat,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MessageListRequest) Reset() {
+	*x = MessageListRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[105]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MessageListRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MessageListRequest) ProtoMessage() {}
+
+func (x *MessageListRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[105]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MessageListRequest.ProtoReflect.Descriptor instead.
+func (*MessageListRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{105}
+}
+
+func (x *MessageListRequest) GetSeat() string {
+	if x != nil {
+		return x.Seat
+	}
+	return ""
+}
+
+type MessageListResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Messages      []*Message             `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MessageListResponse) Reset() {
+	*x = MessageListResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[106]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MessageListResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MessageListResponse) ProtoMessage() {}
+
+func (x *MessageListResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[106]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MessageListResponse.ProtoReflect.Descriptor instead.
+func (*MessageListResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{106}
+}
+
+func (x *MessageListResponse) GetMessages() []*Message {
+	if x != nil {
+		return x.Messages
+	}
+	return nil
+}
+
 var File_proto_rig_v1_verbs_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_verbs_proto_rawDesc = "" +
@@ -7112,7 +8465,101 @@ const file_proto_rig_v1_verbs_proto_rawDesc = "" +
 	"\x05token\x18\x02 \x01(\x04R\x05token\"S\n" +
 	"\x12LeaseCheckResponse\x12\x18\n" +
 	"\acurrent\x18\x01 \x01(\bR\acurrent\x12#\n" +
-	"\x05lease\x18\x02 \x01(\v2\r.rig.v1.LeaseR\x05lease*Z\n" +
+	"\x05lease\x18\x02 \x01(\v2\r.rig.v1.LeaseR\x05lease\"\xab\x02\n" +
+	"\bWorkNote\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\aproject\x18\x02 \x01(\tR\aproject\x12\x12\n" +
+	"\x04body\x18\x03 \x01(\tR\x04body\x12\x12\n" +
+	"\x04tags\x18\x04 \x03(\tR\x04tags\x124\n" +
+	"\x06fields\x18\x05 \x03(\v2\x1c.rig.v1.WorkNote.FieldsEntryR\x06fields\x12&\n" +
+	"\x04prov\x18\x06 \x01(\v2\x12.rig.v1.ProvenanceR\x04prov\x12\x1a\n" +
+	"\battached\x18\a \x03(\tR\battached\x12\x18\n" +
+	"\amissing\x18\b \x03(\tR\amissing\x1a9\n" +
+	"\vFieldsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xee\x01\n" +
+	"\x14WorkNoteWriteRequest\x12\x18\n" +
+	"\aproject\x18\x01 \x01(\tR\aproject\x12\x12\n" +
+	"\x04body\x18\x02 \x01(\tR\x04body\x12\x12\n" +
+	"\x04tags\x18\x03 \x03(\tR\x04tags\x12@\n" +
+	"\x06fields\x18\x04 \x03(\v2(.rig.v1.WorkNoteWriteRequest.FieldsEntryR\x06fields\x12\x17\n" +
+	"\apart_of\x18\x05 \x03(\tR\x06partOf\x1a9\n" +
+	"\vFieldsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"=\n" +
+	"\x15WorkNoteWriteResponse\x12$\n" +
+	"\x04note\x18\x01 \x01(\v2\x10.rig.v1.WorkNoteR\x04note\"E\n" +
+	"\x13WorkNoteMineRequest\x12\x18\n" +
+	"\aproject\x18\x01 \x01(\tR\aproject\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\rR\x05limit\"T\n" +
+	"\x14WorkNoteMineResponse\x12&\n" +
+	"\x05notes\x18\x01 \x03(\v2\x10.rig.v1.WorkNoteR\x05notes\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\x04R\x05total\"<\n" +
+	"\x14WorkNoteAboutRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\rR\x05limit\"U\n" +
+	"\x15WorkNoteAboutResponse\x12&\n" +
+	"\x05notes\x18\x01 \x03(\v2\x10.rig.v1.WorkNoteR\x05notes\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\x04R\x05total\"\xa1\x04\n" +
+	"\aMessage\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x0e\n" +
+	"\x02to\x18\x02 \x01(\tR\x02to\x12#\n" +
+	"\rto_generation\x18\x03 \x01(\x04R\ftoGeneration\x12\x19\n" +
+	"\bto_epoch\x18\x04 \x01(\x04R\atoEpoch\x12\x12\n" +
+	"\x04from\x18\x05 \x01(\tR\x04from\x12'\n" +
+	"\x0ffrom_generation\x18\x06 \x01(\x04R\x0efromGeneration\x12\x1d\n" +
+	"\n" +
+	"from_epoch\x18\a \x01(\x04R\tfromEpoch\x12\x18\n" +
+	"\asubject\x18\b \x01(\tR\asubject\x12\x12\n" +
+	"\x04body\x18\t \x01(\tR\x04body\x12*\n" +
+	"\x05state\x18\n" +
+	" \x01(\x0e2\x14.rig.v1.MessageStateR\x05state\x12,\n" +
+	"\x12held_for_successor\x18\v \x01(\bR\x10heldForSuccessor\x12'\n" +
+	"\x0fread_generation\x18\f \x01(\x04R\x0ereadGeneration\x12\x1d\n" +
+	"\n" +
+	"read_epoch\x18\r \x01(\x04R\treadEpoch\x12\x18\n" +
+	"\aoutcome\x18\x0e \x01(\tR\aoutcome\x12$\n" +
+	"\x0esent_unix_nano\x18\x0f \x01(\x03R\fsentUnixNano\x12&\n" +
+	"\x0fmoved_unix_nano\x18\x10 \x01(\x03R\rmovedUnixNano\x12\"\n" +
+	"\fmisaddressed\x18\x11 \x01(\bR\fmisaddressed\"\x92\x01\n" +
+	"\x12MessageSendRequest\x12\x0e\n" +
+	"\x02to\x18\x01 \x01(\tR\x02to\x12#\n" +
+	"\rto_generation\x18\x02 \x01(\x04R\ftoGeneration\x12\x19\n" +
+	"\bto_epoch\x18\x03 \x01(\x04R\atoEpoch\x12\x18\n" +
+	"\asubject\x18\x04 \x01(\tR\asubject\x12\x12\n" +
+	"\x04body\x18\x05 \x01(\tR\x04body\"\x8c\x01\n" +
+	"\x13MessageSendResponse\x12)\n" +
+	"\amessage\x18\x01 \x01(\v2\x0f.rig.v1.MessageR\amessage\x12,\n" +
+	"\bto_state\x18\x02 \x01(\x0e2\x11.rig.v1.SeatStateR\atoState\x12\x1c\n" +
+	"\tdelivered\x18\x03 \x01(\rR\tdelivered\"A\n" +
+	"\x13MessageInboxRequest\x12\x14\n" +
+	"\x05after\x18\x01 \x01(\x04R\x05after\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\rR\x05limit\"\x91\x01\n" +
+	"\x14MessageInboxResponse\x12+\n" +
+	"\bmessages\x18\x01 \x03(\v2\x0f.rig.v1.MessageR\bmessages\x12\x16\n" +
+	"\x06cursor\x18\x02 \x01(\x04R\x06cursor\x12\x10\n" +
+	"\x03gap\x18\x03 \x01(\bR\x03gap\x12\"\n" +
+	"\fmisaddressed\x18\x04 \x03(\x04R\fmisaddressed\"Z\n" +
+	"\x13MessageAwaitRequest\x12\x14\n" +
+	"\x05after\x18\x01 \x01(\x04R\x05after\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\rR\x05limit\x12\x17\n" +
+	"\await_ms\x18\x03 \x01(\rR\x06waitMs\"\xae\x01\n" +
+	"\x14MessageAwaitResponse\x12+\n" +
+	"\bmessages\x18\x01 \x03(\v2\x0f.rig.v1.MessageR\bmessages\x12\x16\n" +
+	"\x06cursor\x18\x02 \x01(\x04R\x06cursor\x12\x10\n" +
+	"\x03gap\x18\x03 \x01(\bR\x03gap\x12\"\n" +
+	"\fmisaddressed\x18\x04 \x03(\x04R\fmisaddressed\x12\x1b\n" +
+	"\ttimed_out\x18\x05 \x01(\bR\btimedOut\"i\n" +
+	"\x11MessageAckRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x04R\x02id\x12*\n" +
+	"\x05state\x18\x02 \x01(\x0e2\x14.rig.v1.MessageStateR\x05state\x12\x18\n" +
+	"\aoutcome\x18\x03 \x01(\tR\aoutcome\"?\n" +
+	"\x12MessageAckResponse\x12)\n" +
+	"\amessage\x18\x01 \x01(\v2\x0f.rig.v1.MessageR\amessage\"(\n" +
+	"\x12MessageListRequest\x12\x12\n" +
+	"\x04seat\x18\x01 \x01(\tR\x04seat\"B\n" +
+	"\x13MessageListResponse\x12+\n" +
+	"\bmessages\x18\x01 \x03(\v2\x0f.rig.v1.MessageR\bmessages*Z\n" +
 	"\tSeatState\x12\x1a\n" +
 	"\x16SEAT_STATE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11SEAT_STATE_ACTIVE\x10\x01\x12\x1a\n" +
@@ -7163,7 +8610,14 @@ const file_proto_rig_v1_verbs_proto_rawDesc = "" +
 	"\x10TASK_STATE_READY\x10\x01\x12\x16\n" +
 	"\x12TASK_STATE_CLAIMED\x10\x02\x12\x17\n" +
 	"\x13TASK_STATE_ORPHANED\x10\x03\x12\x13\n" +
-	"\x0fTASK_STATE_DONE\x10\x04B9Z7github.com/borismilner/rig/proto/rig/v1/verbsv1;verbsv1b\x06proto3"
+	"\x0fTASK_STATE_DONE\x10\x04*\xb8\x01\n" +
+	"\fMessageState\x12\x1d\n" +
+	"\x19MESSAGE_STATE_UNSPECIFIED\x10\x00\x12\x18\n" +
+	"\x14MESSAGE_STATE_QUEUED\x10\x01\x12\x1b\n" +
+	"\x17MESSAGE_STATE_DELIVERED\x10\x02\x12\x16\n" +
+	"\x12MESSAGE_STATE_READ\x10\x03\x12\x1e\n" +
+	"\x1aMESSAGE_STATE_ACKNOWLEDGED\x10\x04\x12\x1a\n" +
+	"\x16MESSAGE_STATE_ACTED_ON\x10\x05B9Z7github.com/borismilner/rig/proto/rig/v1/verbsv1;verbsv1b\x06proto3"
 
 var (
 	file_proto_rig_v1_verbs_proto_rawDescOnce sync.Once
@@ -7177,8 +8631,8 @@ func file_proto_rig_v1_verbs_proto_rawDescGZIP() []byte {
 	return file_proto_rig_v1_verbs_proto_rawDescData
 }
 
-var file_proto_rig_v1_verbs_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
-var file_proto_rig_v1_verbs_proto_msgTypes = make([]protoimpl.MessageInfo, 91)
+var file_proto_rig_v1_verbs_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
+var file_proto_rig_v1_verbs_proto_msgTypes = make([]protoimpl.MessageInfo, 111)
 var file_proto_rig_v1_verbs_proto_goTypes = []any{
 	(SeatState)(0),                  // 0: rig.v1.SeatState
 	(LeaseState)(0),                 // 1: rig.v1.LeaseState
@@ -7188,170 +8642,205 @@ var file_proto_rig_v1_verbs_proto_goTypes = []any{
 	(BriefSection)(0),               // 5: rig.v1.BriefSection
 	(SectionState)(0),               // 6: rig.v1.SectionState
 	(TaskState)(0),                  // 7: rig.v1.TaskState
-	(*DescribeRequest)(nil),         // 8: rig.v1.DescribeRequest
-	(*DescribeResponse)(nil),        // 9: rig.v1.DescribeResponse
-	(*DownRequest)(nil),             // 10: rig.v1.DownRequest
-	(*DownResponse)(nil),            // 11: rig.v1.DownResponse
-	(*SessionRequest)(nil),          // 12: rig.v1.SessionRequest
-	(*SessionResponse)(nil),         // 13: rig.v1.SessionResponse
-	(*Seat)(nil),                    // 14: rig.v1.Seat
-	(*AnnounceRequest)(nil),         // 15: rig.v1.AnnounceRequest
-	(*AnnounceResponse)(nil),        // 16: rig.v1.AnnounceResponse
-	(*ActivityRequest)(nil),         // 17: rig.v1.ActivityRequest
-	(*ActivityResponse)(nil),        // 18: rig.v1.ActivityResponse
-	(*PeersRequest)(nil),            // 19: rig.v1.PeersRequest
-	(*PeersResponse)(nil),           // 20: rig.v1.PeersResponse
-	(*Lease)(nil),                   // 21: rig.v1.Lease
-	(*LeaseHandle)(nil),             // 22: rig.v1.LeaseHandle
-	(*LeaseAcquireRequest)(nil),     // 23: rig.v1.LeaseAcquireRequest
-	(*LeaseAcquireResponse)(nil),    // 24: rig.v1.LeaseAcquireResponse
-	(*LeaseRenewRequest)(nil),       // 25: rig.v1.LeaseRenewRequest
-	(*LeaseRenewResponse)(nil),      // 26: rig.v1.LeaseRenewResponse
-	(*LeaseReleaseRequest)(nil),     // 27: rig.v1.LeaseReleaseRequest
-	(*LeaseReleaseResponse)(nil),    // 28: rig.v1.LeaseReleaseResponse
-	(*LeaseBreakRequest)(nil),       // 29: rig.v1.LeaseBreakRequest
-	(*LeaseBreakResponse)(nil),      // 30: rig.v1.LeaseBreakResponse
-	(*LeaseListRequest)(nil),        // 31: rig.v1.LeaseListRequest
-	(*LeaseListResponse)(nil),       // 32: rig.v1.LeaseListResponse
-	(*Provenance)(nil),              // 33: rig.v1.Provenance
-	(*Record)(nil),                  // 34: rig.v1.Record
-	(*Retraction)(nil),              // 35: rig.v1.Retraction
-	(*RecordPutRequest)(nil),        // 36: rig.v1.RecordPutRequest
-	(*RecordPutResponse)(nil),       // 37: rig.v1.RecordPutResponse
-	(*RecordGetRequest)(nil),        // 38: rig.v1.RecordGetRequest
-	(*RecordGetResponse)(nil),       // 39: rig.v1.RecordGetResponse
-	(*RecordQueryRequest)(nil),      // 40: rig.v1.RecordQueryRequest
-	(*RecordQueryResponse)(nil),     // 41: rig.v1.RecordQueryResponse
-	(*RecordHistoryRequest)(nil),    // 42: rig.v1.RecordHistoryRequest
-	(*RecordHistoryResponse)(nil),   // 43: rig.v1.RecordHistoryResponse
-	(*RecordLinkRequest)(nil),       // 44: rig.v1.RecordLinkRequest
-	(*RecordLinkResponse)(nil),      // 45: rig.v1.RecordLinkResponse
-	(*RecordUnlinkRequest)(nil),     // 46: rig.v1.RecordUnlinkRequest
-	(*RecordUnlinkResponse)(nil),    // 47: rig.v1.RecordUnlinkResponse
-	(*RecordRefsRequest)(nil),       // 48: rig.v1.RecordRefsRequest
-	(*Ref)(nil),                     // 49: rig.v1.Ref
-	(*RecordRetractRequest)(nil),    // 50: rig.v1.RecordRetractRequest
-	(*RecordRetractResponse)(nil),   // 51: rig.v1.RecordRetractResponse
-	(*Edge)(nil),                    // 52: rig.v1.Edge
-	(*RecordDeleteRequest)(nil),     // 53: rig.v1.RecordDeleteRequest
-	(*RecordDeleteResponse)(nil),    // 54: rig.v1.RecordDeleteResponse
-	(*RecordReplaceRequest)(nil),    // 55: rig.v1.RecordReplaceRequest
-	(*RecordReplaceResponse)(nil),   // 56: rig.v1.RecordReplaceResponse
-	(*RecordRefsResponse)(nil),      // 57: rig.v1.RecordRefsResponse
-	(*Cycle)(nil),                   // 58: rig.v1.Cycle
-	(*ProgressStepRequest)(nil),     // 59: rig.v1.ProgressStepRequest
-	(*ProgressStepResponse)(nil),    // 60: rig.v1.ProgressStepResponse
-	(*ItemState)(nil),               // 61: rig.v1.ItemState
-	(*Blocker)(nil),                 // 62: rig.v1.Blocker
-	(*Blockage)(nil),                // 63: rig.v1.Blockage
-	(*ProjectBriefRequest)(nil),     // 64: rig.v1.ProjectBriefRequest
-	(*BriefSectionStatus)(nil),      // 65: rig.v1.BriefSectionStatus
-	(*BriefNote)(nil),               // 66: rig.v1.BriefNote
-	(*Drift)(nil),                   // 67: rig.v1.Drift
-	(*Feature)(nil),                 // 68: rig.v1.Feature
-	(*StageCount)(nil),              // 69: rig.v1.StageCount
-	(*BriefHealth)(nil),             // 70: rig.v1.BriefHealth
-	(*GoverningRecord)(nil),         // 71: rig.v1.GoverningRecord
-	(*KindCount)(nil),               // 72: rig.v1.KindCount
-	(*ClosedItem)(nil),              // 73: rig.v1.ClosedItem
-	(*WordCount)(nil),               // 74: rig.v1.WordCount
-	(*ProjectBriefResponse)(nil),    // 75: rig.v1.ProjectBriefResponse
-	(*BackupCreateRequest)(nil),     // 76: rig.v1.BackupCreateRequest
-	(*BackupCreateResponse)(nil),    // 77: rig.v1.BackupCreateResponse
-	(*Lesson)(nil),                  // 78: rig.v1.Lesson
-	(*LessonHit)(nil),               // 79: rig.v1.LessonHit
-	(*KnowledgeAddRequest)(nil),     // 80: rig.v1.KnowledgeAddRequest
-	(*KnowledgeAddResponse)(nil),    // 81: rig.v1.KnowledgeAddResponse
-	(*KnowledgeSearchRequest)(nil),  // 82: rig.v1.KnowledgeSearchRequest
-	(*KnowledgeSearchResponse)(nil), // 83: rig.v1.KnowledgeSearchResponse
-	(*KnowledgeGetRequest)(nil),     // 84: rig.v1.KnowledgeGetRequest
-	(*KnowledgeGetResponse)(nil),    // 85: rig.v1.KnowledgeGetResponse
-	(*Task)(nil),                    // 86: rig.v1.Task
-	(*QueuePushRequest)(nil),        // 87: rig.v1.QueuePushRequest
-	(*QueuePushResponse)(nil),       // 88: rig.v1.QueuePushResponse
-	(*QueueClaimRequest)(nil),       // 89: rig.v1.QueueClaimRequest
-	(*QueueClaimResponse)(nil),      // 90: rig.v1.QueueClaimResponse
-	(*QueueCompleteRequest)(nil),    // 91: rig.v1.QueueCompleteRequest
-	(*QueueCompleteResponse)(nil),   // 92: rig.v1.QueueCompleteResponse
-	(*QueueListRequest)(nil),        // 93: rig.v1.QueueListRequest
-	(*QueueListResponse)(nil),       // 94: rig.v1.QueueListResponse
-	(*LeaseCheckRequest)(nil),       // 95: rig.v1.LeaseCheckRequest
-	(*LeaseCheckResponse)(nil),      // 96: rig.v1.LeaseCheckResponse
-	nil,                             // 97: rig.v1.Record.FieldsEntry
-	nil,                             // 98: rig.v1.RecordPutRequest.FieldsEntry
-	(v1.Tristate)(0),                // 99: rig.v1.Tristate
+	(MessageState)(0),               // 8: rig.v1.MessageState
+	(*DescribeRequest)(nil),         // 9: rig.v1.DescribeRequest
+	(*DescribeResponse)(nil),        // 10: rig.v1.DescribeResponse
+	(*DownRequest)(nil),             // 11: rig.v1.DownRequest
+	(*DownResponse)(nil),            // 12: rig.v1.DownResponse
+	(*SessionRequest)(nil),          // 13: rig.v1.SessionRequest
+	(*SessionResponse)(nil),         // 14: rig.v1.SessionResponse
+	(*Seat)(nil),                    // 15: rig.v1.Seat
+	(*AnnounceRequest)(nil),         // 16: rig.v1.AnnounceRequest
+	(*AnnounceResponse)(nil),        // 17: rig.v1.AnnounceResponse
+	(*ActivityRequest)(nil),         // 18: rig.v1.ActivityRequest
+	(*ActivityResponse)(nil),        // 19: rig.v1.ActivityResponse
+	(*PeersRequest)(nil),            // 20: rig.v1.PeersRequest
+	(*PeersResponse)(nil),           // 21: rig.v1.PeersResponse
+	(*Lease)(nil),                   // 22: rig.v1.Lease
+	(*LeaseHandle)(nil),             // 23: rig.v1.LeaseHandle
+	(*LeaseAcquireRequest)(nil),     // 24: rig.v1.LeaseAcquireRequest
+	(*LeaseAcquireResponse)(nil),    // 25: rig.v1.LeaseAcquireResponse
+	(*LeaseRenewRequest)(nil),       // 26: rig.v1.LeaseRenewRequest
+	(*LeaseRenewResponse)(nil),      // 27: rig.v1.LeaseRenewResponse
+	(*LeaseReleaseRequest)(nil),     // 28: rig.v1.LeaseReleaseRequest
+	(*LeaseReleaseResponse)(nil),    // 29: rig.v1.LeaseReleaseResponse
+	(*LeaseBreakRequest)(nil),       // 30: rig.v1.LeaseBreakRequest
+	(*LeaseBreakResponse)(nil),      // 31: rig.v1.LeaseBreakResponse
+	(*LeaseListRequest)(nil),        // 32: rig.v1.LeaseListRequest
+	(*LeaseListResponse)(nil),       // 33: rig.v1.LeaseListResponse
+	(*Provenance)(nil),              // 34: rig.v1.Provenance
+	(*Record)(nil),                  // 35: rig.v1.Record
+	(*Retraction)(nil),              // 36: rig.v1.Retraction
+	(*RecordPutRequest)(nil),        // 37: rig.v1.RecordPutRequest
+	(*RecordPutResponse)(nil),       // 38: rig.v1.RecordPutResponse
+	(*RecordGetRequest)(nil),        // 39: rig.v1.RecordGetRequest
+	(*RecordGetResponse)(nil),       // 40: rig.v1.RecordGetResponse
+	(*RecordQueryRequest)(nil),      // 41: rig.v1.RecordQueryRequest
+	(*RecordQueryResponse)(nil),     // 42: rig.v1.RecordQueryResponse
+	(*RecordHistoryRequest)(nil),    // 43: rig.v1.RecordHistoryRequest
+	(*RecordHistoryResponse)(nil),   // 44: rig.v1.RecordHistoryResponse
+	(*RecordLinkRequest)(nil),       // 45: rig.v1.RecordLinkRequest
+	(*RecordLinkResponse)(nil),      // 46: rig.v1.RecordLinkResponse
+	(*RecordUnlinkRequest)(nil),     // 47: rig.v1.RecordUnlinkRequest
+	(*RecordUnlinkResponse)(nil),    // 48: rig.v1.RecordUnlinkResponse
+	(*RecordRefsRequest)(nil),       // 49: rig.v1.RecordRefsRequest
+	(*Ref)(nil),                     // 50: rig.v1.Ref
+	(*RecordRetractRequest)(nil),    // 51: rig.v1.RecordRetractRequest
+	(*RecordRetractResponse)(nil),   // 52: rig.v1.RecordRetractResponse
+	(*Edge)(nil),                    // 53: rig.v1.Edge
+	(*RecordDeleteRequest)(nil),     // 54: rig.v1.RecordDeleteRequest
+	(*RecordDeleteResponse)(nil),    // 55: rig.v1.RecordDeleteResponse
+	(*RecordReplaceRequest)(nil),    // 56: rig.v1.RecordReplaceRequest
+	(*RecordReplaceResponse)(nil),   // 57: rig.v1.RecordReplaceResponse
+	(*RecordRefsResponse)(nil),      // 58: rig.v1.RecordRefsResponse
+	(*Cycle)(nil),                   // 59: rig.v1.Cycle
+	(*ProgressStepRequest)(nil),     // 60: rig.v1.ProgressStepRequest
+	(*ProgressStepResponse)(nil),    // 61: rig.v1.ProgressStepResponse
+	(*ItemState)(nil),               // 62: rig.v1.ItemState
+	(*Blocker)(nil),                 // 63: rig.v1.Blocker
+	(*Blockage)(nil),                // 64: rig.v1.Blockage
+	(*ProjectBriefRequest)(nil),     // 65: rig.v1.ProjectBriefRequest
+	(*BriefSectionStatus)(nil),      // 66: rig.v1.BriefSectionStatus
+	(*BriefNote)(nil),               // 67: rig.v1.BriefNote
+	(*Drift)(nil),                   // 68: rig.v1.Drift
+	(*Feature)(nil),                 // 69: rig.v1.Feature
+	(*StageCount)(nil),              // 70: rig.v1.StageCount
+	(*BriefHealth)(nil),             // 71: rig.v1.BriefHealth
+	(*GoverningRecord)(nil),         // 72: rig.v1.GoverningRecord
+	(*KindCount)(nil),               // 73: rig.v1.KindCount
+	(*ClosedItem)(nil),              // 74: rig.v1.ClosedItem
+	(*WordCount)(nil),               // 75: rig.v1.WordCount
+	(*ProjectBriefResponse)(nil),    // 76: rig.v1.ProjectBriefResponse
+	(*BackupCreateRequest)(nil),     // 77: rig.v1.BackupCreateRequest
+	(*BackupCreateResponse)(nil),    // 78: rig.v1.BackupCreateResponse
+	(*Lesson)(nil),                  // 79: rig.v1.Lesson
+	(*LessonHit)(nil),               // 80: rig.v1.LessonHit
+	(*KnowledgeAddRequest)(nil),     // 81: rig.v1.KnowledgeAddRequest
+	(*KnowledgeAddResponse)(nil),    // 82: rig.v1.KnowledgeAddResponse
+	(*KnowledgeSearchRequest)(nil),  // 83: rig.v1.KnowledgeSearchRequest
+	(*KnowledgeSearchResponse)(nil), // 84: rig.v1.KnowledgeSearchResponse
+	(*KnowledgeGetRequest)(nil),     // 85: rig.v1.KnowledgeGetRequest
+	(*KnowledgeGetResponse)(nil),    // 86: rig.v1.KnowledgeGetResponse
+	(*Task)(nil),                    // 87: rig.v1.Task
+	(*QueuePushRequest)(nil),        // 88: rig.v1.QueuePushRequest
+	(*QueuePushResponse)(nil),       // 89: rig.v1.QueuePushResponse
+	(*QueueClaimRequest)(nil),       // 90: rig.v1.QueueClaimRequest
+	(*QueueClaimResponse)(nil),      // 91: rig.v1.QueueClaimResponse
+	(*QueueCompleteRequest)(nil),    // 92: rig.v1.QueueCompleteRequest
+	(*QueueCompleteResponse)(nil),   // 93: rig.v1.QueueCompleteResponse
+	(*QueueListRequest)(nil),        // 94: rig.v1.QueueListRequest
+	(*QueueListResponse)(nil),       // 95: rig.v1.QueueListResponse
+	(*LeaseCheckRequest)(nil),       // 96: rig.v1.LeaseCheckRequest
+	(*LeaseCheckResponse)(nil),      // 97: rig.v1.LeaseCheckResponse
+	(*WorkNote)(nil),                // 98: rig.v1.WorkNote
+	(*WorkNoteWriteRequest)(nil),    // 99: rig.v1.WorkNoteWriteRequest
+	(*WorkNoteWriteResponse)(nil),   // 100: rig.v1.WorkNoteWriteResponse
+	(*WorkNoteMineRequest)(nil),     // 101: rig.v1.WorkNoteMineRequest
+	(*WorkNoteMineResponse)(nil),    // 102: rig.v1.WorkNoteMineResponse
+	(*WorkNoteAboutRequest)(nil),    // 103: rig.v1.WorkNoteAboutRequest
+	(*WorkNoteAboutResponse)(nil),   // 104: rig.v1.WorkNoteAboutResponse
+	(*Message)(nil),                 // 105: rig.v1.Message
+	(*MessageSendRequest)(nil),      // 106: rig.v1.MessageSendRequest
+	(*MessageSendResponse)(nil),     // 107: rig.v1.MessageSendResponse
+	(*MessageInboxRequest)(nil),     // 108: rig.v1.MessageInboxRequest
+	(*MessageInboxResponse)(nil),    // 109: rig.v1.MessageInboxResponse
+	(*MessageAwaitRequest)(nil),     // 110: rig.v1.MessageAwaitRequest
+	(*MessageAwaitResponse)(nil),    // 111: rig.v1.MessageAwaitResponse
+	(*MessageAckRequest)(nil),       // 112: rig.v1.MessageAckRequest
+	(*MessageAckResponse)(nil),      // 113: rig.v1.MessageAckResponse
+	(*MessageListRequest)(nil),      // 114: rig.v1.MessageListRequest
+	(*MessageListResponse)(nil),     // 115: rig.v1.MessageListResponse
+	nil,                             // 116: rig.v1.Record.FieldsEntry
+	nil,                             // 117: rig.v1.RecordPutRequest.FieldsEntry
+	nil,                             // 118: rig.v1.WorkNote.FieldsEntry
+	nil,                             // 119: rig.v1.WorkNoteWriteRequest.FieldsEntry
+	(v1.Tristate)(0),                // 120: rig.v1.Tristate
 }
 var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
-	0,  // 0: rig.v1.Seat.state:type_name -> rig.v1.SeatState
-	14, // 1: rig.v1.AnnounceResponse.you:type_name -> rig.v1.Seat
-	14, // 2: rig.v1.AnnounceResponse.crew:type_name -> rig.v1.Seat
-	0,  // 3: rig.v1.ActivityRequest.state:type_name -> rig.v1.SeatState
-	14, // 4: rig.v1.ActivityResponse.you:type_name -> rig.v1.Seat
-	14, // 5: rig.v1.PeersResponse.crew:type_name -> rig.v1.Seat
-	1,  // 6: rig.v1.Lease.state:type_name -> rig.v1.LeaseState
-	2,  // 7: rig.v1.Lease.liveness:type_name -> rig.v1.Liveness
-	22, // 8: rig.v1.LeaseAcquireResponse.handle:type_name -> rig.v1.LeaseHandle
-	22, // 9: rig.v1.LeaseRenewResponse.handle:type_name -> rig.v1.LeaseHandle
-	21, // 10: rig.v1.LeaseListResponse.leases:type_name -> rig.v1.Lease
-	97, // 11: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
-	33, // 12: rig.v1.Record.prov:type_name -> rig.v1.Provenance
-	35, // 13: rig.v1.Record.retraction:type_name -> rig.v1.Retraction
-	33, // 14: rig.v1.Retraction.prov:type_name -> rig.v1.Provenance
-	98, // 15: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
-	34, // 16: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
-	34, // 17: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
-	34, // 18: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
-	34, // 19: rig.v1.RecordHistoryResponse.versions:type_name -> rig.v1.Record
-	35, // 20: rig.v1.RecordRetractResponse.retraction:type_name -> rig.v1.Retraction
-	52, // 21: rig.v1.RecordDeleteResponse.edges:type_name -> rig.v1.Edge
-	52, // 22: rig.v1.RecordReplaceResponse.moved:type_name -> rig.v1.Edge
-	52, // 23: rig.v1.RecordReplaceResponse.merged:type_name -> rig.v1.Edge
-	52, // 24: rig.v1.RecordReplaceResponse.dropped:type_name -> rig.v1.Edge
-	35, // 25: rig.v1.RecordReplaceResponse.retraction:type_name -> rig.v1.Retraction
-	49, // 26: rig.v1.RecordRefsResponse.refs:type_name -> rig.v1.Ref
-	58, // 27: rig.v1.RecordRefsResponse.cycles:type_name -> rig.v1.Cycle
-	57, // 28: rig.v1.RecordRefsResponse.results:type_name -> rig.v1.RecordRefsResponse
-	3,  // 29: rig.v1.ProgressStepRequest.state:type_name -> rig.v1.StepState
-	34, // 30: rig.v1.ProgressStepResponse.step:type_name -> rig.v1.Record
-	3,  // 31: rig.v1.ItemState.state:type_name -> rig.v1.StepState
-	3,  // 32: rig.v1.Blocker.state:type_name -> rig.v1.StepState
-	62, // 33: rig.v1.Blockage.blockers:type_name -> rig.v1.Blocker
-	5,  // 34: rig.v1.BriefSectionStatus.section:type_name -> rig.v1.BriefSection
-	6,  // 35: rig.v1.BriefSectionStatus.state:type_name -> rig.v1.SectionState
-	33, // 36: rig.v1.BriefNote.prov:type_name -> rig.v1.Provenance
-	61, // 37: rig.v1.ProjectBriefResponse.open:type_name -> rig.v1.ItemState
-	61, // 38: rig.v1.ProjectBriefResponse.next_up:type_name -> rig.v1.ItemState
-	63, // 39: rig.v1.ProjectBriefResponse.blocked:type_name -> rig.v1.Blockage
-	58, // 40: rig.v1.ProjectBriefResponse.cycles:type_name -> rig.v1.Cycle
-	66, // 41: rig.v1.ProjectBriefResponse.notes:type_name -> rig.v1.BriefNote
-	67, // 42: rig.v1.ProjectBriefResponse.drift:type_name -> rig.v1.Drift
-	70, // 43: rig.v1.ProjectBriefResponse.health:type_name -> rig.v1.BriefHealth
-	68, // 44: rig.v1.ProjectBriefResponse.features:type_name -> rig.v1.Feature
-	69, // 45: rig.v1.ProjectBriefResponse.feature_stages:type_name -> rig.v1.StageCount
-	66, // 46: rig.v1.ProjectBriefResponse.case_notes:type_name -> rig.v1.BriefNote
-	65, // 47: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
-	71, // 48: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
-	72, // 49: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
-	99, // 50: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
-	73, // 51: rig.v1.ProjectBriefResponse.closed:type_name -> rig.v1.ClosedItem
-	74, // 52: rig.v1.ProjectBriefResponse.closed_counts:type_name -> rig.v1.WordCount
-	33, // 53: rig.v1.Lesson.prov:type_name -> rig.v1.Provenance
-	78, // 54: rig.v1.KnowledgeAddResponse.lesson:type_name -> rig.v1.Lesson
-	79, // 55: rig.v1.KnowledgeSearchResponse.hits:type_name -> rig.v1.LessonHit
-	78, // 56: rig.v1.KnowledgeGetResponse.lesson:type_name -> rig.v1.Lesson
-	7,  // 57: rig.v1.Task.state:type_name -> rig.v1.TaskState
-	21, // 58: rig.v1.Task.claim:type_name -> rig.v1.Lease
-	86, // 59: rig.v1.QueuePushResponse.task:type_name -> rig.v1.Task
-	86, // 60: rig.v1.QueueClaimResponse.task:type_name -> rig.v1.Task
-	22, // 61: rig.v1.QueueClaimResponse.handle:type_name -> rig.v1.LeaseHandle
-	86, // 62: rig.v1.QueueCompleteResponse.task:type_name -> rig.v1.Task
-	86, // 63: rig.v1.QueueListResponse.tasks:type_name -> rig.v1.Task
-	21, // 64: rig.v1.LeaseCheckResponse.lease:type_name -> rig.v1.Lease
-	65, // [65:65] is the sub-list for method output_type
-	65, // [65:65] is the sub-list for method input_type
-	65, // [65:65] is the sub-list for extension type_name
-	65, // [65:65] is the sub-list for extension extendee
-	0,  // [0:65] is the sub-list for field type_name
+	0,   // 0: rig.v1.Seat.state:type_name -> rig.v1.SeatState
+	15,  // 1: rig.v1.AnnounceResponse.you:type_name -> rig.v1.Seat
+	15,  // 2: rig.v1.AnnounceResponse.crew:type_name -> rig.v1.Seat
+	0,   // 3: rig.v1.ActivityRequest.state:type_name -> rig.v1.SeatState
+	15,  // 4: rig.v1.ActivityResponse.you:type_name -> rig.v1.Seat
+	15,  // 5: rig.v1.PeersResponse.crew:type_name -> rig.v1.Seat
+	1,   // 6: rig.v1.Lease.state:type_name -> rig.v1.LeaseState
+	2,   // 7: rig.v1.Lease.liveness:type_name -> rig.v1.Liveness
+	23,  // 8: rig.v1.LeaseAcquireResponse.handle:type_name -> rig.v1.LeaseHandle
+	23,  // 9: rig.v1.LeaseRenewResponse.handle:type_name -> rig.v1.LeaseHandle
+	22,  // 10: rig.v1.LeaseListResponse.leases:type_name -> rig.v1.Lease
+	116, // 11: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
+	34,  // 12: rig.v1.Record.prov:type_name -> rig.v1.Provenance
+	36,  // 13: rig.v1.Record.retraction:type_name -> rig.v1.Retraction
+	34,  // 14: rig.v1.Retraction.prov:type_name -> rig.v1.Provenance
+	117, // 15: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
+	35,  // 16: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
+	35,  // 17: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
+	35,  // 18: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
+	35,  // 19: rig.v1.RecordHistoryResponse.versions:type_name -> rig.v1.Record
+	36,  // 20: rig.v1.RecordRetractResponse.retraction:type_name -> rig.v1.Retraction
+	53,  // 21: rig.v1.RecordDeleteResponse.edges:type_name -> rig.v1.Edge
+	53,  // 22: rig.v1.RecordReplaceResponse.moved:type_name -> rig.v1.Edge
+	53,  // 23: rig.v1.RecordReplaceResponse.merged:type_name -> rig.v1.Edge
+	53,  // 24: rig.v1.RecordReplaceResponse.dropped:type_name -> rig.v1.Edge
+	36,  // 25: rig.v1.RecordReplaceResponse.retraction:type_name -> rig.v1.Retraction
+	50,  // 26: rig.v1.RecordRefsResponse.refs:type_name -> rig.v1.Ref
+	59,  // 27: rig.v1.RecordRefsResponse.cycles:type_name -> rig.v1.Cycle
+	58,  // 28: rig.v1.RecordRefsResponse.results:type_name -> rig.v1.RecordRefsResponse
+	3,   // 29: rig.v1.ProgressStepRequest.state:type_name -> rig.v1.StepState
+	35,  // 30: rig.v1.ProgressStepResponse.step:type_name -> rig.v1.Record
+	3,   // 31: rig.v1.ItemState.state:type_name -> rig.v1.StepState
+	3,   // 32: rig.v1.Blocker.state:type_name -> rig.v1.StepState
+	63,  // 33: rig.v1.Blockage.blockers:type_name -> rig.v1.Blocker
+	5,   // 34: rig.v1.BriefSectionStatus.section:type_name -> rig.v1.BriefSection
+	6,   // 35: rig.v1.BriefSectionStatus.state:type_name -> rig.v1.SectionState
+	34,  // 36: rig.v1.BriefNote.prov:type_name -> rig.v1.Provenance
+	62,  // 37: rig.v1.ProjectBriefResponse.open:type_name -> rig.v1.ItemState
+	62,  // 38: rig.v1.ProjectBriefResponse.next_up:type_name -> rig.v1.ItemState
+	64,  // 39: rig.v1.ProjectBriefResponse.blocked:type_name -> rig.v1.Blockage
+	59,  // 40: rig.v1.ProjectBriefResponse.cycles:type_name -> rig.v1.Cycle
+	67,  // 41: rig.v1.ProjectBriefResponse.notes:type_name -> rig.v1.BriefNote
+	68,  // 42: rig.v1.ProjectBriefResponse.drift:type_name -> rig.v1.Drift
+	71,  // 43: rig.v1.ProjectBriefResponse.health:type_name -> rig.v1.BriefHealth
+	69,  // 44: rig.v1.ProjectBriefResponse.features:type_name -> rig.v1.Feature
+	70,  // 45: rig.v1.ProjectBriefResponse.feature_stages:type_name -> rig.v1.StageCount
+	67,  // 46: rig.v1.ProjectBriefResponse.case_notes:type_name -> rig.v1.BriefNote
+	66,  // 47: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
+	72,  // 48: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
+	73,  // 49: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
+	120, // 50: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
+	74,  // 51: rig.v1.ProjectBriefResponse.closed:type_name -> rig.v1.ClosedItem
+	75,  // 52: rig.v1.ProjectBriefResponse.closed_counts:type_name -> rig.v1.WordCount
+	34,  // 53: rig.v1.Lesson.prov:type_name -> rig.v1.Provenance
+	79,  // 54: rig.v1.KnowledgeAddResponse.lesson:type_name -> rig.v1.Lesson
+	80,  // 55: rig.v1.KnowledgeSearchResponse.hits:type_name -> rig.v1.LessonHit
+	79,  // 56: rig.v1.KnowledgeGetResponse.lesson:type_name -> rig.v1.Lesson
+	7,   // 57: rig.v1.Task.state:type_name -> rig.v1.TaskState
+	22,  // 58: rig.v1.Task.claim:type_name -> rig.v1.Lease
+	87,  // 59: rig.v1.QueuePushResponse.task:type_name -> rig.v1.Task
+	87,  // 60: rig.v1.QueueClaimResponse.task:type_name -> rig.v1.Task
+	23,  // 61: rig.v1.QueueClaimResponse.handle:type_name -> rig.v1.LeaseHandle
+	87,  // 62: rig.v1.QueueCompleteResponse.task:type_name -> rig.v1.Task
+	87,  // 63: rig.v1.QueueListResponse.tasks:type_name -> rig.v1.Task
+	22,  // 64: rig.v1.LeaseCheckResponse.lease:type_name -> rig.v1.Lease
+	118, // 65: rig.v1.WorkNote.fields:type_name -> rig.v1.WorkNote.FieldsEntry
+	34,  // 66: rig.v1.WorkNote.prov:type_name -> rig.v1.Provenance
+	119, // 67: rig.v1.WorkNoteWriteRequest.fields:type_name -> rig.v1.WorkNoteWriteRequest.FieldsEntry
+	98,  // 68: rig.v1.WorkNoteWriteResponse.note:type_name -> rig.v1.WorkNote
+	98,  // 69: rig.v1.WorkNoteMineResponse.notes:type_name -> rig.v1.WorkNote
+	98,  // 70: rig.v1.WorkNoteAboutResponse.notes:type_name -> rig.v1.WorkNote
+	8,   // 71: rig.v1.Message.state:type_name -> rig.v1.MessageState
+	105, // 72: rig.v1.MessageSendResponse.message:type_name -> rig.v1.Message
+	0,   // 73: rig.v1.MessageSendResponse.to_state:type_name -> rig.v1.SeatState
+	105, // 74: rig.v1.MessageInboxResponse.messages:type_name -> rig.v1.Message
+	105, // 75: rig.v1.MessageAwaitResponse.messages:type_name -> rig.v1.Message
+	8,   // 76: rig.v1.MessageAckRequest.state:type_name -> rig.v1.MessageState
+	105, // 77: rig.v1.MessageAckResponse.message:type_name -> rig.v1.Message
+	105, // 78: rig.v1.MessageListResponse.messages:type_name -> rig.v1.Message
+	79,  // [79:79] is the sub-list for method output_type
+	79,  // [79:79] is the sub-list for method input_type
+	79,  // [79:79] is the sub-list for extension type_name
+	79,  // [79:79] is the sub-list for extension extendee
+	0,   // [0:79] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_verbs_proto_init() }
@@ -7364,8 +8853,8 @@ func file_proto_rig_v1_verbs_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_verbs_proto_rawDesc), len(file_proto_rig_v1_verbs_proto_rawDesc)),
-			NumEnums:      8,
-			NumMessages:   91,
+			NumEnums:      9,
+			NumMessages:   111,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

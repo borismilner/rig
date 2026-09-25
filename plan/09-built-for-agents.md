@@ -63,6 +63,18 @@ it must NOT reuse §39's existing `note` kind**, which is a PROJECT note with
 the surface a human reads** - same word, different lifecycle, and merging them
 is how the brief becomes unreadable.
 
+**As built, 2026-09-25 (BACKLOG P2).** Kind `working-note`, a STREAM OF SMALL
+RECORDS (one append per note, no rewrite). Verbs `rig.worknote.write`, `.mine`,
+`.about`; MCP tools `worknote_write`, `worknote_mine`, `worknote_about`; CLI
+`rig worknote write|mine|about` with `--body-file` and stdin. **A1** records in
+rig; **A2** `part_of` to any id, a missing id reported and the note kept; **A3**
+tags stored one field each (`tag:<name>` = `1`), so `record query --field`
+selects them; **A6** `worknote_mine` returns the SEAT's notes, newest first,
+with the uncut total. Shown live: a writer killed with `kill -9`, the next
+process in the same seat got its notes back through the MCP door. **Not
+built:** A6 as a PUSH (the notes are pulled, not handed over on announce), and
+full-text search over notes.
+
 ### ⛔ This requirement sits on top of four defects the 2026-09-17 attack filed, and it cannot be built well over any of them
 
 **This is the honest state, not a reason to defer: his requirement is the best

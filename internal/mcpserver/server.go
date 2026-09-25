@@ -98,20 +98,20 @@ THE PROGRAMS, AND THE ROSTER.
   query           ask rig ABOUT RIG rather than about a program.
   announce        take a seat and say what you are FOR. A SEAT NAME IS
                   REQUIRED, and set_activity and list_agents both need it.
+  message_send    durable mail to a seat; _inbox, _await, _ack, _list read it.
 
 THE CONTINUITY RECORD - this project's memory. Writes need a seat, so
 announce first; the seat comes from your row, never from the request.
-  record_query    find records; project and kind are matched EXACTLY. START
-                  HERE ON RESUME. Deriving a brief over these rows belongs to
-                  the program that owns the project model, not to rig.
+  worknote_mine   YOUR notes, kept past a restart: START HERE ON RESUME.
+                  worknote_write adds one; worknote_about reads a record's.
+  record_query    find records; project and kind are matched EXACTLY.
   record_get / record_put / record_history   read one, write one, and every
                   version it ever had. Nothing is ever overwritten.
   record_link / record_unlink / record_refs   typed edges between records.
   progress_step   a work item moved. knowledge_search, _get, _add: lessons.
 
 rig is not in the program map, so invoke and describe cannot reach it; asking
-invoke for program "rig" is the common first mistake. Any tool beyond the
-eighteen above is a promoted program command.
+invoke for "rig" is the usual first mistake. Other tools are program commands.
 
 IF set_activity SAYS YOU HAVE NO ROW, YOU ARE NOT WHERE YOU THINK YOU ARE. A
 row lives exactly as long as its connection, so if you announced earlier and
@@ -252,6 +252,72 @@ func New(m *meta.Server, who kernel.Principal, version string) *Server {
 		return answer(m.Answer(ctx, who, meta.Request{Tool: meta.ListAgents}))
 	})
 
+	// Section 16's directed messages. The seat is always this connection's: a
+	// sender cannot sign as another seat and a reader cannot open another
+	// seat's inbox.
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "message_send",
+		Description: "Send a message to a seat. It is durable: if the seat " +
+			"hands off, the successor reads it. Leave to_generation and " +
+			"to_epoch out to address whoever holds the seat; give BOTH, from " +
+			"list_agents, to address one session, and the send is refused if " +
+			"that session has gone. Refused for an empty or unknown seat.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a messageSendArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{Tool: meta.MessageSendTool, Mail: meta.MailRequest{
+			To: a.To, ToGeneration: a.ToGeneration, ToEpoch: a.ToEpoch,
+			Subject: a.Subject, Body: a.Body,
+		}}))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "message_inbox",
+		Description: "Read your seat's messages after a cursor, marking them " +
+			"read. Returns at once. Pass the cursor you got back as after next " +
+			"time. Ids in misaddressed were pinned to a different session of " +
+			"your seat: the sender thought it was talking to someone else.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a messageReadArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool:  meta.MessageInboxTool,
+			Limit: a.Limit, Mail: meta.MailRequest{After: a.After},
+		}))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "message_await",
+		Description: "message_inbox that waits: parks until a message arrives " +
+			"or wait_ms passes (default 30000, at most 60000), then answers " +
+			"with timed_out set if nothing came.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a messageAwaitArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool:  meta.MessageAwaitTool,
+			Limit: a.Limit, Mail: meta.MailRequest{After: a.After, WaitMs: a.WaitMs},
+		}))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "message_ack",
+		Description: "Say what you did with one of your messages: acknowledged " +
+			"(understood) or acted_on (done, with an outcome). acted_on is the " +
+			"only state a sender may plan against.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a messageAckArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.MessageAckTool,
+			Mail: meta.MailRequest{ID: a.ID, State: a.State, Outcome: a.Outcome},
+		}))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "message_list",
+		Description: "Every message on this estate, or those to one seat, " +
+			"with its state. Marks nothing read. This is how a sender learns " +
+			"whether what it sent was read or acted on.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a messageListArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.MessageListTool,
+			Mail: meta.MailRequest{Seat: a.Seat},
+		}))
+	})
+
 	// THE NINE RECORD TOOLS, AND THEY ARE FIRST-CLASS FOR THE ROSTER TOOLS'
 	// REASON RATHER THAN A NEW ONE.
 	//
@@ -345,6 +411,45 @@ func New(m *meta.Server, who kernel.Principal, version string) *Server {
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, a recordGetArgs) (*mcp.CallToolResult, any, error) {
 		return answer(m.Answer(ctx, who, meta.Request{
 			Tool: meta.RecordGetTool, RecordID: a.ID, Version: a.Version,
+		}))
+	})
+
+	// Section 09's working notes. The seat is this connection's, so an agent
+	// reads back its own notes and signs its own writes, never another's.
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "worknote_write",
+		Description: "Write a working note: what you are thinking, tried, or " +
+			"decided, as you go. It is kept under your SEAT, so whoever holds " +
+			"the seat after a crash or a handoff reads it back with " +
+			"worknote_mine. Tag it freely; attach it with part_of to the work " +
+			"item or record it is about (an id that does not exist is reported " +
+			"in missing, and the note is kept). Announce first.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a workNoteWriteArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.WorkNoteWriteTool, Project: a.Project, Body: a.Body,
+			Tags: a.Tags, Fields: a.Fields, PartOf: a.PartOf,
+		}))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "worknote_mine",
+		Description: "Read back the notes YOUR SEAT wrote, newest first, " +
+			"including those from sessions that died before you. Call it first " +
+			"on resume. total counts every match, so total above the number " +
+			"returned means the answer was cut; raise limit.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a workNoteMineArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.WorkNoteMineTool, Project: a.Project, Limit: a.Limit,
+		}))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "worknote_about",
+		Description: "Every agent's notes attached to one record, newest " +
+			"first: what the estate knows about a work item you are picking up.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a workNoteAboutArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.WorkNoteAboutTool, RecordID: a.ID, Limit: a.Limit,
 		}))
 	})
 
@@ -801,6 +906,53 @@ type recordPutArgs struct {
 	Body      string            `json:"body,omitempty" jsonschema:"the prose. Optional, and it is the half a typed field cannot carry."`
 	Fields    map[string]string `json:"fields,omitempty" jsonschema:"typed fields beside the prose, such as title or status. These are what a brief renders and a query filters on - prefer them to prose an agent has to parse back out."`
 	IfVersion uint64            `json:"if_version,omitempty" jsonschema:"the version you believe is current, for compare-and-swap. Omit to CREATE, which refuses if the id already exists. This is the only thing standing between two agents and a lost write."`
+}
+
+type messageSendArgs struct {
+	To           string `json:"to" jsonschema:"the recipient seat, as list_agents names it"`
+	ToGeneration uint64 `json:"to_generation,omitempty" jsonschema:"pin one session: its generation, from list_agents. Give to_epoch with it or neither."`
+	ToEpoch      uint64 `json:"to_epoch,omitempty" jsonschema:"pin one session: its epoch, from list_agents. Give to_generation with it or neither."`
+	Subject      string `json:"subject" jsonschema:"one line saying what this is about"`
+	Body         string `json:"body,omitempty" jsonschema:"the message itself"`
+}
+
+type messageReadArgs struct {
+	After uint64 `json:"after,omitempty" jsonschema:"the cursor from your last read; omit for the start"`
+	Limit int    `json:"limit,omitempty" jsonschema:"at most this many messages"`
+}
+
+type messageAwaitArgs struct {
+	After  uint64 `json:"after,omitempty" jsonschema:"the cursor from your last read; omit for the start"`
+	Limit  int    `json:"limit,omitempty" jsonschema:"at most this many messages"`
+	WaitMs uint32 `json:"wait_ms,omitempty" jsonschema:"how long to park, in milliseconds. Omit for 30000; at most 60000."`
+}
+
+type messageAckArgs struct {
+	ID      uint64 `json:"id" jsonschema:"the message id, from your inbox"`
+	State   string `json:"state" jsonschema:"acknowledged or acted_on"`
+	Outcome string `json:"outcome,omitempty" jsonschema:"what you did, for acted_on"`
+}
+
+type messageListArgs struct {
+	Seat string `json:"seat,omitempty" jsonschema:"only messages to this seat; omit for the whole estate"`
+}
+
+type workNoteWriteArgs struct {
+	Project string            `json:"project" jsonschema:"which project's record the note lands in"`
+	Body    string            `json:"body" jsonschema:"the note itself, up to 64 KiB"`
+	Tags    []string          `json:"tags,omitempty" jsonschema:"any words to file it under, up to 16"`
+	Fields  map[string]string `json:"fields,omitempty" jsonschema:"typed fields beside the prose, such as title"`
+	PartOf  []string          `json:"part_of,omitempty" jsonschema:"ids of the records this note is about"`
+}
+
+type workNoteMineArgs struct {
+	Project string `json:"project,omitempty" jsonschema:"only this project's notes; omit for all of them, which is right on resume"`
+	Limit   int    `json:"limit,omitempty" jsonschema:"how many notes, newest first. Omit for 20; at most 200."`
+}
+
+type workNoteAboutArgs struct {
+	ID    string `json:"id" jsonschema:"the record the notes are attached to"`
+	Limit int    `json:"limit,omitempty" jsonschema:"how many notes, newest first. Omit for 20; at most 200."`
 }
 
 type knowledgeSearchArgs struct {

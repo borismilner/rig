@@ -243,6 +243,9 @@ func allToolNames() []string {
 		string(RecordRefsTool), string(ProgressStepTool),
 		string(RecordRetractTool), string(RecordDeleteTool), string(RecordReplaceTool),
 		string(KnowledgeSearchTool), string(KnowledgeGetTool), string(KnowledgeAddTool),
+		string(WorkNoteWriteTool), string(WorkNoteMineTool), string(WorkNoteAboutTool),
+		string(MessageSendTool), string(MessageInboxTool), string(MessageAwaitTool),
+		string(MessageAckTool), string(MessageListTool),
 	}
 }
 
@@ -288,6 +291,10 @@ type RecordAnswer struct {
 
 	// Lesson is knowledge_get's and knowledge_add's answer, whole.
 	Lesson *Lesson `json:"lesson,omitempty"`
+
+	// Note is worknote_write's; Notes is worknote_mine's and worknote_about's.
+	Note  *WorkNote     `json:"note,omitempty"`
+	Notes *WorkNoteList `json:"notes,omitempty"`
 }
 
 // RecordRetraction is a withdrawal on the agent's door.
