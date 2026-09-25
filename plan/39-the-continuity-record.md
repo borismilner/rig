@@ -3418,3 +3418,38 @@ the closed rows **with the word that closed them**.
 `closed-by-ruling` in the live store. **A one-word filter on `"closed"` drops the
 two and re-opens B68 for them**, which is the trap this row was filed over.
 
+
+## ⛔ The record graph, completed. Boris, 2026-09-25
+
+**Boris, verbatim**, asked whether rig should manage a knowledge graph and
+shown the three gaps below: *"Persist the plan to complete the graph
+functionality and proceed."* This section is that plan.
+
+**rig does not grow a graph engine, and this is not a new capability.** The
+record already is the graph: records are the nodes, the eight closed link types
+are the edges, `record.refs` is the traversal and FTS5 is the text index. The
+axis table above calls a graph engine "almost certainly oversized", and §38b's
+"best at what it carries" rules out RDF, SPARQL, an ontology layer or a second
+store. **What is missing is three pieces of the graph rig already carries.**
+
+| # | Gap, checked against the code 2026-09-25 | What completes it |
+|---|---|---|
+| G1 | **Lessons are outside the graph.** §40's lessons live in their own FTS5 table, not in `records`, so no edge can reach one: a lesson cannot cite the work item or note it came from | an edge may name a lesson id at either end, under the existing closed types (`cites`, `produced-by`). The lesson stays in its FTS table; only the edge is new. `delete` drops a lesson's edges as it does a record's |
+| G2 | **Traversal runs one way.** `record.refs` answers "what points AT this". Nothing reads a record's OUTGOING edges: the store has `Link` and `Unlink` and no read of `links WHERE src = ?` | the forward walk, "what does this touch", with `refs`'s own contract: the same depth default and cap, refused by name above the cap, the cycle report and the truncation flag. One verb with a direction, not a second copy |
+| G3 | **No neighbourhood in one call.** An agent resuming on a work item makes one call per hop and per note | `record.around <id>`: the node, its edges in both directions to depth 1 by default, and the working notes and lessons attached, as REFERENCES (id, kind, title) and never bodies |
+
+**The acceptance bar is §40's, a number and not a demonstration.** One
+`record.around` must cost fewer tokens than the calls it replaces on a real
+work item from rig's own backlog, measured and written down. A neighbourhood
+that costs more than the reads it saves is not built.
+
+**Served on all three doors**, as every record verb is: wire, MCP tool, and
+`rig record` at a terminal. Reference answers only, so a large neighbourhood
+stays cheap; a caller fetches the bodies it decides it needs.
+
+**Order: G2, then G3, then G1.** G3 is built on G2's forward read, and G1 is
+the only one that touches the schema, so it goes last and alone.
+
+**What this rules out:** free-form edge types (the closed set's reason
+stands), embeddings or semantic edges, a graph query language, and a
+visualisation surface before an ARMED report asks for one.
