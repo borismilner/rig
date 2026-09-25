@@ -102,9 +102,9 @@ THE PROGRAMS, AND THE ROSTER.
 
 THE CONTINUITY RECORD - this project's memory. Writes need a seat, so
 announce first; the seat comes from your row, never from the request.
-  record_query    find records; project and kind are matched EXACTLY. START
-                  HERE ON RESUME. Deriving a brief over these rows belongs to
-                  the program that owns the project model, not to rig.
+  worknote_mine   YOUR notes, kept past a restart: START HERE ON RESUME.
+                  worknote_write adds one; worknote_about reads a record's.
+  record_query    find records; project and kind are matched EXACTLY.
   record_get / record_put / record_history   read one, write one, and every
                   version it ever had. Nothing is ever overwritten.
   record_link / record_unlink / record_refs   typed edges between records.
@@ -411,6 +411,45 @@ func New(m *meta.Server, who kernel.Principal, version string) *Server {
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, a recordGetArgs) (*mcp.CallToolResult, any, error) {
 		return answer(m.Answer(ctx, who, meta.Request{
 			Tool: meta.RecordGetTool, RecordID: a.ID, Version: a.Version,
+		}))
+	})
+
+	// Section 09's working notes. The seat is this connection's, so an agent
+	// reads back its own notes and signs its own writes, never another's.
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "worknote_write",
+		Description: "Write a working note: what you are thinking, tried, or " +
+			"decided, as you go. It is kept under your SEAT, so whoever holds " +
+			"the seat after a crash or a handoff reads it back with " +
+			"worknote_mine. Tag it freely; attach it with part_of to the work " +
+			"item or record it is about (an id that does not exist is reported " +
+			"in missing, and the note is kept). Announce first.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a workNoteWriteArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.WorkNoteWriteTool, Project: a.Project, Body: a.Body,
+			Tags: a.Tags, Fields: a.Fields, PartOf: a.PartOf,
+		}))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "worknote_mine",
+		Description: "Read back the notes YOUR SEAT wrote, newest first, " +
+			"including those from sessions that died before you. Call it first " +
+			"on resume. total counts every match, so total above the number " +
+			"returned means the answer was cut; raise limit.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a workNoteMineArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.WorkNoteMineTool, Project: a.Project, Limit: a.Limit,
+		}))
+	})
+
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "worknote_about",
+		Description: "Every agent's notes attached to one record, newest " +
+			"first: what the estate knows about a work item you are picking up.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, a workNoteAboutArgs) (*mcp.CallToolResult, any, error) {
+		return answer(m.Answer(ctx, who, meta.Request{
+			Tool: meta.WorkNoteAboutTool, RecordID: a.ID, Limit: a.Limit,
 		}))
 	})
 
@@ -896,6 +935,24 @@ type messageAckArgs struct {
 
 type messageListArgs struct {
 	Seat string `json:"seat,omitempty" jsonschema:"only messages to this seat; omit for the whole estate"`
+}
+
+type workNoteWriteArgs struct {
+	Project string            `json:"project" jsonschema:"which project's record the note lands in"`
+	Body    string            `json:"body" jsonschema:"the note itself, up to 64 KiB"`
+	Tags    []string          `json:"tags,omitempty" jsonschema:"any words to file it under, up to 16"`
+	Fields  map[string]string `json:"fields,omitempty" jsonschema:"typed fields beside the prose, such as title"`
+	PartOf  []string          `json:"part_of,omitempty" jsonschema:"ids of the records this note is about"`
+}
+
+type workNoteMineArgs struct {
+	Project string `json:"project,omitempty" jsonschema:"only this project's notes; omit for all of them, which is right on resume"`
+	Limit   int    `json:"limit,omitempty" jsonschema:"how many notes, newest first. Omit for 20; at most 200."`
+}
+
+type workNoteAboutArgs struct {
+	ID    string `json:"id" jsonschema:"the record the notes are attached to"`
+	Limit int    `json:"limit,omitempty" jsonschema:"how many notes, newest first. Omit for 20; at most 200."`
 }
 
 type knowledgeSearchArgs struct {

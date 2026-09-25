@@ -87,6 +87,12 @@ const (
 	KnowledgeGetTool    Tool = "knowledge_get"
 	KnowledgeAddTool    Tool = "knowledge_add"
 
+	// Section 09's working notes (A1-A6). `worknote` and not `note`, which is
+	// the word that left rig for docket.
+	WorkNoteWriteTool Tool = "worknote_write"
+	WorkNoteMineTool  Tool = "worknote_mine"
+	WorkNoteAboutTool Tool = "worknote_about"
+
 	// ⛔ B77's THREE, RULED BY BORIS 2026-09-17: he asked for full control over
 	// the records, so that everybody can delete, retract and replace them. His
 	// sentence verbatim is in plan/39 and in internal/record/control.go.
@@ -257,6 +263,9 @@ type Request struct {
 	Summary string
 	Tags    []string
 
+	// PartOf is worknote_write's: the records a note is attached to.
+	PartOf []string
+
 	// Mail is the five message tools' arguments, kept apart for the reason
 	// MailRequest states.
 	Mail MailRequest
@@ -422,6 +431,8 @@ func (s *Server) Answer(ctx context.Context, who kernel.Principal, r Request) (A
 		return s.progressStep(ctx, who, r)
 	case KnowledgeSearchTool, KnowledgeGetTool, KnowledgeAddTool:
 		return s.knowledge(ctx, who, r)
+	case WorkNoteWriteTool, WorkNoteMineTool, WorkNoteAboutTool:
+		return s.worknote(ctx, who, r)
 	case MessageSendTool, MessageInboxTool, MessageAwaitTool, MessageAckTool, MessageListTool:
 		return s.mail(ctx, who, r)
 	default:
