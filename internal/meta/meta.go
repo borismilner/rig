@@ -99,6 +99,15 @@ const (
 	RecordRetractTool Tool = "record_retract"
 	RecordDeleteTool  Tool = "record_delete"
 	RecordReplaceTool Tool = "record_replace"
+
+	// Section 16's directed messages, 1:1 with the wire's five verbs. Inbox and
+	// await are two tools rather than one with a wait, because an agent needs
+	// both named to know the park exists.
+	MessageSendTool  Tool = "message_send"
+	MessageInboxTool Tool = "message_inbox"
+	MessageAwaitTool Tool = "message_await"
+	MessageAckTool   Tool = "message_ack"
+	MessageListTool  Tool = "message_list"
 )
 
 // Invoker runs one declared command as one principal. The daemon implements
@@ -247,6 +256,10 @@ type Request struct {
 	Title   string
 	Summary string
 	Tags    []string
+
+	// Mail is the five message tools' arguments, kept apart for the reason
+	// MailRequest states.
+	Mail MailRequest
 }
 
 // Answer is what every meta tool returns, and what both --json and the MCP
@@ -324,6 +337,9 @@ type Answer struct {
 	// demo turns on". Nine more top-level fields would be nine more ways to
 	// build an Answer that forgot it.
 	Record *RecordAnswer
+
+	// Mail is the five message tools' payload, one pointer for Record's reason.
+	Mail *MailAnswer
 
 	// Unavailable is query's honesty, and it is not an error.
 	//
@@ -406,6 +422,8 @@ func (s *Server) Answer(ctx context.Context, who kernel.Principal, r Request) (A
 		return s.progressStep(ctx, who, r)
 	case KnowledgeSearchTool, KnowledgeGetTool, KnowledgeAddTool:
 		return s.knowledge(ctx, who, r)
+	case MessageSendTool, MessageInboxTool, MessageAwaitTool, MessageAckTool, MessageListTool:
+		return s.mail(ctx, who, r)
 	default:
 		// ⛔ THE REFUSAL ENUMERATES EVERY TOOL AND MUST KEEP DOING SO. It used
 		// to say "the seven are" and list them; a hand-kept count beside a

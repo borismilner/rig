@@ -123,18 +123,23 @@ func (b *mailbell) ring(seat string) int {
 	return b.parked[seat]
 }
 
-// mailRefusal is a refusal that carries its own wire code.
+// mailRefusalError is a refusal that carries its own wire code.
 //
 // It exists because the message core is shared by two doors: the wire needs a
 // rigv1.Code and the MCP door needs a kernel.RefusalError, and re-deriving the
 // code at each door from the sentence would be two places to get it wrong.
-type mailRefusal struct {
+type mailRefusalError struct {
 	*kernel.RefusalError
 	code rigv1.Code
 }
 
+// Unwrap exposes the RefusalError itself. Without it the embedded one's Unwrap
+// is promoted and skips straight to the inner sentence, so kernel.AsRefusal
+// finds nothing and the MCP door loses precondition, actual and fix.
+func (r *mailRefusalError) Unwrap() error { return r.RefusalError }
+
 func refuseMail(code rigv1.Code, msg, precondition, actual, fix string) error {
-	return &mailRefusal{
+	return &mailRefusalError{
 		RefusalError: &kernel.RefusalError{
 			Err: errors.New(msg), Precondition: precondition, Actual: actual, Fix: fix,
 		},
@@ -586,11 +591,16 @@ func readRequest(c *conn, f *rigv1.Frame, command string) (after uint64, limit u
 	if !readFrame(c, f, command, &req) {
 		return 0, 0, 0, false
 	}
-	wait = defaultMessageWait
-	if req.GetWaitMs() > 0 {
-		wait = min(time.Duration(req.GetWaitMs())*time.Millisecond, maxMessageWait)
+	return req.GetAfter(), req.GetLimit(), awaitWait(req.GetWaitMs()), true
+}
+
+// awaitWait turns a caller's milliseconds into a park, the same at both doors:
+// zero is the default rather than no wait, and nothing parks past the bound.
+func awaitWait(ms uint32) time.Duration {
+	if ms == 0 {
+		return defaultMessageWait
 	}
-	return req.GetAfter(), req.GetLimit(), wait, true
+	return min(time.Duration(ms)*time.Millisecond, maxMessageWait)
 }
 
 // readFrame unmarshals a request or fails the call, so five handlers do not
@@ -630,7 +640,7 @@ func refuseUnseatedMail(command, because string) error {
 
 // messageCode maps a message refusal onto the wire's codes.
 func messageCode(err error) rigv1.Code {
-	var refusal *mailRefusal
+	var refusal *mailRefusalError
 	var oversize *coord.OversizeError
 	var missing *coord.NoSuchMessageError
 	switch {

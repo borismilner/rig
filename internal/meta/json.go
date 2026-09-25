@@ -40,6 +40,7 @@ func MarshalAnswer(a Answer) ([]byte, error) {
 		EstateIdentity: estatePtrJSON(a.Identity),
 		Crew:           crewPtrJSON(a.Crew),
 		Record:         a.Record,
+		Mail:           a.Mail,
 	})
 }
 
@@ -191,6 +192,10 @@ type answerJSON struct {
 	// and rendered nothing - a route that exists and delivers empty, which is
 	// worse than an absent one because it looks built.
 	Record *RecordAnswer `json:"record,omitempty"`
+
+	// Mail is the message tools' payload, carried as it is for Record's reason:
+	// MailAnswer is already a surface type.
+	Mail *MailAnswer `json:"mail,omitempty"`
 }
 
 // estateJSON is which rig this is. Every field is emitted, empty included:
