@@ -1,0 +1,11 @@
+$ rig up --bogus
+exit 1
+--- stdout (0 bytes)
+--- stderr (173 bytes)
+flag provided but not defined: -bogus
+Usage of up:
+  -json
+    	emit JSON
+  -timeout duration
+    	how long to wait (default 30s)
+rig: flag provided but not defined: -bogus

@@ -1,0 +1,11 @@
+$ rig health --bogus
+exit 1
+--- stdout (0 bytes)
+--- stderr (177 bytes)
+flag provided but not defined: -bogus
+Usage of health:
+  -json
+    	emit JSON
+  -timeout duration
+    	how long to wait (default 30s)
+rig: flag provided but not defined: -bogus

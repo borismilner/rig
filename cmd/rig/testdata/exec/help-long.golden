@@ -1,7 +1,7 @@
 $ rig --help
 exit 0
 --- stdout (0 bytes)
---- stderr (2428 bytes)
+--- stderr (2706 bytes)
 usage: rig <command> [flags]
 
   <app> <cmd>      run a command a program declared, with its declared flags
@@ -28,6 +28,10 @@ usage: rig <command> [flags]
   restore --estate <name> <archive>
                    put an archive back onto an estate, offline; --force moves
                    the old state aside rather than deleting it
+  up [<program>...]  start declared programs (programs.json), or all of them
+  stop <program>   stop a supervised program; its history is kept
+  restart <program>  restart one; the way out of QUARANTINED
+  health [<program>...]  every declared program's state and last progress
   down             stop the daemon serving this XDG_RUNTIME_DIR
   version          print every version this build carries
   completion <sh>  a completion script for bash, zsh or fish

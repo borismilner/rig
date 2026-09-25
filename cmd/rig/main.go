@@ -201,6 +201,10 @@ func usage() {
   restore --estate <name> <archive>
                    put an archive back onto an estate, offline; --force moves
                    the old state aside rather than deleting it
+  up [<program>...]  start declared programs (programs.json), or all of them
+  stop <program>   stop a supervised program; its history is kept
+  restart <program>  restart one; the way out of QUARANTINED
+  health [<program>...]  every declared program's state and last progress
   down             stop the daemon serving this XDG_RUNTIME_DIR
   version          print every version this build carries
   completion <sh>  a completion script for bash, zsh or fish
@@ -232,6 +236,10 @@ var plainVerbs = map[string]func([]string) error{
 	"queue":     cmdQueue,
 	"notify":    cmdNotify,
 	"dnd":       cmdDND,
+	"up":        cmdUp,
+	"stop":      cmdStop,
+	"restart":   cmdRestart,
+	"health":    cmdHealth,
 }
 
 // verbAt is the index of the command word, so rig's own flags may come BEFORE
@@ -312,7 +320,8 @@ func run(args []string) error {
 		// It also happens to be the honest shape: `plan/46` specifies one
 		// capability with two halves, and this is its single seam into run.
 		return cmdBackupOrRestore(args[0], with(args[1:], lead))
-	case "peers", "knowledge", "worknote", "message", "queue", "notify", "dnd":
+	case "peers", "knowledge", "worknote", "message", "queue", "notify", "dnd",
+		"up", "stop", "restart", "health":
 		return plainVerbs[args[0]](with(args[1:], lead))
 	case "record":
 		return cmdRecord(with(args[1:], lead))

@@ -1,0 +1,5 @@
+$ rig stop
+exit 1
+--- stdout (0 bytes)
+--- stderr (31 bytes)
+rig: usage: rig stop <program>
