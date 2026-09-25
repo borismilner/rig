@@ -128,6 +128,31 @@ bugs this repository has already shipped:** a check that cannot distinguish
 "nothing is wrong" from "the check did not run". **Being told a program is
 responsive answers a question nobody asked.**
 
+### As built, 2026-09-25 (BACKLOG P3)
+
+**Declared programs** are read from `$XDG_CONFIG_HOME/rig/programs.json` (id,
+path, args, health, budget), the M4 resolver's first consumer. A bad file is
+logged and supervises nothing rather than stopping rigd. `internal/supervise`
+holds the table above, total over every (state, trigger) pair, and stays
+stdlib-only because the tray links it.
+
+| Surface | Built |
+|---|---|
+| wire | `rig.up`, `rig.stop`, `rig.restart`, `rig.health`; a program's own `rig.health.report` (marker, waiting, parked) |
+| CLI | `rig up [<program>...]`, `rig stop`, `rig restart`, `rig health`, all with `--json` |
+| the handshake | a supervised child's hello completes STARTING only when the socket's peer pid is the process rig launched; a copy run by hand registers as a program and is ignored by supervision, and its health reports are refused |
+| shutdown | rigd stops every child it started and WAITS for them, SIGKILL after the grace included, so none outlives it |
+
+**Shown live** on a private estate with `fakeapp`: a healthy program stayed
+HEALTHY on its reports; `--misbehave crash` went through two restarts at 500 ms
+and 1 s and was QUARANTINED with its full history; `--misbehave stall` went
+DEGRADED on three stalls; `rig restart` took the human row out of quarantine;
+no child survived rigd.
+
+**Not built:** the tray's own supervisor folded onto `supervise.Start`; MCP
+tools for supervision; `TestChaos`; and a child surviving a `kill -9` of rigd,
+which needs the kernel's parent-death signal and is not set.
+
 ### What survives what: the state ownership matrix
 
 **§18 promises programs "are told explicitly what was lost". That is the

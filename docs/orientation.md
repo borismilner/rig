@@ -71,6 +71,7 @@ ruled a non-goal.
 | `rig estate` | which estate this shell reached | built |
 | `rig peers` | who else is here, their purpose and activity | built |
 | `rig worknote write/mine/about` | your working notes; `mine` reads back what your seat wrote | built |
+| `rig up/stop/restart/health` | start and stop declared programs; their state and last progress | built |
 | `rig message send/list` | send a directed message to a seat; see whether it was read or acted on | built |
 | `rig record put/get/query/history/link/unlink/refs` | the record store; `query` pages under the 1 MiB frame | built |
 | `rig record retract/delete/replace` | withdraw a record (history kept), destroy one, or supersede one | built |
@@ -84,7 +85,7 @@ ruled a non-goal.
 `rig.hello`, `rig.ping`, `rig.programs`, `rig.estate`, `rig.session`,
 `rig.announce`, `rig.activity`, `rig.peers`, `rig.down`,
 `rig.record.{put,get,query,history,link,unlink,refs,replace,retract,delete}`,
-`rig.progress.step`, `rig.message.{send,inbox,await,ack,list}`, `rig.worknote.{write,mine,about}`,
+`rig.progress.step`, `rig.message.{send,inbox,await,ack,list}`, `rig.worknote.{write,mine,about}`, `rig.{up,stop,restart,health}`, `rig.health.report`,
 `rig.backup.create`, and `rig.project.brief`, which
 only refuses and names docket: rig serves every wire version it has shipped,
 so the method stays until the next major (plan/50 decision 4). Framing is protobuf behind a length
@@ -123,7 +124,7 @@ prefix on a unix socket. gRPC was measured (+9.8 MiB resident) and rejected.
 | logging, tracing, metrics | ingest, query, redaction at write time | specified (S3 drafted) | §8, §49 |
 | operator ledger | who used what, redacted | specified | §15 |
 | secrets | keyring-backed, never recorded | specified | §11 M11 |
-| supervision | start, stop, health as evidence of progress, restart budgets | partial (window supervisor only) | §18 |
+| supervision | declared programs in programs.json; start, stop, health as evidence of progress, restart budget, quarantine; `rig up/stop/restart/health` | built | §18 |
 | the window | three pane tiers: generated, kit, embedded | partial | §11 |
 | one tray | one icon for every program | built for rig itself | §11 |
 | toasts | five severities as speech bubbles at the tray's corner, an on-demand renderer, freedesktop fallback, filed in the record; `rig.notify`, `rig notify` | built (inline actions, DND, centre UI not yet) | §12 |
