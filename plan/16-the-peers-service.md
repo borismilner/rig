@@ -191,6 +191,19 @@ A session's death does not destroy it and a successor claiming that seat
 receives it. **A message queued to a session that has no seat dies with the
 session, and the sender is told so** rather than the message expiring silently.
 
+**As built, 2026-09-25 (directed messages, BACKLOG P1).** Five verbs on the wire,
+`rig.message.send`, `.inbox`, `.await`, `.ack` and `.list`, served by the MCP door
+as `message_send`, `_inbox`, `_await`, `_ack`, `_list`, and at the prompt as
+`rig message send` and `rig message list`. The five states above, the cursor with
+`gap`, and a stated payload bound are built. A send may pin **generation AND
+epoch**, because the generation counter restarts with the daemon; a stale pin is
+refused, and a message whose seat turned over before it was read comes back
+flagged `misaddressed` to the reader and in `list`. A send to `HANDING_OFF` is
+held for the successor. **Not built:** topic families, the rider, and
+`ORPHANED`, since presence has no witness yet. A seat's generation is the
+daemon's counter, not a lineage a successor can prove. A terminal can send
+(the daemon names it) but has no inbox.
+
 #### 3. Seats, generations, and `HANDING_OFF` as a published state
 
 **This is the one place rig overtakes AgentBox rather than catching up, because

@@ -244,6 +244,7 @@ func TestTheBinary(t *testing.T) {
 		{name: "estate-refuses-a-positional", argv: []string{"estate", "somewhere"}},
 		{name: "knowledge-needs-a-subcommand", argv: []string{"knowledge"}},
 		{name: "worknote-needs-a-subcommand", argv: []string{"worknote"}},
+		{name: "message-needs-a-subcommand", argv: []string{"message"}},
 		{name: "queue-needs-a-subcommand", argv: []string{"queue"}},
 		{name: "notify-refuses-an-unknown-severity", argv: []string{"notify", "loud", "x"}},
 		{name: "dnd-needs-on-off-or-status", argv: []string{"dnd", "maybe"}},

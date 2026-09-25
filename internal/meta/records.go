@@ -243,6 +243,8 @@ func allToolNames() []string {
 		string(RecordRefsTool), string(ProgressStepTool),
 		string(RecordRetractTool), string(RecordDeleteTool), string(RecordReplaceTool),
 		string(KnowledgeSearchTool), string(KnowledgeGetTool), string(KnowledgeAddTool),
+		string(MessageSendTool), string(MessageInboxTool), string(MessageAwaitTool),
+		string(MessageAckTool), string(MessageListTool),
 	}
 }
 

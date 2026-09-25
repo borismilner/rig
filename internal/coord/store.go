@@ -66,6 +66,23 @@ var (
 	bucketLeases = []byte("leases")
 	bucketQueues = []byte("queues")
 
+	// bucketMessages holds ONE SUB-BUCKET PER RECIPIENT SEAT, keyed by the
+	// estate-wide message id. The nesting is what makes "this seat's mail
+	// after this cursor" a seek rather than a scan of everybody's, and it is
+	// what lets retention be per seat so a chatty pair cannot evict a quiet
+	// seat's unread mail.
+	//
+	// The root bucket's own SEQUENCE is the estate-wide message counter. It
+	// is durable, so a cursor survives a restart - which a counter in memory
+	// would not, and section 16 requires a queued message to outlive the
+	// session it was addressed to.
+	bucketMessages = []byte("messages")
+
+	// bucketMsgMeta records, per seat, the highest id retention has dropped.
+	// It is separate from the queues because it must not be confused with a
+	// message: every key inside a queue is an 8-byte id and nothing else.
+	bucketMsgMeta = []byte("messages_meta")
+
 	keySchema = []byte("schema")
 	keyEpoch  = []byte("epoch")
 	keyBootID = []byte("boot_id")
@@ -174,6 +191,23 @@ func (s *Store) start() error {
 		// that predates it opens this store and never looks inside it.
 		if _, err := tx.CreateBucketIfNotExists(bucketQueues); err != nil {
 			return fmt.Errorf("coord: queues bucket: %w", err)
+		}
+
+		// THE MESSAGE BUCKETS ARE CREATED HERE AND THE SCHEMA VERSION DOES
+		// NOT MOVE FOR THEM, which is a decision rather than an omission.
+		// SchemaVersion exists to stop a rigd opening a store whose LAYOUT it
+		// cannot read, and a store that gained a bucket is not that: an older
+		// rigd opening this store finds every lease and every meta key
+		// exactly where it left them and simply never looks in here. Bumping
+		// would make every older binary refuse a store it can read perfectly,
+		// which is the damage FutureSchemaError exists to prevent rather than
+		// to cause. A CHANGE TO THE SHAPE OF WHAT IS STORED INSIDE THESE
+		// BUCKETS IS THE OPPOSITE CASE AND MUST BUMP IT.
+		if _, err := tx.CreateBucketIfNotExists(bucketMessages); err != nil {
+			return fmt.Errorf("coord: messages bucket: %w", err)
+		}
+		if _, err := tx.CreateBucketIfNotExists(bucketMsgMeta); err != nil {
+			return fmt.Errorf("coord: messages meta bucket: %w", err)
 		}
 
 		if raw := meta.Get(keySchema); raw == nil {

@@ -1,0 +1,5 @@
+$ rig message
+exit 1
+--- stdout (0 bytes)
+--- stderr (101 bytes)
+rig: usage: rig message send <seat> <subject...> [--body B] [--generation G --epoch E] | list [seat]

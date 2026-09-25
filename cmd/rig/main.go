@@ -104,7 +104,9 @@ var valuedFlags = map[string]bool{
 	"part-of": true,
 	// rig queue (section 16).
 	"payload": true,
-	"depth":   true,
+	// rig message send's pin (section 16).
+	"generation": true, "epoch": true,
+	"depth": true,
 
 	// Section 39's record verbs. Every one of these is a flag `rig record`,
 	// `rig progress` or `rig brief` declares as a non-boolean, and a missing
@@ -186,6 +188,8 @@ func usage() {
   knowledge <cmd>  lessons other sessions learned: search, get, add
   worknote <cmd>   your own working notes, kept past this session: write,
                    mine, about
+  message <cmd>    directed messages to a seat: send, and list what became
+                   of them
   queue <cmd>      claimable work queues: push, list
   notify <sev> <title>  a toast at the tray: info, success, warning, error, urgent
   dnd on|off|status  do not disturb: toasts go to the record only, urgent still shows
@@ -224,6 +228,7 @@ var plainVerbs = map[string]func([]string) error{
 	"peers":     cmdPeers,
 	"knowledge": cmdKnowledge,
 	"worknote":  cmdWorkNote,
+	"message":   cmdMessage,
 	"queue":     cmdQueue,
 	"notify":    cmdNotify,
 	"dnd":       cmdDND,
@@ -307,7 +312,7 @@ func run(args []string) error {
 		// It also happens to be the honest shape: `plan/46` specifies one
 		// capability with two halves, and this is its single seam into run.
 		return cmdBackupOrRestore(args[0], with(args[1:], lead))
-	case "peers", "knowledge", "worknote", "queue", "notify", "dnd":
+	case "peers", "knowledge", "worknote", "message", "queue", "notify", "dnd":
 		return plainVerbs[args[0]](with(args[1:], lead))
 	case "record":
 		return cmdRecord(with(args[1:], lead))

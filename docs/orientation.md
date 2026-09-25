@@ -70,6 +70,7 @@ ruled a non-goal.
 | `rig ping <program>` | round trip through rigd | built |
 | `rig estate` | which estate this shell reached | built |
 | `rig peers` | who else is here, their purpose and activity | built |
+| `rig message send/list` | send a directed message to a seat; see whether it was read or acted on | built |
 | `rig record put/get/query/history/link/unlink/refs` | the record store; `query` pages under the 1 MiB frame | built |
 | `rig record retract/delete/replace` | withdraw a record (history kept), destroy one, or supersede one | built |
 | `rig progress step <item>` | append one step to a work item's stream | built |
@@ -82,7 +83,8 @@ ruled a non-goal.
 `rig.hello`, `rig.ping`, `rig.programs`, `rig.estate`, `rig.session`,
 `rig.announce`, `rig.activity`, `rig.peers`, `rig.down`,
 `rig.record.{put,get,query,history,link,unlink,refs,replace,retract,delete}`,
-`rig.progress.step`, `rig.backup.create`, and `rig.project.brief`, which
+`rig.progress.step`, `rig.message.{send,inbox,await,ack,list}`,
+`rig.backup.create`, and `rig.project.brief`, which
 only refuses and names docket: rig serves every wire version it has shipped,
 so the method stays until the next major (plan/50 decision 4). Framing is protobuf behind a length
 prefix on a unix socket. gRPC was measured (+9.8 MiB resident) and rejected.
@@ -94,6 +96,7 @@ prefix on a unix socket. gRPC was measured (+9.8 MiB resident) and rejected.
 | `list`, `describe`, `invoke`, `query` | the four meta tools: reach every command of every program without loading 300 definitions | built |
 | `capabilities` | the capability map | built |
 | `announce`, `set_activity`, `list_agents` | presence | built |
+| `message_send/inbox/await/ack/list` | directed messages to a seat | built |
 | `record_put/get/query/history/link/unlink/refs/replace/retract/delete`, `progress_step` | the record store | built |
 | promoted tools | individual commands raised to first-class tools | specified |
 
@@ -110,6 +113,7 @@ prefix on a unix socket. gRPC was measured (+9.8 MiB resident) and rejected.
 | leases with a liveness witness | TTL leases, pid witness, two-step expiry; `rig.lease.*` on the wire, listed by `rig peers` | built | §16 |
 | claimable work queues | claim under a lease, heartbeat, requeue once the worker is observed dead, mandatory idempotency key, at-least-once; `rig.queue.*`, `rig queue push/list`, `examples/queueworker` | built | §16 |
 | fencing tokens | monotonic per lease; `rig.lease.check` lets a resource refuse a stale one; queue completion is fenced | built | §16 |
+| directed messages | durable per seat, five states to acted-on, cursor with gap, generation+epoch pin, misaddressed flag, held for a successor; `rig.message.*`, `message_*` MCP tools, `rig message` | built | §16 |
 | barriers, semaphores, signals, deadlock detection | the rest of the peers service | specified | §16 |
 | working notes for agents | never lost, tagged, linked, handed back on resume | specified | §9 |
 | knowledge-sharing section | lessons written once, searched with SQLite FTS5 so an agent never reads them whole; `rig.knowledge.*`, `knowledge_*` MCP tools, `rig knowledge` | built | §40 |
