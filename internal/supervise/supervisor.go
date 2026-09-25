@@ -409,16 +409,45 @@ func (s *Supervisor) stopChild(p *program) {
 
 // StopAll ends every running child. Shutdown, section 18: "Programs rig did
 // not start are never killed" - so this only reaches what launch started.
+//
+// ⛔ IT WAITS FOR THEM, AND THAT IS THE WHOLE DIFFERENCE FROM Stop. Stop's
+// SIGKILL half runs in a goroutine, so a caller that returns and exits the
+// process takes the goroutine with it, and a child that ignored SIGTERM
+// outlives rigd with nobody left to kill it. The wait is outside the lock, so
+// a health read during shutdown is answered, and bounded by the grace plus a
+// second so a child that cannot be reaped does not hold rigd open.
 func (s *Supervisor) StopAll() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	now := s.now()
+	var ending []Process
 	for _, id := range s.order {
-		if p := s.programs[id]; p.state != StateUnspecified {
-			s.halt(p, now, "rig is shutting down")
+		p := s.programs[id]
+		if p.state == StateUnspecified {
+			continue
+		}
+		if p.proc != nil {
+			ending = append(ending, p.proc)
+		}
+		s.halt(p, now, "rig is shutting down")
+	}
+	s.mu.Unlock()
+	deadline := time.After(s.grace + time.Second)
+	for _, proc := range ending {
+		e, ok := proc.(ender)
+		if !ok {
+			continue
+		}
+		select {
+		case <-e.Ended():
+		case <-deadline:
+			return
 		}
 	}
 }
+
+// ender is a Process that can say when it has actually gone. The real child
+// can; a test's stand-in need not.
+type ender interface{ Ended() <-chan struct{} }
 
 // Observe records what a program said about its own progress. It never moves
 // a state by itself: the marker is evidence, and the judging happens on the
@@ -514,8 +543,14 @@ func (p *program) status() Status {
 		ID: p.spec.ID, State: p.state, Since: p.since,
 		Failures: p.failures, Restarts: len(p.restarts),
 		Marker: p.report.Marker, Waiting: p.report.Waiting, Parked: p.report.Parked,
-		LastExit: p.lastExit, NextAttempt: p.readyAt,
-		History: append([]Event(nil), p.history...),
+		LastExit: p.lastExit,
+		History:  append([]Event(nil), p.history...),
+	}
+	// Only a backoff has a next attempt. readyAt outlives the backoff that
+	// set it, and a QUARANTINED row showing one tells a human rig will try
+	// again when it will not.
+	if p.state == StateRestarting {
+		st.NextAttempt = p.readyAt
 	}
 	if p.proc != nil {
 		st.PID = p.proc.PID()

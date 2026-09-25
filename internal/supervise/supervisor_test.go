@@ -490,6 +490,9 @@ func TestTheRestartBudgetDoublesThenQuarantinesWithItsHistory(t *testing.T) {
 	if !sawExhausted {
 		t.Error("the quarantine row does not say the budget is what ran out")
 	}
+	if !st.NextAttempt.IsZero() {
+		t.Errorf("a quarantined program shows a next attempt at %v; rig will not try again", st.NextAttempt)
+	}
 }
 
 // THE BACKOFF IS CAPPED, which is what keeps a program that fails all night

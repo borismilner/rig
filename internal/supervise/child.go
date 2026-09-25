@@ -263,6 +263,9 @@ type childProcess struct {
 	once sync.Once
 }
 
+// Ended closes once the child has been reaped.
+func (c *childProcess) Ended() <-chan struct{} { return c.done }
+
 func (c *childProcess) PID() int {
 	if c.cmd.Process == nil {
 		return 0

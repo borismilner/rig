@@ -1,10 +1,12 @@
 package supervise
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -184,5 +186,30 @@ func TestStopKillsAChildThatIgnoresSIGTERM(t *testing.T) {
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("a child that ignores SIGTERM was never killed")
+	}
+}
+
+// StopAll returns only once its children are gone, a stubborn one included:
+// rigd exits straight after it, and a SIGKILL still pending in a goroutine
+// dies with rigd and leaves the child running with nobody to kill it.
+func TestStopAllLeavesNoChildBehind(t *testing.T) {
+	dir := t.TempDir()
+	script := filepath.Join(dir, "stubborn.sh")
+	body := "#!/bin/sh\ntrap '' TERM\nwhile true; do sleep 0.05; done\n"
+	if err := os.WriteFile(script, []byte(body), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	sup := New(Options{StopGrace: 200 * time.Millisecond})
+	if err := sup.Declare([]Spec{{ID: "stubborn", Path: script}}); err != nil {
+		t.Fatal(err)
+	}
+	st, err := sup.Up("stubborn")
+	if err != nil || st[0].PID <= 0 {
+		t.Fatalf("up: %v %+v", err, st)
+	}
+	pid := st[0].PID
+	sup.StopAll()
+	if err := syscall.Kill(pid, 0); !errors.Is(err, syscall.ESRCH) {
+		t.Fatalf("pid %d is still there after StopAll returned (kill 0: %v)", pid, err)
 	}
 }
