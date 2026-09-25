@@ -129,3 +129,7 @@ if a consult ever costs more than a tenth of the lesson.
 **Not settled by this.** B28's store search has still not been run, so FTS5 is
 the working index rather than a verdict against B28. If B28 finds a better
 engine, the index moves behind the same three verbs.
+
+**Lessons join the record graph (§39, "The record graph, completed", G1,
+2026-09-25).** A lesson becomes a valid end of an edge, so it can cite the
+work it came from. The FTS5 index is unchanged.
