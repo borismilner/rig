@@ -2,7 +2,9 @@ package daemon
 
 import (
 	"context"
+	"errors"
 
+	"github.com/borismilner/rig/internal/kernel"
 	"github.com/borismilner/rig/internal/meta"
 	"github.com/borismilner/rig/internal/worknote"
 )
@@ -36,7 +38,7 @@ func (m *mcpCaller) MyNotes(ctx context.Context, project string, limit int) (met
 	if err != nil {
 		return meta.WorkNoteList{}, err
 	}
-	_, seat, _, err := m.writer()
+	seat, err := m.noteReader()
 	if err != nil {
 		return meta.WorkNoteList{}, err
 	}
@@ -52,7 +54,7 @@ func (m *mcpCaller) NotesAbout(ctx context.Context, id string, limit int) (meta.
 	if err != nil {
 		return meta.WorkNoteList{}, err
 	}
-	if _, _, _, err := m.writer(); err != nil {
+	if _, err := m.noteReader(); err != nil {
 		return meta.WorkNoteList{}, err
 	}
 	got, err := worknote.About(ctx, st, worknote.AboutRequest{ID: id, Limit: limit})
@@ -60,6 +62,22 @@ func (m *mcpCaller) NotesAbout(ctx context.Context, id string, limit int) (meta.
 		return meta.WorkNoteList{}, err
 	}
 	return noteListOf(got), nil
+}
+
+// noteReader is writer's seat check for the two reads, worded as a read: an
+// agent told "a record write needs a seat" after asking for its notes learns
+// the wrong model of the verb.
+func (m *mcpCaller) noteReader() (string, error) {
+	occ, found := m.presence.occupantOf(m.occ)
+	if !found || occ.seat == "" {
+		return "", &kernel.RefusalError{
+			Err:          errors.New("reading working notes needs a seat"),
+			Precondition: "worknote_mine is what YOUR seat wrote, and the seat comes from your roster row rather than from the request",
+			Actual:       "this connection holds no seat",
+			Fix:          "call announce with your seat name first, and wait for its answer",
+		}
+	}
+	return occ.seat, nil
 }
 
 func noteOf(n worknote.Note) meta.WorkNote {

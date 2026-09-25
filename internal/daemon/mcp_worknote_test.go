@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"strings"
 	"testing"
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -33,6 +34,10 @@ func TestWorkingNotesComeBackToTheSeatThroughTheMCPDoor(t *testing.T) {
 	})
 	if refused["fix"] == "" {
 		t.Fatalf("an unseated note was not refused with a fix: %v", refused)
+	}
+	unread := refusedTool(ctx, t, first, "worknote_mine", map[string]any{})
+	if !strings.Contains(unread["error"], "reading working notes") {
+		t.Fatalf("an unseated read was refused as if it were a write: %v", unread)
 	}
 	callTool(ctx, t, first, "announce", map[string]any{"seat": "backend-1", "purpose": "building"})
 	callTool(ctx, t, first, "record_put", map[string]any{
