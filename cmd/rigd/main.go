@@ -21,6 +21,7 @@ import (
 	"github.com/borismilner/rig/internal/daemon"
 	"github.com/borismilner/rig/internal/instance"
 	"github.com/borismilner/rig/internal/paths"
+	"github.com/borismilner/rig/internal/supervise"
 )
 
 // Set by the Makefile's ldflags.
@@ -257,6 +258,8 @@ func run() error {
 	log.Info("rigd up", "version", version, "wire", wire,
 		"socket", sockPath, "mcp", mcpSockPath, "pid", os.Getpid())
 
+	sup := supervisor(log)
+
 	// Config carries the lock, so this cannot compile without having taken it.
 	d, err := daemon.New(daemon.Config{
 		Version: version,
@@ -266,6 +269,8 @@ func run() error {
 		Log:     log,
 		Lock:    lock,
 		Leases:  leases,
+
+		Supervisor: sup,
 	})
 	if err != nil {
 		return err
@@ -285,14 +290,50 @@ func run() error {
 		}
 	}()
 
+	// The supervisor stops with Serve for the MCP surface's reason, and its
+	// Run stops every child it started on the way out: section 18, "programs
+	// rig did not start are never killed", and the ones it did start do not
+	// outlive it.
+	//rig:allow nocontextfree: this context bounds the supervisor's whole life, as the MCP surface's does
+	supCtx, stopSup := context.WithCancel(ctx)
+	defer stopSup()
+	supDone := make(chan struct{})
+	go func() { defer close(supDone); sup.Run(supCtx) }()
+
 	if err := d.Serve(ctx, l); err != nil {
+		stopSup()
+		<-supDone
 		return err
 	}
+	stopSup()
+	<-supDone
 	stopMCP()
 	<-mcpDone
 	closeDaemon(d, log)
 	log.Info("rigd down")
 	return nil
+}
+
+// supervisor builds section 18's supervisor over programs.json.
+//
+// ⛔ A BAD programs.json IS LOGGED, NOT FATAL. Refusing to start would take
+// the whole estate down over one typo in a file that only lists what MAY run;
+// the file's error is in the log and rig health answers with nothing
+// declared, which is visibly wrong rather than silently so.
+func supervisor(log *slog.Logger) *supervise.Supervisor {
+	sup := supervise.New(supervise.Options{})
+	specs, err := supervise.LoadDefault()
+	if err == nil {
+		err = sup.Declare(specs)
+	}
+	if err != nil {
+		log.Error("no programs are supervised: programs.json was refused", "err", err)
+		return sup
+	}
+	if len(specs) > 0 {
+		log.Info("programs declared", "count", len(specs), "ids", sup.Declared())
+	}
+	return sup
 }
 
 // closeDaemon releases the daemon's record store once both surfaces have

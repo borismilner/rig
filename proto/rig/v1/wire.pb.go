@@ -1586,6 +1586,107 @@ func (x *CallResponse) GetResult() []byte {
 	return nil
 }
 
+type HealthReportRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Advances when the program does something. What it counts is the
+	// program's business; that it MOVED is rig's.
+	Marker uint64 `protobuf:"varint,1,opt,name=marker,proto3" json:"marker,omitempty"`
+	// What it is blocked on, in words a human reads. Empty means not blocked,
+	// which is what makes idle unhealthy rather than restful.
+	Waiting string `protobuf:"bytes,2,opt,name=waiting,proto3" json:"waiting,omitempty"`
+	// The question nobody has seen yet. Neither progress nor fault.
+	Parked        string `protobuf:"bytes,3,opt,name=parked,proto3" json:"parked,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HealthReportRequest) Reset() {
+	*x = HealthReportRequest{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HealthReportRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HealthReportRequest) ProtoMessage() {}
+
+func (x *HealthReportRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HealthReportRequest.ProtoReflect.Descriptor instead.
+func (*HealthReportRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *HealthReportRequest) GetMarker() uint64 {
+	if x != nil {
+		return x.Marker
+	}
+	return 0
+}
+
+func (x *HealthReportRequest) GetWaiting() string {
+	if x != nil {
+		return x.Waiting
+	}
+	return ""
+}
+
+func (x *HealthReportRequest) GetParked() string {
+	if x != nil {
+		return x.Parked
+	}
+	return ""
+}
+
+type HealthReportResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HealthReportResponse) Reset() {
+	*x = HealthReportResponse{}
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HealthReportResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HealthReportResponse) ProtoMessage() {}
+
+func (x *HealthReportResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_wire_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HealthReportResponse.ProtoReflect.Descriptor instead.
+func (*HealthReportResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{13}
+}
+
 var File_proto_rig_v1_wire_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_wire_proto_rawDesc = "" +
@@ -1672,7 +1773,12 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\vCallRequest\x12\x12\n" +
 	"\x04args\x18\x01 \x01(\fR\x04args\"&\n" +
 	"\fCallResponse\x12\x16\n" +
-	"\x06result\x18\x01 \x01(\fR\x06result*\xbc\x01\n" +
+	"\x06result\x18\x01 \x01(\fR\x06result\"_\n" +
+	"\x13HealthReportRequest\x12\x16\n" +
+	"\x06marker\x18\x01 \x01(\x04R\x06marker\x12\x18\n" +
+	"\awaiting\x18\x02 \x01(\tR\awaiting\x12\x16\n" +
+	"\x06parked\x18\x03 \x01(\tR\x06parked\"\x16\n" +
+	"\x14HealthReportResponse*\xbc\x01\n" +
 	"\tFrameKind\x12\x1a\n" +
 	"\x16FRAME_KIND_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12FRAME_KIND_REQUEST\x10\x01\x12\x17\n" +
@@ -1732,27 +1838,29 @@ func file_proto_rig_v1_wire_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
-var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_proto_rig_v1_wire_proto_goTypes = []any{
-	(FrameKind)(0),          // 0: rig.v1.FrameKind
-	(Code)(0),               // 1: rig.v1.Code
-	(Coverage)(0),           // 2: rig.v1.Coverage
-	(Effects)(0),            // 3: rig.v1.Effects
-	(Duration)(0),           // 4: rig.v1.Duration
-	(Shape)(0),              // 5: rig.v1.Shape
-	(Tristate)(0),           // 6: rig.v1.Tristate
-	(*Status)(nil),          // 7: rig.v1.Status
-	(*Frame)(nil),           // 8: rig.v1.Frame
-	(*HelloRequest)(nil),    // 9: rig.v1.HelloRequest
-	(*HelloResponse)(nil),   // 10: rig.v1.HelloResponse
-	(*PingRequest)(nil),     // 11: rig.v1.PingRequest
-	(*PingResponse)(nil),    // 12: rig.v1.PingResponse
-	(*Identity)(nil),        // 13: rig.v1.Identity
-	(*SensitiveFields)(nil), // 14: rig.v1.SensitiveFields
-	(*Command)(nil),         // 15: rig.v1.Command
-	(*Declaration)(nil),     // 16: rig.v1.Declaration
-	(*CallRequest)(nil),     // 17: rig.v1.CallRequest
-	(*CallResponse)(nil),    // 18: rig.v1.CallResponse
+	(FrameKind)(0),               // 0: rig.v1.FrameKind
+	(Code)(0),                    // 1: rig.v1.Code
+	(Coverage)(0),                // 2: rig.v1.Coverage
+	(Effects)(0),                 // 3: rig.v1.Effects
+	(Duration)(0),                // 4: rig.v1.Duration
+	(Shape)(0),                   // 5: rig.v1.Shape
+	(Tristate)(0),                // 6: rig.v1.Tristate
+	(*Status)(nil),               // 7: rig.v1.Status
+	(*Frame)(nil),                // 8: rig.v1.Frame
+	(*HelloRequest)(nil),         // 9: rig.v1.HelloRequest
+	(*HelloResponse)(nil),        // 10: rig.v1.HelloResponse
+	(*PingRequest)(nil),          // 11: rig.v1.PingRequest
+	(*PingResponse)(nil),         // 12: rig.v1.PingResponse
+	(*Identity)(nil),             // 13: rig.v1.Identity
+	(*SensitiveFields)(nil),      // 14: rig.v1.SensitiveFields
+	(*Command)(nil),              // 15: rig.v1.Command
+	(*Declaration)(nil),          // 16: rig.v1.Declaration
+	(*CallRequest)(nil),          // 17: rig.v1.CallRequest
+	(*CallResponse)(nil),         // 18: rig.v1.CallResponse
+	(*HealthReportRequest)(nil),  // 19: rig.v1.HealthReportRequest
+	(*HealthReportResponse)(nil), // 20: rig.v1.HealthReportResponse
 }
 var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	1,  // 0: rig.v1.Status.code:type_name -> rig.v1.Code
@@ -1789,7 +1897,7 @@ func file_proto_rig_v1_wire_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_wire_proto_rawDesc), len(file_proto_rig_v1_wire_proto_rawDesc)),
 			NumEnums:      7,
-			NumMessages:   12,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

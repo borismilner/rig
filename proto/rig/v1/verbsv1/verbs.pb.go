@@ -608,6 +608,72 @@ func (MessageState) EnumDescriptor() ([]byte, []int) {
 	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{8}
 }
 
+// ProgramState is section 18's table, and "this is the set. There are no
+// others". A program rig is not running is ABSENT from the answer's state,
+// which is the table's `-`, rather than a sixth state called stopped.
+type ProgramState int32
+
+const (
+	ProgramState_PROGRAM_STATE_UNSPECIFIED ProgramState = 0
+	// Launched, handshake not yet completed.
+	ProgramState_PROGRAM_STATE_STARTING ProgramState = 1
+	// Registered, and showing evidence of progress.
+	ProgramState_PROGRAM_STATE_HEALTHY ProgramState = 2
+	// Reachable, and failing its health definition.
+	ProgramState_PROGRAM_STATE_DEGRADED ProgramState = 3
+	// Inside the restart budget, backing off.
+	ProgramState_PROGRAM_STATE_RESTARTING ProgramState = 4
+	// Out of budget, or failed registration. Stays until a human acts.
+	ProgramState_PROGRAM_STATE_QUARANTINED ProgramState = 5
+)
+
+// Enum value maps for ProgramState.
+var (
+	ProgramState_name = map[int32]string{
+		0: "PROGRAM_STATE_UNSPECIFIED",
+		1: "PROGRAM_STATE_STARTING",
+		2: "PROGRAM_STATE_HEALTHY",
+		3: "PROGRAM_STATE_DEGRADED",
+		4: "PROGRAM_STATE_RESTARTING",
+		5: "PROGRAM_STATE_QUARANTINED",
+	}
+	ProgramState_value = map[string]int32{
+		"PROGRAM_STATE_UNSPECIFIED": 0,
+		"PROGRAM_STATE_STARTING":    1,
+		"PROGRAM_STATE_HEALTHY":     2,
+		"PROGRAM_STATE_DEGRADED":    3,
+		"PROGRAM_STATE_RESTARTING":  4,
+		"PROGRAM_STATE_QUARANTINED": 5,
+	}
+)
+
+func (x ProgramState) Enum() *ProgramState {
+	p := new(ProgramState)
+	*p = x
+	return p
+}
+
+func (x ProgramState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ProgramState) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_rig_v1_verbs_proto_enumTypes[9].Descriptor()
+}
+
+func (ProgramState) Type() protoreflect.EnumType {
+	return &file_proto_rig_v1_verbs_proto_enumTypes[9]
+}
+
+func (x ProgramState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ProgramState.Descriptor instead.
+func (ProgramState) EnumDescriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{9}
+}
+
 type DescribeRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The program to describe. Required.
@@ -8060,6 +8126,586 @@ func (x *MessageListResponse) GetMessages() []*Message {
 	return nil
 }
 
+// ProgramEvent is one row of a program's history, which section 18 requires
+// survive into quarantine.
+type ProgramEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AtUnixNano    int64                  `protobuf:"varint,1,opt,name=at_unix_nano,json=atUnixNano,proto3" json:"at_unix_nano,omitempty"`
+	From          ProgramState           `protobuf:"varint,2,opt,name=from,proto3,enum=rig.v1.ProgramState" json:"from,omitempty"`
+	To            ProgramState           `protobuf:"varint,3,opt,name=to,proto3,enum=rig.v1.ProgramState" json:"to,omitempty"`
+	Trigger       string                 `protobuf:"bytes,4,opt,name=trigger,proto3" json:"trigger,omitempty"`
+	Actor         string                 `protobuf:"bytes,5,opt,name=actor,proto3" json:"actor,omitempty"`
+	Note          string                 `protobuf:"bytes,6,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProgramEvent) Reset() {
+	*x = ProgramEvent{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[107]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProgramEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProgramEvent) ProtoMessage() {}
+
+func (x *ProgramEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[107]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProgramEvent.ProtoReflect.Descriptor instead.
+func (*ProgramEvent) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{107}
+}
+
+func (x *ProgramEvent) GetAtUnixNano() int64 {
+	if x != nil {
+		return x.AtUnixNano
+	}
+	return 0
+}
+
+func (x *ProgramEvent) GetFrom() ProgramState {
+	if x != nil {
+		return x.From
+	}
+	return ProgramState_PROGRAM_STATE_UNSPECIFIED
+}
+
+func (x *ProgramEvent) GetTo() ProgramState {
+	if x != nil {
+		return x.To
+	}
+	return ProgramState_PROGRAM_STATE_UNSPECIFIED
+}
+
+func (x *ProgramEvent) GetTrigger() string {
+	if x != nil {
+		return x.Trigger
+	}
+	return ""
+}
+
+func (x *ProgramEvent) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+func (x *ProgramEvent) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+type ProgramHealth struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// UNSPECIFIED means declared and not running: the table's `-`.
+	State         ProgramState `protobuf:"varint,2,opt,name=state,proto3,enum=rig.v1.ProgramState" json:"state,omitempty"`
+	Pid           int32        `protobuf:"varint,3,opt,name=pid,proto3" json:"pid,omitempty"`
+	SinceUnixNano int64        `protobuf:"varint,4,opt,name=since_unix_nano,json=sinceUnixNano,proto3" json:"since_unix_nano,omitempty"`
+	Failures      uint32       `protobuf:"varint,5,opt,name=failures,proto3" json:"failures,omitempty"`
+	Restarts      uint32       `protobuf:"varint,6,opt,name=restarts,proto3" json:"restarts,omitempty"`
+	// The program's own last report, unchanged. `parked` especially: it is
+	// neither healthy nor a fault, and the only action that helps is showing it.
+	Marker  uint64 `protobuf:"varint,7,opt,name=marker,proto3" json:"marker,omitempty"`
+	Waiting string `protobuf:"bytes,8,opt,name=waiting,proto3" json:"waiting,omitempty"`
+	Parked  string `protobuf:"bytes,9,opt,name=parked,proto3" json:"parked,omitempty"`
+	// How the last child ended, empty if none ever has.
+	LastExit string `protobuf:"bytes,10,opt,name=last_exit,json=lastExit,proto3" json:"last_exit,omitempty"`
+	// When the backoff elapses; zero unless RESTARTING.
+	NextAttemptUnixNano int64           `protobuf:"varint,11,opt,name=next_attempt_unix_nano,json=nextAttemptUnixNano,proto3" json:"next_attempt_unix_nano,omitempty"`
+	History             []*ProgramEvent `protobuf:"bytes,12,rep,name=history,proto3" json:"history,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *ProgramHealth) Reset() {
+	*x = ProgramHealth{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[108]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProgramHealth) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProgramHealth) ProtoMessage() {}
+
+func (x *ProgramHealth) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[108]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProgramHealth.ProtoReflect.Descriptor instead.
+func (*ProgramHealth) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{108}
+}
+
+func (x *ProgramHealth) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ProgramHealth) GetState() ProgramState {
+	if x != nil {
+		return x.State
+	}
+	return ProgramState_PROGRAM_STATE_UNSPECIFIED
+}
+
+func (x *ProgramHealth) GetPid() int32 {
+	if x != nil {
+		return x.Pid
+	}
+	return 0
+}
+
+func (x *ProgramHealth) GetSinceUnixNano() int64 {
+	if x != nil {
+		return x.SinceUnixNano
+	}
+	return 0
+}
+
+func (x *ProgramHealth) GetFailures() uint32 {
+	if x != nil {
+		return x.Failures
+	}
+	return 0
+}
+
+func (x *ProgramHealth) GetRestarts() uint32 {
+	if x != nil {
+		return x.Restarts
+	}
+	return 0
+}
+
+func (x *ProgramHealth) GetMarker() uint64 {
+	if x != nil {
+		return x.Marker
+	}
+	return 0
+}
+
+func (x *ProgramHealth) GetWaiting() string {
+	if x != nil {
+		return x.Waiting
+	}
+	return ""
+}
+
+func (x *ProgramHealth) GetParked() string {
+	if x != nil {
+		return x.Parked
+	}
+	return ""
+}
+
+func (x *ProgramHealth) GetLastExit() string {
+	if x != nil {
+		return x.LastExit
+	}
+	return ""
+}
+
+func (x *ProgramHealth) GetNextAttemptUnixNano() int64 {
+	if x != nil {
+		return x.NextAttemptUnixNano
+	}
+	return 0
+}
+
+func (x *ProgramHealth) GetHistory() []*ProgramEvent {
+	if x != nil {
+		return x.History
+	}
+	return nil
+}
+
+// UpRequest starts declared programs. No ids means every declared program.
+// Idempotent: a program already running is answered, not started twice.
+type UpRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Programs      []string               `protobuf:"bytes,1,rep,name=programs,proto3" json:"programs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpRequest) Reset() {
+	*x = UpRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[109]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpRequest) ProtoMessage() {}
+
+func (x *UpRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[109]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpRequest.ProtoReflect.Descriptor instead.
+func (*UpRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{109}
+}
+
+func (x *UpRequest) GetPrograms() []string {
+	if x != nil {
+		return x.Programs
+	}
+	return nil
+}
+
+type UpResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Programs      []*ProgramHealth       `protobuf:"bytes,1,rep,name=programs,proto3" json:"programs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpResponse) Reset() {
+	*x = UpResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[110]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpResponse) ProtoMessage() {}
+
+func (x *UpResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[110]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpResponse.ProtoReflect.Descriptor instead.
+func (*UpResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{110}
+}
+
+func (x *UpResponse) GetPrograms() []*ProgramHealth {
+	if x != nil {
+		return x.Programs
+	}
+	return nil
+}
+
+type StopRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Program       string                 `protobuf:"bytes,1,opt,name=program,proto3" json:"program,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StopRequest) Reset() {
+	*x = StopRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[111]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StopRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StopRequest) ProtoMessage() {}
+
+func (x *StopRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[111]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StopRequest.ProtoReflect.Descriptor instead.
+func (*StopRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{111}
+}
+
+func (x *StopRequest) GetProgram() string {
+	if x != nil {
+		return x.Program
+	}
+	return ""
+}
+
+type StopResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Program       *ProgramHealth         `protobuf:"bytes,1,opt,name=program,proto3" json:"program,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StopResponse) Reset() {
+	*x = StopResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[112]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StopResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StopResponse) ProtoMessage() {}
+
+func (x *StopResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[112]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StopResponse.ProtoReflect.Descriptor instead.
+func (*StopResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{112}
+}
+
+func (x *StopResponse) GetProgram() *ProgramHealth {
+	if x != nil {
+		return x.Program
+	}
+	return nil
+}
+
+// RestartRequest is the human row out of QUARANTINED; for any other state it
+// is a stop plus a launch, both recorded with a human as the actor.
+type RestartRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Program       string                 `protobuf:"bytes,1,opt,name=program,proto3" json:"program,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RestartRequest) Reset() {
+	*x = RestartRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[113]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RestartRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RestartRequest) ProtoMessage() {}
+
+func (x *RestartRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[113]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RestartRequest.ProtoReflect.Descriptor instead.
+func (*RestartRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{113}
+}
+
+func (x *RestartRequest) GetProgram() string {
+	if x != nil {
+		return x.Program
+	}
+	return ""
+}
+
+type RestartResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Program       *ProgramHealth         `protobuf:"bytes,1,opt,name=program,proto3" json:"program,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RestartResponse) Reset() {
+	*x = RestartResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[114]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RestartResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RestartResponse) ProtoMessage() {}
+
+func (x *RestartResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[114]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RestartResponse.ProtoReflect.Descriptor instead.
+func (*RestartResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{114}
+}
+
+func (x *RestartResponse) GetProgram() *ProgramHealth {
+	if x != nil {
+		return x.Program
+	}
+	return nil
+}
+
+// HealthRequest reads. No ids means every declared program.
+type HealthRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Programs      []string               `protobuf:"bytes,1,rep,name=programs,proto3" json:"programs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HealthRequest) Reset() {
+	*x = HealthRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[115]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HealthRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HealthRequest) ProtoMessage() {}
+
+func (x *HealthRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[115]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HealthRequest.ProtoReflect.Descriptor instead.
+func (*HealthRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{115}
+}
+
+func (x *HealthRequest) GetPrograms() []string {
+	if x != nil {
+		return x.Programs
+	}
+	return nil
+}
+
+type HealthResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Programs      []*ProgramHealth       `protobuf:"bytes,1,rep,name=programs,proto3" json:"programs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HealthResponse) Reset() {
+	*x = HealthResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[116]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HealthResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HealthResponse) ProtoMessage() {}
+
+func (x *HealthResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[116]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HealthResponse.ProtoReflect.Descriptor instead.
+func (*HealthResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{116}
+}
+
+func (x *HealthResponse) GetPrograms() []*ProgramHealth {
+	if x != nil {
+		return x.Programs
+	}
+	return nil
+}
+
 var File_proto_rig_v1_verbs_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_verbs_proto_rawDesc = "" +
@@ -8559,7 +9205,46 @@ const file_proto_rig_v1_verbs_proto_rawDesc = "" +
 	"\x12MessageListRequest\x12\x12\n" +
 	"\x04seat\x18\x01 \x01(\tR\x04seat\"B\n" +
 	"\x13MessageListResponse\x12+\n" +
-	"\bmessages\x18\x01 \x03(\v2\x0f.rig.v1.MessageR\bmessages*Z\n" +
+	"\bmessages\x18\x01 \x03(\v2\x0f.rig.v1.MessageR\bmessages\"\xc4\x01\n" +
+	"\fProgramEvent\x12 \n" +
+	"\fat_unix_nano\x18\x01 \x01(\x03R\n" +
+	"atUnixNano\x12(\n" +
+	"\x04from\x18\x02 \x01(\x0e2\x14.rig.v1.ProgramStateR\x04from\x12$\n" +
+	"\x02to\x18\x03 \x01(\x0e2\x14.rig.v1.ProgramStateR\x02to\x12\x18\n" +
+	"\atrigger\x18\x04 \x01(\tR\atrigger\x12\x14\n" +
+	"\x05actor\x18\x05 \x01(\tR\x05actor\x12\x12\n" +
+	"\x04note\x18\x06 \x01(\tR\x04note\"\x89\x03\n" +
+	"\rProgramHealth\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12*\n" +
+	"\x05state\x18\x02 \x01(\x0e2\x14.rig.v1.ProgramStateR\x05state\x12\x10\n" +
+	"\x03pid\x18\x03 \x01(\x05R\x03pid\x12&\n" +
+	"\x0fsince_unix_nano\x18\x04 \x01(\x03R\rsinceUnixNano\x12\x1a\n" +
+	"\bfailures\x18\x05 \x01(\rR\bfailures\x12\x1a\n" +
+	"\brestarts\x18\x06 \x01(\rR\brestarts\x12\x16\n" +
+	"\x06marker\x18\a \x01(\x04R\x06marker\x12\x18\n" +
+	"\awaiting\x18\b \x01(\tR\awaiting\x12\x16\n" +
+	"\x06parked\x18\t \x01(\tR\x06parked\x12\x1b\n" +
+	"\tlast_exit\x18\n" +
+	" \x01(\tR\blastExit\x123\n" +
+	"\x16next_attempt_unix_nano\x18\v \x01(\x03R\x13nextAttemptUnixNano\x12.\n" +
+	"\ahistory\x18\f \x03(\v2\x14.rig.v1.ProgramEventR\ahistory\"'\n" +
+	"\tUpRequest\x12\x1a\n" +
+	"\bprograms\x18\x01 \x03(\tR\bprograms\"?\n" +
+	"\n" +
+	"UpResponse\x121\n" +
+	"\bprograms\x18\x01 \x03(\v2\x15.rig.v1.ProgramHealthR\bprograms\"'\n" +
+	"\vStopRequest\x12\x18\n" +
+	"\aprogram\x18\x01 \x01(\tR\aprogram\"?\n" +
+	"\fStopResponse\x12/\n" +
+	"\aprogram\x18\x01 \x01(\v2\x15.rig.v1.ProgramHealthR\aprogram\"*\n" +
+	"\x0eRestartRequest\x12\x18\n" +
+	"\aprogram\x18\x01 \x01(\tR\aprogram\"B\n" +
+	"\x0fRestartResponse\x12/\n" +
+	"\aprogram\x18\x01 \x01(\v2\x15.rig.v1.ProgramHealthR\aprogram\"+\n" +
+	"\rHealthRequest\x12\x1a\n" +
+	"\bprograms\x18\x01 \x03(\tR\bprograms\"C\n" +
+	"\x0eHealthResponse\x121\n" +
+	"\bprograms\x18\x01 \x03(\v2\x15.rig.v1.ProgramHealthR\bprograms*Z\n" +
 	"\tSeatState\x12\x1a\n" +
 	"\x16SEAT_STATE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11SEAT_STATE_ACTIVE\x10\x01\x12\x1a\n" +
@@ -8617,7 +9302,14 @@ const file_proto_rig_v1_verbs_proto_rawDesc = "" +
 	"\x17MESSAGE_STATE_DELIVERED\x10\x02\x12\x16\n" +
 	"\x12MESSAGE_STATE_READ\x10\x03\x12\x1e\n" +
 	"\x1aMESSAGE_STATE_ACKNOWLEDGED\x10\x04\x12\x1a\n" +
-	"\x16MESSAGE_STATE_ACTED_ON\x10\x05B9Z7github.com/borismilner/rig/proto/rig/v1/verbsv1;verbsv1b\x06proto3"
+	"\x16MESSAGE_STATE_ACTED_ON\x10\x05*\xbd\x01\n" +
+	"\fProgramState\x12\x1d\n" +
+	"\x19PROGRAM_STATE_UNSPECIFIED\x10\x00\x12\x1a\n" +
+	"\x16PROGRAM_STATE_STARTING\x10\x01\x12\x19\n" +
+	"\x15PROGRAM_STATE_HEALTHY\x10\x02\x12\x1a\n" +
+	"\x16PROGRAM_STATE_DEGRADED\x10\x03\x12\x1c\n" +
+	"\x18PROGRAM_STATE_RESTARTING\x10\x04\x12\x1d\n" +
+	"\x19PROGRAM_STATE_QUARANTINED\x10\x05B9Z7github.com/borismilner/rig/proto/rig/v1/verbsv1;verbsv1b\x06proto3"
 
 var (
 	file_proto_rig_v1_verbs_proto_rawDescOnce sync.Once
@@ -8631,8 +9323,8 @@ func file_proto_rig_v1_verbs_proto_rawDescGZIP() []byte {
 	return file_proto_rig_v1_verbs_proto_rawDescData
 }
 
-var file_proto_rig_v1_verbs_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
-var file_proto_rig_v1_verbs_proto_msgTypes = make([]protoimpl.MessageInfo, 111)
+var file_proto_rig_v1_verbs_proto_enumTypes = make([]protoimpl.EnumInfo, 10)
+var file_proto_rig_v1_verbs_proto_msgTypes = make([]protoimpl.MessageInfo, 121)
 var file_proto_rig_v1_verbs_proto_goTypes = []any{
 	(SeatState)(0),                  // 0: rig.v1.SeatState
 	(LeaseState)(0),                 // 1: rig.v1.LeaseState
@@ -8643,204 +9335,223 @@ var file_proto_rig_v1_verbs_proto_goTypes = []any{
 	(SectionState)(0),               // 6: rig.v1.SectionState
 	(TaskState)(0),                  // 7: rig.v1.TaskState
 	(MessageState)(0),               // 8: rig.v1.MessageState
-	(*DescribeRequest)(nil),         // 9: rig.v1.DescribeRequest
-	(*DescribeResponse)(nil),        // 10: rig.v1.DescribeResponse
-	(*DownRequest)(nil),             // 11: rig.v1.DownRequest
-	(*DownResponse)(nil),            // 12: rig.v1.DownResponse
-	(*SessionRequest)(nil),          // 13: rig.v1.SessionRequest
-	(*SessionResponse)(nil),         // 14: rig.v1.SessionResponse
-	(*Seat)(nil),                    // 15: rig.v1.Seat
-	(*AnnounceRequest)(nil),         // 16: rig.v1.AnnounceRequest
-	(*AnnounceResponse)(nil),        // 17: rig.v1.AnnounceResponse
-	(*ActivityRequest)(nil),         // 18: rig.v1.ActivityRequest
-	(*ActivityResponse)(nil),        // 19: rig.v1.ActivityResponse
-	(*PeersRequest)(nil),            // 20: rig.v1.PeersRequest
-	(*PeersResponse)(nil),           // 21: rig.v1.PeersResponse
-	(*Lease)(nil),                   // 22: rig.v1.Lease
-	(*LeaseHandle)(nil),             // 23: rig.v1.LeaseHandle
-	(*LeaseAcquireRequest)(nil),     // 24: rig.v1.LeaseAcquireRequest
-	(*LeaseAcquireResponse)(nil),    // 25: rig.v1.LeaseAcquireResponse
-	(*LeaseRenewRequest)(nil),       // 26: rig.v1.LeaseRenewRequest
-	(*LeaseRenewResponse)(nil),      // 27: rig.v1.LeaseRenewResponse
-	(*LeaseReleaseRequest)(nil),     // 28: rig.v1.LeaseReleaseRequest
-	(*LeaseReleaseResponse)(nil),    // 29: rig.v1.LeaseReleaseResponse
-	(*LeaseBreakRequest)(nil),       // 30: rig.v1.LeaseBreakRequest
-	(*LeaseBreakResponse)(nil),      // 31: rig.v1.LeaseBreakResponse
-	(*LeaseListRequest)(nil),        // 32: rig.v1.LeaseListRequest
-	(*LeaseListResponse)(nil),       // 33: rig.v1.LeaseListResponse
-	(*Provenance)(nil),              // 34: rig.v1.Provenance
-	(*Record)(nil),                  // 35: rig.v1.Record
-	(*Retraction)(nil),              // 36: rig.v1.Retraction
-	(*RecordPutRequest)(nil),        // 37: rig.v1.RecordPutRequest
-	(*RecordPutResponse)(nil),       // 38: rig.v1.RecordPutResponse
-	(*RecordGetRequest)(nil),        // 39: rig.v1.RecordGetRequest
-	(*RecordGetResponse)(nil),       // 40: rig.v1.RecordGetResponse
-	(*RecordQueryRequest)(nil),      // 41: rig.v1.RecordQueryRequest
-	(*RecordQueryResponse)(nil),     // 42: rig.v1.RecordQueryResponse
-	(*RecordHistoryRequest)(nil),    // 43: rig.v1.RecordHistoryRequest
-	(*RecordHistoryResponse)(nil),   // 44: rig.v1.RecordHistoryResponse
-	(*RecordLinkRequest)(nil),       // 45: rig.v1.RecordLinkRequest
-	(*RecordLinkResponse)(nil),      // 46: rig.v1.RecordLinkResponse
-	(*RecordUnlinkRequest)(nil),     // 47: rig.v1.RecordUnlinkRequest
-	(*RecordUnlinkResponse)(nil),    // 48: rig.v1.RecordUnlinkResponse
-	(*RecordRefsRequest)(nil),       // 49: rig.v1.RecordRefsRequest
-	(*Ref)(nil),                     // 50: rig.v1.Ref
-	(*RecordRetractRequest)(nil),    // 51: rig.v1.RecordRetractRequest
-	(*RecordRetractResponse)(nil),   // 52: rig.v1.RecordRetractResponse
-	(*Edge)(nil),                    // 53: rig.v1.Edge
-	(*RecordDeleteRequest)(nil),     // 54: rig.v1.RecordDeleteRequest
-	(*RecordDeleteResponse)(nil),    // 55: rig.v1.RecordDeleteResponse
-	(*RecordReplaceRequest)(nil),    // 56: rig.v1.RecordReplaceRequest
-	(*RecordReplaceResponse)(nil),   // 57: rig.v1.RecordReplaceResponse
-	(*RecordRefsResponse)(nil),      // 58: rig.v1.RecordRefsResponse
-	(*Cycle)(nil),                   // 59: rig.v1.Cycle
-	(*ProgressStepRequest)(nil),     // 60: rig.v1.ProgressStepRequest
-	(*ProgressStepResponse)(nil),    // 61: rig.v1.ProgressStepResponse
-	(*ItemState)(nil),               // 62: rig.v1.ItemState
-	(*Blocker)(nil),                 // 63: rig.v1.Blocker
-	(*Blockage)(nil),                // 64: rig.v1.Blockage
-	(*ProjectBriefRequest)(nil),     // 65: rig.v1.ProjectBriefRequest
-	(*BriefSectionStatus)(nil),      // 66: rig.v1.BriefSectionStatus
-	(*BriefNote)(nil),               // 67: rig.v1.BriefNote
-	(*Drift)(nil),                   // 68: rig.v1.Drift
-	(*Feature)(nil),                 // 69: rig.v1.Feature
-	(*StageCount)(nil),              // 70: rig.v1.StageCount
-	(*BriefHealth)(nil),             // 71: rig.v1.BriefHealth
-	(*GoverningRecord)(nil),         // 72: rig.v1.GoverningRecord
-	(*KindCount)(nil),               // 73: rig.v1.KindCount
-	(*ClosedItem)(nil),              // 74: rig.v1.ClosedItem
-	(*WordCount)(nil),               // 75: rig.v1.WordCount
-	(*ProjectBriefResponse)(nil),    // 76: rig.v1.ProjectBriefResponse
-	(*BackupCreateRequest)(nil),     // 77: rig.v1.BackupCreateRequest
-	(*BackupCreateResponse)(nil),    // 78: rig.v1.BackupCreateResponse
-	(*Lesson)(nil),                  // 79: rig.v1.Lesson
-	(*LessonHit)(nil),               // 80: rig.v1.LessonHit
-	(*KnowledgeAddRequest)(nil),     // 81: rig.v1.KnowledgeAddRequest
-	(*KnowledgeAddResponse)(nil),    // 82: rig.v1.KnowledgeAddResponse
-	(*KnowledgeSearchRequest)(nil),  // 83: rig.v1.KnowledgeSearchRequest
-	(*KnowledgeSearchResponse)(nil), // 84: rig.v1.KnowledgeSearchResponse
-	(*KnowledgeGetRequest)(nil),     // 85: rig.v1.KnowledgeGetRequest
-	(*KnowledgeGetResponse)(nil),    // 86: rig.v1.KnowledgeGetResponse
-	(*Task)(nil),                    // 87: rig.v1.Task
-	(*QueuePushRequest)(nil),        // 88: rig.v1.QueuePushRequest
-	(*QueuePushResponse)(nil),       // 89: rig.v1.QueuePushResponse
-	(*QueueClaimRequest)(nil),       // 90: rig.v1.QueueClaimRequest
-	(*QueueClaimResponse)(nil),      // 91: rig.v1.QueueClaimResponse
-	(*QueueCompleteRequest)(nil),    // 92: rig.v1.QueueCompleteRequest
-	(*QueueCompleteResponse)(nil),   // 93: rig.v1.QueueCompleteResponse
-	(*QueueListRequest)(nil),        // 94: rig.v1.QueueListRequest
-	(*QueueListResponse)(nil),       // 95: rig.v1.QueueListResponse
-	(*LeaseCheckRequest)(nil),       // 96: rig.v1.LeaseCheckRequest
-	(*LeaseCheckResponse)(nil),      // 97: rig.v1.LeaseCheckResponse
-	(*WorkNote)(nil),                // 98: rig.v1.WorkNote
-	(*WorkNoteWriteRequest)(nil),    // 99: rig.v1.WorkNoteWriteRequest
-	(*WorkNoteWriteResponse)(nil),   // 100: rig.v1.WorkNoteWriteResponse
-	(*WorkNoteMineRequest)(nil),     // 101: rig.v1.WorkNoteMineRequest
-	(*WorkNoteMineResponse)(nil),    // 102: rig.v1.WorkNoteMineResponse
-	(*WorkNoteAboutRequest)(nil),    // 103: rig.v1.WorkNoteAboutRequest
-	(*WorkNoteAboutResponse)(nil),   // 104: rig.v1.WorkNoteAboutResponse
-	(*Message)(nil),                 // 105: rig.v1.Message
-	(*MessageSendRequest)(nil),      // 106: rig.v1.MessageSendRequest
-	(*MessageSendResponse)(nil),     // 107: rig.v1.MessageSendResponse
-	(*MessageInboxRequest)(nil),     // 108: rig.v1.MessageInboxRequest
-	(*MessageInboxResponse)(nil),    // 109: rig.v1.MessageInboxResponse
-	(*MessageAwaitRequest)(nil),     // 110: rig.v1.MessageAwaitRequest
-	(*MessageAwaitResponse)(nil),    // 111: rig.v1.MessageAwaitResponse
-	(*MessageAckRequest)(nil),       // 112: rig.v1.MessageAckRequest
-	(*MessageAckResponse)(nil),      // 113: rig.v1.MessageAckResponse
-	(*MessageListRequest)(nil),      // 114: rig.v1.MessageListRequest
-	(*MessageListResponse)(nil),     // 115: rig.v1.MessageListResponse
-	nil,                             // 116: rig.v1.Record.FieldsEntry
-	nil,                             // 117: rig.v1.RecordPutRequest.FieldsEntry
-	nil,                             // 118: rig.v1.WorkNote.FieldsEntry
-	nil,                             // 119: rig.v1.WorkNoteWriteRequest.FieldsEntry
-	(v1.Tristate)(0),                // 120: rig.v1.Tristate
+	(ProgramState)(0),               // 9: rig.v1.ProgramState
+	(*DescribeRequest)(nil),         // 10: rig.v1.DescribeRequest
+	(*DescribeResponse)(nil),        // 11: rig.v1.DescribeResponse
+	(*DownRequest)(nil),             // 12: rig.v1.DownRequest
+	(*DownResponse)(nil),            // 13: rig.v1.DownResponse
+	(*SessionRequest)(nil),          // 14: rig.v1.SessionRequest
+	(*SessionResponse)(nil),         // 15: rig.v1.SessionResponse
+	(*Seat)(nil),                    // 16: rig.v1.Seat
+	(*AnnounceRequest)(nil),         // 17: rig.v1.AnnounceRequest
+	(*AnnounceResponse)(nil),        // 18: rig.v1.AnnounceResponse
+	(*ActivityRequest)(nil),         // 19: rig.v1.ActivityRequest
+	(*ActivityResponse)(nil),        // 20: rig.v1.ActivityResponse
+	(*PeersRequest)(nil),            // 21: rig.v1.PeersRequest
+	(*PeersResponse)(nil),           // 22: rig.v1.PeersResponse
+	(*Lease)(nil),                   // 23: rig.v1.Lease
+	(*LeaseHandle)(nil),             // 24: rig.v1.LeaseHandle
+	(*LeaseAcquireRequest)(nil),     // 25: rig.v1.LeaseAcquireRequest
+	(*LeaseAcquireResponse)(nil),    // 26: rig.v1.LeaseAcquireResponse
+	(*LeaseRenewRequest)(nil),       // 27: rig.v1.LeaseRenewRequest
+	(*LeaseRenewResponse)(nil),      // 28: rig.v1.LeaseRenewResponse
+	(*LeaseReleaseRequest)(nil),     // 29: rig.v1.LeaseReleaseRequest
+	(*LeaseReleaseResponse)(nil),    // 30: rig.v1.LeaseReleaseResponse
+	(*LeaseBreakRequest)(nil),       // 31: rig.v1.LeaseBreakRequest
+	(*LeaseBreakResponse)(nil),      // 32: rig.v1.LeaseBreakResponse
+	(*LeaseListRequest)(nil),        // 33: rig.v1.LeaseListRequest
+	(*LeaseListResponse)(nil),       // 34: rig.v1.LeaseListResponse
+	(*Provenance)(nil),              // 35: rig.v1.Provenance
+	(*Record)(nil),                  // 36: rig.v1.Record
+	(*Retraction)(nil),              // 37: rig.v1.Retraction
+	(*RecordPutRequest)(nil),        // 38: rig.v1.RecordPutRequest
+	(*RecordPutResponse)(nil),       // 39: rig.v1.RecordPutResponse
+	(*RecordGetRequest)(nil),        // 40: rig.v1.RecordGetRequest
+	(*RecordGetResponse)(nil),       // 41: rig.v1.RecordGetResponse
+	(*RecordQueryRequest)(nil),      // 42: rig.v1.RecordQueryRequest
+	(*RecordQueryResponse)(nil),     // 43: rig.v1.RecordQueryResponse
+	(*RecordHistoryRequest)(nil),    // 44: rig.v1.RecordHistoryRequest
+	(*RecordHistoryResponse)(nil),   // 45: rig.v1.RecordHistoryResponse
+	(*RecordLinkRequest)(nil),       // 46: rig.v1.RecordLinkRequest
+	(*RecordLinkResponse)(nil),      // 47: rig.v1.RecordLinkResponse
+	(*RecordUnlinkRequest)(nil),     // 48: rig.v1.RecordUnlinkRequest
+	(*RecordUnlinkResponse)(nil),    // 49: rig.v1.RecordUnlinkResponse
+	(*RecordRefsRequest)(nil),       // 50: rig.v1.RecordRefsRequest
+	(*Ref)(nil),                     // 51: rig.v1.Ref
+	(*RecordRetractRequest)(nil),    // 52: rig.v1.RecordRetractRequest
+	(*RecordRetractResponse)(nil),   // 53: rig.v1.RecordRetractResponse
+	(*Edge)(nil),                    // 54: rig.v1.Edge
+	(*RecordDeleteRequest)(nil),     // 55: rig.v1.RecordDeleteRequest
+	(*RecordDeleteResponse)(nil),    // 56: rig.v1.RecordDeleteResponse
+	(*RecordReplaceRequest)(nil),    // 57: rig.v1.RecordReplaceRequest
+	(*RecordReplaceResponse)(nil),   // 58: rig.v1.RecordReplaceResponse
+	(*RecordRefsResponse)(nil),      // 59: rig.v1.RecordRefsResponse
+	(*Cycle)(nil),                   // 60: rig.v1.Cycle
+	(*ProgressStepRequest)(nil),     // 61: rig.v1.ProgressStepRequest
+	(*ProgressStepResponse)(nil),    // 62: rig.v1.ProgressStepResponse
+	(*ItemState)(nil),               // 63: rig.v1.ItemState
+	(*Blocker)(nil),                 // 64: rig.v1.Blocker
+	(*Blockage)(nil),                // 65: rig.v1.Blockage
+	(*ProjectBriefRequest)(nil),     // 66: rig.v1.ProjectBriefRequest
+	(*BriefSectionStatus)(nil),      // 67: rig.v1.BriefSectionStatus
+	(*BriefNote)(nil),               // 68: rig.v1.BriefNote
+	(*Drift)(nil),                   // 69: rig.v1.Drift
+	(*Feature)(nil),                 // 70: rig.v1.Feature
+	(*StageCount)(nil),              // 71: rig.v1.StageCount
+	(*BriefHealth)(nil),             // 72: rig.v1.BriefHealth
+	(*GoverningRecord)(nil),         // 73: rig.v1.GoverningRecord
+	(*KindCount)(nil),               // 74: rig.v1.KindCount
+	(*ClosedItem)(nil),              // 75: rig.v1.ClosedItem
+	(*WordCount)(nil),               // 76: rig.v1.WordCount
+	(*ProjectBriefResponse)(nil),    // 77: rig.v1.ProjectBriefResponse
+	(*BackupCreateRequest)(nil),     // 78: rig.v1.BackupCreateRequest
+	(*BackupCreateResponse)(nil),    // 79: rig.v1.BackupCreateResponse
+	(*Lesson)(nil),                  // 80: rig.v1.Lesson
+	(*LessonHit)(nil),               // 81: rig.v1.LessonHit
+	(*KnowledgeAddRequest)(nil),     // 82: rig.v1.KnowledgeAddRequest
+	(*KnowledgeAddResponse)(nil),    // 83: rig.v1.KnowledgeAddResponse
+	(*KnowledgeSearchRequest)(nil),  // 84: rig.v1.KnowledgeSearchRequest
+	(*KnowledgeSearchResponse)(nil), // 85: rig.v1.KnowledgeSearchResponse
+	(*KnowledgeGetRequest)(nil),     // 86: rig.v1.KnowledgeGetRequest
+	(*KnowledgeGetResponse)(nil),    // 87: rig.v1.KnowledgeGetResponse
+	(*Task)(nil),                    // 88: rig.v1.Task
+	(*QueuePushRequest)(nil),        // 89: rig.v1.QueuePushRequest
+	(*QueuePushResponse)(nil),       // 90: rig.v1.QueuePushResponse
+	(*QueueClaimRequest)(nil),       // 91: rig.v1.QueueClaimRequest
+	(*QueueClaimResponse)(nil),      // 92: rig.v1.QueueClaimResponse
+	(*QueueCompleteRequest)(nil),    // 93: rig.v1.QueueCompleteRequest
+	(*QueueCompleteResponse)(nil),   // 94: rig.v1.QueueCompleteResponse
+	(*QueueListRequest)(nil),        // 95: rig.v1.QueueListRequest
+	(*QueueListResponse)(nil),       // 96: rig.v1.QueueListResponse
+	(*LeaseCheckRequest)(nil),       // 97: rig.v1.LeaseCheckRequest
+	(*LeaseCheckResponse)(nil),      // 98: rig.v1.LeaseCheckResponse
+	(*WorkNote)(nil),                // 99: rig.v1.WorkNote
+	(*WorkNoteWriteRequest)(nil),    // 100: rig.v1.WorkNoteWriteRequest
+	(*WorkNoteWriteResponse)(nil),   // 101: rig.v1.WorkNoteWriteResponse
+	(*WorkNoteMineRequest)(nil),     // 102: rig.v1.WorkNoteMineRequest
+	(*WorkNoteMineResponse)(nil),    // 103: rig.v1.WorkNoteMineResponse
+	(*WorkNoteAboutRequest)(nil),    // 104: rig.v1.WorkNoteAboutRequest
+	(*WorkNoteAboutResponse)(nil),   // 105: rig.v1.WorkNoteAboutResponse
+	(*Message)(nil),                 // 106: rig.v1.Message
+	(*MessageSendRequest)(nil),      // 107: rig.v1.MessageSendRequest
+	(*MessageSendResponse)(nil),     // 108: rig.v1.MessageSendResponse
+	(*MessageInboxRequest)(nil),     // 109: rig.v1.MessageInboxRequest
+	(*MessageInboxResponse)(nil),    // 110: rig.v1.MessageInboxResponse
+	(*MessageAwaitRequest)(nil),     // 111: rig.v1.MessageAwaitRequest
+	(*MessageAwaitResponse)(nil),    // 112: rig.v1.MessageAwaitResponse
+	(*MessageAckRequest)(nil),       // 113: rig.v1.MessageAckRequest
+	(*MessageAckResponse)(nil),      // 114: rig.v1.MessageAckResponse
+	(*MessageListRequest)(nil),      // 115: rig.v1.MessageListRequest
+	(*MessageListResponse)(nil),     // 116: rig.v1.MessageListResponse
+	(*ProgramEvent)(nil),            // 117: rig.v1.ProgramEvent
+	(*ProgramHealth)(nil),           // 118: rig.v1.ProgramHealth
+	(*UpRequest)(nil),               // 119: rig.v1.UpRequest
+	(*UpResponse)(nil),              // 120: rig.v1.UpResponse
+	(*StopRequest)(nil),             // 121: rig.v1.StopRequest
+	(*StopResponse)(nil),            // 122: rig.v1.StopResponse
+	(*RestartRequest)(nil),          // 123: rig.v1.RestartRequest
+	(*RestartResponse)(nil),         // 124: rig.v1.RestartResponse
+	(*HealthRequest)(nil),           // 125: rig.v1.HealthRequest
+	(*HealthResponse)(nil),          // 126: rig.v1.HealthResponse
+	nil,                             // 127: rig.v1.Record.FieldsEntry
+	nil,                             // 128: rig.v1.RecordPutRequest.FieldsEntry
+	nil,                             // 129: rig.v1.WorkNote.FieldsEntry
+	nil,                             // 130: rig.v1.WorkNoteWriteRequest.FieldsEntry
+	(v1.Tristate)(0),                // 131: rig.v1.Tristate
 }
 var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	0,   // 0: rig.v1.Seat.state:type_name -> rig.v1.SeatState
-	15,  // 1: rig.v1.AnnounceResponse.you:type_name -> rig.v1.Seat
-	15,  // 2: rig.v1.AnnounceResponse.crew:type_name -> rig.v1.Seat
+	16,  // 1: rig.v1.AnnounceResponse.you:type_name -> rig.v1.Seat
+	16,  // 2: rig.v1.AnnounceResponse.crew:type_name -> rig.v1.Seat
 	0,   // 3: rig.v1.ActivityRequest.state:type_name -> rig.v1.SeatState
-	15,  // 4: rig.v1.ActivityResponse.you:type_name -> rig.v1.Seat
-	15,  // 5: rig.v1.PeersResponse.crew:type_name -> rig.v1.Seat
+	16,  // 4: rig.v1.ActivityResponse.you:type_name -> rig.v1.Seat
+	16,  // 5: rig.v1.PeersResponse.crew:type_name -> rig.v1.Seat
 	1,   // 6: rig.v1.Lease.state:type_name -> rig.v1.LeaseState
 	2,   // 7: rig.v1.Lease.liveness:type_name -> rig.v1.Liveness
-	23,  // 8: rig.v1.LeaseAcquireResponse.handle:type_name -> rig.v1.LeaseHandle
-	23,  // 9: rig.v1.LeaseRenewResponse.handle:type_name -> rig.v1.LeaseHandle
-	22,  // 10: rig.v1.LeaseListResponse.leases:type_name -> rig.v1.Lease
-	116, // 11: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
-	34,  // 12: rig.v1.Record.prov:type_name -> rig.v1.Provenance
-	36,  // 13: rig.v1.Record.retraction:type_name -> rig.v1.Retraction
-	34,  // 14: rig.v1.Retraction.prov:type_name -> rig.v1.Provenance
-	117, // 15: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
-	35,  // 16: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
-	35,  // 17: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
-	35,  // 18: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
-	35,  // 19: rig.v1.RecordHistoryResponse.versions:type_name -> rig.v1.Record
-	36,  // 20: rig.v1.RecordRetractResponse.retraction:type_name -> rig.v1.Retraction
-	53,  // 21: rig.v1.RecordDeleteResponse.edges:type_name -> rig.v1.Edge
-	53,  // 22: rig.v1.RecordReplaceResponse.moved:type_name -> rig.v1.Edge
-	53,  // 23: rig.v1.RecordReplaceResponse.merged:type_name -> rig.v1.Edge
-	53,  // 24: rig.v1.RecordReplaceResponse.dropped:type_name -> rig.v1.Edge
-	36,  // 25: rig.v1.RecordReplaceResponse.retraction:type_name -> rig.v1.Retraction
-	50,  // 26: rig.v1.RecordRefsResponse.refs:type_name -> rig.v1.Ref
-	59,  // 27: rig.v1.RecordRefsResponse.cycles:type_name -> rig.v1.Cycle
-	58,  // 28: rig.v1.RecordRefsResponse.results:type_name -> rig.v1.RecordRefsResponse
+	24,  // 8: rig.v1.LeaseAcquireResponse.handle:type_name -> rig.v1.LeaseHandle
+	24,  // 9: rig.v1.LeaseRenewResponse.handle:type_name -> rig.v1.LeaseHandle
+	23,  // 10: rig.v1.LeaseListResponse.leases:type_name -> rig.v1.Lease
+	127, // 11: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
+	35,  // 12: rig.v1.Record.prov:type_name -> rig.v1.Provenance
+	37,  // 13: rig.v1.Record.retraction:type_name -> rig.v1.Retraction
+	35,  // 14: rig.v1.Retraction.prov:type_name -> rig.v1.Provenance
+	128, // 15: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
+	36,  // 16: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
+	36,  // 17: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
+	36,  // 18: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
+	36,  // 19: rig.v1.RecordHistoryResponse.versions:type_name -> rig.v1.Record
+	37,  // 20: rig.v1.RecordRetractResponse.retraction:type_name -> rig.v1.Retraction
+	54,  // 21: rig.v1.RecordDeleteResponse.edges:type_name -> rig.v1.Edge
+	54,  // 22: rig.v1.RecordReplaceResponse.moved:type_name -> rig.v1.Edge
+	54,  // 23: rig.v1.RecordReplaceResponse.merged:type_name -> rig.v1.Edge
+	54,  // 24: rig.v1.RecordReplaceResponse.dropped:type_name -> rig.v1.Edge
+	37,  // 25: rig.v1.RecordReplaceResponse.retraction:type_name -> rig.v1.Retraction
+	51,  // 26: rig.v1.RecordRefsResponse.refs:type_name -> rig.v1.Ref
+	60,  // 27: rig.v1.RecordRefsResponse.cycles:type_name -> rig.v1.Cycle
+	59,  // 28: rig.v1.RecordRefsResponse.results:type_name -> rig.v1.RecordRefsResponse
 	3,   // 29: rig.v1.ProgressStepRequest.state:type_name -> rig.v1.StepState
-	35,  // 30: rig.v1.ProgressStepResponse.step:type_name -> rig.v1.Record
+	36,  // 30: rig.v1.ProgressStepResponse.step:type_name -> rig.v1.Record
 	3,   // 31: rig.v1.ItemState.state:type_name -> rig.v1.StepState
 	3,   // 32: rig.v1.Blocker.state:type_name -> rig.v1.StepState
-	63,  // 33: rig.v1.Blockage.blockers:type_name -> rig.v1.Blocker
+	64,  // 33: rig.v1.Blockage.blockers:type_name -> rig.v1.Blocker
 	5,   // 34: rig.v1.BriefSectionStatus.section:type_name -> rig.v1.BriefSection
 	6,   // 35: rig.v1.BriefSectionStatus.state:type_name -> rig.v1.SectionState
-	34,  // 36: rig.v1.BriefNote.prov:type_name -> rig.v1.Provenance
-	62,  // 37: rig.v1.ProjectBriefResponse.open:type_name -> rig.v1.ItemState
-	62,  // 38: rig.v1.ProjectBriefResponse.next_up:type_name -> rig.v1.ItemState
-	64,  // 39: rig.v1.ProjectBriefResponse.blocked:type_name -> rig.v1.Blockage
-	59,  // 40: rig.v1.ProjectBriefResponse.cycles:type_name -> rig.v1.Cycle
-	67,  // 41: rig.v1.ProjectBriefResponse.notes:type_name -> rig.v1.BriefNote
-	68,  // 42: rig.v1.ProjectBriefResponse.drift:type_name -> rig.v1.Drift
-	71,  // 43: rig.v1.ProjectBriefResponse.health:type_name -> rig.v1.BriefHealth
-	69,  // 44: rig.v1.ProjectBriefResponse.features:type_name -> rig.v1.Feature
-	70,  // 45: rig.v1.ProjectBriefResponse.feature_stages:type_name -> rig.v1.StageCount
-	67,  // 46: rig.v1.ProjectBriefResponse.case_notes:type_name -> rig.v1.BriefNote
-	66,  // 47: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
-	72,  // 48: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
-	73,  // 49: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
-	120, // 50: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
-	74,  // 51: rig.v1.ProjectBriefResponse.closed:type_name -> rig.v1.ClosedItem
-	75,  // 52: rig.v1.ProjectBriefResponse.closed_counts:type_name -> rig.v1.WordCount
-	34,  // 53: rig.v1.Lesson.prov:type_name -> rig.v1.Provenance
-	79,  // 54: rig.v1.KnowledgeAddResponse.lesson:type_name -> rig.v1.Lesson
-	80,  // 55: rig.v1.KnowledgeSearchResponse.hits:type_name -> rig.v1.LessonHit
-	79,  // 56: rig.v1.KnowledgeGetResponse.lesson:type_name -> rig.v1.Lesson
+	35,  // 36: rig.v1.BriefNote.prov:type_name -> rig.v1.Provenance
+	63,  // 37: rig.v1.ProjectBriefResponse.open:type_name -> rig.v1.ItemState
+	63,  // 38: rig.v1.ProjectBriefResponse.next_up:type_name -> rig.v1.ItemState
+	65,  // 39: rig.v1.ProjectBriefResponse.blocked:type_name -> rig.v1.Blockage
+	60,  // 40: rig.v1.ProjectBriefResponse.cycles:type_name -> rig.v1.Cycle
+	68,  // 41: rig.v1.ProjectBriefResponse.notes:type_name -> rig.v1.BriefNote
+	69,  // 42: rig.v1.ProjectBriefResponse.drift:type_name -> rig.v1.Drift
+	72,  // 43: rig.v1.ProjectBriefResponse.health:type_name -> rig.v1.BriefHealth
+	70,  // 44: rig.v1.ProjectBriefResponse.features:type_name -> rig.v1.Feature
+	71,  // 45: rig.v1.ProjectBriefResponse.feature_stages:type_name -> rig.v1.StageCount
+	68,  // 46: rig.v1.ProjectBriefResponse.case_notes:type_name -> rig.v1.BriefNote
+	67,  // 47: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
+	73,  // 48: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
+	74,  // 49: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
+	131, // 50: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
+	75,  // 51: rig.v1.ProjectBriefResponse.closed:type_name -> rig.v1.ClosedItem
+	76,  // 52: rig.v1.ProjectBriefResponse.closed_counts:type_name -> rig.v1.WordCount
+	35,  // 53: rig.v1.Lesson.prov:type_name -> rig.v1.Provenance
+	80,  // 54: rig.v1.KnowledgeAddResponse.lesson:type_name -> rig.v1.Lesson
+	81,  // 55: rig.v1.KnowledgeSearchResponse.hits:type_name -> rig.v1.LessonHit
+	80,  // 56: rig.v1.KnowledgeGetResponse.lesson:type_name -> rig.v1.Lesson
 	7,   // 57: rig.v1.Task.state:type_name -> rig.v1.TaskState
-	22,  // 58: rig.v1.Task.claim:type_name -> rig.v1.Lease
-	87,  // 59: rig.v1.QueuePushResponse.task:type_name -> rig.v1.Task
-	87,  // 60: rig.v1.QueueClaimResponse.task:type_name -> rig.v1.Task
-	23,  // 61: rig.v1.QueueClaimResponse.handle:type_name -> rig.v1.LeaseHandle
-	87,  // 62: rig.v1.QueueCompleteResponse.task:type_name -> rig.v1.Task
-	87,  // 63: rig.v1.QueueListResponse.tasks:type_name -> rig.v1.Task
-	22,  // 64: rig.v1.LeaseCheckResponse.lease:type_name -> rig.v1.Lease
-	118, // 65: rig.v1.WorkNote.fields:type_name -> rig.v1.WorkNote.FieldsEntry
-	34,  // 66: rig.v1.WorkNote.prov:type_name -> rig.v1.Provenance
-	119, // 67: rig.v1.WorkNoteWriteRequest.fields:type_name -> rig.v1.WorkNoteWriteRequest.FieldsEntry
-	98,  // 68: rig.v1.WorkNoteWriteResponse.note:type_name -> rig.v1.WorkNote
-	98,  // 69: rig.v1.WorkNoteMineResponse.notes:type_name -> rig.v1.WorkNote
-	98,  // 70: rig.v1.WorkNoteAboutResponse.notes:type_name -> rig.v1.WorkNote
+	23,  // 58: rig.v1.Task.claim:type_name -> rig.v1.Lease
+	88,  // 59: rig.v1.QueuePushResponse.task:type_name -> rig.v1.Task
+	88,  // 60: rig.v1.QueueClaimResponse.task:type_name -> rig.v1.Task
+	24,  // 61: rig.v1.QueueClaimResponse.handle:type_name -> rig.v1.LeaseHandle
+	88,  // 62: rig.v1.QueueCompleteResponse.task:type_name -> rig.v1.Task
+	88,  // 63: rig.v1.QueueListResponse.tasks:type_name -> rig.v1.Task
+	23,  // 64: rig.v1.LeaseCheckResponse.lease:type_name -> rig.v1.Lease
+	129, // 65: rig.v1.WorkNote.fields:type_name -> rig.v1.WorkNote.FieldsEntry
+	35,  // 66: rig.v1.WorkNote.prov:type_name -> rig.v1.Provenance
+	130, // 67: rig.v1.WorkNoteWriteRequest.fields:type_name -> rig.v1.WorkNoteWriteRequest.FieldsEntry
+	99,  // 68: rig.v1.WorkNoteWriteResponse.note:type_name -> rig.v1.WorkNote
+	99,  // 69: rig.v1.WorkNoteMineResponse.notes:type_name -> rig.v1.WorkNote
+	99,  // 70: rig.v1.WorkNoteAboutResponse.notes:type_name -> rig.v1.WorkNote
 	8,   // 71: rig.v1.Message.state:type_name -> rig.v1.MessageState
-	105, // 72: rig.v1.MessageSendResponse.message:type_name -> rig.v1.Message
+	106, // 72: rig.v1.MessageSendResponse.message:type_name -> rig.v1.Message
 	0,   // 73: rig.v1.MessageSendResponse.to_state:type_name -> rig.v1.SeatState
-	105, // 74: rig.v1.MessageInboxResponse.messages:type_name -> rig.v1.Message
-	105, // 75: rig.v1.MessageAwaitResponse.messages:type_name -> rig.v1.Message
+	106, // 74: rig.v1.MessageInboxResponse.messages:type_name -> rig.v1.Message
+	106, // 75: rig.v1.MessageAwaitResponse.messages:type_name -> rig.v1.Message
 	8,   // 76: rig.v1.MessageAckRequest.state:type_name -> rig.v1.MessageState
-	105, // 77: rig.v1.MessageAckResponse.message:type_name -> rig.v1.Message
-	105, // 78: rig.v1.MessageListResponse.messages:type_name -> rig.v1.Message
-	79,  // [79:79] is the sub-list for method output_type
-	79,  // [79:79] is the sub-list for method input_type
-	79,  // [79:79] is the sub-list for extension type_name
-	79,  // [79:79] is the sub-list for extension extendee
-	0,   // [0:79] is the sub-list for field type_name
+	106, // 77: rig.v1.MessageAckResponse.message:type_name -> rig.v1.Message
+	106, // 78: rig.v1.MessageListResponse.messages:type_name -> rig.v1.Message
+	9,   // 79: rig.v1.ProgramEvent.from:type_name -> rig.v1.ProgramState
+	9,   // 80: rig.v1.ProgramEvent.to:type_name -> rig.v1.ProgramState
+	9,   // 81: rig.v1.ProgramHealth.state:type_name -> rig.v1.ProgramState
+	117, // 82: rig.v1.ProgramHealth.history:type_name -> rig.v1.ProgramEvent
+	118, // 83: rig.v1.UpResponse.programs:type_name -> rig.v1.ProgramHealth
+	118, // 84: rig.v1.StopResponse.program:type_name -> rig.v1.ProgramHealth
+	118, // 85: rig.v1.RestartResponse.program:type_name -> rig.v1.ProgramHealth
+	118, // 86: rig.v1.HealthResponse.programs:type_name -> rig.v1.ProgramHealth
+	87,  // [87:87] is the sub-list for method output_type
+	87,  // [87:87] is the sub-list for method input_type
+	87,  // [87:87] is the sub-list for extension type_name
+	87,  // [87:87] is the sub-list for extension extendee
+	0,   // [0:87] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_verbs_proto_init() }
@@ -8853,8 +9564,8 @@ func file_proto_rig_v1_verbs_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_verbs_proto_rawDesc), len(file_proto_rig_v1_verbs_proto_rawDesc)),
-			NumEnums:      9,
-			NumMessages:   111,
+			NumEnums:      10,
+			NumMessages:   121,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

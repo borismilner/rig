@@ -492,6 +492,43 @@ func selfDeclaration() kernel.Declaration {
 				"Promotes one of YOUR OWN messages to ACKNOWLEDGED, or to ACTED_ON with an outcome. Neither is ever inferred from delivery: a sender treating 'delivered' as agreement is the failure this ladder exists to prevent. Promotion never runs backwards, so acknowledging twice cannot lose the stronger fact.",
 				"The message in its new state, with the outcome you gave."),
 
+			// SECTION 18's SUPERVISION. The ladder is about what a call does
+			// OUTSIDE rig: up starts processes (writes-files, the ladder's
+			// rung for "changes the machine"), and stop and restart END one,
+			// which is down's argument for destructive one program at a time.
+			// Health and a program's own report touch nothing outside rig's
+			// memory, so they are read-only on presence's argument.
+			readOnly("health", "Health",
+				"Every declared program's state, as evidence of progress",
+				"Answers each declared program's section 18 state, the ones that need a human first: pid, failures, restarts, its last marker, what it says it is waiting on, the question it is parked on, how the last child ended, when a backoff elapses, and the history. A program rig is not running has no state, the table's dash.",
+				"One row per declared program."),
+			readOnly("health.report", "Health report",
+				"A supervised program's own progress: a marker, waiting, parked",
+				"Called BY a supervised program. The program is the connection's own, and only the process rig started for it may report; the request names nobody. An advancing marker is progress; a still marker with waiting set is not a failure; parked is a question nobody has seen.",
+				"Nothing."),
+			leaseWriter("up", "Up", kernel.Yes,
+				"Start declared programs, or every one",
+				"Starts each named program from programs.json, or every declared program with none named. A program already running is answered as it stands and never started twice.",
+				"Each program's state after the call."),
+			{
+				ID: "stop", Title: "Stop", Effects: kernel.EffectsDestructive,
+				Idempotent: kernel.Yes, Sensitive: []string{}, Interactive: kernel.No,
+				Streams: kernel.No, NeedsDisplay: kernel.No, Duration: kernel.DurationInstant,
+				Confirms: kernel.No, Shape: kernel.ShapeUnary,
+				Summary:     "Stop one supervised program",
+				Description: "Sends the program SIGTERM, then SIGKILL after its grace, and takes it off the table: it has no state until rig up starts it again. Its history is kept. Programs rig did not start are never touched.",
+				Returns:     "The program's state after the call.",
+			},
+			{
+				ID: "restart", Title: "Restart", Effects: kernel.EffectsDestructive,
+				Idempotent: kernel.No, Sensitive: []string{}, Interactive: kernel.No,
+				Streams: kernel.No, NeedsDisplay: kernel.No, Duration: kernel.DurationInstant,
+				Confirms: kernel.No, Shape: kernel.ShapeUnary,
+				Summary:     "Restart one supervised program; the way out of QUARANTINED",
+				Description: "Out of QUARANTINED this is the human row, and it clears the restart budget. In any other state it is a stop and a launch, both recorded with a human as the actor.",
+				Returns:     "The program's state after the call.",
+			},
+
 			// The first thing rig declares about itself that is not read-only,
 			// and the properties are the point rather than paperwork: this is
 			// the declaration a house rule matches on, so getting `effects`

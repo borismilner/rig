@@ -439,3 +439,24 @@ message CallResponse {
   // that reshaped a program's own result would be the opposite.
   bytes result = 1;
 }
+
+// ---- rig.health.report, a supervised program's own progress ---------------
+//
+// Here rather than in verbs.proto because a supervised program links this
+// file and not that one. THE PROGRAM IS THE CONNECTION'S: it is whoever said
+// hello on this socket, and there is no field for it, so a program cannot
+// report for another. Section 18: health is evidence of PROGRESS, and these
+// are three different facts.
+
+message HealthReportRequest {
+  // Advances when the program does something. What it counts is the
+  // program's business; that it MOVED is rig's.
+  uint64 marker = 1;
+  // What it is blocked on, in words a human reads. Empty means not blocked,
+  // which is what makes idle unhealthy rather than restful.
+  string waiting = 2;
+  // The question nobody has seen yet. Neither progress nor fault.
+  string parked = 3;
+}
+
+message HealthReportResponse {}

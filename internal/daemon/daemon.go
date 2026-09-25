@@ -32,6 +32,7 @@ import (
 	"github.com/borismilner/rig/internal/kernel"
 	"github.com/borismilner/rig/internal/mcpserver"
 	"github.com/borismilner/rig/internal/record"
+	"github.com/borismilner/rig/internal/supervise"
 	"github.com/borismilner/rig/internal/wire"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 	"github.com/borismilner/rig/proto/rig/v1/registryv1"
@@ -96,6 +97,11 @@ type Config struct {
 	// the file must have exactly one opener. Nil for an unnamed estate, and
 	// the lease verbs then refuse naming the cause.
 	Leases *coord.Store
+
+	// Supervisor runs section 18's declared programs. rigd builds it from
+	// programs.json and runs its loop; nil means this daemon supervises
+	// nothing, and the four verbs refuse naming that.
+	Supervisor *supervise.Supervisor
 }
 
 // Daemon serves one socket.
@@ -151,6 +157,9 @@ type Daemon struct {
 	// second one. One store per estate is the decision; two fields pointing
 	// at one bbolt file would only invite a second Open.
 	leases *coord.Store
+
+	// super is section 18's supervisor, nil when none was configured.
+	super *supervise.Supervisor
 
 	// mail wakes rig.message.await calls parked on a seat. In memory, and
 	// losing it costs nothing: the queue behind it is durable, so a reader
@@ -309,6 +318,7 @@ func New(cfg Config) (*Daemon, error) {
 		presence: newPresence(cfg.Estate, cfg.Epoch),
 		records:  records,
 		leases:   cfg.Leases,
+		super:    cfg.Supervisor,
 	}, nil
 }
 
@@ -735,6 +745,7 @@ func (d *Daemon) serveHello(ctx context.Context, c *conn, f *rigv1.Frame) {
 	c.who.Store(who)
 	c.program.Store(req.GetProgram())
 	c.scoped.Store(true)
+	d.supervisedHello(c)
 	d.log.Info("program registered",
 		"program", decl.Identity.ID, "version", decl.Identity.Version,
 		"coverage", decl.Coverage.String(), "commands", len(decl.Commands),
@@ -808,36 +819,9 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 		c.reply(f.GetStreamId(), &resp)
 
 	case "ping":
-		var req rigv1.PingRequest
-		if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
-			c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "ping: "+err.Error())
-			return
-		}
-
-		// A probe naming another program is rig probing THAT program, and it
-		// still reaches the program as <program>.ping - what moved is the
-		// method the caller sends, not the one the program answers. The frame
-		// is rebuilt rather than forwarded, because route copies the method
-		// verbatim and the program must not be handed rig's own method name.
-		//
-		// It goes through route, so it passes the same authorization floor as
-		// any other call rather than round-tripping behind it.
-		if target := req.GetProgram(); target != "" && target != kernel.SelfID {
-			d.route(ctx, c, &rigv1.Frame{
-				StreamId:  f.GetStreamId(),
-				Kind:      f.GetKind(),
-				Method:    target + "." + ProbeCommand,
-				RequestId: f.GetRequestId(),
-				Payload:   f.GetPayload(),
-			}, target, ProbeCommand)
-			return
-		}
-
-		c.reply(f.GetStreamId(), &rigv1.PingResponse{
-			Nonce:   req.GetNonce(),
-			Program: kernel.SelfID,
-			Version: d.version,
-		})
+		// Its own function since the supervision arm took serveSelf past
+		// gocyclo's ceiling, serveSession's precedent.
+		d.servePing(ctx, c, f)
 
 	case "estate":
 		// UNSCOPED, and it is the only rig method whose answer does not depend
@@ -922,6 +906,11 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 		"message.list":
 		d.serveMessage(ctx, c, f, command)
 
+	// SECTION 18's SUPERVISION. supervise.go has why the program a health
+	// report speaks for comes off the connection and its pid.
+	case "up", "stop", "restart", "health", "health.report":
+		d.serveSupervise(c, f, command)
+
 	case "backup.create":
 		// Its own arm rather than a member of the group above: the record
 		// verbs all take a store and read or write rows in it, and this one
@@ -949,6 +938,40 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	default:
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_NOT_FOUND, "no such method rig."+command)
 	}
+}
+
+// servePing answers rig.ping, or probes the program it names.
+func (d *Daemon) servePing(ctx context.Context, c *conn, f *rigv1.Frame) {
+	var req rigv1.PingRequest
+	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "ping: "+err.Error())
+		return
+	}
+
+	// A probe naming another program is rig probing THAT program, and it
+	// still reaches the program as <program>.ping - what moved is the
+	// method the caller sends, not the one the program answers. The frame
+	// is rebuilt rather than forwarded, because route copies the method
+	// verbatim and the program must not be handed rig's own method name.
+	//
+	// It goes through route, so it passes the same authorization floor as
+	// any other call rather than round-tripping behind it.
+	if target := req.GetProgram(); target != "" && target != kernel.SelfID {
+		d.route(ctx, c, &rigv1.Frame{
+			StreamId:  f.GetStreamId(),
+			Kind:      f.GetKind(),
+			Method:    target + "." + ProbeCommand,
+			RequestId: f.GetRequestId(),
+			Payload:   f.GetPayload(),
+		}, target, ProbeCommand)
+		return
+	}
+
+	c.reply(f.GetStreamId(), &rigv1.PingResponse{
+		Nonce:   req.GetNonce(),
+		Program: kernel.SelfID,
+		Version: d.version,
+	})
 }
 
 // callFailure is a refusal the boundary produced, in the one form both

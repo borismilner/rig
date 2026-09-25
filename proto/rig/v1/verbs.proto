@@ -2034,3 +2034,98 @@ message MessageListRequest {
 message MessageListResponse {
   repeated Message messages = 1;
 }
+
+// ============================================================================
+// SECTION 18's SUPERVISION: rig.up, rig.stop, rig.restart, rig.health.
+//
+// A program rig supervises is DECLARED in $XDG_CONFIG_HOME/rig/programs.json;
+// these verbs act on declared ids only. internal/supervise is the mechanism,
+// and it is stdlib-only because the tray links it: the daemon translates.
+// ============================================================================
+
+// ProgramState is section 18's table, and "this is the set. There are no
+// others". A program rig is not running is ABSENT from the answer's state,
+// which is the table's `-`, rather than a sixth state called stopped.
+enum ProgramState {
+  PROGRAM_STATE_UNSPECIFIED = 0;
+  // Launched, handshake not yet completed.
+  PROGRAM_STATE_STARTING = 1;
+  // Registered, and showing evidence of progress.
+  PROGRAM_STATE_HEALTHY = 2;
+  // Reachable, and failing its health definition.
+  PROGRAM_STATE_DEGRADED = 3;
+  // Inside the restart budget, backing off.
+  PROGRAM_STATE_RESTARTING = 4;
+  // Out of budget, or failed registration. Stays until a human acts.
+  PROGRAM_STATE_QUARANTINED = 5;
+}
+
+// ProgramEvent is one row of a program's history, which section 18 requires
+// survive into quarantine.
+message ProgramEvent {
+  int64 at_unix_nano = 1;
+  ProgramState from = 2;
+  ProgramState to = 3;
+  string trigger = 4;
+  string actor = 5;
+  string note = 6;
+}
+
+message ProgramHealth {
+  string id = 1;
+  // UNSPECIFIED means declared and not running: the table's `-`.
+  ProgramState state = 2;
+  int32 pid = 3;
+  int64 since_unix_nano = 4;
+  uint32 failures = 5;
+  uint32 restarts = 6;
+
+  // The program's own last report, unchanged. `parked` especially: it is
+  // neither healthy nor a fault, and the only action that helps is showing it.
+  uint64 marker = 7;
+  string waiting = 8;
+  string parked = 9;
+
+  // How the last child ended, empty if none ever has.
+  string last_exit = 10;
+  // When the backoff elapses; zero unless RESTARTING.
+  int64 next_attempt_unix_nano = 11;
+  repeated ProgramEvent history = 12;
+}
+
+// UpRequest starts declared programs. No ids means every declared program.
+// Idempotent: a program already running is answered, not started twice.
+message UpRequest {
+  repeated string programs = 1;
+}
+
+message UpResponse {
+  repeated ProgramHealth programs = 1;
+}
+
+message StopRequest {
+  string program = 1;
+}
+
+message StopResponse {
+  ProgramHealth program = 1;
+}
+
+// RestartRequest is the human row out of QUARANTINED; for any other state it
+// is a stop plus a launch, both recorded with a human as the actor.
+message RestartRequest {
+  string program = 1;
+}
+
+message RestartResponse {
+  ProgramHealth program = 1;
+}
+
+// HealthRequest reads. No ids means every declared program.
+message HealthRequest {
+  repeated string programs = 1;
+}
+
+message HealthResponse {
+  repeated ProgramHealth programs = 1;
+}
