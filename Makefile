@@ -674,12 +674,8 @@ profile: ## NOT YET: dead twice over - no `rig serve`, and no --pprof anywhere
 # estate were at fault. The rule for adding one: a target may name an
 # unwritten verb, but it must not claim the verb works.
 
-up: ## NOT YET (M6, control and supervision): `rig up` does not exist
-	@echo 'make up: not implemented. `rig up` is M6 (start, stop, restart,'
-	@echo '  health). It could not work from cold in any case: rig is a'
-	@echo '  client, so with no daemon there is nothing to dial. Start the'
-	@echo '  daemon directly:  XDG_RUNTIME_DIR=... rigd'
-	@exit 1
+up: build ## Start every program declared in programs.json, through the running daemon
+	./build/$(BIN) up
 
 down: build ## Stop the daemon serving this XDG_RUNTIME_DIR
 	./build/$(BIN) down
