@@ -1745,3 +1745,208 @@ message LeaseCheckResponse {
   bool current = 1;
   Lease lease = 2;
 }
+
+// ============================================================================
+// SECTION 16's DIRECTED MESSAGES. A message is addressed to a SEAT, which is
+// an address that outlives whoever is sitting in it, and it CARRIES THE
+// GENERATION IT WAS ADDRESSED TO so a receiver can tell it is not the session
+// the sender believes it is talking to. Boris, 2026-09-11: "peers should be
+// aware they may be contacted wrongly thinking they are the successor".
+//
+// A PIN IS TWO NUMBERS AND NEVER ONE. `generation` restarts at 1 on every
+// daemon start (see Seat), so a generation on its own matches a stale
+// reference from a previous run. Every pin here is (generation, epoch), and
+// zero for both means "whoever holds this seat", which is a case rather than
+// a missing value.
+//
+// THE QUEUE IS DURABLE, UNLIKE THE ROSTER. Presence dies with a connection on
+// purpose; a queued message must survive its recipient's death and reach the
+// successor, so it lives in the estate's store beside the leases. An unnamed
+// estate has no store and refuses all five verbs by name.
+// ============================================================================
+
+// MessageState is the five states a message moves through, and WHO OWNS EACH
+// TRANSITION is the content of the list. The daemon owns queued and delivered;
+// the recipient owns read, acknowledged and acted-on. Nothing is inferred: a
+// sender that treated delivery as agreement is the failure being designed out.
+// Promotion never runs backwards, so a re-read cannot undo an acknowledgement.
+enum MessageState {
+  MESSAGE_STATE_UNSPECIFIED = 0;
+  // Accepted and durable. Nobody was parked for it, which is not a loss.
+  MESSAGE_STATE_QUEUED = 1;
+  // Handed to a recipient's parked rig.message.await.
+  MESSAGE_STATE_DELIVERED = 2;
+  // Returned into the recipient's own context by an inbox or an await.
+  MESSAGE_STATE_READ = 3;
+  // The recipient states it understood. NEVER inferred from delivery.
+  MESSAGE_STATE_ACKNOWLEDGED = 4;
+  // The recipient states what it did, and `outcome` carries it. The only
+  // state a sender may plan against.
+  MESSAGE_STATE_ACTED_ON = 5;
+}
+
+// Message is one directed message as any reader sees it.
+message Message {
+  // The estate-wide sequence number, and the CURSOR UNIT. Monotonic across a
+  // daemon restart: it comes from the store's own durable sequence.
+  uint64 id = 1;
+
+  // The recipient SEAT, and the pin. Zero generation and epoch mean the
+  // sender addressed the seat rather than one tenancy of it.
+  string to = 2;
+  uint64 to_generation = 3;
+  uint64 to_epoch = 4;
+
+  // The sender, taken from its own roster row by the daemon and NEVER read
+  // off the request, exactly as a lease's holder is.
+  string from = 5;
+  uint64 from_generation = 6;
+  uint64 from_epoch = 7;
+
+  // One line, and the message. A message over the bound is refused rather
+  // than truncated, because a recipient acts on what arrived and cannot see
+  // the half that did not.
+  string subject = 8;
+  string body = 9;
+
+  MessageState state = 10;
+
+  // The seat was HANDING_OFF when this was accepted, so it was held for the
+  // successor rather than delivered into a session that is closing.
+  bool held_for_successor = 11;
+
+  // The tenancy that actually read it, recorded on the FIRST read and never
+  // overwritten. Zero means nothing has read it yet.
+  uint64 read_generation = 12;
+  uint64 read_epoch = 13;
+
+  // What the recipient says it did. Rides with ACTED_ON.
+  string outcome = 14;
+
+  // Wall clock, unlike every deadline in rig, because these two are read by a
+  // HUMAN beside everything else on their screen. Nothing expires on them.
+  int64 sent_unix_nano = 15;
+  int64 moved_unix_nano = 16;
+
+  // ⛔ THE FLAG THE FEATURE EXISTS FOR, AFTER THE FACT. True when the message
+  // was PINNED to one tenancy and a DIFFERENT one read it: the sender was
+  // talking to a session that had already gone. It is computed from the two
+  // pairs this message already carries - (to_generation, to_epoch) against
+  // (read_generation, read_epoch) - so every surface derives it identically,
+  // and a message nothing has read yet is false rather than a guess.
+  bool misaddressed = 17;
+}
+
+// MessageSendRequest posts to a seat. `to` is required; the pin is optional
+// and is refused as a conflict when it does not match the seat's current
+// tenancy. Sending to a seat nobody holds is refused rather than queued, so a
+// sender learns at once instead of posting into a void - an ALREADY queued
+// message still survives its recipient and reaches the successor, which is
+// the other half of the same paragraph.
+message MessageSendRequest {
+  string to = 1;
+  uint64 to_generation = 2;
+  uint64 to_epoch = 3;
+  string subject = 4;
+  string body = 5;
+}
+
+message MessageSendResponse {
+  Message message = 1;
+  // What the recipient seat was doing when this was accepted, so a sender
+  // that posted into a handover learns it from the answer rather than from
+  // the silence that follows.
+  SeatState to_state = 2;
+
+  // How many parked rig.message.await calls this was handed to.
+  //
+  // ZERO MEANS NOBODY WAS PARKED AND IT IS NOT A LOSS. The message is durable
+  // and the seat reads it on its next inbox. The number is here so that
+  // DELIVERED is a state a sender can actually observe: the daemon sets it at
+  // the moment it wakes a subscription, and a later read supersedes it.
+  uint32 delivered = 3;
+}
+
+// MessageInboxRequest reads MY OWN seat's mail after a cursor, oldest first,
+// and promotes what it returns to READ. A seat is never named: the inbox is
+// the caller's, taken off the connection.
+message MessageInboxRequest {
+  // Everything after this id. Zero reads from the beginning of retention.
+  uint64 after = 1;
+  // How many at most. Zero means no bound beyond the queue's own retention.
+  uint32 limit = 2;
+}
+
+message MessageInboxResponse {
+  repeated Message messages = 1;
+
+  // Where to resume. The highest id CONSIDERED rather than the highest
+  // returned, so a bounded batch still leaves an honest cursor.
+  uint64 cursor = 2;
+
+  // ⛔ THIS BATCH CANNOT BE COMPLETE: the cursor was older than retention, so
+  // messages were dropped before this read. Treat what you were tracking as
+  // UNKNOWN, never as not having happened. A silently short batch is how two
+  // agents come to believe they each own one chunk of the same work.
+  bool gap = 3;
+
+  // The ids IN THIS BATCH addressed to a DIFFERENT tenancy of your seat than
+  // yours. THIS IS THE LIVE WARNING, and it is separate from
+  // Message.misaddressed, which is the record of who read what afterwards:
+  // this one is about YOU, the reader, and is computed against the generation
+  // and epoch this connection holds right now.
+  repeated uint64 misaddressed = 4;
+}
+
+// MessageAwaitRequest is rig.message.inbox parked: it answers as soon as there
+// is anything after the cursor, or empty once the timeout passes. What it
+// wakes on is promoted to DELIVERED and then to READ, and the two transitions
+// stay separate because one is the daemon's and one is the recipient's.
+//
+// IT IS A SECOND VERB RATHER THAN A FLAG on the inbox because rig's MCP door
+// binds one tool to one wire name, and an agent needs both "read my mail" and
+// "wait for mail" as things it can see in a tool list.
+message MessageAwaitRequest {
+  uint64 after = 1;
+  uint32 limit = 2;
+  // How long to park, at most 60 seconds. Zero means the default.
+  uint32 wait_ms = 3;
+}
+
+message MessageAwaitResponse {
+  repeated Message messages = 1;
+  uint64 cursor = 2;
+  bool gap = 3;
+  repeated uint64 misaddressed = 4;
+  // The wait ended with nothing rather than with mail. An answer, not an
+  // error: ask again with the same cursor.
+  bool timed_out = 5;
+}
+
+// MessageAckRequest is the recipient's own statement about one of ITS OWN
+// messages. `state` may only be ACKNOWLEDGED or ACTED_ON: queued and delivered
+// are the daemon's, and read is what a read does.
+message MessageAckRequest {
+  uint64 id = 1;
+  MessageState state = 2;
+  // What you did, up to 256 bytes. It rides with ACTED_ON and is the reason
+  // that state is worth having to a sender.
+  string outcome = 3;
+}
+
+message MessageAckResponse {
+  Message message = 1;
+}
+
+// MessageListRequest is the read-only estate view, and IT PROMOTES NOTHING,
+// which is what makes it safe on a human's prompt and is also the SENDER's
+// only surface: acted-on is the one state a sender may plan against, and a
+// state a sender cannot observe is not one it can plan against. With no seat
+// it answers every seat's queue.
+message MessageListRequest {
+  string seat = 1;
+}
+
+message MessageListResponse {
+  repeated Message messages = 1;
+}

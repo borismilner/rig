@@ -145,7 +145,17 @@ type Daemon struct {
 	records *record.Store
 
 	// leases is section 16's lease store. Nil for an unnamed estate.
+	//
+	// SECTION 16's DIRECTED MESSAGES LIVE IN IT TOO, under their own buckets,
+	// and the field keeps the name it was built with rather than gaining a
+	// second one. One store per estate is the decision; two fields pointing
+	// at one bbolt file would only invite a second Open.
 	leases *coord.Store
+
+	// mail wakes rig.message.await calls parked on a seat. In memory, and
+	// losing it costs nothing: the queue behind it is durable, so a reader
+	// that misses a wake-up reads the message from its cursor instead.
+	mail mailbell
 
 	// live is every accepted connection, so shutdown can close them.
 	//
@@ -903,6 +913,13 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	// store; queue.go has why the claimer comes off the connection.
 	case "queue.push", "queue.claim", "queue.complete", "queue.list":
 		d.serveQueue(c, f, command)
+
+	// SECTION 16's DIRECTED MESSAGES, all five through one arm. The queue is
+	// durable and lives beside the leases; message.go has why the sender, the
+	// inbox's seat and the generation guard all come off the connection.
+	case "message.send", "message.inbox", "message.await", "message.ack",
+		"message.list":
+		d.serveMessage(ctx, c, f, command)
 
 	case "backup.create":
 		// Its own arm rather than a member of the group above: the record

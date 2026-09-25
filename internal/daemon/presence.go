@@ -467,3 +467,64 @@ func claimHeld(path string) bool {
 	_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
 	return false
 }
+
+// seatNamed is the LIVE occupant of a seat, looked up BY NAME rather than by
+// connection, and it is what section 16's directed messages address.
+//
+// ⛔ BY NAME IS THE WHOLE POINT AND IT IS NOT occupantOf's JOB. occupantOf
+// answers "who is this connection", which every existing caller wants because
+// every existing caller is acting on its own behalf. A sender addressing a
+// peer has only the peer's NAME, which is exactly the durable half of a seat:
+// the address outlives the tenancy. The value is copied out, as everywhere
+// else here, so a caller cannot reach back into the roster.
+//
+// Two live peers can never share a seat - announce refuses the second - so a
+// name resolves to at most one row and this needs no tie-break.
+func (p *presence) seatNamed(seat string) (occupant, bool) {
+	if seat == "" {
+		return occupant{}, false
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _, o := range p.by {
+		if o.seat == seat {
+			return *o, true
+		}
+	}
+	return occupant{}, false
+}
+
+// knownSeat says whether this estate has EVER had an occupant in this seat,
+// which is the difference between a seat that is empty and a name nobody has
+// used.
+//
+// ⛔ THE TWO CASES GET DIFFERENT SENTENCES AND THAT IS WHY THIS EXISTS. A
+// sender told "nobody holds backend-1" looks for the peer; a sender told
+// "there is no seat called backedn-1" looks at what it typed. Collapsing them
+// into one refusal sends half of all callers down the wrong path.
+//
+// It reads `gens`, the counter that outlives a connection, so a seat whose
+// occupant has died is still known. It is therefore per DAEMON RUN: the
+// counter is in memory and restarts with the epoch, which is stated on the
+// field itself.
+func (p *presence) knownSeat(seat string) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	_, ok := p.gens[seat]
+	return ok
+}
+
+// liveSeats names every seat with somebody in it, sorted, for a refusal that
+// tells a sender what it could have meant instead of only what it got wrong.
+func (p *presence) liveSeats() []string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	out := make([]string, 0, len(p.by))
+	for _, o := range p.by {
+		if o.seat != "" {
+			out = append(out, o.seat)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
