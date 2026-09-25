@@ -369,7 +369,10 @@ an agent exactly as they apply to a terminal.
 |---|---|
 | `down` | The ruling above: its protection is unreachability. It stays excluded until Boris rules otherwise |
 | `health.report` | Only the child rig launched may speak for a program (plan/18). An agent's connection never is that child, so the tool could only ever refuse |
-| `hello` | The program handshake. It is not a verb; it mints the caller |
+| `project.brief` | Moved to the docket program (plan/50); the verb only answers that refusal |
+
+`hello` is on no list because rig does not declare it: it is the handshake
+that mints a program's caller, not a verb.
 
 A verb already served under another name (`peers` is `list_agents`, `estate`
 is `query`) counts as covered. The rest take the wire's own name with the dot
