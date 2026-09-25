@@ -31,6 +31,12 @@ type Supervisor struct {
 	programs map[string]*program
 	order    []string
 
+	// dying are children asked to leave that may not have yet: a stop or a
+	// restart's SIGKILL runs after the grace, in a goroutine. StopAll waits
+	// for these too, because TestChaos found a child hung by SIGSTOP and
+	// stopped moments before shutdown outliving the supervisor.
+	dying []Process
+
 	// wake is pulsed when a child ends, so Run acts on a crash at once rather
 	// than at the end of a health interval. Buffered and never blocking: the
 	// sender is the goroutine waiting on the process, and a supervisor that
@@ -403,8 +409,26 @@ func (s *Supervisor) halt(p *program, now time.Time, note string) {
 func (s *Supervisor) stopChild(p *program) {
 	if p.proc != nil {
 		p.proc.Stop(s.grace)
+		s.dying = append(pruneEnded(s.dying), p.proc)
 		p.proc = nil
 	}
+}
+
+// pruneEnded drops the children already reaped, so dying stays as long as the
+// children actually still leaving rather than every stop there ever was.
+func pruneEnded(in []Process) []Process {
+	out := in[:0]
+	for _, proc := range in {
+		if e, ok := proc.(ender); ok {
+			select {
+			case <-e.Ended():
+				continue
+			default:
+			}
+		}
+		out = append(out, proc)
+	}
+	return out
 }
 
 // StopAll ends every running child. Shutdown, section 18: "Programs rig did
@@ -419,17 +443,14 @@ func (s *Supervisor) stopChild(p *program) {
 func (s *Supervisor) StopAll() {
 	s.mu.Lock()
 	now := s.now()
-	var ending []Process
 	for _, id := range s.order {
-		p := s.programs[id]
-		if p.state == StateUnspecified {
-			continue
+		if p := s.programs[id]; p.state != StateUnspecified {
+			s.halt(p, now, "rig is shutting down")
 		}
-		if p.proc != nil {
-			ending = append(ending, p.proc)
-		}
-		s.halt(p, now, "rig is shutting down")
 	}
+	// halt put every current child on dying, beside the ones already there.
+	ending := s.dying
+	s.dying = nil
 	s.mu.Unlock()
 	deadline := time.After(s.grace + time.Second)
 	for _, proc := range ending {
@@ -586,7 +607,7 @@ func (s *Supervisor) Tick() {
 }
 
 // applyExit is a child ending, applied from the goroutine that saw it end.
-func (s *Supervisor) applyExit(id string, exit Exit) {
+func (s *Supervisor) applyExit(id string, proc Process, exit Exit) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := s.now()
@@ -594,9 +615,14 @@ func (s *Supervisor) applyExit(id string, exit Exit) {
 	if !ok {
 		return
 	}
-	if p.proc == nil {
+	if p.proc != proc {
 		// Already stopped or already replaced: this is the exit of a child rig
 		// asked to leave, and it is not evidence about the program's health.
+		//
+		// ⛔ COMPARED BY PROCESS, NOT BY "IS THERE A CHILD". TestChaos found
+		// the id-only check charging a restarted program's OLD child's exit to
+		// its NEW child: the new one was forgotten while still running, and a
+		// third was launched beside it.
 		return
 	}
 	p.lastExit = &exit
@@ -803,7 +829,7 @@ func (s *Supervisor) spawn(p *program, now time.Time) {
 		if !ok {
 			return
 		}
-		s.applyExit(id, e)
+		s.applyExit(id, proc, e)
 	}()
 }
 

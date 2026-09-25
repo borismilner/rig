@@ -53,7 +53,13 @@ func (f *fakeProc) Stop(time.Duration) {
 	f.mu.Lock()
 	f.stopped = true
 	f.mu.Unlock()
-	f.once.Do(func() { close(f.exit) })
+	// As a real child does: asked to leave, it EXITS, by a signal, and that
+	// exit arrives on the watching goroutine after rig has moved on. A fake
+	// that only closed the channel hid the restart bug TestChaos found.
+	f.once.Do(func() {
+		f.exit <- Exit{Signal: "SIGTERM"}
+		close(f.exit)
+	})
 }
 
 func (f *fakeProc) wasStopped() bool {
@@ -562,6 +568,17 @@ func TestRestartingARunningProgramStopsItAndLaunchesAgain(t *testing.T) {
 	}
 	if n := h.startCount("app"); n != 2 {
 		t.Fatalf("started %d times, want the original plus the restart", n)
+	}
+
+	// The old child's exit lands after the new child exists. It is not
+	// evidence about the new one, which must stay tracked and STARTING.
+	second := h.proc("app")
+	for range 20 {
+		time.Sleep(5 * time.Millisecond)
+		if st := h.status("app"); st.State != StateStarting || st.PID != second.PID() {
+			t.Fatalf("the old child's exit was charged to the new one: %s, pid %d (new child is %d)",
+				st.State, st.PID, second.PID())
+		}
 	}
 }
 
