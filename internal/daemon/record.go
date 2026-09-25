@@ -219,7 +219,7 @@ func recordSession(p kernel.Principal) string {
 // KindTerminal is a separate OPEN RULING; this function does not settle it and
 // must not be read as having done so.
 func terminalSeat(c *conn, p kernel.Principal) string {
-	if c.scoped.Load() || p.Kind != kernel.KindTerminal {
+	if c.scoped.Load() || c.agentDoor || p.Kind != kernel.KindTerminal {
 		return ""
 	}
 	// The daemon is one per unix user, so the user IS the author. The uid is

@@ -344,7 +344,7 @@ func (d *Daemon) refuseNoSuchAddressee(to string) error {
 // whole identity model here rests on a seat being something you hold rather
 // than something you claim.
 func (d *Daemon) readMail(ctx context.Context, occ occupant, after uint64, limit int, wait time.Duration) (mailBatch, error) {
-	command := "message.inbox"
+	command := verbMessageInbox
 	if wait > 0 {
 		command = "message.await"
 	}
@@ -483,7 +483,7 @@ func (d *Daemon) serveMessage(ctx context.Context, c *conn, f *rigv1.Frame, comm
 	switch command {
 	case "message.send":
 		d.serveMessageSend(c, f)
-	case "message.inbox", "message.await":
+	case verbMessageInbox, "message.await":
 		d.serveMessageRead(ctx, c, f, command)
 	case "message.ack":
 		d.serveMessageAck(c, f)
@@ -534,7 +534,7 @@ func (d *Daemon) serveMessageRead(ctx context.Context, c *conn, f *rigv1.Frame, 
 	for _, m := range batch.Messages {
 		out = append(out, messageToWire(m))
 	}
-	if command == "message.inbox" {
+	if command == verbMessageInbox {
 		c.reply(f.GetStreamId(), &verbsv1.MessageInboxResponse{
 			Messages: out, Cursor: batch.Cursor, Gap: batch.Gap, Misaddressed: batch.Misaddressed,
 		})
@@ -580,7 +580,7 @@ func (d *Daemon) serveMessageList(c *conn, f *rigv1.Frame) {
 // readRequest unpacks whichever of the two read requests was sent, and turns
 // await's milliseconds into the wait that tells the two apart.
 func readRequest(c *conn, f *rigv1.Frame, command string) (after uint64, limit uint32, wait time.Duration, ok bool) {
-	if command == "message.inbox" {
+	if command == verbMessageInbox {
 		var req verbsv1.MessageInboxRequest
 		if !readFrame(c, f, command, &req) {
 			return 0, 0, 0, false

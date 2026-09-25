@@ -109,25 +109,25 @@ announce first; the seat comes from your row, never from the request.
                   version it ever had. Nothing is ever overwritten.
   record_link / record_unlink / record_refs   typed edges between records.
   progress_step   a work item moved. knowledge_search, _get, _add: lessons.
+  lease_*, queue_*, notify, toast_*, up, stop, restart, health, backup_create,
+  ping, session   the rest of rig, as on the wire; they run as your seat.
 
 rig is not in the program map, so invoke and describe cannot reach it; asking
-invoke for "rig" is the usual first mistake. Other tools are program commands.
+invoke for "rig" is the usual first mistake. Any other tool is a program's.
 
 IF set_activity SAYS YOU HAVE NO ROW, YOU ARE NOT WHERE YOU THINK YOU ARE. A
 row lives exactly as long as its connection, so if you announced earlier and
 this call disagrees, that daemon is gone and something re-dialled you without
 saying so. Announce again; do not retry.
 
-DEPTH COSTS. ASK FOR THE ONE YOU NEED. programs is who is registered and how
-much of rig each adopted; commands adds what you PICK a command by and is
-usually right; full adds what you CALL it with and is long - take that one per
-program through describe.
+DEPTH COSTS. ASK FOR THE ONE YOU NEED. programs: who is registered and how
+much of rig each adopted. commands adds what you PICK a command by; usually
+right. full adds what you CALL it with and is long: per program, via describe.
 
 ABSENT CAN MEAN WITHHELD, and two fields say so. basis "complete" is the whole
 estate; "scoped" means something may have been filtered and rig will not say
-what. partial and
-coverageNote mean a program adopted only some of rig and name which part -
-"the wire only" is unreadable from here, not absent. READ BOTH FIRST.
+what. partial and coverageNote mean a program adopted only some of rig and
+name which part - "the wire only" is unreadable from here. READ BOTH FIRST.
 
 QUERY TAKES registry, programs AND estate. Any other subject is accepted
 rather than refused and answered with what query cannot reach, so an answer
@@ -554,6 +554,14 @@ func New(m *meta.Server, who kernel.Principal, version string) *Server {
 		}))
 	})
 
+	// EVERY OTHER VERB rig DECLARES (plan/09, "The MCP door covers everything
+	// rig does"). The list, the words and the input schema are the daemon's;
+	// this only renders them, and each call goes back through meta to the
+	// daemon's own dispatch.
+	for _, v := range m.Verbs() {
+		s.AddTool(verbToolFor(v), srv.verbHandler(v.Command))
+	}
+
 	// THE CAPABILITY MAP, AS ONE RESOURCE. Section 9, and M2 slice 4.
 	//
 	// The handler closes over `who`, which is what makes one URI serve every
@@ -738,6 +746,31 @@ func (s *Server) toolFor(name string, p promotion) *mcp.Tool {
 		Title:       p.command.Title,
 		Description: description,
 		InputSchema: schemaOrEmpty(p.command.Args),
+	}
+}
+
+// verbToolFor is one of rig's own verbs as a tool, its effects carried as the
+// protocol's hints so a client that asks before a destructive call can.
+func verbToolFor(v meta.Verb) *mcp.Tool {
+	destructive := v.Effects >= kernel.EffectsDestructive
+	return &mcp.Tool{
+		Name: v.Tool, Title: v.Title, Description: v.Description,
+		InputSchema: schemaOrEmpty(v.Input),
+		Annotations: &mcp.ToolAnnotations{
+			Title:           v.Title,
+			ReadOnlyHint:    v.Effects == kernel.EffectsReadOnly,
+			DestructiveHint: &destructive,
+			IdempotentHint:  v.Idempotent == kernel.Yes,
+		},
+	}
+}
+
+func (s *Server) verbHandler(command string) mcp.ToolHandler {
+	return func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		out, _, _ := answer(s.meta.Answer(ctx, s.who, meta.Request{
+			Tool: meta.VerbTool, Command: command, Args: req.Params.Arguments,
+		}))
+		return out, nil
 	}
 }
 

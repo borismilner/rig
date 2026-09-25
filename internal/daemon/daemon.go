@@ -393,6 +393,12 @@ type conn struct {
 	scoped  atomic.Bool
 	program atomic.Value // string
 
+	// agentDoor marks the in-memory connection an MCP call runs on
+	// (mcp_verbs.go). The MCP socket mints its callers as terminals, and a
+	// terminal is named by the daemon when it has not announced; an agent is
+	// not, it announces first, as every other tool on its door requires.
+	agentDoor bool
+
 	// who this connection is, decided at accept and changed only by the
 	// program handshake. Read on every registry access, so it is a value in
 	// an atomic rather than a struct behind a mutex.

@@ -15,6 +15,9 @@ import (
 // translation to the wire and the two decisions the mechanism cannot make:
 // WHICH connection is the supervised child, and WHO may report its health.
 
+// verbRestart is the one supervision verb named in three files.
+const verbRestart = "restart"
+
 // serveSupervise dispatches rig.up, rig.stop, rig.restart, rig.health and a
 // program's own rig.health.report.
 func (d *Daemon) serveSupervise(c *conn, f *rigv1.Frame, command string) {
@@ -42,10 +45,10 @@ func (d *Daemon) serveSupervise(c *conn, f *rigv1.Frame, command string) {
 			return
 		}
 		c.reply(f.GetStreamId(), &verbsv1.UpResponse{Programs: healthToWire(st)})
-	case "stop", "restart":
+	case "stop", verbRestart:
 		var program string
 		act := d.super.Stop
-		if command == "restart" {
+		if command == verbRestart {
 			var req verbsv1.RestartRequest
 			if !unmarshalOr(c, f, command, &req) {
 				return
@@ -68,7 +71,7 @@ func (d *Daemon) serveSupervise(c *conn, f *rigv1.Frame, command string) {
 			return
 		}
 		one := healthToWire(st)[0]
-		if command == "restart" {
+		if command == verbRestart {
 			c.reply(f.GetStreamId(), &verbsv1.RestartResponse{Program: one})
 			return
 		}

@@ -435,6 +435,8 @@ func (s *Server) Answer(ctx context.Context, who kernel.Principal, r Request) (A
 		return s.worknote(ctx, who, r)
 	case MessageSendTool, MessageInboxTool, MessageAwaitTool, MessageAckTool, MessageListTool:
 		return s.mail(ctx, who, r)
+	case VerbTool:
+		return s.verb(ctx, who, r)
 	default:
 		// ⛔ THE REFUSAL ENUMERATES EVERY TOOL AND MUST KEEP DOING SO. It used
 		// to say "the seven are" and list them; a hand-kept count beside a

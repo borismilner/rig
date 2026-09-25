@@ -101,7 +101,12 @@ prefix on a unix socket. gRPC was measured (+9.8 MiB resident) and rejected.
 | `message_send/inbox/await/ack/list` | directed messages to a seat | built |
 | `worknote_write/mine/about` | an agent's working notes, back to its seat on resume | built |
 | `record_put/get/query/history/link/unlink/refs/replace/retract/delete`, `progress_step` | the record store | built |
+| `lease_*`, `queue_*`, `notify`, `toast_wait/dnd`, `up/stop/restart/health`, `backup_create`, `ping`, `session` | every other rig verb, through the daemon's own dispatch as the agent's seat | built |
 | promoted tools | individual commands raised to first-class tools | specified |
+
+Every rig verb is on this door or on plan/09's exclusion list (`down`,
+`health.report`, `project.brief`); `TestEveryRigVerbIsOnTheAgentDoor` fails
+the build for a verb that is on neither.
 
 ### Platform services
 
