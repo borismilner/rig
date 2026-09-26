@@ -152,6 +152,84 @@ place, named below, and no code moves either way until he approves.
 
 ---
 
+### P9 build specification: `store.*`, free files, export and import
+
+⛔ **DRAFT, written 2026-09-26 from R1-R23. The rulings above are his; every
+"recommend" and every D-row below is a seat's until he confirms it.** It
+replaces "The program-facing API, in shape" further down, which was a sketch.
+
+**The three areas under one root** (R14-R16, R18-R21):
+
+```
+<root>/estates/<name>/            root: --root, else RIG_ROOT, else ~/.rig
+├─ internal/                      rig only, never in git
+│  └─ programs/<id>.db            store.* database, one per program
+├─ files/                         git repository; programs write directly
+│  └─ <id>/                       rig commits on an interval (R17, R9)
+└─ exports/                       git repository; ad hoc, auto-committed
+   └─ <id>/<collection>.jsonl     (R19, R21-R23, R8)
+```
+
+#### Decisions, each a seat's recommendation until he confirms
+
+| # | Decision | Why |
+|---|---|---|
+| D1 | **A collection holds JSON documents keyed by id**, created on first write. No declared schema in this build | graft can adopt without a declaration format that does not exist yet (§5e's `data` block is unbuilt). A declared schema can be added later without changing a caller |
+| D2 | **A program's namespace is taken from its connection**, never from an argument. A terminal or an agent names the program explicitly | a program can never read or write another program's data. The terminal and the agent door are Boris and his seats, who may inspect anything, as with every other verb |
+| D3 | **Every write carries a version and is compare-and-swap**, as `record.put` already is | two graft workers cannot silently overwrite each other |
+| D4 | **No caller string reaches SQL text.** Field paths and values are bound parameters (`json_extract(doc, ?)`); collection names and ids match `[a-z0-9][a-z0-9._-]{0,63}` | §38's safe-code rule. The same pattern keeps an export path inside `exports/<id>/` |
+| D5 | **git is driven by exec'ing the system `git`** with a fixed argv, `-c core.hooksPath=/dev/null`, rig as the author, never a shell | §38 search: `go-git/go-git` (pure Go) and the `git` binary. go-git adds several MB to `rigd` for four commands; exec is already the pattern in `cmd/tagcheck`. A missing `git` is a clear refusal, not a crash |
+| D6 | **The root is a flag and an environment variable** until plan/47's configuration service exists, and `rig estate` reports it | R15 needs it now; S4 is deferred |
+| D7 | **The existing `record.db` and `coord.db` do NOT move in this build.** Moving his live store to `~/.rig` is its own step, taken with his go and a snapshot first | R14's default binds the new areas at once; his data moves only when he says so |
+| D8 | **An import replaces the named collections whole**, after a snapshot of the program's database | a merge of a stale export into live data is the silent-loss case |
+
+#### Verbs (each one is an MCP tool by the P8 test; no exclusions)
+
+| Verb | Effects | Carries |
+|---|---|---|
+| `store.put` | write | collection, id, expected version (0 = create), document |
+| `store.get` | read | collection, **many** ids |
+| `store.query` | read | collection, `where` (field, op, value; AND only), `fields`, `order`, `limit`, `count_only` |
+| `store.delete` | destructive | collection, id, expected version |
+| `store.transact` | write | puts and deletes, all or none |
+| `store.collections` | read | the program's collections, row counts, bytes |
+| `store.export` | write | program, collections (empty = all); writes JSONL sorted by id, commits |
+| `store.import` | destructive | program, collections; snapshot, replace, report counts |
+| `files.root` | read | the caller's own directory under `files/`, created if missing |
+
+CLI: `rig store {put,get,query,delete,collections,export,import}` and
+`rig files root`.
+
+#### Slices, each committed and gated on its own
+
+| # | Slice | Done when |
+|---|---|---|
+| 1 | `internal/paths`: root resolution and the three areas; unnamed estate gets a temporary root | `rig estate` prints the root; `RIG_ROOT` and `--root` both move it |
+| 2 | `internal/store`: open, migrations, documents, CAS, query | unit tests below pass |
+| 3 | wire, daemon arms, CLI and MCP for the store verbs | a program and an agent both put and query; a program cannot reach another's collection |
+| 4 | `files/`: `files.root`, git init, the interval committer | a file a program writes appears in a rig commit within one interval |
+| 5 | export and import | round trip: export, delete rows, import, identical documents and versions |
+| 6 | `examples/storeworker`: a fake adopter standing in for graft | demonstrated live on a private estate: stores, queries, writes a file, is exported and re-imported |
+
+#### Tests owed, each with the red control that proves it bites
+
+| Test | Red control |
+|---|---|
+| a second writer with a stale version is refused | drop the version predicate |
+| program A cannot read or write program B's collection | take the namespace from the argument |
+| a hostile collection name (`../x`, `a/b`) is refused before disk or SQL | skip the name check |
+| a field path with a quote cannot alter the query | build the path into SQL text |
+| `transact` with one failing step leaves nothing written | commit per step |
+| export is sorted by id, byte-stable across two runs | iterate the map |
+| export then import round-trips documents and versions | reset versions on import |
+| import snapshots the database first | skip the snapshot |
+| the committer commits nothing when nothing changed | commit unconditionally |
+| a repository hook cannot run | drop `core.hooksPath` |
+| every new verb is an MCP tool | the P8 test, unchanged |
+
+**Acceptance:** slice 6 demonstrated live, with the commands and their output
+in this section; `make ci` and `make lint` 0 at the final sha.
+
 ### Step 1. What it is, what a program does with it, what it costs
 
 **What it is.** Today rig has implemented storage twice and offers it to
