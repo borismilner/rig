@@ -165,6 +165,22 @@ folder that everybody can ask to write to or read from."*
 plan/40 carries the tension with its index requirement and a seat's
 recommendation for it.
 
+**Boris, the same day, verbatim:** *"Keep the index on top of the folder - exactly right! Everything agents write
+into the freely-accessible-filesystem must be managed (by those same agents) in
+the rig index/knowledge-base, this way it can be easily accessible to them and
+maybe others later without reading everything every time."*
+
+| # | Requirement |
+|---|---|
+| R25 | **The index sits on top of the folder.** The files are the source; rig's search index is built from them, and a search answers a snippet, never the whole body (plan/40's rule, kept) |
+| R26 | **Everything an agent writes into the free filesystem is entered in rig's index by that same agent**, per-program folders and the shared folder alike, so it can be found later, by that agent or others, without reading everything |
+
+**A seat's recommendation for R26, not his ruling:** the writer calls one verb
+after writing (path, title, one-line summary, tags); rig indexes the file's
+text under that entry. rig also lists, at each commit, every file with no entry
+or an entry older than the file, so a missed registration is visible rather
+than silently unfindable.
+
 ### P9 build specification: `store.*`, free files, export and import
 
 ⛔ **DRAFT, written 2026-09-26 from R1-R23. The rulings above are his; every
@@ -208,7 +224,10 @@ replaces "The program-facing API, in shape" further down, which was a sketch.
 | `store.collections` | read | the program's collections, row counts, bytes |
 | `store.export` | write | program, collections (empty = all); writes JSONL sorted by id, commits |
 | `store.import` | destructive | program, collections; snapshot, replace, report counts |
-| `files.root` | read | the caller's own directory under `files/`, created if missing |
+| `files.root` | read | the caller's own directory under `files/`, or the shared one, created if missing |
+| `files.index` | write | path under `files/`, title, one-line summary, tags; rig indexes the file's text (R26) |
+| `files.search` | read | words; answers path, title, summary, snippet, score, never a body (R25) |
+| `files.unindexed` | read | files with no index entry, or an entry older than the file |
 
 CLI: `rig store {put,get,query,delete,collections,export,import}` and
 `rig files root`.
@@ -221,6 +240,7 @@ CLI: `rig store {put,get,query,delete,collections,export,import}` and
 | 2 | `internal/store`: open, migrations, documents, CAS, query | unit tests below pass |
 | 3 | wire, daemon arms, CLI and MCP for the store verbs | a program and an agent both put and query; a program cannot reach another's collection |
 | 4 | `files/`: `files.root`, git init, the interval committer | a file a program writes appears in a rig commit within one interval |
+| 4b | the index over `files/` (R25, R26): `files.index`, `files.search`, `files.unindexed`; `knowledge.*` becomes a view of the shared lessons folder, and the lessons now in the database move there once | a file written and indexed is found by a search that returns no body; an unindexed file is listed |
 | 5 | export and import | round trip: export, delete rows, import, identical documents and versions |
 | 6 | `examples/storeworker`: a fake adopter standing in for graft | demonstrated live on a private estate: stores, queries, writes a file, is exported and re-imported |
 
@@ -238,6 +258,9 @@ CLI: `rig store {put,get,query,delete,collections,export,import}` and
 | import snapshots the database first | skip the snapshot |
 | the committer commits nothing when nothing changed | commit unconditionally |
 | a repository hook cannot run | drop `core.hooksPath` |
+| a search never returns a file's body | return the body |
+| a file changed after its entry is listed by `files.unindexed` | compare paths only |
+| `files.index` refuses a path outside `files/` (`../`, a symlink out) | join the path unchecked |
 | every new verb is an MCP tool | the P8 test, unchanged |
 
 **Acceptance:** slice 6 demonstrated live, with the commands and their output

@@ -20,6 +20,11 @@ recommendation, not his ruling:** the lessons are files in the shared folder
 (the source, in git), and the FTS5 index built 2026-09-24 is rebuilt from that
 folder, so `knowledge.search` keeps returning a snippet and never a body.
 
+✅ **He confirmed it the same day** (plan/48, R25) and widened it (R26):
+*"Everything agents write into the freely-accessible-filesystem must be managed
+(by those same agents) in the rig index/knowledge-base"*. The index is no
+longer lessons-only; it covers every file an agent writes under `files/`.
+
 ## His words on knowledge sharing, verbatim
 
 > *"`rig` shall have a knowledge sharing section, mainly for the use of AI agents
