@@ -303,6 +303,22 @@ Seat choices made while building, each his to overrule:
 | ceilings: 500 ops per transaction, 32 terms per query list | bounds on every caller list, the safe-code rule |
 | database files are created 0600 before sqlite opens them | sqlite would make them 0644 and its WAL copies the mode |
 
+**Slice 4 as built, 2026-09-26** (rig `5135aba`). Seat choices, his to
+overrule:
+
+| Choice | Why |
+|---|---|
+| **one commit per pass for the whole `files/` tree**, not one per program as R9 reads | R31 lays `files/` out by kind, so most paths belong to no one program; the index (4b) records the writer |
+| a text file over 10 MiB is left out like a binary | a huge log in git history is carried by every clone forever |
+| a symlink is committed as the link, its target never read | a link must not decide what rig reads |
+| git runs with hooks, fsmonitor, signing and the user's and system gitconfig all off; pathspecs literal | programs write `files/` freely, `.git/` included, and nothing there may run as rig |
+| a terminal's or agent's `files.root` for a program makes nothing | as for store reads: the name is not proved |
+| an interval under 1 second is refused at start | the committer would run git back to back |
+
+**Not closed:** a program can still edit `files/.git/config` (a filter
+driver, for one). The settings above close what runs on `status` and
+`commit`; the rest is the deferred threat model, not this build.
+
 #### Tests owed, each with the red control that proves it bites
 
 | Test | Red control |
