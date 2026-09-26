@@ -353,6 +353,26 @@ Seat choices, his to overrule:
 to the old place; it must ask `files.root` or `files.place` again. Files left
 in a directory no kind claims are not moved or reported by relayout.
 
+**Slice 4b part c as built, 2026-09-26** (rig `0eac8ba`): `knowledge.*` is
+a view of the shared lessons folder (R24, R25). Same verbs, same MCP tools,
+same CLI. Seat choices, his to overrule:
+
+| Choice | Why |
+|---|---|
+| a lesson is `lessons/<id>.md` with a `---` header (id, title, summary, tags, seat, session, epoch, created), then the body | the file alone rebuilds the index, and an edit by hand is searched as it now reads |
+| the id is the file name; a moved lesson keeps its record-store id | links and notes that name a lesson stay good |
+| `knowledge.search` first refreshes the index from the folder: new or changed files with a header are indexed, gone ones dropped | the folder is the source; a file written or deleted by hand is seen at the next search |
+| a file in the folder with no header is still a lesson, named by its writer's `files.index` entry | R26: the writer describes a file |
+| at start rigd copies the record store's lessons into the folder, once, and leaves a marker `internal/lessons.moved`; a file that exists is never overwritten and the table is kept as the backup | non-destructive, so it needs no separate step; the marker stops a lesson deleted from the folder coming back at the next start |
+| the folder is the layout's `lessons` kind; lessons need a storage root, and work on an unnamed estate that has one | one place decides where files go (R28) |
+
+**Deploying runs the copy on the live lessons.** Boris's go is owed first.
+
+**Not closed:** a search snippet can show header text, since the header is
+indexed with the body. For the few milliseconds between rigd's MCP listener
+opening and the files opening, an MCP lesson call answers "unavailable";
+socket callers never see it.
+
 #### Tests owed, each with the red control that proves it bites
 
 | Test | Red control |
