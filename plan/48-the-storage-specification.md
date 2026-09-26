@@ -289,7 +289,7 @@ CLI: `rig store {put,get,query,delete,collections,export,import}` and
 | 4 | `files/`: `files.root`, git init, the interval committer | a file a program writes appears in a rig commit within one interval |
 | 4b | the index over `files/` (R25, R26): `files.index`, `files.search`, `files.unindexed`; `knowledge.*` becomes a view of the shared lessons folder, and the lessons now in the database move there once | a file written and indexed is found by a search that returns no body; an unindexed file is listed |
 | 5 | export and import | round trip: export, delete rows, import, identical documents and versions |
-| 6 | `examples/storeworker`: a fake adopter standing in for graft | demonstrated live on a private estate: stores, queries, writes a file, is exported and re-imported |
+| 6 | `examples/storeworker`: a fake adopter standing in for graft. **R37, Boris 2026-09-27, verbatim:** *"make sure the fake program showcases as many of the features of rig as possible and that it interacts with me as the user."* | demonstrated live on a private estate: stores, queries, writes a file, is exported and re-imported; **and it uses as many of rig's program-facing features as it can, and Boris drives it and is asked by it, as its user** |
 
 **Slices 1-3 as built, 2026-09-26** (rig `125f74c`, `ea3267d`, `c49441e`).
 Seat choices made while building, each his to overrule:
