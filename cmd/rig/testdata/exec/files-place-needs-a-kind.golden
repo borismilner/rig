@@ -1,4 +1,4 @@
-$ rig files search --under lessons
+$ rig files place --subject sched
 exit 1
 --- stdout (0 bytes)
 --- stderr (277 bytes)

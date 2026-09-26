@@ -957,7 +957,8 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 		"store.transact", "store.collections":
 		d.serveStore(ctx, c, f, command)
 
-	case "files.root", "files.index", "files.search", "files.unindexed":
+	case "files.root", "files.index", "files.search", "files.unindexed",
+		"files.place", "files.layout", "files.relayout":
 		d.serveFiles(ctx, c, f, command)
 
 	// SECTION 16's DIRECTED MESSAGES, all five through one arm. The queue is

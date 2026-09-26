@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -67,6 +68,9 @@ CREATE VIRTUAL TABLE IF NOT EXISTS entry_text USING fts5(title, summary, tags, b
 type Index struct {
 	db   *sql.DB
 	root *os.Root
+	// mu lets a relayout move files and rewrite entries with no index call
+	// between; every other call shares it.
+	mu sync.RWMutex
 }
 
 // OpenIndex opens, or creates owner-only, the index database at dbPath over
@@ -214,6 +218,8 @@ func checkRequest(r Request) error {
 // Put indexes the file at r.Path, replacing its earlier entry. A path whose
 // file is gone has its entry dropped, so the index follows the area.
 func (ix *Index) Put(ctx context.Context, r Request) (Entry, error) {
+	ix.mu.RLock()
+	defer ix.mu.RUnlock()
 	rel, err := CleanPath(r.Path)
 	if err != nil {
 		return Entry{}, err
@@ -343,6 +349,8 @@ type Hit struct {
 // Search answers the best-matching entries, best first. under narrows it to a
 // directory; limit 0 means DefaultHits, above MaxHits is refused.
 func (ix *Index) Search(ctx context.Context, query, under string, limit int) ([]Hit, error) {
+	ix.mu.RLock()
+	defer ix.mu.RUnlock()
 	if limit == 0 {
 		limit = DefaultHits
 	}
@@ -400,6 +408,8 @@ type stamp struct{ size, mtime int64 }
 // limit of them (0 means DefaultPending), and how many there are in all.
 // Symlinks are not listed: the index refuses them.
 func (ix *Index) Unindexed(ctx context.Context, under string, limit int) ([]Pending, int, error) {
+	ix.mu.RLock()
+	defer ix.mu.RUnlock()
 	if limit == 0 {
 		limit = DefaultPending
 	}

@@ -158,3 +158,67 @@ func TestNoRootMeansNoIndex(t *testing.T) {
 	wantCode(t, c.Call(ctx5(t), "rig.files.search", &verbsv1.FilesSearchRequest{Query: "x"},
 		&verbsv1.FilesSearchResponse{}), rigv1.Code_CODE_UNAVAILABLE, "files.search with no root")
 }
+
+// R29, R30 across the doors: a writer asks where a file goes, Boris edits the
+// layout, relayout moves the files, and files.root follows.
+func TestTheLayoutPlacesFilesAndRelayoutMovesThem(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	sock, root, d := upStoreDaemon(t)
+	ctx := ctx5(t)
+	term := dial(t, sock)
+	var pr verbsv1.FilesPlaceResponse
+	if err := term.Call(ctx, "rig.files.place", &verbsv1.FilesPlaceRequest{
+		Kind: "docs", Subject: "sched", Name: "cron.md",
+	}, &pr); err != nil || pr.GetRelative() != "docs/sched/cron.md" ||
+		pr.GetPath() != filepath.Join(root, "files", "docs", "sched", "cron.md") {
+		t.Fatalf("place: %v, %v", &pr, err)
+	}
+	err := term.Call(ctx, "rig.files.place", &verbsv1.FilesPlaceRequest{Kind: "images", Name: "a.png"}, &pr)
+	wantCode(t, err, rigv1.Code_CODE_INVALID, "an unknown kind")
+	if !strings.Contains(err.Error(), "docs, resources, lessons, programs") {
+		t.Fatalf("the refusal does not list the kinds: %v", err)
+	}
+	graft := program(t, sock, "graft")
+	wantCode(t, graft.Call(ctx, "rig.files.place", &verbsv1.FilesPlaceRequest{Kind: "programs", Program: "shelf"}, &pr),
+		rigv1.Code_CODE_DENIED, "graft asking for shelf's directory")
+
+	// A file written where rig said, then the layout edited.
+	var placed verbsv1.FilesPlaceResponse
+	_ = term.Call(ctx, "rig.files.place", &verbsv1.FilesPlaceRequest{Kind: "docs", Subject: "sched", Name: "cron.md"}, &placed)
+	if err := os.MkdirAll(filepath.Dir(placed.GetPath()), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(placed.GetPath(), []byte("five fields\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var lr verbsv1.FilesLayoutResponse
+	if err := term.Call(ctx, "rig.files.layout", &verbsv1.FilesLayoutRequest{}, &lr); err != nil || lr.GetPending() {
+		t.Fatalf("layout: %v, %v", &lr, err)
+	}
+	edited := "docs documentation/{subject}\nresources resources/{type}/{subject}\n" +
+		"lessons lessons/\nprograms work/{program}\n"
+	if err := os.WriteFile(lr.GetFile(), []byte(edited), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := term.Call(ctx, "rig.files.layout", &verbsv1.FilesLayoutRequest{}, &lr); err != nil || !lr.GetPending() {
+		t.Fatalf("an edit is not pending: %v, %v", &lr, err)
+	}
+	agent := mailAgent(t, d, "layout-agent")
+	ans := resultOf(t, callTool(ctx, t, agent, "files_relayout", map[string]any{"dry_run": true}))
+	if ans["applied"] == true {
+		t.Fatalf("a dry run applied: %v", ans)
+	}
+	var rr verbsv1.FilesRelayoutResponse
+	if err := term.Call(ctx, "rig.files.relayout", &verbsv1.FilesRelayoutRequest{}, &rr); err != nil ||
+		!rr.GetApplied() || rr.GetMovesTotal() != 1 || rr.GetMoves()[0].GetTo() != "documentation/sched/cron.md" {
+		t.Fatalf("relayout: %v, %v", &rr, err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "files", "documentation", "sched", "cron.md")); err != nil {
+		t.Fatal(err)
+	}
+	var own verbsv1.FilesRootResponse
+	if err := graft.Call(ctx, "rig.files.root", &verbsv1.FilesRootRequest{}, &own); err != nil ||
+		own.GetPath() != filepath.Join(root, "files", "work", "graft") {
+		t.Fatalf("files.root after relayout: %v, %v", &own, err)
+	}
+}

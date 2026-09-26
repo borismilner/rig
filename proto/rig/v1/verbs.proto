@@ -2345,3 +2345,65 @@ message FilesUnindexedResponse {
   repeated FilesPending files = 1;
   uint32 total = 2;
 }
+
+// FilesPlaceRequest asks where a file of a kind goes (plan/48 R29): the answer
+// comes from the layout in force. subject, type and program fill the place's
+// placeholders; one the place does not use is ignored. name empty answers the
+// directory. A kind the layout does not name is refused with the list (R33).
+// rig makes nothing: the caller writes there directly (R12).
+message FilesPlaceRequest {
+  string kind = 1;
+  string subject = 2;
+  string type = 3;
+  string program = 4;
+  string name = 5;
+}
+
+message FilesPlaceResponse {
+  // Absolute, for the caller to write.
+  string path = 1;
+  // Relative to the free-files root, as files.index takes it.
+  string relative = 2;
+  // The kind's place in the layout, placeholders unfilled.
+  string place = 3;
+}
+
+message FilesLayoutRequest {}
+
+// FilesKind is one line of the layout.
+message FilesKind {
+  string name = 1;
+  string place = 2;
+}
+
+// FilesLayoutResponse is the layout in force (R30), the file Boris edits, and
+// whether that file holds an edit relayout has not applied yet.
+message FilesLayoutResponse {
+  repeated FilesKind kinds = 1;
+  string file = 2;
+  bool pending = 3;
+  // Why the edited file cannot be applied, when it cannot.
+  string pending_error = 4;
+}
+
+// FilesRelayoutRequest applies the edited layout: moves the files already
+// written to where it puts them and rewrites their index entries. Refused
+// whole, nothing moved, if any file would be stranded or overwritten. dry_run
+// answers the moves and makes none.
+message FilesRelayoutRequest {
+  bool dry_run = 1;
+}
+
+message FilesMove {
+  string from = 1;
+  string to = 2;
+}
+
+message FilesRelayoutResponse {
+  repeated string changed = 1;
+  // At most 200 listed; moves_total counts them all.
+  repeated FilesMove moves = 2;
+  uint32 moves_total = 3;
+  uint32 reindexed = 4;
+  bool applied = 5;
+}

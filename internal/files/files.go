@@ -34,9 +34,6 @@ const MaxCommitted = 10 << 20
 // byte in the first 8,000 bytes.
 const sniff = 8000
 
-// ProgramsDir is where each program's private working files live, R31.
-const ProgramsDir = "programs"
-
 // ErrNoGit means the git binary could not be run.
 var ErrNoGit = errors.New("files: the git binary is not on PATH, so rig cannot keep the free files in git")
 
@@ -76,17 +73,19 @@ func Open(ctx context.Context, dir string) (*Repo, error) {
 // Dir is the area's root, the shared folder every program may use (R24).
 func (r *Repo) Dir() string { return r.dir }
 
-// ProgramDir is a program's own directory, created if missing (R12, R13).
-func (r *Repo) ProgramDir(program string) (string, error) {
-	if !namePattern.MatchString(program) {
-		return "", fmt.Errorf("files: program %q is not allowed: lowercase letters, digits, "+
-			"'.', '_' and '-', starting with a letter or digit, at most 64", program)
+// MakeDir makes a directory under the area, owner-only. rel comes from the
+// layout; os.Root still refuses it if a symlink a program planted would take
+// it outside the area.
+func (r *Repo) MakeDir(rel string) (string, error) {
+	root, err := os.OpenRoot(r.dir)
+	if err != nil {
+		return "", fmt.Errorf("files: opening %s: %w", r.dir, err)
 	}
-	d := filepath.Join(r.dir, ProgramsDir, program)
-	if err := os.MkdirAll(d, 0o700); err != nil {
-		return "", fmt.Errorf("files: creating %s: %w", d, err)
+	defer func() { _ = root.Close() }()
+	if err := root.MkdirAll(rel, 0o700); err != nil {
+		return "", fmt.Errorf("files: making %s: %w", rel, trimRoot(err))
 	}
-	return d, nil
+	return filepath.Join(r.dir, rel), nil
 }
 
 // Result is what one commit pass did.

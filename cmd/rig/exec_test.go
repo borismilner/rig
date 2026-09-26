@@ -252,6 +252,7 @@ func TestTheBinary(t *testing.T) {
 		{name: "files-root-needs-one-of-two", argv: []string{"files", "root", "--program", "graft", "--shared"}},
 		{name: "files-search-needs-words", argv: []string{"files", "search", "--under", "lessons"}},
 		{name: "files-index-needs-one-path", argv: []string{"files", "index", "--title", "t"}},
+		{name: "files-place-needs-a-kind", argv: []string{"files", "place", "--subject", "sched"}},
 		{name: "up-refuses-an-unknown-flag", argv: []string{"up", "--bogus"}},
 		{name: "stop-needs-one-program", argv: []string{"stop"}},
 		{name: "restart-needs-one-program", argv: []string{"restart", "a", "b"}},

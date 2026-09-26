@@ -10349,6 +10349,487 @@ func (x *FilesUnindexedResponse) GetTotal() uint32 {
 	return 0
 }
 
+// FilesPlaceRequest asks where a file of a kind goes (plan/48 R29): the answer
+// comes from the layout in force. subject, type and program fill the place's
+// placeholders; one the place does not use is ignored. name empty answers the
+// directory. A kind the layout does not name is refused with the list (R33).
+// rig makes nothing: the caller writes there directly (R12).
+type FilesPlaceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Subject       string                 `protobuf:"bytes,2,opt,name=subject,proto3" json:"subject,omitempty"`
+	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	Program       string                 `protobuf:"bytes,4,opt,name=program,proto3" json:"program,omitempty"`
+	Name          string                 `protobuf:"bytes,5,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FilesPlaceRequest) Reset() {
+	*x = FilesPlaceRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[144]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FilesPlaceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FilesPlaceRequest) ProtoMessage() {}
+
+func (x *FilesPlaceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[144]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FilesPlaceRequest.ProtoReflect.Descriptor instead.
+func (*FilesPlaceRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{144}
+}
+
+func (x *FilesPlaceRequest) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *FilesPlaceRequest) GetSubject() string {
+	if x != nil {
+		return x.Subject
+	}
+	return ""
+}
+
+func (x *FilesPlaceRequest) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *FilesPlaceRequest) GetProgram() string {
+	if x != nil {
+		return x.Program
+	}
+	return ""
+}
+
+func (x *FilesPlaceRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type FilesPlaceResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Absolute, for the caller to write.
+	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	// Relative to the free-files root, as files.index takes it.
+	Relative string `protobuf:"bytes,2,opt,name=relative,proto3" json:"relative,omitempty"`
+	// The kind's place in the layout, placeholders unfilled.
+	Place         string `protobuf:"bytes,3,opt,name=place,proto3" json:"place,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FilesPlaceResponse) Reset() {
+	*x = FilesPlaceResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[145]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FilesPlaceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FilesPlaceResponse) ProtoMessage() {}
+
+func (x *FilesPlaceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[145]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FilesPlaceResponse.ProtoReflect.Descriptor instead.
+func (*FilesPlaceResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{145}
+}
+
+func (x *FilesPlaceResponse) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *FilesPlaceResponse) GetRelative() string {
+	if x != nil {
+		return x.Relative
+	}
+	return ""
+}
+
+func (x *FilesPlaceResponse) GetPlace() string {
+	if x != nil {
+		return x.Place
+	}
+	return ""
+}
+
+type FilesLayoutRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FilesLayoutRequest) Reset() {
+	*x = FilesLayoutRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[146]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FilesLayoutRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FilesLayoutRequest) ProtoMessage() {}
+
+func (x *FilesLayoutRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[146]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FilesLayoutRequest.ProtoReflect.Descriptor instead.
+func (*FilesLayoutRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{146}
+}
+
+// FilesKind is one line of the layout.
+type FilesKind struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Place         string                 `protobuf:"bytes,2,opt,name=place,proto3" json:"place,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FilesKind) Reset() {
+	*x = FilesKind{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[147]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FilesKind) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FilesKind) ProtoMessage() {}
+
+func (x *FilesKind) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[147]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FilesKind.ProtoReflect.Descriptor instead.
+func (*FilesKind) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{147}
+}
+
+func (x *FilesKind) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *FilesKind) GetPlace() string {
+	if x != nil {
+		return x.Place
+	}
+	return ""
+}
+
+// FilesLayoutResponse is the layout in force (R30), the file Boris edits, and
+// whether that file holds an edit relayout has not applied yet.
+type FilesLayoutResponse struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Kinds   []*FilesKind           `protobuf:"bytes,1,rep,name=kinds,proto3" json:"kinds,omitempty"`
+	File    string                 `protobuf:"bytes,2,opt,name=file,proto3" json:"file,omitempty"`
+	Pending bool                   `protobuf:"varint,3,opt,name=pending,proto3" json:"pending,omitempty"`
+	// Why the edited file cannot be applied, when it cannot.
+	PendingError  string `protobuf:"bytes,4,opt,name=pending_error,json=pendingError,proto3" json:"pending_error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FilesLayoutResponse) Reset() {
+	*x = FilesLayoutResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[148]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FilesLayoutResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FilesLayoutResponse) ProtoMessage() {}
+
+func (x *FilesLayoutResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[148]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FilesLayoutResponse.ProtoReflect.Descriptor instead.
+func (*FilesLayoutResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{148}
+}
+
+func (x *FilesLayoutResponse) GetKinds() []*FilesKind {
+	if x != nil {
+		return x.Kinds
+	}
+	return nil
+}
+
+func (x *FilesLayoutResponse) GetFile() string {
+	if x != nil {
+		return x.File
+	}
+	return ""
+}
+
+func (x *FilesLayoutResponse) GetPending() bool {
+	if x != nil {
+		return x.Pending
+	}
+	return false
+}
+
+func (x *FilesLayoutResponse) GetPendingError() string {
+	if x != nil {
+		return x.PendingError
+	}
+	return ""
+}
+
+// FilesRelayoutRequest applies the edited layout: moves the files already
+// written to where it puts them and rewrites their index entries. Refused
+// whole, nothing moved, if any file would be stranded or overwritten. dry_run
+// answers the moves and makes none.
+type FilesRelayoutRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DryRun        bool                   `protobuf:"varint,1,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FilesRelayoutRequest) Reset() {
+	*x = FilesRelayoutRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[149]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FilesRelayoutRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FilesRelayoutRequest) ProtoMessage() {}
+
+func (x *FilesRelayoutRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[149]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FilesRelayoutRequest.ProtoReflect.Descriptor instead.
+func (*FilesRelayoutRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{149}
+}
+
+func (x *FilesRelayoutRequest) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
+}
+
+type FilesMove struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	From          string                 `protobuf:"bytes,1,opt,name=from,proto3" json:"from,omitempty"`
+	To            string                 `protobuf:"bytes,2,opt,name=to,proto3" json:"to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FilesMove) Reset() {
+	*x = FilesMove{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[150]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FilesMove) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FilesMove) ProtoMessage() {}
+
+func (x *FilesMove) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[150]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FilesMove.ProtoReflect.Descriptor instead.
+func (*FilesMove) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{150}
+}
+
+func (x *FilesMove) GetFrom() string {
+	if x != nil {
+		return x.From
+	}
+	return ""
+}
+
+func (x *FilesMove) GetTo() string {
+	if x != nil {
+		return x.To
+	}
+	return ""
+}
+
+type FilesRelayoutResponse struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Changed []string               `protobuf:"bytes,1,rep,name=changed,proto3" json:"changed,omitempty"`
+	// At most 200 listed; moves_total counts them all.
+	Moves         []*FilesMove `protobuf:"bytes,2,rep,name=moves,proto3" json:"moves,omitempty"`
+	MovesTotal    uint32       `protobuf:"varint,3,opt,name=moves_total,json=movesTotal,proto3" json:"moves_total,omitempty"`
+	Reindexed     uint32       `protobuf:"varint,4,opt,name=reindexed,proto3" json:"reindexed,omitempty"`
+	Applied       bool         `protobuf:"varint,5,opt,name=applied,proto3" json:"applied,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FilesRelayoutResponse) Reset() {
+	*x = FilesRelayoutResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[151]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FilesRelayoutResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FilesRelayoutResponse) ProtoMessage() {}
+
+func (x *FilesRelayoutResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[151]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FilesRelayoutResponse.ProtoReflect.Descriptor instead.
+func (*FilesRelayoutResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{151}
+}
+
+func (x *FilesRelayoutResponse) GetChanged() []string {
+	if x != nil {
+		return x.Changed
+	}
+	return nil
+}
+
+func (x *FilesRelayoutResponse) GetMoves() []*FilesMove {
+	if x != nil {
+		return x.Moves
+	}
+	return nil
+}
+
+func (x *FilesRelayoutResponse) GetMovesTotal() uint32 {
+	if x != nil {
+		return x.MovesTotal
+	}
+	return 0
+}
+
+func (x *FilesRelayoutResponse) GetReindexed() uint32 {
+	if x != nil {
+		return x.Reindexed
+	}
+	return 0
+}
+
+func (x *FilesRelayoutResponse) GetApplied() bool {
+	if x != nil {
+		return x.Applied
+	}
+	return false
+}
+
 var File_proto_rig_v1_verbs_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_verbs_proto_rawDesc = "" +
@@ -11008,7 +11489,38 @@ const file_proto_rig_v1_verbs_proto_rawDesc = "" +
 	"\x05state\x18\x02 \x01(\tR\x05state\"Z\n" +
 	"\x16FilesUnindexedResponse\x12*\n" +
 	"\x05files\x18\x01 \x03(\v2\x14.rig.v1.FilesPendingR\x05files\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\rR\x05total*Z\n" +
+	"\x05total\x18\x02 \x01(\rR\x05total\"\x83\x01\n" +
+	"\x11FilesPlaceRequest\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x18\n" +
+	"\asubject\x18\x02 \x01(\tR\asubject\x12\x12\n" +
+	"\x04type\x18\x03 \x01(\tR\x04type\x12\x18\n" +
+	"\aprogram\x18\x04 \x01(\tR\aprogram\x12\x12\n" +
+	"\x04name\x18\x05 \x01(\tR\x04name\"Z\n" +
+	"\x12FilesPlaceResponse\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1a\n" +
+	"\brelative\x18\x02 \x01(\tR\brelative\x12\x14\n" +
+	"\x05place\x18\x03 \x01(\tR\x05place\"\x14\n" +
+	"\x12FilesLayoutRequest\"5\n" +
+	"\tFilesKind\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05place\x18\x02 \x01(\tR\x05place\"\x91\x01\n" +
+	"\x13FilesLayoutResponse\x12'\n" +
+	"\x05kinds\x18\x01 \x03(\v2\x11.rig.v1.FilesKindR\x05kinds\x12\x12\n" +
+	"\x04file\x18\x02 \x01(\tR\x04file\x12\x18\n" +
+	"\apending\x18\x03 \x01(\bR\apending\x12#\n" +
+	"\rpending_error\x18\x04 \x01(\tR\fpendingError\"/\n" +
+	"\x14FilesRelayoutRequest\x12\x17\n" +
+	"\adry_run\x18\x01 \x01(\bR\x06dryRun\"/\n" +
+	"\tFilesMove\x12\x12\n" +
+	"\x04from\x18\x01 \x01(\tR\x04from\x12\x0e\n" +
+	"\x02to\x18\x02 \x01(\tR\x02to\"\xb3\x01\n" +
+	"\x15FilesRelayoutResponse\x12\x18\n" +
+	"\achanged\x18\x01 \x03(\tR\achanged\x12'\n" +
+	"\x05moves\x18\x02 \x03(\v2\x11.rig.v1.FilesMoveR\x05moves\x12\x1f\n" +
+	"\vmoves_total\x18\x03 \x01(\rR\n" +
+	"movesTotal\x12\x1c\n" +
+	"\treindexed\x18\x04 \x01(\rR\treindexed\x12\x18\n" +
+	"\aapplied\x18\x05 \x01(\bR\aapplied*Z\n" +
 	"\tSeatState\x12\x1a\n" +
 	"\x16SEAT_STATE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11SEAT_STATE_ACTIVE\x10\x01\x12\x1a\n" +
@@ -11088,7 +11600,7 @@ func file_proto_rig_v1_verbs_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_verbs_proto_enumTypes = make([]protoimpl.EnumInfo, 10)
-var file_proto_rig_v1_verbs_proto_msgTypes = make([]protoimpl.MessageInfo, 148)
+var file_proto_rig_v1_verbs_proto_msgTypes = make([]protoimpl.MessageInfo, 156)
 var file_proto_rig_v1_verbs_proto_goTypes = []any{
 	(SeatState)(0),                   // 0: rig.v1.SeatState
 	(LeaseState)(0),                  // 1: rig.v1.LeaseState
@@ -11244,11 +11756,19 @@ var file_proto_rig_v1_verbs_proto_goTypes = []any{
 	(*FilesUnindexedRequest)(nil),    // 151: rig.v1.FilesUnindexedRequest
 	(*FilesPending)(nil),             // 152: rig.v1.FilesPending
 	(*FilesUnindexedResponse)(nil),   // 153: rig.v1.FilesUnindexedResponse
-	nil,                              // 154: rig.v1.Record.FieldsEntry
-	nil,                              // 155: rig.v1.RecordPutRequest.FieldsEntry
-	nil,                              // 156: rig.v1.WorkNote.FieldsEntry
-	nil,                              // 157: rig.v1.WorkNoteWriteRequest.FieldsEntry
-	(v1.Tristate)(0),                 // 158: rig.v1.Tristate
+	(*FilesPlaceRequest)(nil),        // 154: rig.v1.FilesPlaceRequest
+	(*FilesPlaceResponse)(nil),       // 155: rig.v1.FilesPlaceResponse
+	(*FilesLayoutRequest)(nil),       // 156: rig.v1.FilesLayoutRequest
+	(*FilesKind)(nil),                // 157: rig.v1.FilesKind
+	(*FilesLayoutResponse)(nil),      // 158: rig.v1.FilesLayoutResponse
+	(*FilesRelayoutRequest)(nil),     // 159: rig.v1.FilesRelayoutRequest
+	(*FilesMove)(nil),                // 160: rig.v1.FilesMove
+	(*FilesRelayoutResponse)(nil),    // 161: rig.v1.FilesRelayoutResponse
+	nil,                              // 162: rig.v1.Record.FieldsEntry
+	nil,                              // 163: rig.v1.RecordPutRequest.FieldsEntry
+	nil,                              // 164: rig.v1.WorkNote.FieldsEntry
+	nil,                              // 165: rig.v1.WorkNoteWriteRequest.FieldsEntry
+	(v1.Tristate)(0),                 // 166: rig.v1.Tristate
 }
 var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	0,   // 0: rig.v1.Seat.state:type_name -> rig.v1.SeatState
@@ -11262,11 +11782,11 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	24,  // 8: rig.v1.LeaseAcquireResponse.handle:type_name -> rig.v1.LeaseHandle
 	24,  // 9: rig.v1.LeaseRenewResponse.handle:type_name -> rig.v1.LeaseHandle
 	23,  // 10: rig.v1.LeaseListResponse.leases:type_name -> rig.v1.Lease
-	154, // 11: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
+	162, // 11: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
 	35,  // 12: rig.v1.Record.prov:type_name -> rig.v1.Provenance
 	37,  // 13: rig.v1.Record.retraction:type_name -> rig.v1.Retraction
 	35,  // 14: rig.v1.Retraction.prov:type_name -> rig.v1.Provenance
-	155, // 15: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
+	163, // 15: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
 	36,  // 16: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
 	36,  // 17: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
 	36,  // 18: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
@@ -11301,7 +11821,7 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	67,  // 47: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
 	73,  // 48: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
 	74,  // 49: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
-	158, // 50: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
+	166, // 50: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
 	75,  // 51: rig.v1.ProjectBriefResponse.closed:type_name -> rig.v1.ClosedItem
 	76,  // 52: rig.v1.ProjectBriefResponse.closed_counts:type_name -> rig.v1.WordCount
 	35,  // 53: rig.v1.Lesson.prov:type_name -> rig.v1.Provenance
@@ -11316,9 +11836,9 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	88,  // 62: rig.v1.QueueCompleteResponse.task:type_name -> rig.v1.Task
 	88,  // 63: rig.v1.QueueListResponse.tasks:type_name -> rig.v1.Task
 	23,  // 64: rig.v1.LeaseCheckResponse.lease:type_name -> rig.v1.Lease
-	156, // 65: rig.v1.WorkNote.fields:type_name -> rig.v1.WorkNote.FieldsEntry
+	164, // 65: rig.v1.WorkNote.fields:type_name -> rig.v1.WorkNote.FieldsEntry
 	35,  // 66: rig.v1.WorkNote.prov:type_name -> rig.v1.Provenance
-	157, // 67: rig.v1.WorkNoteWriteRequest.fields:type_name -> rig.v1.WorkNoteWriteRequest.FieldsEntry
+	165, // 67: rig.v1.WorkNoteWriteRequest.fields:type_name -> rig.v1.WorkNoteWriteRequest.FieldsEntry
 	99,  // 68: rig.v1.WorkNoteWriteResponse.note:type_name -> rig.v1.WorkNote
 	99,  // 69: rig.v1.WorkNoteMineResponse.notes:type_name -> rig.v1.WorkNote
 	99,  // 70: rig.v1.WorkNoteAboutResponse.notes:type_name -> rig.v1.WorkNote
@@ -11346,11 +11866,13 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	142, // 92: rig.v1.StoreCollectionsResponse.collections:type_name -> rig.v1.StoreCollection
 	149, // 93: rig.v1.FilesSearchResponse.hits:type_name -> rig.v1.FilesHit
 	152, // 94: rig.v1.FilesUnindexedResponse.files:type_name -> rig.v1.FilesPending
-	95,  // [95:95] is the sub-list for method output_type
-	95,  // [95:95] is the sub-list for method input_type
-	95,  // [95:95] is the sub-list for extension type_name
-	95,  // [95:95] is the sub-list for extension extendee
-	0,   // [0:95] is the sub-list for field type_name
+	157, // 95: rig.v1.FilesLayoutResponse.kinds:type_name -> rig.v1.FilesKind
+	160, // 96: rig.v1.FilesRelayoutResponse.moves:type_name -> rig.v1.FilesMove
+	97,  // [97:97] is the sub-list for method output_type
+	97,  // [97:97] is the sub-list for method input_type
+	97,  // [97:97] is the sub-list for extension type_name
+	97,  // [97:97] is the sub-list for extension extendee
+	0,   // [0:97] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_verbs_proto_init() }
@@ -11364,7 +11886,7 @@ func file_proto_rig_v1_verbs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_verbs_proto_rawDesc), len(file_proto_rig_v1_verbs_proto_rawDesc)),
 			NumEnums:      10,
-			NumMessages:   148,
+			NumMessages:   156,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

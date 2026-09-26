@@ -23,8 +23,11 @@ import (
 //	rig files index <path> --title T --summary S [--tag t]...
 //	rig files search <words...> [--under DIR] [--limit N]
 //	rig files unindexed [--under DIR] [--limit N]
+//	rig files place <kind> [name] [--subject S] [--type T] [--program P]
+//	rig files layout
+//	rig files relayout [--dry-run]
 //
-// root prints a directory and nothing else in text mode, so
+// root and place print a path and nothing else in text mode, so
 // `cd "$(rig files root --shared)"` works. A path for the index is relative
 // to the shared root.
 
@@ -39,13 +42,16 @@ type filesFlags struct {
 	tags    tagList
 	under   *string
 	limit   *uint
+	subject *string
+	typ     *string
+	dryRun  *bool
 }
 
 func filesFlagSet() *filesFlags {
 	f := &filesFlags{fs: flag.NewFlagSet("files", flag.ContinueOnError)}
 	f.asJSON = f.fs.Bool("json", false, "emit JSON")
 	f.timeout = f.fs.Duration("timeout", defaultCallTimeout, "how long to wait")
-	f.program = f.fs.String("program", "", "root: whose directory, a program id")
+	f.program = f.fs.String("program", "", "root, place: whose directory, a program id")
 	f.shared = f.fs.Bool("shared", false, "root: the area every program shares")
 	f.title = f.fs.String("title", "", "index: the file's title")
 	f.summary = f.fs.String("summary", "", "index: one line, what a search shows")
@@ -53,14 +59,21 @@ func filesFlagSet() *filesFlags {
 	f.under = f.fs.String("under", "", "search, unindexed: only this directory under the root")
 	f.limit = f.fs.Uint("limit", 0, "search: at most this many hits (default 5, at most 20); "+
 		"unindexed: at most this many files (default 100, at most 1000)")
+	f.subject = f.fs.String("subject", "", "place: what the file is about, one directory name")
+	f.typ = f.fs.String("type", "", "place: what sort of resource, one directory name")
+	f.dryRun = f.fs.Bool("dry-run", false, "relayout: answer the moves and make none")
 	return f
 }
 
-const stateKey = "state"
+const (
+	stateKey = "state"
+	pathKey  = "path"
+)
 
 const filesUsage = "usage: rig files root --program P | --shared | " +
 	"index <path> --title T --summary S [--tag t]... | " +
-	"search <words...> [--under DIR] [--limit N] | unindexed [--under DIR] [--limit N]"
+	"search <words...> [--under DIR] [--limit N] | unindexed [--under DIR] [--limit N] | " +
+	"place <kind> [name] [--subject S] [--type T] [--program P] | layout | relayout [--dry-run]"
 
 func cmdFiles(args []string) (err error) {
 	f := filesFlagSet()
@@ -117,6 +130,18 @@ func (f *filesFlags) request(verb string, rest []string) (string, proto.Message,
 	case verb == "unindexed" && len(rest) == 0:
 		return verb, &verbsv1.FilesUnindexedRequest{Under: *f.under, Limit: limit},
 			&verbsv1.FilesUnindexedResponse{}, nil
+	case verb == "place" && (len(rest) == 1 || len(rest) == 2):
+		req := &verbsv1.FilesPlaceRequest{
+			Kind: rest[0], Subject: *f.subject, Type: *f.typ, Program: *f.program,
+		}
+		if len(rest) == 2 {
+			req.Name = rest[1]
+		}
+		return verb, req, &verbsv1.FilesPlaceResponse{}, nil
+	case verb == "layout" && len(rest) == 0:
+		return verb, &verbsv1.FilesLayoutRequest{}, &verbsv1.FilesLayoutResponse{}, nil
+	case verb == "relayout" && len(rest) == 0:
+		return verb, &verbsv1.FilesRelayoutRequest{DryRun: *f.dryRun}, &verbsv1.FilesRelayoutResponse{}, nil
 	}
 	return "", nil, nil, badArgumentf("%s", filesUsage)
 }
@@ -125,6 +150,12 @@ func printFiles(w io.Writer, resp proto.Message) {
 	switch r := resp.(type) {
 	case *verbsv1.FilesRootResponse:
 		_, _ = fmt.Fprintln(w, r.GetPath())
+	case *verbsv1.FilesPlaceResponse:
+		_, _ = fmt.Fprintln(w, r.GetPath())
+	case *verbsv1.FilesLayoutResponse:
+		printLayout(w, r)
+	case *verbsv1.FilesRelayoutResponse:
+		printRelayout(w, r)
 	case *verbsv1.FilesIndexResponse:
 		switch {
 		case r.GetRemoved():
@@ -159,22 +190,76 @@ func printFiles(w io.Writer, resp proto.Message) {
 	}
 }
 
+func printLayout(w io.Writer, r *verbsv1.FilesLayoutResponse) {
+	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
+	_, _ = fmt.Fprintln(tw, "KIND\tPLACE")
+	for _, k := range r.GetKinds() {
+		_, _ = fmt.Fprintf(tw, "%s\t%s\n", k.GetName(), k.GetPlace())
+	}
+	_ = tw.Flush()
+	_, _ = fmt.Fprintf(w, "edit %s, then run rig files relayout\n", r.GetFile())
+	switch {
+	case r.GetPendingError() != "":
+		_, _ = fmt.Fprintf(w, "the edited layout cannot be applied: %s\n", r.GetPendingError())
+	case r.GetPending():
+		_, _ = fmt.Fprintln(w, "an edit is waiting: rig files relayout --dry-run shows what it moves")
+	}
+}
+
+func printRelayout(w io.Writer, r *verbsv1.FilesRelayoutResponse) {
+	for _, m := range r.GetMoves() {
+		_, _ = fmt.Fprintf(w, "%s -> %s\n", m.GetFrom(), m.GetTo())
+	}
+	if n := uint32(len(r.GetMoves())); n < r.GetMovesTotal() { //nolint:gosec // at most 200
+		_, _ = fmt.Fprintf(w, "... and %d more\n", r.GetMovesTotal()-n)
+	}
+	switch {
+	case len(r.GetChanged()) == 0:
+		_, _ = fmt.Fprintln(w, "the edited layout is the layout in force; nothing to do")
+	case r.GetApplied():
+		_, _ = fmt.Fprintf(w, "applied: %d file(s) moved, %d index entries rewritten (%s changed)\n",
+			r.GetMovesTotal(), r.GetReindexed(), strings.Join(r.GetChanged(), ", "))
+	default:
+		_, _ = fmt.Fprintf(w, "dry run: %d file(s) would move (%s changed); nothing was moved\n",
+			r.GetMovesTotal(), strings.Join(r.GetChanged(), ", "))
+	}
+}
+
 func filesJSON(resp proto.Message) any {
 	switch r := resp.(type) {
+	case *verbsv1.FilesPlaceResponse:
+		return map[string]any{pathKey: r.GetPath(), "relative": r.GetRelative(), "place": r.GetPlace()}
+	case *verbsv1.FilesLayoutResponse:
+		kinds := make([]map[string]any, 0, len(r.GetKinds()))
+		for _, k := range r.GetKinds() {
+			kinds = append(kinds, map[string]any{"name": k.GetName(), "place": k.GetPlace()})
+		}
+		return map[string]any{
+			"kinds": kinds, "file": r.GetFile(), "pending": r.GetPending(), "pending_error": r.GetPendingError(),
+		}
+	case *verbsv1.FilesRelayoutResponse:
+		moves := make([]map[string]any, 0, len(r.GetMoves()))
+		for _, m := range r.GetMoves() {
+			moves = append(moves, map[string]any{"from": m.GetFrom(), "to": m.GetTo()})
+		}
+		return map[string]any{
+			"changed": r.GetChanged(), "moves": moves, "moves_total": r.GetMovesTotal(),
+			"reindexed": r.GetReindexed(), "applied": r.GetApplied(),
+		}
 	case *verbsv1.FilesRootResponse:
 		return map[string]any{
-			"path": r.GetPath(), "program": r.GetProgram(), "commit_every_s": r.GetCommitEveryS(),
+			pathKey: r.GetPath(), "program": r.GetProgram(), "commit_every_s": r.GetCommitEveryS(),
 		}
 	case *verbsv1.FilesIndexResponse:
 		return map[string]any{
-			"path": r.GetPath(), "removed": r.GetRemoved(), "text_bytes": r.GetTextBytes(),
+			pathKey: r.GetPath(), "removed": r.GetRemoved(), "text_bytes": r.GetTextBytes(),
 			"binary": r.GetBinary(), "truncated": r.GetTruncated(),
 		}
 	case *verbsv1.FilesSearchResponse:
 		hits := make([]map[string]any, 0, len(r.GetHits()))
 		for _, h := range r.GetHits() {
 			hits = append(hits, map[string]any{
-				"path": h.GetPath(), titleKey: h.GetTitle(), "summary": h.GetSummary(),
+				pathKey: h.GetPath(), titleKey: h.GetTitle(), "summary": h.GetSummary(),
 				"snippet": h.GetSnippet(), "score": h.GetScore(),
 			})
 		}
@@ -182,7 +267,7 @@ func filesJSON(resp proto.Message) any {
 	case *verbsv1.FilesUnindexedResponse:
 		fs := make([]map[string]any, 0, len(r.GetFiles()))
 		for _, p := range r.GetFiles() {
-			fs = append(fs, map[string]any{"path": p.GetPath(), stateKey: p.GetState()})
+			fs = append(fs, map[string]any{pathKey: p.GetPath(), stateKey: p.GetState()})
 		}
 		return map[string]any{"files": fs, "total": r.GetTotal()}
 	}

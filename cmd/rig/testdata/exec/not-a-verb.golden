@@ -1,7 +1,7 @@
 $ rig --notaverb
 exit 1
 --- stdout (0 bytes)
---- stderr (2989 bytes)
+--- stderr (2988 bytes)
 usage: rig <command> [flags]
 
   <app> <cmd>      run a command a program declared, with its declared flags
@@ -20,8 +20,8 @@ usage: rig <command> [flags]
   queue <cmd>      claimable work queues: push, list
   store <cmd>      a program's documents: collections, get, put, delete,
                    query (--program names whose)
-  files <cmd>      free files: root (where to write), index, search,
-                   unindexed (what the index still lacks)
+  files <cmd>      free files: root, place (where a file goes), layout,
+                   relayout, index, search, unindexed
   notify <sev> <title>  a toast at the tray: info, success, warning, error, urgent
   dnd on|off|status  do not disturb: toasts go to the record only, urgent still shows
   record <cmd>     the continuity record: put, get, query, history, link,

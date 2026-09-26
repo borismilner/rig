@@ -13,7 +13,6 @@ import (
 
 	"github.com/borismilner/rig/internal/files"
 	"github.com/borismilner/rig/internal/paths"
-	"github.com/borismilner/rig/internal/store"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
@@ -40,6 +39,11 @@ type freeFiles struct {
 	indexPath string
 	index     atomic.Pointer[files.Index]
 	indexWhy  atomic.Pointer[string]
+
+	// The layout (R28-R31), two text files in rig's internal area.
+	internal  string
+	layouts   atomic.Pointer[files.Layouts]
+	layoutWhy atomic.Pointer[string]
 }
 
 func newFreeFiles(root, estate string, every time.Duration) (*freeFiles, error) {
@@ -67,6 +71,7 @@ func newFreeFiles(root, estate string, every time.Duration) (*freeFiles, error) 
 	}
 	ff.dir = areas.Files
 	ff.indexPath = filepath.Join(areas.Internal, "files-index.db")
+	ff.internal = areas.Internal
 	return ff, nil
 }
 
@@ -89,6 +94,13 @@ func (d *Daemon) startFiles(ctx context.Context) (wait func()) {
 	}
 	ff.repo.Store(repo)
 	d.log.Info("free files", "dir", ff.dir, "commit_every", ff.every)
+	if ls, err := files.OpenLayouts(ff.internal); err != nil {
+		why := err.Error()
+		ff.layoutWhy.Store(&why)
+		d.log.Error("the free files' layout is unavailable", "dir", ff.internal, "err", err)
+	} else {
+		ff.layouts.Store(ls)
+	}
 	if ix, err := files.OpenIndex(ctx, ff.indexPath, repo); err != nil {
 		why := err.Error()
 		ff.indexWhy.Store(&why)
@@ -136,34 +148,26 @@ func (d *Daemon) serveFilesRoot(c *conn, f *rigv1.Frame) {
 		return
 	}
 	resp.Program = program
+	ls := d.filesLayouts(c, f, "files.root")
+	if ls == nil {
+		return
+	}
+	rel, err := ls.InForce().Dir(files.ProgramsKind, files.Vars{Program: program})
+	if err != nil {
+		c.failErr(f.GetStreamId(), filesCode(err), err)
+		return
+	}
+	resp.Path = filepath.Join(repo.Dir(), rel)
 	if c.scoped.Load() {
-		// A program's own directory is made for it.
-		dir, err := repo.ProgramDir(program)
-		if err != nil {
+		// A program's own directory is made for it. A terminal or an agent is
+		// told where it is and makes nothing, for the reason a store read
+		// makes nothing: the name is not proved.
+		if _, err := repo.MakeDir(rel); err != nil {
 			c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "rig.files.root: "+err.Error())
 			return
 		}
-		resp.Path = dir
-	} else {
-		// A terminal or an agent is told where it is and makes nothing, for
-		// the reason a store read makes nothing: the name is not proved.
-		dir, ok := programPath(repo.Dir(), program)
-		if !ok {
-			c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID,
-				"rig.files.root: program "+program+" is not a name rig puts on disk")
-			return
-		}
-		resp.Path = dir
 	}
 	c.reply(f.GetStreamId(), resp)
-}
-
-// programPath is where a program's directory is, without making it.
-func programPath(root, program string) (string, bool) {
-	if store.CheckName("program", program) != nil {
-		return "", false
-	}
-	return filepath.Join(root, files.ProgramsDir, program), true
 }
 
 func (d *Daemon) filesRepo(c *conn, f *rigv1.Frame, command string) *files.Repo {
@@ -206,13 +210,16 @@ func (ff *freeFiles) close() error {
 	return nil
 }
 
-// serveFiles answers the four files verbs.
+// serveFiles answers the files verbs.
 func (d *Daemon) serveFiles(ctx context.Context, c *conn, f *rigv1.Frame, command string) {
-	if command == "files.root" {
+	switch command {
+	case "files.root":
 		d.serveFilesRoot(c, f)
-		return
+	case "files.place", "files.layout", "files.relayout":
+		d.serveFilesLayout(ctx, c, f, command)
+	default:
+		d.serveFilesIndex(ctx, c, f, command)
 	}
-	d.serveFilesIndex(ctx, c, f, command)
 }
 
 // serveFilesIndex answers files.index, files.search and files.unindexed.

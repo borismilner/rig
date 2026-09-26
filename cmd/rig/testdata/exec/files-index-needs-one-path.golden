@@ -1,5 +1,5 @@
 $ rig files index --title t
 exit 1
 --- stdout (0 bytes)
---- stderr (184 bytes)
-rig: usage: rig files root --program P | --shared | index <path> --title T --summary S [--tag t]... | search <words...> [--under DIR] [--limit N] | unindexed [--under DIR] [--limit N]
+--- stderr (277 bytes)
+rig: usage: rig files root --program P | --shared | index <path> --title T --summary S [--tag t]... | search <words...> [--under DIR] [--limit N] | unindexed [--under DIR] [--limit N] | place <kind> [name] [--subject S] [--type T] [--program P] | layout | relayout [--dry-run]

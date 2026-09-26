@@ -192,19 +192,22 @@ func TestTheUsersGitConfigIsNotRead(t *testing.T) {
 	}
 }
 
-func TestAProgramDirIsANameNotAPath(t *testing.T) {
+// MakeDir stays in the area even when a program planted a symlink out.
+func TestMakeDirStaysInTheArea(t *testing.T) {
 	r := isolated(t)
-	for _, bad := range []string{"../x", "a/b", "", "..", "Graft"} {
-		if _, err := r.ProgramDir(bad); err == nil {
-			t.Errorf("program %q was given a directory", bad)
-		}
+	outside := t.TempDir()
+	if err := os.Symlink(outside, filepath.Join(r.Dir(), "programs")); err != nil {
+		t.Fatal(err)
 	}
-	d, err := r.ProgramDir("graft")
-	if err != nil || d != filepath.Join(r.Dir(), "programs", "graft") {
+	if _, err := r.MakeDir("programs/graft"); err == nil {
+		t.Fatal("a directory was made through a symlink out of the area")
+	}
+	if _, err := os.Stat(filepath.Join(outside, "graft")); !os.IsNotExist(err) {
+		t.Fatalf("made outside the area: %v", err)
+	}
+	d, err := r.MakeDir("docs/sched")
+	if err != nil || d != filepath.Join(r.Dir(), "docs", "sched") {
 		t.Fatalf("%q, %v", d, err)
-	}
-	if fi, err := os.Stat(d); err != nil || !fi.IsDir() {
-		t.Fatalf("the directory was not made: %v", err)
 	}
 }
 
