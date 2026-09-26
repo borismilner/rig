@@ -3453,3 +3453,21 @@ the only one that touches the schema, so it goes last and alone.
 **What this rules out:** free-form edge types (the closed set's reason
 stands), embeddings or semantic edges, a graph query language, and a
 visualisation surface before an ARMED report asks for one.
+
+### ⛔ Boris, 2026-09-26: every link carries its reason, across all knowledge
+
+**Boris, verbatim:** *"Agents can also link between parts of knowledge managed by `rig` with a
+reason for the association so that it is clear why an item points to another
+item and this way we can have a knowledge-graph"*
+
+| # | Requirement |
+|---|---|
+| G4 | **An agent may link any two items of knowledge rig manages** - records, lessons, and indexed files under `files/` (plan/48, R26) - **and every link carries a reason**: why this item points to that one |
+
+**How it sits with the ruling above, a seat's reading:** the reason is a
+free-text FIELD on the edge, not a new edge TYPE, so the closed set of types
+stands. The link verbs gain a `reason` field (additive on the wire, §21), and
+`refs`, the forward walk and `record.around` return it with each edge. An
+indexed file becomes a valid edge end in P9 slice 4b, as a lesson does in G1.
+Whether a reason is required on every new link or optional is open; a seat
+recommends required for new links, with existing edges left reasonless.

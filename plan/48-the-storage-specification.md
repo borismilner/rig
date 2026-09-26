@@ -175,6 +175,8 @@ maybe others later without reading everything every time."*
 | R25 | **The index sits on top of the folder.** The files are the source; rig's search index is built from them, and a search answers a snippet, never the whole body (plan/40's rule, kept) |
 | R26 | **Everything an agent writes into the free filesystem is entered in rig's index by that same agent**, per-program folders and the shared folder alike, so it can be found later, by that agent or others, without reading everything |
 
+| R27 | **Agents link any two items of knowledge with a reason for the link** (records, lessons, indexed files), making a knowledge graph. Specified in plan/39 G4 |
+
 **A seat's recommendation for R26, not his ruling:** the writer calls one verb
 after writing (path, title, one-line summary, tags); rig indexes the file's
 text under that entry. rig also lists, at each commit, every file with no entry
