@@ -30,14 +30,25 @@ programs and this whole filesystem is to be Git managed with auto commits by
 **It supersedes plan/07's "rig owns everything about a database except what is
 in it" table**, where the program opened the file and owned its queries.
 
-**Open, and each is his (a recommendation is a seat's, not a ruling):** the
-dump format (recommend one file per row, stable key order, so a git diff reads
-as the change); the commit cadence (recommend batched on an interval, never per
-write); where the tree lives (recommend under the estate's state directory,
-`programs/<id>/`); whether it is pushed anywhere; how a declared-sensitive field
-is kept out of a repository that keeps history forever; and whether the tree
-can restore the database, which is what would let it answer plan/07's
-"nothing holds the only copy in SQLite".
+**Four of the open rows ANSWERED by Boris, 2026-09-26** (put to him as
+choices; the answer column is his pick):
+
+| # | Question | His answer |
+|---|---|---|
+| R8 | Layout of a program's tree | **One file per collection**: `<program>/<collection>.<ext>`. He chose it over one file per row, which a seat recommended |
+| R9 | Commit cadence | **Batched on an interval**: one commit per program per interval, and only when something changed. Never one commit per write |
+| R10 | Rebuild a database from the tree | **Yes, a real restore path.** The tree is a second full copy, so SQLite never holds the only copy (plan/07's rule is met this way) |
+| R11 | A declared-sensitive field | **Written as-is.** The tree is a full copy, secrets included; nothing is redacted from it |
+
+⛔ **R11 makes the tree as secret as the database.** A seat recommended
+leaving sensitive fields out and he chose otherwise, so it holds. What follows
+from it, for whoever builds this: the tree's file modes match the store's
+(owner only), and **no rig logic pushes it anywhere** without his ruling.
+
+**Still open:** where the tree lives (recommend under the estate's state
+directory, `programs/<id>/`), the interval's length, the file format inside a
+collection file (recommend JSON Lines sorted by id, so a one-row change is a
+one-line diff), and whether it is ever pushed.
 
 ⛔ **DRAFT. STEP 1 AND A STEP-4 DRAFT OF §45's LOOP FOR B103 (S1), WRITTEN
 2026-09-23 EVENING WITHOUT HIM, ON HIS WORD TO DO AS MUCH AS POSSIBLE ALONE.**
