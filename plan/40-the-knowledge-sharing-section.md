@@ -3,6 +3,23 @@
 **RULED BY BORIS 2026-09-17, and recorded the turn he said it.** Not on the MVP's
 critical path, and **he said it should be done soon.**
 
+## ⛔ His direction, 2026-09-26: lessons live in a shared free folder
+
+**Boris, verbatim:** *"Remember we talked about lessons that are shared among all agents/programs
+that they can write? We can implement it simply as another such free-accessed
+folder that everybody can ask to write to or read from."*
+
+**Recorded as his direction (plan/48, R24): the lessons are one more free
+folder in the git-managed `files/` tree, shared by every program and agent,
+whose root rig hands out on request.** It lands with P9.
+
+⛔ **The tension a builder must not resolve silently:** this section's hard
+requirement is the INDEX - *"They are not to read the whole content"* and
+*"very efficiently indexed"*. A folder alone has no index. **A seat's
+recommendation, not his ruling:** the lessons are files in the shared folder
+(the source, in git), and the FTS5 index built 2026-09-24 is rebuilt from that
+folder, so `knowledge.search` keeps returning a snippet and never a body.
+
 ## His words on knowledge sharing, verbatim
 
 > *"`rig` shall have a knowledge sharing section, mainly for the use of AI agents

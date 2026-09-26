@@ -152,6 +152,19 @@ place, named below, and no code moves either way until he approves.
 
 ---
 
+### ⛔ Boris, 2026-09-26: the shared lessons are a free folder too
+
+**Boris, verbatim:** *"Remember we talked about lessons that are shared among all agents/programs
+that they can write? We can implement it simply as another such free-accessed
+folder that everybody can ask to write to or read from."*
+
+| # | Requirement |
+|---|---|
+| R24 | **One shared free folder under `files/`**, beside the per-program ones, that **every program and agent may ask rig for and then read and write directly.** The shared lessons (plan/40) live there. rig commits it like the rest of `files/` |
+
+plan/40 carries the tension with its index requirement and a seat's
+recommendation for it.
+
 ### P9 build specification: `store.*`, free files, export and import
 
 ⛔ **DRAFT, written 2026-09-26 from R1-R23. The rulings above are his; every
