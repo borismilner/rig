@@ -18,6 +18,8 @@ cmd/abacus/kit/*
 !cmd/abacus/kit/.gitkeep
 cmd/lantern/rig/*
 !cmd/lantern/rig/.gitkeep
+examples/storeworker/rig/*
+!examples/storeworker/rig/.gitkeep
 cmd/rigwindow/icons/*
 !cmd/rigwindow/icons/.gitkeep
 node_modules/

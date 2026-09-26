@@ -140,6 +140,15 @@ build-lantern: ## Build the embedded-tier demo program
 	cp design/kit/pane.js cmd/lantern/rig/
 	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o build/lantern ./cmd/lantern
 
+# The demo program that uses most of rig (plan/48, slice 6). Embedded tier like
+# lantern, so it takes pane.js alone. Not part of `build`: it is an example,
+# and go test compiles it from the .gitkeep.
+build-storeworker: ## Build the storeworker demo program
+	@mkdir -p build examples/storeworker/rig
+	@find examples/storeworker/rig -mindepth 1 ! -name .gitkeep -delete
+	cp design/kit/pane.js examples/storeworker/rig/
+	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o build/storeworker ./examples/storeworker
+
 # The window is the third binary (section 17, section 22) and deliberately not
 # part of `build`: it is the only one that needs cgo, gtk and a webview, so a
 # machine without those can still build and test everything else. That is also

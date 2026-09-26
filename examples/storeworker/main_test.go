@@ -1,0 +1,192 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/borismilner/rig/client"
+	"github.com/borismilner/rig/internal/coord"
+	"github.com/borismilner/rig/internal/daemon"
+	"github.com/borismilner/rig/internal/instance"
+)
+
+// rigd starts a daemon for a named estate WITH a storage root, which
+// clienttest does not give: storeworker needs its store, files and exports.
+// It is clienttest's start plus Config.Root.
+func rigd(t *testing.T) {
+	t.Helper()
+	dir, err := os.MkdirTemp("", "rigsw") // a unix socket path is capped near 108 bytes
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	t.Setenv("XDG_RUNTIME_DIR", dir)
+	t.Setenv("XDG_STATE_HOME", filepath.Join(dir, "state"))
+	run := filepath.Join(dir, "rig")
+	if err := os.MkdirAll(run, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	lock, err := instance.Acquire(filepath.Join(run, "rigd.pid"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = lock.Close() })
+	st, err := coord.Open("development")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	d, err := daemon.New(daemon.Config{
+		Version: "test", Wire: "v1", Lock: lock, Estate: "development",
+		Epoch: st.Epoch(), Leases: st, Root: filepath.Join(dir, "root"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	l, err := (&net.ListenConfig{}).Listen(ctx, "unix", filepath.Join(run, "rigd.sock"))
+	if err != nil {
+		cancel()
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- d.Serve(ctx, l) }()
+	t.Cleanup(func() {
+		cancel()
+		if err := <-done; err != nil && !errors.Is(err, context.Canceled) {
+			t.Errorf("rigd stopped with %v", err)
+		}
+		_ = d.Close()
+	})
+}
+
+// start registers a storeworker against a real daemon and runs its worker
+// until the test ends.
+func start(t *testing.T, budget float64) *app {
+	t.Helper()
+	rigd(t)
+	c, err := client.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = c.Close() })
+	a := newApp(c, "storeworker", "storeworker", budget, time.Millisecond)
+	c.Handle(a.handle)
+	ctx, cancel := context.WithCancel(context.Background())
+	if _, err := c.Hello(ctx, a.declaration("http://127.0.0.1:7454/pane")); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() { a.work(ctx); close(done) }()
+	t.Cleanup(func() { cancel(); <-done })
+	return a
+}
+
+// waitFor polls the run until it reaches state.
+func waitFor(t *testing.T, a *app, id, state string) run {
+	t.Helper()
+	deadline := time.Now().Add(15 * time.Second)
+	for time.Now().Before(deadline) {
+		r, _, err := a.getRun(context.Background(), id)
+		if err == nil && r.State == state {
+			return r
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	r, _, _ := a.getRun(context.Background(), id)
+	t.Fatalf("run %s is %q, want %q", id, r.State, state)
+	return run{}
+}
+
+// A run goes from the store, through the queue and the gpu lease, to done
+// with its transcript written, and the day's count moved with it.
+func TestARunGoesFromAssignedToDone(t *testing.T) {
+	a := start(t, 1)
+	ctx := context.Background()
+	out, err := a.assign(ctx, assignArgs{Title: "summarise", Prompt: "three lines"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := waitFor(t, a, out["run"].(string), stateDone)
+	if r.Finished == "" {
+		t.Fatalf("a done run has no finish time: %+v", r)
+	}
+	list, err := a.runs(ctx, runsArgs{State: stateDone})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := list["counts"].(map[string]uint64)[stateDone]; n != 1 {
+		t.Fatalf("counted %d done runs, want 1", n)
+	}
+}
+
+// A run over the budget parks until it is answered, and a no stops it.
+func TestAnExpensiveRunWaitsForItsAnswer(t *testing.T) {
+	a := start(t, 0.01)
+	ctx := context.Background()
+	out, err := a.assign(ctx, assignArgs{Title: "big", Prompt: strings.Repeat("x", 100)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := out["run"].(string)
+	r := waitFor(t, a, id, stateWaiting)
+	if !strings.Contains(r.Question, "over the $0.01 budget") {
+		t.Fatalf("the question is %q", r.Question)
+	}
+	if _, err := a.answer(ctx, answerArgs{Run: "r-nobody", Yes: true}); code(err).String() != "CODE_NOT_FOUND" {
+		t.Fatalf("answering a run not waiting: %v", err)
+	}
+	// Through rig, as a terminal would.
+	you, err := client.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer you.Close()
+	w := &web{a: a, addr: "x", you: you}
+	if _, err := w.invoke(ctx, "answer", `{"run":"`+id+`","yes":false}`); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, a, id, stateDenied)
+}
+
+// The page's API answers only its own page: the served Host and the header
+// a cross-site request cannot send without a preflight.
+func TestTheAPIRefusesARequestFromElsewhere(t *testing.T) {
+	a := start(t, 1)
+	w := &web{a: a, addr: "127.0.0.1:7454"}
+	h := w.handler(http.Dir(t.TempDir()))
+	for _, tc := range []struct {
+		name, host, header string
+		want               int
+	}{
+		{"its own page", "127.0.0.1:7454", "1", http.StatusOK},
+		{"no header", "127.0.0.1:7454", "", http.StatusForbidden},
+		{"a rebound name", "evil.example:7454", "1", http.StatusForbidden},
+	} {
+		req := httptest.NewRequest(http.MethodGet, "/api/tab/store", nil)
+		req.Host = tc.host
+		if tc.header != "" {
+			req.Header.Set("X-Storeworker", tc.header)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != tc.want {
+			t.Fatalf("%s: %d, want %d", tc.name, rec.Code, tc.want)
+		}
+		if tc.want == http.StatusOK {
+			var d map[string]any
+			if err := json.Unmarshal(rec.Body.Bytes(), &d); err != nil || d["runs"] == nil {
+				t.Fatalf("%s: %v %s", tc.name, err, rec.Body.String())
+			}
+		}
+	}
+}
