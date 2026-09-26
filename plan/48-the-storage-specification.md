@@ -374,6 +374,29 @@ indexed with the body. For the few milliseconds between rigd's MCP listener
 opening and the files opening, an MCP lesson call answers "unavailable";
 socket callers never see it.
 
+**Slice 5 as built, 2026-09-27** (rig `2c8ba62`): `store.export` and
+`store.import`, on the wire, `rig store export|import [collection]...` and
+two MCP tools. Demonstrated live on a private rigd. Seat choices, his to
+overrule:
+
+| Choice | Why |
+|---|---|
+| a line is `{"id","version","updated_ns","doc"}`, HTML characters not escaped | the version and time come back on import, so a caller holding version 7 still holds it; `<` stays `<`, so an export then import gives the same bytes |
+| all collections are read in one read transaction that does not take the write lock | one moment of the store, and no writer waits on an export |
+| a whole export removes the file of a collection the store no longer has; a named export touches only what it names | the directory is the store; git keeps the history |
+| an unchanged export makes no commit, and says so | R9's rule for the free files, kept |
+| the exports repository has no size limit on a file (the free files skip over 10 MB) | an export left out of git for its size is an export not kept (R21) |
+| import checks every line of every file first (unknown fields, id pattern, version 1 or more, a JSON object, each id once), then snapshots, then replaces in one transaction | one bad line refuses the whole import with nothing written and no snapshot |
+| the snapshot is `internal/snapshots/store/<program>-<UTC ns>.db`, owner-only, never pruned | it is the undo of an import; pruning is his call |
+| collections the import does not name are left alone and listed | D8 replaces what is named, not the store |
+| export and import run one at a time per daemon | one export's commit never carries another's half-written files |
+| an export may not create a store; an import may | exporting a program that never wrote is a typo; importing onto an empty machine is the restore path (R23) |
+
+**Not closed:** a write landing between the snapshot and the replace is in
+neither. An import holds the whole export in memory, so an export of
+several GB would need streaming. An import by a terminal that names a
+program with no export still creates an empty database for it.
+
 #### Tests owed, each with the red control that proves it bites
 
 | Test | Red control |
