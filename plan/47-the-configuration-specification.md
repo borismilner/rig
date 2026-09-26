@@ -7,6 +7,12 @@ approved, reshaped or killed S4, and no subagent is spawned from this section
 until he does.** Every row below is the seat's unless it cites a ruling, and a
 row he reshapes is edited here, not argued in a handoff.
 
+⛔ **A STANDING REQUIREMENT, Boris 2026-09-26:** a tunable in rig is
+*"configurable like all other aspects of rig should be"* (said of the free
+files' commit interval, plan/48 R34). **A seat that hard-codes a figure a
+user could want to change has built a defect**, whether or not this section's
+resolver exists yet; until it does, the setting is a flag.
+
 > **In one line: `rigd` resolves every setting from §6's layers, records which
 > layer won and which lost for every key, validates a change as a whole, writes
 > the merged result to disk with its provenance, and answers `rig config origin

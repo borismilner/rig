@@ -214,6 +214,7 @@ index entries, so nothing a search or a link points at breaks.
 | R31 | Top level of `files/` | **By kind, shared**: `docs/<subject>/`, `resources/<type>/<subject>/`, `lessons/`, and `programs/<id>/` for a program's private working files. The writer is recorded in the index, not in the path |
 | R32 | Big binary files | **Verbatim:** *"Binary files we'll find a better way to backup - no need to manage them in Git."* **Binary files are never committed**; they are stored and indexed. Their backup is a separate, later question |
 | R33 | A kind the layout does not name | **Refused, with the list of kinds that exist.** Only Boris adds kinds |
+| R34 | Commit cadence of the free files | **Boris, 2026-09-26, verbatim:** *"Git should not commit more often than once per 5 minutes where this time iterval is configurable like all other aspects of rig should be."* **Default 5 minutes; never two commits closer together than the interval**, on a tick, across a restart or on shutdown. rigd `--files-commit-every` until plan/47's resolver carries it |
 
 **R32 as built, a seat's reading:** "binary" is decided by content, as git
 itself does (a NUL byte in the first 8,000 bytes), not by extension; rig's
