@@ -208,6 +208,15 @@ message EstateResponse {
   // unambiguously "this estate has no persistent state" and cannot be
   // confused with a real one.
   uint64 epoch = 6;
+
+  // WHERE THIS ESTATE KEEPS ITS STORAGE (plan/48, R14-R15): the root the
+  // daemon resolved at start from --root, RIG_ROOT or ~/.rig, or the scratch
+  // root of an unnamed estate. The estate's own areas are under it.
+  //
+  // Walked against section 14's caller rows as the estate arm requires: it is
+  // a path in the same user's home, a fact about this daemon, and no other
+  // principal's data. Empty from a daemon that predates the field.
+  string root = 7;
 }
 
 

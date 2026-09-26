@@ -178,7 +178,7 @@ func TestAnUnnamedEstateSaysSoRatherThanPrintingABlank(t *testing.T) {
 func TestTheEstateObjectCarriesEveryKeyOnEveryAnswer(t *testing.T) {
 	want := []string{
 		"name", "role", "role_number", "daemon_version", "wire", "semantics_gen",
-		"epoch",
+		"epoch", "root",
 	}
 
 	for _, resp := range []*registryv1.EstateResponse{
@@ -233,11 +233,12 @@ func TestTheHumanBlockPrintsEveryFieldInOneColumn(t *testing.T) {
 	out := estateText(&registryv1.EstateResponse{
 		Name: "development", Role: registryv1.EstateRole_ESTATE_ROLE_DEVELOPMENT,
 		DaemonVersion: "0.1.0", Wire: "v1", SemanticsGen: 3, Epoch: 7,
+		Root: "/srv/rig",
 	})
 
 	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
-	if len(lines) != 6 {
-		t.Fatalf("rendered %d lines, want 6:\n%s", len(lines), out)
+	if len(lines) != 7 {
+		t.Fatalf("rendered %d lines, want 7:\n%s", len(lines), out)
 	}
 
 	// valueStart is the index the value begins at, measured on the rendered
@@ -256,7 +257,7 @@ func TestTheHumanBlockPrintsEveryFieldInOneColumn(t *testing.T) {
 		}
 	}
 
-	for _, want := range []string{"development", "0.1.0", "v1", "3", "7"} {
+	for _, want := range []string{"development", "0.1.0", "v1", "3", "7", "/srv/rig"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the block does not carry %q:\n%s", want, out)
 		}
@@ -380,5 +381,14 @@ func TestTheEpochTravelsAsARawNumberInJSON(t *testing.T) {
 		if got != c.want {
 			t.Errorf("%s: --json carries epoch %v, want %v", c.what, got, c.want)
 		}
+	}
+}
+
+// A daemon older than the root field sends none, and the block says so
+// rather than printing a blank a reader would take for "no storage".
+func TestAnOlderDaemonsMissingRootIsSaidNotBlank(t *testing.T) {
+	out := estateText(&registryv1.EstateResponse{Name: "production"})
+	if !strings.Contains(out, "(not reported by this daemon)") {
+		t.Fatalf("a missing root rendered as:\n%s", out)
 	}
 }

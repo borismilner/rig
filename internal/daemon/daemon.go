@@ -81,6 +81,11 @@ type Config struct {
 	// store bumps before it publishes.
 	Epoch uint64
 
+	// Root is where this estate keeps its storage, resolved by rigd from
+	// --root, RIG_ROOT or ~/.rig (plan/48, R14-R15). Reported by rig.estate.
+	// Empty for a daemon built without one, which tests do.
+	Root string
+
 	// Lock is the single-instance claim, and it is REQUIRED.
 	//
 	// Section 5f says rigd takes the flock "before it binds". Stating an
@@ -113,6 +118,7 @@ type Daemon struct {
 	wire    string
 	estate  string
 	epoch   uint64
+	root    string
 	log     *slog.Logger
 	lock    *instance.Lock
 
@@ -309,6 +315,7 @@ func New(cfg Config) (*Daemon, error) {
 		wire:     cfg.Wire,
 		estate:   cfg.Estate,
 		epoch:    cfg.Epoch,
+		root:     cfg.Root,
 		log:      log,
 		lock:     cfg.Lock,
 		kernel:   k,
@@ -851,6 +858,7 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 			// was restarted under while an agent on the other does not, same
 			// daemon, same instant.
 			Epoch: d.epoch,
+			Root:  d.root,
 		})
 
 	case "announce":

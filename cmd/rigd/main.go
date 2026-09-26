@@ -91,9 +91,12 @@ func run() error {
 	showVersion := flag.Bool("version", false, "print every version this build carries and exit")
 	estate := flag.String("estate", "", "name this estate (PLAN.md section 37); "+
 		"unnamed estates claim no name and collide with nothing")
+	rootFlag := flag.String("root", "", "where the estate keeps its storage (plan/48); "+
+		"default "+paths.RootEnv+", else ~/.rig. An unnamed estate uses the runtime directory unless told")
 	flag.Parse()
 
-	if err := checkEstateName(*estate); err != nil {
+	root, err := resolveRoot(*estate, *rootFlag)
+	if err != nil {
 		return err
 	}
 
@@ -107,6 +110,7 @@ func run() error {
 		return fmt.Errorf("log level %q: %w", *level, err)
 	}
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: lv}))
+	log.Info("storage root", "root", root)
 
 	pidPath, err := paths.PIDFile()
 	if err != nil {
@@ -266,6 +270,7 @@ func run() error {
 		Wire:    wire,
 		Estate:  *estate,
 		Epoch:   epoch,
+		Root:    root,
 		Log:     log,
 		Lock:    lock,
 		Leases:  leases,
@@ -343,4 +348,20 @@ func closeDaemon(d *daemon.Daemon, log *slog.Logger) {
 	if err := d.Close(); err != nil {
 		log.Warn("closing the record store", "err", err)
 	}
+}
+
+// resolveRoot picks the storage root (plan/48, R14-R15). A named estate reads
+// --root, then RIG_ROOT, then ~/.rig; an unnamed one reads only --root, so the
+// environment can never point a disposable estate at the live store.
+//
+// It checks the estate name first, because a named estate's root is keyed by
+// that name, and one helper keeps run under gocyclo's ceiling.
+func resolveRoot(estate, flagValue string) (string, error) {
+	if err := checkEstateName(estate); err != nil {
+		return "", err
+	}
+	if estate == "" {
+		return paths.ScratchRoot(flagValue)
+	}
+	return paths.Root(flagValue)
 }

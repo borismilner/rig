@@ -111,7 +111,7 @@ func roleLabel(r registryv1.EstateRole) (string, bool) {
 //
 // EVERY KEY IS PRESENT ON EVERY ANSWER, with no omitempty anywhere, and that
 // is the same argument answerJSON writes down for `partial`. An absent key
-// reads as "this was never considered", and all six of these were considered
+// reads as "this was never considered", and all eight of these were considered
 // on every call - an empty name is the ANSWER for an unnamed estate, not a
 // missing one. A key that comes and goes is also how a consumer learns to
 // treat absence as a value, which is the distinction the role enum spends its
@@ -141,6 +141,7 @@ func estateJSON(r *registryv1.EstateResponse) map[string]any {
 		"wire":           r.GetWire(),
 		"semantics_gen":  r.GetSemanticsGen(),
 		epochKey:         r.GetEpoch(),
+		"root":           r.GetRoot(),
 	}
 }
 
@@ -169,6 +170,7 @@ func estateText(r *registryv1.EstateResponse) string {
 	row("wire", r.GetWire())
 	row("semantics", strconv.Itoa(int(r.GetSemanticsGen())))
 	row(epochKey, estateEpochCell(r))
+	row("root", estateRootCell(r))
 	return b.String()
 }
 
@@ -244,4 +246,14 @@ func estateRoleCell(r *registryv1.EstateResponse) string {
 	default:
 		return label
 	}
+}
+
+// estateRootCell renders the storage root (plan/48, R14-R15). Empty only from
+// a daemon that predates the field, and it says so rather than printing a
+// blank a reader would take for "no storage".
+func estateRootCell(r *registryv1.EstateResponse) string {
+	if r.GetRoot() == "" {
+		return "(not reported by this daemon)"
+	}
+	return r.GetRoot()
 }

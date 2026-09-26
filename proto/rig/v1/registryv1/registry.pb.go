@@ -601,7 +601,15 @@ type EstateResponse struct {
 	// least 1, because the store bumps before it publishes, so 0 is
 	// unambiguously "this estate has no persistent state" and cannot be
 	// confused with a real one.
-	Epoch         uint64 `protobuf:"varint,6,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	Epoch uint64 `protobuf:"varint,6,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	// WHERE THIS ESTATE KEEPS ITS STORAGE (plan/48, R14-R15): the root the
+	// daemon resolved at start from --root, RIG_ROOT or ~/.rig, or the scratch
+	// root of an unnamed estate. The estate's own areas are under it.
+	//
+	// Walked against section 14's caller rows as the estate arm requires: it is
+	// a path in the same user's home, a fact about this daemon, and no other
+	// principal's data. Empty from a daemon that predates the field.
+	Root          string `protobuf:"bytes,7,opt,name=root,proto3" json:"root,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -676,6 +684,13 @@ func (x *EstateResponse) GetEpoch() uint64 {
 		return x.Epoch
 	}
 	return 0
+}
+
+func (x *EstateResponse) GetRoot() string {
+	if x != nil {
+		return x.Root
+	}
+	return ""
 }
 
 type Toast struct {
@@ -1115,14 +1130,15 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\x05depth\x18\x01 \x01(\x0e2\r.rig.v1.DepthR\x05depth\"?\n" +
 	"\x10ProgramsResponse\x12+\n" +
 	"\bprograms\x18\x01 \x03(\v2\x0f.rig.v1.ProgramR\bprograms\"\x0f\n" +
-	"\rEstateRequest\"\xc2\x01\n" +
+	"\rEstateRequest\"\xd6\x01\n" +
 	"\x0eEstateResponse\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12&\n" +
 	"\x04role\x18\x02 \x01(\x0e2\x12.rig.v1.EstateRoleR\x04role\x12%\n" +
 	"\x0edaemon_version\x18\x03 \x01(\tR\rdaemonVersion\x12\x12\n" +
 	"\x04wire\x18\x04 \x01(\tR\x04wire\x12#\n" +
 	"\rsemantics_gen\x18\x05 \x01(\x05R\fsemanticsGen\x12\x14\n" +
-	"\x05epoch\x18\x06 \x01(\x04R\x05epoch\"\xe8\x01\n" +
+	"\x05epoch\x18\x06 \x01(\x04R\x05epoch\x12\x12\n" +
+	"\x04root\x18\a \x01(\tR\x04root\"\xe8\x01\n" +
 	"\x05Toast\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x04R\x03seq\x12\x1b\n" +
 	"\trecord_id\x18\x02 \x01(\tR\brecordId\x12,\n" +

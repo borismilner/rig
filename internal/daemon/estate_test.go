@@ -153,3 +153,39 @@ func TestTheRoleCannotBeSentByAClient(t *testing.T) {
 			"can never send a role and the derivation has exactly one home", n)
 	}
 }
+
+// plan/48 R14-R15: the root rigd resolved is on the wire's estate answer AND
+// on the agent surface's, from the one field, so the two can never disagree.
+func TestTheStorageRootIsReportedOnBothSurfaces(t *testing.T) {
+	dir, err := os.MkdirTemp("", "rigr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	lock, err := instance.Acquire(filepath.Join(dir, "p"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = lock.Close() })
+	d, err := New(Config{Version: "test-build", Wire: "v1", Lock: lock, Root: "/srv/rig-root"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = d.Close() })
+
+	l, err := net.Listen("unix", filepath.Join(dir, "s"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { defer close(done); _ = d.Serve(ctx, l) }()
+	t.Cleanup(func() { cancel(); <-done })
+
+	if got := estateOf(t, filepath.Join(dir, "s")).GetRoot(); got != "/srv/rig-root" {
+		t.Errorf("rig.estate root = %q", got)
+	}
+	if got := d.EstateIdentity().Root; got != "/srv/rig-root" {
+		t.Errorf("the agent surface's estate root = %q", got)
+	}
+}

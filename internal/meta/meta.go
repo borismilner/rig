@@ -185,6 +185,10 @@ type Estate struct {
 	// always at least 1: the store bumps before it publishes, so 1 is the
 	// first value any daemon can ever carry and 0 cannot be confused with it.
 	Epoch uint64
+
+	// Root is where the estate keeps its storage (plan/48, R14-R15), the same
+	// value rig.estate returns.
+	Root string
 }
 
 // EstateIdentity is the optional half of Invoker: the thing that can call
