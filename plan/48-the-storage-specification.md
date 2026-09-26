@@ -289,6 +289,19 @@ CLI: `rig store {put,get,query,delete,collections,export,import}` and
 | 5 | export and import | round trip: export, delete rows, import, identical documents and versions |
 | 6 | `examples/storeworker`: a fake adopter standing in for graft | demonstrated live on a private estate: stores, queries, writes a file, is exported and re-imported |
 
+**Slices 1-3 as built, 2026-09-26** (rig `125f74c`, `ea3267d`, `c49441e`).
+Seat choices made while building, each his to overrule:
+
+| Choice | Why |
+|---|---|
+| `op` is a string (`eq`..`ge`), a value is JSON text | an agent on the MCP door writes `"eq"` and `"done"`, not an enum name or base64 |
+| `offset` added to `store.query` | a page cut by the frame budget (768 KiB) says `more`, and the caller needs a way to the next one |
+| an unscoped caller (terminal, agent) must name `program`; a program naming another is DENIED | D2 as specified |
+| a terminal's or agent's READ of a program that never wrote is NOT_FOUND and creates nothing | a typo on a read would otherwise leave an empty database under the misspelled name |
+| an unnamed estate serves the store under its scratch root | the demo and the tests need it; the scratch root is disposable |
+| ceilings: 500 ops per transaction, 32 terms per query list | bounds on every caller list, the safe-code rule |
+| database files are created 0600 before sqlite opens them | sqlite would make them 0644 and its WAL copies the mode |
+
 #### Tests owed, each with the red control that proves it bites
 
 | Test | Red control |
