@@ -124,9 +124,9 @@ when the user chooses. The export can be loaded back in."*
 | R22 | **An export happens ad hoc, when the user chooses**: never on a timer, never in the background |
 | R23 | **An export can be loaded back in.** Export and import together are a restore path (R10 answered yes again, for exports) |
 
-**Still open:** export format (recommend JSON Lines sorted by id); whether
-`files/` and `exports/` are one repository or two (recommend two, since he
-asked for separate structures).
+**Answered 2026-09-27, put to him as choices:** R35, the export format is
+**JSON Lines, one document per line, sorted by id**; R36, `files/` and
+`exports/` are **two separate git repositories**.
 
 **Still open:** where the tree lives (recommend under the estate's state
 directory, `programs/<id>/`), the interval's length, the file format inside a
