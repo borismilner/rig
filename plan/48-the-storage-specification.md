@@ -183,6 +183,34 @@ text under that entry. rig also lists, at each commit, every file with no entry
 or an entry older than the file, so a missed registration is visible rather
 than silently unfindable.
 
+### ⛔ Boris, 2026-09-26: rig controls the layout of the free files
+
+**Boris, verbatim:** *"`rig` also controls the structure where the agents/programs save their
+freely written files. There can be different files, such as agent
+documentation about something or it can be resources for something (such as
+downloaded files / images / PDFs / Code and so on)... When agent wants to save
+such files it consults `rig` so that everyone is clear about where files go and
+where they can be accessible from. This should allow me as the author and the
+user of `rig` to control the layout of things and change things with time
+easily."*
+
+| # | Requirement |
+|---|---|
+| R28 | **rig owns the structure inside `files/`.** Files come in kinds - an agent's documentation about something, and resources for something (downloads, images, PDFs, code, and so on) |
+| R29 | **An agent or program that wants to save a file asks rig where it goes**, and writes it there. So everyone knows where files go and where to find them. The write itself stays direct (R12) |
+| R30 | **Boris controls the layout and can change it over time, easily.** The layout is his to edit, not compiled into rig or into any program |
+
+**A seat's recommendation, not his ruling:** the layout is one text file under
+`internal/` that Boris edits, mapping each kind to a place (for example
+`docs/<subject>/`, `resources/<type>/<subject>/`); `files.place` answers a path
+from kind, subject and file name; a layout change is applied by rig, which
+moves the existing files (`git mv`, so history follows) and rewrites their
+index entries, so nothing a search or a link points at breaks.
+
+**Open:** large binaries in git (images, PDFs, downloads grow a repository
+forever); recommend a size ceiling above which a file is stored but not
+committed, with the ceiling his to set.
+
 ### P9 build specification: `store.*`, free files, export and import
 
 ⛔ **DRAFT, written 2026-09-26 from R1-R23. The rulings above are his; every
@@ -227,6 +255,9 @@ replaces "The program-facing API, in shape" further down, which was a sketch.
 | `store.export` | write | program, collections (empty = all); writes JSONL sorted by id, commits |
 | `store.import` | destructive | program, collections; snapshot, replace, report counts |
 | `files.root` | read | the caller's own directory under `files/`, or the shared one, created if missing |
+| `files.place` | read | kind, subject, file name; answers where the file goes under the current layout (R29) |
+| `files.layout` | read | the layout in force: every kind and its place (R30) |
+| `files.relayout` | write | apply an edited layout: move files with `git mv`, rewrite their index entries, one commit (R30) |
 | `files.index` | write | path under `files/`, title, one-line summary, tags; rig indexes the file's text (R26) |
 | `files.search` | read | words; answers path, title, summary, snippet, score, never a body (R25) |
 | `files.unindexed` | read | files with no index entry, or an entry older than the file |
