@@ -319,6 +319,22 @@ overrule:
 driver, for one). The settings above close what runs on `status` and
 `commit`; the rest is the deferred threat model, not this build.
 
+**Slice 4b part a as built, 2026-09-26** (rig `406ec32`): the index over
+`files/`, as `files.index`, `files.search` and `files.unindexed` on the
+wire, MCP and CLI. Seat choices, his to overrule:
+
+| Choice | Why |
+|---|---|
+| FTS5 in `internal/files-index.db`, never inside `files/` | nothing a program writes may edit the index, and git never carries it |
+| every path is read through Go's `os.Root`; `..`, absolute, `.git/` and a final symlink are refused | a path or a link must not reach outside `files/`; `os.Root` is the standard library's answer |
+| the whole `files/` tree is indexable, `programs/<id>/` included | R26 covers everything an agent writes there |
+| the writer is the registered program, else the caller's seat; an unseated caller is refused | as `knowledge.add`: an entry says who wrote it |
+| a binary is found by title, summary and tags; text past 1 MiB is not searched | the index stays small; the entry says so |
+| "stale" is a changed size or mtime, git's own test | hashing every file on each listing costs a full read |
+| indexing a path whose file is gone drops its entry; the listing reports it as `gone` | the index follows the area without a separate verb |
+| a directory a program made unreadable is skipped by the listing | one program must not break the listing for all |
+| title weighs 4, summary and tags 2, body 1 in the ranking | a writer's own words outrank incidental text |
+
 #### Tests owed, each with the red control that proves it bites
 
 | Test | Red control |
