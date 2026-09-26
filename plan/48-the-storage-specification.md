@@ -2,6 +2,10 @@
 
 ### ⛔ RULED BY BORIS, 2026-09-26: rig supports `store.*`, and owns the queries
 
+⛔ **R5, R6 and R8-R10 ARE SUPERSEDED BY HIS THIRD RULING THE SAME DAY**
+("two storage ways", below): there is no background dump and the database is
+not in git. R1-R4, R7 and R11-R17 stand as amended there.
+
 **Boris, verbatim:** *"We need to support `store.*`. Programs such as graft
 need to store and fetch pieces of information. The program calls rig.
 programs don't need to know what engine they use (it is rig's responsibility
@@ -82,6 +86,37 @@ with a snapshot first (plan/46), never a silent re-open of an empty store.
 | How the root is configured | one setting, read by `rigd` at start (a flag and an environment variable until plan/47's configuration service exists), reported by `rig estate` |
 | Where a program's dump and its free files sit relative to each other | side by side in the program's directory but in separate subdirectories, so a program writing freely can never overwrite the dump rig writes |
 | One git repository for all programs, or one per program | one per estate, as he said "this whole filesystem"; each program a top-level directory in it |
+
+### ⛔ RULED BY BORIS, 2026-09-26, third: two storage ways, and export instead of a dump
+
+**Boris, verbatim:** *"Wait so lets do it smarter. Two storage ways: 1) DB 2)
+Freely accessible text files. No need to duplicate the DB content into files but
+they must be exportable to files. The DB is not to be Git managed, but their
+contents can be exported into textual representation in to a different
+filesystem structure than the freely accessible text files."*
+
+**The model now, binding:**
+
+| # | Storage way | Rule |
+|---|---|---|
+| R18 | **1. The database** | a program stores and fetches through `store.*` (R1-R4). **Not git-managed. Not duplicated into files in the background** |
+| R19 | **1a. Its export** | the database's contents **must be exportable** to a textual representation, **into a filesystem structure separate from the free files** |
+| R20 | **2. Free text files** | each program's own directory, read and written directly (R12), its root held by rig (R13), committed by rig from time to time (R17) |
+
+**What each earlier row becomes:**
+
+| Row | Now |
+|---|---|
+| R5 background dump, R6 git over it | **gone**: replaced by an export (R19), and the database is out of git |
+| R8 one file per collection | **carried to the export's layout**, where it still reads as his choice |
+| R9 batched commits on an interval | **carried to the free files** (R17), the only git-managed tree left |
+| R10 restore from the tree | **open again**: whether an export can be imported back is a new question |
+| R11 sensitive fields as-is | **carried to the export**; the free files hold whatever the program writes |
+| R14-R16 | stand: one configurable root, default `~/.rig`, internal storage separated from free files. The export is a third, separate area |
+
+**Open, each with a seat's recommendation:** export on demand
+(`rig store export <program>`) rather than on a timer; export format JSON Lines
+sorted by id; an import path so an export is also a restore (R10's question).
 
 **Still open:** where the tree lives (recommend under the estate's state
 directory, `programs/<id>/`), the interval's length, the file format inside a
