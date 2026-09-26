@@ -114,9 +114,19 @@ filesystem structure than the freely accessible text files."*
 | R11 sensitive fields as-is | **carried to the export**; the free files hold whatever the program writes |
 | R14-R16 | stand: one configurable root, default `~/.rig`, internal storage separated from free files. The export is a third, separate area |
 
-**Open, each with a seat's recommendation:** export on demand
-(`rig store export <program>`) rather than on a timer; export format JSON Lines
-sorted by id; an import path so an export is also a restore (R10's question).
+**His answers the same day, verbatim:** *"Exported contents are also git
+managed and when exported they are also auto comitted. Exports happen ad-hoc
+when the user chooses. The export can be loaded back in."*
+
+| # | Requirement |
+|---|---|
+| R21 | **The export area is git-managed**, and rig commits an export automatically when it is written |
+| R22 | **An export happens ad hoc, when the user chooses**: never on a timer, never in the background |
+| R23 | **An export can be loaded back in.** Export and import together are a restore path (R10 answered yes again, for exports) |
+
+**Still open:** export format (recommend JSON Lines sorted by id); whether
+`files/` and `exports/` are one repository or two (recommend two, since he
+asked for separate structures).
 
 **Still open:** where the tree lives (recommend under the estate's state
 directory, `programs/<id>/`), the interval's length, the file format inside a
