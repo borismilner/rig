@@ -21,7 +21,7 @@ import (
 )
 
 // plan/09, "The MCP door covers everything rig does": every verb rig declares
-// is an MCP tool, or it is on the exclusion list below with its reason.
+// is an MCP tool, and there is no exclusion list (Boris, 2026-09-26).
 //
 // ⛔ ONE ROUTE FOR ALL OF THEM, AND IT IS THE DAEMON'S OWN DISPATCH. A verb
 // called here is framed exactly as the socket would frame it and handed to
@@ -57,6 +57,9 @@ var bridged = map[string]struct {
 	verbRestart:      {func() proto.Message { return &verbsv1.RestartRequest{} }, func() proto.Message { return &verbsv1.RestartResponse{} }},
 	"health":         {func() proto.Message { return &verbsv1.HealthRequest{} }, func() proto.Message { return &verbsv1.HealthResponse{} }},
 	"backup.create":  {func() proto.Message { return &verbsv1.BackupCreateRequest{} }, func() proto.Message { return &verbsv1.BackupCreateResponse{} }},
+	"health.report":  {func() proto.Message { return &rigv1.HealthReportRequest{} }, func() proto.Message { return &rigv1.HealthReportResponse{} }},
+	"project.brief":  {func() proto.Message { return &verbsv1.ProjectBriefRequest{} }, func() proto.Message { return &verbsv1.ProjectBriefResponse{} }},
+	"down":           {func() proto.Message { return &verbsv1.DownRequest{} }, func() proto.Message { return &verbsv1.DownResponse{} }},
 }
 
 // servedByName is every verb the agent door already carries under a tool of
@@ -77,16 +80,6 @@ var servedByName = map[string]meta.Tool{
 	"message.send":   meta.MessageSendTool, verbMessageInbox: meta.MessageInboxTool,
 	"message.await": meta.MessageAwaitTool, "message.ack": meta.MessageAckTool,
 	"message.list": meta.MessageListTool,
-}
-
-// notOnTheAgentDoor is plan/09's exclusion list, each with its reason. A verb
-// here is refused a tool on purpose; TestEveryRigVerbIsOnTheAgentDoor fails
-// for a verb that is on no list at all.
-var notOnTheAgentDoor = map[string]string{
-	"down": "plan/09, 2026-09-16: its protection is unreachability from the agent surface",
-	"health.report": "only the child rig launched may speak for a program (plan/18), and an " +
-		"agent's connection is never that child",
-	"project.brief": "moved to the docket program (plan/50); the verb only answers that refusal",
 }
 
 // verbMessageInbox is named in the dispatch, in message.go and here.

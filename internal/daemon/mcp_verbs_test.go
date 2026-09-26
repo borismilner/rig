@@ -12,8 +12,8 @@ import (
 )
 
 // plan/09, "The MCP door covers everything rig does": every verb rig declares
-// is a tool on the agent door or on the written exclusion list, and a verb
-// that is neither fails here - which is the whole guard, since the next verb
+// is a tool on the agent door, with no exclusion list (Boris, 2026-09-26:
+// "don't keep things out of MCP tools"), and a verb that is not fails here - which is the whole guard, since the next verb
 // added to self.go is the one that would otherwise be missing.
 func TestEveryRigVerbIsOnTheAgentDoor(t *testing.T) {
 	declared := map[string]bool{}
@@ -21,13 +21,12 @@ func TestEveryRigVerbIsOnTheAgentDoor(t *testing.T) {
 		declared[c.ID] = true
 		_, b := bridged[c.ID]
 		_, s := servedByName[c.ID]
-		_, x := notOnTheAgentDoor[c.ID]
-		if n := btoi(b) + btoi(s) + btoi(x); n != 1 {
-			t.Errorf("rig.%s is on %d of the three lists (bridged, served by name, excluded); "+
+		if n := btoi(b) + btoi(s); n != 1 {
+			t.Errorf("rig.%s is on %d of the two lists (bridged, served by name); "+
 				"plan/09 wants exactly one", c.ID, n)
 		}
 	}
-	for _, list := range []map[string]bool{keys(bridged), keys(servedByName), keys(notOnTheAgentDoor)} {
+	for _, list := range []map[string]bool{keys(bridged), keys(servedByName)} {
 		for id := range list {
 			if !declared[id] {
 				t.Errorf("rig.%s is listed for the agent door but rig does not declare it", id)
@@ -56,10 +55,9 @@ func TestEveryRigVerbIsOnTheAgentDoor(t *testing.T) {
 			t.Errorf("rig.%s is said to be served by %q, and the agent door has no such tool", id, tool)
 		}
 	}
-	for id := range notOnTheAgentDoor {
-		if have[verbTool(id)] != nil {
-			t.Errorf("rig.%s is excluded by plan/09 and is on the agent door anyway", id)
-		}
+	if dn := have["down"]; dn == nil || dn.Annotations == nil || dn.Annotations.DestructiveHint == nil ||
+		!*dn.Annotations.DestructiveHint {
+		t.Errorf("down is destructive and its tool does not say so: %+v", dn)
 	}
 	if st := have["stop"]; st == nil || st.Annotations == nil || st.Annotations.DestructiveHint == nil ||
 		!*st.Annotations.DestructiveHint || st.Annotations.ReadOnlyHint {
@@ -118,6 +116,31 @@ func TestAnAgentHoldsALeaseAndWorksAQueueThroughTheDoor(t *testing.T) {
 	if !strings.Contains(none["error"], "supervises nothing") {
 		t.Fatalf("health on a daemon with no supervisor answered %v", none)
 	}
+}
+
+// The three verbs that were once kept off the door answer an agent the way
+// they answer a terminal: down reaches the daemon's own arm, and the two
+// that only refuse carry their refusal back with its reason.
+func TestTheOnceExcludedVerbsAnswerThroughTheDoor(t *testing.T) {
+	ctx := ctx5(t)
+	agent := mailAgent(t, mailDaemon(t), "formerly-excluded")
+
+	// A test daemon is dispatched to directly and serves no listener, so
+	// down's own arm answers that there is nothing to stop. Reaching that
+	// sentence is the proof the call got past the door to the arm.
+	dn := refusedTool(ctx, t, agent, "down", nil)
+	if !strings.Contains(dn["error"], "nothing to stop") {
+		t.Fatalf("down through the door answered %v", dn)
+	}
+	pb := refusedTool(ctx, t, agent, "project_brief", nil)
+	if !strings.Contains(pb["error"], "docket") {
+		t.Fatalf("project_brief through the door answered %v", pb)
+	}
+	hr := refusedTool(ctx, t, agent, "health_report", nil)
+	if hr["error"] == "" {
+		t.Fatalf("health_report through the door answered %v", hr)
+	}
+	t.Logf("health_report refuses an agent with: %s", hr["error"])
 }
 
 func resultOf(t *testing.T, ans map[string]any) map[string]any {
