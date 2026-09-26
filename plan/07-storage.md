@@ -105,6 +105,11 @@ compressor. Name the candidates, measure them on real segments, and choose -
 `zstd --ultra -22` and `xz -9e` are the obvious two, and the decompression cost
 on a cold archive read is part of the measurement, not a footnote.
 
+⛔ **SUPERSEDED FOR PROGRAMS BY BORIS, 2026-09-26: rig owns the queries too,
+and a program calls `store.*` instead of opening a file.** plan/48, "RULED BY
+BORIS, 2026-09-26", carries his words and the requirements. The table and the
+paragraph below are the earlier model, kept as the record.
+
 rig owns everything about a database except what is in it.
 
 | rig owns | The program owns |

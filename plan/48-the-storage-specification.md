@@ -1,5 +1,44 @@
 ## 48. The storage specification
 
+### ⛔ RULED BY BORIS, 2026-09-26: rig supports `store.*`, and owns the queries
+
+**Boris, verbatim:** *"We need to support `store.*`. Programs such as graft
+need to store and fetch pieces of information. The program calls rig.
+programs don't need to know what engine they use (it is rig's responsibility
+to offer anything programs need at the best possible way). The cost of a query
+is not that critical for tasks that run once in a few minutes or even hours
+sometimes. Rig owns all of that, plus the queries. On top of DB storage (which
+is the main storage being used) the data should be dumped in the background
+into a well structured filesystem that is well separated among the different
+programs and this whole filesystem is to be Git managed with auto commits by
+`rig` logic."*
+
+**The requirements, binding:**
+
+| # | Requirement |
+|---|---|
+| R1 | **rig builds and serves the program-facing `store.*` verbs.** A program stores and fetches through rig; it never opens a database itself |
+| R2 | **Engine-agnostic.** No program names or sees the engine; choosing and running it well is rig's responsibility |
+| R3 | **rig owns everything about a program's data, the queries included** |
+| R4 | **The database is the main storage.** Reads and writes go to it |
+| R5 | **rig dumps every program's data, in the background, into a well structured filesystem**, one tree per program, cleanly separated from every other program's |
+| R6 | **That whole filesystem is a git repository**, and rig commits to it automatically, by its own logic |
+| R7 | **Query cost is not the design driver.** Callers run once in minutes or hours; clarity and correctness come before the microseconds B108 measured |
+
+**What this overrules below:** decision 8's *"specified, NOT BUILT"* for the
+`store.*` verbs (graft is the adopter), and the DRAFT banner for that half.
+**It supersedes plan/07's "rig owns everything about a database except what is
+in it" table**, where the program opened the file and owned its queries.
+
+**Open, and each is his (a recommendation is a seat's, not a ruling):** the
+dump format (recommend one file per row, stable key order, so a git diff reads
+as the change); the commit cadence (recommend batched on an interval, never per
+write); where the tree lives (recommend under the estate's state directory,
+`programs/<id>/`); whether it is pushed anywhere; how a declared-sensitive field
+is kept out of a repository that keeps history forever; and whether the tree
+can restore the database, which is what would let it answer plan/07's
+"nothing holds the only copy in SQLite".
+
 ⛔ **DRAFT. STEP 1 AND A STEP-4 DRAFT OF §45's LOOP FOR B103 (S1), WRITTEN
 2026-09-23 EVENING WITHOUT HIM, ON HIS WORD TO DO AS MUCH AS POSSIBLE ALONE.**
 §45's 2026-09-23 block binds: *preparing is not approving*. **He has not
