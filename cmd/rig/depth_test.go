@@ -282,6 +282,7 @@ func TestEveryFlagThatTakesAValueIsDeclaredToThePartitioner(t *testing.T) {
 		"peers": peersFS, "knowledge": knowledgeFlagSet().fs,
 		"queue":  queueFlagSet().fs,
 		"store":  storeFlagSet().fs,
+		"files":  filesFlagSet().fs,
 		"notify": notifyFlagSet().fs,
 	}
 

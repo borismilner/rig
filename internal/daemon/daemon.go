@@ -86,6 +86,10 @@ type Config struct {
 	// Empty for a daemon built without one, which tests do.
 	Root string
 
+	// FilesCommitEvery is how often rig commits the free files; zero is
+	// DefaultFilesCommitEvery.
+	FilesCommitEvery time.Duration
+
 	// Lock is the single-instance claim, and it is REQUIRED.
 	//
 	// Section 5f says rigd takes the flock "before it binds". Stating an
@@ -123,7 +127,9 @@ type Daemon struct {
 
 	// stores holds each program's store.* database (store.go).
 	stores *stores
-	lock   *instance.Lock
+	// files is the free-files area and its committer (files.go).
+	files *freeFiles
+	lock  *instance.Lock
 
 	// kernel owns the registry. The daemon cannot hold the registry itself:
 	// noregistryhandle fails the build on the type leaving internal/kernel,
@@ -319,7 +325,15 @@ func New(cfg Config) (*Daemon, error) {
 		return nil, fmt.Errorf("daemon: placing the program stores: %w", err)
 	}
 
+	freeFiles, err := newFreeFiles(cfg.Root, cfg.Estate, cfg.FilesCommitEvery)
+	if err != nil {
+		_ = progStores.close()
+		_ = closeIfOpen(records)
+		return nil, fmt.Errorf("daemon: placing the free files: %w", err)
+	}
+
 	return &Daemon{
+		files:    freeFiles,
 		stores:   progStores,
 		version:  cfg.Version,
 		wire:     cfg.Wire,
@@ -463,6 +477,11 @@ func (d *Daemon) Serve(ctx context.Context, l net.Listener) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	d.setStop(cancel)
+
+	// The free files' committer lives exactly as long as serving does, and
+	// its last pass runs after the connections below have drained.
+	waitFiles := d.startFiles(ctx)
+	defer waitFiles()
 
 	go func() {
 		<-ctx.Done()
@@ -937,6 +956,9 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	case "store.put", "store.get", "store.query", "store.delete",
 		"store.transact", "store.collections":
 		d.serveStore(ctx, c, f, command)
+
+	case "files.root":
+		d.serveFilesRoot(c, f)
 
 	// SECTION 16's DIRECTED MESSAGES, all five through one arm. The queue is
 	// durable and lives beside the leases; message.go has why the sender, the

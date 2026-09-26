@@ -2262,3 +2262,23 @@ message StoreCollectionsResponse {
   string program = 1;
   repeated StoreCollection collections = 2;
 }
+
+// FilesRootRequest asks where to write free files (plan/48 R12, R13, R24).
+// shared answers the area every program shares; otherwise the answer is a
+// program's own directory, whose program follows the store verbs' rule: a
+// registered program gets its own and may name nobody else, a terminal or an
+// agent names the program.
+message FilesRootRequest {
+  string program = 1;
+  bool shared = 2;
+}
+
+// FilesRootResponse is an absolute path the caller reads and writes directly.
+// rig commits the text files under it every commit_every_s seconds; binary
+// files are never committed.
+message FilesRootResponse {
+  string path = 1;
+  // Empty for the shared area.
+  string program = 2;
+  uint32 commit_every_s = 3;
+}

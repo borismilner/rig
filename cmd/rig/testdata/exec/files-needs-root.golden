@@ -1,0 +1,5 @@
+$ rig files
+exit 1
+--- stdout (0 bytes)
+--- stderr (50 bytes)
+rig: usage: rig files root --program P | --shared

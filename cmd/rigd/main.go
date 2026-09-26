@@ -93,6 +93,8 @@ func run() error {
 		"unnamed estates claim no name and collide with nothing")
 	rootFlag := flag.String("root", "", "where the estate keeps its storage (plan/48); "+
 		"default "+paths.RootEnv+", else ~/.rig. An unnamed estate uses the runtime directory unless told")
+	filesEvery := flag.Duration("files-commit-every", daemon.DefaultFilesCommitEvery,
+		"the least time between two commits of the free files (plan/48 R34); text files only")
 	flag.Parse()
 
 	root, err := resolveRoot(*estate, *rootFlag)
@@ -271,9 +273,11 @@ func run() error {
 		Estate:  *estate,
 		Epoch:   epoch,
 		Root:    root,
-		Log:     log,
-		Lock:    lock,
-		Leases:  leases,
+
+		FilesCommitEvery: *filesEvery,
+		Log:              log,
+		Lock:             lock,
+		Leases:           leases,
 
 		Supervisor: sup,
 	})

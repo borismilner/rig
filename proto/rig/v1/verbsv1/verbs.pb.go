@@ -9733,6 +9733,127 @@ func (x *StoreCollectionsResponse) GetCollections() []*StoreCollection {
 	return nil
 }
 
+// FilesRootRequest asks where to write free files (plan/48 R12, R13, R24).
+// shared answers the area every program shares; otherwise the answer is a
+// program's own directory, whose program follows the store verbs' rule: a
+// registered program gets its own and may name nobody else, a terminal or an
+// agent names the program.
+type FilesRootRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Program       string                 `protobuf:"bytes,1,opt,name=program,proto3" json:"program,omitempty"`
+	Shared        bool                   `protobuf:"varint,2,opt,name=shared,proto3" json:"shared,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FilesRootRequest) Reset() {
+	*x = FilesRootRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[134]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FilesRootRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FilesRootRequest) ProtoMessage() {}
+
+func (x *FilesRootRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[134]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FilesRootRequest.ProtoReflect.Descriptor instead.
+func (*FilesRootRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{134}
+}
+
+func (x *FilesRootRequest) GetProgram() string {
+	if x != nil {
+		return x.Program
+	}
+	return ""
+}
+
+func (x *FilesRootRequest) GetShared() bool {
+	if x != nil {
+		return x.Shared
+	}
+	return false
+}
+
+// FilesRootResponse is an absolute path the caller reads and writes directly.
+// rig commits the text files under it every commit_every_s seconds; binary
+// files are never committed.
+type FilesRootResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Path  string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	// Empty for the shared area.
+	Program       string `protobuf:"bytes,2,opt,name=program,proto3" json:"program,omitempty"`
+	CommitEveryS  uint32 `protobuf:"varint,3,opt,name=commit_every_s,json=commitEveryS,proto3" json:"commit_every_s,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FilesRootResponse) Reset() {
+	*x = FilesRootResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[135]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FilesRootResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FilesRootResponse) ProtoMessage() {}
+
+func (x *FilesRootResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[135]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FilesRootResponse.ProtoReflect.Descriptor instead.
+func (*FilesRootResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{135}
+}
+
+func (x *FilesRootResponse) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *FilesRootResponse) GetProgram() string {
+	if x != nil {
+		return x.Program
+	}
+	return ""
+}
+
+func (x *FilesRootResponse) GetCommitEveryS() uint32 {
+	if x != nil {
+		return x.CommitEveryS
+	}
+	return 0
+}
+
 var File_proto_rig_v1_verbs_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_verbs_proto_rawDesc = "" +
@@ -10352,7 +10473,14 @@ const file_proto_rig_v1_verbs_proto_rawDesc = "" +
 	"\x05bytes\x18\x03 \x01(\x04R\x05bytes\"o\n" +
 	"\x18StoreCollectionsResponse\x12\x18\n" +
 	"\aprogram\x18\x01 \x01(\tR\aprogram\x129\n" +
-	"\vcollections\x18\x02 \x03(\v2\x17.rig.v1.StoreCollectionR\vcollections*Z\n" +
+	"\vcollections\x18\x02 \x03(\v2\x17.rig.v1.StoreCollectionR\vcollections\"D\n" +
+	"\x10FilesRootRequest\x12\x18\n" +
+	"\aprogram\x18\x01 \x01(\tR\aprogram\x12\x16\n" +
+	"\x06shared\x18\x02 \x01(\bR\x06shared\"g\n" +
+	"\x11FilesRootResponse\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x18\n" +
+	"\aprogram\x18\x02 \x01(\tR\aprogram\x12$\n" +
+	"\x0ecommit_every_s\x18\x03 \x01(\rR\fcommitEveryS*Z\n" +
 	"\tSeatState\x12\x1a\n" +
 	"\x16SEAT_STATE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11SEAT_STATE_ACTIVE\x10\x01\x12\x1a\n" +
@@ -10432,7 +10560,7 @@ func file_proto_rig_v1_verbs_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_verbs_proto_enumTypes = make([]protoimpl.EnumInfo, 10)
-var file_proto_rig_v1_verbs_proto_msgTypes = make([]protoimpl.MessageInfo, 138)
+var file_proto_rig_v1_verbs_proto_msgTypes = make([]protoimpl.MessageInfo, 140)
 var file_proto_rig_v1_verbs_proto_goTypes = []any{
 	(SeatState)(0),                   // 0: rig.v1.SeatState
 	(LeaseState)(0),                  // 1: rig.v1.LeaseState
@@ -10578,11 +10706,13 @@ var file_proto_rig_v1_verbs_proto_goTypes = []any{
 	(*StoreCollectionsRequest)(nil),  // 141: rig.v1.StoreCollectionsRequest
 	(*StoreCollection)(nil),          // 142: rig.v1.StoreCollection
 	(*StoreCollectionsResponse)(nil), // 143: rig.v1.StoreCollectionsResponse
-	nil,                              // 144: rig.v1.Record.FieldsEntry
-	nil,                              // 145: rig.v1.RecordPutRequest.FieldsEntry
-	nil,                              // 146: rig.v1.WorkNote.FieldsEntry
-	nil,                              // 147: rig.v1.WorkNoteWriteRequest.FieldsEntry
-	(v1.Tristate)(0),                 // 148: rig.v1.Tristate
+	(*FilesRootRequest)(nil),         // 144: rig.v1.FilesRootRequest
+	(*FilesRootResponse)(nil),        // 145: rig.v1.FilesRootResponse
+	nil,                              // 146: rig.v1.Record.FieldsEntry
+	nil,                              // 147: rig.v1.RecordPutRequest.FieldsEntry
+	nil,                              // 148: rig.v1.WorkNote.FieldsEntry
+	nil,                              // 149: rig.v1.WorkNoteWriteRequest.FieldsEntry
+	(v1.Tristate)(0),                 // 150: rig.v1.Tristate
 }
 var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	0,   // 0: rig.v1.Seat.state:type_name -> rig.v1.SeatState
@@ -10596,11 +10726,11 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	24,  // 8: rig.v1.LeaseAcquireResponse.handle:type_name -> rig.v1.LeaseHandle
 	24,  // 9: rig.v1.LeaseRenewResponse.handle:type_name -> rig.v1.LeaseHandle
 	23,  // 10: rig.v1.LeaseListResponse.leases:type_name -> rig.v1.Lease
-	144, // 11: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
+	146, // 11: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
 	35,  // 12: rig.v1.Record.prov:type_name -> rig.v1.Provenance
 	37,  // 13: rig.v1.Record.retraction:type_name -> rig.v1.Retraction
 	35,  // 14: rig.v1.Retraction.prov:type_name -> rig.v1.Provenance
-	145, // 15: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
+	147, // 15: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
 	36,  // 16: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
 	36,  // 17: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
 	36,  // 18: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
@@ -10635,7 +10765,7 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	67,  // 47: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
 	73,  // 48: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
 	74,  // 49: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
-	148, // 50: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
+	150, // 50: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
 	75,  // 51: rig.v1.ProjectBriefResponse.closed:type_name -> rig.v1.ClosedItem
 	76,  // 52: rig.v1.ProjectBriefResponse.closed_counts:type_name -> rig.v1.WordCount
 	35,  // 53: rig.v1.Lesson.prov:type_name -> rig.v1.Provenance
@@ -10650,9 +10780,9 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	88,  // 62: rig.v1.QueueCompleteResponse.task:type_name -> rig.v1.Task
 	88,  // 63: rig.v1.QueueListResponse.tasks:type_name -> rig.v1.Task
 	23,  // 64: rig.v1.LeaseCheckResponse.lease:type_name -> rig.v1.Lease
-	146, // 65: rig.v1.WorkNote.fields:type_name -> rig.v1.WorkNote.FieldsEntry
+	148, // 65: rig.v1.WorkNote.fields:type_name -> rig.v1.WorkNote.FieldsEntry
 	35,  // 66: rig.v1.WorkNote.prov:type_name -> rig.v1.Provenance
-	147, // 67: rig.v1.WorkNoteWriteRequest.fields:type_name -> rig.v1.WorkNoteWriteRequest.FieldsEntry
+	149, // 67: rig.v1.WorkNoteWriteRequest.fields:type_name -> rig.v1.WorkNoteWriteRequest.FieldsEntry
 	99,  // 68: rig.v1.WorkNoteWriteResponse.note:type_name -> rig.v1.WorkNote
 	99,  // 69: rig.v1.WorkNoteMineResponse.notes:type_name -> rig.v1.WorkNote
 	99,  // 70: rig.v1.WorkNoteAboutResponse.notes:type_name -> rig.v1.WorkNote
@@ -10696,7 +10826,7 @@ func file_proto_rig_v1_verbs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_verbs_proto_rawDesc), len(file_proto_rig_v1_verbs_proto_rawDesc)),
 			NumEnums:      10,
-			NumMessages:   138,
+			NumMessages:   140,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

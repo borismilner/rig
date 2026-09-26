@@ -60,6 +60,7 @@ var bridged = map[string]struct {
 	"health.report":     {func() proto.Message { return &rigv1.HealthReportRequest{} }, func() proto.Message { return &rigv1.HealthReportResponse{} }},
 	"project.brief":     {func() proto.Message { return &verbsv1.ProjectBriefRequest{} }, func() proto.Message { return &verbsv1.ProjectBriefResponse{} }},
 	"down":              {func() proto.Message { return &verbsv1.DownRequest{} }, func() proto.Message { return &verbsv1.DownResponse{} }},
+	"files.root":        {func() proto.Message { return &verbsv1.FilesRootRequest{} }, func() proto.Message { return &verbsv1.FilesRootResponse{} }},
 	"store.put":         {func() proto.Message { return &verbsv1.StorePutRequest{} }, func() proto.Message { return &verbsv1.StorePutResponse{} }},
 	"store.get":         {func() proto.Message { return &verbsv1.StoreGetRequest{} }, func() proto.Message { return &verbsv1.StoreGetResponse{} }},
 	"store.query":       {func() proto.Message { return &verbsv1.StoreQueryRequest{} }, func() proto.Message { return &verbsv1.StoreQueryResponse{} }},

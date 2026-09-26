@@ -145,7 +145,7 @@ func FuzzRawPayload(f *testing.F) {
 		"queue.push", "queue.claim", "queue.complete", "queue.list",
 		"lease.check", "notify",
 		"store.put", "store.get", "store.query", "store.delete",
-		"store.transact", "store.collections",
+		"store.transact", "store.collections", "files.root",
 	}
 	f.Add(uint8(0), []byte{0x22, 0x02, 0xff, 0xfe})
 	f.Add(uint8(1), []byte{0x0a, 0x03, 'a', 'b', 'c', 0x10, 0x88, 0x27})

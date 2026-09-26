@@ -482,6 +482,12 @@ func selfDeclaration() kernel.Declaration {
 				"List the collections in a program's store",
 				"Names each collection with its document count and bytes.",
 				"The program and its collections."),
+			// It makes a program's own directory when the program asks, so it
+			// writes files; asking twice leaves the same directory.
+			leaseWriter("files.root", "Files root", kernel.Yes,
+				"Where to write free files: a program's own directory, or the shared area",
+				"Answers an absolute directory the caller reads and writes directly, not through rig. rig commits the text files under it to git on an interval; binary files are never committed. shared answers the area every program shares; otherwise a registered program gets its own directory, and a terminal or an agent names the program.",
+				"The directory, the program, and how often rig commits."),
 			leaseWriter("store.put", "Store put", kernel.No,
 				"Create or replace one JSON document, compare-and-swap",
 				"Writes a JSON object under a collection and id. expected_version 0 creates and is refused if the id exists; otherwise it must be the version read, and a stale one is refused as a conflict rather than overwriting.",

@@ -1,0 +1,5 @@
+$ rig files root --program graft --shared
+exit 1
+--- stdout (0 bytes)
+--- stderr (66 bytes)
+rig: rig files root needs exactly one of --program P and --shared

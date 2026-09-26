@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/borismilner/rig/internal/instance"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
@@ -16,6 +17,12 @@ import (
 // upStoreDaemon is an unnamed daemon told a storage root, serving a socket
 // for programs and terminals; its MCP door is mailAgent(t, d, name).
 func upStoreDaemon(t *testing.T) (sock, root string, d *Daemon) {
+	t.Helper()
+	return upRootedDaemon(t, 0)
+}
+
+// upRootedDaemon is upStoreDaemon with the free files' commit interval.
+func upRootedDaemon(t *testing.T, every time.Duration) (sock, root string, d *Daemon) {
 	t.Helper()
 	dir, err := os.MkdirTemp("", "rigs")
 	if err != nil {
@@ -33,7 +40,7 @@ func upStoreDaemon(t *testing.T) (sock, root string, d *Daemon) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = lock.Close() })
-	d, err = New(Config{Version: "test", Wire: "v1", Lock: lock, Root: root})
+	d, err = New(Config{Version: "test", Wire: "v1", Lock: lock, Root: root, FilesCommitEvery: every})
 	if err != nil {
 		t.Fatal(err)
 	}

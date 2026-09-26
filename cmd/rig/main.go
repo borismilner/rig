@@ -196,6 +196,7 @@ func usage() {
   queue <cmd>      claimable work queues: push, list
   store <cmd>      a program's documents: collections, get, put, delete,
                    query (--program names whose)
+  files root       where to write free files: --program P, or --shared
   notify <sev> <title>  a toast at the tray: info, success, warning, error, urgent
   dnd on|off|status  do not disturb: toasts go to the record only, urgent still shows
   record <cmd>     the continuity record: put, get, query, history, link,
@@ -240,6 +241,7 @@ var plainVerbs = map[string]func([]string) error{
 	"message":   cmdMessage,
 	"queue":     cmdQueue,
 	"store":     cmdStore,
+	"files":     cmdFiles,
 	"notify":    cmdNotify,
 	"dnd":       cmdDND,
 	"up":        cmdUp,
@@ -326,7 +328,7 @@ func run(args []string) error {
 		// It also happens to be the honest shape: `plan/46` specifies one
 		// capability with two halves, and this is its single seam into run.
 		return cmdBackupOrRestore(args[0], with(args[1:], lead))
-	case "peers", "knowledge", "worknote", "message", "queue", "store", "notify", "dnd",
+	case "peers", "knowledge", "worknote", "message", "queue", "store", "files", "notify", "dnd",
 		"up", "stop", "restart", "health":
 		return plainVerbs[args[0]](with(args[1:], lead))
 	case "record":
