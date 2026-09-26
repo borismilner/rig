@@ -2282,3 +2282,66 @@ message FilesRootResponse {
   string program = 2;
   uint32 commit_every_s = 3;
 }
+
+// FilesIndexRequest indexes one file under the free-files root (plan/48 R25,
+// R26): the writer names it with a title, a one-line summary and one-word
+// tags, and rig indexes the file's text beside them. path is relative to the
+// root and may not climb out of it. A path whose file is gone has its entry
+// dropped. The writer is the caller's seat or program, never named here.
+message FilesIndexRequest {
+  string path = 1;
+  string title = 2;
+  string summary = 3;
+  repeated string tags = 4;
+}
+
+// FilesIndexResponse says what indexing did.
+message FilesIndexResponse {
+  string path = 1;
+  // The file is gone, so its entry was dropped.
+  bool removed = 2;
+  // How much of the file's text a search reads; 0 for a binary.
+  uint32 text_bytes = 3;
+  bool binary = 4;
+  // Only the first MiB of the text is searchable.
+  bool truncated = 5;
+}
+
+// FilesSearchRequest searches the index. No query syntax is read: the words
+// are words. under narrows it to a directory under the root.
+message FilesSearchRequest {
+  string query = 1;
+  string under = 2;
+  uint32 limit = 3;
+}
+
+// FilesHit is one answer: never the file's body.
+message FilesHit {
+  string path = 1;
+  string title = 2;
+  string summary = 3;
+  string snippet = 4;
+  double score = 5;
+}
+
+message FilesSearchResponse {
+  repeated FilesHit hits = 1;
+}
+
+// FilesUnindexedRequest asks what the writers still owe the index.
+message FilesUnindexedRequest {
+  string under = 1;
+  uint32 limit = 2;
+}
+
+// FilesPending is one file the index does not describe as it is. state is
+// "new" (no entry), "stale" (changed since) or "gone" (entry, no file).
+message FilesPending {
+  string path = 1;
+  string state = 2;
+}
+
+message FilesUnindexedResponse {
+  repeated FilesPending files = 1;
+  uint32 total = 2;
+}

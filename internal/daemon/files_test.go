@@ -93,3 +93,68 @@ func TestNoRootMeansNoFiles(t *testing.T) {
 	wantCode(t, c.Call(ctx5(t), "rig.files.root", &verbsv1.FilesRootRequest{Shared: true},
 		&verbsv1.FilesRootResponse{}), rigv1.Code_CODE_UNAVAILABLE, "files.root with no root")
 }
+
+// R25, R26 across the doors: a program indexes what it wrote, a terminal and
+// an agent find it by a snippet, and the listing names what is still owed.
+func TestAFileAProgramIndexesIsFoundFromEveryDoor(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	sock, _, d := upStoreDaemon(t)
+	ctx := ctx5(t)
+	graft := program(t, sock, "graft")
+	var own verbsv1.FilesRootResponse
+	if err := graft.Call(ctx, "rig.files.root", &verbsv1.FilesRootRequest{}, &own); err != nil {
+		t.Fatal(err)
+	}
+	body := "# Retries\n\n" + strings.Repeat("padding line\n", 300) + "a failed job waits with exponential backoff\n"
+	for _, name := range []string{"retries.md", "draft.md"} {
+		if err := os.WriteFile(filepath.Join(own.GetPath(), name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var ir verbsv1.FilesIndexResponse
+	if err := graft.Call(ctx, "rig.files.index", &verbsv1.FilesIndexRequest{
+		Path: "programs/graft/retries.md", Title: "Retry policy", Summary: "how graft retries", Tags: []string{"retries"},
+	}, &ir); err != nil || ir.GetTextBytes() != uint32(len(body)) {
+		t.Fatalf("index: %v, %v", &ir, err)
+	}
+	wantCode(t, graft.Call(ctx, "rig.files.index", &verbsv1.FilesIndexRequest{
+		Path: "../internal/files-index.db", Title: "t", Summary: "s",
+	}, &ir), rigv1.Code_CODE_INVALID, "a path climbing to rig's own index")
+
+	term := dial(t, sock)
+	var sr verbsv1.FilesSearchResponse
+	if err := term.Call(ctx, "rig.files.search", &verbsv1.FilesSearchRequest{Query: "exponential backoff"}, &sr); err != nil {
+		t.Fatal(err)
+	}
+	if len(sr.GetHits()) != 1 || sr.GetHits()[0].GetPath() != "programs/graft/retries.md" ||
+		len(sr.GetHits()[0].GetSnippet()) > 200 {
+		t.Fatalf("search: %v", &sr)
+	}
+	var ur verbsv1.FilesUnindexedResponse
+	if err := term.Call(ctx, "rig.files.unindexed", &verbsv1.FilesUnindexedRequest{}, &ur); err != nil {
+		t.Fatal(err)
+	}
+	if ur.GetTotal() != 1 || ur.GetFiles()[0].GetPath() != "programs/graft/draft.md" || ur.GetFiles()[0].GetState() != "new" {
+		t.Fatalf("unindexed: %v", &ur)
+	}
+
+	agent := mailAgent(t, d, "files-agent")
+	ans := resultOf(t, callTool(ctx, t, agent, "files_search", map[string]any{"query": "backoff"}))
+	if hits, _ := ans["hits"].([]any); len(hits) != 1 {
+		t.Fatalf("the agent's search: %v", ans)
+	}
+	draft := map[string]any{"path": "programs/graft/draft.md", "title": "Draft", "summary": "an early draft"}
+	// An entry says who wrote it, so an agent with no seat is refused.
+	refusedTool(ctx, t, agent, "files_index", draft)
+	callTool(ctx, t, agent, "announce", map[string]any{"seat": "files-1", "purpose": "indexing"})
+	ans = resultOf(t, callTool(ctx, t, agent, "files_index", draft))
+	if ans["path"] != "programs/graft/draft.md" {
+		t.Fatalf("the agent's index: %v", ans)
+	}
+}
+
+func TestNoRootMeansNoIndex(t *testing.T) {
+	c := dial(t, up(t))
+	wantCode(t, c.Call(ctx5(t), "rig.files.search", &verbsv1.FilesSearchRequest{Query: "x"},
+		&verbsv1.FilesSearchResponse{}), rigv1.Code_CODE_UNAVAILABLE, "files.search with no root")
+}

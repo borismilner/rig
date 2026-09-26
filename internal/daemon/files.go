@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"sync"
@@ -33,6 +34,12 @@ type freeFiles struct {
 	repo atomic.Pointer[files.Repo]
 	// why is the reason the area did not open, for files.root to say.
 	why atomic.Pointer[string]
+
+	// The index over the area (R25), in rig's internal area and never in
+	// files/. It opens after the repository; indexWhy says why it did not.
+	indexPath string
+	index     atomic.Pointer[files.Index]
+	indexWhy  atomic.Pointer[string]
 }
 
 func newFreeFiles(root, estate string, every time.Duration) (*freeFiles, error) {
@@ -59,6 +66,7 @@ func newFreeFiles(root, estate string, every time.Duration) (*freeFiles, error) 
 		return nil, err
 	}
 	ff.dir = areas.Files
+	ff.indexPath = filepath.Join(areas.Internal, "files-index.db")
 	return ff, nil
 }
 
@@ -81,6 +89,13 @@ func (d *Daemon) startFiles(ctx context.Context) (wait func()) {
 	}
 	ff.repo.Store(repo)
 	d.log.Info("free files", "dir", ff.dir, "commit_every", ff.every)
+	if ix, err := files.OpenIndex(ctx, ff.indexPath, repo); err != nil {
+		why := err.Error()
+		ff.indexWhy.Store(&why)
+		d.log.Error("the free files' index is unavailable", "path", ff.indexPath, "err", err)
+	} else {
+		ff.index.Store(ix)
+	}
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -104,7 +119,7 @@ func (d *Daemon) serveFilesRoot(c *conn, f *rigv1.Frame) {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "files.root: "+err.Error())
 		return
 	}
-	repo := d.filesRepo(c, f)
+	repo := d.filesRepo(c, f, "files.root")
 	if repo == nil {
 		return
 	}
@@ -151,12 +166,12 @@ func programPath(root, program string) (string, bool) {
 	return filepath.Join(root, files.ProgramsDir, program), true
 }
 
-func (d *Daemon) filesRepo(c *conn, f *rigv1.Frame) *files.Repo {
+func (d *Daemon) filesRepo(c *conn, f *rigv1.Frame, command string) *files.Repo {
 	ff := d.files
 	if ff == nil || ff.dir == "" {
 		c.failStatus(f.GetStreamId(), &rigv1.Status{
 			Code:         rigv1.Code_CODE_UNAVAILABLE,
-			Message:      "rig.files.root: this daemon was given no storage root, so it keeps no free files",
+			Message:      "rig." + command + ": this daemon was given no storage root, so it keeps no free files",
 			Precondition: "rigd resolved a storage root at start",
 			Actual:       "no root",
 			Fix:          "start rigd with --root, or let it take its default",
@@ -172,10 +187,139 @@ func (d *Daemon) filesRepo(c *conn, f *rigv1.Frame) *files.Repo {
 	}
 	c.failStatus(f.GetStreamId(), &rigv1.Status{
 		Code:         rigv1.Code_CODE_UNAVAILABLE,
-		Message:      "rig.files.root: the free files are unavailable: " + why,
+		Message:      "rig." + command + ": the free files are unavailable: " + why,
 		Precondition: "the free-files area opened as a git repository",
 		Actual:       why,
 		Fix:          "install git, then restart rigd",
+	})
+	return nil
+}
+
+// close closes the index. The daemon calls it once serving is over.
+func (ff *freeFiles) close() error {
+	if ff == nil {
+		return nil
+	}
+	if ix := ff.index.Swap(nil); ix != nil {
+		return ix.Close()
+	}
+	return nil
+}
+
+// serveFiles answers the four files verbs.
+func (d *Daemon) serveFiles(ctx context.Context, c *conn, f *rigv1.Frame, command string) {
+	if command == "files.root" {
+		d.serveFilesRoot(c, f)
+		return
+	}
+	d.serveFilesIndex(ctx, c, f, command)
+}
+
+// serveFilesIndex answers files.index, files.search and files.unindexed.
+func (d *Daemon) serveFilesIndex(ctx context.Context, c *conn, f *rigv1.Frame, command string) {
+	ix := d.filesIndex(c, f, command)
+	if ix == nil {
+		return
+	}
+	id := f.GetStreamId()
+	switch command {
+	case "files.index":
+		var req verbsv1.FilesIndexRequest
+		if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+			c.fail(id, rigv1.Code_CODE_INVALID, "files.index: "+err.Error())
+			return
+		}
+		writer, ok := d.fileWriter(c)
+		if !ok {
+			d.refuseUnattributed(c, f, command)
+			return
+		}
+		e, err := ix.Put(ctx, files.Request{
+			Path: req.GetPath(), Title: req.GetTitle(), Summary: req.GetSummary(),
+			Tags: req.GetTags(), Writer: writer,
+		})
+		if err != nil {
+			c.failErr(id, filesCode(err), err)
+			return
+		}
+		c.reply(id, &verbsv1.FilesIndexResponse{
+			Path: e.Path, Removed: e.Removed, TextBytes: uint32(e.TextBytes), //nolint:gosec // at most MaxIndexedText
+			Binary: e.Binary, Truncated: e.Truncated,
+		})
+	case "files.search":
+		var req verbsv1.FilesSearchRequest
+		if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+			c.fail(id, rigv1.Code_CODE_INVALID, "files.search: "+err.Error())
+			return
+		}
+		hits, err := ix.Search(ctx, req.GetQuery(), req.GetUnder(), int(min(req.GetLimit(), files.MaxHits+1)))
+		if err != nil {
+			c.failErr(id, filesCode(err), err)
+			return
+		}
+		resp := &verbsv1.FilesSearchResponse{}
+		for _, h := range hits {
+			resp.Hits = append(resp.Hits, &verbsv1.FilesHit{
+				Path: h.Path, Title: h.Title, Summary: h.Summary, Snippet: h.Snippet, Score: h.Score,
+			})
+		}
+		c.reply(id, resp)
+	case "files.unindexed":
+		var req verbsv1.FilesUnindexedRequest
+		if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+			c.fail(id, rigv1.Code_CODE_INVALID, "files.unindexed: "+err.Error())
+			return
+		}
+		got, total, err := ix.Unindexed(ctx, req.GetUnder(), int(min(req.GetLimit(), files.MaxPending+1)))
+		if err != nil {
+			c.failErr(id, filesCode(err), err)
+			return
+		}
+		resp := &verbsv1.FilesUnindexedResponse{Total: uint32(min(total, 1<<31))} //nolint:gosec // clamped
+		for _, p := range got {
+			resp.Files = append(resp.Files, &verbsv1.FilesPending{Path: p.Path, State: p.State})
+		}
+		c.reply(id, resp)
+	}
+}
+
+// fileWriter is who an index entry says wrote it: a registered program by its
+// name, otherwise the caller's seat, as a record write is attributed.
+func (d *Daemon) fileWriter(c *conn) (string, bool) {
+	if c.scoped.Load() {
+		return "program:" + c.name(), true
+	}
+	if _, seat, _, ok := d.provenance(c); ok {
+		return "seat:" + seat, true
+	}
+	return "", false
+}
+
+func filesCode(err error) rigv1.Code {
+	var inv *files.InvalidError
+	if errors.As(err, &inv) {
+		return rigv1.Code_CODE_INVALID
+	}
+	return rigv1.Code_CODE_INTERNAL
+}
+
+func (d *Daemon) filesIndex(c *conn, f *rigv1.Frame, command string) *files.Index {
+	if d.filesRepo(c, f, command) == nil {
+		return nil
+	}
+	if ix := d.files.index.Load(); ix != nil {
+		return ix
+	}
+	why := "the index has not opened"
+	if w := d.files.indexWhy.Load(); w != nil {
+		why = *w
+	}
+	c.failStatus(f.GetStreamId(), &rigv1.Status{
+		Code:         rigv1.Code_CODE_UNAVAILABLE,
+		Message:      "rig." + command + ": the free files' index is unavailable: " + why,
+		Precondition: "the index database opened in rig's internal area",
+		Actual:       why,
+		Fix:          "read rigd's log for the reason, then restart rigd",
 	})
 	return nil
 }

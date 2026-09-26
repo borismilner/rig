@@ -107,6 +107,8 @@ var valuedFlags = map[string]bool{
 	// rig store (section 48).
 	"program": true, "where": true, "fields": true,
 	"order": true, "offset": true,
+	// rig files (section 48).
+	"under": true,
 	// rig message send's pin (section 16).
 	"generation": true, "epoch": true,
 	"depth": true,
@@ -196,7 +198,8 @@ func usage() {
   queue <cmd>      claimable work queues: push, list
   store <cmd>      a program's documents: collections, get, put, delete,
                    query (--program names whose)
-  files root       where to write free files: --program P, or --shared
+  files <cmd>      free files: root (where to write), index, search,
+                   unindexed (what the index still lacks)
   notify <sev> <title>  a toast at the tray: info, success, warning, error, urgent
   dnd on|off|status  do not disturb: toasts go to the record only, urgent still shows
   record <cmd>     the continuity record: put, get, query, history, link,

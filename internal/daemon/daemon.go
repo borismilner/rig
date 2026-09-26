@@ -362,7 +362,7 @@ func (d *Daemon) Close() error {
 	if d.stores != nil {
 		errs = append(errs, d.stores.close())
 	}
-	errs = append(errs, closeIfOpen(d.records))
+	errs = append(errs, d.files.close(), closeIfOpen(d.records))
 	return errors.Join(errs...)
 }
 
@@ -957,8 +957,8 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 		"store.transact", "store.collections":
 		d.serveStore(ctx, c, f, command)
 
-	case "files.root":
-		d.serveFilesRoot(c, f)
+	case "files.root", "files.index", "files.search", "files.unindexed":
+		d.serveFiles(ctx, c, f, command)
 
 	// SECTION 16's DIRECTED MESSAGES, all five through one arm. The queue is
 	// durable and lives beside the leases; message.go has why the sender, the

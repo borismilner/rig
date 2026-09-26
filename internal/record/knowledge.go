@@ -25,6 +25,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/borismilner/rig/internal/fts"
 )
 
 // lessonsDDL is the one table. Every column but the searchable four is
@@ -45,7 +47,6 @@ const (
 	MaxLessonTag     = 64
 	DefaultHits      = 5
 	MaxHits          = 20
-	maxQueryTerms    = 16
 )
 
 // Lesson is one lesson, whole.
@@ -129,26 +130,6 @@ func checkLesson(r LessonRequest) error {
 	return nil
 }
 
-// ftsQuery turns a caller's words into an FTS5 expression that can never be
-// read as FTS5 syntax: every word becomes a quoted string with its quotes
-// doubled, and the words are OR-ed so bm25 ranks by how many match. The SQL
-// around it is parameterised; this is the only place caller text meets the
-// query language, and it only ever produces quoted terms.
-func ftsQuery(q string) (string, error) {
-	words := strings.FieldsFunc(q, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
-	if len(words) == 0 {
-		return "", errors.New("record: a lesson search needs at least one word")
-	}
-	if len(words) > maxQueryTerms {
-		words = words[:maxQueryTerms]
-	}
-	quoted := make([]string, len(words))
-	for i, w := range words {
-		quoted[i] = `"` + strings.ReplaceAll(w, `"`, `""`) + `"`
-	}
-	return strings.Join(quoted, " OR "), nil
-}
-
 // SearchLessons returns the best-matching lessons, best first. limit 0 means
 // DefaultHits; above MaxHits is refused rather than clamped.
 func (s *Store) SearchLessons(ctx context.Context, query string, limit int) ([]LessonHit, error) {
@@ -158,9 +139,9 @@ func (s *Store) SearchLessons(ctx context.Context, query string, limit int) ([]L
 	if limit < 0 || limit > MaxHits {
 		return nil, fmt.Errorf("record: a lesson search returns 1 to %d hits, not %d", MaxHits, limit)
 	}
-	expr, err := ftsQuery(query)
+	expr, err := fts.Query(query)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("record: a lesson search needs at least one word")
 	}
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, title, summary, snippet(lessons, 3, '[', ']', '...', 12), bm25(lessons)
