@@ -33,6 +33,14 @@ import (
 // and the verbs refuse. XDG_STATE_HOME is redirected so the test never touches
 // the developer's own record.
 func upRecordDaemon(t testing.TB) string {
+	t.Helper()
+	sock, _ := upRecordDaemonWith(t, nil)
+	return sock
+}
+
+// upRecordDaemonWith runs before on the daemon after it is built and before
+// it serves, for a test that needs the record holding something at start.
+func upRecordDaemonWith(t testing.TB, before func(*Daemon)) (string, *Daemon) {
 	const estate = "recordwire"
 	t.Helper()
 	// Short, deliberately: sun_path is 108 bytes and t.TempDir under a long
@@ -58,6 +66,8 @@ func upRecordDaemon(t testing.TB) string {
 
 	d, err := New(Config{
 		Version: "test", Wire: "v1", Lock: lock, Estate: estate, Epoch: 6,
+		// A root, so the lessons folder exists (plan/48 R24).
+		Root: filepath.Join(dir, "root"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -67,12 +77,15 @@ func upRecordDaemon(t testing.TB) string {
 		t.Fatalf("estate %q opened no record store, so nothing below tests the wire", estate)
 	}
 	t.Cleanup(func() { _ = d.records.Close() })
+	if before != nil {
+		before(d)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() { defer close(done); _ = d.Serve(ctx, l) }()
 	t.Cleanup(func() { cancel(); <-done })
-	return sock
+	return sock, d
 }
 
 func recordCtx(t *testing.T) context.Context {

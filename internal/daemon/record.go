@@ -66,8 +66,6 @@ func (d *Daemon) serveRecord(ctx context.Context, c *conn, f *rigv1.Frame, comma
 		d.serveRecordReplace(ctx, c, f, st)
 	case "progress.step":
 		d.serveProgressStep(ctx, c, f, st)
-	case "knowledge.add", "knowledge.search", "knowledge.get":
-		d.serveKnowledge(ctx, c, f, st, command)
 	// SECTION 09's WORKING NOTES. All three need a seat, including the two
 	// reads, and worknote.go says why that differs from knowledge's.
 	case "worknote.write", "worknote.mine", "worknote.about":

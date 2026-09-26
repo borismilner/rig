@@ -1,11 +1,15 @@
 package daemon
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/borismilner/rig/internal/record"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
@@ -63,4 +67,70 @@ func TestALessonIsWrittenOnceAndFoundCheaply(t *testing.T) {
 	err = r.Call(ctx, "rig.knowledge.search", &verbsv1.KnowledgeSearchRequest{Query: "x", Limit: 21},
 		&verbsv1.KnowledgeSearchResponse{})
 	wantCode(t, err, rigv1.Code_CODE_INVALID, "a search over the hit limit")
+}
+
+// plan/48 R24's one-time move: the lessons the record store holds become
+// files in the shared lessons folder at start, keeping their ids, and a
+// second pass copies nothing twice.
+func TestTheRecordsLessonsMoveToTheFolderOnce(t *testing.T) {
+	var old record.Lesson
+	sock, d := upRecordDaemonWith(t, func(d *Daemon) {
+		var err error
+		old, err = d.records.AddLesson(context.Background(), record.LessonRequest{
+			Title: "Checkpoint before a copy", Summary: "a WAL store copied cold loses writes",
+			Body: "Run a checkpoint first.", Tags: []string{"sqlite"}, Session: "s", Seat: "backend-1", Epoch: 4,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	ctx := recordCtx(t)
+	c := seated(t, sock, "reader")
+	var got verbsv1.KnowledgeGetResponse
+	if err := c.Call(ctx, "rig.knowledge.get", &verbsv1.KnowledgeGetRequest{Id: old.ID}, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.GetLesson().GetTitle() != old.Title || got.GetLesson().GetProv().GetSeat() != "backend-1" ||
+		got.GetLesson().GetProv().GetAtUnixNano() != old.Prov.CreatedAt.UnixNano() {
+		t.Fatalf("moved lesson: %v", got.GetLesson())
+	}
+	ix, dir, err := d.lessons()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(d.files.dir, dir, old.ID+".md")
+	if _, err := os.Stat(p); err != nil {
+		t.Fatalf("the lesson is not a file: %v", err)
+	}
+	// Edited in the folder, then moved again with the marker gone: the edit
+	// stands, because a file that exists is never overwritten.
+	if err := os.WriteFile(p, []byte("---\ntitle: Edited\nsummary: s\nseat: boris\n---\n\nbody\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(d.files.internal, lessonsMovedMarker)
+	if err := os.Remove(marker); err != nil {
+		t.Fatalf("the move left no marker: %v", err)
+	}
+	d.moveLessons(ctx)
+	if l, _ := ix.GetLesson(ctx, dir, old.ID); l.Title != "Edited" {
+		t.Fatalf("a second move overwrote the folder: %q", l.Title)
+	}
+	// Deleted from the folder, then a restart: it stays deleted.
+	if err := os.Remove(p); err != nil {
+		t.Fatal(err)
+	}
+	d.moveLessons(ctx)
+	if _, err := os.Stat(p); err == nil {
+		t.Fatal("a lesson deleted from the folder came back from the record store")
+	}
+	// And a lesson written now is a file in the folder too.
+	var added verbsv1.KnowledgeAddResponse
+	if err := c.Call(ctx, "rig.knowledge.add", &verbsv1.KnowledgeAddRequest{
+		Title: "New", Summary: "written after the move", Body: "b",
+	}, &added); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(d.files.dir, dir, added.GetLesson().GetId()+".md")); err != nil {
+		t.Fatalf("a new lesson is not a file: %v", err)
+	}
 }

@@ -186,3 +186,35 @@ func (s *Store) GetLesson(ctx context.Context, id string) (Lesson, error) {
 	l.Tags = strings.Fields(tags)
 	return l, nil
 }
+
+// AllLessons returns every lesson whole, oldest first: the one-time move of
+// the lessons into the shared lessons folder (plan/48 R24) reads them here.
+func (s *Store) AllLessons(ctx context.Context) ([]Lesson, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, title, summary, body, tags, session, seat, epoch, created_at
+		 FROM lessons ORDER BY created_at, id`)
+	if err != nil {
+		return nil, fmt.Errorf("record: reading the lessons: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []Lesson
+	for rows.Next() {
+		var (
+			l          Lesson
+			tags       string
+			epoch, now int64
+		)
+		if err := rows.Scan(&l.ID, &l.Title, &l.Summary, &l.Body, &tags,
+			&l.Prov.Session, &l.Prov.Seat, &epoch, &now); err != nil {
+			return nil, err
+		}
+		var err error
+		if l.Prov.Epoch, err = fromColumn("epoch", epoch); err != nil {
+			return nil, err
+		}
+		l.Prov.CreatedAt = time.Unix(0, now).UTC()
+		l.Tags = strings.Fields(tags)
+		out = append(out, l)
+	}
+	return out, rows.Err()
+}

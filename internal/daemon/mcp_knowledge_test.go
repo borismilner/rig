@@ -3,6 +3,7 @@ package daemon
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/borismilner/rig/internal/kernel"
 	"github.com/borismilner/rig/internal/mcpserver"
@@ -13,9 +14,14 @@ import (
 // not announced is refused a write, an announced one writes under its own
 // seat, and search then get finds what it wrote.
 func TestAnAgentWritesALessonAndAnotherSearchFindsIt(t *testing.T) {
-	_, d := upDaemon(t, nil)
-	if d.records == nil {
-		t.Skip("this build gives an unnamed estate no scratch store")
+	_, _, d := upStoreDaemon(t)
+	// This caller is in-process and skips the socket, so it waits for Serve
+	// to have opened the free files, as an accepted connection does.
+	for deadline := time.Now().Add(5 * time.Second); d.files.index.Load() == nil || d.files.layouts.Load() == nil; {
+		if time.Now().After(deadline) {
+			t.Fatal("the free files never opened")
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 	ctx := ctx5(t)
 	// The MCP socket mints a session token at accept; the roster helper's

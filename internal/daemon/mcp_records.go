@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/borismilner/rig/internal/files"
 	"github.com/borismilner/rig/internal/kernel"
 	"github.com/borismilner/rig/internal/meta"
 	"github.com/borismilner/rig/internal/record"
@@ -365,11 +366,11 @@ var _ meta.Lessons = (*mcpCaller)(nil)
 
 // SearchLessons answers knowledge_search: hits, never a body.
 func (m *mcpCaller) SearchLessons(ctx context.Context, query string, limit int) ([]meta.LessonHit, error) {
-	st, err := m.store()
+	ix, dir, err := m.lessons()
 	if err != nil {
 		return nil, err
 	}
-	hits, err := st.SearchLessons(ctx, query, limit)
+	hits, err := ix.SearchLessons(ctx, dir, query, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -382,11 +383,11 @@ func (m *mcpCaller) SearchLessons(ctx context.Context, query string, limit int) 
 
 // GetLesson answers knowledge_get.
 func (m *mcpCaller) GetLesson(ctx context.Context, id string) (meta.Lesson, error) {
-	st, err := m.store()
+	ix, dir, err := m.lessons()
 	if err != nil {
 		return meta.Lesson{}, err
 	}
-	l, err := st.GetLesson(ctx, id)
+	l, err := ix.GetLesson(ctx, dir, id)
 	if err != nil {
 		return meta.Lesson{}, err
 	}
@@ -396,15 +397,15 @@ func (m *mcpCaller) GetLesson(ctx context.Context, id string) (meta.Lesson, erro
 // AddLesson answers knowledge_add, under this connection's seat and never one
 // named by the caller, the rule Put states for records.
 func (m *mcpCaller) AddLesson(ctx context.Context, title, summary, body string, tags []string) (meta.Lesson, error) {
-	st, err := m.store()
-	if err != nil {
-		return meta.Lesson{}, err
-	}
 	session, seat, epoch, err := m.writer()
 	if err != nil {
 		return meta.Lesson{}, err
 	}
-	l, err := st.AddLesson(ctx, record.LessonRequest{
+	ix, dir, err := m.lessons()
+	if err != nil {
+		return meta.Lesson{}, err
+	}
+	l, err := ix.AddLesson(ctx, dir, files.Lesson{
 		Title: title, Summary: summary, Body: body, Tags: tags,
 		Session: session, Seat: seat, Epoch: epoch,
 	})
@@ -414,10 +415,10 @@ func (m *mcpCaller) AddLesson(ctx context.Context, title, summary, body string, 
 	return lessonOf(l), nil
 }
 
-func lessonOf(l record.Lesson) meta.Lesson {
+func lessonOf(l files.Lesson) meta.Lesson {
 	tags := l.Tags
 	if tags == nil {
 		tags = []string{}
 	}
-	return meta.Lesson{ID: l.ID, Title: l.Title, Summary: l.Summary, Body: l.Body, Tags: tags, Seat: l.Prov.Seat}
+	return meta.Lesson{ID: l.ID, Title: l.Title, Summary: l.Summary, Body: l.Body, Tags: tags, Seat: l.Seat}
 }

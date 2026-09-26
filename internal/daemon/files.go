@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -108,6 +110,7 @@ func (d *Daemon) startFiles(ctx context.Context) (wait func()) {
 	} else {
 		ff.index.Store(ix)
 	}
+	d.moveLessons(ctx)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -217,6 +220,8 @@ func (d *Daemon) serveFiles(ctx context.Context, c *conn, f *rigv1.Frame, comman
 		d.serveFilesRoot(c, f)
 	case "files.place", "files.layout", "files.relayout":
 		d.serveFilesLayout(ctx, c, f, command)
+	case "knowledge.add", "knowledge.search", "knowledge.get":
+		d.serveKnowledge(ctx, c, f, command)
 	default:
 		d.serveFilesIndex(ctx, c, f, command)
 	}
@@ -330,3 +335,60 @@ func (d *Daemon) filesIndex(c *conn, f *rigv1.Frame, command string) *files.Inde
 	})
 	return nil
 }
+
+// moveLessons copies the lessons the record store holds into the shared
+// lessons folder, once: plan/48 R24 moves them out of the database. The
+// record's table is not touched, so it stays as the copy's backup.
+//
+// ⛔ ONCE MEANS A MARKER, NOT "THE FILE IS MISSING". Keyed on the file alone,
+// a lesson deleted from the folder came back at the next start. The marker
+// is written only when every lesson landed, so a failed one is retried, and
+// a file that exists is still never overwritten.
+func (d *Daemon) moveLessons(ctx context.Context) {
+	marker := filepath.Join(d.files.internal, lessonsMovedMarker)
+	if d.records == nil {
+		return
+	}
+	if _, err := os.Stat(marker); err == nil {
+		return
+	}
+	ix, dir, err := d.lessons()
+	if err != nil {
+		d.log.Error("the lessons were not moved to the lessons folder", "err", err)
+		return
+	}
+	all, err := d.records.AllLessons(ctx)
+	if err != nil {
+		d.log.Error("the lessons were not moved to the lessons folder", "err", err)
+		return
+	}
+	moved, failed := 0, 0
+	for _, l := range all {
+		wrote, err := ix.ImportLesson(ctx, dir, files.Lesson{
+			// A title the record store took on two lines is one line here.
+			ID: l.ID, Title: strings.Join(strings.Fields(l.Title), " "), Summary: l.Summary, Body: l.Body, Tags: l.Tags,
+			Seat: l.Prov.Seat, Session: l.Prov.Session, Epoch: l.Prov.Epoch, Created: l.Prov.CreatedAt,
+		})
+		if err != nil {
+			d.log.Error("a lesson was not moved to the lessons folder", "id", l.ID, "err", err)
+			failed++
+			continue
+		}
+		if wrote {
+			moved++
+		}
+	}
+	if moved > 0 {
+		d.log.Info("lessons moved to the lessons folder", "moved", moved, "of", len(all), "dir", dir)
+	}
+	if failed > 0 {
+		return
+	}
+	stamp := fmt.Sprintf("%d lessons moved to %s at %s\n", moved, dir, time.Now().UTC().Format(time.RFC3339))
+	if err := os.WriteFile(marker, []byte(stamp), 0o600); err != nil {
+		d.log.Error("the lessons move was not marked done, so it runs again at the next start", "err", err)
+	}
+}
+
+// lessonsMovedMarker, in rig's internal area, says moveLessons has run.
+const lessonsMovedMarker = "lessons.moved"

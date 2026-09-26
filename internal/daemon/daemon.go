@@ -932,7 +932,6 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 		"record.link", "record.unlink", "record.refs",
 		"record.retract", "record.delete", "record.replace",
 		"progress.step", "project.brief",
-		"knowledge.add", "knowledge.search", "knowledge.get",
 		"worknote.write", "worknote.mine", "worknote.about":
 		d.serveRecord(ctx, c, f, command)
 
@@ -957,8 +956,11 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 		"store.transact", "store.collections":
 		d.serveStore(ctx, c, f, command)
 
+	// SECTION 40's LESSONS ride here: they are a view of the shared lessons
+	// folder (plan/48 R24) and need the free files, not the record.
 	case "files.root", "files.index", "files.search", "files.unindexed",
-		"files.place", "files.layout", "files.relayout":
+		"files.place", "files.layout", "files.relayout",
+		"knowledge.add", "knowledge.search", "knowledge.get":
 		d.serveFiles(ctx, c, f, command)
 
 	// SECTION 16's DIRECTED MESSAGES, all five through one arm. The queue is

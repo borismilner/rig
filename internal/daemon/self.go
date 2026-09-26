@@ -368,9 +368,9 @@ func selfDeclaration() kernel.Declaration {
 			// record writers make above. None is destructive: a break
 			// refuses a lease still inside its deadline, so it only ever
 			// frees one whose holder has already let it lapse.
-			// SECTION 40's KNOWLEDGE SECTION. Search and get read; add writes a
-			// lesson into the estate's store, a file, so it is a file write on
-			// the record writers' argument.
+			// SECTION 40's KNOWLEDGE SECTION, a view of the shared lessons
+			// folder (plan/48 R24). Search and get read; add writes a lesson
+			// file there, so it is a file write.
 			readOnly("knowledge.search", "Knowledge search",
 				"Find lessons other sessions already learned",
 				"Searches the estate's lessons by the words given and answers, best first, a title, a one-line summary and a snippet per hit - never a body, so consulting costs a few hundred bytes. No query syntax is interpreted. Consult it before a deep dive: another session may have done the research.",
