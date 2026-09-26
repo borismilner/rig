@@ -1,5 +1,17 @@
 ## 25. Migration order
 
+### The first program to use rig is a task scheduler. Boris, 2026-09-26
+
+**Boris, verbatim:** *"Our first program that will be using rig is a task
+scheduler (we'll think of a better name)."* **It goes ahead of every row in the
+table below.** The name is open, by his word.
+
+**The nearest existing project is `graft`** (`~/me/projects/graft`, 6 commits,
+PARKED plan, no code): a background runner for agent assignments on a schedule,
+a file change, a signal or on demand, gated on *"the first version of rig ...
+and the client"*. **Whether the scheduler IS graft, or a new program, is his
+call and not yet made.**
+
 **The unit of progress is a service, not a program** (§5k). "shelf takes config and
 notifications" is a valid milestone; a program is never blocked waiting to adopt everything, and
 its declaration says `coverage: partial` until it does. The order below is the order programs

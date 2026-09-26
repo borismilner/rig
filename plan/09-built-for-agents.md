@@ -354,22 +354,23 @@ demonstration rather than by a reader.
 **Boris, verbatim:** *"Make sure MCP covers everything."*
 
 **THE REQUIREMENT: every verb rig declares of itself is reachable from the MCP
-door as a first-class tool**, or it is on a short written list of exclusions,
-each with its reason. A verb that is neither fails the build. It is the
+door as a first-class tool.** A verb that is not fails the build. It is the
 paragraph above carried to its end: that one made rig *reachable*, this one
 makes it *whole*.
 
-**It does not reopen the ruling above.** rig stays out of the program map and
-out of `invoke`; the tools are first-class, as the roster, record and message
-tools already are, and they reach the daemon through its own dispatch with the
-agent's seat and principal. So the house rules and the effects ladder apply to
-an agent exactly as they apply to a terminal.
+**NO EXCLUSIONS. Boris, 2026-09-26, verbatim:** *"don't keep things out of MCP
+tools."* The first build carried a three-row exclusion list (`down`,
+`health.report`, `project.brief`), each taken on his behalf and put to him;
+this is his answer, and the list is gone. **It reverses the 2026-09-16 ruling
+above for `down`**: its protection is no longer unreachability but the effects
+ladder and the house rules, which an agent meets exactly as a terminal does.
+`health.report` and `project.brief` are tools too, and answer an agent with the
+same refusal a terminal gets.
 
-| Excluded | Why |
-|---|---|
-| `down` | The ruling above: its protection is unreachability. It stays excluded until Boris rules otherwise |
-| `health.report` | Only the child rig launched may speak for a program (plan/18). An agent's connection never is that child, so the tool could only ever refuse |
-| `project.brief` | Moved to the docket program (plan/50); the verb only answers that refusal |
+**It does not reopen the program-map ruling.** rig stays out of the program map
+and out of `invoke`; the tools are first-class, as the roster, record and
+message tools already are, and they reach the daemon through its own dispatch
+with the agent's seat and principal.
 
 `hello` is on no list because rig does not declare it: it is the handshake
 that mints a program's caller, not a verb.
