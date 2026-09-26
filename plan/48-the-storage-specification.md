@@ -335,6 +335,24 @@ wire, MCP and CLI. Seat choices, his to overrule:
 | a directory a program made unreadable is skipped by the listing | one program must not break the listing for all |
 | title weighs 4, summary and tags 2, body 1 in the ranking | a writer's own words outrank incidental text |
 
+**Slice 4b part b as built, 2026-09-26** (rig `d42840b`): the layout, as
+`files.place`, `files.layout` and `files.relayout` on the wire, MCP and CLI.
+Seat choices, his to overrule:
+
+| Choice | Why |
+|---|---|
+| the layout is `internal/layout.txt`, one `kind place/` line each; placeholders `{subject}`, `{type}`, `{program}`, each a whole directory | the seat recommendation above, made concrete; one directory per value keeps a caller's value a name, never a path |
+| rig keeps `internal/layout.applied` beside it and answers `files.place` from that copy until `files.relayout` runs | an edit must not send writers somewhere the existing files are not; relayout needs the old layout to find them |
+| each kind has its own top-level directory, and the kind `programs` must exist with `{program}` | kinds never overlap, so a file belongs to one kind; `files.root` takes a program's directory from it |
+| relayout is all or nothing, refused whole if a file would be stranded (kind removed with files, file not laid out, new placeholder with no value) or overwritten; a failure part-way moves everything back | nothing a search or a writer relies on may be lost silently |
+| relayout makes **no commit of its own**; the moves land in the next interval commit, where git reads a text file's delete and add as a rename | R34 outranks the "one commit" of the verb table above; `git mv` stages the same thing |
+| `files.place` makes nothing, and ignores a value the kind's place does not take | the write stays direct (R12); a caller can send every value it has |
+| `files.relayout` is declared destructive | it moves files other callers were told about |
+
+**Not closed:** a program holding a path from before a relayout keeps writing
+to the old place; it must ask `files.root` or `files.place` again. Files left
+in a directory no kind claims are not moved or reported by relayout.
+
 #### Tests owed, each with the red control that proves it bites
 
 | Test | Red control |
