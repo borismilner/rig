@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -39,17 +40,29 @@ var ErrNoGit = errors.New("files: the git binary is not on PATH, so rig cannot k
 
 var namePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)
 
-// Repo is the free-files area.
+// Repo is the free-files area, or the exports area, which is kept the same
+// way except that it commits every file whatever its size.
 type Repo struct {
 	dir string
+	// limit is the largest text file committed: MaxCommitted, or none at
+	// all for the exports repository.
+	limit int64
 	// mu makes one commit at a time: the interval committer and a shutdown
 	// commit must not stage over each other.
 	mu sync.Mutex
 }
 
+// Option changes how Open keeps a repository.
+type Option func(*Repo)
+
+// NoSizeLimit commits text files of any size. The exports repository takes
+// it: an export left out of git for its size would be an export that is not
+// kept, and nothing says so (plan/48 R21).
+func NoSizeLimit() Option { return func(r *Repo) { r.limit = math.MaxInt64 } }
+
 // Open makes dir if it is missing, owner-only, and a git repository if it is
 // not one yet.
-func Open(ctx context.Context, dir string) (*Repo, error) {
+func Open(ctx context.Context, dir string, opts ...Option) (*Repo, error) {
 	if !filepath.IsAbs(dir) {
 		return nil, fmt.Errorf("files: the area must be an absolute path, got %q", dir)
 	}
@@ -59,7 +72,10 @@ func Open(ctx context.Context, dir string) (*Repo, error) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, fmt.Errorf("files: creating %s: %w", dir, err)
 	}
-	r := &Repo{dir: dir}
+	r := &Repo{dir: dir, limit: MaxCommitted}
+	for _, o := range opts {
+		o(r)
+	}
 	if _, err := os.Stat(filepath.Join(dir, ".git")); errors.Is(err, os.ErrNotExist) {
 		if _, err := r.git(ctx, nil, "init", "--quiet", "--initial-branch=main"); err != nil {
 			return nil, err
@@ -180,7 +196,7 @@ func (r *Repo) changed(ctx context.Context) ([]change, error) {
 }
 
 // committable says a path is a text file rig may commit: a regular file or a
-// symlink, not over MaxCommitted, with no NUL in its first 8,000 bytes.
+// symlink, not over the size limit, with no NUL in its first 8,000 bytes.
 //
 // A symlink is committed as the link and never followed: its target may be
 // anywhere on the disk, and reading it would let a link decide what rig reads.
@@ -193,7 +209,7 @@ func (r *Repo) committable(rel string) bool {
 	if fi.Mode()&os.ModeSymlink != 0 {
 		return true
 	}
-	if !fi.Mode().IsRegular() || fi.Size() > MaxCommitted {
+	if !fi.Mode().IsRegular() || fi.Size() > r.limit {
 		return false
 	}
 	f, err := os.Open(p)

@@ -24,6 +24,8 @@ import (
 //	rig store delete <collection> <id> --if-version N --program P
 //	rig store query <collection> [--where 'field op value']... [--fields a,b]
 //	                [--order field|-field]... [--limit N] [--offset N] [--count]
+//	rig store export [collection]... --program P
+//	rig store import [collection]... --program P
 //
 // --program IS REQUIRED because a terminal is not a registered program and has
 // no store of its own (plan/48 D2); the daemon refuses its absence too.
@@ -74,13 +76,18 @@ const (
 	storeGet    = "get"
 	storePut    = "put"
 	storeDelete = "delete"
+	storeExport = "export"
+	storeImport = "import"
 	keyVersion  = "version"
+	keyProgram  = "program"
+	storeColls  = "collections"
 )
 
 const storeUsage = "usage: rig store collections | get <collection> <id>... | " +
 	"put <collection> <id> <json|-> [--if-version N] | delete <collection> <id> --if-version N | " +
 	"query <collection> [--where 'field op value']... [--fields a,b] [--order f|-f]... " +
-	"[--limit N] [--offset N] [--count]; every form takes --program P"
+	"[--limit N] [--offset N] [--count] | export [collection]... | import [collection]...; " +
+	"every form takes --program P"
 
 func cmdStore(args []string) (err error) {
 	s := storeFlagSet()
@@ -123,7 +130,7 @@ func cmdStore(args []string) (err error) {
 
 func storeArity(sub string, n int) bool {
 	switch sub {
-	case "collections":
+	case storeColls:
 		return n == 0
 	case storeGet:
 		return n >= 2
@@ -133,23 +140,31 @@ func storeArity(sub string, n int) bool {
 		return n == 2
 	case "query":
 		return n == 1
+	case storeExport, storeImport:
+		return true
 	}
 	return false
 }
 
 var storeResponses = map[string]func() proto.Message{
-	"collections": func() proto.Message { return &verbsv1.StoreCollectionsResponse{} },
-	storeGet:      func() proto.Message { return &verbsv1.StoreGetResponse{} },
-	storePut:      func() proto.Message { return &verbsv1.StorePutResponse{} },
-	storeDelete:   func() proto.Message { return &verbsv1.StoreDeleteResponse{} },
-	"query":       func() proto.Message { return &verbsv1.StoreQueryResponse{} },
+	storeColls:  func() proto.Message { return &verbsv1.StoreCollectionsResponse{} },
+	storeGet:    func() proto.Message { return &verbsv1.StoreGetResponse{} },
+	storePut:    func() proto.Message { return &verbsv1.StorePutResponse{} },
+	storeDelete: func() proto.Message { return &verbsv1.StoreDeleteResponse{} },
+	"query":     func() proto.Message { return &verbsv1.StoreQueryResponse{} },
+	storeExport: func() proto.Message { return &verbsv1.StoreExportResponse{} },
+	storeImport: func() proto.Message { return &verbsv1.StoreImportResponse{} },
 }
 
 func (s *storeFlags) request(sub string, rest []string) (proto.Message, error) {
 	p := *s.program
 	switch sub {
-	case "collections":
+	case storeColls:
 		return &verbsv1.StoreCollectionsRequest{Program: p}, nil
+	case storeExport:
+		return &verbsv1.StoreExportRequest{Program: p, Collections: rest}, nil
+	case storeImport:
+		return &verbsv1.StoreImportRequest{Program: p, Collections: rest}, nil
 	case storeGet:
 		return &verbsv1.StoreGetRequest{Program: p, Collection: rest[0], Ids: rest[1:]}, nil
 	case storePut:
@@ -261,7 +276,40 @@ func printStore(w io.Writer, resp proto.Message, offset uint64) {
 			_, _ = fmt.Fprintf(tw, "%s\t%d\t%d\n", c.GetName(), c.GetDocuments(), c.GetBytes())
 		}
 		_ = tw.Flush()
+	case *verbsv1.StoreExportResponse:
+		printCounts(w, "exported", r.GetCollections(), false)
+		for _, c := range r.GetRemoved() {
+			_, _ = fmt.Fprintf(w, "removed  %s (no longer in the store)\n", c)
+		}
+		commit := "unchanged since the last export, nothing committed"
+		if r.GetCommit() != "" {
+			commit = "committed " + r.GetCommit()
+		}
+		_, _ = fmt.Fprintf(w, "%s\n%s\n", r.GetDir(), commit)
+	case *verbsv1.StoreImportResponse:
+		printCounts(w, "imported", r.GetCollections(), true)
+		if len(r.GetUntouched()) > 0 {
+			_, _ = fmt.Fprintf(w, "left alone: %s\n", strings.Join(r.GetUntouched(), ", "))
+		}
+		_, _ = fmt.Fprintf(w, "the store before the import: %s\n", r.GetSnapshot())
 	}
+}
+
+func printCounts(w io.Writer, verb string, cs []*verbsv1.StoreCollectionCount, before bool) {
+	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
+	last := "BYTES"
+	if before {
+		last = "BEFORE"
+	}
+	_, _ = fmt.Fprintf(tw, "%s\tDOCUMENTS\t%s\n", strings.ToUpper(verb), last)
+	for _, c := range cs {
+		n := c.GetBytes()
+		if before {
+			n = c.GetReplaced()
+		}
+		_, _ = fmt.Fprintf(tw, "%s\t%d\t%d\n", c.GetName(), c.GetDocuments(), n)
+	}
+	_ = tw.Flush()
 }
 
 func printDocs(w io.Writer, docs []*verbsv1.StoreDocument) {
@@ -296,7 +344,37 @@ func storeJSON(resp proto.Message) map[string]any {
 		for _, c := range r.GetCollections() {
 			cs = append(cs, map[string]any{"name": c.GetName(), "documents": c.GetDocuments(), "bytes": c.GetBytes()})
 		}
-		return map[string]any{"program": r.GetProgram(), "collections": cs}
+		return map[string]any{keyProgram: r.GetProgram(), storeColls: cs}
+	case *verbsv1.StoreExportResponse:
+		return map[string]any{
+			keyProgram: r.GetProgram(), "dir": r.GetDir(), storeColls: countsJSON(r.GetCollections()),
+			"removed": nonNil(r.GetRemoved()), "commit": r.GetCommit(),
+		}
+	case *verbsv1.StoreImportResponse:
+		return map[string]any{
+			keyProgram: r.GetProgram(), storeColls: countsJSON(r.GetCollections()),
+			"untouched": nonNil(r.GetUntouched()), "snapshot": r.GetSnapshot(),
+		}
 	}
 	return map[string]any{"deleted": true}
+}
+
+func countsJSON(in []*verbsv1.StoreCollectionCount) []map[string]any {
+	out := make([]map[string]any, 0, len(in))
+	for _, c := range in {
+		out = append(out, map[string]any{
+			"name": c.GetName(), "documents": c.GetDocuments(),
+			"bytes": c.GetBytes(), "replaced": c.GetReplaced(),
+		})
+	}
+	return out
+}
+
+// nonNil answers [] rather than null for an empty list, so a script reading
+// the JSON never has to tell the two apart.
+func nonNil(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
 }

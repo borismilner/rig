@@ -482,6 +482,17 @@ func selfDeclaration() kernel.Declaration {
 				"List the collections in a program's store",
 				"Names each collection with its document count and bytes.",
 				"The program and its collections."),
+			// An export writes files and a commit; exporting an unchanged
+			// store twice writes the same bytes and no second commit. An
+			// import replaces documents, so it is destructive.
+			leaseWriter("store.export", "Store export", kernel.Yes,
+				"Export a program's store as text files, committed to git",
+				"Writes each collection, or the named ones, to <collection>.jsonl under the exports area: one line per document, sorted by id, with its version and write time. rig commits the export to the exports repository. A whole export removes the files of collections the store no longer has. A registered program exports its own store; a terminal or an agent names the program.",
+				"The directory, each collection's documents and bytes, the files removed, and the commit (empty when nothing changed)."),
+			destructiveWriter("store.import", "Store import",
+				"Replace a program's collections with its export",
+				"Reads the program's export back: every line of every file is checked first and one bad line refuses the whole import. Then rig snapshots the store and replaces each named collection, or every collection the export holds, whole, in one transaction, with the exported versions. Collections not named are left alone.",
+				"Each collection's documents now and before, the snapshot that undoes the import, and the collections left alone."),
 			// It makes a program's own directory when the program asks, so it
 			// writes files; asking twice leaves the same directory.
 			leaseWriter("files.root", "Files root", kernel.Yes,

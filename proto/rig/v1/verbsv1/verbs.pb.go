@@ -9733,6 +9733,338 @@ func (x *StoreCollectionsResponse) GetCollections() []*StoreCollection {
 	return nil
 }
 
+// StoreExportRequest writes a program's collections as text into the exports
+// area, one <collection>.jsonl each, one line per document sorted by id, and
+// commits them to the exports repository (plan/48 R19, R21, R22, R35). An
+// empty collections exports them all, and removes the files of collections
+// the store no longer has.
+type StoreExportRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Program       string                 `protobuf:"bytes,1,opt,name=program,proto3" json:"program,omitempty"`
+	Collections   []string               `protobuf:"bytes,2,rep,name=collections,proto3" json:"collections,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StoreExportRequest) Reset() {
+	*x = StoreExportRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[134]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoreExportRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoreExportRequest) ProtoMessage() {}
+
+func (x *StoreExportRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[134]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoreExportRequest.ProtoReflect.Descriptor instead.
+func (*StoreExportRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{134}
+}
+
+func (x *StoreExportRequest) GetProgram() string {
+	if x != nil {
+		return x.Program
+	}
+	return ""
+}
+
+func (x *StoreExportRequest) GetCollections() []string {
+	if x != nil {
+		return x.Collections
+	}
+	return nil
+}
+
+// StoreCollectionCount is one collection an export wrote or an import
+// replaced: documents it holds now, bytes written (export), and documents it
+// held before (import).
+type StoreCollectionCount struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Documents     uint64                 `protobuf:"varint,2,opt,name=documents,proto3" json:"documents,omitempty"`
+	Bytes         uint64                 `protobuf:"varint,3,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	Replaced      uint64                 `protobuf:"varint,4,opt,name=replaced,proto3" json:"replaced,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StoreCollectionCount) Reset() {
+	*x = StoreCollectionCount{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[135]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoreCollectionCount) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoreCollectionCount) ProtoMessage() {}
+
+func (x *StoreCollectionCount) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[135]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoreCollectionCount.ProtoReflect.Descriptor instead.
+func (*StoreCollectionCount) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{135}
+}
+
+func (x *StoreCollectionCount) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *StoreCollectionCount) GetDocuments() uint64 {
+	if x != nil {
+		return x.Documents
+	}
+	return 0
+}
+
+func (x *StoreCollectionCount) GetBytes() uint64 {
+	if x != nil {
+		return x.Bytes
+	}
+	return 0
+}
+
+func (x *StoreCollectionCount) GetReplaced() uint64 {
+	if x != nil {
+		return x.Replaced
+	}
+	return 0
+}
+
+// StoreExportResponse names where the export is and the commit that keeps it;
+// commit is empty when the export matched the last one byte for byte.
+type StoreExportResponse struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Program       string                  `protobuf:"bytes,1,opt,name=program,proto3" json:"program,omitempty"`
+	Dir           string                  `protobuf:"bytes,2,opt,name=dir,proto3" json:"dir,omitempty"`
+	Collections   []*StoreCollectionCount `protobuf:"bytes,3,rep,name=collections,proto3" json:"collections,omitempty"`
+	Removed       []string                `protobuf:"bytes,4,rep,name=removed,proto3" json:"removed,omitempty"`
+	Commit        string                  `protobuf:"bytes,5,opt,name=commit,proto3" json:"commit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StoreExportResponse) Reset() {
+	*x = StoreExportResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[136]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoreExportResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoreExportResponse) ProtoMessage() {}
+
+func (x *StoreExportResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[136]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoreExportResponse.ProtoReflect.Descriptor instead.
+func (*StoreExportResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{136}
+}
+
+func (x *StoreExportResponse) GetProgram() string {
+	if x != nil {
+		return x.Program
+	}
+	return ""
+}
+
+func (x *StoreExportResponse) GetDir() string {
+	if x != nil {
+		return x.Dir
+	}
+	return ""
+}
+
+func (x *StoreExportResponse) GetCollections() []*StoreCollectionCount {
+	if x != nil {
+		return x.Collections
+	}
+	return nil
+}
+
+func (x *StoreExportResponse) GetRemoved() []string {
+	if x != nil {
+		return x.Removed
+	}
+	return nil
+}
+
+func (x *StoreExportResponse) GetCommit() string {
+	if x != nil {
+		return x.Commit
+	}
+	return ""
+}
+
+// StoreImportRequest replaces a program's collections with what its export
+// says (plan/48 R23, D8): every line is checked first, the store is
+// snapshotted, then the named collections, or all the export holds, are
+// replaced in one transaction.
+type StoreImportRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Program       string                 `protobuf:"bytes,1,opt,name=program,proto3" json:"program,omitempty"`
+	Collections   []string               `protobuf:"bytes,2,rep,name=collections,proto3" json:"collections,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StoreImportRequest) Reset() {
+	*x = StoreImportRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[137]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoreImportRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoreImportRequest) ProtoMessage() {}
+
+func (x *StoreImportRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[137]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoreImportRequest.ProtoReflect.Descriptor instead.
+func (*StoreImportRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{137}
+}
+
+func (x *StoreImportRequest) GetProgram() string {
+	if x != nil {
+		return x.Program
+	}
+	return ""
+}
+
+func (x *StoreImportRequest) GetCollections() []string {
+	if x != nil {
+		return x.Collections
+	}
+	return nil
+}
+
+// StoreImportResponse carries the snapshot taken before the import, which
+// undoes it, and the collections the import left alone.
+type StoreImportResponse struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Program       string                  `protobuf:"bytes,1,opt,name=program,proto3" json:"program,omitempty"`
+	Collections   []*StoreCollectionCount `protobuf:"bytes,2,rep,name=collections,proto3" json:"collections,omitempty"`
+	Snapshot      string                  `protobuf:"bytes,3,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
+	Untouched     []string                `protobuf:"bytes,4,rep,name=untouched,proto3" json:"untouched,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StoreImportResponse) Reset() {
+	*x = StoreImportResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[138]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoreImportResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoreImportResponse) ProtoMessage() {}
+
+func (x *StoreImportResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[138]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoreImportResponse.ProtoReflect.Descriptor instead.
+func (*StoreImportResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{138}
+}
+
+func (x *StoreImportResponse) GetProgram() string {
+	if x != nil {
+		return x.Program
+	}
+	return ""
+}
+
+func (x *StoreImportResponse) GetCollections() []*StoreCollectionCount {
+	if x != nil {
+		return x.Collections
+	}
+	return nil
+}
+
+func (x *StoreImportResponse) GetSnapshot() string {
+	if x != nil {
+		return x.Snapshot
+	}
+	return ""
+}
+
+func (x *StoreImportResponse) GetUntouched() []string {
+	if x != nil {
+		return x.Untouched
+	}
+	return nil
+}
+
 // FilesRootRequest asks where to write free files (plan/48 R12, R13, R24).
 // shared answers the area every program shares; otherwise the answer is a
 // program's own directory, whose program follows the store verbs' rule: a
@@ -9748,7 +10080,7 @@ type FilesRootRequest struct {
 
 func (x *FilesRootRequest) Reset() {
 	*x = FilesRootRequest{}
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[134]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[139]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9760,7 +10092,7 @@ func (x *FilesRootRequest) String() string {
 func (*FilesRootRequest) ProtoMessage() {}
 
 func (x *FilesRootRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[134]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[139]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9773,7 +10105,7 @@ func (x *FilesRootRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilesRootRequest.ProtoReflect.Descriptor instead.
 func (*FilesRootRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{134}
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{139}
 }
 
 func (x *FilesRootRequest) GetProgram() string {
@@ -9805,7 +10137,7 @@ type FilesRootResponse struct {
 
 func (x *FilesRootResponse) Reset() {
 	*x = FilesRootResponse{}
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[135]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[140]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9817,7 +10149,7 @@ func (x *FilesRootResponse) String() string {
 func (*FilesRootResponse) ProtoMessage() {}
 
 func (x *FilesRootResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[135]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[140]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9830,7 +10162,7 @@ func (x *FilesRootResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilesRootResponse.ProtoReflect.Descriptor instead.
 func (*FilesRootResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{135}
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{140}
 }
 
 func (x *FilesRootResponse) GetPath() string {
@@ -9871,7 +10203,7 @@ type FilesIndexRequest struct {
 
 func (x *FilesIndexRequest) Reset() {
 	*x = FilesIndexRequest{}
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[136]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[141]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9883,7 +10215,7 @@ func (x *FilesIndexRequest) String() string {
 func (*FilesIndexRequest) ProtoMessage() {}
 
 func (x *FilesIndexRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[136]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[141]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9896,7 +10228,7 @@ func (x *FilesIndexRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilesIndexRequest.ProtoReflect.Descriptor instead.
 func (*FilesIndexRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{136}
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{141}
 }
 
 func (x *FilesIndexRequest) GetPath() string {
@@ -9944,7 +10276,7 @@ type FilesIndexResponse struct {
 
 func (x *FilesIndexResponse) Reset() {
 	*x = FilesIndexResponse{}
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[137]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[142]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9956,7 +10288,7 @@ func (x *FilesIndexResponse) String() string {
 func (*FilesIndexResponse) ProtoMessage() {}
 
 func (x *FilesIndexResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[137]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[142]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9969,7 +10301,7 @@ func (x *FilesIndexResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilesIndexResponse.ProtoReflect.Descriptor instead.
 func (*FilesIndexResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{137}
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{142}
 }
 
 func (x *FilesIndexResponse) GetPath() string {
@@ -10020,7 +10352,7 @@ type FilesSearchRequest struct {
 
 func (x *FilesSearchRequest) Reset() {
 	*x = FilesSearchRequest{}
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[138]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[143]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10032,7 +10364,7 @@ func (x *FilesSearchRequest) String() string {
 func (*FilesSearchRequest) ProtoMessage() {}
 
 func (x *FilesSearchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[138]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[143]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10045,7 +10377,7 @@ func (x *FilesSearchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilesSearchRequest.ProtoReflect.Descriptor instead.
 func (*FilesSearchRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{138}
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{143}
 }
 
 func (x *FilesSearchRequest) GetQuery() string {
@@ -10083,7 +10415,7 @@ type FilesHit struct {
 
 func (x *FilesHit) Reset() {
 	*x = FilesHit{}
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[139]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[144]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10095,7 +10427,7 @@ func (x *FilesHit) String() string {
 func (*FilesHit) ProtoMessage() {}
 
 func (x *FilesHit) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[139]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[144]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10108,7 +10440,7 @@ func (x *FilesHit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilesHit.ProtoReflect.Descriptor instead.
 func (*FilesHit) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{139}
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{144}
 }
 
 func (x *FilesHit) GetPath() string {
@@ -10155,7 +10487,7 @@ type FilesSearchResponse struct {
 
 func (x *FilesSearchResponse) Reset() {
 	*x = FilesSearchResponse{}
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[140]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[145]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10167,7 +10499,7 @@ func (x *FilesSearchResponse) String() string {
 func (*FilesSearchResponse) ProtoMessage() {}
 
 func (x *FilesSearchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[140]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[145]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10180,7 +10512,7 @@ func (x *FilesSearchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilesSearchResponse.ProtoReflect.Descriptor instead.
 func (*FilesSearchResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{140}
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{145}
 }
 
 func (x *FilesSearchResponse) GetHits() []*FilesHit {
@@ -10201,7 +10533,7 @@ type FilesUnindexedRequest struct {
 
 func (x *FilesUnindexedRequest) Reset() {
 	*x = FilesUnindexedRequest{}
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[141]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[146]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10213,7 +10545,7 @@ func (x *FilesUnindexedRequest) String() string {
 func (*FilesUnindexedRequest) ProtoMessage() {}
 
 func (x *FilesUnindexedRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[141]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[146]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10226,7 +10558,7 @@ func (x *FilesUnindexedRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilesUnindexedRequest.ProtoReflect.Descriptor instead.
 func (*FilesUnindexedRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{141}
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{146}
 }
 
 func (x *FilesUnindexedRequest) GetUnder() string {
@@ -10255,7 +10587,7 @@ type FilesPending struct {
 
 func (x *FilesPending) Reset() {
 	*x = FilesPending{}
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[142]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[147]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10267,7 +10599,7 @@ func (x *FilesPending) String() string {
 func (*FilesPending) ProtoMessage() {}
 
 func (x *FilesPending) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[142]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[147]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10280,7 +10612,7 @@ func (x *FilesPending) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilesPending.ProtoReflect.Descriptor instead.
 func (*FilesPending) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{142}
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{147}
 }
 
 func (x *FilesPending) GetPath() string {
@@ -10307,7 +10639,7 @@ type FilesUnindexedResponse struct {
 
 func (x *FilesUnindexedResponse) Reset() {
 	*x = FilesUnindexedResponse{}
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[143]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[148]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10319,7 +10651,7 @@ func (x *FilesUnindexedResponse) String() string {
 func (*FilesUnindexedResponse) ProtoMessage() {}
 
 func (x *FilesUnindexedResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[143]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[148]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10332,7 +10664,7 @@ func (x *FilesUnindexedResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilesUnindexedResponse.ProtoReflect.Descriptor instead.
 func (*FilesUnindexedResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{143}
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{148}
 }
 
 func (x *FilesUnindexedResponse) GetFiles() []*FilesPending {
@@ -10367,7 +10699,7 @@ type FilesPlaceRequest struct {
 
 func (x *FilesPlaceRequest) Reset() {
 	*x = FilesPlaceRequest{}
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[144]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[149]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10379,7 +10711,7 @@ func (x *FilesPlaceRequest) String() string {
 func (*FilesPlaceRequest) ProtoMessage() {}
 
 func (x *FilesPlaceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[144]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[149]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10392,7 +10724,7 @@ func (x *FilesPlaceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilesPlaceRequest.ProtoReflect.Descriptor instead.
 func (*FilesPlaceRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{144}
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{149}
 }
 
 func (x *FilesPlaceRequest) GetKind() string {
@@ -10444,7 +10776,7 @@ type FilesPlaceResponse struct {
 
 func (x *FilesPlaceResponse) Reset() {
 	*x = FilesPlaceResponse{}
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[145]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[150]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10456,7 +10788,7 @@ func (x *FilesPlaceResponse) String() string {
 func (*FilesPlaceResponse) ProtoMessage() {}
 
 func (x *FilesPlaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[145]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[150]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10469,7 +10801,7 @@ func (x *FilesPlaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilesPlaceResponse.ProtoReflect.Descriptor instead.
 func (*FilesPlaceResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{145}
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{150}
 }
 
 func (x *FilesPlaceResponse) GetPath() string {
@@ -10501,7 +10833,7 @@ type FilesLayoutRequest struct {
 
 func (x *FilesLayoutRequest) Reset() {
 	*x = FilesLayoutRequest{}
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[146]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[151]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10513,7 +10845,7 @@ func (x *FilesLayoutRequest) String() string {
 func (*FilesLayoutRequest) ProtoMessage() {}
 
 func (x *FilesLayoutRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[146]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[151]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10526,7 +10858,7 @@ func (x *FilesLayoutRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilesLayoutRequest.ProtoReflect.Descriptor instead.
 func (*FilesLayoutRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{146}
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{151}
 }
 
 // FilesKind is one line of the layout.
@@ -10540,7 +10872,7 @@ type FilesKind struct {
 
 func (x *FilesKind) Reset() {
 	*x = FilesKind{}
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[147]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[152]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10552,7 +10884,7 @@ func (x *FilesKind) String() string {
 func (*FilesKind) ProtoMessage() {}
 
 func (x *FilesKind) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[147]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[152]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10565,7 +10897,7 @@ func (x *FilesKind) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilesKind.ProtoReflect.Descriptor instead.
 func (*FilesKind) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{147}
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{152}
 }
 
 func (x *FilesKind) GetName() string {
@@ -10597,7 +10929,7 @@ type FilesLayoutResponse struct {
 
 func (x *FilesLayoutResponse) Reset() {
 	*x = FilesLayoutResponse{}
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[148]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[153]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10609,7 +10941,7 @@ func (x *FilesLayoutResponse) String() string {
 func (*FilesLayoutResponse) ProtoMessage() {}
 
 func (x *FilesLayoutResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[148]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[153]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10622,7 +10954,7 @@ func (x *FilesLayoutResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilesLayoutResponse.ProtoReflect.Descriptor instead.
 func (*FilesLayoutResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{148}
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{153}
 }
 
 func (x *FilesLayoutResponse) GetKinds() []*FilesKind {
@@ -10666,7 +10998,7 @@ type FilesRelayoutRequest struct {
 
 func (x *FilesRelayoutRequest) Reset() {
 	*x = FilesRelayoutRequest{}
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[149]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[154]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10678,7 +11010,7 @@ func (x *FilesRelayoutRequest) String() string {
 func (*FilesRelayoutRequest) ProtoMessage() {}
 
 func (x *FilesRelayoutRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[149]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[154]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10691,7 +11023,7 @@ func (x *FilesRelayoutRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilesRelayoutRequest.ProtoReflect.Descriptor instead.
 func (*FilesRelayoutRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{149}
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{154}
 }
 
 func (x *FilesRelayoutRequest) GetDryRun() bool {
@@ -10711,7 +11043,7 @@ type FilesMove struct {
 
 func (x *FilesMove) Reset() {
 	*x = FilesMove{}
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[150]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[155]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10723,7 +11055,7 @@ func (x *FilesMove) String() string {
 func (*FilesMove) ProtoMessage() {}
 
 func (x *FilesMove) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[150]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[155]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10736,7 +11068,7 @@ func (x *FilesMove) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilesMove.ProtoReflect.Descriptor instead.
 func (*FilesMove) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{150}
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{155}
 }
 
 func (x *FilesMove) GetFrom() string {
@@ -10767,7 +11099,7 @@ type FilesRelayoutResponse struct {
 
 func (x *FilesRelayoutResponse) Reset() {
 	*x = FilesRelayoutResponse{}
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[151]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[156]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10779,7 +11111,7 @@ func (x *FilesRelayoutResponse) String() string {
 func (*FilesRelayoutResponse) ProtoMessage() {}
 
 func (x *FilesRelayoutResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_verbs_proto_msgTypes[151]
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[156]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10792,7 +11124,7 @@ func (x *FilesRelayoutResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FilesRelayoutResponse.ProtoReflect.Descriptor instead.
 func (*FilesRelayoutResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{151}
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{156}
 }
 
 func (x *FilesRelayoutResponse) GetChanged() []string {
@@ -11449,7 +11781,29 @@ const file_proto_rig_v1_verbs_proto_rawDesc = "" +
 	"\x05bytes\x18\x03 \x01(\x04R\x05bytes\"o\n" +
 	"\x18StoreCollectionsResponse\x12\x18\n" +
 	"\aprogram\x18\x01 \x01(\tR\aprogram\x129\n" +
-	"\vcollections\x18\x02 \x03(\v2\x17.rig.v1.StoreCollectionR\vcollections\"D\n" +
+	"\vcollections\x18\x02 \x03(\v2\x17.rig.v1.StoreCollectionR\vcollections\"P\n" +
+	"\x12StoreExportRequest\x12\x18\n" +
+	"\aprogram\x18\x01 \x01(\tR\aprogram\x12 \n" +
+	"\vcollections\x18\x02 \x03(\tR\vcollections\"z\n" +
+	"\x14StoreCollectionCount\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1c\n" +
+	"\tdocuments\x18\x02 \x01(\x04R\tdocuments\x12\x14\n" +
+	"\x05bytes\x18\x03 \x01(\x04R\x05bytes\x12\x1a\n" +
+	"\breplaced\x18\x04 \x01(\x04R\breplaced\"\xb3\x01\n" +
+	"\x13StoreExportResponse\x12\x18\n" +
+	"\aprogram\x18\x01 \x01(\tR\aprogram\x12\x10\n" +
+	"\x03dir\x18\x02 \x01(\tR\x03dir\x12>\n" +
+	"\vcollections\x18\x03 \x03(\v2\x1c.rig.v1.StoreCollectionCountR\vcollections\x12\x18\n" +
+	"\aremoved\x18\x04 \x03(\tR\aremoved\x12\x16\n" +
+	"\x06commit\x18\x05 \x01(\tR\x06commit\"P\n" +
+	"\x12StoreImportRequest\x12\x18\n" +
+	"\aprogram\x18\x01 \x01(\tR\aprogram\x12 \n" +
+	"\vcollections\x18\x02 \x03(\tR\vcollections\"\xa9\x01\n" +
+	"\x13StoreImportResponse\x12\x18\n" +
+	"\aprogram\x18\x01 \x01(\tR\aprogram\x12>\n" +
+	"\vcollections\x18\x02 \x03(\v2\x1c.rig.v1.StoreCollectionCountR\vcollections\x12\x1a\n" +
+	"\bsnapshot\x18\x03 \x01(\tR\bsnapshot\x12\x1c\n" +
+	"\tuntouched\x18\x04 \x03(\tR\tuntouched\"D\n" +
 	"\x10FilesRootRequest\x12\x18\n" +
 	"\aprogram\x18\x01 \x01(\tR\aprogram\x12\x16\n" +
 	"\x06shared\x18\x02 \x01(\bR\x06shared\"g\n" +
@@ -11600,7 +11954,7 @@ func file_proto_rig_v1_verbs_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_verbs_proto_enumTypes = make([]protoimpl.EnumInfo, 10)
-var file_proto_rig_v1_verbs_proto_msgTypes = make([]protoimpl.MessageInfo, 156)
+var file_proto_rig_v1_verbs_proto_msgTypes = make([]protoimpl.MessageInfo, 161)
 var file_proto_rig_v1_verbs_proto_goTypes = []any{
 	(SeatState)(0),                   // 0: rig.v1.SeatState
 	(LeaseState)(0),                  // 1: rig.v1.LeaseState
@@ -11746,29 +12100,34 @@ var file_proto_rig_v1_verbs_proto_goTypes = []any{
 	(*StoreCollectionsRequest)(nil),  // 141: rig.v1.StoreCollectionsRequest
 	(*StoreCollection)(nil),          // 142: rig.v1.StoreCollection
 	(*StoreCollectionsResponse)(nil), // 143: rig.v1.StoreCollectionsResponse
-	(*FilesRootRequest)(nil),         // 144: rig.v1.FilesRootRequest
-	(*FilesRootResponse)(nil),        // 145: rig.v1.FilesRootResponse
-	(*FilesIndexRequest)(nil),        // 146: rig.v1.FilesIndexRequest
-	(*FilesIndexResponse)(nil),       // 147: rig.v1.FilesIndexResponse
-	(*FilesSearchRequest)(nil),       // 148: rig.v1.FilesSearchRequest
-	(*FilesHit)(nil),                 // 149: rig.v1.FilesHit
-	(*FilesSearchResponse)(nil),      // 150: rig.v1.FilesSearchResponse
-	(*FilesUnindexedRequest)(nil),    // 151: rig.v1.FilesUnindexedRequest
-	(*FilesPending)(nil),             // 152: rig.v1.FilesPending
-	(*FilesUnindexedResponse)(nil),   // 153: rig.v1.FilesUnindexedResponse
-	(*FilesPlaceRequest)(nil),        // 154: rig.v1.FilesPlaceRequest
-	(*FilesPlaceResponse)(nil),       // 155: rig.v1.FilesPlaceResponse
-	(*FilesLayoutRequest)(nil),       // 156: rig.v1.FilesLayoutRequest
-	(*FilesKind)(nil),                // 157: rig.v1.FilesKind
-	(*FilesLayoutResponse)(nil),      // 158: rig.v1.FilesLayoutResponse
-	(*FilesRelayoutRequest)(nil),     // 159: rig.v1.FilesRelayoutRequest
-	(*FilesMove)(nil),                // 160: rig.v1.FilesMove
-	(*FilesRelayoutResponse)(nil),    // 161: rig.v1.FilesRelayoutResponse
-	nil,                              // 162: rig.v1.Record.FieldsEntry
-	nil,                              // 163: rig.v1.RecordPutRequest.FieldsEntry
-	nil,                              // 164: rig.v1.WorkNote.FieldsEntry
-	nil,                              // 165: rig.v1.WorkNoteWriteRequest.FieldsEntry
-	(v1.Tristate)(0),                 // 166: rig.v1.Tristate
+	(*StoreExportRequest)(nil),       // 144: rig.v1.StoreExportRequest
+	(*StoreCollectionCount)(nil),     // 145: rig.v1.StoreCollectionCount
+	(*StoreExportResponse)(nil),      // 146: rig.v1.StoreExportResponse
+	(*StoreImportRequest)(nil),       // 147: rig.v1.StoreImportRequest
+	(*StoreImportResponse)(nil),      // 148: rig.v1.StoreImportResponse
+	(*FilesRootRequest)(nil),         // 149: rig.v1.FilesRootRequest
+	(*FilesRootResponse)(nil),        // 150: rig.v1.FilesRootResponse
+	(*FilesIndexRequest)(nil),        // 151: rig.v1.FilesIndexRequest
+	(*FilesIndexResponse)(nil),       // 152: rig.v1.FilesIndexResponse
+	(*FilesSearchRequest)(nil),       // 153: rig.v1.FilesSearchRequest
+	(*FilesHit)(nil),                 // 154: rig.v1.FilesHit
+	(*FilesSearchResponse)(nil),      // 155: rig.v1.FilesSearchResponse
+	(*FilesUnindexedRequest)(nil),    // 156: rig.v1.FilesUnindexedRequest
+	(*FilesPending)(nil),             // 157: rig.v1.FilesPending
+	(*FilesUnindexedResponse)(nil),   // 158: rig.v1.FilesUnindexedResponse
+	(*FilesPlaceRequest)(nil),        // 159: rig.v1.FilesPlaceRequest
+	(*FilesPlaceResponse)(nil),       // 160: rig.v1.FilesPlaceResponse
+	(*FilesLayoutRequest)(nil),       // 161: rig.v1.FilesLayoutRequest
+	(*FilesKind)(nil),                // 162: rig.v1.FilesKind
+	(*FilesLayoutResponse)(nil),      // 163: rig.v1.FilesLayoutResponse
+	(*FilesRelayoutRequest)(nil),     // 164: rig.v1.FilesRelayoutRequest
+	(*FilesMove)(nil),                // 165: rig.v1.FilesMove
+	(*FilesRelayoutResponse)(nil),    // 166: rig.v1.FilesRelayoutResponse
+	nil,                              // 167: rig.v1.Record.FieldsEntry
+	nil,                              // 168: rig.v1.RecordPutRequest.FieldsEntry
+	nil,                              // 169: rig.v1.WorkNote.FieldsEntry
+	nil,                              // 170: rig.v1.WorkNoteWriteRequest.FieldsEntry
+	(v1.Tristate)(0),                 // 171: rig.v1.Tristate
 }
 var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	0,   // 0: rig.v1.Seat.state:type_name -> rig.v1.SeatState
@@ -11782,11 +12141,11 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	24,  // 8: rig.v1.LeaseAcquireResponse.handle:type_name -> rig.v1.LeaseHandle
 	24,  // 9: rig.v1.LeaseRenewResponse.handle:type_name -> rig.v1.LeaseHandle
 	23,  // 10: rig.v1.LeaseListResponse.leases:type_name -> rig.v1.Lease
-	162, // 11: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
+	167, // 11: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
 	35,  // 12: rig.v1.Record.prov:type_name -> rig.v1.Provenance
 	37,  // 13: rig.v1.Record.retraction:type_name -> rig.v1.Retraction
 	35,  // 14: rig.v1.Retraction.prov:type_name -> rig.v1.Provenance
-	163, // 15: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
+	168, // 15: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
 	36,  // 16: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
 	36,  // 17: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
 	36,  // 18: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
@@ -11821,7 +12180,7 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	67,  // 47: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
 	73,  // 48: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
 	74,  // 49: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
-	166, // 50: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
+	171, // 50: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
 	75,  // 51: rig.v1.ProjectBriefResponse.closed:type_name -> rig.v1.ClosedItem
 	76,  // 52: rig.v1.ProjectBriefResponse.closed_counts:type_name -> rig.v1.WordCount
 	35,  // 53: rig.v1.Lesson.prov:type_name -> rig.v1.Provenance
@@ -11836,9 +12195,9 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	88,  // 62: rig.v1.QueueCompleteResponse.task:type_name -> rig.v1.Task
 	88,  // 63: rig.v1.QueueListResponse.tasks:type_name -> rig.v1.Task
 	23,  // 64: rig.v1.LeaseCheckResponse.lease:type_name -> rig.v1.Lease
-	164, // 65: rig.v1.WorkNote.fields:type_name -> rig.v1.WorkNote.FieldsEntry
+	169, // 65: rig.v1.WorkNote.fields:type_name -> rig.v1.WorkNote.FieldsEntry
 	35,  // 66: rig.v1.WorkNote.prov:type_name -> rig.v1.Provenance
-	165, // 67: rig.v1.WorkNoteWriteRequest.fields:type_name -> rig.v1.WorkNoteWriteRequest.FieldsEntry
+	170, // 67: rig.v1.WorkNoteWriteRequest.fields:type_name -> rig.v1.WorkNoteWriteRequest.FieldsEntry
 	99,  // 68: rig.v1.WorkNoteWriteResponse.note:type_name -> rig.v1.WorkNote
 	99,  // 69: rig.v1.WorkNoteMineResponse.notes:type_name -> rig.v1.WorkNote
 	99,  // 70: rig.v1.WorkNoteAboutResponse.notes:type_name -> rig.v1.WorkNote
@@ -11864,15 +12223,17 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	127, // 90: rig.v1.StoreQueryResponse.documents:type_name -> rig.v1.StoreDocument
 	138, // 91: rig.v1.StoreTransactRequest.ops:type_name -> rig.v1.StoreOp
 	142, // 92: rig.v1.StoreCollectionsResponse.collections:type_name -> rig.v1.StoreCollection
-	149, // 93: rig.v1.FilesSearchResponse.hits:type_name -> rig.v1.FilesHit
-	152, // 94: rig.v1.FilesUnindexedResponse.files:type_name -> rig.v1.FilesPending
-	157, // 95: rig.v1.FilesLayoutResponse.kinds:type_name -> rig.v1.FilesKind
-	160, // 96: rig.v1.FilesRelayoutResponse.moves:type_name -> rig.v1.FilesMove
-	97,  // [97:97] is the sub-list for method output_type
-	97,  // [97:97] is the sub-list for method input_type
-	97,  // [97:97] is the sub-list for extension type_name
-	97,  // [97:97] is the sub-list for extension extendee
-	0,   // [0:97] is the sub-list for field type_name
+	145, // 93: rig.v1.StoreExportResponse.collections:type_name -> rig.v1.StoreCollectionCount
+	145, // 94: rig.v1.StoreImportResponse.collections:type_name -> rig.v1.StoreCollectionCount
+	154, // 95: rig.v1.FilesSearchResponse.hits:type_name -> rig.v1.FilesHit
+	157, // 96: rig.v1.FilesUnindexedResponse.files:type_name -> rig.v1.FilesPending
+	162, // 97: rig.v1.FilesLayoutResponse.kinds:type_name -> rig.v1.FilesKind
+	165, // 98: rig.v1.FilesRelayoutResponse.moves:type_name -> rig.v1.FilesMove
+	99,  // [99:99] is the sub-list for method output_type
+	99,  // [99:99] is the sub-list for method input_type
+	99,  // [99:99] is the sub-list for extension type_name
+	99,  // [99:99] is the sub-list for extension extendee
+	0,   // [0:99] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_verbs_proto_init() }
@@ -11886,7 +12247,7 @@ func file_proto_rig_v1_verbs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_verbs_proto_rawDesc), len(file_proto_rig_v1_verbs_proto_rawDesc)),
 			NumEnums:      10,
-			NumMessages:   156,
+			NumMessages:   161,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

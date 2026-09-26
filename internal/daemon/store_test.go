@@ -257,3 +257,84 @@ func TestAReadNeverCreatesAStoreForATerminal(t *testing.T) {
 		t.Fatalf("a terminal's write did not create the store: %v", err)
 	}
 }
+
+// Slice 5 on the wire: a program exports its own store, the export is
+// committed, and an import after a delete gives the document back at its
+// version, with a snapshot left behind that undoes it.
+func TestAProgramExportsAndImportsItsOwnStore(t *testing.T) {
+	sock, root, d := upStoreDaemon(t)
+	ctx := ctx5(t)
+	graft := program(t, sock, "graft")
+	for _, id := range []string{"r2", "r1"} {
+		if err := graft.Call(ctx, "rig.store.put", &verbsv1.StorePutRequest{
+			Collection: "runs", Id: id, Document: `{"state":"done"}`,
+		}, &verbsv1.StorePutResponse{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	var ex verbsv1.StoreExportResponse
+	if err := graft.Call(ctx, "rig.store.export", &verbsv1.StoreExportRequest{}, &ex); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(root, "exports", "graft", "runs.jsonl")
+	body, err := os.ReadFile(file)
+	if err != nil || ex.GetCommit() == "" || ex.GetDir() != filepath.Dir(file) ||
+		len(ex.GetCollections()) != 1 || ex.GetCollections()[0].GetDocuments() != 2 {
+		t.Fatalf("export answered %v, file %q, %v", &ex, body, err)
+	}
+	if !strings.HasPrefix(string(body), `{"id":"r1",`) {
+		t.Fatalf("the export is not sorted by id:\n%s", body)
+	}
+	var again verbsv1.StoreExportResponse
+	if err := graft.Call(ctx, "rig.store.export", &verbsv1.StoreExportRequest{}, &again); err != nil || again.GetCommit() != "" {
+		t.Fatalf("an unchanged export committed again: %q, %v", again.GetCommit(), err)
+	}
+
+	shelf := program(t, sock, "shelf")
+	err = shelf.Call(ctx, "rig.store.import", &verbsv1.StoreImportRequest{Program: "graft"}, &verbsv1.StoreImportResponse{})
+	wantCode(t, err, rigv1.Code_CODE_DENIED, "shelf importing into graft")
+	err = graft.Call(ctx, "rig.store.export", &verbsv1.StoreExportRequest{Collections: []string{"nope"}}, &ex)
+	wantCode(t, err, rigv1.Code_CODE_NOT_FOUND, "exporting a collection that does not exist")
+
+	if err := graft.Call(ctx, "rig.store.delete", &verbsv1.StoreDeleteRequest{
+		Collection: "runs", Id: "r1", ExpectedVersion: 1,
+	}, &verbsv1.StoreDeleteResponse{}); err != nil {
+		t.Fatal(err)
+	}
+	var im verbsv1.StoreImportResponse
+	if err := graft.Call(ctx, "rig.store.import", &verbsv1.StoreImportRequest{}, &im); err != nil {
+		t.Fatal(err)
+	}
+	if c := im.GetCollections(); len(c) != 1 || c[0].GetDocuments() != 2 || c[0].GetReplaced() != 1 {
+		t.Fatalf("import answered %v", &im)
+	}
+	if !strings.HasPrefix(im.GetSnapshot(), filepath.Join(root, "internal", "snapshots", "store", "graft-")) {
+		t.Fatalf("snapshot at %q", im.GetSnapshot())
+	}
+	if _, err := os.Stat(im.GetSnapshot()); err != nil {
+		t.Fatal(err)
+	}
+	var got verbsv1.StoreGetResponse
+	if err := graft.Call(ctx, "rig.store.get", &verbsv1.StoreGetRequest{
+		Collection: "runs", Ids: []string{"r1"},
+	}, &got); err != nil || len(got.GetDocuments()) != 1 || got.GetDocuments()[0].GetVersion() != 1 {
+		t.Fatalf("r1 after the import: %v, %v", got.GetDocuments(), err)
+	}
+
+	// A broken export is refused whole, as invalid, and the agent door
+	// carries both tools.
+	if err := os.WriteFile(file, []byte("{nope\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	err = graft.Call(ctx, "rig.store.import", &verbsv1.StoreImportRequest{}, &im)
+	wantCode(t, err, rigv1.Code_CODE_INVALID, "importing a broken line")
+	agent := mailAgent(t, d, "export-agent")
+	// The export overwrites the broken file with what was last committed,
+	// so it is the same bytes and there is nothing new to commit.
+	ans := callTool(ctx, t, agent, "store_export", map[string]any{"program": "graft"})
+	if now, _ := os.ReadFile(file); string(now) != string(body) || resultOf(t, ans)["commit"] != "" {
+		t.Fatalf("the agent's export answered %v, file %q", ans, now)
+	}
+	callTool(ctx, t, agent, "store_import", map[string]any{"program": "graft", "collections": []any{"runs"}})
+}

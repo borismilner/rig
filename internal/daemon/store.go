@@ -8,10 +8,13 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/borismilner/rig/internal/files"
 	"github.com/borismilner/rig/internal/paths"
 	"github.com/borismilner/rig/internal/store"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
@@ -35,6 +38,15 @@ type stores struct {
 	dir       string // empty: this daemon was given no root
 	ephemeral bool
 	open      map[string]*store.Store
+
+	// exports is the exports area, a git repository of its own (R36), and
+	// snapshots is where an import keeps the store it replaced.
+	exports   string
+	snapshots string
+	// exportMu makes one export or import at a time, so one export's
+	// commit never carries another program's half-written files.
+	exportMu sync.Mutex
+	repo     *files.Repo // opened by the first export
 }
 
 // newStores places the databases under the estate's internal area. An empty
@@ -55,6 +67,8 @@ func newStores(root, estate string) (*stores, error) {
 		return nil, err
 	}
 	s.dir = filepath.Join(areas.Internal, "programs")
+	s.exports = areas.Exports
+	s.snapshots = filepath.Join(areas.Internal, "snapshots", "store")
 	return s, nil
 }
 
@@ -148,9 +162,18 @@ func (d *Daemon) serveStore(ctx context.Context, c *conn, f *rigv1.Frame, comman
 	if !ok {
 		return
 	}
+	var err error
 	// The engine's refusal goes out as it is: the client already prefixes
 	// the method, and a second prefix here read "store.put: store.put:".
-	resp, err := runStore(ctx, st, program, req)
+	var resp proto.Message
+	switch r := req.(type) {
+	case *verbsv1.StoreExportRequest:
+		resp, err = d.stores.export(ctx, st, program, r.GetCollections())
+	case *verbsv1.StoreImportRequest:
+		resp, err = d.stores.importInto(ctx, st, program, r.GetCollections())
+	default:
+		resp, err = runStore(ctx, st, program, req)
+	}
 	if err != nil {
 		c.failErr(f.GetStreamId(), storeCode(err), err)
 		return
@@ -178,6 +201,10 @@ func storeRequest(command string) (storeRequester, bool) {
 		return &verbsv1.StoreTransactRequest{}, true
 	case "store.collections":
 		return &verbsv1.StoreCollectionsRequest{}, true
+	case "store.export":
+		return &verbsv1.StoreExportRequest{}, true
+	case "store.import":
+		return &verbsv1.StoreImportRequest{}, true
 	}
 	return nil, false
 }
@@ -312,7 +339,11 @@ func storeQuery(ctx context.Context, st *store.Store, r *verbsv1.StoreQueryReque
 	return resp, nil
 }
 
-var storeWrites = map[string]bool{"store.put": true, "store.delete": true, "store.transact": true}
+// storeWrites may create a program's store. An export may not: exporting a
+// program that never wrote is a typo, not an empty export.
+var storeWrites = map[string]bool{
+	"store.put": true, "store.delete": true, "store.transact": true, "store.import": true,
+}
 
 var storeOps = map[string]store.Operator{
 	"eq": store.OpEq, "ne": store.OpNe, "lt": store.OpLt,
@@ -335,8 +366,9 @@ func storeCode(err error) rigv1.Code {
 	var conflict *store.ConflictError
 	var invalid *store.InvalidError
 	var future *store.FutureSchemaError
+	var missing *store.NotFoundError
 	switch {
-	case errors.Is(err, errNoStore):
+	case errors.Is(err, errNoStore), errors.As(err, &missing):
 		return rigv1.Code_CODE_NOT_FOUND
 	case errors.As(err, &conflict):
 		return rigv1.Code_CODE_CONFLICT
@@ -346,4 +378,63 @@ func storeCode(err error) rigv1.Code {
 		return rigv1.Code_CODE_UNAVAILABLE
 	}
 	return rigv1.Code_CODE_INTERNAL
+}
+
+// export writes a program's collections under exports/<program>/ and commits
+// them (R19, R21, R35). The directory is joined from the program's checked
+// name only.
+func (s *stores) export(ctx context.Context, st *store.Store, program string, collections []string) (*verbsv1.StoreExportResponse, error) {
+	s.exportMu.Lock()
+	defer s.exportMu.Unlock()
+	if s.repo == nil {
+		repo, err := files.Open(ctx, s.exports, files.NoSizeLimit())
+		if err != nil {
+			return nil, err
+		}
+		s.repo = repo
+	}
+	dir := filepath.Join(s.exports, program)
+	res, err := st.Export(ctx, dir, collections)
+	if err != nil {
+		return nil, err
+	}
+	c, err := s.repo.Commit(ctx, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	// Nothing an export writes is binary or skipped for size; a path left
+	// out anyway is an export not kept, and the caller must hear it.
+	if len(c.Skipped) > 0 {
+		return nil, fmt.Errorf("the export was written but git left out %s, so it is not kept",
+			strings.Join(c.Skipped, ", "))
+	}
+	resp := &verbsv1.StoreExportResponse{Program: program, Dir: dir, Removed: res.Removed, Commit: c.Commit}
+	for _, e := range res.Collections {
+		resp.Collections = append(resp.Collections, &verbsv1.StoreCollectionCount{
+			Name: e.Collection, Documents: uint64(max(e.Documents, 0)), Bytes: uint64(max(e.Bytes, 0)),
+		})
+	}
+	return resp, nil
+}
+
+// importInto replaces a program's collections from exports/<program>/ (R23,
+// D8), after a snapshot under the internal area that undoes it.
+func (s *stores) importInto(ctx context.Context, st *store.Store, program string, collections []string) (*verbsv1.StoreImportResponse, error) {
+	s.exportMu.Lock()
+	defer s.exportMu.Unlock()
+	// Nanoseconds and the program's checked name: two imports never pick
+	// one path, and the store refuses a path that exists anyway.
+	snap := filepath.Join(s.snapshots,
+		program+"-"+time.Now().UTC().Format("20060102T150405.000000000Z")+".db")
+	res, err := st.Import(ctx, filepath.Join(s.exports, program), collections, snap)
+	if err != nil {
+		return nil, err
+	}
+	resp := &verbsv1.StoreImportResponse{Program: program, Snapshot: snap, Untouched: res.Untouched}
+	for _, i := range res.Collections {
+		resp.Collections = append(resp.Collections, &verbsv1.StoreCollectionCount{
+			Name: i.Collection, Documents: uint64(max(i.Documents, 0)), Replaced: uint64(max(i.Replaced, 0)),
+		})
+	}
+	return resp, nil
 }

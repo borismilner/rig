@@ -98,6 +98,21 @@ func TestABinaryIsNeverCommitted(t *testing.T) {
 	}
 }
 
+// The exports repository commits a text file of any size (R21): an export
+// left out for its size would be an export not kept.
+func TestNoSizeLimitCommitsALargeTextFile(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	r, err := Open(ctx(t), filepath.Join(t.TempDir(), "exports"), NoSizeLimit())
+	if err != nil {
+		t.Fatal(err)
+	}
+	write(t, r, "graft/runs.jsonl", strings.Repeat("a", MaxCommitted+1))
+	res, err := r.Commit(ctx(t), time.Now())
+	if err != nil || len(res.Skipped) != 0 || !strings.Contains(tracked(t, r), "runs.jsonl") {
+		t.Fatalf("%+v, %v", res, err)
+	}
+}
+
 // A path is a path: "*" must not stage the binary beside it, and "--force"
 // must not become a flag.
 func TestAHostileFileNameIsOnlyAName(t *testing.T) {

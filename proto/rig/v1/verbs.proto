@@ -2263,6 +2263,54 @@ message StoreCollectionsResponse {
   repeated StoreCollection collections = 2;
 }
 
+// StoreExportRequest writes a program's collections as text into the exports
+// area, one <collection>.jsonl each, one line per document sorted by id, and
+// commits them to the exports repository (plan/48 R19, R21, R22, R35). An
+// empty collections exports them all, and removes the files of collections
+// the store no longer has.
+message StoreExportRequest {
+  string program = 1;
+  repeated string collections = 2;
+}
+
+// StoreCollectionCount is one collection an export wrote or an import
+// replaced: documents it holds now, bytes written (export), and documents it
+// held before (import).
+message StoreCollectionCount {
+  string name = 1;
+  uint64 documents = 2;
+  uint64 bytes = 3;
+  uint64 replaced = 4;
+}
+
+// StoreExportResponse names where the export is and the commit that keeps it;
+// commit is empty when the export matched the last one byte for byte.
+message StoreExportResponse {
+  string program = 1;
+  string dir = 2;
+  repeated StoreCollectionCount collections = 3;
+  repeated string removed = 4;
+  string commit = 5;
+}
+
+// StoreImportRequest replaces a program's collections with what its export
+// says (plan/48 R23, D8): every line is checked first, the store is
+// snapshotted, then the named collections, or all the export holds, are
+// replaced in one transaction.
+message StoreImportRequest {
+  string program = 1;
+  repeated string collections = 2;
+}
+
+// StoreImportResponse carries the snapshot taken before the import, which
+// undoes it, and the collections the import left alone.
+message StoreImportResponse {
+  string program = 1;
+  repeated StoreCollectionCount collections = 2;
+  string snapshot = 3;
+  repeated string untouched = 4;
+}
+
 // FilesRootRequest asks where to write free files (plan/48 R12, R13, R24).
 // shared answers the area every program shares; otherwise the answer is a
 // program's own directory, whose program follows the store verbs' rule: a

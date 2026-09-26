@@ -73,6 +73,8 @@ var bridged = map[string]struct {
 	"store.delete":      {func() proto.Message { return &verbsv1.StoreDeleteRequest{} }, func() proto.Message { return &verbsv1.StoreDeleteResponse{} }},
 	"store.transact":    {func() proto.Message { return &verbsv1.StoreTransactRequest{} }, func() proto.Message { return &verbsv1.StoreTransactResponse{} }},
 	"store.collections": {func() proto.Message { return &verbsv1.StoreCollectionsRequest{} }, func() proto.Message { return &verbsv1.StoreCollectionsResponse{} }},
+	"store.export":      {func() proto.Message { return &verbsv1.StoreExportRequest{} }, func() proto.Message { return &verbsv1.StoreExportResponse{} }},
+	"store.import":      {func() proto.Message { return &verbsv1.StoreImportRequest{} }, func() proto.Message { return &verbsv1.StoreImportResponse{} }},
 }
 
 // servedByName is every verb the agent door already carries under a tool of
