@@ -397,6 +397,61 @@ neither. An import holds the whole export in memory, so an export of
 several GB would need streaming. An import by a terminal that names a
 program with no export still creates an empty database for it.
 
+**Slice 6 as built, 2026-09-27** (rig `ee59cbb`): `examples/storeworker`, an
+embedded-tier program (its own page, pane.js for the tokens) that runs fake
+assignments the way graft runs real ones. Build it with
+`make build-storeworker`; it needs a named estate for its queue and lease.
+Its pane has one tab per part of rig (R39):
+
+| Tab | What Boris tries | rig verbs |
+|---|---|---|
+| The program | call a command through rig, or with empty arguments to see rig refuse them against the declared schema | hello, routed commands |
+| Store | assign; filter by state; a stale write refused | `store.transact`, `query`, `put`, `collections` |
+| Queue | three quick runs, claimed one at a time | `queue.push`, `claim`, `complete`, `lease.renew` |
+| Leases | hold the gpu lease himself; the worker waits | `lease.acquire`, `release`, `list` |
+| Asking you | an expensive run parks until he answers | `health.report` parked, urgent `notify` |
+| Toasts | one of each severity | `notify`, `toast.dnd` |
+| Files | search the transcripts | `files.place`, `index`, `search`, `unindexed`, `layout` |
+| Lessons | a failing run records a lesson | `knowledge.add`, `search` |
+| Mail | send to a seat, read the inbox | `announce`, `peers`, `message.send`, `inbox` |
+| Export | export, assign, restore: the run is gone | `store.export`, `import` |
+| Health | the marker and the parked question | `health.report`, `activity` |
+
+Seat choices, his to overrule:
+
+| Choice | Why |
+|---|---|
+| every tab shows its explanation, its controls, its live state, and the rig calls it made | he sees each click turn into verbs |
+| the page's own 2 s polling reads are not listed; the footer names them instead | listed, they pushed every click's calls off the list |
+| a second, unregistered connection acts as him: his lease, his commands through rig | rig then sees a caller other than the worker, as it would from a terminal |
+| the page API needs its own Host and an `X-Storeworker` header | a loopback server is reachable from any page he opens |
+| restore refuses without `{"yes":true}`; the page asks by a second press | the command declares it confirms, so it must |
+| a run redelivered after a restart starts over, and asks again if over budget | otherwise it stays running forever |
+| the test starts its own daemon with a storage root | `clienttest` gives none, so no store; `client/` is the lead's |
+
+**Demonstrated live, 2026-09-27**, on a private `development` estate
+(`--root`, private runtime, state and config), started by `rig up` from a
+private `programs.json`, and driven in headless Chrome over every tab:
+
+```
+$ rig health
+storeworker  healthy  ...  PARKED: Run r0926-215012-433 (an expensive run)
+    will cost $2.10, over the $1.00 budget. Go ahead?; waiting on Boris's answer ...
+$ rig storeworker restore
+rig: storeworker.restore: CODE_DENIED: storeworker: restore replaces the whole
+    store with its last export, and needs yes to go ahead
+       fix command   rig storeworker restore --args '{"yes":true}'
+```
+
+The stale write answered `CODE_CONFLICT: ... is at version 4 and the call
+expected 3`; holding the gpu lease as him made the worker wait, and on
+release it took the lease at token 7; a parked run asked again after
+`rig restart storeworker`; a restore under a running run gave a *Lost* toast.
+
+**Not tried:** the pane inside rig's own window, so the theme hand-off
+(the page said "none, this page is open outside rig's window"); the tray
+drawing the toasts; slices 5 and 6 are not deployed.
+
 #### Tests owed, each with the red control that proves it bites
 
 | Test | Red control |
