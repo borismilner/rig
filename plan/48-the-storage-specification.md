@@ -45,6 +45,44 @@ leaving sensitive fields out and he chose otherwise, so it holds. What follows
 from it, for whoever builds this: the tree's file modes match the store's
 (owner only), and **no rig logic pushes it anywhere** without his ruling.
 
+### ⛔ RULED BY BORIS, 2026-09-26, later the same day: each program's own free tree, and one configurable root
+
+**Boris, verbatim:** *"Each program should have its own filesystem under that
+filesystem that I've mentioned, into which it can write freely and read
+freely, these writes and reads do not have to go through rig but rig is the one
+holding the pointer to the root folder for each of its users (programs) so that
+I/we can control its exact placement on the disk; By the way, by default, the
+files as well as DB files are to be sored in a proper path under ~/.rig but this
+path must be configurable so that we can move it to arbitraty other place. The
+separation between `rig` internal storage such as the DB files and
+configurations and so on, and the freely used files I've mentioned here is to be
+well separated, and these files are too to be comitted from time to time by
+`rig`."*
+
+| # | Requirement |
+|---|---|
+| R12 | **Every program has its own directory inside the git-managed filesystem**, which it reads and writes freely and directly, **not through rig** |
+| R13 | **rig holds the pointer to each program's root folder**: a program asks rig where its directory is, and never computes or hard-codes a path. That is what lets Boris decide the exact placement on disk |
+| R14 | **By default, rig keeps everything under `~/.rig`**: the database files and the program files both |
+| R15 | **That root is configurable**, so everything can move to any other place |
+| R16 | **rig's internal storage (database files, configuration and the like) is well separated from the programs' free files** |
+| R17 | **rig commits the free files too, from time to time**, as it does the store's dump (R6, R9) |
+
+⛔ **R14 SUPERSEDES THE DEFAULT IN plan/37 PRECONDITION 2**, which put estate
+state under `$XDG_STATE_HOME/rig/estates/<name>/` (today
+`~/.local/state/rig/estates/production/record.db`). **The live production store
+is at the old path**, so moving the default owes a migration of his data, done
+with a snapshot first (plan/46), never a silent re-open of an empty store.
+
+**Open, each with a seat's recommendation:**
+
+| Question | Recommendation |
+|---|---|
+| Two estates (production, development) under one root | one subtree per estate, `~/.rig/estates/<name>/`, since plan/37 forbids them sharing state |
+| How the root is configured | one setting, read by `rigd` at start (a flag and an environment variable until plan/47's configuration service exists), reported by `rig estate` |
+| Where a program's dump and its free files sit relative to each other | side by side in the program's directory but in separate subdirectories, so a program writing freely can never overwrite the dump rig writes |
+| One git repository for all programs, or one per program | one per estate, as he said "this whole filesystem"; each program a top-level directory in it |
+
 **Still open:** where the tree lives (recommend under the estate's state
 directory, `programs/<id>/`), the interval's length, the file format inside a
 collection file (recommend JSON Lines sorted by id, so a one-row change is a

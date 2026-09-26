@@ -413,6 +413,10 @@ applied.
 
 #### Precondition 2: `$XDG_STATE_HOME/rig/estates/<name>/`, and an unnamed estate gets none
 
+⛔ **THE DEFAULT LOCATION IS SUPERSEDED BY BORIS, 2026-09-26: everything lives
+under `~/.rig` by default, and the root is configurable** (plan/48, R14-R16).
+Per-estate separation below still binds; only the root moves.
+
 **The mechanism already exists and this extends it rather than inventing one.**
 `paths.EstateLock` is `$XDG_STATE_HOME/rig/estates/<name>.pid` today, so the
 `estates` subtree is already the idiom and the estate name is already the key.
