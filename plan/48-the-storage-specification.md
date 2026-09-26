@@ -207,9 +207,21 @@ from kind, subject and file name; a layout change is applied by rig, which
 moves the existing files (`git mv`, so history follows) and rewrites their
 index entries, so nothing a search or a link points at breaks.
 
-**Open:** large binaries in git (images, PDFs, downloads grow a repository
-forever); recommend a size ceiling above which a file is stored but not
-committed, with the ceiling his to set.
+**Answered by Boris the same day** (put to him as choices):
+
+| # | Question | His answer |
+|---|---|---|
+| R31 | Top level of `files/` | **By kind, shared**: `docs/<subject>/`, `resources/<type>/<subject>/`, `lessons/`, and `programs/<id>/` for a program's private working files. The writer is recorded in the index, not in the path |
+| R32 | Big binary files | **Verbatim:** *"Binary files we'll find a better way to backup - no need to manage them in Git."* **Binary files are never committed**; they are stored and indexed. Their backup is a separate, later question |
+| R33 | A kind the layout does not name | **Refused, with the list of kinds that exist.** Only Boris adds kinds |
+
+**R32 as built, a seat's reading:** "binary" is decided by content, as git
+itself does (a NUL byte in the first 8,000 bytes), not by extension; rig's
+committer stages text files only, and `files/.gitignore` is not relied on,
+because a program can write one.
+
+**R32 supersedes R17 and R20 for binaries**: those rows committed everything
+under `files/`; now it is text only.
 
 ### P9 build specification: `store.*`, free files, export and import
 
