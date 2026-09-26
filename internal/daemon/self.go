@@ -37,6 +37,11 @@ func selfDeclaration() kernel.Declaration {
 		c.Idempotent = idempotent
 		return c
 	}
+	destructiveWriter := func(id, title, summary, description, returns string) kernel.Command {
+		c := leaseWriter(id, title, kernel.No, summary, description, returns)
+		c.Effects = kernel.EffectsDestructive
+		return c
+	}
 	return kernel.Declaration{
 		Identity:     kernel.Identity{ID: kernel.SelfID, Name: kernel.SelfID, Version: "0"},
 		Coverage:     kernel.CoverageFull,
@@ -459,6 +464,36 @@ func selfDeclaration() kernel.Declaration {
 				"Finish a claimed task",
 				"Marks the task done against its claim's token and epoch, and releases the claim. A worker whose claim moved on is refused, and its work is the duplicate the idempotency key is for.",
 				"The finished task."),
+
+			// SECTION 48's PROGRAM STORES. A write lands in the program's
+			// database file, so put is a file write on the lease argument.
+			// ⛔ DELETE AND TRANSACT ARE DESTRUCTIVE, transact because it can
+			// carry deletes: a rule denying destructive calls must not be
+			// passed by wrapping a delete in a transaction.
+			readOnly("store.get", "Store get",
+				"Read documents from a program's store by id, many at once",
+				"Answers the documents with these ids from one collection, in the order asked; an id that does not exist is left out. A registered program reads its own store; a terminal or an agent names the program.",
+				"Each document found, with its version."),
+			readOnly("store.query", "Store query",
+				"Ask one collection of a program's store",
+				"Filters by conditions joined by AND (field, op eq/ne/lt/le/gt/ge, JSON scalar value), orders by fields then id, projects fields, and pages by limit and offset. count_only answers the count alone.",
+				"The matching documents, the total, and whether a later page exists."),
+			readOnly("store.collections", "Store collections",
+				"List the collections in a program's store",
+				"Names each collection with its document count and bytes.",
+				"The program and its collections."),
+			leaseWriter("store.put", "Store put", kernel.No,
+				"Create or replace one JSON document, compare-and-swap",
+				"Writes a JSON object under a collection and id. expected_version 0 creates and is refused if the id exists; otherwise it must be the version read, and a stale one is refused as a conflict rather than overwriting.",
+				"The version written."),
+			destructiveWriter("store.delete", "Store delete",
+				"Delete one document at the version read",
+				"Removes one document if it is still at the version the caller read; a stale version is refused as a conflict.",
+				"Nothing, once deleted."),
+			destructiveWriter("store.transact", "Store transact",
+				"Apply several puts and deletes, all or none",
+				"Applies every step in one transaction, each compare-and-swap. One failing step writes nothing, and the refusal names which step failed.",
+				"Each step's new version, 0 for a delete."),
 
 			// SECTION 16's DIRECTED MESSAGES. The queue is durable and lives
 			// in the estate's bbolt file beside the leases, so send and ack

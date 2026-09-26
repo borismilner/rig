@@ -120,7 +120,10 @@ type Daemon struct {
 	epoch   uint64
 	root    string
 	log     *slog.Logger
-	lock    *instance.Lock
+
+	// stores holds each program's store.* database (store.go).
+	stores *stores
+	lock   *instance.Lock
 
 	// kernel owns the registry. The daemon cannot hold the registry itself:
 	// noregistryhandle fails the build on the type leaving internal/kernel,
@@ -310,7 +313,14 @@ func New(cfg Config) (*Daemon, error) {
 		records = st
 	}
 
+	progStores, err := newStores(cfg.Root, cfg.Estate)
+	if err != nil {
+		_ = closeIfOpen(records)
+		return nil, fmt.Errorf("daemon: placing the program stores: %w", err)
+	}
+
 	return &Daemon{
+		stores:   progStores,
 		version:  cfg.Version,
 		wire:     cfg.Wire,
 		estate:   cfg.Estate,
@@ -334,10 +344,19 @@ func New(cfg Config) (*Daemon, error) {
 // the store until then. The lease store is not closed here: rigd opened it
 // and rigd closes it. Safe to call on a daemon with no store.
 func (d *Daemon) Close() error {
-	if d.records == nil {
+	var errs []error
+	if d.stores != nil {
+		errs = append(errs, d.stores.close())
+	}
+	errs = append(errs, closeIfOpen(d.records))
+	return errors.Join(errs...)
+}
+
+func closeIfOpen(r *record.Store) error {
+	if r == nil {
 		return nil
 	}
-	return d.records.Close()
+	return r.Close()
 }
 
 // track records a live connection, or refuses it because rig is stopping.
@@ -912,6 +931,12 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	// store; queue.go has why the claimer comes off the connection.
 	case "queue.push", "queue.claim", "queue.complete", "queue.list":
 		d.serveQueue(c, f, command)
+
+	// SECTION 48's PROGRAM STORES. store.go has why whose store a call
+	// reaches comes off the connection.
+	case "store.put", "store.get", "store.query", "store.delete",
+		"store.transact", "store.collections":
+		d.serveStore(ctx, c, f, command)
 
 	// SECTION 16's DIRECTED MESSAGES, all five through one arm. The queue is
 	// durable and lives beside the leases; message.go has why the sender, the

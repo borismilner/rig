@@ -2129,3 +2129,136 @@ message HealthRequest {
 message HealthResponse {
   repeated ProgramHealth programs = 1;
 }
+
+// SECTION 48's STORE VERBS (P9): JSON documents a program keeps through rig,
+// keyed by (collection, id), every write compare-and-swap on a version.
+//
+// `program` NAMES WHOSE STORE, and who may set it is the daemon's rule, not
+// the caller's: a registered program always gets its own store and may leave
+// the field empty or repeat its own name, anything else is DENIED; a terminal
+// or an agent names the program it is inspecting (plan/48 D2).
+//
+// A document travels as JSON text in a string, never as bytes, so an agent on
+// the MCP door reads and writes it as JSON rather than as base64.
+
+// StoreDocument is one stored document.
+message StoreDocument {
+  string collection = 1;
+  string id = 2;
+  uint64 version = 3;
+  // When it was last written, Unix nanoseconds.
+  int64 updated_ns = 4;
+  // A JSON object. On a query with `fields`, only those fields.
+  string document = 5;
+}
+
+// StorePutRequest creates or replaces one document. expected_version 0 means
+// create, and is refused if the id exists; otherwise it must be the version
+// the caller read.
+message StorePutRequest {
+  string program = 1;
+  string collection = 2;
+  string id = 3;
+  uint64 expected_version = 4;
+  string document = 5;
+}
+
+message StorePutResponse {
+  uint64 version = 1;
+}
+
+// StoreGetRequest reads many ids at once, answered in the order asked; an id
+// that does not exist is left out rather than refused.
+message StoreGetRequest {
+  string program = 1;
+  string collection = 2;
+  repeated string ids = 3;
+}
+
+message StoreGetResponse {
+  repeated StoreDocument documents = 1;
+}
+
+// StoreCondition is one predicate. field is a dotted path into the document
+// (`meta.owner`); op is eq, ne, lt, le, gt or ge; value is a JSON scalar
+// (`"done"`, `3`, `true`, `null`, and null only with eq or ne).
+message StoreCondition {
+  string field = 1;
+  string op = 2;
+  string value = 3;
+}
+
+message StoreOrder {
+  string field = 1;
+  bool desc = 2;
+}
+
+// StoreQueryRequest asks one collection. Conditions are joined by AND; the
+// answer is ordered by `order` and then by id. limit 0 is the default page.
+message StoreQueryRequest {
+  string program = 1;
+  string collection = 2;
+  repeated StoreCondition where = 3;
+  repeated string fields = 4;
+  repeated StoreOrder order = 5;
+  uint32 limit = 6;
+  uint32 offset = 7;
+  bool count_only = 8;
+}
+
+// StoreQueryResponse carries total, every match, and more when a later page
+// exists: ask again with offset advanced by the documents answered. A page is
+// also cut short to fit one frame, and says so through more.
+message StoreQueryResponse {
+  repeated StoreDocument documents = 1;
+  uint64 total = 2;
+  bool more = 3;
+}
+
+// StoreDeleteRequest removes one document at the version the caller read.
+message StoreDeleteRequest {
+  string program = 1;
+  string collection = 2;
+  string id = 3;
+  uint64 expected_version = 4;
+}
+
+message StoreDeleteResponse {}
+
+// StoreOp is one step of a transaction: a put, or a delete when delete is
+// set, in which case document must be empty.
+message StoreOp {
+  string collection = 1;
+  string id = 2;
+  uint64 expected_version = 3;
+  string document = 4;
+  bool delete = 5;
+}
+
+// StoreTransactRequest applies every step or none.
+message StoreTransactRequest {
+  string program = 1;
+  repeated StoreOp ops = 2;
+}
+
+// StoreTransactResponse answers each step's new version, 0 for a delete.
+message StoreTransactResponse {
+  repeated uint64 versions = 1;
+}
+
+message StoreCollectionsRequest {
+  string program = 1;
+}
+
+message StoreCollection {
+  string name = 1;
+  uint64 documents = 2;
+  uint64 bytes = 3;
+}
+
+// StoreCollectionsResponse names the program whose store answered, so a
+// program that left `program` empty sees which one it is.
+message StoreCollectionsResponse {
+  string program = 1;
+  repeated StoreCollection collections = 2;
+}

@@ -1,7 +1,7 @@
 $ rig help
 exit 0
 --- stdout (0 bytes)
---- stderr (2706 bytes)
+--- stderr (2828 bytes)
 usage: rig <command> [flags]
 
   <app> <cmd>      run a command a program declared, with its declared flags
@@ -18,6 +18,8 @@ usage: rig <command> [flags]
   message <cmd>    directed messages to a seat: send, and list what became
                    of them
   queue <cmd>      claimable work queues: push, list
+  store <cmd>      a program's documents: collections, get, put, delete,
+                   query (--program names whose)
   notify <sev> <title>  a toast at the tray: info, success, warning, error, urgent
   dnd on|off|status  do not disturb: toasts go to the record only, urgent still shows
   record <cmd>     the continuity record: put, get, query, history, link,

@@ -1,0 +1,5 @@
+$ rig store collections
+exit 1
+--- stdout (0 bytes)
+--- stderr (109 bytes)
+rig: rig store needs --program: a terminal has no store of its own, so name the program whose store you mean

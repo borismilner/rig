@@ -246,6 +246,8 @@ func TestTheBinary(t *testing.T) {
 		{name: "worknote-needs-a-subcommand", argv: []string{"worknote"}},
 		{name: "message-needs-a-subcommand", argv: []string{"message"}},
 		{name: "queue-needs-a-subcommand", argv: []string{"queue"}},
+		{name: "store-needs-a-subcommand", argv: []string{"store"}},
+		{name: "store-needs-a-program", argv: []string{"store", "collections"}},
 		{name: "up-refuses-an-unknown-flag", argv: []string{"up", "--bogus"}},
 		{name: "stop-needs-one-program", argv: []string{"stop"}},
 		{name: "restart-needs-one-program", argv: []string{"restart", "a", "b"}},

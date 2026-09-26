@@ -104,6 +104,9 @@ var valuedFlags = map[string]bool{
 	"part-of": true,
 	// rig queue (section 16).
 	"payload": true,
+	// rig store (section 48).
+	"program": true, "where": true, "fields": true,
+	"order": true, "offset": true,
 	// rig message send's pin (section 16).
 	"generation": true, "epoch": true,
 	"depth": true,
@@ -191,6 +194,8 @@ func usage() {
   message <cmd>    directed messages to a seat: send, and list what became
                    of them
   queue <cmd>      claimable work queues: push, list
+  store <cmd>      a program's documents: collections, get, put, delete,
+                   query (--program names whose)
   notify <sev> <title>  a toast at the tray: info, success, warning, error, urgent
   dnd on|off|status  do not disturb: toasts go to the record only, urgent still shows
   record <cmd>     the continuity record: put, get, query, history, link,
@@ -234,6 +239,7 @@ var plainVerbs = map[string]func([]string) error{
 	"worknote":  cmdWorkNote,
 	"message":   cmdMessage,
 	"queue":     cmdQueue,
+	"store":     cmdStore,
 	"notify":    cmdNotify,
 	"dnd":       cmdDND,
 	"up":        cmdUp,
@@ -320,7 +326,7 @@ func run(args []string) error {
 		// It also happens to be the honest shape: `plan/46` specifies one
 		// capability with two halves, and this is its single seam into run.
 		return cmdBackupOrRestore(args[0], with(args[1:], lead))
-	case "peers", "knowledge", "worknote", "message", "queue", "notify", "dnd",
+	case "peers", "knowledge", "worknote", "message", "queue", "store", "notify", "dnd",
 		"up", "stop", "restart", "health":
 		return plainVerbs[args[0]](with(args[1:], lead))
 	case "record":

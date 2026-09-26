@@ -255,6 +255,11 @@ type Op struct {
 // Put writes one document. expected is the version the caller read, or 0 to
 // create. It answers the new version.
 func (s *Store) Put(ctx context.Context, collection, id string, expected uint64, body json.RawMessage) (uint64, error) {
+	// A nil body is a delete to Transact, and a put must never become one:
+	// an empty body is refused as not an object instead.
+	if body == nil {
+		body = json.RawMessage{}
+	}
 	vs, err := s.Transact(ctx, []Op{{Collection: collection, ID: id, Expected: expected, Body: body}})
 	if err != nil {
 		var oe *OpError
@@ -465,6 +470,7 @@ type Query struct {
 	Fields     []string // when set, each answered body carries only these
 	Order      []Order  // then by id, always, so the answer is stable
 	Limit      int      // 0 is DefaultLimit
+	Offset     int      // skips this many matches, to read the page after More
 	CountOnly  bool
 }
 
@@ -495,6 +501,9 @@ func (s *Store) Query(ctx context.Context, q Query) (Result, error) {
 			Rule: fmt.Sprintf("between 1 and %d, or 0 for %d", MaxLimit, DefaultLimit),
 		}
 	}
+	if q.Offset < 0 {
+		return Result{}, &InvalidError{What: "offset", Value: strconv.Itoa(q.Offset), Rule: "zero or more"}
+	}
 	where, args, err := whereClause(q)
 	if err != nil {
 		return Result{}, err
@@ -521,12 +530,12 @@ func (s *Store) Query(ctx context.Context, q Query) (Result, error) {
 		}
 	}
 	args = append(args, orderArgs...)
-	args = append(args, limit)
+	args = append(args, limit, q.Offset)
 	// where and order are joined from constant fragments only: every field
 	// path and value a caller sent is a bound parameter in args.
 	//nolint:gosec // G202: no caller string reaches the SQL text
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT collection, id, version, updated_ns, body FROM docs`+where+order+` LIMIT ?`, args...)
+		`SELECT collection, id, version, updated_ns, body FROM docs`+where+order+` LIMIT ? OFFSET ?`, args...)
 	if err != nil {
 		return Result{}, err
 	}
@@ -546,7 +555,7 @@ func (s *Store) Query(ctx context.Context, q Query) (Result, error) {
 	if err := rows.Err(); err != nil {
 		return Result{}, err
 	}
-	res.More = res.Total > len(res.Docs)
+	res.More = res.Total > q.Offset+len(res.Docs)
 	return res, nil
 }
 

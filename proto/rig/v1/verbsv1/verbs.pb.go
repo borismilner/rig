@@ -8706,6 +8706,1033 @@ func (x *HealthResponse) GetPrograms() []*ProgramHealth {
 	return nil
 }
 
+// StoreDocument is one stored document.
+type StoreDocument struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Collection string                 `protobuf:"bytes,1,opt,name=collection,proto3" json:"collection,omitempty"`
+	Id         string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Version    uint64                 `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
+	// When it was last written, Unix nanoseconds.
+	UpdatedNs int64 `protobuf:"varint,4,opt,name=updated_ns,json=updatedNs,proto3" json:"updated_ns,omitempty"`
+	// A JSON object. On a query with `fields`, only those fields.
+	Document      string `protobuf:"bytes,5,opt,name=document,proto3" json:"document,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StoreDocument) Reset() {
+	*x = StoreDocument{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[117]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoreDocument) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoreDocument) ProtoMessage() {}
+
+func (x *StoreDocument) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[117]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoreDocument.ProtoReflect.Descriptor instead.
+func (*StoreDocument) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{117}
+}
+
+func (x *StoreDocument) GetCollection() string {
+	if x != nil {
+		return x.Collection
+	}
+	return ""
+}
+
+func (x *StoreDocument) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *StoreDocument) GetVersion() uint64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *StoreDocument) GetUpdatedNs() int64 {
+	if x != nil {
+		return x.UpdatedNs
+	}
+	return 0
+}
+
+func (x *StoreDocument) GetDocument() string {
+	if x != nil {
+		return x.Document
+	}
+	return ""
+}
+
+// StorePutRequest creates or replaces one document. expected_version 0 means
+// create, and is refused if the id exists; otherwise it must be the version
+// the caller read.
+type StorePutRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Program         string                 `protobuf:"bytes,1,opt,name=program,proto3" json:"program,omitempty"`
+	Collection      string                 `protobuf:"bytes,2,opt,name=collection,proto3" json:"collection,omitempty"`
+	Id              string                 `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"`
+	ExpectedVersion uint64                 `protobuf:"varint,4,opt,name=expected_version,json=expectedVersion,proto3" json:"expected_version,omitempty"`
+	Document        string                 `protobuf:"bytes,5,opt,name=document,proto3" json:"document,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *StorePutRequest) Reset() {
+	*x = StorePutRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[118]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StorePutRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StorePutRequest) ProtoMessage() {}
+
+func (x *StorePutRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[118]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StorePutRequest.ProtoReflect.Descriptor instead.
+func (*StorePutRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{118}
+}
+
+func (x *StorePutRequest) GetProgram() string {
+	if x != nil {
+		return x.Program
+	}
+	return ""
+}
+
+func (x *StorePutRequest) GetCollection() string {
+	if x != nil {
+		return x.Collection
+	}
+	return ""
+}
+
+func (x *StorePutRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *StorePutRequest) GetExpectedVersion() uint64 {
+	if x != nil {
+		return x.ExpectedVersion
+	}
+	return 0
+}
+
+func (x *StorePutRequest) GetDocument() string {
+	if x != nil {
+		return x.Document
+	}
+	return ""
+}
+
+type StorePutResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Version       uint64                 `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StorePutResponse) Reset() {
+	*x = StorePutResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[119]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StorePutResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StorePutResponse) ProtoMessage() {}
+
+func (x *StorePutResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[119]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StorePutResponse.ProtoReflect.Descriptor instead.
+func (*StorePutResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{119}
+}
+
+func (x *StorePutResponse) GetVersion() uint64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+// StoreGetRequest reads many ids at once, answered in the order asked; an id
+// that does not exist is left out rather than refused.
+type StoreGetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Program       string                 `protobuf:"bytes,1,opt,name=program,proto3" json:"program,omitempty"`
+	Collection    string                 `protobuf:"bytes,2,opt,name=collection,proto3" json:"collection,omitempty"`
+	Ids           []string               `protobuf:"bytes,3,rep,name=ids,proto3" json:"ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StoreGetRequest) Reset() {
+	*x = StoreGetRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[120]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoreGetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoreGetRequest) ProtoMessage() {}
+
+func (x *StoreGetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[120]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoreGetRequest.ProtoReflect.Descriptor instead.
+func (*StoreGetRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{120}
+}
+
+func (x *StoreGetRequest) GetProgram() string {
+	if x != nil {
+		return x.Program
+	}
+	return ""
+}
+
+func (x *StoreGetRequest) GetCollection() string {
+	if x != nil {
+		return x.Collection
+	}
+	return ""
+}
+
+func (x *StoreGetRequest) GetIds() []string {
+	if x != nil {
+		return x.Ids
+	}
+	return nil
+}
+
+type StoreGetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Documents     []*StoreDocument       `protobuf:"bytes,1,rep,name=documents,proto3" json:"documents,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StoreGetResponse) Reset() {
+	*x = StoreGetResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[121]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoreGetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoreGetResponse) ProtoMessage() {}
+
+func (x *StoreGetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[121]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoreGetResponse.ProtoReflect.Descriptor instead.
+func (*StoreGetResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{121}
+}
+
+func (x *StoreGetResponse) GetDocuments() []*StoreDocument {
+	if x != nil {
+		return x.Documents
+	}
+	return nil
+}
+
+// StoreCondition is one predicate. field is a dotted path into the document
+// (`meta.owner`); op is eq, ne, lt, le, gt or ge; value is a JSON scalar
+// (`"done"`, `3`, `true`, `null`, and null only with eq or ne).
+type StoreCondition struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Field         string                 `protobuf:"bytes,1,opt,name=field,proto3" json:"field,omitempty"`
+	Op            string                 `protobuf:"bytes,2,opt,name=op,proto3" json:"op,omitempty"`
+	Value         string                 `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StoreCondition) Reset() {
+	*x = StoreCondition{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[122]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoreCondition) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoreCondition) ProtoMessage() {}
+
+func (x *StoreCondition) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[122]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoreCondition.ProtoReflect.Descriptor instead.
+func (*StoreCondition) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{122}
+}
+
+func (x *StoreCondition) GetField() string {
+	if x != nil {
+		return x.Field
+	}
+	return ""
+}
+
+func (x *StoreCondition) GetOp() string {
+	if x != nil {
+		return x.Op
+	}
+	return ""
+}
+
+func (x *StoreCondition) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+type StoreOrder struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Field         string                 `protobuf:"bytes,1,opt,name=field,proto3" json:"field,omitempty"`
+	Desc          bool                   `protobuf:"varint,2,opt,name=desc,proto3" json:"desc,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StoreOrder) Reset() {
+	*x = StoreOrder{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[123]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoreOrder) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoreOrder) ProtoMessage() {}
+
+func (x *StoreOrder) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[123]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoreOrder.ProtoReflect.Descriptor instead.
+func (*StoreOrder) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{123}
+}
+
+func (x *StoreOrder) GetField() string {
+	if x != nil {
+		return x.Field
+	}
+	return ""
+}
+
+func (x *StoreOrder) GetDesc() bool {
+	if x != nil {
+		return x.Desc
+	}
+	return false
+}
+
+// StoreQueryRequest asks one collection. Conditions are joined by AND; the
+// answer is ordered by `order` and then by id. limit 0 is the default page.
+type StoreQueryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Program       string                 `protobuf:"bytes,1,opt,name=program,proto3" json:"program,omitempty"`
+	Collection    string                 `protobuf:"bytes,2,opt,name=collection,proto3" json:"collection,omitempty"`
+	Where         []*StoreCondition      `protobuf:"bytes,3,rep,name=where,proto3" json:"where,omitempty"`
+	Fields        []string               `protobuf:"bytes,4,rep,name=fields,proto3" json:"fields,omitempty"`
+	Order         []*StoreOrder          `protobuf:"bytes,5,rep,name=order,proto3" json:"order,omitempty"`
+	Limit         uint32                 `protobuf:"varint,6,opt,name=limit,proto3" json:"limit,omitempty"`
+	Offset        uint32                 `protobuf:"varint,7,opt,name=offset,proto3" json:"offset,omitempty"`
+	CountOnly     bool                   `protobuf:"varint,8,opt,name=count_only,json=countOnly,proto3" json:"count_only,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StoreQueryRequest) Reset() {
+	*x = StoreQueryRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[124]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoreQueryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoreQueryRequest) ProtoMessage() {}
+
+func (x *StoreQueryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[124]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoreQueryRequest.ProtoReflect.Descriptor instead.
+func (*StoreQueryRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{124}
+}
+
+func (x *StoreQueryRequest) GetProgram() string {
+	if x != nil {
+		return x.Program
+	}
+	return ""
+}
+
+func (x *StoreQueryRequest) GetCollection() string {
+	if x != nil {
+		return x.Collection
+	}
+	return ""
+}
+
+func (x *StoreQueryRequest) GetWhere() []*StoreCondition {
+	if x != nil {
+		return x.Where
+	}
+	return nil
+}
+
+func (x *StoreQueryRequest) GetFields() []string {
+	if x != nil {
+		return x.Fields
+	}
+	return nil
+}
+
+func (x *StoreQueryRequest) GetOrder() []*StoreOrder {
+	if x != nil {
+		return x.Order
+	}
+	return nil
+}
+
+func (x *StoreQueryRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *StoreQueryRequest) GetOffset() uint32 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
+func (x *StoreQueryRequest) GetCountOnly() bool {
+	if x != nil {
+		return x.CountOnly
+	}
+	return false
+}
+
+// StoreQueryResponse carries total, every match, and more when a later page
+// exists: ask again with offset advanced by the documents answered. A page is
+// also cut short to fit one frame, and says so through more.
+type StoreQueryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Documents     []*StoreDocument       `protobuf:"bytes,1,rep,name=documents,proto3" json:"documents,omitempty"`
+	Total         uint64                 `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	More          bool                   `protobuf:"varint,3,opt,name=more,proto3" json:"more,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StoreQueryResponse) Reset() {
+	*x = StoreQueryResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[125]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoreQueryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoreQueryResponse) ProtoMessage() {}
+
+func (x *StoreQueryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[125]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoreQueryResponse.ProtoReflect.Descriptor instead.
+func (*StoreQueryResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{125}
+}
+
+func (x *StoreQueryResponse) GetDocuments() []*StoreDocument {
+	if x != nil {
+		return x.Documents
+	}
+	return nil
+}
+
+func (x *StoreQueryResponse) GetTotal() uint64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+func (x *StoreQueryResponse) GetMore() bool {
+	if x != nil {
+		return x.More
+	}
+	return false
+}
+
+// StoreDeleteRequest removes one document at the version the caller read.
+type StoreDeleteRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Program         string                 `protobuf:"bytes,1,opt,name=program,proto3" json:"program,omitempty"`
+	Collection      string                 `protobuf:"bytes,2,opt,name=collection,proto3" json:"collection,omitempty"`
+	Id              string                 `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"`
+	ExpectedVersion uint64                 `protobuf:"varint,4,opt,name=expected_version,json=expectedVersion,proto3" json:"expected_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *StoreDeleteRequest) Reset() {
+	*x = StoreDeleteRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[126]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoreDeleteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoreDeleteRequest) ProtoMessage() {}
+
+func (x *StoreDeleteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[126]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoreDeleteRequest.ProtoReflect.Descriptor instead.
+func (*StoreDeleteRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{126}
+}
+
+func (x *StoreDeleteRequest) GetProgram() string {
+	if x != nil {
+		return x.Program
+	}
+	return ""
+}
+
+func (x *StoreDeleteRequest) GetCollection() string {
+	if x != nil {
+		return x.Collection
+	}
+	return ""
+}
+
+func (x *StoreDeleteRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *StoreDeleteRequest) GetExpectedVersion() uint64 {
+	if x != nil {
+		return x.ExpectedVersion
+	}
+	return 0
+}
+
+type StoreDeleteResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StoreDeleteResponse) Reset() {
+	*x = StoreDeleteResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[127]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoreDeleteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoreDeleteResponse) ProtoMessage() {}
+
+func (x *StoreDeleteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[127]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoreDeleteResponse.ProtoReflect.Descriptor instead.
+func (*StoreDeleteResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{127}
+}
+
+// StoreOp is one step of a transaction: a put, or a delete when delete is
+// set, in which case document must be empty.
+type StoreOp struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Collection      string                 `protobuf:"bytes,1,opt,name=collection,proto3" json:"collection,omitempty"`
+	Id              string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	ExpectedVersion uint64                 `protobuf:"varint,3,opt,name=expected_version,json=expectedVersion,proto3" json:"expected_version,omitempty"`
+	Document        string                 `protobuf:"bytes,4,opt,name=document,proto3" json:"document,omitempty"`
+	Delete          bool                   `protobuf:"varint,5,opt,name=delete,proto3" json:"delete,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *StoreOp) Reset() {
+	*x = StoreOp{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[128]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoreOp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoreOp) ProtoMessage() {}
+
+func (x *StoreOp) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[128]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoreOp.ProtoReflect.Descriptor instead.
+func (*StoreOp) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{128}
+}
+
+func (x *StoreOp) GetCollection() string {
+	if x != nil {
+		return x.Collection
+	}
+	return ""
+}
+
+func (x *StoreOp) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *StoreOp) GetExpectedVersion() uint64 {
+	if x != nil {
+		return x.ExpectedVersion
+	}
+	return 0
+}
+
+func (x *StoreOp) GetDocument() string {
+	if x != nil {
+		return x.Document
+	}
+	return ""
+}
+
+func (x *StoreOp) GetDelete() bool {
+	if x != nil {
+		return x.Delete
+	}
+	return false
+}
+
+// StoreTransactRequest applies every step or none.
+type StoreTransactRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Program       string                 `protobuf:"bytes,1,opt,name=program,proto3" json:"program,omitempty"`
+	Ops           []*StoreOp             `protobuf:"bytes,2,rep,name=ops,proto3" json:"ops,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StoreTransactRequest) Reset() {
+	*x = StoreTransactRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[129]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoreTransactRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoreTransactRequest) ProtoMessage() {}
+
+func (x *StoreTransactRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[129]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoreTransactRequest.ProtoReflect.Descriptor instead.
+func (*StoreTransactRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{129}
+}
+
+func (x *StoreTransactRequest) GetProgram() string {
+	if x != nil {
+		return x.Program
+	}
+	return ""
+}
+
+func (x *StoreTransactRequest) GetOps() []*StoreOp {
+	if x != nil {
+		return x.Ops
+	}
+	return nil
+}
+
+// StoreTransactResponse answers each step's new version, 0 for a delete.
+type StoreTransactResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Versions      []uint64               `protobuf:"varint,1,rep,packed,name=versions,proto3" json:"versions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StoreTransactResponse) Reset() {
+	*x = StoreTransactResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[130]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoreTransactResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoreTransactResponse) ProtoMessage() {}
+
+func (x *StoreTransactResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[130]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoreTransactResponse.ProtoReflect.Descriptor instead.
+func (*StoreTransactResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{130}
+}
+
+func (x *StoreTransactResponse) GetVersions() []uint64 {
+	if x != nil {
+		return x.Versions
+	}
+	return nil
+}
+
+type StoreCollectionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Program       string                 `protobuf:"bytes,1,opt,name=program,proto3" json:"program,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StoreCollectionsRequest) Reset() {
+	*x = StoreCollectionsRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[131]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoreCollectionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoreCollectionsRequest) ProtoMessage() {}
+
+func (x *StoreCollectionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[131]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoreCollectionsRequest.ProtoReflect.Descriptor instead.
+func (*StoreCollectionsRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{131}
+}
+
+func (x *StoreCollectionsRequest) GetProgram() string {
+	if x != nil {
+		return x.Program
+	}
+	return ""
+}
+
+type StoreCollection struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Documents     uint64                 `protobuf:"varint,2,opt,name=documents,proto3" json:"documents,omitempty"`
+	Bytes         uint64                 `protobuf:"varint,3,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StoreCollection) Reset() {
+	*x = StoreCollection{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[132]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoreCollection) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoreCollection) ProtoMessage() {}
+
+func (x *StoreCollection) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[132]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoreCollection.ProtoReflect.Descriptor instead.
+func (*StoreCollection) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{132}
+}
+
+func (x *StoreCollection) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *StoreCollection) GetDocuments() uint64 {
+	if x != nil {
+		return x.Documents
+	}
+	return 0
+}
+
+func (x *StoreCollection) GetBytes() uint64 {
+	if x != nil {
+		return x.Bytes
+	}
+	return 0
+}
+
+// StoreCollectionsResponse names the program whose store answered, so a
+// program that left `program` empty sees which one it is.
+type StoreCollectionsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Program       string                 `protobuf:"bytes,1,opt,name=program,proto3" json:"program,omitempty"`
+	Collections   []*StoreCollection     `protobuf:"bytes,2,rep,name=collections,proto3" json:"collections,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StoreCollectionsResponse) Reset() {
+	*x = StoreCollectionsResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[133]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoreCollectionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoreCollectionsResponse) ProtoMessage() {}
+
+func (x *StoreCollectionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[133]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoreCollectionsResponse.ProtoReflect.Descriptor instead.
+func (*StoreCollectionsResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{133}
+}
+
+func (x *StoreCollectionsResponse) GetProgram() string {
+	if x != nil {
+		return x.Program
+	}
+	return ""
+}
+
+func (x *StoreCollectionsResponse) GetCollections() []*StoreCollection {
+	if x != nil {
+		return x.Collections
+	}
+	return nil
+}
+
 var File_proto_rig_v1_verbs_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_verbs_proto_rawDesc = "" +
@@ -9244,7 +10271,88 @@ const file_proto_rig_v1_verbs_proto_rawDesc = "" +
 	"\rHealthRequest\x12\x1a\n" +
 	"\bprograms\x18\x01 \x03(\tR\bprograms\"C\n" +
 	"\x0eHealthResponse\x121\n" +
-	"\bprograms\x18\x01 \x03(\v2\x15.rig.v1.ProgramHealthR\bprograms*Z\n" +
+	"\bprograms\x18\x01 \x03(\v2\x15.rig.v1.ProgramHealthR\bprograms\"\x94\x01\n" +
+	"\rStoreDocument\x12\x1e\n" +
+	"\n" +
+	"collection\x18\x01 \x01(\tR\n" +
+	"collection\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\x04R\aversion\x12\x1d\n" +
+	"\n" +
+	"updated_ns\x18\x04 \x01(\x03R\tupdatedNs\x12\x1a\n" +
+	"\bdocument\x18\x05 \x01(\tR\bdocument\"\xa2\x01\n" +
+	"\x0fStorePutRequest\x12\x18\n" +
+	"\aprogram\x18\x01 \x01(\tR\aprogram\x12\x1e\n" +
+	"\n" +
+	"collection\x18\x02 \x01(\tR\n" +
+	"collection\x12\x0e\n" +
+	"\x02id\x18\x03 \x01(\tR\x02id\x12)\n" +
+	"\x10expected_version\x18\x04 \x01(\x04R\x0fexpectedVersion\x12\x1a\n" +
+	"\bdocument\x18\x05 \x01(\tR\bdocument\",\n" +
+	"\x10StorePutResponse\x12\x18\n" +
+	"\aversion\x18\x01 \x01(\x04R\aversion\"]\n" +
+	"\x0fStoreGetRequest\x12\x18\n" +
+	"\aprogram\x18\x01 \x01(\tR\aprogram\x12\x1e\n" +
+	"\n" +
+	"collection\x18\x02 \x01(\tR\n" +
+	"collection\x12\x10\n" +
+	"\x03ids\x18\x03 \x03(\tR\x03ids\"G\n" +
+	"\x10StoreGetResponse\x123\n" +
+	"\tdocuments\x18\x01 \x03(\v2\x15.rig.v1.StoreDocumentR\tdocuments\"L\n" +
+	"\x0eStoreCondition\x12\x14\n" +
+	"\x05field\x18\x01 \x01(\tR\x05field\x12\x0e\n" +
+	"\x02op\x18\x02 \x01(\tR\x02op\x12\x14\n" +
+	"\x05value\x18\x03 \x01(\tR\x05value\"6\n" +
+	"\n" +
+	"StoreOrder\x12\x14\n" +
+	"\x05field\x18\x01 \x01(\tR\x05field\x12\x12\n" +
+	"\x04desc\x18\x02 \x01(\bR\x04desc\"\x8a\x02\n" +
+	"\x11StoreQueryRequest\x12\x18\n" +
+	"\aprogram\x18\x01 \x01(\tR\aprogram\x12\x1e\n" +
+	"\n" +
+	"collection\x18\x02 \x01(\tR\n" +
+	"collection\x12,\n" +
+	"\x05where\x18\x03 \x03(\v2\x16.rig.v1.StoreConditionR\x05where\x12\x16\n" +
+	"\x06fields\x18\x04 \x03(\tR\x06fields\x12(\n" +
+	"\x05order\x18\x05 \x03(\v2\x12.rig.v1.StoreOrderR\x05order\x12\x14\n" +
+	"\x05limit\x18\x06 \x01(\rR\x05limit\x12\x16\n" +
+	"\x06offset\x18\a \x01(\rR\x06offset\x12\x1d\n" +
+	"\n" +
+	"count_only\x18\b \x01(\bR\tcountOnly\"s\n" +
+	"\x12StoreQueryResponse\x123\n" +
+	"\tdocuments\x18\x01 \x03(\v2\x15.rig.v1.StoreDocumentR\tdocuments\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\x04R\x05total\x12\x12\n" +
+	"\x04more\x18\x03 \x01(\bR\x04more\"\x89\x01\n" +
+	"\x12StoreDeleteRequest\x12\x18\n" +
+	"\aprogram\x18\x01 \x01(\tR\aprogram\x12\x1e\n" +
+	"\n" +
+	"collection\x18\x02 \x01(\tR\n" +
+	"collection\x12\x0e\n" +
+	"\x02id\x18\x03 \x01(\tR\x02id\x12)\n" +
+	"\x10expected_version\x18\x04 \x01(\x04R\x0fexpectedVersion\"\x15\n" +
+	"\x13StoreDeleteResponse\"\x98\x01\n" +
+	"\aStoreOp\x12\x1e\n" +
+	"\n" +
+	"collection\x18\x01 \x01(\tR\n" +
+	"collection\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\x12)\n" +
+	"\x10expected_version\x18\x03 \x01(\x04R\x0fexpectedVersion\x12\x1a\n" +
+	"\bdocument\x18\x04 \x01(\tR\bdocument\x12\x16\n" +
+	"\x06delete\x18\x05 \x01(\bR\x06delete\"S\n" +
+	"\x14StoreTransactRequest\x12\x18\n" +
+	"\aprogram\x18\x01 \x01(\tR\aprogram\x12!\n" +
+	"\x03ops\x18\x02 \x03(\v2\x0f.rig.v1.StoreOpR\x03ops\"3\n" +
+	"\x15StoreTransactResponse\x12\x1a\n" +
+	"\bversions\x18\x01 \x03(\x04R\bversions\"3\n" +
+	"\x17StoreCollectionsRequest\x12\x18\n" +
+	"\aprogram\x18\x01 \x01(\tR\aprogram\"Y\n" +
+	"\x0fStoreCollection\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1c\n" +
+	"\tdocuments\x18\x02 \x01(\x04R\tdocuments\x12\x14\n" +
+	"\x05bytes\x18\x03 \x01(\x04R\x05bytes\"o\n" +
+	"\x18StoreCollectionsResponse\x12\x18\n" +
+	"\aprogram\x18\x01 \x01(\tR\aprogram\x129\n" +
+	"\vcollections\x18\x02 \x03(\v2\x17.rig.v1.StoreCollectionR\vcollections*Z\n" +
 	"\tSeatState\x12\x1a\n" +
 	"\x16SEAT_STATE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11SEAT_STATE_ACTIVE\x10\x01\x12\x1a\n" +
@@ -9324,140 +10432,157 @@ func file_proto_rig_v1_verbs_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_verbs_proto_enumTypes = make([]protoimpl.EnumInfo, 10)
-var file_proto_rig_v1_verbs_proto_msgTypes = make([]protoimpl.MessageInfo, 121)
+var file_proto_rig_v1_verbs_proto_msgTypes = make([]protoimpl.MessageInfo, 138)
 var file_proto_rig_v1_verbs_proto_goTypes = []any{
-	(SeatState)(0),                  // 0: rig.v1.SeatState
-	(LeaseState)(0),                 // 1: rig.v1.LeaseState
-	(Liveness)(0),                   // 2: rig.v1.Liveness
-	(StepState)(0),                  // 3: rig.v1.StepState
-	(BriefView)(0),                  // 4: rig.v1.BriefView
-	(BriefSection)(0),               // 5: rig.v1.BriefSection
-	(SectionState)(0),               // 6: rig.v1.SectionState
-	(TaskState)(0),                  // 7: rig.v1.TaskState
-	(MessageState)(0),               // 8: rig.v1.MessageState
-	(ProgramState)(0),               // 9: rig.v1.ProgramState
-	(*DescribeRequest)(nil),         // 10: rig.v1.DescribeRequest
-	(*DescribeResponse)(nil),        // 11: rig.v1.DescribeResponse
-	(*DownRequest)(nil),             // 12: rig.v1.DownRequest
-	(*DownResponse)(nil),            // 13: rig.v1.DownResponse
-	(*SessionRequest)(nil),          // 14: rig.v1.SessionRequest
-	(*SessionResponse)(nil),         // 15: rig.v1.SessionResponse
-	(*Seat)(nil),                    // 16: rig.v1.Seat
-	(*AnnounceRequest)(nil),         // 17: rig.v1.AnnounceRequest
-	(*AnnounceResponse)(nil),        // 18: rig.v1.AnnounceResponse
-	(*ActivityRequest)(nil),         // 19: rig.v1.ActivityRequest
-	(*ActivityResponse)(nil),        // 20: rig.v1.ActivityResponse
-	(*PeersRequest)(nil),            // 21: rig.v1.PeersRequest
-	(*PeersResponse)(nil),           // 22: rig.v1.PeersResponse
-	(*Lease)(nil),                   // 23: rig.v1.Lease
-	(*LeaseHandle)(nil),             // 24: rig.v1.LeaseHandle
-	(*LeaseAcquireRequest)(nil),     // 25: rig.v1.LeaseAcquireRequest
-	(*LeaseAcquireResponse)(nil),    // 26: rig.v1.LeaseAcquireResponse
-	(*LeaseRenewRequest)(nil),       // 27: rig.v1.LeaseRenewRequest
-	(*LeaseRenewResponse)(nil),      // 28: rig.v1.LeaseRenewResponse
-	(*LeaseReleaseRequest)(nil),     // 29: rig.v1.LeaseReleaseRequest
-	(*LeaseReleaseResponse)(nil),    // 30: rig.v1.LeaseReleaseResponse
-	(*LeaseBreakRequest)(nil),       // 31: rig.v1.LeaseBreakRequest
-	(*LeaseBreakResponse)(nil),      // 32: rig.v1.LeaseBreakResponse
-	(*LeaseListRequest)(nil),        // 33: rig.v1.LeaseListRequest
-	(*LeaseListResponse)(nil),       // 34: rig.v1.LeaseListResponse
-	(*Provenance)(nil),              // 35: rig.v1.Provenance
-	(*Record)(nil),                  // 36: rig.v1.Record
-	(*Retraction)(nil),              // 37: rig.v1.Retraction
-	(*RecordPutRequest)(nil),        // 38: rig.v1.RecordPutRequest
-	(*RecordPutResponse)(nil),       // 39: rig.v1.RecordPutResponse
-	(*RecordGetRequest)(nil),        // 40: rig.v1.RecordGetRequest
-	(*RecordGetResponse)(nil),       // 41: rig.v1.RecordGetResponse
-	(*RecordQueryRequest)(nil),      // 42: rig.v1.RecordQueryRequest
-	(*RecordQueryResponse)(nil),     // 43: rig.v1.RecordQueryResponse
-	(*RecordHistoryRequest)(nil),    // 44: rig.v1.RecordHistoryRequest
-	(*RecordHistoryResponse)(nil),   // 45: rig.v1.RecordHistoryResponse
-	(*RecordLinkRequest)(nil),       // 46: rig.v1.RecordLinkRequest
-	(*RecordLinkResponse)(nil),      // 47: rig.v1.RecordLinkResponse
-	(*RecordUnlinkRequest)(nil),     // 48: rig.v1.RecordUnlinkRequest
-	(*RecordUnlinkResponse)(nil),    // 49: rig.v1.RecordUnlinkResponse
-	(*RecordRefsRequest)(nil),       // 50: rig.v1.RecordRefsRequest
-	(*Ref)(nil),                     // 51: rig.v1.Ref
-	(*RecordRetractRequest)(nil),    // 52: rig.v1.RecordRetractRequest
-	(*RecordRetractResponse)(nil),   // 53: rig.v1.RecordRetractResponse
-	(*Edge)(nil),                    // 54: rig.v1.Edge
-	(*RecordDeleteRequest)(nil),     // 55: rig.v1.RecordDeleteRequest
-	(*RecordDeleteResponse)(nil),    // 56: rig.v1.RecordDeleteResponse
-	(*RecordReplaceRequest)(nil),    // 57: rig.v1.RecordReplaceRequest
-	(*RecordReplaceResponse)(nil),   // 58: rig.v1.RecordReplaceResponse
-	(*RecordRefsResponse)(nil),      // 59: rig.v1.RecordRefsResponse
-	(*Cycle)(nil),                   // 60: rig.v1.Cycle
-	(*ProgressStepRequest)(nil),     // 61: rig.v1.ProgressStepRequest
-	(*ProgressStepResponse)(nil),    // 62: rig.v1.ProgressStepResponse
-	(*ItemState)(nil),               // 63: rig.v1.ItemState
-	(*Blocker)(nil),                 // 64: rig.v1.Blocker
-	(*Blockage)(nil),                // 65: rig.v1.Blockage
-	(*ProjectBriefRequest)(nil),     // 66: rig.v1.ProjectBriefRequest
-	(*BriefSectionStatus)(nil),      // 67: rig.v1.BriefSectionStatus
-	(*BriefNote)(nil),               // 68: rig.v1.BriefNote
-	(*Drift)(nil),                   // 69: rig.v1.Drift
-	(*Feature)(nil),                 // 70: rig.v1.Feature
-	(*StageCount)(nil),              // 71: rig.v1.StageCount
-	(*BriefHealth)(nil),             // 72: rig.v1.BriefHealth
-	(*GoverningRecord)(nil),         // 73: rig.v1.GoverningRecord
-	(*KindCount)(nil),               // 74: rig.v1.KindCount
-	(*ClosedItem)(nil),              // 75: rig.v1.ClosedItem
-	(*WordCount)(nil),               // 76: rig.v1.WordCount
-	(*ProjectBriefResponse)(nil),    // 77: rig.v1.ProjectBriefResponse
-	(*BackupCreateRequest)(nil),     // 78: rig.v1.BackupCreateRequest
-	(*BackupCreateResponse)(nil),    // 79: rig.v1.BackupCreateResponse
-	(*Lesson)(nil),                  // 80: rig.v1.Lesson
-	(*LessonHit)(nil),               // 81: rig.v1.LessonHit
-	(*KnowledgeAddRequest)(nil),     // 82: rig.v1.KnowledgeAddRequest
-	(*KnowledgeAddResponse)(nil),    // 83: rig.v1.KnowledgeAddResponse
-	(*KnowledgeSearchRequest)(nil),  // 84: rig.v1.KnowledgeSearchRequest
-	(*KnowledgeSearchResponse)(nil), // 85: rig.v1.KnowledgeSearchResponse
-	(*KnowledgeGetRequest)(nil),     // 86: rig.v1.KnowledgeGetRequest
-	(*KnowledgeGetResponse)(nil),    // 87: rig.v1.KnowledgeGetResponse
-	(*Task)(nil),                    // 88: rig.v1.Task
-	(*QueuePushRequest)(nil),        // 89: rig.v1.QueuePushRequest
-	(*QueuePushResponse)(nil),       // 90: rig.v1.QueuePushResponse
-	(*QueueClaimRequest)(nil),       // 91: rig.v1.QueueClaimRequest
-	(*QueueClaimResponse)(nil),      // 92: rig.v1.QueueClaimResponse
-	(*QueueCompleteRequest)(nil),    // 93: rig.v1.QueueCompleteRequest
-	(*QueueCompleteResponse)(nil),   // 94: rig.v1.QueueCompleteResponse
-	(*QueueListRequest)(nil),        // 95: rig.v1.QueueListRequest
-	(*QueueListResponse)(nil),       // 96: rig.v1.QueueListResponse
-	(*LeaseCheckRequest)(nil),       // 97: rig.v1.LeaseCheckRequest
-	(*LeaseCheckResponse)(nil),      // 98: rig.v1.LeaseCheckResponse
-	(*WorkNote)(nil),                // 99: rig.v1.WorkNote
-	(*WorkNoteWriteRequest)(nil),    // 100: rig.v1.WorkNoteWriteRequest
-	(*WorkNoteWriteResponse)(nil),   // 101: rig.v1.WorkNoteWriteResponse
-	(*WorkNoteMineRequest)(nil),     // 102: rig.v1.WorkNoteMineRequest
-	(*WorkNoteMineResponse)(nil),    // 103: rig.v1.WorkNoteMineResponse
-	(*WorkNoteAboutRequest)(nil),    // 104: rig.v1.WorkNoteAboutRequest
-	(*WorkNoteAboutResponse)(nil),   // 105: rig.v1.WorkNoteAboutResponse
-	(*Message)(nil),                 // 106: rig.v1.Message
-	(*MessageSendRequest)(nil),      // 107: rig.v1.MessageSendRequest
-	(*MessageSendResponse)(nil),     // 108: rig.v1.MessageSendResponse
-	(*MessageInboxRequest)(nil),     // 109: rig.v1.MessageInboxRequest
-	(*MessageInboxResponse)(nil),    // 110: rig.v1.MessageInboxResponse
-	(*MessageAwaitRequest)(nil),     // 111: rig.v1.MessageAwaitRequest
-	(*MessageAwaitResponse)(nil),    // 112: rig.v1.MessageAwaitResponse
-	(*MessageAckRequest)(nil),       // 113: rig.v1.MessageAckRequest
-	(*MessageAckResponse)(nil),      // 114: rig.v1.MessageAckResponse
-	(*MessageListRequest)(nil),      // 115: rig.v1.MessageListRequest
-	(*MessageListResponse)(nil),     // 116: rig.v1.MessageListResponse
-	(*ProgramEvent)(nil),            // 117: rig.v1.ProgramEvent
-	(*ProgramHealth)(nil),           // 118: rig.v1.ProgramHealth
-	(*UpRequest)(nil),               // 119: rig.v1.UpRequest
-	(*UpResponse)(nil),              // 120: rig.v1.UpResponse
-	(*StopRequest)(nil),             // 121: rig.v1.StopRequest
-	(*StopResponse)(nil),            // 122: rig.v1.StopResponse
-	(*RestartRequest)(nil),          // 123: rig.v1.RestartRequest
-	(*RestartResponse)(nil),         // 124: rig.v1.RestartResponse
-	(*HealthRequest)(nil),           // 125: rig.v1.HealthRequest
-	(*HealthResponse)(nil),          // 126: rig.v1.HealthResponse
-	nil,                             // 127: rig.v1.Record.FieldsEntry
-	nil,                             // 128: rig.v1.RecordPutRequest.FieldsEntry
-	nil,                             // 129: rig.v1.WorkNote.FieldsEntry
-	nil,                             // 130: rig.v1.WorkNoteWriteRequest.FieldsEntry
-	(v1.Tristate)(0),                // 131: rig.v1.Tristate
+	(SeatState)(0),                   // 0: rig.v1.SeatState
+	(LeaseState)(0),                  // 1: rig.v1.LeaseState
+	(Liveness)(0),                    // 2: rig.v1.Liveness
+	(StepState)(0),                   // 3: rig.v1.StepState
+	(BriefView)(0),                   // 4: rig.v1.BriefView
+	(BriefSection)(0),                // 5: rig.v1.BriefSection
+	(SectionState)(0),                // 6: rig.v1.SectionState
+	(TaskState)(0),                   // 7: rig.v1.TaskState
+	(MessageState)(0),                // 8: rig.v1.MessageState
+	(ProgramState)(0),                // 9: rig.v1.ProgramState
+	(*DescribeRequest)(nil),          // 10: rig.v1.DescribeRequest
+	(*DescribeResponse)(nil),         // 11: rig.v1.DescribeResponse
+	(*DownRequest)(nil),              // 12: rig.v1.DownRequest
+	(*DownResponse)(nil),             // 13: rig.v1.DownResponse
+	(*SessionRequest)(nil),           // 14: rig.v1.SessionRequest
+	(*SessionResponse)(nil),          // 15: rig.v1.SessionResponse
+	(*Seat)(nil),                     // 16: rig.v1.Seat
+	(*AnnounceRequest)(nil),          // 17: rig.v1.AnnounceRequest
+	(*AnnounceResponse)(nil),         // 18: rig.v1.AnnounceResponse
+	(*ActivityRequest)(nil),          // 19: rig.v1.ActivityRequest
+	(*ActivityResponse)(nil),         // 20: rig.v1.ActivityResponse
+	(*PeersRequest)(nil),             // 21: rig.v1.PeersRequest
+	(*PeersResponse)(nil),            // 22: rig.v1.PeersResponse
+	(*Lease)(nil),                    // 23: rig.v1.Lease
+	(*LeaseHandle)(nil),              // 24: rig.v1.LeaseHandle
+	(*LeaseAcquireRequest)(nil),      // 25: rig.v1.LeaseAcquireRequest
+	(*LeaseAcquireResponse)(nil),     // 26: rig.v1.LeaseAcquireResponse
+	(*LeaseRenewRequest)(nil),        // 27: rig.v1.LeaseRenewRequest
+	(*LeaseRenewResponse)(nil),       // 28: rig.v1.LeaseRenewResponse
+	(*LeaseReleaseRequest)(nil),      // 29: rig.v1.LeaseReleaseRequest
+	(*LeaseReleaseResponse)(nil),     // 30: rig.v1.LeaseReleaseResponse
+	(*LeaseBreakRequest)(nil),        // 31: rig.v1.LeaseBreakRequest
+	(*LeaseBreakResponse)(nil),       // 32: rig.v1.LeaseBreakResponse
+	(*LeaseListRequest)(nil),         // 33: rig.v1.LeaseListRequest
+	(*LeaseListResponse)(nil),        // 34: rig.v1.LeaseListResponse
+	(*Provenance)(nil),               // 35: rig.v1.Provenance
+	(*Record)(nil),                   // 36: rig.v1.Record
+	(*Retraction)(nil),               // 37: rig.v1.Retraction
+	(*RecordPutRequest)(nil),         // 38: rig.v1.RecordPutRequest
+	(*RecordPutResponse)(nil),        // 39: rig.v1.RecordPutResponse
+	(*RecordGetRequest)(nil),         // 40: rig.v1.RecordGetRequest
+	(*RecordGetResponse)(nil),        // 41: rig.v1.RecordGetResponse
+	(*RecordQueryRequest)(nil),       // 42: rig.v1.RecordQueryRequest
+	(*RecordQueryResponse)(nil),      // 43: rig.v1.RecordQueryResponse
+	(*RecordHistoryRequest)(nil),     // 44: rig.v1.RecordHistoryRequest
+	(*RecordHistoryResponse)(nil),    // 45: rig.v1.RecordHistoryResponse
+	(*RecordLinkRequest)(nil),        // 46: rig.v1.RecordLinkRequest
+	(*RecordLinkResponse)(nil),       // 47: rig.v1.RecordLinkResponse
+	(*RecordUnlinkRequest)(nil),      // 48: rig.v1.RecordUnlinkRequest
+	(*RecordUnlinkResponse)(nil),     // 49: rig.v1.RecordUnlinkResponse
+	(*RecordRefsRequest)(nil),        // 50: rig.v1.RecordRefsRequest
+	(*Ref)(nil),                      // 51: rig.v1.Ref
+	(*RecordRetractRequest)(nil),     // 52: rig.v1.RecordRetractRequest
+	(*RecordRetractResponse)(nil),    // 53: rig.v1.RecordRetractResponse
+	(*Edge)(nil),                     // 54: rig.v1.Edge
+	(*RecordDeleteRequest)(nil),      // 55: rig.v1.RecordDeleteRequest
+	(*RecordDeleteResponse)(nil),     // 56: rig.v1.RecordDeleteResponse
+	(*RecordReplaceRequest)(nil),     // 57: rig.v1.RecordReplaceRequest
+	(*RecordReplaceResponse)(nil),    // 58: rig.v1.RecordReplaceResponse
+	(*RecordRefsResponse)(nil),       // 59: rig.v1.RecordRefsResponse
+	(*Cycle)(nil),                    // 60: rig.v1.Cycle
+	(*ProgressStepRequest)(nil),      // 61: rig.v1.ProgressStepRequest
+	(*ProgressStepResponse)(nil),     // 62: rig.v1.ProgressStepResponse
+	(*ItemState)(nil),                // 63: rig.v1.ItemState
+	(*Blocker)(nil),                  // 64: rig.v1.Blocker
+	(*Blockage)(nil),                 // 65: rig.v1.Blockage
+	(*ProjectBriefRequest)(nil),      // 66: rig.v1.ProjectBriefRequest
+	(*BriefSectionStatus)(nil),       // 67: rig.v1.BriefSectionStatus
+	(*BriefNote)(nil),                // 68: rig.v1.BriefNote
+	(*Drift)(nil),                    // 69: rig.v1.Drift
+	(*Feature)(nil),                  // 70: rig.v1.Feature
+	(*StageCount)(nil),               // 71: rig.v1.StageCount
+	(*BriefHealth)(nil),              // 72: rig.v1.BriefHealth
+	(*GoverningRecord)(nil),          // 73: rig.v1.GoverningRecord
+	(*KindCount)(nil),                // 74: rig.v1.KindCount
+	(*ClosedItem)(nil),               // 75: rig.v1.ClosedItem
+	(*WordCount)(nil),                // 76: rig.v1.WordCount
+	(*ProjectBriefResponse)(nil),     // 77: rig.v1.ProjectBriefResponse
+	(*BackupCreateRequest)(nil),      // 78: rig.v1.BackupCreateRequest
+	(*BackupCreateResponse)(nil),     // 79: rig.v1.BackupCreateResponse
+	(*Lesson)(nil),                   // 80: rig.v1.Lesson
+	(*LessonHit)(nil),                // 81: rig.v1.LessonHit
+	(*KnowledgeAddRequest)(nil),      // 82: rig.v1.KnowledgeAddRequest
+	(*KnowledgeAddResponse)(nil),     // 83: rig.v1.KnowledgeAddResponse
+	(*KnowledgeSearchRequest)(nil),   // 84: rig.v1.KnowledgeSearchRequest
+	(*KnowledgeSearchResponse)(nil),  // 85: rig.v1.KnowledgeSearchResponse
+	(*KnowledgeGetRequest)(nil),      // 86: rig.v1.KnowledgeGetRequest
+	(*KnowledgeGetResponse)(nil),     // 87: rig.v1.KnowledgeGetResponse
+	(*Task)(nil),                     // 88: rig.v1.Task
+	(*QueuePushRequest)(nil),         // 89: rig.v1.QueuePushRequest
+	(*QueuePushResponse)(nil),        // 90: rig.v1.QueuePushResponse
+	(*QueueClaimRequest)(nil),        // 91: rig.v1.QueueClaimRequest
+	(*QueueClaimResponse)(nil),       // 92: rig.v1.QueueClaimResponse
+	(*QueueCompleteRequest)(nil),     // 93: rig.v1.QueueCompleteRequest
+	(*QueueCompleteResponse)(nil),    // 94: rig.v1.QueueCompleteResponse
+	(*QueueListRequest)(nil),         // 95: rig.v1.QueueListRequest
+	(*QueueListResponse)(nil),        // 96: rig.v1.QueueListResponse
+	(*LeaseCheckRequest)(nil),        // 97: rig.v1.LeaseCheckRequest
+	(*LeaseCheckResponse)(nil),       // 98: rig.v1.LeaseCheckResponse
+	(*WorkNote)(nil),                 // 99: rig.v1.WorkNote
+	(*WorkNoteWriteRequest)(nil),     // 100: rig.v1.WorkNoteWriteRequest
+	(*WorkNoteWriteResponse)(nil),    // 101: rig.v1.WorkNoteWriteResponse
+	(*WorkNoteMineRequest)(nil),      // 102: rig.v1.WorkNoteMineRequest
+	(*WorkNoteMineResponse)(nil),     // 103: rig.v1.WorkNoteMineResponse
+	(*WorkNoteAboutRequest)(nil),     // 104: rig.v1.WorkNoteAboutRequest
+	(*WorkNoteAboutResponse)(nil),    // 105: rig.v1.WorkNoteAboutResponse
+	(*Message)(nil),                  // 106: rig.v1.Message
+	(*MessageSendRequest)(nil),       // 107: rig.v1.MessageSendRequest
+	(*MessageSendResponse)(nil),      // 108: rig.v1.MessageSendResponse
+	(*MessageInboxRequest)(nil),      // 109: rig.v1.MessageInboxRequest
+	(*MessageInboxResponse)(nil),     // 110: rig.v1.MessageInboxResponse
+	(*MessageAwaitRequest)(nil),      // 111: rig.v1.MessageAwaitRequest
+	(*MessageAwaitResponse)(nil),     // 112: rig.v1.MessageAwaitResponse
+	(*MessageAckRequest)(nil),        // 113: rig.v1.MessageAckRequest
+	(*MessageAckResponse)(nil),       // 114: rig.v1.MessageAckResponse
+	(*MessageListRequest)(nil),       // 115: rig.v1.MessageListRequest
+	(*MessageListResponse)(nil),      // 116: rig.v1.MessageListResponse
+	(*ProgramEvent)(nil),             // 117: rig.v1.ProgramEvent
+	(*ProgramHealth)(nil),            // 118: rig.v1.ProgramHealth
+	(*UpRequest)(nil),                // 119: rig.v1.UpRequest
+	(*UpResponse)(nil),               // 120: rig.v1.UpResponse
+	(*StopRequest)(nil),              // 121: rig.v1.StopRequest
+	(*StopResponse)(nil),             // 122: rig.v1.StopResponse
+	(*RestartRequest)(nil),           // 123: rig.v1.RestartRequest
+	(*RestartResponse)(nil),          // 124: rig.v1.RestartResponse
+	(*HealthRequest)(nil),            // 125: rig.v1.HealthRequest
+	(*HealthResponse)(nil),           // 126: rig.v1.HealthResponse
+	(*StoreDocument)(nil),            // 127: rig.v1.StoreDocument
+	(*StorePutRequest)(nil),          // 128: rig.v1.StorePutRequest
+	(*StorePutResponse)(nil),         // 129: rig.v1.StorePutResponse
+	(*StoreGetRequest)(nil),          // 130: rig.v1.StoreGetRequest
+	(*StoreGetResponse)(nil),         // 131: rig.v1.StoreGetResponse
+	(*StoreCondition)(nil),           // 132: rig.v1.StoreCondition
+	(*StoreOrder)(nil),               // 133: rig.v1.StoreOrder
+	(*StoreQueryRequest)(nil),        // 134: rig.v1.StoreQueryRequest
+	(*StoreQueryResponse)(nil),       // 135: rig.v1.StoreQueryResponse
+	(*StoreDeleteRequest)(nil),       // 136: rig.v1.StoreDeleteRequest
+	(*StoreDeleteResponse)(nil),      // 137: rig.v1.StoreDeleteResponse
+	(*StoreOp)(nil),                  // 138: rig.v1.StoreOp
+	(*StoreTransactRequest)(nil),     // 139: rig.v1.StoreTransactRequest
+	(*StoreTransactResponse)(nil),    // 140: rig.v1.StoreTransactResponse
+	(*StoreCollectionsRequest)(nil),  // 141: rig.v1.StoreCollectionsRequest
+	(*StoreCollection)(nil),          // 142: rig.v1.StoreCollection
+	(*StoreCollectionsResponse)(nil), // 143: rig.v1.StoreCollectionsResponse
+	nil,                              // 144: rig.v1.Record.FieldsEntry
+	nil,                              // 145: rig.v1.RecordPutRequest.FieldsEntry
+	nil,                              // 146: rig.v1.WorkNote.FieldsEntry
+	nil,                              // 147: rig.v1.WorkNoteWriteRequest.FieldsEntry
+	(v1.Tristate)(0),                 // 148: rig.v1.Tristate
 }
 var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	0,   // 0: rig.v1.Seat.state:type_name -> rig.v1.SeatState
@@ -9471,11 +10596,11 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	24,  // 8: rig.v1.LeaseAcquireResponse.handle:type_name -> rig.v1.LeaseHandle
 	24,  // 9: rig.v1.LeaseRenewResponse.handle:type_name -> rig.v1.LeaseHandle
 	23,  // 10: rig.v1.LeaseListResponse.leases:type_name -> rig.v1.Lease
-	127, // 11: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
+	144, // 11: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
 	35,  // 12: rig.v1.Record.prov:type_name -> rig.v1.Provenance
 	37,  // 13: rig.v1.Record.retraction:type_name -> rig.v1.Retraction
 	35,  // 14: rig.v1.Retraction.prov:type_name -> rig.v1.Provenance
-	128, // 15: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
+	145, // 15: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
 	36,  // 16: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
 	36,  // 17: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
 	36,  // 18: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
@@ -9510,7 +10635,7 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	67,  // 47: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
 	73,  // 48: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
 	74,  // 49: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
-	131, // 50: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
+	148, // 50: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
 	75,  // 51: rig.v1.ProjectBriefResponse.closed:type_name -> rig.v1.ClosedItem
 	76,  // 52: rig.v1.ProjectBriefResponse.closed_counts:type_name -> rig.v1.WordCount
 	35,  // 53: rig.v1.Lesson.prov:type_name -> rig.v1.Provenance
@@ -9525,9 +10650,9 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	88,  // 62: rig.v1.QueueCompleteResponse.task:type_name -> rig.v1.Task
 	88,  // 63: rig.v1.QueueListResponse.tasks:type_name -> rig.v1.Task
 	23,  // 64: rig.v1.LeaseCheckResponse.lease:type_name -> rig.v1.Lease
-	129, // 65: rig.v1.WorkNote.fields:type_name -> rig.v1.WorkNote.FieldsEntry
+	146, // 65: rig.v1.WorkNote.fields:type_name -> rig.v1.WorkNote.FieldsEntry
 	35,  // 66: rig.v1.WorkNote.prov:type_name -> rig.v1.Provenance
-	130, // 67: rig.v1.WorkNoteWriteRequest.fields:type_name -> rig.v1.WorkNoteWriteRequest.FieldsEntry
+	147, // 67: rig.v1.WorkNoteWriteRequest.fields:type_name -> rig.v1.WorkNoteWriteRequest.FieldsEntry
 	99,  // 68: rig.v1.WorkNoteWriteResponse.note:type_name -> rig.v1.WorkNote
 	99,  // 69: rig.v1.WorkNoteMineResponse.notes:type_name -> rig.v1.WorkNote
 	99,  // 70: rig.v1.WorkNoteAboutResponse.notes:type_name -> rig.v1.WorkNote
@@ -9547,11 +10672,17 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	118, // 84: rig.v1.StopResponse.program:type_name -> rig.v1.ProgramHealth
 	118, // 85: rig.v1.RestartResponse.program:type_name -> rig.v1.ProgramHealth
 	118, // 86: rig.v1.HealthResponse.programs:type_name -> rig.v1.ProgramHealth
-	87,  // [87:87] is the sub-list for method output_type
-	87,  // [87:87] is the sub-list for method input_type
-	87,  // [87:87] is the sub-list for extension type_name
-	87,  // [87:87] is the sub-list for extension extendee
-	0,   // [0:87] is the sub-list for field type_name
+	127, // 87: rig.v1.StoreGetResponse.documents:type_name -> rig.v1.StoreDocument
+	132, // 88: rig.v1.StoreQueryRequest.where:type_name -> rig.v1.StoreCondition
+	133, // 89: rig.v1.StoreQueryRequest.order:type_name -> rig.v1.StoreOrder
+	127, // 90: rig.v1.StoreQueryResponse.documents:type_name -> rig.v1.StoreDocument
+	138, // 91: rig.v1.StoreTransactRequest.ops:type_name -> rig.v1.StoreOp
+	142, // 92: rig.v1.StoreCollectionsResponse.collections:type_name -> rig.v1.StoreCollection
+	93,  // [93:93] is the sub-list for method output_type
+	93,  // [93:93] is the sub-list for method input_type
+	93,  // [93:93] is the sub-list for extension type_name
+	93,  // [93:93] is the sub-list for extension extendee
+	0,   // [0:93] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_verbs_proto_init() }
@@ -9565,7 +10696,7 @@ func file_proto_rig_v1_verbs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_verbs_proto_rawDesc), len(file_proto_rig_v1_verbs_proto_rawDesc)),
 			NumEnums:      10,
-			NumMessages:   121,
+			NumMessages:   138,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

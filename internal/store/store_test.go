@@ -348,3 +348,31 @@ func TestEveryCallerListIsBounded(t *testing.T) {
 		t.Fatalf("exactly %d ops were refused: %v", MaxOps, err)
 	}
 }
+
+// An offset reads the page after one that said More.
+func TestAnOffsetReadsTheNextPage(t *testing.T) {
+	s := open(t)
+	c := ctx(t)
+	for _, id := range []string{"a", "b", "c", "d", "e"} {
+		_, _ = s.Put(c, "runs", id, 0, raw(`{}`))
+	}
+	var seen []string
+	for off := 0; ; off += 2 {
+		res, err := s.Query(c, Query{Collection: "runs", Limit: 2, Offset: off})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, d := range res.Docs {
+			seen = append(seen, d.ID)
+		}
+		if !res.More {
+			break
+		}
+	}
+	if strings.Join(seen, "") != "abcde" {
+		t.Fatalf("paged %v, want a to e once each", seen)
+	}
+	if _, err := s.Query(c, Query{Collection: "runs", Offset: -1}); err == nil {
+		t.Fatal("a negative offset was accepted")
+	}
+}
