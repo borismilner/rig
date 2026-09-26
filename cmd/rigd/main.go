@@ -80,7 +80,8 @@ func main() {
 func exitStatus(err error) int {
 	var held *instance.HeldError
 	var named *instance.NameHeldError
-	if errors.As(err, &held) || errors.As(err, &named) {
+	var rooted *RootHeldError
+	if errors.As(err, &held) || errors.As(err, &named) || errors.As(err, &rooted) {
 		return exitAlreadyRunning
 	}
 	return 1
@@ -114,15 +115,7 @@ func run() error {
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: lv}))
 	log.Info("storage root", "root", root)
 
-	pidPath, err := paths.PIDFile()
-	if err != nil {
-		return err
-	}
-	sockPath, err := paths.Socket()
-	if err != nil {
-		return err
-	}
-	mcpSockPath, err := paths.MCPSocket()
+	pidPath, sockPath, mcpSockPath, err := runtimePaths()
 	if err != nil {
 		return err
 	}
@@ -166,6 +159,14 @@ func run() error {
 	// 1 because the store bumps before it publishes.
 	var epoch uint64
 	var leases *coord.Store
+
+	// The storage root's claim, before the estate's state is opened, so a
+	// daemon refused here bumps no epoch.
+	rootClaim, err := claimRoot(*estate, root)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rootClaim.Close() }()
 
 	// An estate started without --estate claims nothing and reaches none of
 	// this, which is how every test in this repository keeps working by
@@ -352,6 +353,20 @@ func closeDaemon(d *daemon.Daemon, log *slog.Logger) {
 	if err := d.Close(); err != nil {
 		log.Warn("closing the record store", "err", err)
 	}
+}
+
+// runtimePaths are the pidfile and the two sockets in the runtime directory.
+func runtimePaths() (pid, sock, mcpSock string, err error) {
+	if pid, err = paths.PIDFile(); err != nil {
+		return "", "", "", err
+	}
+	if sock, err = paths.Socket(); err != nil {
+		return "", "", "", err
+	}
+	if mcpSock, err = paths.MCPSocket(); err != nil {
+		return "", "", "", err
+	}
+	return pid, sock, mcpSock, nil
 }
 
 // resolveRoot picks the storage root (plan/48, R14-R15). A named estate reads
