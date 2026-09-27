@@ -296,6 +296,24 @@ func (s *Supervisor) Up(ids ...string) ([]Status, error) {
 	return out, nil
 }
 
+// Autostart launches every declared program marked autostart, as Up does, in
+// declaration order. rigd calls it once, when it starts.
+func (s *Supervisor) Autostart() []Status {
+	s.mu.Lock()
+	var ids []string
+	for _, id := range s.order {
+		if s.programs[id].spec.Autostart {
+			ids = append(ids, id)
+		}
+	}
+	s.mu.Unlock()
+	if len(ids) == 0 {
+		return nil
+	}
+	out, _ := s.Up(ids...) // every id is declared, so Up cannot refuse one
+	return out
+}
+
 // launch moves a program onto the table and starts its child. The caller holds
 // the lock.
 //

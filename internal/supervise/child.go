@@ -47,6 +47,10 @@ type Spec struct {
 
 	// Budget is its restart budget.
 	Budget Budget
+
+	// Autostart says rigd starts it when rigd starts, rather than on
+	// `rig up` (plan/18, Boris 2026-09-27).
+	Autostart bool
 }
 
 // Validate refuses a spec that could not be launched safely, before anything

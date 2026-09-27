@@ -32,7 +32,7 @@ func TestLoadTreatsAMissingFileAsNoPrograms(t *testing.T) {
 func TestLoadReadsADeclarationWithItsOwnNumbers(t *testing.T) {
 	path := write(t, `{"programs": [
 	  {"id": "fakeapp", "path": "/usr/bin/fakeapp", "args": ["--name", "fakeapp"],
-	   "env": ["CARGO_HOME"],
+	   "env": ["CARGO_HOME"], "autostart": true,
 	   "health": {"interval": "2s", "idle": "10s", "register": "15s", "degraded": 2, "restart": 4},
 	   "budget": {"restarts": 3, "window": "5m", "backoff": "500ms", "max_backoff": "30s"}}
 	]}`)
@@ -44,7 +44,7 @@ func TestLoadReadsADeclarationWithItsOwnNumbers(t *testing.T) {
 		t.Fatalf("got %d programs, want 1", len(specs))
 	}
 	s := specs[0]
-	if s.ID != "fakeapp" || s.Path != "/usr/bin/fakeapp" || len(s.Args) != 2 {
+	if s.ID != "fakeapp" || s.Path != "/usr/bin/fakeapp" || len(s.Args) != 2 || !s.Autostart {
 		t.Fatalf("spec %+v", s)
 	}
 	if s.Health.Interval != 2*time.Second || s.Health.Idle != 10*time.Second ||

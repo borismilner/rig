@@ -44,6 +44,8 @@ type declaredProgram struct {
 	Dir  string   `json:"dir,omitempty"`
 	Env  []string `json:"env,omitempty"`
 
+	Autostart bool `json:"autostart,omitempty"`
+
 	Health declaredHealth `json:"health"`
 	Budget declaredBudget `json:"budget"`
 }
@@ -157,7 +159,7 @@ func (d declaredProgram) spec() (Spec, error) {
 
 	spec := Spec{
 		ID: d.ID, Path: d.Path, Args: d.Args, Dir: d.Dir, Env: d.Env,
-		Health: h, Budget: b,
+		Health: h, Budget: b, Autostart: d.Autostart,
 	}
 	if err := spec.Validate(); err != nil {
 		return Spec{}, err

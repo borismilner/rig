@@ -320,6 +320,7 @@ func run() error {
 	defer stopSup()
 	supDone := make(chan struct{})
 	go func() { defer close(supDone); sup.Run(supCtx) }()
+	autostart(log, sup)
 
 	if err := d.Serve(ctx, l); err != nil {
 		stopSup()
@@ -380,6 +381,15 @@ func supervisor(log *slog.Logger) *supervise.Supervisor {
 		log.Info("programs declared", "count", len(specs), "ids", sup.Declared())
 	}
 	return sup
+}
+
+// autostart starts the programs programs.json marks autostart (plan/18). The
+// listener is already open, so a child's hello waits in its backlog until
+// Serve accepts it.
+func autostart(log *slog.Logger, sup *supervise.Supervisor) {
+	for _, st := range sup.Autostart() {
+		log.Info("autostarted", "program", st.ID, "state", st.State)
+	}
 }
 
 // closeDaemon releases the daemon's record store once both surfaces have

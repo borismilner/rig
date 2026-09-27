@@ -133,7 +133,6 @@ func (h *harness) proc(id string) *fakeProc {
 	return h.procs[id]
 }
 
-//nolint:unparam // the harness takes an id because it supervises a set; one test declares two programs
 func (h *harness) startCount(id string) int {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -266,6 +265,27 @@ func TestUpIsIdempotentAndCarriesTheHandles(t *testing.T) {
 	}
 	if handles["RIG_SOCKET"] != "/run/rig.sock" {
 		t.Errorf("child got RIG_SOCKET %q, want the socket rig is serving", handles["RIG_SOCKET"])
+	}
+}
+
+// Autostart launches only the programs marked so, and a second call starts
+// nothing new, as a second `rig up` does not.
+func TestAutostartLaunchesOnlyWhatIsMarked(t *testing.T) {
+	marked := testSpec("marked")
+	marked.Autostart = true
+	h := newHarness(t, testSpec("plain"), marked)
+	defer h.sup.StopAll()
+
+	got := h.sup.Autostart()
+	if len(got) != 1 || got[0].ID != "marked" || got[0].State != StateStarting {
+		t.Fatalf("autostart returned %+v, want only marked, STARTING", got)
+	}
+	if n := h.startCount("plain"); n != 0 {
+		t.Errorf("an unmarked program was started %d times", n)
+	}
+	h.sup.Autostart()
+	if n := h.startCount("marked"); n != 1 {
+		t.Errorf("autostart twice started %d children, want 1", n)
 	}
 }
 
