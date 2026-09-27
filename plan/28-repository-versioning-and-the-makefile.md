@@ -123,6 +123,15 @@ because nobody had asked for one target.
 | **IT REPORTS WHAT IT REPLACED, BY VERSION, FOR EACH** | *"installed"* without a version is the sentence that let a 14-commit skew survive. Two halves means two dials |
 | **A HALF THAT WAS NOT DEPLOYED IS INSTALLED AND SAID SO** | the replacement rule is about what is live; it must not refuse because one half was never running |
 
+**RESTATED BY BORIS, 2026-09-27:** *"We need a single `make` command that
+does everything, I don't want to deploy things separately."* It came after a
+deploy left storeworker on its old binary: `make deploy` rebuilt the daemon,
+client and window, but not storeworker, so the program rigd autostarts from
+`build/` never got its icon. **`make deploy` is that one command, and it now
+also rebuilds every in-repo program rigd supervises from `build/`**, before
+rigd restarts, so the autostarted children come back on the new binaries.
+`make install-window` after it was never needed: `redeploy` already runs it.
+
 ### ⛔ The first `rig` after a redeployment tells the human it happened
 
 **RULED BY BORIS, 2026-09-18, in his own words:**

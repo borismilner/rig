@@ -94,7 +94,7 @@ SHELL := bash
 # cold checkout while passing on a warm one. build-abacus was missing and
 # bench-size measured build/abacus anyway, so ci depended on a binary it never
 # built - invisible locally because the file was left over from an earlier run.
-build: build-rigd build-rig build-fakeapp build-ledger build-abacus build-lantern ## Build every binary into build/
+build: build-rigd build-rig build-fakeapp build-ledger build-abacus build-lantern build-storeworker ## Build every binary into build/
 
 build-rigd: ## Build the daemon (links none of the terminal stack)
 	@mkdir -p build
@@ -285,7 +285,7 @@ install-window: build-rigwindow ## Install the window, tray, user service and de
 # daemon a peer is running on its own XDG_RUNTIME_DIR. Clause 7 says stopping
 # "the daemon" by pattern would take a peer's work with it, and that rule is
 # not narrowed by wanting one call.
-redeploy: build build-rigwindow ## Build and redeploy EVERYTHING live - daemon, client and window
+redeploy: build build-rigwindow ## Build and redeploy EVERYTHING live - daemon, client, window and the programs rigd autostarts
 	@build/$(BIND) --version >/dev/null 2>&1 || { \
 	  echo "the new $(BIND) does not answer --version; NOTHING was replaced"; exit 1; }
 	@build/rigwindow --version >/dev/null 2>&1 || { \
@@ -331,6 +331,8 @@ deploy: ## THE deploy: latest main, every part (daemon, client, window, tray), v
 	@$(PREFIX)/bin/rigwindow --version 2>/dev/null | awk '/^product/ {print "    rigwindow  " $$2}'
 	@systemctl --user is-active --quiet rigwindow.service && echo "    tray       running" || \
 	  { echo "    rigwindow.service is not running"; exit 1; }
+	@echo "  The programs rigd supervises, restarted on the new build:"
+	@sleep 2; $(PREFIX)/bin/$(BIN) health 2>/dev/null | sed 's/^/    /'
 	@echo "  deployed $(VERSION)."
 
 uninstall: ## Remove the installed binaries and the user service
