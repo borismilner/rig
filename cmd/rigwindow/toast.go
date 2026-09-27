@@ -512,7 +512,7 @@ func watchAnswer(ctx context.Context, id string, answered func(answerJSON)) {
 		cctx, cancel := context.WithTimeout(ctx, toastPoll+readDeadline)
 		var resp registryv1.ToastAnswerResponse
 		err = c.Call(cctx, "rig.toast.answer", &registryv1.ToastAnswerRequest{
-			RecordId: id, TimeoutMs: uint32(toastPoll.Milliseconds()),
+			RecordId: id, TimeoutMs: uint32(toastPoll / time.Millisecond),
 		}, &resp)
 		cancel()
 		c.Close()

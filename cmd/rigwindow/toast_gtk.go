@@ -64,11 +64,7 @@ static void rig_toast_input(void *win, int y, int w, int h) {
 */
 import "C"
 
-import (
-	"unsafe"
-
-	"github.com/wailsapp/wails/v3/pkg/application"
-)
+import "github.com/wailsapp/wails/v3/pkg/application"
 
 // setInputBand makes only the bubbles' band take the pointer. Must run on
 // the GTK thread, after the window is shown.
@@ -77,7 +73,7 @@ func setInputBand(win *application.WebviewWindow, band inputRegion) {
 	if p == nil {
 		return
 	}
-	C.rig_toast_input(unsafe.Pointer(p), C.int(band.Top), C.int(toastWidth), C.int(band.Height)) //nolint:gosec // pixels
+	C.rig_toast_input(p, C.int(band.Top), C.int(toastWidth), C.int(band.Height))
 }
 
 // clearThemeBackground must run on the GTK thread, after GTK has started.
