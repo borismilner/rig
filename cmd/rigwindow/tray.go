@@ -103,6 +103,7 @@ func runTraySupervisor(sup *supervisor) {
 				showDND(toastDND(change))
 			}
 		}()
+		addSoundMenu()
 		systray.AddSeparator()
 
 		// ⛔ THERE IS NO QUIT ROW, AND ITS ABSENCE IS THE REQUIREMENT.
@@ -229,6 +230,7 @@ func pollEstate(sup *supervisor) {
 		retitleWindowItem(sup)
 		if connected {
 			showDND(toastDND(registryv1.DndChange_DND_CHANGE_QUERY))
+			menuSound.show(soundCall(&registryv1.SoundRequest{}))
 		}
 		time.Sleep(trayRefresh)
 	}
