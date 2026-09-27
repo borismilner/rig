@@ -140,3 +140,103 @@ func TestDoNotDisturbFilesButDoesNotDrawAndNeverHoldsUrgent(t *testing.T) {
 		t.Fatal("a notification after Do Not Disturb went off was held back")
 	}
 }
+
+// A toast that asks for a reply gets exactly one: the sender's toast.answer
+// wakes with it, the reply is filed in the record, and a second reply, a
+// label the toast never offered, or text it did not ask for are refused.
+func TestAToastThatAsksGetsOneReplyAndTheSenderLearnsIt(t *testing.T) {
+	sock := upRecordDaemon(t)
+	ctx := recordCtx(t)
+	sender := seated(t, sock, "backend-1")
+	person := seated(t, sock, "boris")
+
+	var sent registryv1.NotifyResponse
+	if err := sender.Call(ctx, "rig.notify", &registryv1.NotifyRequest{
+		Severity: registryv1.Severity_SEVERITY_URGENT, Title: "run it?", Replies: []string{"Yes", "No"},
+	}, &sent); err != nil {
+		t.Fatalf("rig.notify: %v", err)
+	}
+	id := sent.GetToast().GetRecordId()
+	if got := sent.GetToast().GetReplies(); len(got) != 2 {
+		t.Fatalf("the toast carries replies %v", got)
+	}
+
+	var now registryv1.ToastAnswerResponse
+	if err := sender.Call(ctx, "rig.toast.answer", &registryv1.ToastAnswerRequest{RecordId: id}, &now); err != nil {
+		t.Fatal(err)
+	}
+	if now.GetAnswer().GetAnswered() {
+		t.Fatalf("answered before anybody replied: %+v", now.GetAnswer())
+	}
+
+	woke := make(chan *registryv1.ToastAnswer, 1)
+	go func() {
+		var resp registryv1.ToastAnswerResponse
+		if err := sender.Call(ctx, "rig.toast.answer", &registryv1.ToastAnswerRequest{RecordId: id, TimeoutMs: 10_000}, &resp); err != nil {
+			t.Errorf("rig.toast.answer: %v", err)
+		}
+		woke <- resp.GetAnswer()
+	}()
+	time.Sleep(50 * time.Millisecond)
+
+	wrong := []*registryv1.ToastReplyRequest{
+		{RecordId: id, Reply: "Maybe"},
+		{RecordId: id, Text: "free text it never asked for"},
+		{RecordId: id, Reply: "Yes", Dismissed: true},
+		{RecordId: id},
+	}
+	for _, r := range wrong {
+		err := person.Call(ctx, "rig.toast.reply", r, &registryv1.ToastReplyResponse{})
+		wantCode(t, err, rigv1.Code_CODE_INVALID, "a malformed reply")
+	}
+	if err := person.Call(ctx, "rig.toast.reply", &registryv1.ToastReplyRequest{RecordId: id, Reply: "Yes"}, &registryv1.ToastReplyResponse{}); err != nil {
+		t.Fatalf("rig.toast.reply: %v", err)
+	}
+	select {
+	case a := <-woke:
+		if !a.GetAnswered() || a.GetReply() != "Yes" || a.GetBy() != "boris" {
+			t.Fatalf("the sender learned %+v", a)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the reply did not wake the sender")
+	}
+	err := person.Call(ctx, "rig.toast.reply", &registryv1.ToastReplyRequest{RecordId: id, Reply: "No"}, &registryv1.ToastReplyResponse{})
+	wantCode(t, err, rigv1.Code_CODE_CONFLICT, "a second reply")
+
+	var q verbsv1.RecordQueryResponse
+	if err := sender.Call(ctx, "rig.record.query", &verbsv1.RecordQueryRequest{Kind: "notification-reply", Project: "notifications"}, &q); err != nil {
+		t.Fatal(err)
+	}
+	if len(q.GetRecords()) != 1 || q.GetRecords()[0].GetFields()["reply"] != "Yes" || q.GetRecords()[0].GetFields()["notification"] != id {
+		t.Fatalf("the reply in the record is %+v", q.GetRecords())
+	}
+}
+
+// Free text is a reply only where the toast offered it, and the replies a
+// notification offers are bounded.
+func TestAFreeTextReplyAndTheBoundsOnReplies(t *testing.T) {
+	sock := upRecordDaemon(t)
+	ctx := recordCtx(t)
+	c := seated(t, sock, "backend-1")
+	for _, replies := range [][]string{{"a", "b", "c", "d"}, {""}, {"same", "same"}, {string(make([]byte, 41))}} {
+		err := c.Call(ctx, "rig.notify", &registryv1.NotifyRequest{
+			Severity: registryv1.Severity_SEVERITY_INFO, Title: "x", Replies: replies,
+		}, &registryv1.NotifyResponse{})
+		wantCode(t, err, rigv1.Code_CODE_INVALID, "replies out of bounds")
+	}
+	var sent registryv1.NotifyResponse
+	if err := c.Call(ctx, "rig.notify", &registryv1.NotifyRequest{
+		Severity: registryv1.Severity_SEVERITY_INFO, Title: "what next?", ReplyText: true,
+	}, &sent); err != nil {
+		t.Fatal(err)
+	}
+	var got registryv1.ToastReplyResponse
+	if err := c.Call(ctx, "rig.toast.reply", &registryv1.ToastReplyRequest{RecordId: sent.GetToast().GetRecordId(), Text: "ship it"}, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.GetAnswer().GetText() != "ship it" {
+		t.Fatalf("answer %+v", got.GetAnswer())
+	}
+	err := c.Call(ctx, "rig.toast.reply", &registryv1.ToastReplyRequest{RecordId: "no-such-toast", Dismissed: true}, &registryv1.ToastReplyResponse{})
+	wantCode(t, err, rigv1.Code_CODE_NOT_FOUND, "a reply to a toast that never asked")
+}

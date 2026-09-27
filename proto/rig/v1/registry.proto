@@ -257,6 +257,12 @@ message Toast {
   // Filed while Do Not Disturb was on, so it went to the record and not to
   // the screen. Never set on an urgent toast.
   bool suppressed = 8;
+  // The reply buttons the sender offered, in order. A toast with replies or
+  // reply_text waits for its answer and never closes on its own (section 12,
+  // Boris 2026-09-27).
+  repeated string replies = 9;
+  // The sender takes a free-text reply.
+  bool reply_text = 10;
 }
 
 // NotifyRequest sends one. Severity is required; title up to 200 bytes, body
@@ -265,6 +271,51 @@ message NotifyRequest {
   Severity severity = 1;
   string title = 2;
   string body = 3;
+  // Up to three reply buttons, each 1 to 40 bytes. The sender learns which
+  // was pressed with toast.answer.
+  repeated string replies = 4;
+  // Offer a free-text reply as well as, or instead of, the buttons.
+  bool reply_text = 5;
+}
+
+// ToastReplyRequest answers a toast that asked for a reply: a button's label,
+// free text, or neither when the person closed it without answering. The
+// first reply wins; a second is refused.
+message ToastReplyRequest {
+  string record_id = 1;
+  string reply = 2;
+  string text = 3;
+  bool dismissed = 4;
+}
+
+message ToastReplyResponse {
+  ToastAnswer answer = 1;
+}
+
+// ToastAnswer is what came back for one toast.
+message ToastAnswer {
+  string record_id = 1;
+  // False while nobody has replied.
+  bool answered = 2;
+  // The button pressed; empty for a free-text reply or a dismissal.
+  string reply = 3;
+  string text = 4;
+  // Closed without an answer.
+  bool dismissed = 5;
+  // Who replied: the replying connection's seat.
+  string by = 6;
+  int64 at_unix_nano = 7;
+}
+
+// ToastAnswerRequest waits for the reply to a toast the caller filed, up to
+// timeout_ms (at most 60000); zero asks without waiting.
+message ToastAnswerRequest {
+  string record_id = 1;
+  uint32 timeout_ms = 2;
+}
+
+message ToastAnswerResponse {
+  ToastAnswer answer = 1;
 }
 
 message NotifyResponse {

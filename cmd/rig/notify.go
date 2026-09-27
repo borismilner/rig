@@ -9,17 +9,23 @@ import (
 	"strings"
 	"time"
 
+	"github.com/borismilner/rig/client"
 	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
-// `rig notify <severity> <title> [--body B]` - section 12's toast from a shell.
-// The severity is one of the wire enum's five, read off its descriptor.
+// `rig notify <severity> <title> [--body B] [--reply R]... [--text] [--wait D]`
+// - section 12's toast from a shell. The severity is one of the wire enum's
+// five, read off its descriptor. --reply and --text make it ask for a reply,
+// and --wait waits that long for the answer and prints it.
 
 type notifyFlags struct {
 	fs      *flag.FlagSet
 	asJSON  *bool
 	timeout *time.Duration
 	body    *string
+	replies []string
+	text    *bool
+	wait    *time.Duration
 }
 
 func notifyFlagSet() *notifyFlags {
@@ -27,6 +33,12 @@ func notifyFlagSet() *notifyFlags {
 	n.asJSON = n.fs.Bool("json", false, "emit JSON")
 	n.timeout = n.fs.Duration("timeout", defaultCallTimeout, "how long to wait")
 	n.body = n.fs.String("body", "", "the detail under the title")
+	n.fs.Func("reply", "a reply button; repeat for up to three", func(v string) error {
+		n.replies = append(n.replies, v)
+		return nil
+	})
+	n.text = n.fs.Bool("text", false, "take a free-text reply")
+	n.wait = n.fs.Duration("wait", 0, "wait this long for the reply, and print it")
 	return n
 }
 
@@ -65,22 +77,65 @@ func cmdNotify(args []string) (err error) {
 	defer cancel()
 	var resp registryv1.NotifyResponse
 	if err := call(ctx, c, "rig.notify", &registryv1.NotifyRequest{
-		Severity: sev, Title: positional[1], Body: *n.body,
+		Severity: sev, Title: positional[1], Body: *n.body, Replies: n.replies, ReplyText: *n.text,
 	}, &resp); err != nil {
 		return err
 	}
 	t := resp.GetToast()
+	var answer *registryv1.ToastAnswer
+	if *n.wait > 0 {
+		if answer, err = awaitAnswer(c, t.GetRecordId(), *n.wait); err != nil {
+			return err
+		}
+	}
 	if *n.asJSON {
-		return json.NewEncoder(os.Stdout).Encode(map[string]any{
+		out := map[string]any{
 			"record_id": t.GetRecordId(), "severity": positional[0], "title": t.GetTitle(), "sender": t.GetSender(),
 			"suppressed": t.GetSuppressed(),
-		})
+		}
+		if answer != nil {
+			out["answer"] = map[string]any{
+				"answered": answer.GetAnswered(), "reply": answer.GetReply(), "text": answer.GetText(),
+				"dismissed": answer.GetDismissed(), "by": answer.GetBy(),
+			}
+		}
+		return json.NewEncoder(os.Stdout).Encode(out)
 	}
 	fmt.Printf("%s: %s (filed as %s, from %s)\n", enumLabel(t.GetSeverity().String(), "SEVERITY_"), t.GetTitle(), t.GetRecordId(), t.GetSender())
 	if t.GetSuppressed() {
 		fmt.Println("not shown: do not disturb is on. It is in the record; `rig dnd off` to see toasts again")
 	}
+	switch {
+	case answer == nil:
+	case !answer.GetAnswered():
+		fmt.Printf("no reply within %s; the toast stays up until answered\n", *n.wait)
+	case answer.GetDismissed():
+		fmt.Printf("closed without a reply, by %s\n", answer.GetBy())
+	case answer.GetReply() != "":
+		fmt.Printf("reply: %s (by %s)\n", answer.GetReply(), answer.GetBy())
+	default:
+		fmt.Printf("reply: %q (by %s)\n", answer.GetText(), answer.GetBy())
+	}
 	return nil
+}
+
+// awaitAnswer asks rig.toast.answer until the reply comes or wait passes. One
+// call parks for at most a minute, so a longer wait is several.
+func awaitAnswer(c *client.Client, id string, wait time.Duration) (*registryv1.ToastAnswer, error) {
+	end := time.Now().Add(wait)
+	for {
+		left := time.Until(end)
+		step := min(left, time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), step+defaultCallTimeout)
+		var resp registryv1.ToastAnswerResponse
+		err := call(ctx, c, "rig.toast.answer", &registryv1.ToastAnswerRequest{
+			RecordId: id, TimeoutMs: uint32(max(step.Milliseconds(), 1)), //nolint:gosec // at most a minute
+		}, &resp)
+		cancel()
+		if err != nil || resp.GetAnswer().GetAnswered() || time.Until(end) <= 0 {
+			return resp.GetAnswer(), err
+		}
+	}
 }
 
 // `rig dnd on|off|status` - section 12's Do Not Disturb. While it is on,

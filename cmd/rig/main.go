@@ -97,6 +97,8 @@ func takesValue(arg string) bool {
 // and shadow the package of the same name.
 var valuedFlags = map[string]bool{
 	"timeout": true,
+	// rig notify's reply buttons (section 12). --wait is a duration.
+	"reply": true, "wait": true,
 	// rig knowledge (section 40).
 	"limit": true, "title": true, "summary": true, "tag": true,
 	// rig worknote (section 09). --body, --body-file and --project are
@@ -201,6 +203,8 @@ func usage() {
   files <cmd>      free files: root, place (where a file goes), layout,
                    relayout, index, search, unindexed
   notify <sev> <title>  a toast at the tray: info, success, warning, error, urgent
+                   --reply R (up to 3) and --text ask for a reply; --wait D
+                   waits for it and prints it
   dnd on|off|status  do not disturb: toasts go to the record only, urgent still shows
   record <cmd>     the continuity record: put, get, query, history, link,
                    unlink, refs, retract, delete, replace

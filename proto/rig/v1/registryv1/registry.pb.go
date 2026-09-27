@@ -707,7 +707,13 @@ type Toast struct {
 	AtUnixNano int64  `protobuf:"varint,7,opt,name=at_unix_nano,json=atUnixNano,proto3" json:"at_unix_nano,omitempty"`
 	// Filed while Do Not Disturb was on, so it went to the record and not to
 	// the screen. Never set on an urgent toast.
-	Suppressed    bool `protobuf:"varint,8,opt,name=suppressed,proto3" json:"suppressed,omitempty"`
+	Suppressed bool `protobuf:"varint,8,opt,name=suppressed,proto3" json:"suppressed,omitempty"`
+	// The reply buttons the sender offered, in order. A toast with replies or
+	// reply_text waits for its answer and never closes on its own (section 12,
+	// Boris 2026-09-27).
+	Replies []string `protobuf:"bytes,9,rep,name=replies,proto3" json:"replies,omitempty"`
+	// The sender takes a free-text reply.
+	ReplyText     bool `protobuf:"varint,10,opt,name=reply_text,json=replyText,proto3" json:"reply_text,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -798,13 +804,32 @@ func (x *Toast) GetSuppressed() bool {
 	return false
 }
 
+func (x *Toast) GetReplies() []string {
+	if x != nil {
+		return x.Replies
+	}
+	return nil
+}
+
+func (x *Toast) GetReplyText() bool {
+	if x != nil {
+		return x.ReplyText
+	}
+	return false
+}
+
 // NotifyRequest sends one. Severity is required; title up to 200 bytes, body
 // up to 4 KiB.
 type NotifyRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Severity      Severity               `protobuf:"varint,1,opt,name=severity,proto3,enum=rig.v1.Severity" json:"severity,omitempty"`
-	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	Body          string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Severity Severity               `protobuf:"varint,1,opt,name=severity,proto3,enum=rig.v1.Severity" json:"severity,omitempty"`
+	Title    string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Body     string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	// Up to three reply buttons, each 1 to 40 bytes. The sender learns which
+	// was pressed with toast.answer.
+	Replies []string `protobuf:"bytes,4,rep,name=replies,proto3" json:"replies,omitempty"`
+	// Offer a free-text reply as well as, or instead of, the buttons.
+	ReplyText     bool `protobuf:"varint,5,opt,name=reply_text,json=replyText,proto3" json:"reply_text,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -860,6 +885,330 @@ func (x *NotifyRequest) GetBody() string {
 	return ""
 }
 
+func (x *NotifyRequest) GetReplies() []string {
+	if x != nil {
+		return x.Replies
+	}
+	return nil
+}
+
+func (x *NotifyRequest) GetReplyText() bool {
+	if x != nil {
+		return x.ReplyText
+	}
+	return false
+}
+
+// ToastReplyRequest answers a toast that asked for a reply: a button's label,
+// free text, or neither when the person closed it without answering. The
+// first reply wins; a second is refused.
+type ToastReplyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RecordId      string                 `protobuf:"bytes,1,opt,name=record_id,json=recordId,proto3" json:"record_id,omitempty"`
+	Reply         string                 `protobuf:"bytes,2,opt,name=reply,proto3" json:"reply,omitempty"`
+	Text          string                 `protobuf:"bytes,3,opt,name=text,proto3" json:"text,omitempty"`
+	Dismissed     bool                   `protobuf:"varint,4,opt,name=dismissed,proto3" json:"dismissed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ToastReplyRequest) Reset() {
+	*x = ToastReplyRequest{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ToastReplyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ToastReplyRequest) ProtoMessage() {}
+
+func (x *ToastReplyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ToastReplyRequest.ProtoReflect.Descriptor instead.
+func (*ToastReplyRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ToastReplyRequest) GetRecordId() string {
+	if x != nil {
+		return x.RecordId
+	}
+	return ""
+}
+
+func (x *ToastReplyRequest) GetReply() string {
+	if x != nil {
+		return x.Reply
+	}
+	return ""
+}
+
+func (x *ToastReplyRequest) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *ToastReplyRequest) GetDismissed() bool {
+	if x != nil {
+		return x.Dismissed
+	}
+	return false
+}
+
+type ToastReplyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Answer        *ToastAnswer           `protobuf:"bytes,1,opt,name=answer,proto3" json:"answer,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ToastReplyResponse) Reset() {
+	*x = ToastReplyResponse{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ToastReplyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ToastReplyResponse) ProtoMessage() {}
+
+func (x *ToastReplyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ToastReplyResponse.ProtoReflect.Descriptor instead.
+func (*ToastReplyResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ToastReplyResponse) GetAnswer() *ToastAnswer {
+	if x != nil {
+		return x.Answer
+	}
+	return nil
+}
+
+// ToastAnswer is what came back for one toast.
+type ToastAnswer struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	RecordId string                 `protobuf:"bytes,1,opt,name=record_id,json=recordId,proto3" json:"record_id,omitempty"`
+	// False while nobody has replied.
+	Answered bool `protobuf:"varint,2,opt,name=answered,proto3" json:"answered,omitempty"`
+	// The button pressed; empty for a free-text reply or a dismissal.
+	Reply string `protobuf:"bytes,3,opt,name=reply,proto3" json:"reply,omitempty"`
+	Text  string `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
+	// Closed without an answer.
+	Dismissed bool `protobuf:"varint,5,opt,name=dismissed,proto3" json:"dismissed,omitempty"`
+	// Who replied: the replying connection's seat.
+	By            string `protobuf:"bytes,6,opt,name=by,proto3" json:"by,omitempty"`
+	AtUnixNano    int64  `protobuf:"varint,7,opt,name=at_unix_nano,json=atUnixNano,proto3" json:"at_unix_nano,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ToastAnswer) Reset() {
+	*x = ToastAnswer{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ToastAnswer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ToastAnswer) ProtoMessage() {}
+
+func (x *ToastAnswer) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ToastAnswer.ProtoReflect.Descriptor instead.
+func (*ToastAnswer) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ToastAnswer) GetRecordId() string {
+	if x != nil {
+		return x.RecordId
+	}
+	return ""
+}
+
+func (x *ToastAnswer) GetAnswered() bool {
+	if x != nil {
+		return x.Answered
+	}
+	return false
+}
+
+func (x *ToastAnswer) GetReply() string {
+	if x != nil {
+		return x.Reply
+	}
+	return ""
+}
+
+func (x *ToastAnswer) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *ToastAnswer) GetDismissed() bool {
+	if x != nil {
+		return x.Dismissed
+	}
+	return false
+}
+
+func (x *ToastAnswer) GetBy() string {
+	if x != nil {
+		return x.By
+	}
+	return ""
+}
+
+func (x *ToastAnswer) GetAtUnixNano() int64 {
+	if x != nil {
+		return x.AtUnixNano
+	}
+	return 0
+}
+
+// ToastAnswerRequest waits for the reply to a toast the caller filed, up to
+// timeout_ms (at most 60000); zero asks without waiting.
+type ToastAnswerRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RecordId      string                 `protobuf:"bytes,1,opt,name=record_id,json=recordId,proto3" json:"record_id,omitempty"`
+	TimeoutMs     uint32                 `protobuf:"varint,2,opt,name=timeout_ms,json=timeoutMs,proto3" json:"timeout_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ToastAnswerRequest) Reset() {
+	*x = ToastAnswerRequest{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ToastAnswerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ToastAnswerRequest) ProtoMessage() {}
+
+func (x *ToastAnswerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ToastAnswerRequest.ProtoReflect.Descriptor instead.
+func (*ToastAnswerRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ToastAnswerRequest) GetRecordId() string {
+	if x != nil {
+		return x.RecordId
+	}
+	return ""
+}
+
+func (x *ToastAnswerRequest) GetTimeoutMs() uint32 {
+	if x != nil {
+		return x.TimeoutMs
+	}
+	return 0
+}
+
+type ToastAnswerResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Answer        *ToastAnswer           `protobuf:"bytes,1,opt,name=answer,proto3" json:"answer,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ToastAnswerResponse) Reset() {
+	*x = ToastAnswerResponse{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ToastAnswerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ToastAnswerResponse) ProtoMessage() {}
+
+func (x *ToastAnswerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ToastAnswerResponse.ProtoReflect.Descriptor instead.
+func (*ToastAnswerResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ToastAnswerResponse) GetAnswer() *ToastAnswer {
+	if x != nil {
+		return x.Answer
+	}
+	return nil
+}
+
 type NotifyResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Toast         *Toast                 `protobuf:"bytes,1,opt,name=toast,proto3" json:"toast,omitempty"`
@@ -869,7 +1218,7 @@ type NotifyResponse struct {
 
 func (x *NotifyResponse) Reset() {
 	*x = NotifyResponse{}
-	mi := &file_proto_rig_v1_registry_proto_msgTypes[7]
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -881,7 +1230,7 @@ func (x *NotifyResponse) String() string {
 func (*NotifyResponse) ProtoMessage() {}
 
 func (x *NotifyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_registry_proto_msgTypes[7]
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -894,7 +1243,7 @@ func (x *NotifyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NotifyResponse.ProtoReflect.Descriptor instead.
 func (*NotifyResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{7}
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *NotifyResponse) GetToast() *Toast {
@@ -916,7 +1265,7 @@ type ToastWaitRequest struct {
 
 func (x *ToastWaitRequest) Reset() {
 	*x = ToastWaitRequest{}
-	mi := &file_proto_rig_v1_registry_proto_msgTypes[8]
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -928,7 +1277,7 @@ func (x *ToastWaitRequest) String() string {
 func (*ToastWaitRequest) ProtoMessage() {}
 
 func (x *ToastWaitRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_registry_proto_msgTypes[8]
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -941,7 +1290,7 @@ func (x *ToastWaitRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToastWaitRequest.ProtoReflect.Descriptor instead.
 func (*ToastWaitRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{8}
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ToastWaitRequest) GetAfter() uint64 {
@@ -970,7 +1319,7 @@ type ToastWaitResponse struct {
 
 func (x *ToastWaitResponse) Reset() {
 	*x = ToastWaitResponse{}
-	mi := &file_proto_rig_v1_registry_proto_msgTypes[9]
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -982,7 +1331,7 @@ func (x *ToastWaitResponse) String() string {
 func (*ToastWaitResponse) ProtoMessage() {}
 
 func (x *ToastWaitResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_registry_proto_msgTypes[9]
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -995,7 +1344,7 @@ func (x *ToastWaitResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToastWaitResponse.ProtoReflect.Descriptor instead.
 func (*ToastWaitResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{9}
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ToastWaitResponse) GetToasts() []*Toast {
@@ -1021,7 +1370,7 @@ type ToastDndRequest struct {
 
 func (x *ToastDndRequest) Reset() {
 	*x = ToastDndRequest{}
-	mi := &file_proto_rig_v1_registry_proto_msgTypes[10]
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1033,7 +1382,7 @@ func (x *ToastDndRequest) String() string {
 func (*ToastDndRequest) ProtoMessage() {}
 
 func (x *ToastDndRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_registry_proto_msgTypes[10]
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1046,7 +1395,7 @@ func (x *ToastDndRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToastDndRequest.ProtoReflect.Descriptor instead.
 func (*ToastDndRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{10}
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ToastDndRequest) GetChange() DndChange {
@@ -1067,7 +1416,7 @@ type ToastDndResponse struct {
 
 func (x *ToastDndResponse) Reset() {
 	*x = ToastDndResponse{}
-	mi := &file_proto_rig_v1_registry_proto_msgTypes[11]
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1079,7 +1428,7 @@ func (x *ToastDndResponse) String() string {
 func (*ToastDndResponse) ProtoMessage() {}
 
 func (x *ToastDndResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_registry_proto_msgTypes[11]
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1092,7 +1441,7 @@ func (x *ToastDndResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToastDndResponse.ProtoReflect.Descriptor instead.
 func (*ToastDndResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{11}
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ToastDndResponse) GetOn() bool {
@@ -1138,7 +1487,7 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\x04wire\x18\x04 \x01(\tR\x04wire\x12#\n" +
 	"\rsemantics_gen\x18\x05 \x01(\x05R\fsemanticsGen\x12\x14\n" +
 	"\x05epoch\x18\x06 \x01(\x04R\x05epoch\x12\x12\n" +
-	"\x04root\x18\a \x01(\tR\x04root\"\xe8\x01\n" +
+	"\x04root\x18\a \x01(\tR\x04root\"\xa1\x02\n" +
 	"\x05Toast\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x04R\x03seq\x12\x1b\n" +
 	"\trecord_id\x18\x02 \x01(\tR\brecordId\x12,\n" +
@@ -1150,11 +1499,40 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"atUnixNano\x12\x1e\n" +
 	"\n" +
 	"suppressed\x18\b \x01(\bR\n" +
-	"suppressed\"g\n" +
+	"suppressed\x12\x18\n" +
+	"\areplies\x18\t \x03(\tR\areplies\x12\x1d\n" +
+	"\n" +
+	"reply_text\x18\n" +
+	" \x01(\bR\treplyText\"\xa0\x01\n" +
 	"\rNotifyRequest\x12,\n" +
 	"\bseverity\x18\x01 \x01(\x0e2\x10.rig.v1.SeverityR\bseverity\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x12\n" +
-	"\x04body\x18\x03 \x01(\tR\x04body\"5\n" +
+	"\x04body\x18\x03 \x01(\tR\x04body\x12\x18\n" +
+	"\areplies\x18\x04 \x03(\tR\areplies\x12\x1d\n" +
+	"\n" +
+	"reply_text\x18\x05 \x01(\bR\treplyText\"x\n" +
+	"\x11ToastReplyRequest\x12\x1b\n" +
+	"\trecord_id\x18\x01 \x01(\tR\brecordId\x12\x14\n" +
+	"\x05reply\x18\x02 \x01(\tR\x05reply\x12\x12\n" +
+	"\x04text\x18\x03 \x01(\tR\x04text\x12\x1c\n" +
+	"\tdismissed\x18\x04 \x01(\bR\tdismissed\"A\n" +
+	"\x12ToastReplyResponse\x12+\n" +
+	"\x06answer\x18\x01 \x01(\v2\x13.rig.v1.ToastAnswerR\x06answer\"\xc0\x01\n" +
+	"\vToastAnswer\x12\x1b\n" +
+	"\trecord_id\x18\x01 \x01(\tR\brecordId\x12\x1a\n" +
+	"\banswered\x18\x02 \x01(\bR\banswered\x12\x14\n" +
+	"\x05reply\x18\x03 \x01(\tR\x05reply\x12\x12\n" +
+	"\x04text\x18\x04 \x01(\tR\x04text\x12\x1c\n" +
+	"\tdismissed\x18\x05 \x01(\bR\tdismissed\x12\x0e\n" +
+	"\x02by\x18\x06 \x01(\tR\x02by\x12 \n" +
+	"\fat_unix_nano\x18\a \x01(\x03R\n" +
+	"atUnixNano\"P\n" +
+	"\x12ToastAnswerRequest\x12\x1b\n" +
+	"\trecord_id\x18\x01 \x01(\tR\brecordId\x12\x1d\n" +
+	"\n" +
+	"timeout_ms\x18\x02 \x01(\rR\ttimeoutMs\"B\n" +
+	"\x13ToastAnswerResponse\x12+\n" +
+	"\x06answer\x18\x01 \x01(\v2\x13.rig.v1.ToastAnswerR\x06answer\"5\n" +
 	"\x0eNotifyResponse\x12#\n" +
 	"\x05toast\x18\x01 \x01(\v2\r.rig.v1.ToastR\x05toast\"G\n" +
 	"\x10ToastWaitRequest\x12\x14\n" +
@@ -1209,45 +1587,52 @@ func file_proto_rig_v1_registry_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_registry_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_proto_rig_v1_registry_proto_goTypes = []any{
-	(Depth)(0),                // 0: rig.v1.Depth
-	(EstateRole)(0),           // 1: rig.v1.EstateRole
-	(Severity)(0),             // 2: rig.v1.Severity
-	(DndChange)(0),            // 3: rig.v1.DndChange
-	(*Program)(nil),           // 4: rig.v1.Program
-	(*ProgramsRequest)(nil),   // 5: rig.v1.ProgramsRequest
-	(*ProgramsResponse)(nil),  // 6: rig.v1.ProgramsResponse
-	(*EstateRequest)(nil),     // 7: rig.v1.EstateRequest
-	(*EstateResponse)(nil),    // 8: rig.v1.EstateResponse
-	(*Toast)(nil),             // 9: rig.v1.Toast
-	(*NotifyRequest)(nil),     // 10: rig.v1.NotifyRequest
-	(*NotifyResponse)(nil),    // 11: rig.v1.NotifyResponse
-	(*ToastWaitRequest)(nil),  // 12: rig.v1.ToastWaitRequest
-	(*ToastWaitResponse)(nil), // 13: rig.v1.ToastWaitResponse
-	(*ToastDndRequest)(nil),   // 14: rig.v1.ToastDndRequest
-	(*ToastDndResponse)(nil),  // 15: rig.v1.ToastDndResponse
-	(*v1.Identity)(nil),       // 16: rig.v1.Identity
-	(v1.Coverage)(0),          // 17: rig.v1.Coverage
-	(*v1.Command)(nil),        // 18: rig.v1.Command
+	(Depth)(0),                  // 0: rig.v1.Depth
+	(EstateRole)(0),             // 1: rig.v1.EstateRole
+	(Severity)(0),               // 2: rig.v1.Severity
+	(DndChange)(0),              // 3: rig.v1.DndChange
+	(*Program)(nil),             // 4: rig.v1.Program
+	(*ProgramsRequest)(nil),     // 5: rig.v1.ProgramsRequest
+	(*ProgramsResponse)(nil),    // 6: rig.v1.ProgramsResponse
+	(*EstateRequest)(nil),       // 7: rig.v1.EstateRequest
+	(*EstateResponse)(nil),      // 8: rig.v1.EstateResponse
+	(*Toast)(nil),               // 9: rig.v1.Toast
+	(*NotifyRequest)(nil),       // 10: rig.v1.NotifyRequest
+	(*ToastReplyRequest)(nil),   // 11: rig.v1.ToastReplyRequest
+	(*ToastReplyResponse)(nil),  // 12: rig.v1.ToastReplyResponse
+	(*ToastAnswer)(nil),         // 13: rig.v1.ToastAnswer
+	(*ToastAnswerRequest)(nil),  // 14: rig.v1.ToastAnswerRequest
+	(*ToastAnswerResponse)(nil), // 15: rig.v1.ToastAnswerResponse
+	(*NotifyResponse)(nil),      // 16: rig.v1.NotifyResponse
+	(*ToastWaitRequest)(nil),    // 17: rig.v1.ToastWaitRequest
+	(*ToastWaitResponse)(nil),   // 18: rig.v1.ToastWaitResponse
+	(*ToastDndRequest)(nil),     // 19: rig.v1.ToastDndRequest
+	(*ToastDndResponse)(nil),    // 20: rig.v1.ToastDndResponse
+	(*v1.Identity)(nil),         // 21: rig.v1.Identity
+	(v1.Coverage)(0),            // 22: rig.v1.Coverage
+	(*v1.Command)(nil),          // 23: rig.v1.Command
 }
 var file_proto_rig_v1_registry_proto_depIdxs = []int32{
-	16, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
-	17, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
-	18, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
+	21, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
+	22, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
+	23, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
 	0,  // 3: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
 	4,  // 4: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
 	1,  // 5: rig.v1.EstateResponse.role:type_name -> rig.v1.EstateRole
 	2,  // 6: rig.v1.Toast.severity:type_name -> rig.v1.Severity
 	2,  // 7: rig.v1.NotifyRequest.severity:type_name -> rig.v1.Severity
-	9,  // 8: rig.v1.NotifyResponse.toast:type_name -> rig.v1.Toast
-	9,  // 9: rig.v1.ToastWaitResponse.toasts:type_name -> rig.v1.Toast
-	3,  // 10: rig.v1.ToastDndRequest.change:type_name -> rig.v1.DndChange
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	13, // 8: rig.v1.ToastReplyResponse.answer:type_name -> rig.v1.ToastAnswer
+	13, // 9: rig.v1.ToastAnswerResponse.answer:type_name -> rig.v1.ToastAnswer
+	9,  // 10: rig.v1.NotifyResponse.toast:type_name -> rig.v1.Toast
+	9,  // 11: rig.v1.ToastWaitResponse.toasts:type_name -> rig.v1.Toast
+	3,  // 12: rig.v1.ToastDndRequest.change:type_name -> rig.v1.DndChange
+	13, // [13:13] is the sub-list for method output_type
+	13, // [13:13] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_registry_proto_init() }
@@ -1261,7 +1646,7 @@ func file_proto_rig_v1_registry_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_registry_proto_rawDesc), len(file_proto_rig_v1_registry_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   12,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

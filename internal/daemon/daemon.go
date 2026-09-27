@@ -938,7 +938,7 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	// SECTION 16's LEASES, all five through one arm. lease.go has why the
 	// holder and the witness come off the connection.
 	// SECTION 12's TOASTS. toast.go has why the daemon writes the record.
-	case "notify", "toast.wait", "toast.dnd":
+	case "notify", "toast.wait", "toast.dnd", "toast.reply", "toast.answer":
 		d.serveToast(ctx, c, f, command)
 
 	case "lease.list", "lease.acquire", "lease.renew", "lease.release", "lease.break",
