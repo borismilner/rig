@@ -167,9 +167,6 @@ func toastWait(after uint64, wait bool) (*registryv1.ToastWaitResponse, error) {
 	return resp, err
 }
 
-// toastSoundFlag is --toast-sound, which the tray hands on to the renderer.
-var toastSoundFlag string
-
 // spawnToasts runs this binary again as the renderer.
 func spawnToasts(after uint64) (<-chan error, error) {
 	exe, err := selfExecutable()
@@ -177,7 +174,7 @@ func spawnToasts(after uint64) (<-chan error, error) {
 		return nil, err
 	}
 	//rig:allow nocontextfree: the renderer ends itself when its last bubble leaves, so its end is the exit channel
-	cmd := exec.CommandContext(context.Background(), exe, "--toasts", "--after", strconv.FormatUint(after, 10), "--toast-sound="+toastSoundFlag)
+	cmd := exec.CommandContext(context.Background(), exe, "--toasts", "--after", strconv.FormatUint(after, 10))
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	if err := cmd.Start(); err != nil {
 		return nil, err
@@ -422,7 +419,6 @@ func runToasts(after uint64) error {
 		URL:            "/toast.html",
 	})
 	feed.copyText = func(s string) { application.InvokeSync(func() { app.Clipboard.SetText(s) }) }
-	sound := newToastSound(toastSoundFlag, func(msg string) { fmt.Fprintln(os.Stderr, "rigwindow: "+msg) })
 
 	go func() {
 		cursor := after
@@ -433,9 +429,6 @@ func runToasts(after uint64) error {
 				continue
 			}
 			feed.add(resp.GetToasts())
-			if len(resp.GetToasts()) > 0 {
-				sound.ring()
-			}
 			for _, t := range resp.GetToasts() {
 				cursor = max(cursor, t.GetSeq())
 			}
