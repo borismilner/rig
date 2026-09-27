@@ -27,6 +27,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/borismilner/rig/internal/audio"
 	"github.com/borismilner/rig/internal/coord"
 	"github.com/borismilner/rig/internal/instance"
 	"github.com/borismilner/rig/internal/kernel"
@@ -111,12 +112,19 @@ type Config struct {
 	// programs.json and runs its loop; nil means this daemon supervises
 	// nothing, and the four verbs refuse naming that.
 	Supervisor *supervise.Supervisor
+
+	// Audio sounds drawn toasts and speaks (section 12, S1-S5). rigd owns
+	// it and closes it; nil means this daemon is silent, and rig.sound and
+	// rig.say refuse naming that.
+	Audio *audio.Audio
 }
 
 // Daemon serves one socket.
 type Daemon struct {
 	// toasts wakes a renderer when rig.notify is called (toast.go).
 	toasts toastRing
+	// audio sounds and speaks; nil is a silent daemon (sound.go).
+	audio *audio.Audio
 
 	version string
 	wire    string
@@ -350,6 +358,7 @@ func New(cfg Config) (*Daemon, error) {
 		records:  records,
 		leases:   cfg.Leases,
 		super:    cfg.Supervisor,
+		audio:    cfg.Audio,
 	}, nil
 }
 
@@ -938,7 +947,9 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	// SECTION 16's LEASES, all five through one arm. lease.go has why the
 	// holder and the witness come off the connection.
 	// SECTION 12's TOASTS. toast.go has why the daemon writes the record.
-	case "notify", "toast.wait", "toast.dnd", "toast.reply", "toast.answer":
+	// Its sounds and speech ride the same arm; sound.go has the one queue.
+	case "notify", "toast.wait", "toast.dnd", "toast.reply", "toast.answer",
+		"sound", "say":
 		d.serveToast(ctx, c, f, command)
 
 	case "lease.list", "lease.acquire", "lease.renew", "lease.release", "lease.break",

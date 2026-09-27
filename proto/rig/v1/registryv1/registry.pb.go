@@ -275,6 +275,165 @@ func (DndChange) EnumDescriptor() ([]byte, []int) {
 	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{3}
 }
 
+// Sounds and speech (section 12, S1-S5): the toast sound, reading toasts
+// aloud, and one mute over both. The settings survive a restart. A field left
+// unspecified changes nothing, so an empty request only asks.
+type SoundMute int32
+
+const (
+	SoundMute_SOUND_MUTE_UNSPECIFIED SoundMute = 0
+	SoundMute_SOUND_MUTE_ON          SoundMute = 1
+	SoundMute_SOUND_MUTE_OFF         SoundMute = 2
+)
+
+// Enum value maps for SoundMute.
+var (
+	SoundMute_name = map[int32]string{
+		0: "SOUND_MUTE_UNSPECIFIED",
+		1: "SOUND_MUTE_ON",
+		2: "SOUND_MUTE_OFF",
+	}
+	SoundMute_value = map[string]int32{
+		"SOUND_MUTE_UNSPECIFIED": 0,
+		"SOUND_MUTE_ON":          1,
+		"SOUND_MUTE_OFF":         2,
+	}
+)
+
+func (x SoundMute) Enum() *SoundMute {
+	p := new(SoundMute)
+	*p = x
+	return p
+}
+
+func (x SoundMute) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SoundMute) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_rig_v1_registry_proto_enumTypes[4].Descriptor()
+}
+
+func (SoundMute) Type() protoreflect.EnumType {
+	return &file_proto_rig_v1_registry_proto_enumTypes[4]
+}
+
+func (x SoundMute) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SoundMute.Descriptor instead.
+func (SoundMute) EnumDescriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{4}
+}
+
+// How much of a drawn toast is read aloud.
+type ReadAloud int32
+
+const (
+	ReadAloud_READ_ALOUD_UNSPECIFIED    ReadAloud = 0
+	ReadAloud_READ_ALOUD_OFF            ReadAloud = 1
+	ReadAloud_READ_ALOUD_TITLE          ReadAloud = 2
+	ReadAloud_READ_ALOUD_TITLE_AND_BODY ReadAloud = 3
+)
+
+// Enum value maps for ReadAloud.
+var (
+	ReadAloud_name = map[int32]string{
+		0: "READ_ALOUD_UNSPECIFIED",
+		1: "READ_ALOUD_OFF",
+		2: "READ_ALOUD_TITLE",
+		3: "READ_ALOUD_TITLE_AND_BODY",
+	}
+	ReadAloud_value = map[string]int32{
+		"READ_ALOUD_UNSPECIFIED":    0,
+		"READ_ALOUD_OFF":            1,
+		"READ_ALOUD_TITLE":          2,
+		"READ_ALOUD_TITLE_AND_BODY": 3,
+	}
+)
+
+func (x ReadAloud) Enum() *ReadAloud {
+	p := new(ReadAloud)
+	*p = x
+	return p
+}
+
+func (x ReadAloud) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ReadAloud) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_rig_v1_registry_proto_enumTypes[5].Descriptor()
+}
+
+func (ReadAloud) Type() protoreflect.EnumType {
+	return &file_proto_rig_v1_registry_proto_enumTypes[5]
+}
+
+func (x ReadAloud) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ReadAloud.Descriptor instead.
+func (ReadAloud) EnumDescriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{5}
+}
+
+// Which sound a drawn toast plays.
+type ToastSound int32
+
+const (
+	ToastSound_TOAST_SOUND_UNSPECIFIED ToastSound = 0
+	ToastSound_TOAST_SOUND_HAIL        ToastSound = 1
+	ToastSound_TOAST_SOUND_BADGE       ToastSound = 2
+	// The file rigd was started with (--toast-sound-file); refused without one.
+	ToastSound_TOAST_SOUND_FILE ToastSound = 3
+)
+
+// Enum value maps for ToastSound.
+var (
+	ToastSound_name = map[int32]string{
+		0: "TOAST_SOUND_UNSPECIFIED",
+		1: "TOAST_SOUND_HAIL",
+		2: "TOAST_SOUND_BADGE",
+		3: "TOAST_SOUND_FILE",
+	}
+	ToastSound_value = map[string]int32{
+		"TOAST_SOUND_UNSPECIFIED": 0,
+		"TOAST_SOUND_HAIL":        1,
+		"TOAST_SOUND_BADGE":       2,
+		"TOAST_SOUND_FILE":        3,
+	}
+)
+
+func (x ToastSound) Enum() *ToastSound {
+	p := new(ToastSound)
+	*p = x
+	return p
+}
+
+func (x ToastSound) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ToastSound) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_rig_v1_registry_proto_enumTypes[6].Descriptor()
+}
+
+func (ToastSound) Type() protoreflect.EnumType {
+	return &file_proto_rig_v1_registry_proto_enumTypes[6]
+}
+
+func (x ToastSound) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ToastSound.Descriptor instead.
+func (ToastSound) EnumDescriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{6}
+}
+
 // Program is one program as one principal may see it (section 14).
 //
 // It is Declaration minus scope: what a reader is shown, not what was stored.
@@ -1458,6 +1617,261 @@ func (x *ToastDndResponse) GetSuppressed() uint32 {
 	return 0
 }
 
+type SoundRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Mute          SoundMute              `protobuf:"varint,1,opt,name=mute,proto3,enum=rig.v1.SoundMute" json:"mute,omitempty"`
+	ReadAloud     ReadAloud              `protobuf:"varint,2,opt,name=read_aloud,json=readAloud,proto3,enum=rig.v1.ReadAloud" json:"read_aloud,omitempty"`
+	ToastSound    ToastSound             `protobuf:"varint,3,opt,name=toast_sound,json=toastSound,proto3,enum=rig.v1.ToastSound" json:"toast_sound,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SoundRequest) Reset() {
+	*x = SoundRequest{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SoundRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SoundRequest) ProtoMessage() {}
+
+func (x *SoundRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SoundRequest.ProtoReflect.Descriptor instead.
+func (*SoundRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *SoundRequest) GetMute() SoundMute {
+	if x != nil {
+		return x.Mute
+	}
+	return SoundMute_SOUND_MUTE_UNSPECIFIED
+}
+
+func (x *SoundRequest) GetReadAloud() ReadAloud {
+	if x != nil {
+		return x.ReadAloud
+	}
+	return ReadAloud_READ_ALOUD_UNSPECIFIED
+}
+
+func (x *SoundRequest) GetToastSound() ToastSound {
+	if x != nil {
+		return x.ToastSound
+	}
+	return ToastSound_TOAST_SOUND_UNSPECIFIED
+}
+
+type SoundResponse struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Muted      bool                   `protobuf:"varint,1,opt,name=muted,proto3" json:"muted,omitempty"`
+	ReadAloud  ReadAloud              `protobuf:"varint,2,opt,name=read_aloud,json=readAloud,proto3,enum=rig.v1.ReadAloud" json:"read_aloud,omitempty"`
+	ToastSound ToastSound             `protobuf:"varint,3,opt,name=toast_sound,json=toastSound,proto3,enum=rig.v1.ToastSound" json:"toast_sound,omitempty"`
+	// rigd was given a sound file, so TOAST_SOUND_FILE is a choice.
+	FileSet bool `protobuf:"varint,4,opt,name=file_set,json=fileSet,proto3" json:"file_set,omitempty"`
+	// The player and the speech engine found; empty means none was.
+	Player string `protobuf:"bytes,5,opt,name=player,proto3" json:"player,omitempty"`
+	Engine string `protobuf:"bytes,6,opt,name=engine,proto3" json:"engine,omitempty"`
+	// Why something is silent, in words; empty when nothing is.
+	Problem       string `protobuf:"bytes,7,opt,name=problem,proto3" json:"problem,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SoundResponse) Reset() {
+	*x = SoundResponse{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SoundResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SoundResponse) ProtoMessage() {}
+
+func (x *SoundResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SoundResponse.ProtoReflect.Descriptor instead.
+func (*SoundResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *SoundResponse) GetMuted() bool {
+	if x != nil {
+		return x.Muted
+	}
+	return false
+}
+
+func (x *SoundResponse) GetReadAloud() ReadAloud {
+	if x != nil {
+		return x.ReadAloud
+	}
+	return ReadAloud_READ_ALOUD_UNSPECIFIED
+}
+
+func (x *SoundResponse) GetToastSound() ToastSound {
+	if x != nil {
+		return x.ToastSound
+	}
+	return ToastSound_TOAST_SOUND_UNSPECIFIED
+}
+
+func (x *SoundResponse) GetFileSet() bool {
+	if x != nil {
+		return x.FileSet
+	}
+	return false
+}
+
+func (x *SoundResponse) GetPlayer() string {
+	if x != nil {
+		return x.Player
+	}
+	return ""
+}
+
+func (x *SoundResponse) GetEngine() string {
+	if x != nil {
+		return x.Engine
+	}
+	return ""
+}
+
+func (x *SoundResponse) GetProblem() string {
+	if x != nil {
+		return x.Problem
+	}
+	return ""
+}
+
+// SayRequest reads text aloud through the speech engine (S2), behind the
+// mute. With wait, the answer comes once it has been heard, up to a bound.
+type SayRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Text          string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	Wait          bool                   `protobuf:"varint,2,opt,name=wait,proto3" json:"wait,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SayRequest) Reset() {
+	*x = SayRequest{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SayRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SayRequest) ProtoMessage() {}
+
+func (x *SayRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SayRequest.ProtoReflect.Descriptor instead.
+func (*SayRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *SayRequest) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *SayRequest) GetWait() bool {
+	if x != nil {
+		return x.Wait
+	}
+	return false
+}
+
+type SayResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// With wait: true once the line was heard, or dropped by a mute or a full
+	// queue; false when the bound passed first.
+	Heard         bool `protobuf:"varint,1,opt,name=heard,proto3" json:"heard,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SayResponse) Reset() {
+	*x = SayResponse{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SayResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SayResponse) ProtoMessage() {}
+
+func (x *SayResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SayResponse.ProtoReflect.Descriptor instead.
+func (*SayResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *SayResponse) GetHeard() bool {
+	if x != nil {
+		return x.Heard
+	}
+	return false
+}
+
 var File_proto_rig_v1_registry_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_registry_proto_rawDesc = "" +
@@ -1548,7 +1962,29 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\x02on\x18\x01 \x01(\bR\x02on\x12\x1e\n" +
 	"\n" +
 	"suppressed\x18\x02 \x01(\rR\n" +
-	"suppressed*V\n" +
+	"suppressed\"\x9c\x01\n" +
+	"\fSoundRequest\x12%\n" +
+	"\x04mute\x18\x01 \x01(\x0e2\x11.rig.v1.SoundMuteR\x04mute\x120\n" +
+	"\n" +
+	"read_aloud\x18\x02 \x01(\x0e2\x11.rig.v1.ReadAloudR\treadAloud\x123\n" +
+	"\vtoast_sound\x18\x03 \x01(\x0e2\x12.rig.v1.ToastSoundR\n" +
+	"toastSound\"\xf1\x01\n" +
+	"\rSoundResponse\x12\x14\n" +
+	"\x05muted\x18\x01 \x01(\bR\x05muted\x120\n" +
+	"\n" +
+	"read_aloud\x18\x02 \x01(\x0e2\x11.rig.v1.ReadAloudR\treadAloud\x123\n" +
+	"\vtoast_sound\x18\x03 \x01(\x0e2\x12.rig.v1.ToastSoundR\n" +
+	"toastSound\x12\x19\n" +
+	"\bfile_set\x18\x04 \x01(\bR\afileSet\x12\x16\n" +
+	"\x06player\x18\x05 \x01(\tR\x06player\x12\x16\n" +
+	"\x06engine\x18\x06 \x01(\tR\x06engine\x12\x18\n" +
+	"\aproblem\x18\a \x01(\tR\aproblem\"4\n" +
+	"\n" +
+	"SayRequest\x12\x12\n" +
+	"\x04text\x18\x01 \x01(\tR\x04text\x12\x12\n" +
+	"\x04wait\x18\x02 \x01(\bR\x04wait\"#\n" +
+	"\vSayResponse\x12\x14\n" +
+	"\x05heard\x18\x01 \x01(\bR\x05heard*V\n" +
 	"\x05Depth\x12\x15\n" +
 	"\x11DEPTH_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eDEPTH_PROGRAMS\x10\x01\x12\x12\n" +
@@ -1572,7 +2008,22 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\x16DND_CHANGE_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10DND_CHANGE_QUERY\x10\x01\x12\x11\n" +
 	"\rDND_CHANGE_ON\x10\x02\x12\x12\n" +
-	"\x0eDND_CHANGE_OFF\x10\x03B?Z=github.com/borismilner/rig/proto/rig/v1/registryv1;registryv1b\x06proto3"
+	"\x0eDND_CHANGE_OFF\x10\x03*N\n" +
+	"\tSoundMute\x12\x1a\n" +
+	"\x16SOUND_MUTE_UNSPECIFIED\x10\x00\x12\x11\n" +
+	"\rSOUND_MUTE_ON\x10\x01\x12\x12\n" +
+	"\x0eSOUND_MUTE_OFF\x10\x02*p\n" +
+	"\tReadAloud\x12\x1a\n" +
+	"\x16READ_ALOUD_UNSPECIFIED\x10\x00\x12\x12\n" +
+	"\x0eREAD_ALOUD_OFF\x10\x01\x12\x14\n" +
+	"\x10READ_ALOUD_TITLE\x10\x02\x12\x1d\n" +
+	"\x19READ_ALOUD_TITLE_AND_BODY\x10\x03*l\n" +
+	"\n" +
+	"ToastSound\x12\x1b\n" +
+	"\x17TOAST_SOUND_UNSPECIFIED\x10\x00\x12\x14\n" +
+	"\x10TOAST_SOUND_HAIL\x10\x01\x12\x15\n" +
+	"\x11TOAST_SOUND_BADGE\x10\x02\x12\x14\n" +
+	"\x10TOAST_SOUND_FILE\x10\x03B?Z=github.com/borismilner/rig/proto/rig/v1/registryv1;registryv1b\x06proto3"
 
 var (
 	file_proto_rig_v1_registry_proto_rawDescOnce sync.Once
@@ -1586,53 +2037,65 @@ func file_proto_rig_v1_registry_proto_rawDescGZIP() []byte {
 	return file_proto_rig_v1_registry_proto_rawDescData
 }
 
-var file_proto_rig_v1_registry_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_proto_rig_v1_registry_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
+var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_proto_rig_v1_registry_proto_goTypes = []any{
 	(Depth)(0),                  // 0: rig.v1.Depth
 	(EstateRole)(0),             // 1: rig.v1.EstateRole
 	(Severity)(0),               // 2: rig.v1.Severity
 	(DndChange)(0),              // 3: rig.v1.DndChange
-	(*Program)(nil),             // 4: rig.v1.Program
-	(*ProgramsRequest)(nil),     // 5: rig.v1.ProgramsRequest
-	(*ProgramsResponse)(nil),    // 6: rig.v1.ProgramsResponse
-	(*EstateRequest)(nil),       // 7: rig.v1.EstateRequest
-	(*EstateResponse)(nil),      // 8: rig.v1.EstateResponse
-	(*Toast)(nil),               // 9: rig.v1.Toast
-	(*NotifyRequest)(nil),       // 10: rig.v1.NotifyRequest
-	(*ToastReplyRequest)(nil),   // 11: rig.v1.ToastReplyRequest
-	(*ToastReplyResponse)(nil),  // 12: rig.v1.ToastReplyResponse
-	(*ToastAnswer)(nil),         // 13: rig.v1.ToastAnswer
-	(*ToastAnswerRequest)(nil),  // 14: rig.v1.ToastAnswerRequest
-	(*ToastAnswerResponse)(nil), // 15: rig.v1.ToastAnswerResponse
-	(*NotifyResponse)(nil),      // 16: rig.v1.NotifyResponse
-	(*ToastWaitRequest)(nil),    // 17: rig.v1.ToastWaitRequest
-	(*ToastWaitResponse)(nil),   // 18: rig.v1.ToastWaitResponse
-	(*ToastDndRequest)(nil),     // 19: rig.v1.ToastDndRequest
-	(*ToastDndResponse)(nil),    // 20: rig.v1.ToastDndResponse
-	(*v1.Identity)(nil),         // 21: rig.v1.Identity
-	(v1.Coverage)(0),            // 22: rig.v1.Coverage
-	(*v1.Command)(nil),          // 23: rig.v1.Command
+	(SoundMute)(0),              // 4: rig.v1.SoundMute
+	(ReadAloud)(0),              // 5: rig.v1.ReadAloud
+	(ToastSound)(0),             // 6: rig.v1.ToastSound
+	(*Program)(nil),             // 7: rig.v1.Program
+	(*ProgramsRequest)(nil),     // 8: rig.v1.ProgramsRequest
+	(*ProgramsResponse)(nil),    // 9: rig.v1.ProgramsResponse
+	(*EstateRequest)(nil),       // 10: rig.v1.EstateRequest
+	(*EstateResponse)(nil),      // 11: rig.v1.EstateResponse
+	(*Toast)(nil),               // 12: rig.v1.Toast
+	(*NotifyRequest)(nil),       // 13: rig.v1.NotifyRequest
+	(*ToastReplyRequest)(nil),   // 14: rig.v1.ToastReplyRequest
+	(*ToastReplyResponse)(nil),  // 15: rig.v1.ToastReplyResponse
+	(*ToastAnswer)(nil),         // 16: rig.v1.ToastAnswer
+	(*ToastAnswerRequest)(nil),  // 17: rig.v1.ToastAnswerRequest
+	(*ToastAnswerResponse)(nil), // 18: rig.v1.ToastAnswerResponse
+	(*NotifyResponse)(nil),      // 19: rig.v1.NotifyResponse
+	(*ToastWaitRequest)(nil),    // 20: rig.v1.ToastWaitRequest
+	(*ToastWaitResponse)(nil),   // 21: rig.v1.ToastWaitResponse
+	(*ToastDndRequest)(nil),     // 22: rig.v1.ToastDndRequest
+	(*ToastDndResponse)(nil),    // 23: rig.v1.ToastDndResponse
+	(*SoundRequest)(nil),        // 24: rig.v1.SoundRequest
+	(*SoundResponse)(nil),       // 25: rig.v1.SoundResponse
+	(*SayRequest)(nil),          // 26: rig.v1.SayRequest
+	(*SayResponse)(nil),         // 27: rig.v1.SayResponse
+	(*v1.Identity)(nil),         // 28: rig.v1.Identity
+	(v1.Coverage)(0),            // 29: rig.v1.Coverage
+	(*v1.Command)(nil),          // 30: rig.v1.Command
 }
 var file_proto_rig_v1_registry_proto_depIdxs = []int32{
-	21, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
-	22, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
-	23, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
+	28, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
+	29, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
+	30, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
 	0,  // 3: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
-	4,  // 4: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
+	7,  // 4: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
 	1,  // 5: rig.v1.EstateResponse.role:type_name -> rig.v1.EstateRole
 	2,  // 6: rig.v1.Toast.severity:type_name -> rig.v1.Severity
 	2,  // 7: rig.v1.NotifyRequest.severity:type_name -> rig.v1.Severity
-	13, // 8: rig.v1.ToastReplyResponse.answer:type_name -> rig.v1.ToastAnswer
-	13, // 9: rig.v1.ToastAnswerResponse.answer:type_name -> rig.v1.ToastAnswer
-	9,  // 10: rig.v1.NotifyResponse.toast:type_name -> rig.v1.Toast
-	9,  // 11: rig.v1.ToastWaitResponse.toasts:type_name -> rig.v1.Toast
+	16, // 8: rig.v1.ToastReplyResponse.answer:type_name -> rig.v1.ToastAnswer
+	16, // 9: rig.v1.ToastAnswerResponse.answer:type_name -> rig.v1.ToastAnswer
+	12, // 10: rig.v1.NotifyResponse.toast:type_name -> rig.v1.Toast
+	12, // 11: rig.v1.ToastWaitResponse.toasts:type_name -> rig.v1.Toast
 	3,  // 12: rig.v1.ToastDndRequest.change:type_name -> rig.v1.DndChange
-	13, // [13:13] is the sub-list for method output_type
-	13, // [13:13] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	4,  // 13: rig.v1.SoundRequest.mute:type_name -> rig.v1.SoundMute
+	5,  // 14: rig.v1.SoundRequest.read_aloud:type_name -> rig.v1.ReadAloud
+	6,  // 15: rig.v1.SoundRequest.toast_sound:type_name -> rig.v1.ToastSound
+	5,  // 16: rig.v1.SoundResponse.read_aloud:type_name -> rig.v1.ReadAloud
+	6,  // 17: rig.v1.SoundResponse.toast_sound:type_name -> rig.v1.ToastSound
+	18, // [18:18] is the sub-list for method output_type
+	18, // [18:18] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_registry_proto_init() }
@@ -1645,8 +2108,8 @@ func file_proto_rig_v1_registry_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_registry_proto_rawDesc), len(file_proto_rig_v1_registry_proto_rawDesc)),
-			NumEnums:      4,
-			NumMessages:   17,
+			NumEnums:      7,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

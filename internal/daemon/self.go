@@ -427,6 +427,16 @@ func selfDeclaration() kernel.Declaration {
 				"Answer a toast that asked for a reply",
 				"Files the answer to a toast whose sender offered reply buttons or free text: exactly one of a button's label, free text, or dismissed when it was closed unanswered. The first reply wins and a second is refused. The replier is the calling connection, and the answer is filed in the record as kind notification-reply.",
 				"The answer as filed."),
+			// SECTION 12's SOUNDS AND SPEECH (plan/12, S1-S5). rig.sound
+			// writes a settings file; rig.say changes nothing but the air.
+			leaseWriter("sound", "Sound", kernel.Yes,
+				"Mute sounds, choose the toast sound and how much of a toast is read aloud, or ask",
+				"A drawn toast plays a sound (the hail or the badge chirp, or the file rigd was started with) and is then read aloud: not at all, its title, or its title and body. One mute silences the sound and all speech, and stops what is playing. The settings survive a restart. A field left unspecified changes nothing, so an empty request only asks.",
+				"The settings, the player and speech engine found, and why anything is silent."),
+			readOnly("say", "Say",
+				"Read text aloud",
+				"Reads arbitrary text aloud through the installed speech engine at its best quality (Kokoro, else piper), in the same queue as the toast sounds so nothing talks over anything else. Refused while sounds are muted. With wait, answers once the text has been heard, for at most two minutes.",
+				"With wait, whether it was heard before the bound."),
 			readOnly("toast.answer", "Toast answer",
 				"Wait for the reply to a toast you sent",
 				"Answers the reply to a toast that asked for one, waiting up to the timeout (at most 60 seconds) if nobody has replied yet; zero asks without waiting. A toast that asks never closes on its own, so the reply may come much later: ask again.",

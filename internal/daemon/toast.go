@@ -188,6 +188,8 @@ func (d *Daemon) serveToast(ctx context.Context, c *conn, f *rigv1.Frame, comman
 		d.serveToastReply(ctx, c, f)
 	case "toast.answer":
 		d.serveToastAnswer(ctx, c, f)
+	case "sound", "say":
+		d.serveSound(ctx, c, f, command)
 	}
 }
 
@@ -276,6 +278,9 @@ func (d *Daemon) serveNotify(ctx context.Context, c *conn, f *rigv1.Frame) {
 	}
 	if !suppressed {
 		d.toasts.add(t)
+		if d.audio != nil {
+			d.audio.Toast(t.GetTitle(), t.GetBody())
+		}
 	}
 	c.reply(f.GetStreamId(), &registryv1.NotifyResponse{Toast: t})
 }

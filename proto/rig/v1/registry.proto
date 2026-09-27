@@ -355,3 +355,61 @@ message ToastDndResponse {
   // Notifications filed and not drawn since Do Not Disturb last went on.
   uint32 suppressed = 2;
 }
+
+// Sounds and speech (section 12, S1-S5): the toast sound, reading toasts
+// aloud, and one mute over both. The settings survive a restart. A field left
+// unspecified changes nothing, so an empty request only asks.
+enum SoundMute {
+  SOUND_MUTE_UNSPECIFIED = 0;
+  SOUND_MUTE_ON = 1;
+  SOUND_MUTE_OFF = 2;
+}
+
+// How much of a drawn toast is read aloud.
+enum ReadAloud {
+  READ_ALOUD_UNSPECIFIED = 0;
+  READ_ALOUD_OFF = 1;
+  READ_ALOUD_TITLE = 2;
+  READ_ALOUD_TITLE_AND_BODY = 3;
+}
+
+// Which sound a drawn toast plays.
+enum ToastSound {
+  TOAST_SOUND_UNSPECIFIED = 0;
+  TOAST_SOUND_HAIL = 1;
+  TOAST_SOUND_BADGE = 2;
+  // The file rigd was started with (--toast-sound-file); refused without one.
+  TOAST_SOUND_FILE = 3;
+}
+
+message SoundRequest {
+  SoundMute mute = 1;
+  ReadAloud read_aloud = 2;
+  ToastSound toast_sound = 3;
+}
+
+message SoundResponse {
+  bool muted = 1;
+  ReadAloud read_aloud = 2;
+  ToastSound toast_sound = 3;
+  // rigd was given a sound file, so TOAST_SOUND_FILE is a choice.
+  bool file_set = 4;
+  // The player and the speech engine found; empty means none was.
+  string player = 5;
+  string engine = 6;
+  // Why something is silent, in words; empty when nothing is.
+  string problem = 7;
+}
+
+// SayRequest reads text aloud through the speech engine (S2), behind the
+// mute. With wait, the answer comes once it has been heard, up to a bound.
+message SayRequest {
+  string text = 1;
+  bool wait = 2;
+}
+
+message SayResponse {
+  // With wait: true once the line was heard, or dropped by a mute or a full
+  // queue; false when the bound passed first.
+  bool heard = 1;
+}

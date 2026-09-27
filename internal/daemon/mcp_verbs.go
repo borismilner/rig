@@ -53,6 +53,8 @@ var bridged = map[string]struct {
 	"toast.wait":        {func() proto.Message { return &registryv1.ToastWaitRequest{} }, func() proto.Message { return &registryv1.ToastWaitResponse{} }},
 	"toast.dnd":         {func() proto.Message { return &registryv1.ToastDndRequest{} }, func() proto.Message { return &registryv1.ToastDndResponse{} }},
 	"toast.reply":       {func() proto.Message { return &registryv1.ToastReplyRequest{} }, func() proto.Message { return &registryv1.ToastReplyResponse{} }},
+	"sound":             {func() proto.Message { return &registryv1.SoundRequest{} }, func() proto.Message { return &registryv1.SoundResponse{} }},
+	"say":               {func() proto.Message { return &registryv1.SayRequest{} }, func() proto.Message { return &registryv1.SayResponse{} }},
 	"toast.answer":      {func() proto.Message { return &registryv1.ToastAnswerRequest{} }, func() proto.Message { return &registryv1.ToastAnswerResponse{} }},
 	"up":                {func() proto.Message { return &verbsv1.UpRequest{} }, func() proto.Message { return &verbsv1.UpResponse{} }},
 	"stop":              {func() proto.Message { return &verbsv1.StopRequest{} }, func() proto.Message { return &verbsv1.StopResponse{} }},

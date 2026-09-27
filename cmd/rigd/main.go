@@ -15,8 +15,10 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
+	"github.com/borismilner/rig/internal/audio"
 	"github.com/borismilner/rig/internal/coord"
 	"github.com/borismilner/rig/internal/daemon"
 	"github.com/borismilner/rig/internal/instance"
@@ -96,6 +98,8 @@ func run() error {
 		"default "+paths.RootEnv+", else ~/.rig. An unnamed estate uses the runtime directory unless told")
 	filesEvery := flag.Duration("files-commit-every", daemon.DefaultFilesCommitEvery,
 		"the least time between two commits of the free files (plan/48 R34); text files only")
+	soundFile := flag.String("toast-sound-file", "", "an absolute path to a sound a toast may play "+
+		"instead of rig's own (plan/12); chosen with `rig sound use file` or the tray")
 	flag.Parse()
 
 	root, err := resolveRoot(*estate, *rootFlag)
@@ -267,6 +271,12 @@ func run() error {
 
 	sup := supervisor(log)
 
+	sounds, err := newAudio(log, *estate, pidPath, *soundFile)
+	if err != nil {
+		return err
+	}
+	defer sounds.Close()
+
 	// Config carries the lock, so this cannot compile without having taken it.
 	d, err := daemon.New(daemon.Config{
 		Version: version,
@@ -281,6 +291,7 @@ func run() error {
 		Leases:           leases,
 
 		Supervisor: sup,
+		Audio:      sounds,
 	})
 	if err != nil {
 		return err
@@ -322,6 +333,31 @@ func run() error {
 	closeDaemon(d, log)
 	log.Info("rigd down")
 	return nil
+}
+
+// newAudio builds section 12's audio queue (plan/12, S1-S5). The settings
+// are kept in the estate's state directory, so they survive a restart; an
+// unnamed estate keeps them beside its pidfile, in the runtime directory,
+// which a reboot clears. The synthesised sounds go to the user's cache.
+func newAudio(log *slog.Logger, estate, pidPath, soundFile string) (*audio.Audio, error) {
+	dir := filepath.Dir(pidPath)
+	if estate != "" {
+		d, err := paths.EstateStateDir(estate)
+		if err != nil {
+			return nil, err
+		}
+		dir = d
+	}
+	cache, err := os.UserCacheDir()
+	if err != nil {
+		return nil, fmt.Errorf("the sounds need a cache directory: %w", err)
+	}
+	return audio.New(audio.Options{
+		Log:          log.With("component", "audio"),
+		SettingsPath: filepath.Join(dir, "sound.json"),
+		SoundDir:     filepath.Join(cache, "rig", "sounds"),
+		SoundFile:    soundFile,
+	})
 }
 
 // supervisor builds section 18's supervisor over programs.json.
