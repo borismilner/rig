@@ -221,6 +221,8 @@ func (w *web) do(r *http.Request) (any, error) {
 		return w.holdGPU(in.Seconds)
 	case "gpu-release":
 		return w.releaseGPU(ctx)
+	case "gpu-break":
+		return w.breakGPU(ctx)
 	case "toast":
 		sev, ok := registryv1.Severity_value["SEVERITY_"+strings.ToUpper(in.Severity)]
 		if !ok || sev == 0 {
@@ -290,15 +292,20 @@ func (w *web) holdGPU(seconds int) (any, error) {
 	}
 	w.a.logCall("lease.acquire", fmt.Sprintf("%s for %ds, as you", gpuLease, seconds), nil)
 	w.youGPU = resp.GetHandle()
-	// The lease simply runs out at its ttl; forgetting it then keeps the
-	// page honest without a renew loop.
+	// The hold ends by RELEASING the lease. Letting the ttl run out is not
+	// enough: past its deadline, a lease whose holder is still alive is
+	// ORPHANED rather than free, and the worker waits on it for good
+	// (plan/48, R41, the Leases report).
 	gctx, gcancel := context.WithCancel(context.Background())
 	w.gpuStop = gcancel
 	go func() {
 		sleep(gctx, time.Duration(seconds)*time.Second)
-		w.mu.Lock()
-		w.youGPU = nil
-		w.mu.Unlock()
+		if gctx.Err() != nil {
+			return // released or broken by hand already
+		}
+		rctx, rcancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer rcancel()
+		_, _ = w.releaseGPU(rctx)
 	}()
 	return map[string]any{"holder": resp.GetHandle().GetHolder(), "token": resp.GetHandle().GetToken(), "seconds": seconds}, nil
 }
@@ -319,6 +326,25 @@ func (w *web) releaseGPU(ctx context.Context) (any, error) {
 		w.gpuStop()
 	}
 	return map[string]any{"released": err == nil}, err
+}
+
+// breakGPU breaks the gpu lease as Boris, whoever holds it. It is the way out
+// of an orphaned lease, and rig records who broke it and why.
+func (w *web) breakGPU(ctx context.Context) (any, error) {
+	err := w.you.Call(ctx, "rig.lease.break", &verbsv1.LeaseBreakRequest{
+		Name: gpuLease, Reason: "broken by hand from storeworker's Leases tab",
+	}, &verbsv1.LeaseBreakResponse{})
+	w.a.logCall("lease.break", gpuLease+", as you", err)
+	if err != nil {
+		return nil, err
+	}
+	w.mu.Lock()
+	w.youGPU = nil
+	if w.gpuStop != nil {
+		w.gpuStop()
+	}
+	w.mu.Unlock()
+	return map[string]any{"broken": true}, nil
 }
 
 // invoke calls one of storeworker's own commands THROUGH rig, as a terminal

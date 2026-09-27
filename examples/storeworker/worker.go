@@ -122,7 +122,8 @@ func (a *app) process(ctx context.Context, id string) {
 		if code(err) != rigv1.Code_CODE_CONFLICT || ctx.Err() != nil {
 			break
 		}
-		a.setWorker(ctx, func(w *workerView) { w.Activity = "run " + id + ": waiting for the gpu lease, someone else holds it" })
+		// rig's own refusal says why: held by someone, or ORPHANED.
+		a.setWorker(ctx, func(w *workerView) { w.Activity = "run " + id + ": waiting for the gpu lease: " + short(err.Error()) })
 		sleep(ctx, 2*time.Second)
 	}
 	if lease.GetHandle() != nil {

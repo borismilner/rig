@@ -132,6 +132,8 @@ const WORDS = {
   "renew": "Extending a lease before its ttl runs out, a heartbeat that says the holder is still alive.",
   "token": "A number that grows with every grant of a lease. A holder that lost the lease and comes back late carries an old token, so its late write can be refused.",
   "holder": "Who holds a lease right now.",
+  "orphaned": "A lease past its ttl whose holder is still alive. Rig keeps it for the holder, who may renew it, and never hands it to anyone else until the holder releases it or somebody breaks it.",
+  "break": "Taking a lease away from its holder by hand, with a reason. Rig records who broke it, so it can be asked about afterwards.",
   "toast": "A notification rig's tray shows on the desktop.",
   "severity": "How loud a toast is: info, success, warning, error or urgent.",
   "tray": "rig's icon in the desktop panel. It draws the toasts.",
@@ -208,17 +210,23 @@ const TABS = [
         table(["task", "run", "state", "attempts", "held by"], (d.tasks || []).map((t) =>
           ["<code>" + esc(t.id) + "</code>", "<code>" + esc(t.key) + "</code>", esc(t.state), esc(t.attempts), esc(t.holder)]));
     } },
-  { id: "leases", terms: ["lease", "holder", "ttl", "token", "epoch", "claim", "worker"], reads: "lease.list", name: "Leases", verbs: ["lease."],
+  { id: "leases", terms: ["lease", "holder", "ttl", "token", "orphaned", "break", "epoch", "claim", "worker"], reads: "lease.list", name: "Leases", verbs: ["lease."],
     what: "<p><b>rig's leases.</b> A named lease is held by one holder at a time, with a ttl and a token that grows on every grant. The worker takes <code>storeworker:gpu</code> for each run, so only one run uses the gpu across every worker and anyone else who asks.</p>" +
-      "<p><b>Try it:</b> hold the gpu lease <b>yourself</b>, then assign a run in the Store tab. The worker waits for you and says so; release it and the run goes on.</p>",
+      "<p><b>Try it:</b> hold the gpu lease <b>yourself</b>, then assign a run. The worker waits for you and says so; release it, or let the hold end, and the run goes on.</p>",
     controls: '<div class="try">Hold for <input id="secs" type="number" min="5" max="120" value="30" style="width:4rem"> s <button class="go" data-do="gpu-hold">Hold the gpu lease as you</button><button data-do="gpu-release">Release it</button><button data-do="assign">Assign a run</button></div>',
     render(d) {
       return "<p>You hold it: <b>" + (d.you_hold ? "yes" : "no") + "</b>. The worker: " + esc(d.worker.activity) + "</p>" + err(d, "leases") +
         table(["lease", "state", "holder", "token", "left"], (d.leases || [])
           .filter((l) => l.state !== "free" || !l.name.startsWith("queue/"))
-          .map((l) => ["<code>" + esc(l.name) + "</code>", esc(l.state), esc(l.holder), esc(l.token),
-            l.state === "free" ? "" : Math.round((l.remaining_ms || 0) / 1000) + " s"])) +
-        '<p class="dim">A queue claim is a lease too: <code>queue/...</code> rows are the worker\'s claims, hidden once done.</p>';
+          .map((l) => {
+            const secs = Math.round((l.remaining_ms || 0) / 1000);
+            const left = l.state === "free" ? "" : l.state === "orphaned"
+              ? '<span class="bad">expired ' + esc(-secs) + ' s ago, its holder is alive</span> <button data-do="gpu-break">Break it</button>'
+              : esc(secs) + " s";
+            return ["<code>" + esc(l.name) + "</code>", esc(l.state), esc(l.holder), esc(l.token), left];
+          })) +
+        '<p class="dim">A queue claim is a lease too: <code>queue/...</code> rows are the worker\'s claims, hidden once done.</p>' +
+        '<p class="dim">An <b>orphaned</b> lease ran past its ttl while its holder was still alive. Rig never frees it by itself, because it cannot tell a dead holder from a slow one: the holder releases it, or somebody breaks it, and Rig records who did.</p>';
     } },
   { id: "asking", terms: ["run", "budget", "parked", "toast", "severity", "health report", "document"], reads: "store.query for state eq waiting", name: "Asking you", verbs: ["health.report", "notify", "store.put"],
     what: "<p><b>A program asking its user, with what rig has today.</b> A run costing more than the budget parks: it is stored as <i>waiting</i>, an <b>urgent toast</b> reaches the tray, and <code>health.report</code> carries the question, so <code>rig health</code> shows it as PARKED.</p>" +
