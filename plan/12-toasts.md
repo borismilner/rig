@@ -182,4 +182,25 @@ every notification; nothing lists them yet), and speech. The backdrop is
 transparent only under a compositor; Xvfb has none, so the demo screenshots
 show the window's own ground around the bubbles.
 
+
+## A toast plays a sound. Boris, 2026-09-27.
+
+> "I also want to support playing a nice sound on notification. Lets do the
+> star-trek communication hale." - Boris, 2026-09-27
+
+**A toast that is drawn plays a short sound as it appears.** His pick is the
+Star Trek communicator hail.
+
+| Piece | Rule |
+|---|---|
+| When | on draw only: a toast suppressed by Do Not Disturb is silent, an urgent one still sounds |
+| Player | the speech player chain above (`pw-play`, `paplay`, `aplay`, `play`), no cgo, no audio device held open |
+| Missing player | a named degradation in `rig doctor`, never an error; the toast is still drawn |
+| Sound file | open question, below |
+
+**Open: where the hail comes from.** The original communicator chirp is a
+studio recording under copyright, so it cannot be committed to this
+repository. Undecided between a file Boris supplies on his machine and
+an original synthesised hail-style chirp that rig ships.
+
 ---
