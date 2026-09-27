@@ -244,6 +244,16 @@
   make the rail look finished has broken §5e's declaration model to win a
   screenshot.
 
+  **A PROGRAM'S ICON, Boris 2026-09-27:** *"it should allow every estate have
+  an icon so that storeworker is not just `st`, it should have a nice icon and
+  when hovered should say its name. The icon should be meaningful."* Unlike the
+  hue, the wire already carries it: `Identity.icon`. It is a **name from the
+  window's icon set** (Lucide, a subset imported by name), never markup, so a
+  program cannot put SVG into the window. The program chooses it, which keeps
+  §5e's rule that nothing is derived from the id; a program with no icon, or
+  one the set does not know, keeps its two letters. Hovering any rail entry
+  names the program.
+
   ⛔ **AND REQUIREMENT 18 MOVES THE TABS FOR THE SECOND TIME TODAY, SO READ THE
   CURRENT POSITION RATHER THAN A REMEMBERED ONE.** They began as the shell's top
   level, moved down into rig's program GUI, and now sit inside the

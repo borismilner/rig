@@ -136,6 +136,14 @@ logged and supervises nothing rather than stopping rigd. `internal/supervise`
 holds the table above, total over every (state, trigger) pair, and stays
 stdlib-only because the tray links it.
 
+**Autostart, Boris 2026-09-27:** *"Yes, add the `autostart` field."* It
+answered his question why storeworker vanished from the window after every
+rigd restart: a declared program started only on `rig up`. A program with
+`"autostart": true` in `programs.json` is started by rigd itself when rigd
+starts, through the same path as `rig up`, so its restarts, budget and
+quarantine are unchanged. Absent means false: declaring a program still
+does not run it.
+
 | Surface | Built |
 |---|---|
 | wire | `rig.up`, `rig.stop`, `rig.restart`, `rig.health`; a program's own `rig.health.report` (marker, waiting, parked) |
