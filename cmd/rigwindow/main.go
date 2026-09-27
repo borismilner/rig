@@ -50,7 +50,12 @@ func main() {
 	window := flag.Bool("window", false, "be the window rather than the tray (the tray starts this itself)")
 	toasts := flag.Bool("toasts", false, "be the toast renderer (the tray starts this itself)")
 	after := flag.String("after", "0", "with --toasts: draw the toasts after this cursor")
+	flag.StringVar(&toastSoundFlag, "toast-sound", "", `the sound a toast plays: empty for rig's hail, "off", or an absolute path to a sound file`)
 	flag.Parse()
+	if err := checkToastSound(toastSoundFlag); err != nil {
+		fmt.Fprintln(os.Stderr, "rigwindow: "+err.Error())
+		os.Exit(2)
+	}
 	if *showVersion {
 		fmt.Printf("product %s\nwire    %s\ncommit  %s\nbuilt   %s\n", version, wire, sha, date)
 		return
