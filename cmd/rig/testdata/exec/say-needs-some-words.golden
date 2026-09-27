@@ -1,0 +1,5 @@
+$ rig say   
+exit 1
+--- stdout (0 bytes)
+--- stderr (44 bytes)
+rig: usage: rig say [--wait D] "some words"

@@ -259,6 +259,8 @@ func TestTheBinary(t *testing.T) {
 		{name: "health-refuses-an-unknown-flag", argv: []string{"health", "--bogus"}},
 		{name: "notify-refuses-an-unknown-severity", argv: []string{"notify", "loud", "x"}},
 		{name: "dnd-needs-on-off-or-status", argv: []string{"dnd", "maybe"}},
+		{name: "sound-refuses-an-unknown-read-mode", argv: []string{"sound", "read", "loudly"}},
+		{name: "say-needs-some-words", argv: []string{"say", "  "}},
 
 		// ⛔ SECTION 46's TWO VERBS, AND ALL FOUR OF THESE ARE REFUSED WITH
 		// THE DISK UNTOUCHED. `rig restore` is the only verb in this table

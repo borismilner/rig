@@ -1,0 +1,5 @@
+$ rig sound read loudly
+exit 1
+--- stdout (0 bytes)
+--- stderr (94 bytes)
+rig: usage: rig sound status | on | off | read off|title|title-and-body | use hail|badge|file

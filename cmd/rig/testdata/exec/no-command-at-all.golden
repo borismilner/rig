@@ -1,7 +1,7 @@
 $ rig 
 exit 1
 --- stdout (0 bytes)
---- stderr (3093 bytes)
+--- stderr (3287 bytes)
 usage: rig <command> [flags]
 
   <app> <cmd>      run a command a program declared, with its declared flags
@@ -26,6 +26,9 @@ usage: rig <command> [flags]
                    --reply R (up to 3) and --text ask for a reply; --wait D
                    waits for it and prints it
   dnd on|off|status  do not disturb: toasts go to the record only, urgent still shows
+  sound status|on|off  toast sounds and speech; read off|title|title-and-body,
+                   use hail|badge|file
+  say <text>       read text aloud; --wait D returns once it has been heard
   record <cmd>     the continuity record: put, get, query, history, link,
                    unlink, refs, retract, delete, replace
   progress step <item>

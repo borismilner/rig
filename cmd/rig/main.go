@@ -206,6 +206,9 @@ func usage() {
                    --reply R (up to 3) and --text ask for a reply; --wait D
                    waits for it and prints it
   dnd on|off|status  do not disturb: toasts go to the record only, urgent still shows
+  sound status|on|off  toast sounds and speech; read off|title|title-and-body,
+                   use hail|badge|file
+  say <text>       read text aloud; --wait D returns once it has been heard
   record <cmd>     the continuity record: put, get, query, history, link,
                    unlink, refs, retract, delete, replace
   progress step <item>
@@ -251,6 +254,8 @@ var plainVerbs = map[string]func([]string) error{
 	"files":     cmdFiles,
 	"notify":    cmdNotify,
 	"dnd":       cmdDND,
+	"sound":     cmdSound,
+	"say":       cmdSay,
 	"up":        cmdUp,
 	"stop":      cmdStop,
 	"restart":   cmdRestart,
@@ -336,7 +341,7 @@ func run(args []string) error {
 		// capability with two halves, and this is its single seam into run.
 		return cmdBackupOrRestore(args[0], with(args[1:], lead))
 	case "peers", "knowledge", "worknote", "message", "queue", "store", "files", "notify", "dnd",
-		"up", "stop", "restart", "health":
+		"sound", "say", "up", "stop", "restart", "health":
 		return plainVerbs[args[0]](with(args[1:], lead))
 	case "record":
 		return cmdRecord(with(args[1:], lead))
