@@ -196,16 +196,15 @@ Star Trek communicator hail.
 | When | on draw only: a toast suppressed by Do Not Disturb is silent, an urgent one still sounds |
 | Player | the speech player chain above (`pw-play`, `paplay`, `aplay`, `play`), no cgo, no audio device held open |
 | Missing player | a named degradation in `rig doctor`, never an error; the toast is still drawn |
-| Sound file | rig's own synthesised hail by default; `rigwindow --toast-sound=<absolute path>` plays his file instead, `--toast-sound=off` is silent |
-| Bursts | one sound per burst: nothing plays within 2s of the last sound |
+| Sound file | rig's own synthesised hail or badge chirp; `rigd --toast-sound-file=<absolute path>` offers his own file as a third choice |
 
 **Where the hail comes from, his ruling 2026-09-27.** The original
 communicator chirp is a studio recording under copyright, so it is never
 committed here. rig ships an original hail synthesised in code
-(`cmd/rigwindow/sound.go`, two rising whistles with a light warble), and a
-file he keeps on his own machine replaces it through the flag. It is a flag
-until §47's resolver exists. `rig doctor` does not exist yet, so a missing
-player is one warning on the renderer's stderr for now.
+(`internal/audio/sounds.go`), and a file he keeps on his own machine is
+offered through the flag. It is a flag until §47's resolver exists.
+`rig doctor` does not exist yet, so a missing player or engine is a warning
+in rigd's log and a `problem` line in `rig sound status`.
 
 ## Sounds, speech and the mute. Boris, 2026-09-27, later the same day.
 
@@ -231,12 +230,25 @@ AgentBox's; his word of 2026-09-27 is newer and names the title and the body
 outright. A `speak` line, where a program writes one, still wins over the
 title.
 
-**The seat's design, not yet his ruling:** every sound moves into `rigd`
+**Built 2026-09-27, the seat's design:** every sound lives in `rigd`
 behind one audio queue, so the chirp always finishes before a toast is read
 and two voices never overlap. The mute and the read-aloud mode live in the
 daemon beside Do Not Disturb, and the tray shows and sets them. Speech ports
 AgentBox's `internal/speech` (engine held open, bounded queue) rather than
 writing a second one.
+
+| Surface | What it does |
+|---|---|
+| tray | **Sounds** checkbox (the mute), **Toast sound** (Hail, Badge chirp, My sound file when one is given), **Read toasts aloud** (Off, Title, Title and body) |
+| `rig sound` | `status`, `on`, `off`, `read off\|title\|title-and-body`, `use hail\|badge\|file` |
+| `rig say` | `rig say [--wait D] "text"`; refused while muted |
+| wire and MCP | `rig.sound` (a field left unspecified changes nothing) and `rig.say` |
+| on disk | `sound.json` in the estate's state directory; an unnamed estate keeps it in the runtime directory |
+
+Muting stops what is playing, mid-word, and drops what waits. A toast read
+aloud is capped at 400 characters; `rig say` is capped at 10,000 bytes. The
+speech engine is released after a minute with nothing said (~100 MB
+resident), so the first line after a quiet spell pays the model load, ~3 s.
 
 **His defaults, 2026-09-27** (put to him as choices):
 
