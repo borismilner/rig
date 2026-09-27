@@ -18,6 +18,7 @@
     Deployment as DeploymentState,
     Health,
     Program,
+    Running,
   } from "../../bindings/github.com/borismilner/rig/cmd/rigwindow/models.js";
   import { INTERNAL_GUIS } from "./guis";
   import Deployment from "./Deployment.svelte";
@@ -25,6 +26,8 @@
   interface Props {
     health: Health;
     programs: Program[];
+    /* What each supervised program is doing, from rig.health. */
+    running: Running[];
     build: Record<string, string> | null;
     lastRead: string;
     /* ⛔ WHAT IS RUNNING, AND IT REPLACED A CARD THAT RESTATED THE PROJECT
@@ -36,19 +39,32 @@
     onselect: (id: string) => void;
   }
 
-  let { health, programs, build, lastRead, deployment, onselect }: Props =
+  let { health, programs, running, build, lastRead, deployment, onselect }: Props =
     $props();
 
-  // Declared facts, summed. Coverage is a field every program declares at
-  // registration, so "3 declared full coverage" is a reading rather than a
-  // guess about how complete anything is.
-  let full = $derived(programs.filter((x) => x.coverage === "full").length);
   let commands = $derived(programs.reduce((n, x) => n + (x.commands || 0), 0));
-  let ownPane = $derived(programs.filter((x) => !!x.paneUrl).length);
-  let hosted = $derived(programs.filter((x) => x.hosted).length);
-  let services = $derived(
-    new Set(programs.flatMap((x) => x.services ?? [])).size,
-  );
+
+  /* ⛔ THE CARD ANSWERS "WHAT IS EACH ONE, AND WHAT IS IT DOING", Boris
+     2026-09-27 (section 11): the description was cut to "A fake graft: it
+     r..." and the counters under it (coverage, own pane, hosted, services)
+     read 0 on an estate with one program. A count that is 0 answers no
+     question, so the three left are supervision's, and a program's other
+     declared facts sit on its own row where they mean something. */
+  let byId = $derived(new Map(running.map((r) => [r.id, r])));
+  let supervised = $derived(programs.filter((x) => byId.has(x.id)).length);
+  let healthy = $derived(running.filter((r) => r.state === "healthy").length);
+  let asking = $derived(running.filter((r) => !!r.parked).length);
+
+  // "for 2 h": how long a program has been in its state, from the Since the
+  // daemon stamped, so the page needs no clock of its own beyond now.
+  function forHow(since: number): string {
+    if (!since) return "";
+    const s = Math.max(0, Math.round((Date.now() - since) / 1000));
+    if (s < 60) return `for ${s} s`;
+    if (s < 3600) return `for ${Math.round(s / 60)} min`;
+    if (s < 86400) return `for ${Math.round(s / 3600)} h`;
+    return `for ${Math.round(s / 86400)} d`;
+  }
 
   let buildRows = $derived(Object.entries(build ?? {}));
 
@@ -142,42 +158,65 @@
       {:else}
         <ul class="progs">
           {#each programs as pr (pr.id)}
+            {@const run = byId.get(pr.id)}
             <li>
               <button onclick={() => onselect(pr.id)}>
                 <span class="glyph"
                   >{(pr.icon || pr.id.slice(0, 2)).slice(0, 2)}</span
                 >
-                <span class="pid">{pr.id}</span>
-                {#if pr.version}<span class="pv">{pr.version}</span>{:else}<span
-                  ></span>{/if}
-                <span class="pd">{pr.description || ""}</span>
-                <span class="pc">{pr.commands} cmd</span>
+                <span class="head">
+                  <span class="pid">{pr.id}</span>
+                  {#if pr.version}<span class="pv">{pr.version}</span>{/if}
+                  {#if run}
+                    <span class="st" data-state={run.state}
+                      ><span class="sdot"></span>{run.state || "unknown"}
+                      {forHow(run.since)}{#if run.restarts}, {run.restarts}
+                        restart{run.restarts === 1 ? "" : "s"}{/if}</span
+                    >
+                  {:else}
+                    <span class="st">started by hand</span>
+                  {/if}
+                  <span class="pc">{pr.commands} command{pr.commands === 1
+                      ? ""
+                      : "s"}{#if pr.paneUrl}, its own pane{/if}{#if pr.hosted},
+                      hosted by Rig{/if}</span
+                  >
+                </span>
+                {#if pr.description}<span class="pd">{pr.description}</span
+                  >{/if}
+                {#if run?.parked}
+                  <span class="ask"><b>Waiting on you:</b> {run.parked}</span>
+                {:else if run?.waiting}
+                  <span class="doing">Waiting for {run.waiting}</span>
+                {/if}
+                {#if pr.coverageNote || pr.services?.length}
+                  <span class="cov"
+                    >{#if pr.coverageNote}Uses: {pr.coverageNote}{/if}{#if pr.services?.length}{pr.coverageNote
+                        ? ". "
+                        : ""}Services: {pr.services.join(", ")}{/if}</span
+                  >
+                {/if}
               </button>
             </li>
           {/each}
         </ul>
-        <!-- ⛔ FOUR FIGURES HERE, NOT SIX, AND THE CUT IS A REDUNDANCY FIX.
-             `registered` and `commands declared` now lead the page in the
-             census strip above; printing them again ten centimetres lower is
-             the repetition `browsable-page` calls a bug, and the instruction
-             there is to delete it rather than shorten it. What is left is the
-             four nobody else says. -->
+        <!-- ⛔ THREE FIGURES, AND EACH ANSWERS A QUESTION. `registered` and
+             `commands declared` lead the page in the census strip above, so
+             they are not repeated here. What is left is supervision's: is
+             Rig running them, are they well, and is any waiting on a
+             person. The last is the loud one when it is not 0. -->
         <dl class="facts">
           <div>
-            <dt>declared full coverage</dt>
-            <dd class="t-num">{full}</dd>
+            <dt>supervised by Rig</dt>
+            <dd class="t-num">{supervised} of {programs.length}</dd>
           </div>
           <div>
-            <dt>serve their own pane</dt>
-            <dd class="t-num">{ownPane}</dd>
+            <dt>healthy</dt>
+            <dd class="t-num">{healthy} of {running.length}</dd>
           </div>
           <div>
-            <dt>hosted by Rig</dt>
-            <dd class="t-num">{hosted}</dd>
-          </div>
-          <div>
-            <dt>distinct services</dt>
-            <dd class="t-num">{services}</dd>
+            <dt>waiting on you</dt>
+            <dd class="t-num" class:loud={asking > 0}>{asking}</dd>
           </div>
         </dl>
       {/if}
@@ -413,14 +452,18 @@
     gap: 1px;
   }
 
+  /* A glyph column and a stack beside it: the name line, the whole
+     description, what it is waiting on, and what it uses. The row used to be
+     one line that ellipsised the description to three words. */
   .progs button {
     font: inherit;
     font-size: var(--fs--1);
     width: 100%;
     display: grid;
-    grid-template-columns: 2.2rem minmax(7ch, auto) auto minmax(0, 1fr) auto;
-    align-items: baseline;
-    gap: 0.7rem;
+    grid-template-columns: 2.2rem minmax(0, 1fr);
+    align-items: start;
+    column-gap: 0.7rem;
+    row-gap: 0.3rem;
     text-align: start;
     background: none;
     border: 1px solid transparent;
@@ -441,6 +484,7 @@
   }
 
   .glyph {
+    grid-row: span 4;
     font-family: var(--mono);
     font-size: var(--fs--1);
     color: var(--fg);
@@ -478,32 +522,91 @@
     color: var(--fg-dim);
   }
 
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.3rem 0.7rem;
+    min-width: 0;
+  }
+
+  .head .pc {
+    margin-left: auto;
+  }
+
   .pd {
+    grid-column: 2;
+    color: var(--fg);
+    font-size: var(--fs-0);
+    line-height: 1.45;
+    max-width: 70ch;
+  }
+
+  .st {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
     color: var(--fg-dim);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  }
+
+  /* A hue only when something wants you (section 11): healthy is green,
+     a state a person should look at is amber, quarantined is red. */
+  .sdot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    align-self: center;
+    background: var(--fg-dim);
+  }
+  .st[data-state="healthy"] .sdot {
+    background: var(--sem-good);
+  }
+  .st[data-state="degraded"] .sdot,
+  .st[data-state="restarting"] .sdot,
+  .st[data-state="starting"] .sdot {
+    background: var(--sem-warn);
+  }
+  .st[data-state="quarantined"] .sdot {
+    background: var(--sem-bad);
+  }
+
+  .ask,
+  .doing,
+  .cov {
+    grid-column: 2;
+    line-height: 1.45;
+    max-width: 70ch;
+  }
+
+  .ask {
+    color: var(--fg);
+    border-left: 3px solid var(--sem-warn);
+    padding-left: 0.55rem;
+  }
+
+  .ask b {
+    color: var(--sem-warn);
+    font-weight: 600;
+  }
+
+  .doing,
+  .cov {
+    color: var(--fg-dim);
   }
 
   /* ── the declared facts ───────────────────────────────────────────────── */
 
-  /* Four across, declared rather than auto-fit: auto-fit wrapped the fourth
-     onto a row of its own at this width, and one orphan under three is the
-     ragged shape that makes a block look unfinished. */
+  /* Three across, declared rather than auto-fit, so none is orphaned on a
+     row of its own. */
   .facts {
     margin: 0;
     padding-top: 0.8rem;
     border-top: 1px solid var(--border);
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.7rem 1rem;
   }
 
-  @media (max-width: 1100px) {
-    .facts {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
 
   .facts div {
     display: grid;
@@ -513,6 +616,10 @@
   .facts dt {
     font-size: var(--fs--1);
     color: var(--fg-dim);
+  }
+
+  .facts dd.loud {
+    color: var(--sem-warn);
   }
 
   .facts dd {

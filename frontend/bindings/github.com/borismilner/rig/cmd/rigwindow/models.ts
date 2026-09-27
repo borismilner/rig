@@ -228,5 +228,67 @@ export class Program {
     }
 }
 
+/**
+ * Running is what the estate card says a supervised program is doing,
+ * read from rig.health (section 11: the cards must be useful and
+ * informative, Boris 2026-09-27). A program Rig does not supervise has no
+ * row, and the card says so rather than inventing a state for it.
+ */
+export class Running {
+    "id": string;
+
+    /**
+     * State is supervision's own word: starting, healthy, backoff, and
+     * the rest. Since is when it entered that state, in unix milliseconds,
+     * so the page can say "for 2 h" without a clock of its own.
+     */
+    "state": string;
+    "since": number;
+    "restarts": number;
+
+    /**
+     * Waiting and Parked are what the program last reported it is blocked
+     * on, in its own words. Parked is the question a person has to answer.
+     */
+    "waiting": string;
+    "parked": string;
+    "lastExit": string;
+
+    /** Creates a new Running instance. */
+    constructor($$source: Partial<Running> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("state" in $$source)) {
+            this["state"] = "";
+        }
+        if (!("since" in $$source)) {
+            this["since"] = 0;
+        }
+        if (!("restarts" in $$source)) {
+            this["restarts"] = 0;
+        }
+        if (!("waiting" in $$source)) {
+            this["waiting"] = "";
+        }
+        if (!("parked" in $$source)) {
+            this["parked"] = "";
+        }
+        if (!("lastExit" in $$source)) {
+            this["lastExit"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Running instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Running {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Running($$parsedSource as Partial<Running>);
+    }
+}
+
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);

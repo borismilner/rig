@@ -9,5 +9,6 @@ export {
 export {
     Deployment,
     Health,
-    Program
+    Program,
+    Running
 } from "./models.js";

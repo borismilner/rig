@@ -215,7 +215,7 @@ func (RigService) Deployment() Deployment {
 
 	est, ok := estateSnapshot()
 	if !ok {
-		d.Verdict = "rig is not answering, so the window cannot say what is deployed beside it."
+		d.Verdict = "Rig is not answering, so the window cannot say what is deployed beside it."
 		return d
 	}
 

@@ -49,7 +49,7 @@ var commands = []command{
 	},
 	{
 		id: "export", title: "Export the store", summary: "Write every collection as text and commit it",
-		description: "Calls rig's store.export for this program: one JSON Lines file per collection, committed to the exports repository.",
+		description: "Calls Rig's store.export for this program: one JSON Lines file per collection, committed to the exports repository.",
 		returns:     "The export directory, the commit, and how many collections.",
 		args:        `{"type":"object","properties":{}}`,
 		example:     `rig storeworker export`,
@@ -57,7 +57,7 @@ var commands = []command{
 	},
 	{
 		id: "restore", title: "Restore the store", summary: "Replace the store with its last export",
-		description: "Calls rig's store.import for this program. rig snapshots the store first, and the answer names the snapshot. It asks first: without yes it only says what it would replace.",
+		description: "Calls Rig's store.import for this program. Rig snapshots the store first, and the answer names the snapshot. It asks first: without yes it only says what it would replace.",
 		returns:     "The snapshot of the store as it was, and how many collections were replaced.",
 		args:        `{"type":"object","properties":{"yes":{"type":"boolean","description":"replace the store; without it, nothing changes"}}}`,
 		example:     `rig storeworker restore --args '{"yes":true}'`,
@@ -69,7 +69,7 @@ func (a *app) declaration(paneURL string) *rigv1.Declaration {
 	d := &rigv1.Declaration{
 		Identity: &rigv1.Identity{
 			Id: a.id, Name: "Storeworker", Version: version,
-			Description: "A fake graft: it runs assignments, and each tab of its pane shows one part of rig at work.",
+			Description: "A fake graft: it runs assignments, and each tab of its pane shows one part of Rig at work.",
 		},
 		Coverage:     rigv1.Coverage_COVERAGE_PARTIAL,
 		CoverageNote: "a demonstration: store, queue, leases, files, knowledge base, mail, toasts and health, no config or logs",
@@ -181,6 +181,6 @@ func (a *app) dispatch(ctx context.Context, cmd string, raw []byte) (any, error)
 func (a *app) logInbound(cmd string) {
 	a.logRow(callRow{
 		At: time.Now().Format("15:04:05"), Verb: "routed in",
-		Note: "rig delivered storeworker." + cmd,
+		Note: "Rig delivered storeworker." + cmd,
 	})
 }

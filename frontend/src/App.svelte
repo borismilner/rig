@@ -37,6 +37,7 @@
     Deployment,
     Health,
     Program,
+    Running,
   } from "../bindings/github.com/borismilner/rig/cmd/rigwindow/models.js";
   import { applyTheme, preferredMode, watchMode } from "./lib/theme";
   import type { Mode } from "./lib/theme";
@@ -79,6 +80,9 @@
     railFixture || paneFixture || settingsFixture || dashFixture;
 
   let programs: Program[] = $state(fixture ? PROGRAMS : []);
+  // What each supervised program is doing, from rig.health. Empty for an
+  // estate that supervises nothing, and the card says so.
+  let running: Running[] = $state([]);
   let health: Health = $state(
     fixture
       ? {
@@ -179,6 +183,7 @@
       h = await RigService.Health();
     } catch (e) {
       programs = [];
+      running = [];
       if (!internalGui(selected)) selected = null;
       health = {
         connected: false,
@@ -198,6 +203,7 @@
       // daemon does not remove it - what it removes is the data behind it,
       // which that GUI reports for itself.
       programs = [];
+      running = [];
       if (!internalGui(selected)) selected = null;
       lastRead = stamp();
       return;
@@ -209,6 +215,7 @@
       programs = [];
       health = { ...h, connected: false, detail: String(e) };
     }
+    running = (await RigService.Supervision()) ?? [];
 
     // A selection survives a refresh unless the program it names has gone.
     // Falling back to the dashboard rather than to another program: picking
@@ -348,6 +355,7 @@
         <Dashboard
           {health}
           {programs}
+          {running}
           {build}
           {lastRead}
           {deployment}

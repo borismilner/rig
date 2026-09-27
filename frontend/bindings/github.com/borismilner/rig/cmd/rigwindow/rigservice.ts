@@ -61,9 +61,21 @@ export function Programs(): $CancellablePromise<$models.Program[]> {
     });
 }
 
+/**
+ * Supervision never returns an error, for Health's reason: an estate Rig
+ * cannot be asked about is drawn from what Programs already said.
+ */
+export function Supervision(): $CancellablePromise<$models.Running[]> {
+    return $Call.ByID(914839342).then(($result: any) => {
+        return $$createType6($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = $Create.Map($Create.Any, $Create.Any);
 const $$createType1 = $models.Deployment.createFrom;
 const $$createType2 = $models.Health.createFrom;
 const $$createType3 = $models.Program.createFrom;
 const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = $models.Running.createFrom;
+const $$createType6 = $Create.Array($$createType5);
