@@ -238,4 +238,15 @@ daemon beside Do Not Disturb, and the tray shows and sets them. Speech ports
 AgentBox's `internal/speech` (engine held open, bounded queue) rather than
 writing a second one.
 
+**His defaults, 2026-09-27** (put to him as choices):
+
+| Setting | Default |
+|---|---|
+| toast sound | **the hail**; the badge chirp is the alternative, chosen in the tray |
+| read aloud | **the title only** |
+| mute and read-aloud mode | **remembered across a restart and a reboot**, unlike Do Not Disturb |
+
+The first badge chirp (two bright blips with a metallic ring) was "tune it";
+the chirp is not final until he picks one by ear.
+
 ---
