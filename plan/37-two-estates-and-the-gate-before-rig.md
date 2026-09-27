@@ -1032,6 +1032,16 @@ against the basis-marker entry.
   wish, and a named adopter, both unchanged.
 - **It does not let a seat file straight to the backlog.** To the lead, always.
 
+### ⛔ The team-lead is the session working with Boris, not a separate seat
+
+**Boris, 2026-09-27, verbatim:** *"You are the team lead - remove the
+requierment for some external team-lead."* Every rule in this plan that names
+the team-lead, the lead, or the team-lead seat now means **the session Boris is
+working with**. No seat waits for, hands to, or defers to another lead, and a
+seat never answers "that is the lead's question" to him. It owns `READINESS.txt`
+and receives the ARMED reports. With no second lead to attack its own
+proposals, **it puts them to Boris**: that row below already allowed this.
+
 ### `READINESS.txt`, the one artefact that answers "how much longer"
 
 **Boris, 2026-09-12, verbatim:**
