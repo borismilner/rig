@@ -207,4 +207,35 @@ file he keeps on his own machine replaces it through the flag. It is a flag
 until §47's resolver exists. `rig doctor` does not exist yet, so a missing
 player is one warning on the renderer's stderr for now.
 
+## Sounds, speech and the mute. Boris, 2026-09-27, later the same day.
+
+> "Through the system tray I should be able to disable sounds. This will also
+> work for the read-aloud feature that will use the installed text to speech
+> feature to announce some toasts. The `say` functionality should be
+> standalone, `rig` can be asked to read-aloud arbitrary text. Toasts can be
+> set to be read-alound: only the title or title along with the body (or not
+> at all) and this is to be configurable. The communication hail keep it but
+> I wanted another sound, I meant the one that is heard when a person uses
+> his personal communicator that is on his body." - Boris, 2026-09-27
+
+| # | Requirement |
+|---|---|
+| S1 | **The tray can turn sounds off.** One switch silences the toast sound AND speech |
+| S2 | **`say` is standalone.** rig reads arbitrary text aloud on request, with no toast involved, through the installed text-to-speech engine |
+| S3 | **A toast can be read aloud**: not at all, the title only, or the title and the body. Which one is configurable |
+| S4 | **Two toast sounds.** The hail built earlier stays; a second one is the chirp of the communicator worn on the body (the badge tapped to talk). Both are synthesised, for the copyright reason above |
+
+**S3 SUPERSEDES the speech rule above** that an item speaks only if it
+carries a `speak` line, "never the title, never the body". That rule was
+AgentBox's; his word of 2026-09-27 is newer and names the title and the body
+outright. A `speak` line, where a program writes one, still wins over the
+title.
+
+**The seat's design, not yet his ruling:** every sound moves into `rigd`
+behind one audio queue, so the chirp always finishes before a toast is read
+and two voices never overlap. The mute and the read-aloud mode live in the
+daemon beside Do Not Disturb, and the tray shows and sets them. Speech ports
+AgentBox's `internal/speech` (engine held open, bounded queue) rather than
+writing a second one.
+
 ---
