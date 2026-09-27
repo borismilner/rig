@@ -1,5 +1,16 @@
 ## 12. Toasts
 
+⛔ **TOASTS TAKE A REPLY. Boris, 2026-09-27, verbatim, recorded the turn he said it:**
+*"Lets support reply buttons in toasts and also a reply with free text in toasts. A toast
+waiting for a reply does not dissapear on its own."* So a notification may carry reply
+buttons, a free-text field, or both; the sender learns the answer; and a toast that waits for
+a reply has no dwell and never closes on its own. This is the "inline actions" bullet below,
+made concrete.
+
+⛔ **The stack must not shake. Boris, 2026-09-27, verbatim:** *"when the toasts are closed,
+the remaining toasts seem to shake a little, which seems like an irretating bug"*. A bubble
+that stays does not move when another one leaves, except to close the gap.
+
 ⛔ **TOASTS COME FIRST, RULED BY BORIS 2026-09-24, verbatim** (his elision, marked `[...]`,
 is kept as the lead relayed it):
 

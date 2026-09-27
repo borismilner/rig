@@ -1,5 +1,12 @@
 ## 11. The window
 
+- ⛔ **THE DASHBOARD'S CARDS MUST BE USEFUL AND INFORMATIVE. Boris, 2026-09-27, verbatim,
+  with a screenshot of the estate card:** *"the description of the estate is hidden and seem
+  useless, I'd like the layout of these card to be useful and informative."* The screenshot
+  showed each program's description cut to "A fake graft: it r..." and a row of four
+  counters, three of them 0, that told him nothing. A card shows each program's full
+  description and what it is doing, and a number only where it answers a question he has.
+
 - ⛔ **BORIS, 2026-09-17, verbatim - THE WINDOW IS TAB-BASED, AND THE FIRST TAB
   IS PROJECT/CASE MANAGEMENT. RECORDED THE TURN HE SAID IT:** *"alongside working
   on `rig` lets add tab-based content to the GUI for `rig` itself. How about we

@@ -1,5 +1,11 @@
 ## 40. The knowledge-sharing section
 
+⛔ **It is a KNOWLEDGE BASE, not "lessons". Boris, 2026-09-27, verbatim:** *"I think
+"Shared Lessons" or "Lessons" is a bad name. It's more of a shared knowledge base or just a
+knowledge base."* Every surface a person reads calls it the knowledge base, and one entry
+in it an entry. The verbs are already `knowledge.*`; the word "lesson" survives only in this
+section's history.
+
 **RULED BY BORIS 2026-09-17, and recorded the turn he said it.** Not on the MVP's
 critical path, and **he said it should be done soon.**
 
