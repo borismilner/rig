@@ -246,7 +246,13 @@ writing a second one.
 | read aloud | **the title only** |
 | mute and read-aloud mode | **remembered across a restart and a reboot**, unlike Do Not Disturb |
 
-The first badge chirp (two bright blips with a metallic ring) was "tune it";
-the chirp is not final until he picks one by ear.
+**The badge chirp is variant A**, his pick by ear of three on 2026-09-27:
+one tone gliding up from 1600 Hz to 2700 Hz and ringing, 0.2 seconds, with
+inharmonic partials for the metallic edge. The first try (two bright blips)
+was "tune it"; B (three rising blips) and C (high then low) lost.
+
+| # | Requirement |
+|---|---|
+| S5 | **Read-aloud uses the best sound quality available** (Boris, 2026-09-27: *"The read-aloud must use the best available quality of sound."*). Today that is Kokoro-82M through `kokoro-say` at its native 24 kHz, piper only as the fallback, and `pw-play` with its resampler pinned to its maximum quality (15, not the default 4), which `~/.local/bin/say` measured as a bigger audible difference than any tuning flag |
 
 ---
