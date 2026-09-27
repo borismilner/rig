@@ -28,6 +28,7 @@ Versions verified 2026-09-10.
 | Toast motion | motion | 13.2.0 |
 | Toast content | shiki | 4.4.3 |
 | Markdown in the window | `marked`, **as a LEXER and never as a parser** | 18.0.12, pinned exactly. ⛔ `marked.parse()` returns an HTML STRING, which would have to be injected and then sanitised forever; `marked.lexer()` returns a token TREE the view walks into Svelte markup, so §38's "no injection-shaped string building" holds by construction rather than by a check. Candidates weighed 2026-09-18: `snarkdown` (1 KB, no tables, HTML strings only - fails the 348 bodies that hold a table), `markdown-it` (~3x, plugin model nothing needs), `micromark` (events not a tree, needs a second package). Raw HTML inside a body renders as its own characters: 56 bodies contain a `<` and every one MENTIONS markup rather than intending it |
+| Program icons in the window | Lucide (`lucide`, ISC), imported one icon at a time | 1.47.0, pinned exactly. `Identity.icon` names one; a name is never markup (§11) |
 | Testing | stdlib, testing/synctest, go-cmp | v0.7.0 |
 | Frontend testing | Vitest, Playwright | 5.0.0 / 1.63.0 |
 | Frontend build plugin | `@sveltejs/vite-plugin-svelte` | 7.3.0 |
@@ -121,6 +122,7 @@ known properties and was not re-measured here, and says so.
 | `@wailsio/runtime` | the window's bridge | none: it is Wails' own | **keep** |
 | `svelte`, `vite`, `@sveltejs/vite-plugin-svelte`, `tailwindcss`, `@tailwindcss/vite` | the window's frontend | React, Solid; webpack | **keep.** Reasoned: Svelte 5 compiles to the smallest runtime of the three, which is the footprint ruling's question |
 | `marked` | markdown in panes | markdown-it, micromark | **keep.** Reasoned: the smallest and fastest of the three for trusted input |
+| `lucide` | program icons in the rail and dashboard (§11) | phosphor, tabler, heroicons | **keep.** ISC, no dependencies, the widest set, and tree-shaken per icon so the bundle carries only the thirty offered |
 | `@playwright/test` | the contrast gates | puppeteer | **keep.** It drives the real browser the gates need |
 | `typescript`, `tslib`, `@tsconfig/svelte`, `prettier`, `prettier-plugin-svelte`, `vitest`, `json-schema-to-typescript` | build and test tools | - | **keep.** Dev-only; none ships in a binary |
 

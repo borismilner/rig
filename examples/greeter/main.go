@@ -102,7 +102,7 @@ func handle(method string, payload []byte) (proto.Message, error) {
 func declaration() *rigv1.Declaration {
 	return &rigv1.Declaration{
 		Identity: &rigv1.Identity{
-			Id: id, Name: "Greeter", Version: version,
+			Id: id, Name: "Greeter", Version: version, Icon: "hand",
 			Description: "The smallest complete rig program.",
 		},
 		Coverage:     rigv1.Coverage_COVERAGE_PARTIAL,

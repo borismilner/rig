@@ -21,6 +21,8 @@
     Running,
   } from "../../bindings/github.com/borismilner/rig/cmd/rigwindow/models.js";
   import { INTERNAL_GUIS } from "./guis";
+  import { programGlyph, programIcon } from "./icons";
+  import ProgramIcon from "./ProgramIcon.svelte";
   import Deployment from "./Deployment.svelte";
 
   interface Props {
@@ -39,8 +41,15 @@
     onselect: (id: string) => void;
   }
 
-  let { health, programs, running, build, lastRead, deployment, onselect }: Props =
-    $props();
+  let {
+    health,
+    programs,
+    running,
+    build,
+    lastRead,
+    deployment,
+    onselect,
+  }: Props = $props();
 
   let commands = $derived(programs.reduce((n, x) => n + (x.commands || 0), 0));
 
@@ -159,10 +168,14 @@
         <ul class="progs">
           {#each programs as pr (pr.id)}
             {@const run = byId.get(pr.id)}
+            {@const art = programIcon(pr.icon)}
             <li>
               <button onclick={() => onselect(pr.id)}>
                 <span class="glyph"
-                  >{(pr.icon || pr.id.slice(0, 2)).slice(0, 2)}</span
+                  >{#if art}<ProgramIcon node={art} />{:else}{programGlyph(
+                      pr.icon,
+                      pr.id,
+                    )}{/if}</span
                 >
                 <span class="head">
                   <span class="pid">{pr.id}</span>
@@ -176,7 +189,8 @@
                   {:else}
                     <span class="st">started by hand</span>
                   {/if}
-                  <span class="pc">{pr.commands} command{pr.commands === 1
+                  <span class="pc"
+                    >{pr.commands} command{pr.commands === 1
                       ? ""
                       : "s"}{#if pr.paneUrl}, its own pane{/if}{#if pr.hosted},
                       hosted by Rig{/if}</span
@@ -232,8 +246,8 @@
           The rail also carries {INTERNAL_GUIS.length} internal GUI{INTERNAL_GUIS.length ===
           1
             ? ""
-            : "s"} that Rig provides itself. An internal GUI is not a registered
-          program and needs no registration.
+            : "s"} that Rig provides itself. An internal GUI is not a registered program
+          and needs no registration.
         </p>
       {/if}
     </section>
@@ -495,6 +509,19 @@
     background: var(--panel);
   }
 
+  /* A program's icon in the same box as two letters, the box one line high
+     either way. */
+  .glyph {
+    display: grid;
+    place-items: center;
+    min-height: calc(1lh + 0.2rem + 2px);
+  }
+
+  .glyph :global(svg) {
+    width: 1.15em;
+    height: 1.15em;
+  }
+
   /* ── three tiers of chrome, and the library page is where they come from.
      Its cards give the title a face of its own, the format and duration an
      OUTLINED chip, and the tags no chrome at all - bare words in a dimmer
@@ -606,7 +633,6 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.7rem 1rem;
   }
-
 
   .facts div {
     display: grid;

@@ -300,6 +300,9 @@ func (d Declaration) validate(self bool) error {
 	if d.Identity.Version == "" {
 		add("identity.version is empty")
 	}
+	if bad := badIcon(d.Identity.Icon); bad != "" {
+		add("identity.icon %q %s", d.Identity.Icon, bad)
+	}
 	if d.Coverage == CoverageUnspecified {
 		add("coverage is unspecified: say partial or full (section 5k)")
 	}
@@ -444,4 +447,22 @@ func (c Command) missing() []string {
 		out = append(out, "returns is mandatory")
 	}
 	return out
+}
+
+// maxIcon bounds identity.icon, which the window looks up by name (plan/11).
+const maxIcon = 64
+
+// badIcon says why an icon name is refused, or "" when it is fine. The window
+// draws a name from its own icon set, so the name is lowercase words joined
+// by hyphens and never markup; empty means the program declared none.
+func badIcon(icon string) string {
+	if len(icon) > maxIcon {
+		return fmt.Sprintf("is longer than %d bytes", maxIcon)
+	}
+	for _, r := range icon {
+		if (r < 'a' || r > 'z') && (r < '0' || r > '9') && r != '-' {
+			return "is not an icon name: lowercase letters, digits and hyphens, as in \"warehouse\""
+		}
+	}
+	return ""
 }

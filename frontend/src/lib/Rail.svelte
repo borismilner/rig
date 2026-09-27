@@ -29,7 +29,13 @@
 
      Section 11 is also explicit that the rail never re-orders under your hand,
      so the order is the registry's and nothing here sorts it. -->
+<script lang="ts" module>
+  import type { IconNode } from "./icons";
+</script>
+
 <script lang="ts">
+  import ProgramIcon from "./ProgramIcon.svelte";
+
   export type RailEntry = {
     id: string;
     title: string;
@@ -37,6 +43,9 @@
     glyph: string;
     /** An SVG path for an internal GUI. Mutually exclusive with glyph. */
     icon?: string;
+    /** A program's declared icon from the window's set (./icons.ts). Drawn
+        in place of the glyph when present. */
+    art?: IconNode;
     /* ⛔ A HUE MEMBER NAME, AND ONLY AN INTERNAL GUI HAS ONE.
      *
      * Requirement 17 asks for colours so entries are distinguishable at a
@@ -118,7 +127,7 @@
       class:hued={!!p.hue}
       bind:this={marks[i]}
       aria-current={!atHome && p.id === selected}
-      title={p.title}
+      aria-label={p.title}
       onclick={() => onselect(p.id)}
       {onkeydown}
       style={p.hue ? `--mhue: var(--h-${p.hue})` : undefined}
@@ -129,9 +138,12 @@
             <path d={p.icon} />
           </svg>
         </span>
+      {:else if p.art}
+        <span class="ico art prog"><ProgramIcon node={p.art} /></span>
       {:else}
         <span class="ico">{p.glyph}</span>
       {/if}
+      <span class="tip" aria-hidden="true">{p.title}</span>
     </button>
   {/each}
 
@@ -261,6 +273,44 @@
     width: 15px;
     height: 15px;
     fill: currentColor;
+  }
+
+  /* The entry's name on hover or keyboard focus (plan/11, Boris 2026-09-27:
+     "when hovered should say its name"). Drawn rather than a title
+     attribute: the native tooltip waits a second and cannot follow the
+     keyboard. The rail sits above the pane so the label may overlap it. */
+  .rail {
+    z-index: 5;
+  }
+
+  .tip {
+    position: absolute;
+    inset-inline-start: calc(100% - 4px);
+    top: 50%;
+    translate: 0 -50%;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-2);
+    background: var(--panel);
+    color: var(--fg);
+    font-size: var(--fs--1);
+    white-space: nowrap;
+    box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--fg) 40%, transparent);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.12s;
+  }
+
+  .mark:hover .tip,
+  .mark:focus-visible .tip {
+    opacity: 1;
+  }
+
+  /* A program's icon is stroked, not filled: Lucide draws in lines. */
+  .ico.art.prog :global(svg) {
+    width: 16px;
+    height: 16px;
+    fill: none;
   }
 
   /* ── the owned colour, requirement 17 ──────────────────────────────────

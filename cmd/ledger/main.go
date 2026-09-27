@@ -143,6 +143,7 @@ func declaration(id, paneURL string) *rigv1.Declaration {
 			Id:          id,
 			Name:        "Ledger",
 			Version:     version,
+			Icon:        "git-pull-request",
 			Description: "A pull report, modelled on pull-report's measured markup.",
 		},
 		Coverage:     rigv1.Coverage_COVERAGE_PARTIAL,

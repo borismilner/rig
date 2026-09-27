@@ -68,7 +68,7 @@ var commands = []command{
 func (a *app) declaration(paneURL string) *rigv1.Declaration {
 	d := &rigv1.Declaration{
 		Identity: &rigv1.Identity{
-			Id: a.id, Name: "Storeworker", Version: version,
+			Id: a.id, Name: "Storeworker", Version: version, Icon: "warehouse",
 			Description: "A fake graft: it runs assignments, and each tab of its pane shows one part of Rig at work.",
 		},
 		Coverage:     rigv1.Coverage_COVERAGE_PARTIAL,

@@ -152,6 +152,7 @@ func declaration(id string) *rigv1.Declaration {
 			Id:          id,
 			Name:        "Fake App",
 			Version:     version,
+			Icon:        "flask-conical",
 			Description: "The reference program the conformance suite drives.",
 		},
 		// Partial, and honestly so: fakeapp adopts nothing but the wire.

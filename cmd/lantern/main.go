@@ -122,6 +122,7 @@ func declaration(id, paneURL string) *rigv1.Declaration {
 			Id:          id,
 			Name:        "Lantern",
 			Version:     version,
+			Icon:        "lightbulb",
 			Description: "The embedded-tier demo: its own page and components, rig's tokens and nothing more.",
 		},
 		Coverage:     rigv1.Coverage_COVERAGE_PARTIAL,

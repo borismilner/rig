@@ -155,6 +155,7 @@ func declaration(id, paneURL string) *rigv1.Declaration {
 			Id:          id,
 			Name:        "Abacus",
 			Version:     version,
+			Icon:        "layout-dashboard",
 			Description: "A CI board, modelled on dispatch's measured markup.",
 		},
 		Coverage:     rigv1.Coverage_COVERAGE_PARTIAL,

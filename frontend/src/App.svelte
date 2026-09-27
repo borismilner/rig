@@ -49,6 +49,7 @@
   import Settings from "./lib/Settings.svelte";
   import Dashboard from "./lib/Dashboard.svelte";
   import { INTERNAL_GUIS, internalGui } from "./lib/guis";
+  import { programGlyph, programIcon } from "./lib/icons";
   import { PROGRAMS, BUILD, DEPLOYMENT } from "./lib/fixtures";
 
   /* ── the fixtures, and none of them is a mock of the product path ────────
@@ -76,8 +77,7 @@
   const settingsFixture = params.get("settings") === "1";
   const dashFixture = params.get("dash") === "1";
   const railFixture = params.get("fixture") === "1";
-  const fixture =
-    railFixture || paneFixture || settingsFixture || dashFixture;
+  const fixture = railFixture || paneFixture || settingsFixture || dashFixture;
 
   let programs: Program[] = $state(fixture ? PROGRAMS : []);
   // What each supervised program is doing, from rig.health. Empty for an
@@ -161,7 +161,8 @@
     ...programs.map((p) => ({
       id: p.id,
       title: `${p.name || p.id} ${p.version}`,
-      glyph: (p.icon || p.id.slice(0, 2)).slice(0, 2),
+      glyph: programGlyph(p.icon, p.id),
+      art: programIcon(p.icon) ?? undefined,
     })),
   ]);
 
