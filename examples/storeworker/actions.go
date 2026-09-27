@@ -219,7 +219,7 @@ func (a *app) search(ctx context.Context, words string) ([]*verbsv1.FilesHit, er
 	return resp.GetHits(), err
 }
 
-// lessons asks the shared lessons (knowledge.search): what failed runs
+// lessons asks the knowledge base (knowledge.search): what failed runs
 // taught, readable by every program and agent.
 func (a *app) lessons(ctx context.Context, words string) ([]*verbsv1.LessonHit, error) {
 	var resp verbsv1.KnowledgeSearchResponse

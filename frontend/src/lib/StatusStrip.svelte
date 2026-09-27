@@ -18,7 +18,7 @@
   <span class="dot" class:bad={!connected} aria-hidden="true"></span>
   <span>
     {#if connected}
-      rig, {programCount} program{programCount === 1 ? "" : "s"}
+      Rig, {programCount} program{programCount === 1 ? "" : "s"}
     {:else}
       detached
     {/if}

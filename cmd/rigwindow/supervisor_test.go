@@ -124,10 +124,10 @@ func TestAWindowThatWillNotStartLeavesTheTrayUpAndSaysWhy(t *testing.T) {
 }
 
 func TestTheMenuRowSaysWhatTheClickWillDo(t *testing.T) {
-	if got := windowTitle(false); got != "Show rig" {
+	if got := windowTitle(false); got != "Show Rig" {
 		t.Fatalf("closed: %q", got)
 	}
-	if got := windowTitle(true); got != "Close rig" {
+	if got := windowTitle(true); got != "Close Rig" {
 		t.Fatalf("open: %q", got)
 	}
 }

@@ -72,7 +72,7 @@ func (a *app) declaration(paneURL string) *rigv1.Declaration {
 			Description: "A fake graft: it runs assignments, and each tab of its pane shows one part of rig at work.",
 		},
 		Coverage:     rigv1.Coverage_COVERAGE_PARTIAL,
-		CoverageNote: "a demonstration: store, queue, leases, files, lessons, mail, toasts and health, no config or logs",
+		CoverageNote: "a demonstration: store, queue, leases, files, knowledge base, mail, toasts and health, no config or logs",
 		SemanticsGen: 1,
 		PaneUrl:      paneURL,
 		Preamble:     "storeworker runs fake assignments. Assign one, list runs, answer a run waiting over budget, export or restore its store.",

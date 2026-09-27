@@ -117,7 +117,7 @@ func runWindow() error {
 	// rather than for a demo, and floored so the rail cannot be squeezed off
 	// screen.
 	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:            "rig",
+		Title:            "Rig",
 		Width:            1280,
 		Height:           800,
 		MinWidth:         960,

@@ -78,12 +78,12 @@ var (
 // parameter would leave the capability one line from returning.
 func runTraySupervisor(sup *supervisor) {
 	systray.Run(func() {
-		systray.SetTooltip("rig")
+		systray.SetTooltip("Rig")
 
 		// Pre-daemon text, so the menu is never blank before the first poll
 		// answers. The window's OWN build stamp is the honest answer here:
 		// nothing has told us the daemon's yet.
-		menuVersion = systray.AddMenuItem("rig "+version+" (window)", "the version this window was built at")
+		menuVersion = systray.AddMenuItem("Rig "+version+" (window)", "the version this window was built at")
 		menuVersion.Disable()
 		menuEstate = systray.AddMenuItem("looking for a daemon", "which estate this tray is attached to")
 		menuEstate.Disable()
@@ -92,7 +92,7 @@ func runTraySupervisor(sup *supervisor) {
 		menuDetail.Hide()
 
 		systray.AddSeparator()
-		menuWindow = systray.AddMenuItem(windowTitle(false), "Open or close the rig window")
+		menuWindow = systray.AddMenuItem(windowTitle(false), "Open or close the Rig window")
 		menuDND = systray.AddMenuItemCheckbox("Do Not Disturb", "toasts go to the record only; urgent ones still show", false)
 		go func() {
 			for range menuDND.ClickedCh {
@@ -155,9 +155,9 @@ func runTraySupervisor(sup *supervisor) {
 // one. "Hide" would be a lie now that a close ends the process.
 func windowTitle(open bool) string {
 	if open {
-		return "Close rig"
+		return "Close Rig"
 	}
-	return "Show rig"
+	return "Show Rig"
 }
 
 // retitleWindowItem keeps the entry describing what clicking it will DO, the
@@ -188,10 +188,10 @@ func pollEstate(sup *supervisor) {
 		est, connected := estateSnapshot()
 		switch {
 		case connected && est.GetRole() == registryv1.EstateRole_ESTATE_ROLE_PRODUCTION:
-			setTrayIcon("production.png", "rig - production")
+			setTrayIcon("production.png", "Rig - production")
 			setFacts(est)
 		case connected && est.GetRole() == registryv1.EstateRole_ESTATE_ROLE_DEVELOPMENT:
-			setTrayIcon("development.png", "rig - development")
+			setTrayIcon("development.png", "Rig - development")
 			setFacts(est)
 		case connected:
 			// Unnamed or unspecified. ⛔ THIS USED TO QUIT THE TRAY AND NOW
@@ -223,7 +223,7 @@ func pollEstate(sup *supervisor) {
 			// shared down icon, so the tray does not answer "rig is not
 			// running" by forgetting which estate it was - that is the fact
 			// the tray exists to carry.
-			setTrayIcon(downIcon(lastIcon), "rig - no daemon answering")
+			setTrayIcon(downIcon(lastIcon), "Rig - no daemon answering")
 			setDetached()
 		}
 		retitleWindowItem(sup)
@@ -248,7 +248,7 @@ func setFacts(est *registryv1.EstateResponse) {
 		// it is NOT rendered as a version. Same reasoning as decision 6.
 		v = "unknown"
 	}
-	menuVersion.SetTitle("rig " + v)
+	menuVersion.SetTitle("Rig " + v)
 	menuVersion.SetTooltip("the version of the daemon this tray is attached to")
 
 	name := est.GetName()
@@ -277,7 +277,7 @@ func setDetached() {
 	if menuVersion == nil || menuEstate == nil {
 		return
 	}
-	menuVersion.SetTitle("rig " + version + " (window)")
+	menuVersion.SetTitle("Rig " + version + " (window)")
 	menuEstate.SetTitle("no daemon answering")
 
 	if detachedSince.IsZero() {

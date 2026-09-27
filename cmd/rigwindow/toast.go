@@ -407,7 +407,7 @@ func runToasts(after uint64) error {
 		LogLevel: slog.LevelWarn,
 	})
 	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:          "rig toasts",
+		Title:          "Rig toasts",
 		Width:          toastWidth,
 		Height:         1,
 		Hidden:         true,

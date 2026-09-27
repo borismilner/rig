@@ -368,21 +368,21 @@ func selfDeclaration() kernel.Declaration {
 			// record writers make above. None is destructive: a break
 			// refuses a lease still inside its deadline, so it only ever
 			// frees one whose holder has already let it lapse.
-			// SECTION 40's KNOWLEDGE SECTION, a view of the shared lessons
-			// folder (plan/48 R24). Search and get read; add writes a lesson
-			// file there, so it is a file write.
+			// SECTION 40's KNOWLEDGE SECTION, the knowledge base, a view of the
+			// shared lessons folder (plan/48 R24). Search and get read; add
+			// writes an entry file there, so it is a file write.
 			readOnly("knowledge.search", "Knowledge search",
-				"Find lessons other sessions already learned",
-				"Searches the estate's lessons by the words given and answers, best first, a title, a one-line summary and a snippet per hit - never a body, so consulting costs a few hundred bytes. No query syntax is interpreted. Consult it before a deep dive: another session may have done the research.",
+				"Find what other sessions already put in the knowledge base",
+				"Searches the estate's knowledge base by the words given and answers, best first, a title, a one-line summary and a snippet per hit - never a body, so consulting costs a few hundred bytes. No query syntax is interpreted. Consult it before a deep dive: another session may have done the research.",
 				"Up to 20 hits, best first, each with an id to fetch."),
 			readOnly("knowledge.get", "Knowledge get",
-				"Read one lesson whole",
-				"Answers one lesson by id, body and provenance included. Fetch only the hit that fits.",
-				"The lesson."),
+				"Read one knowledge base entry whole",
+				"Answers one entry by id, body and provenance included. Fetch only the hit that fits.",
+				"The entry."),
 			leaseWriter("knowledge.add", "Knowledge add", kernel.No,
-				"Write a lesson once, for every agent and person on this estate",
-				"Writes a lesson: a title, a one-line summary that searches show, a body with the detail, and one-word tags. For lessons of great importance to many users, not for every note. Attributed to the caller's seat.",
-				"The lesson as written, with its id."),
+				"Write a knowledge base entry once, for every agent and person on this estate",
+				"Writes an entry: a title, a one-line summary that searches show, a body with the detail, and one-word tags. For knowledge of great importance to many users, not for every note. Attributed to the caller's seat.",
+				"The entry as written, with its id."),
 
 			// SECTION 09's WORKING NOTES. A write is a file write on the
 			// record writers' argument; the two reads only read. ⛔ ALL THREE

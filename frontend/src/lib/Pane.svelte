@@ -211,7 +211,7 @@
 
 <main class="pane" class:own={!!program?.paneUrl} class:held={framedFocus}>
   {#if !connected}
-    <h2>rig is not answering</h2>
+    <h2>Rig is not answering</h2>
     <p class="lead">
       The window is up and the daemon is not, which is section 5g's fourth
       state. Nothing here is stale data: the rail is empty because the registry
@@ -224,7 +224,7 @@
   {:else if programs.length === 0}
     <h2>no programs are registered</h2>
     <p class="lead">
-      rig is answering and its registry is empty. A program appears here the
+      Rig is answering and its registry is empty. A program appears here the
       moment it registers, which is registration over the real wire rather than
       anything drawn in advance.
     </p>
@@ -251,7 +251,7 @@
           <h2>{program.id} is not serving its pane</h2>
           <p class="lead">
             It declared one at <code>{program.paneUrl}</code> and nothing answered
-            there. The program is registered, so it is talking to rig over the socket;
+            there. The program is registered, so it is talking to Rig over the socket;
             it is the page that is missing.
           </p>
         </div>
@@ -291,7 +291,7 @@
     </dl>
 
     <p class="lead">
-      Everything above came over the socket from rig's registry. This program
+      Everything above came over the socket from Rig's registry. This program
       declared no pane of its own, which is what puts it on the generated tier.
     </p>
   {/if}

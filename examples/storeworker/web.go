@@ -150,7 +150,7 @@ func (w *web) tab(r *http.Request) (any, error) {
 		var lay verbsv1.FilesLayoutResponse
 		err = a.call(ctx, "files.layout", "", &verbsv1.FilesLayoutRequest{}, &lay)
 		put("layout", lay.GetKinds(), err)
-	case "lessons":
+	case "knowledge":
 		words := q.Get("q")
 		if words == "" {
 			words = "storeworker"
@@ -237,7 +237,7 @@ func (w *web) do(r *http.Request) (any, error) {
 		}, &resp)
 		return map[string]any{"id": resp.GetMessage().GetId(), "delivered": resp.GetDelivered(),
 			"state": strings.ToLower(strings.TrimPrefix(resp.GetToState().String(), "SEAT_STATE_"))}, err
-	case "lesson":
+	case "entry":
 		var resp verbsv1.KnowledgeAddResponse
 		err := a.call(ctx, "knowledge.add", in.Title, &verbsv1.KnowledgeAddRequest{
 			Title: in.Title, Summary: in.Summary, Body: in.Body, Tags: []string{"storeworker"},

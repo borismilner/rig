@@ -28,9 +28,9 @@
     <span class="name">Dashboard</span>
     <span class="note">
       {!connected
-        ? "detached: rig is not answering"
+        ? "detached: Rig is not answering"
         : programCount === 0
-          ? "rig is answering and no programs are registered"
+          ? "Rig is answering and no programs are registered"
           : `${programCount} program${programCount === 1 ? "" : "s"} registered`}
     </span>
     <span class="right">
@@ -65,14 +65,14 @@
       <kbd>&uarr;</kbd><kbd>&darr;</kbd> rail
     </span>
   {:else}
-    <span class="name">rig</span>
+    <span class="name">Rig</span>
     <!-- Not reaching rig and reaching an empty registry are different
          sentences. Saying "no programs are registered" while the pane says the
          daemon is gone is the shell contradicting itself, which is worse than
          either message alone. -->
     <span class="note">
       {!connected
-        ? "detached: rig is not answering"
+        ? "detached: Rig is not answering"
         : programCount === 0
           ? "no programs are registered"
           : "select a program from the rail"}

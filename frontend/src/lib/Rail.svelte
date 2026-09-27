@@ -91,7 +91,7 @@
   }
 </script>
 
-<nav class="rail" aria-label="rig">
+<nav class="rail" aria-label="Rig">
   <!-- The home mark is a figure rather than two letters, because two letters
        are already what an entry looks like and one more would read as another
        GUI rather than as the way out of all of them. -->

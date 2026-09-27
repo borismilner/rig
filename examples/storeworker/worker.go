@@ -232,12 +232,12 @@ func (a *app) writeTranscript(ctx context.Context, id string, r run, text string
 	return place.GetRelative()
 }
 
-// finish tells everyone who should know: a toast for Boris, a lesson when
+// finish tells everyone who should know: a toast for Boris, a knowledge base entry when
 // it failed, and mail to the seat that asked.
 func (a *app) finish(ctx context.Context, id string, r run, end string) {
 	if end == stateFailed {
-		a.notify(ctx, registryv1.Severity_SEVERITY_ERROR, "Failed: "+r.Title, "Run "+id+" failed; a lesson was recorded.")
-		_ = a.call(ctx, "knowledge.add", "lesson from "+id, &verbsv1.KnowledgeAddRequest{
+		a.notify(ctx, registryv1.Severity_SEVERITY_ERROR, "Failed: "+r.Title, "Run "+id+" failed; the knowledge base has an entry on it.")
+		_ = a.call(ctx, "knowledge.add", "knowledge base entry from "+id, &verbsv1.KnowledgeAddRequest{
 			Title:   "storeworker: a prompt that asks to fail, fails",
 			Summary: "Run " + id + " (" + r.Title + ") failed because its prompt contained the word fail.",
 			Body:    "The fake runner fails any run whose prompt contains \"fail\". Remove the word to run it.",

@@ -12,10 +12,10 @@ import (
 	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
-// `rig knowledge` - section 40's lessons at the prompt.
+// `rig knowledge` - section 40's knowledge base at the prompt.
 //
 //	rig knowledge search <words...> [--limit N]   titles, summaries, snippets
-//	rig knowledge get <id>                        one lesson whole
+//	rig knowledge get <id>                        one entry whole
 //	rig knowledge add --title T --summary S [--body B] [--tag t]...
 //
 // search never prints a body: that is section 40's whole point, and the
@@ -41,7 +41,7 @@ func knowledgeFlagSet() *knowledgeFlags {
 	k.asJSON = k.fs.Bool("json", false, "emit JSON")
 	k.timeout = k.fs.Duration("timeout", defaultCallTimeout, "how long to wait")
 	k.limit = k.fs.Uint("limit", 0, "search: at most this many hits (default 5, at most 20)")
-	k.title = k.fs.String("title", "", "add: the lesson's title")
+	k.title = k.fs.String("title", "", "add: the entry's title")
 	k.summary = k.fs.String("summary", "", "add: one line, what a search shows")
 	k.body = k.fs.String("body", "", "add: the detail")
 	k.fs.Var(&k.tags, "tag", "add: a one-word tag (repeatable)")
@@ -97,7 +97,7 @@ func cmdKnowledge(args []string) (err error) {
 			return out.Encode(map[string]any{"hits": hits})
 		}
 		if len(resp.GetHits()) == 0 {
-			fmt.Println("no lesson matches. Nothing is recorded on this yet; if you learn it, `rig knowledge add` it.")
+			fmt.Println("no entry matches. Nothing is recorded on this yet; if you learn it, `rig knowledge add` it.")
 			return nil
 		}
 		for _, h := range resp.GetHits() {

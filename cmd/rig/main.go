@@ -192,7 +192,7 @@ func usage() {
   ping <program>   round-trip a program through rigd ("rig" pings the daemon)
   estate           which estate this shell reached, and what it is for
   peers            who else is here, what each is for and what each is doing
-  knowledge <cmd>  lessons other sessions learned: search, get, add
+  knowledge <cmd>  the shared knowledge base: search, get, add
   worknote <cmd>   your own working notes, kept past this session: write,
                    mine, about
   message <cmd>    directed messages to a seat: send, and list what became
@@ -210,7 +210,7 @@ func usage() {
                    unlink, refs, retract, delete, replace
   progress step <item>
                    append one step to a work item's stream
-  backup           archive the estate this shell reached; rig picks the path
+  backup           archive the estate this shell reached; Rig picks the path
   restore --estate <name> <archive>
                    put an archive back onto an estate, offline; --force moves
                    the old state aside rather than deleting it

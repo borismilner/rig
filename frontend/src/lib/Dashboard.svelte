@@ -88,7 +88,7 @@
 
 <div class="dash">
   <header class="top">
-    <h1 class="t-sec">rig</h1>
+    <h1 class="t-sec">Rig</h1>
     <p class="state">
       <span class="dot" class:bad={!health.connected}></span>
       {#if health.connected}
@@ -131,12 +131,12 @@
       </h2>
       {#if !health.connected}
         <p class="muted">
-          The registry cannot be read while rig is not answering. Nothing below
+          The registry cannot be read while Rig is not answering. Nothing below
           is a stale copy: there is no copy.
         </p>
       {:else if programs.length === 0}
         <p class="muted">
-          No programs are registered. rig is answering and its registry is empty
+          No programs are registered. Rig is answering and its registry is empty
           - one appears here the moment it registers.
         </p>
       {:else}
@@ -172,7 +172,7 @@
             <dd class="t-num">{ownPane}</dd>
           </div>
           <div>
-            <dt>hosted by rig</dt>
+            <dt>hosted by Rig</dt>
             <dd class="t-num">{hosted}</dd>
           </div>
           <div>
@@ -193,7 +193,7 @@
           The rail also carries {INTERNAL_GUIS.length} internal GUI{INTERNAL_GUIS.length ===
           1
             ? ""
-            : "s"} that rig provides itself. An internal GUI is not a registered
+            : "s"} that Rig provides itself. An internal GUI is not a registered
           program and needs no registration.
         </p>
       {/if}
@@ -234,7 +234,7 @@
        was decided and what was merely available. -->
   <p class="foot">
     What belongs on this page is still being decided. Everything above is what
-    the window can answer today without asking rig for anything new.
+    the window can answer today without asking Rig for anything new.
   </p>
 </div>
 
