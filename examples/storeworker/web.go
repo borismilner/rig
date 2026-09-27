@@ -175,6 +175,7 @@ func (w *web) tab(r *http.Request) (any, error) {
 		var peers verbsv1.PeersResponse
 		err := a.call(ctx, "peers", "", &verbsv1.PeersRequest{}, &peers)
 		put("peers", seatsView(peers.GetCrew()), err)
+	case "words": // the page carries them; the worker's state is all it needs
 	default:
 		return nil, errors.New("no such tab")
 	}
