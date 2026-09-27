@@ -42,6 +42,9 @@ type app struct {
 const (
 	maxCalls  = 60
 	maxToasts = 20
+
+	// replyPoll is one toast.answer long poll; Rig caps it at 60 s.
+	replyPoll = 55 * time.Second
 )
 
 type callRow struct {
@@ -55,6 +58,12 @@ type toastRow struct {
 	At       string `json:"at"`
 	Severity string `json:"severity"`
 	Title    string `json:"title"`
+
+	// A toast that asks carries its record id, what it offers (the buttons,
+	// or "free text"), and the answer once one arrives.
+	ID     string `json:"id,omitempty"`
+	Asks   string `json:"asks,omitempty"`
+	Answer string `json:"answer,omitempty"`
 }
 
 // workerView is what the worker is doing, for the page.
@@ -135,17 +144,90 @@ func code(err error) rigv1.Code {
 
 // notify puts a toast in the tray (rig.notify) and remembers it for the page.
 func (a *app) notify(ctx context.Context, sev registryv1.Severity, title, body string) {
-	_ = a.call(ctx, "notify", strings.ToLower(strings.TrimPrefix(sev.String(), "SEVERITY_"))+": "+title,
-		&registryv1.NotifyRequest{Severity: sev, Title: title, Body: body}, &registryv1.NotifyResponse{})
+	a.ask(ctx, sev, title, body, nil, false)
+}
+
+// ask files a toast that takes a reply: a button per entry in replies, and
+// a text field when text is set. It answers the toast's record id, which
+// awaitReply and closeAsk name it by, or "" if Rig refused it. With no
+// replies and no text it is an ordinary toast.
+func (a *app) ask(ctx context.Context, sev registryv1.Severity, title, body string, replies []string, text bool) string {
+	word := strings.ToLower(strings.TrimPrefix(sev.String(), "SEVERITY_"))
+	var resp registryv1.NotifyResponse
+	err := a.call(ctx, "notify", word+": "+title, &registryv1.NotifyRequest{
+		Severity: sev, Title: title, Body: body, Replies: replies, ReplyText: text,
+	}, &resp)
+	row := toastRow{At: time.Now().Format("15:04:05"), Title: title, Severity: word}
+	if err == nil && (len(replies) > 0 || text) {
+		row.ID = resp.GetToast().GetRecordId()
+		row.Asks = strings.Join(replies, " / ")
+		if text {
+			row.Asks = strings.TrimPrefix(row.Asks+" / free text", " / ")
+		}
+	}
 	a.mu.Lock()
-	a.toasts = append(a.toasts, toastRow{
-		At: time.Now().Format("15:04:05"), Title: title,
-		Severity: strings.ToLower(strings.TrimPrefix(sev.String(), "SEVERITY_")),
-	})
+	a.toasts = append(a.toasts, row)
 	if len(a.toasts) > maxToasts {
 		a.toasts = a.toasts[len(a.toasts)-maxToasts:]
 	}
 	a.mu.Unlock()
+	return row.ID
+}
+
+// awaitReply waits for the answer to a toast that asked (toast.answer, a
+// long poll), and notes it on the toast's row. It answers nil when ctx ends
+// first or Rig no longer knows the toast.
+func (a *app) awaitReply(ctx context.Context, id string) *registryv1.ToastAnswer {
+	if id == "" {
+		return nil
+	}
+	for ctx.Err() == nil {
+		var resp registryv1.ToastAnswerResponse
+		err := a.c.Call(ctx, "rig.toast.answer", &registryv1.ToastAnswerRequest{
+			RecordId: id, TimeoutMs: uint32(replyPoll / time.Millisecond),
+		}, &resp)
+		if err != nil {
+			if ctx.Err() == nil {
+				a.logRow(callRow{At: time.Now().Format("15:04:05"), Verb: "toast.answer", Note: id + ": " + short(err.Error()), Failed: true})
+			}
+			return nil
+		}
+		ans := resp.GetAnswer()
+		if !ans.GetAnswered() {
+			continue
+		}
+		said := "closed without an answer"
+		switch {
+		case ans.GetReply() != "":
+			said = ans.GetReply()
+		case ans.GetText() != "":
+			said = "\"" + ans.GetText() + "\""
+		}
+		a.logRow(callRow{At: time.Now().Format("15:04:05"), Verb: "toast.answer", Note: id + ": " + said + " by " + ans.GetBy()})
+		a.mu.Lock()
+		for i := range a.toasts {
+			if a.toasts[i].ID == id {
+				a.toasts[i].Answer = said + ", by " + ans.GetBy()
+			}
+		}
+		a.mu.Unlock()
+		return ans
+	}
+	return nil
+}
+
+// closeAsk answers a toast on the person's behalf (toast.reply) when they
+// answered somewhere else, so the bubble says so and leaves. Rig takes the
+// first answer only, so when the toast itself was answered first this is
+// refused, which is the right outcome and is not logged as a failure.
+func (a *app) closeAsk(ctx context.Context, id, reply string) {
+	if id == "" {
+		return
+	}
+	err := a.c.Call(ctx, "rig.toast.reply", &registryv1.ToastReplyRequest{RecordId: id, Reply: reply}, &registryv1.ToastReplyResponse{})
+	if err == nil {
+		a.logRow(callRow{At: time.Now().Format("15:04:05"), Verb: "toast.reply", Note: id + ": answered elsewhere, " + reply})
+	}
 }
 
 // setWorker changes what the page shows the worker doing, and tells rig the

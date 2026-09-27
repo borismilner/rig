@@ -172,10 +172,18 @@ func (a *app) process(ctx context.Context, id string) {
 	a.finish(ctx, id, r, end)
 }
 
+// The buttons on the budget question's toast.
+const (
+	replyYes = "Yes, run it"
+	replyNo  = "No"
+)
+
 // approved parks the run on a question for Boris and waits for his answer:
 // the run is marked waiting in the store, the question goes out as a toast
-// and as the health report's parked question, and the page, the terminal
-// and an agent can all answer it.
+// with Yes and No on it and as the health report's parked question, and the
+// toast, the page, the terminal and an agent can all answer it. The first
+// answer wins; when it came from anywhere but the toast, the toast is told
+// (toast.reply) so the bubble closes instead of asking a settled question.
 func (a *app) approved(ctx context.Context, id string, r run) bool {
 	q := fmt.Sprintf("Run %s (%s) will cost $%.2f, over the $%.2f budget. Go ahead?", id, r.Title, r.Cost, a.budget)
 	ch := make(chan bool, 1)
@@ -185,8 +193,18 @@ func (a *app) approved(ctx context.Context, id string, r run) bool {
 	_, _ = a.update(ctx, id, "waiting for an answer", func(r *run) { r.State, r.Question = stateWaiting, q })
 	a.setWorker(ctx, func(w *workerView) { w.Activity, w.Parked = "waiting for Boris on run "+id, q })
 	a.report(ctx, "Boris's answer on run "+id)
-	a.notify(ctx, registryv1.Severity_SEVERITY_URGENT, "storeworker needs you", q+
-		` Answer in the storeworker pane, or: rig storeworker answer --args '{"run":"`+id+`","yes":true}'`)
+	tid := a.ask(ctx, registryv1.Severity_SEVERITY_URGENT, "storeworker needs you", q+
+		` Answer here, in the storeworker pane, or: rig storeworker answer --args '{"run":"`+id+`","yes":true}'`,
+		[]string{replyYes, replyNo}, false)
+	watch, stopWatch := context.WithCancel(ctx)
+	defer stopWatch()
+	go func() {
+		// A bubble closed with its X is not an answer: the run stays parked
+		// and the pane and the terminal can still settle it.
+		if ans := a.awaitReply(watch, tid); ans.GetReply() != "" {
+			_, _ = a.answer(watch, answerArgs{Run: id, Yes: ans.GetReply() == replyYes})
+		}
+	}()
 
 	var yes bool
 	select {
@@ -194,6 +212,8 @@ func (a *app) approved(ctx context.Context, id string, r run) bool {
 	case <-ctx.Done():
 		return false
 	}
+	stopWatch()
+	a.closeAsk(ctx, tid, map[bool]string{true: replyYes, false: replyNo}[yes])
 	a.setWorker(ctx, func(w *workerView) { w.Parked = "" })
 	a.report(ctx, "")
 	if !yes {

@@ -17,6 +17,7 @@ import (
 	"github.com/borismilner/rig/internal/coord"
 	"github.com/borismilner/rig/internal/daemon"
 	"github.com/borismilner/rig/internal/instance"
+	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
 // rigd starts a daemon for a named estate WITH a storage root, which
@@ -156,6 +157,69 @@ func TestAnExpensiveRunWaitsForItsAnswer(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitFor(t, a, id, stateDenied)
+
+	// Answered at the terminal, so storeworker told the toast: the bubble
+	// would now say "No" and close rather than ask a settled question.
+	ans := toastAnswer(t, you, askedToast(t, a))
+	if ans.GetReply() != replyNo || ans.GetBy() == "" {
+		t.Fatalf("the toast was left saying %+v", ans)
+	}
+}
+
+// Answering the budget question in the toast alone settles the run: the
+// reply reaches storeworker through toast.answer with no page and no
+// terminal involved.
+func TestAToastReplyAnswersAnExpensiveRun(t *testing.T) {
+	a := start(t, 0.01)
+	ctx := context.Background()
+	out, err := a.assign(ctx, assignArgs{Title: "big", Prompt: strings.Repeat("x", 100)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := out["run"].(string)
+	waitFor(t, a, id, stateWaiting)
+
+	you, err := client.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer you.Close()
+	if err := you.Call(ctx, "rig.toast.reply", &registryv1.ToastReplyRequest{
+		RecordId: askedToast(t, a), Reply: replyYes,
+	}, &registryv1.ToastReplyResponse{}); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, a, id, stateDone)
+}
+
+// askedToast is the record id of the newest toast storeworker filed that
+// asks for a reply. The run is stored as waiting just before the toast goes
+// out, so it waits for one.
+func askedToast(t *testing.T, a *app) string {
+	t.Helper()
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+		a.mu.Lock()
+		for i := len(a.toasts) - 1; i >= 0; i-- {
+			if id := a.toasts[i].ID; id != "" {
+				a.mu.Unlock()
+				return id
+			}
+		}
+		a.mu.Unlock()
+	}
+	t.Fatal("storeworker filed no toast that asks")
+	return ""
+}
+
+func toastAnswer(t *testing.T, c *client.Client, id string) *registryv1.ToastAnswer {
+	t.Helper()
+	var resp registryv1.ToastAnswerResponse
+	if err := c.Call(context.Background(), "rig.toast.answer", &registryv1.ToastAnswerRequest{
+		RecordId: id, TimeoutMs: 5000,
+	}, &resp); err != nil {
+		t.Fatal(err)
+	}
+	return resp.GetAnswer()
 }
 
 // The page's API answers only its own page: the served Host and the header

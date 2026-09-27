@@ -135,6 +135,7 @@ const WORDS = {
   "orphaned": "A lease past its ttl whose holder is still alive. Rig keeps it for the holder, who may renew it, and never hands it to anyone else until the holder releases it or somebody breaks it.",
   "break": "Taking a lease away from its holder by hand, with a reason. Rig records who broke it, so it can be asked about afterwards.",
   "toast": "A notification Rig's tray shows on the desktop.",
+  "reply": "An answer to a toast that asks: one of its buttons, or typed text. The first reply wins and later ones are refused; the sender waits for it with toast.answer, and it is kept as a record.",
   "severity": "How loud a toast is: info, success, warning, error or urgent.",
   "tray": "Rig's icon in the desktop panel. It draws the toasts.",
   "do not disturb": "When on, the tray holds every toast except urgent ones until it is turned off.",
@@ -229,9 +230,9 @@ const TABS = [
         '<p class="dim">A queue claim is a lease too: <code>queue/...</code> rows are the worker\'s claims, hidden once done.</p>' +
         '<p class="dim">An <b>orphaned</b> lease ran past its ttl while its holder was still alive. Rig never frees it by itself, because it cannot tell a dead holder from a slow one: the holder releases it, or somebody breaks it, and Rig records who did.</p>';
     } },
-  { id: "asking", terms: ["run", "budget", "parked", "toast", "severity", "health report", "document"], reads: "store.query for state eq waiting", name: "Asking you", verbs: ["health.report", "notify", "store.put"],
-    what: "<p><b>A program asking its user, with what Rig has today.</b> A run costing more than the budget parks: it is stored as <i>waiting</i>, an <b>urgent toast</b> reaches the tray, and <code>health.report</code> carries the question, so <code>rig health</code> shows it as PARKED.</p>" +
-      "<p><b>Try it:</b> assign an expensive run, watch the toast, then answer here, or at a terminal with the line in the toast. Rig has no reply-to-a-toast yet, so the answer comes back through this program's own command.</p>",
+  { id: "asking", terms: ["run", "budget", "parked", "toast", "reply", "severity", "health report", "document"], reads: "store.query for state eq waiting", name: "Asking you", verbs: ["health.report", "notify", "toast.answer", "toast.reply", "store.put"],
+    what: "<p><b>A program asking its user.</b> A run costing more than the budget parks: it is stored as <i>waiting</i>, an <b>urgent toast with Yes and No on it</b> reaches the tray, and <code>health.report</code> carries the question, so <code>rig health</code> shows it as PARKED.</p>" +
+      "<p><b>Try it:</b> assign an expensive run, then answer in the bubble, here, or at a terminal with the line in the toast. The first answer wins. storeworker waits on the toast with <code>toast.answer</code>; answered anywhere else, it tells the toast with <code>toast.reply</code>, so the bubble says so and closes.</p>",
     controls: '<div class="try"><button class="go" data-do="assign-expensive">Assign an expensive run</button></div>',
     render(d) {
       const w = (d.waiting || {}).runs || [];
@@ -241,15 +242,18 @@ const TABS = [
            '<button class="go" data-do="answer" data-run="' + esc(x.id) + '" data-yes="1">Yes, run it</button> <button data-do="answer" data-run="' + esc(x.id) + '">No</button>'])) +
         "<p class=\"dim\">At a terminal: <code>rig storeworker answer --args '{\"run\":\"ID\",\"yes\":true}'</code></p>";
     } },
-  { id: "toasts", terms: ["toast", "severity", "tray", "do not disturb"], reads: "toast.dnd, as a query", name: "Toasts", verbs: ["notify", "toast."],
+  { id: "toasts", terms: ["toast", "severity", "tray", "do not disturb", "reply"], reads: "toast.dnd, as a query", name: "Toasts", verbs: ["notify", "toast."],
     what: "<p><b>Rig's tray notifications.</b> A program files a toast with a severity; the tray draws it, and Do Not Disturb holds all but urgent. storeworker toasts when a run is queued, done, failed, or needs you.</p>" +
-      "<p><b>Try it:</b> send one of each severity and watch the tray.</p>",
+      "<p><b>A toast can ask.</b> With <code>replies</code> it shows up to three buttons, with <code>reply_text</code> a field to type in, and it stays until answered. The first answer wins; the sender learns it with <code>toast.answer</code>. At a terminal: <code>rig notify info \"Ship it?\" --reply Yes --reply No --wait 5m</code></p>" +
+      "<p><b>Try it:</b> send one of each severity, or a toast that asks, and answer it in the bubble.</p>",
     controls: '<div class="try">' + ["info", "success", "warning", "error", "urgent"].map((s) =>
-      '<button data-do="toast" data-sev="' + s + '">' + s + "</button>").join("") + "</div>",
+      '<button data-do="toast" data-sev="' + s + '">' + s + "</button>").join("") + "</div>" +
+      '<div class="try"><button class="go" data-do="toast-ask" data-kind="buttons">Ask with buttons</button><button class="go" data-do="toast-ask" data-kind="text">Ask for free text</button></div>',
     render(d) {
       const dnd = d.dnd ? (d.dnd.on ? "on, " + esc(d.dnd.suppressed) + " held" : "off") : "unknown";
       return "<p>Do Not Disturb (<code>toast.dnd</code> query): <b>" + dnd + "</b></p>" + err(d, "dnd") +
-        table(["at", "severity", "title"], (d.toasts || []).slice().reverse().map((t) => [esc(t.at), esc(t.severity), esc(t.title)]));
+        table(["at", "severity", "title", "asks", "answer"], (d.toasts || []).slice().reverse().map((t) =>
+          [esc(t.at), esc(t.severity), esc(t.title), esc(t.asks || ""), t.asks ? esc(t.answer || "waiting") : ""]));
     } },
   { id: "files", terms: ["free files", "kind", "layout", "index", "run"], reads: "files.search, files.unindexed, files.layout", name: "Files", verbs: ["files."],
     what: "<p><b>Rig's free files.</b> A program asks <code>files.place</code> where a file of a kind goes, writes it there itself, and indexes it with <code>files.index</code> so a search by anyone finds it. Each run's transcript lands this way.</p>" +
@@ -374,6 +378,7 @@ function args(b) {
     case "stale-write": return { Run: b.dataset.run };
     case "gpu-hold": return { Seconds: Number(v("secs")) };
     case "toast": return { Severity: b.dataset.sev };
+    case "toast-ask": return { Title: b.dataset.kind };
     case "mail": return { To: v("to"), Subject: v("subject"), Body: v("body") };
     case "entry": return { Title: v("ltitle"), Summary: v("lsummary"), Body: v("lsummary") };
     case "invoke": return { Command: v("cmd"), Args: v("args") };

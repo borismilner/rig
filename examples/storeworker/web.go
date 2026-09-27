@@ -230,6 +230,26 @@ func (w *web) do(r *http.Request) (any, error) {
 		}
 		a.notify(ctx, registryv1.Severity(sev), "storeworker says "+in.Severity, "Sent from the Toasts tab.")
 		return map[string]any{"sent": in.Severity}, nil
+	case "toast-ask":
+		// A toast that waits for its answer: it does not leave on its own,
+		// and the answer shows in this tab's table when it comes.
+		var id string
+		if in.Title == "text" {
+			id = a.ask(ctx, registryv1.Severity_SEVERITY_INFO, "What should storeworker call its next run?",
+				"Type a title and press Enter. Sent from the Toasts tab.", nil, true)
+		} else {
+			id = a.ask(ctx, registryv1.Severity_SEVERITY_WARNING, "Ship the weekly report now?",
+				"Pick one. Sent from the Toasts tab.", []string{"Ship it", "Hold it", "Not this week"}, false)
+		}
+		if id == "" {
+			return nil, errors.New("rig refused the toast; the calls list says why")
+		}
+		go func() {
+			wctx, wcancel := context.WithTimeout(context.Background(), 15*time.Minute)
+			defer wcancel()
+			a.awaitReply(wctx, id)
+		}()
+		return map[string]any{"asked": id}, nil
 	case "mail":
 		var resp verbsv1.MessageSendResponse
 		err := a.call(ctx, "message.send", "to "+in.To, &verbsv1.MessageSendRequest{
