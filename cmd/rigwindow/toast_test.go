@@ -108,14 +108,17 @@ func TestTheRendererLeavesOnlyWhenTheLastBubbleHasGone(t *testing.T) {
 		t.Fatal("a renderer that has drawn nothing yet quit")
 	}
 	f.add(toastsOf(1))
-	if got := f.poll(0, 40, now); len(got) != 1 || got[0].Severity != "info" {
+	if got := f.poll(0, inputRegion{}, now); len(got.Toasts) != 1 || got.Toasts[0].Severity != "info" {
 		t.Fatalf("the page was handed %v", got)
 	}
-	f.poll(1, 120, now)
-	if f.size() != 120 || f.done(now.Add(time.Hour)) {
-		t.Fatal("a renderer with a bubble up would quit, or is not sized to it")
+	f.poll(1, inputRegion{Top: 900, Height: 120}, now)
+	if band, up := f.input(); !up || band.Height != 120 || f.done(now.Add(time.Hour)) {
+		t.Fatal("a renderer with a bubble up would quit, or its bubbles do not take the pointer")
 	}
-	f.poll(0, 30, now)
+	f.poll(0, inputRegion{}, now)
+	if _, up := f.input(); up {
+		t.Fatal("an empty page still takes the pointer")
+	}
 	if f.done(now.Add(toastLinger / 2)) {
 		t.Fatal("the renderer quit before the linger")
 	}
@@ -181,5 +184,57 @@ func TestCopyPutsTheTextOnTheClipboardAndNothingElse(t *testing.T) {
 	(&toastFeed{}).ServeHTTP(rec, httptest.NewRequest("POST", "/toast/copy", strings.NewReader("x")))
 	if rec.Code != 405 {
 		t.Errorf("a feed with no clipboard answered %d, want 405", rec.Code)
+	}
+}
+
+// A bubble's reply goes to rig as the request it was, a refusal comes back
+// for the bubble to show, and an asking toast is followed until it is
+// answered, so an answer given anywhere reaches the page.
+func TestARepliedToastReachesRigAndItsAnswerReachesThePage(t *testing.T) {
+	var sent []*registryv1.ToastReplyRequest
+	var watched []string
+	f := &toastFeed{
+		reply: func(r *registryv1.ToastReplyRequest) error {
+			sent = append(sent, r)
+			if r.GetReply() == "No" {
+				return errors.New("CODE_CONFLICT: already answered")
+			}
+			return nil
+		},
+		watch: func(id string, answered func(answerJSON)) {
+			watched = append(watched, id)
+			answered(answerJSON{RecordID: id, Reply: "Yes", By: "terminal:boris"})
+		},
+	}
+	for _, c := range []struct {
+		method, body string
+		want         int
+	}{
+		{"POST", `{"record_id":"n1","reply":"Yes"}`, 204},
+		{"POST", `{"record_id":"n1","reply":"No"}`, 409},
+		{"GET", "", 405},
+		{"POST", `not json`, 400},
+	} {
+		rec := httptest.NewRecorder()
+		f.ServeHTTP(rec, httptest.NewRequest(c.method, "/toast/reply", strings.NewReader(c.body)))
+		if rec.Code != c.want {
+			t.Errorf("%s %s: status %d, want %d", c.method, c.body, rec.Code, c.want)
+		}
+	}
+	if len(sent) != 2 || sent[0].GetRecordId() != "n1" || sent[0].GetReply() != "Yes" {
+		t.Fatalf("rig was sent %v", sent)
+	}
+
+	f.add([]*registryv1.Toast{
+		{Seq: 1, RecordId: "plain", Severity: registryv1.Severity_SEVERITY_INFO, Title: "no question"},
+		{Seq: 2, RecordId: "asks", Severity: registryv1.Severity_SEVERITY_URGENT, Title: "run it?", Replies: []string{"Yes", "No"}},
+	})
+	time.Sleep(50 * time.Millisecond) // the watch runs on its own goroutine
+	got := f.poll(0, inputRegion{}, time.Now())
+	if len(got.Toasts) != 2 || got.Toasts[1].RecordID != "asks" || len(got.Toasts[1].Replies) != 2 {
+		t.Fatalf("the page was handed %+v", got.Toasts)
+	}
+	if len(got.Answers) != 1 || got.Answers[0].RecordID != "asks" || len(watched) != 1 {
+		t.Fatalf("answers %+v after watching %v; only the asking toast is followed", got.Answers, watched)
 	}
 }

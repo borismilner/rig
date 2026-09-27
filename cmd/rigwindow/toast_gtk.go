@@ -45,10 +45,40 @@ static int rig_toast_workarea(int *x, int *y, int *w, int *h) {
 	return 0;
 #endif
 }
+// rig_toast_input sets the window's input region to one band across its
+// width, or to nothing when h is 0: outside the band, the pointer goes to
+// whatever is underneath the transparent window.
+static void rig_toast_input(void *win, int y, int w, int h) {
+	GdkSurface *s = gtk_native_get_surface(GTK_NATIVE(win));
+	if (s == NULL) return;
+	cairo_region_t *r;
+	if (h > 0) {
+		cairo_rectangle_int_t band = { 0, y, w, h };
+		r = cairo_region_create_rectangle(&band);
+	} else {
+		r = cairo_region_create();
+	}
+	gdk_surface_set_input_region(s, r);
+	cairo_region_destroy(r);
+}
 */
 import "C"
 
-import "github.com/wailsapp/wails/v3/pkg/application"
+import (
+	"unsafe"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
+)
+
+// setInputBand makes only the bubbles' band take the pointer. Must run on
+// the GTK thread, after the window is shown.
+func setInputBand(win *application.WebviewWindow, band inputRegion) {
+	p := win.NativeWindow()
+	if p == nil {
+		return
+	}
+	C.rig_toast_input(unsafe.Pointer(p), C.int(band.Top), C.int(toastWidth), C.int(band.Height)) //nolint:gosec // pixels
+}
 
 // clearThemeBackground must run on the GTK thread, after GTK has started.
 func clearThemeBackground() { C.rig_toast_clear_theme() }

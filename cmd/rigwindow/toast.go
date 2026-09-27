@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -20,6 +21,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"github.com/borismilner/rig/client"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
@@ -39,6 +41,12 @@ import (
 //     and the newest bubble sits nearest it. The edge is read from the
 //     work area rather than assumed: Boris's panel is at the BOTTOM, and the
 //     first build's top-right anchor pointed away from his tray.
+//   - NO SHAKE (Boris, 2026-09-27): the window is placed ONCE, as tall as
+//     the work area, and never resized. Resizing it to the bubbles was a
+//     resize then a move on every frame of a leaving bubble, and the stack
+//     jumped between the two. The bubbles alone take the pointer: the page
+//     reports where they are and the window's input region is set to that,
+//     so a click anywhere else goes to what is underneath.
 
 //go:embed toast.html
 var toastPage []byte
@@ -214,12 +222,39 @@ func severityWord(s registryv1.Severity) string {
 
 // toastJSON is one toast as the page draws it.
 type toastJSON struct {
-	Seq      uint64 `json:"seq"`
-	Severity string `json:"severity"`
-	Title    string `json:"title"`
-	Body     string `json:"body"`
-	Sender   string `json:"sender"`
+	Seq       uint64   `json:"seq"`
+	RecordID  string   `json:"record_id"`
+	Severity  string   `json:"severity"`
+	Title     string   `json:"title"`
+	Body      string   `json:"body"`
+	Sender    string   `json:"sender"`
+	Replies   []string `json:"replies,omitempty"`
+	ReplyText bool     `json:"reply_text,omitempty"`
 }
+
+// answerJSON is a reply that arrived for a toast on the page, from this
+// page or from anywhere else.
+type answerJSON struct {
+	RecordID  string `json:"record_id"`
+	Reply     string `json:"reply"`
+	Text      string `json:"text"`
+	Dismissed bool   `json:"dismissed"`
+	By        string `json:"by"`
+}
+
+// pollJSON is what one poll hands the page, with the panel's edge on every
+// poll: a one-off ExecJS can land before the page has loaded, and then the
+// stack hugs the wrong edge of a window that never moves again.
+type pollJSON struct {
+	Toasts  []toastJSON  `json:"toasts"`
+	Answers []answerJSON `json:"answers"`
+	Edge    string       `json:"edge,omitempty"`
+	MaxH    int          `json:"max_h,omitempty"`
+}
+
+// inputRegion is the band of the window the bubbles occupy, in the page's
+// pixels from the window's top; everything outside it lets clicks through.
+type inputRegion struct{ Top, Height int }
 
 // toastFeed is the renderer's state between the daemon and the page: what has
 // arrived and not yet been handed to the page, and what the page last said
@@ -227,12 +262,17 @@ type toastJSON struct {
 type toastFeed struct {
 	mu      sync.Mutex
 	pending []toastJSON
-	shown   int       // bubbles on the page, as it last reported
-	height  int       // the page's content height, as it last reported
-	emptyAt time.Time // when the page last went from some bubbles to none
-	started bool      // a bubble has been handed to the page
+	answers []answerJSON
+	shown   int         // bubbles on the page, as it last reported
+	region  inputRegion // where they are, as it last reported
+	emptyAt time.Time   // when the page last went from some bubbles to none
+	edge    string      // the panel's edge, once the window is placed
+	maxH    int         // the window's height, once placed
+	started bool        // a bubble has been handed to the page
 
-	copyText func(string) // puts text on the clipboard; nil refuses
+	copyText func(string)                               // puts text on the clipboard; nil refuses
+	reply    func(*registryv1.ToastReplyRequest) error  // files a reply; nil refuses
+	watch    func(id string, answered func(answerJSON)) // follows a toast's answer; nil does nothing
 }
 
 // maxCopy bounds what one copy may put on the clipboard, and so what one
@@ -244,25 +284,36 @@ func (f *toastFeed) add(ts []*registryv1.Toast) {
 	defer f.mu.Unlock()
 	for _, t := range ts {
 		f.pending = append(f.pending, toastJSON{
-			Seq: t.GetSeq(), Severity: severityWord(t.GetSeverity()),
+			Seq: t.GetSeq(), RecordID: t.GetRecordId(), Severity: severityWord(t.GetSeverity()),
 			Title: t.GetTitle(), Body: t.GetBody(), Sender: t.GetSender(),
+			Replies: t.GetReplies(), ReplyText: t.GetReplyText(),
 		})
+		if (len(t.GetReplies()) > 0 || t.GetReplyText()) && f.watch != nil {
+			go f.watch(t.GetRecordId(), f.answered)
+		}
 	}
 }
 
-// poll records the page's report and hands it whatever is new.
-func (f *toastFeed) poll(shown, height int, now time.Time) []toastJSON {
+// answered queues a reply for the page, wherever it was given.
+func (f *toastFeed) answered(a answerJSON) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := f.pending
-	f.pending = nil
-	if len(out) > 0 {
+	f.answers = append(f.answers, a)
+}
+
+// poll records the page's report and hands it whatever is new.
+func (f *toastFeed) poll(shown int, region inputRegion, now time.Time) pollJSON {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := pollJSON{Toasts: f.pending, Answers: f.answers, Edge: f.edge, MaxH: f.maxH}
+	f.pending, f.answers = nil, nil
+	if len(out.Toasts) > 0 {
 		f.started = true
 	}
 	if f.shown > 0 && shown == 0 {
 		f.emptyAt = now
 	}
-	f.shown, f.height = shown, height
+	f.shown, f.region = shown, region
 	return out
 }
 
@@ -276,15 +327,15 @@ func (f *toastFeed) done(now time.Time) bool {
 		!f.emptyAt.IsZero() && now.Sub(f.emptyAt) > toastLinger
 }
 
-// size is the height to give the window: the page's, while it shows any
-// bubble. An empty page keeps its last size until the renderer quits.
-func (f *toastFeed) size() int {
+// input is the band that takes the pointer, and whether any bubble is up.
+// With none, the band is empty and every click goes through.
+func (f *toastFeed) input() (inputRegion, bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.shown == 0 {
-		return 0
+		return inputRegion{}, false
 	}
-	return f.height
+	return f.region, true
 }
 
 // ServeHTTP is the page's only door to Go: the page itself, and one poll.
@@ -294,10 +345,34 @@ func (f *toastFeed) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = w.Write(toastPage)
 	case "/toast/poll":
-		shown, _ := strconv.Atoi(r.URL.Query().Get("shown"))
-		height, _ := strconv.Atoi(r.URL.Query().Get("h"))
+		q := r.URL.Query()
+		shown, _ := strconv.Atoi(q.Get("shown"))
+		top, _ := strconv.Atoi(q.Get("top"))
+		height, _ := strconv.Atoi(q.Get("h"))
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(f.poll(max(shown, 0), max(height, 0), time.Now()))
+		_ = json.NewEncoder(w).Encode(f.poll(max(shown, 0), inputRegion{max(top, 0), max(height, 0)}, time.Now()))
+	case "/toast/reply":
+		if r.Method != http.MethodPost || f.reply == nil {
+			http.Error(w, "reply is POST, and only in the renderer", http.StatusMethodNotAllowed)
+			return
+		}
+		var req struct {
+			RecordID  string `json:"record_id"`
+			Reply     string `json:"reply"`
+			Text      string `json:"text"`
+			Dismissed bool   `json:"dismissed"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxCopy)).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := f.reply(&registryv1.ToastReplyRequest{
+			RecordId: req.RecordID, Reply: req.Reply, Text: req.Text, Dismissed: req.Dismissed,
+		}); err != nil {
+			http.Error(w, err.Error(), http.StatusConflict) // the page shows it in the bubble
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
 	case "/toast/copy":
 		if r.Method != http.MethodPost || f.copyText == nil {
 			http.Error(w, "copy is POST, and only in the renderer", http.StatusMethodNotAllowed)
@@ -319,7 +394,13 @@ func (f *toastFeed) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // always-on-top window at the tray's corner, sized to its bubbles, gone when
 // they are.
 func runToasts(after uint64) error {
-	feed := &toastFeed{}
+	//rig:allow nocontextfree: the renderer lives until its last bubble leaves, so its end is app.Quit rather than a deadline
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	feed := &toastFeed{
+		reply: replyToast,
+		watch: func(id string, answered func(answerJSON)) { watchAnswer(ctx, id, answered) },
+	}
 	app := application.New(application.Options{
 		Name:     "rig toasts",
 		Assets:   application.AssetOptions{Handler: feed},
@@ -339,9 +420,6 @@ func runToasts(after uint64) error {
 	})
 	feed.copyText = func(s string) { application.InvokeSync(func() { app.Clipboard.SetText(s) }) }
 
-	//rig:allow nocontextfree: the renderer lives until its last bubble leaves, so its end is app.Quit rather than a deadline
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	go func() {
 		cursor := after
 		for ctx.Err() == nil {
@@ -359,27 +437,33 @@ func runToasts(after uint64) error {
 	go func() {
 		tick := time.NewTicker(100 * time.Millisecond)
 		defer tick.Stop()
-		lastH := -1
+		placed := false
+		last := inputRegion{-1, -1}
 		for range tick.C {
 			if feed.done(time.Now()) {
 				app.Quit()
 				return
 			}
-			if h := feed.size(); h != lastH && h > 0 {
-				lastH = h
-				placeToasts(app, win, h)
+			band, up := feed.input()
+			if up && !placed {
+				placed = placeToasts(app, win, feed)
+			}
+			if placed && band != last {
+				last = band
+				application.InvokeSync(func() { setInputBand(win, band) })
 			}
 		}
 	}()
 	return app.Run()
 }
 
-// placeToasts sizes the window to the bubbles and puts it in the right-hand
-// corner of the work area on the panel's edge.
-func placeToasts(app *application.App, win *application.WebviewWindow, height int) {
+// placeToasts puts the window, as tall as the work area, in its right-hand
+// corner on the panel's edge. It runs once: the window never moves or
+// resizes after, which is what keeps the stack still.
+func placeToasts(app *application.App, win *application.WebviewWindow, feed *toastFeed) bool {
 	scr := app.Screen.GetPrimary()
 	if scr == nil {
-		return
+		return false
 	}
 	wa := scr.WorkArea
 	if x11, ok := application.InvokeSyncWithResult(func() workArea {
@@ -389,20 +473,61 @@ func placeToasts(app *application.App, win *application.WebviewWindow, height in
 		wa = x11
 	}
 	edge := panelEdge(scr.Bounds, wa)
-	h := min(height, wa.Height-2*toastMargin)
+	h := wa.Height - 2*toastMargin
 	x, y := wa.X+wa.Width-toastWidth-toastMargin, wa.Y+toastMargin
-	if edge == "bottom" {
-		y = wa.Y + wa.Height - h - toastMargin
-	}
 	win.SetSize(toastWidth, h)
-	if !win.IsVisible() {
-		themeOnce.Do(func() { application.InvokeSync(clearThemeBackground) })
-		win.ExecJS("setEdge(" + strconv.Quote(edge) + "," + strconv.Itoa(wa.Height-2*toastMargin) + ")")
-		win.Show()
-	}
+	themeOnce.Do(func() { application.InvokeSync(clearThemeBackground) })
+	feed.mu.Lock()
+	feed.edge, feed.maxH = edge, h
+	feed.mu.Unlock()
+	win.Show()
 	// After Show as well as before it: GTK drops a move asked of a window
 	// that is not yet mapped, which put the stack top-left under Xvfb.
 	win.SetPosition(x, y)
+	return true
+}
+
+// replyToast files a reply from a bubble. The renderer's connection is the
+// replier, so rig records the person at this screen, not the sender.
+func replyToast(req *registryv1.ToastReplyRequest) error {
+	c, err := client.Connect()
+	if err != nil {
+		return err
+	}
+	defer c.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), readDeadline)
+	defer cancel()
+	return c.Call(ctx, "rig.toast.reply", req, &registryv1.ToastReplyResponse{})
+}
+
+// watchAnswer follows one asking toast until somebody answers it, here or
+// anywhere else, so a bubble answered at a terminal does not stay up.
+func watchAnswer(ctx context.Context, id string, answered func(answerJSON)) {
+	for ctx.Err() == nil {
+		c, err := client.Connect()
+		if err != nil {
+			time.Sleep(time.Second)
+			continue
+		}
+		cctx, cancel := context.WithTimeout(ctx, toastPoll+readDeadline)
+		var resp registryv1.ToastAnswerResponse
+		err = c.Call(cctx, "rig.toast.answer", &registryv1.ToastAnswerRequest{
+			RecordId: id, TimeoutMs: uint32(toastPoll.Milliseconds()),
+		}, &resp)
+		cancel()
+		c.Close()
+		a := resp.GetAnswer()
+		var ce *client.CallError
+		switch {
+		case errors.As(err, &ce) && ce.Code() == rigv1.Code_CODE_NOT_FOUND:
+			return // a restarted daemon forgot the question; the bubble can still be closed
+		case err != nil && ctx.Err() == nil:
+			time.Sleep(time.Second)
+		case a.GetAnswered():
+			answered(answerJSON{RecordID: id, Reply: a.GetReply(), Text: a.GetText(), Dismissed: a.GetDismissed(), By: a.GetBy()})
+			return
+		}
+	}
 }
 
 var themeOnce sync.Once

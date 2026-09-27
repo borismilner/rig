@@ -31,7 +31,7 @@ body[data-edge=top]    .slot + .slot { margin-bottom: 14px; }
 .toast {
   --hue: var(--sem-info);
   position: relative; box-sizing: border-box; width: var(--w);
-  display: grid; grid-template-columns: 36px 1fr; column-gap: 12px;
+  display: grid; grid-template-columns: 36px minmax(0, 1fr); column-gap: 12px;
   padding: 13px 14px 15px 13px; border-radius: var(--radius);
   background:
     radial-gradient(120px 80px at 30px 28px, color-mix(in srgb, var(--hue) 16%, transparent), transparent 70%),
@@ -45,7 +45,7 @@ body[data-edge=top]    .slot + .slot { margin-bottom: 14px; }
 .toast > * { position: relative; z-index: 1; }
 /* Everything but the icon lives in the second column, however many rows a
    toast has: with "Show more" there are four, and the icon spans three. */
-.title, .body, .more, .meta { grid-column: 2; }
+.title, .body, .more, .meta, .ask { grid-column: 2; }
 
 .icon {
   grid-row: span 3; width: 36px; height: 36px; border-radius: 11px;
@@ -113,6 +113,27 @@ body[data-edge=top]    .slot + .slot { margin-bottom: 14px; }
                      0 0 0 12px transparent; }
 }
 @media (prefers-reduced-motion: reduce) { .urgent { animation: none; } }
+
+/* A toast that asks for a reply: its buttons, its text field, and the answer
+   once given. It has no dwell and no bar; it waits (Boris, 2026-09-27). */
+.ask { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ask button.reply {
+  font: 600 12.5px var(--sans); padding: 5px 12px; border-radius: 9px; cursor: pointer;
+  color: var(--fg); background: rgba(255,255,255,.06);
+  border: 1px solid color-mix(in srgb, var(--hue) 45%, transparent);
+}
+.ask button.reply:hover { background: color-mix(in srgb, var(--hue) 22%, transparent); }
+.ask button.reply:first-child { background: color-mix(in srgb, var(--hue) 28%, transparent); }
+.ask form { display: flex; gap: 6px; flex: 1 1 100%; min-width: 0; }
+.ask input {
+  flex: 1; min-width: 0; font: 13px var(--sans); color: var(--fg); padding: 5px 9px;
+  border-radius: 9px; border: 1px solid var(--line); background: rgba(0,0,0,.25);
+  -webkit-user-select: text; user-select: text;
+}
+.ask input:focus { outline: none; border-color: color-mix(in srgb, var(--hue) 70%, transparent); }
+.ask .said { color: var(--fg-dim); font-size: 12.5px; }
+.ask .said b { color: var(--hue); font-weight: 650; }
+.ask .fail { color: var(--sem-bad); font-size: 12px; flex: 1 1 100%; }
 </style>
 </head>
 <body data-edge="bottom">
@@ -148,8 +169,10 @@ const fromTray = () => (document.body.dataset.edge === "top" ? -1 : 1) * 18;
 
 // Section 12: roughly ten seconds plus five per line; hover pauses. Error
 // stays twice as long, and urgent stays until it is clicked.
+const asks = (t) => (t.replies && t.replies.length > 0) || t.reply_text;
+
 function dwellFor(t) {
-  if (t.severity === "urgent") return Infinity;
+  if (t.severity === "urgent" || asks(t)) return Infinity;
   const lines = 1 + (t.body ? t.body.split("\n").length : 0);
   const ms = 10000 + 5000 * lines;
   return t.severity === "error" ? 2 * ms : ms;
@@ -195,6 +218,73 @@ function copy(t, b) {
   }).catch(() => {});
 }
 
+// Replies. A bubble answered here or anywhere else says what the answer was,
+// then leaves; closing an unanswered one tells the sender it was dismissed.
+async function sendReply(slot, what) {
+  const t = slot._toast, fail = slot.querySelector(".ask .fail");
+  try {
+    const r = await fetch("/toast/reply", { method: "POST",
+      body: JSON.stringify(Object.assign({ record_id: t.record_id }, what)) });
+    if (!r.ok) throw new Error((await r.text()).trim());
+    return true;
+  } catch (e) {
+    if (fail) fail.textContent = e.message.replace(/^.*?CODE_[A-Z_]+: /, "");
+    return false;
+  }
+}
+
+function answered(slot, a) {
+  if (slot._answered || slot.classList.contains("leaving")) return;
+  slot._answered = true;
+  const ask = slot.querySelector(".ask");
+  if (!ask) return;
+  ask.textContent = "";
+  const said = el("span", "said");
+  if (a.dismissed) said.textContent = "Closed without a reply";
+  else { said.append("Answered "); said.append(el("b", "", a.reply || "\u201c" + a.text + "\u201d")); }
+  if (a.by) said.append(" by " + a.by);
+  ask.append(said);
+  slot.querySelector(".left").textContent = "answered";
+  setTimeout(() => leave(slot), 2500);
+}
+
+function askRow(slot, t) {
+  const ask = el("div", "ask");
+  for (const label of t.replies || []) {
+    const b = el("button", "reply", label); b.type = "button";
+    b.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (await sendReply(slot, { reply: label })) answered(slot, { reply: label });
+    });
+    ask.append(b);
+  }
+  if (t.reply_text) {
+    const form = el("form"), input = el("input");
+    input.placeholder = "Type a reply, then Enter"; input.maxLength = 4000;
+    input.setAttribute("aria-label", "reply to " + t.title);
+    const send = el("button", "reply", "Send"); send.type = "submit";
+    form.append(input, send);
+    form.addEventListener("click", (e) => e.stopPropagation());
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) { input.focus(); return; }
+      if (await sendReply(slot, { text })) answered(slot, { text });
+    });
+    ask.append(form);
+  }
+  ask.append(el("div", "fail"));
+  return ask;
+}
+
+function closeSlot(slot) {
+  if (slot._toast && asks(slot._toast) && !slot._answered) {
+    slot._answered = true;
+    sendReply(slot, { dismissed: true }); // the sender learns; the bubble goes regardless
+  }
+  leave(slot);
+}
+
 function togglePin(slot, b) {
   const pinned = slot.firstChild.classList.toggle("pinned");
   b.classList.toggle("on", pinned);
@@ -222,6 +312,7 @@ function show(t) {
     });
     card.append(body, more);
   }
+  if (asks(t)) card.append(askRow(slot, t));
   const meta = el("div", "meta");
   meta.append(el("span", "pill", t.severity), el("span", "sender", t.sender), el("span", "left"));
   card.append(meta);
@@ -229,14 +320,15 @@ function show(t) {
   const actions = el("div", "actions");
   if (dwell !== Infinity) actions.append(button("pin", PIN, "Pin: keep it until I close it", (b) => togglePin(slot, b)));
   actions.append(button("copy", COPY, "Copy to clipboard", (b) => copy(t, b)),
-                 button("close", CLOSE, "Close", () => leave(slot)));
+                 button("close", CLOSE, asks(t) ? "Close without replying" : "Close", () => closeSlot(slot)));
   card.append(actions);
   if (dwell !== Infinity) { const bar = el("div", "bar"); card.append(bar); slot._bar = bar; }
-  slot._total = dwell; slot._left = dwell; slot._born = Date.now();
+  slot._total = dwell; slot._left = dwell; slot._born = Date.now(); slot._toast = t;
   // A click on the bubble itself closes it, unless there is text to read: a
   // clamped body opens instead, and an open one is for selecting, not closing.
   card.addEventListener("click", () => {
     if (more && !more.hidden) { if (!body.classList.contains("open")) more.click(); return; }
+    if (asks(t)) return; // it waits for an answer; the X closes it
     leave(slot);
   });
   slot.append(card);
@@ -259,7 +351,7 @@ function show(t) {
 // are in the record.
 function fit() {
   const evictable = () => live().filter(s => !s.firstChild.classList.contains("urgent") &&
-                                             !s.firstChild.classList.contains("pinned"));
+                                             !s.firstChild.classList.contains("pinned") && !asks(s._toast));
   let ev = evictable();
   while ((live().length > MAX_SHOWN || settledHeight(false) > maxHeight) && ev.length > 1) {
     leave(ev.shift());
@@ -279,7 +371,11 @@ setInterval(() => {
   for (const slot of live()) {
     const left = slot.querySelector(".left");
     // Urgent never goes on its own, so it says how long it has waited instead.
-    if (slot._total === Infinity) { left.textContent = "waiting " + ago(Date.now() - slot._born); continue; }
+    if (slot._answered) continue;
+    if (slot._total === Infinity) {
+      left.textContent = (asks(slot._toast) ? "asking " : "waiting ") + ago(Date.now() - slot._born);
+      continue;
+    }
     if (slot.firstChild.classList.contains("pinned")) { left.textContent = "pinned"; continue; }
     if (hovered) { left.textContent = "paused"; continue; }
     left.textContent = "closes in " + Math.max(1, Math.ceil(slot._left / 1000)) + "s";
@@ -307,11 +403,32 @@ function settledHeight(withLeaving = true) {
   return Math.ceil(h);
 }
 
+// The band of the window the bubbles cover, leaving ones included. Only this
+// band takes the pointer; the window itself never moves or resizes, which is
+// what keeps the stack from shaking when a bubble leaves.
+function band() {
+  const slots = [...stack.children];
+  if (slots.length === 0) return { top: 0, h: 0 };
+  let top = Infinity, bottom = -Infinity;
+  for (const s of slots) {
+    const r = s.getBoundingClientRect();
+    top = Math.min(top, r.top); bottom = Math.max(bottom, r.bottom);
+  }
+  top = Math.max(0, Math.floor(top) - 6);
+  return { top, h: Math.ceil(bottom) + 6 - top };
+}
+
 async function poll() {
-  const shown = stack.children.length;
+  const shown = stack.children.length, b = band();
   try {
-    const r = await fetch("/toast/poll?shown=" + shown + "&h=" + (shown ? settledHeight() : 0));
-    for (const t of await r.json() || []) show(t);
+    const r = await fetch("/toast/poll?shown=" + shown + "&top=" + b.top + "&h=" + b.h);
+    const got = await r.json();
+    if (got.edge && (got.edge !== document.body.dataset.edge || got.max_h !== maxHeight)) setEdge(got.edge, got.max_h);
+    for (const t of got.toasts || []) show(t);
+    for (const a of got.answers || []) {
+      const slot = [...stack.children].find(s => s._toast && s._toast.record_id === a.record_id);
+      if (slot) answered(slot, a);
+    }
   } catch (e) { /* the renderer is quitting */ }
   setTimeout(poll, 120);
 }
