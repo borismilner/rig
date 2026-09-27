@@ -196,11 +196,15 @@ Star Trek communicator hail.
 | When | on draw only: a toast suppressed by Do Not Disturb is silent, an urgent one still sounds |
 | Player | the speech player chain above (`pw-play`, `paplay`, `aplay`, `play`), no cgo, no audio device held open |
 | Missing player | a named degradation in `rig doctor`, never an error; the toast is still drawn |
-| Sound file | open question, below |
+| Sound file | rig's own synthesised hail by default; `rigwindow --toast-sound=<absolute path>` plays his file instead, `--toast-sound=off` is silent |
+| Bursts | one sound per burst: nothing plays within 2s of the last sound |
 
-**Open: where the hail comes from.** The original communicator chirp is a
-studio recording under copyright, so it cannot be committed to this
-repository. Undecided between a file Boris supplies on his machine and
-an original synthesised hail-style chirp that rig ships.
+**Where the hail comes from, his ruling 2026-09-27.** The original
+communicator chirp is a studio recording under copyright, so it is never
+committed here. rig ships an original hail synthesised in code
+(`cmd/rigwindow/sound.go`, two rising whistles with a light warble), and a
+file he keeps on his own machine replaces it through the flag. It is a flag
+until §47's resolver exists. `rig doctor` does not exist yet, so a missing
+player is one warning on the renderer's stderr for now.
 
 ---
