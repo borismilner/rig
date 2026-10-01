@@ -45,6 +45,21 @@ type Settings struct {
 	Muted     bool      `json:"muted"`
 	ReadAloud ReadAloud `json:"read_aloud"`
 	Sound     Sound     `json:"sound"`
+	// Volume is a percent of the player's full level, for the toast sound
+	// and the voice alike. 0 is the default, full: what rig played before
+	// there was a setting, so a settings file from then sounds the same.
+	Volume int `json:"volume,omitempty"`
+}
+
+// MaxVolume is full; the players can go above it, and rig does not.
+const MaxVolume = 100
+
+// Level is the volume in force, a percent.
+func (s Settings) Level() int {
+	if s.Volume == 0 {
+		return MaxVolume
+	}
+	return s.Volume
 }
 
 // Defaults are his, 2026-09-27: the hail, the title read aloud, sound on.
@@ -53,6 +68,9 @@ func Defaults() Settings {
 }
 
 func (s Settings) valid(fileSet bool) error {
+	if s.Volume < 0 || s.Volume > MaxVolume {
+		return fmt.Errorf("volume is a percent, 1 to %d; got %d", MaxVolume, s.Volume)
+	}
 	switch s.ReadAloud {
 	case ReadOff, ReadTitle, ReadTitleAndBody:
 	default:
@@ -91,8 +109,13 @@ type Options struct {
 	// SoundFile is his own toast sound: an absolute path, or empty.
 	SoundFile string
 	// Idle releases the speech engine after this long with nothing said;
-	// a voice model is ~100 MB resident. Zero means a minute.
+	// a voice model is ~100 MB resident. Zero means ten minutes, AgentBox's
+	// figure: loading the model costs seconds, and a line that pays them
+	// arrives seconds behind its toast.
 	Idle time.Duration
+	// Prewarm loads the speech engine at start, so the first line is as quick
+	// as the rest (AgentBox's prewarm, plan/12 S6).
+	Prewarm bool
 	// Look finds a binary; nil is exec.LookPath. Tests replace it.
 	Look func(string) (string, error)
 }
@@ -110,6 +133,7 @@ type Status struct {
 type item struct {
 	file string
 	line string
+	warm bool          // start the engine and say nothing
 	done chan struct{} // closed when heard or dropped; nil when nobody waits
 }
 
@@ -129,6 +153,7 @@ type Audio struct {
 	settings Settings
 	eng      *engine // nil until the first line, then found once
 	engErr   error
+	engAt    time.Time // when engErr was found; it is looked for again later
 	problem  string
 	closed   bool
 
@@ -147,7 +172,7 @@ func New(opt Options) (*Audio, error) {
 		opt.Look = exec.LookPath
 	}
 	if opt.Idle == 0 {
-		opt.Idle = time.Minute
+		opt.Idle = 10 * time.Minute
 	}
 	if opt.SoundFile != "" {
 		if err := CheckSoundFile(opt.SoundFile); err != nil {
@@ -181,6 +206,9 @@ func New(opt Options) (*Audio, error) {
 		a.sounds[name] = path
 	}
 	go a.run()
+	if opt.Prewarm && !a.settings.Muted {
+		a.enqueue(item{warm: true})
+	}
 	return a, nil
 }
 
@@ -345,15 +373,23 @@ func (a *Audio) Say(text string) (<-chan struct{}, error) {
 	return done, nil
 }
 
+// engRetry is how long a missing speech engine is believed missing.
+const engRetry = time.Minute
+
 // findEngine resolves the engine once. Called outside the queue so Say can
 // refuse at once when there is none.
 func (a *Audio) findEngine() error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	// A missing engine is looked for again after engRetry, so one installed
+	// while rigd runs is found without a restart.
+	if a.engErr != nil && time.Since(a.engAt) >= engRetry {
+		a.engErr = nil
+	}
 	if a.eng == nil && a.engErr == nil {
 		eng, err := findEngine(a.opt.Look)
 		if err != nil {
-			a.engErr = err
+			a.engErr, a.engAt = err, time.Now()
 			a.opt.Log.Warn("rig cannot speak", "reason", err)
 		} else {
 			a.eng = &eng
@@ -443,10 +479,13 @@ func (a *Audio) run() {
 			case <-a.cut:
 			default:
 			}
-			if it.file != "" {
+			switch {
+			case it.file != "":
 				a.playFile(it.file)
-			} else if it.line != "" {
+			case it.line != "":
 				pipe = a.speak(pipe, it.line)
+			case it.warm && pipe == nil:
+				pipe = a.warm()
 			}
 			it.release()
 			if timer == nil {
@@ -466,7 +505,7 @@ func (a *Audio) run() {
 func (a *Audio) playFile(file string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, a.player, fileArgs(a.player, file)...)
+	cmd := exec.CommandContext(ctx, a.player, fileArgs(a.player, file, a.level())...)
 	if err := cmd.Start(); err != nil {
 		a.opt.Log.Warn("playing a toast sound", "err", err)
 		return
@@ -494,9 +533,14 @@ func (a *Audio) speak(pipe *pipeline, line string) *pipeline {
 	a.mu.Lock()
 	eng := *a.eng
 	a.mu.Unlock()
+	level := a.level()
+	if pipe != nil && pipe.volume != level {
+		pipe.close() // the volume changed; the player takes it only at start
+		pipe = nil
+	}
 	var err error
 	if pipe == nil {
-		if pipe, err = startPipeline(eng, a.player); err != nil {
+		if pipe, err = startPipeline(eng, a.player, level); err != nil {
 			a.opt.Log.Warn("starting speech", "err", err)
 			return nil
 		}
@@ -505,7 +549,7 @@ func (a *Audio) speak(pipe *pipeline, line string) *pipeline {
 	if err = pipe.say(line); err != nil {
 		// The engine went away. One rebuild, then give up on this line.
 		pipe.kill()
-		if pipe, err = startPipeline(eng, a.player); err == nil {
+		if pipe, err = startPipeline(eng, a.player, level); err == nil {
 			from = pipe.written()
 			err = pipe.say(line)
 		}
@@ -530,5 +574,30 @@ func (a *Audio) speak(pipe *pipeline, line string) *pipeline {
 		pipe.kill()
 		return nil
 	}
+	return pipe
+}
+
+// level is the volume in force now.
+func (a *Audio) level() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.settings.Level()
+}
+
+// warm starts the speech pipeline without a line: the engine loads its model
+// now, while nobody is waiting for a sentence.
+func (a *Audio) warm() *pipeline {
+	if err := a.findEngine(); err != nil {
+		return nil
+	}
+	a.mu.Lock()
+	eng := *a.eng
+	a.mu.Unlock()
+	pipe, err := startPipeline(eng, a.player, a.level())
+	if err != nil {
+		a.opt.Log.Warn("warming speech", "err", err)
+		return nil
+	}
+	a.opt.Log.Info("speech engine warmed", "engine", filepath.Base(eng.argv[0]))
 	return pipe
 }

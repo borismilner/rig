@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 	"unicode/utf8"
 
@@ -72,6 +73,9 @@ func (d *Daemon) serveSoundSettings(c *conn, f *rigv1.Frame) {
 	case req.GetReadAloud() != registryv1.ReadAloud_READ_ALOUD_UNSPECIFIED && !readOK:
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "rig.sound: read aloud is off, title or title and body; got "+req.GetReadAloud().String())
 		return
+	case req.GetVolume() > audio.MaxVolume:
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, fmt.Sprintf("rig.sound: volume is a percent, 1 to %d; got %d", audio.MaxVolume, req.GetVolume()))
+		return
 	case req.GetToastSound() != registryv1.ToastSound_TOAST_SOUND_UNSPECIFIED && !soundOK:
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "rig.sound: the toast sound is hail, badge or file; got "+req.GetToastSound().String())
 		return
@@ -89,6 +93,9 @@ func (d *Daemon) serveSoundSettings(c *conn, f *rigv1.Frame) {
 		if soundOK {
 			s.Sound = sound
 		}
+		if v := req.GetVolume(); v > 0 {
+			s.Volume = int(v)
+		}
 	})
 	if err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "rig.sound: "+err.Error())
@@ -101,6 +108,7 @@ func soundResponse(st audio.Status) *registryv1.SoundResponse {
 	r := &registryv1.SoundResponse{
 		Muted: st.Muted, FileSet: st.FileSet,
 		Player: st.Player, Engine: st.Engine, Problem: st.Problem,
+		Volume: uint32(st.Level()), //nolint:gosec // Level is 1 to MaxVolume
 	}
 	for w, a := range readAloudWire {
 		if a == st.ReadAloud {

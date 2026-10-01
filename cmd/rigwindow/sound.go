@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	"fyne.io/systray"
 
@@ -10,8 +11,8 @@ import (
 )
 
 // The tray's sound rows (plan/12, S1-S4): a Sounds switch that mutes the
-// toast sound and all speech, which sound a toast plays, and how much of it
-// is read aloud. Like Do Not Disturb, every row shows the DAEMON's state,
+// toast sound and all speech, which sound a toast plays, how much of it is
+// read aloud, and how loud. Like Do Not Disturb, every row shows the DAEMON's state,
 // which holds the settings and keeps them across a restart; the tray only
 // asks and shows.
 
@@ -20,7 +21,12 @@ type soundMenu struct {
 	on    *systray.MenuItem
 	sound map[registryv1.ToastSound]*systray.MenuItem
 	read  map[registryv1.ReadAloud]*systray.MenuItem
+	level map[uint32]*systray.MenuItem
 }
+
+// volumes are the tray's volume rows, percents of full. Another percent set
+// with `rig sound volume` shows as none of them checked.
+var volumes = []uint32{25, 50, 75, 100}
 
 var menuSound *soundMenu
 
@@ -31,6 +37,7 @@ func addSoundMenu() {
 		on:    systray.AddMenuItemCheckbox("Sounds", "toast sounds and reading aloud; off silences both", true),
 		sound: map[registryv1.ToastSound]*systray.MenuItem{},
 		read:  map[registryv1.ReadAloud]*systray.MenuItem{},
+		level: map[uint32]*systray.MenuItem{},
 	}
 	parent := systray.AddMenuItem("Toast sound", "the sound a toast plays as it appears")
 	for _, row := range []struct {
@@ -64,6 +71,16 @@ func addSoundMenu() {
 		go func() {
 			for range item.ClickedCh {
 				m.show(soundCall(&registryv1.SoundRequest{ReadAloud: row.v}))
+			}
+		}()
+	}
+	parent = systray.AddMenuItem("Volume", "how loud the toast sound and the voice are")
+	for _, v := range volumes {
+		item := parent.AddSubMenuItemCheckbox(fmt.Sprintf("%d%%", v), "", false)
+		m.level[v] = item
+		go func() {
+			for range item.ClickedCh {
+				m.show(soundCall(&registryv1.SoundRequest{Volume: v}))
 			}
 		}()
 	}
@@ -119,6 +136,9 @@ func (m *soundMenu) show(resp *registryv1.SoundResponse) {
 	}
 	for v, item := range m.read {
 		setChecked(item, v == resp.GetReadAloud())
+	}
+	for v, item := range m.level {
+		setChecked(item, v == resp.GetVolume())
 	}
 }
 

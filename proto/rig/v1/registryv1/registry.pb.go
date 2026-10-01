@@ -1628,10 +1628,13 @@ func (x *ToastDndResponse) GetSuppressed() uint32 {
 }
 
 type SoundRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Mute          SoundMute              `protobuf:"varint,1,opt,name=mute,proto3,enum=rig.v1.SoundMute" json:"mute,omitempty"`
-	ReadAloud     ReadAloud              `protobuf:"varint,2,opt,name=read_aloud,json=readAloud,proto3,enum=rig.v1.ReadAloud" json:"read_aloud,omitempty"`
-	ToastSound    ToastSound             `protobuf:"varint,3,opt,name=toast_sound,json=toastSound,proto3,enum=rig.v1.ToastSound" json:"toast_sound,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Mute       SoundMute              `protobuf:"varint,1,opt,name=mute,proto3,enum=rig.v1.SoundMute" json:"mute,omitempty"`
+	ReadAloud  ReadAloud              `protobuf:"varint,2,opt,name=read_aloud,json=readAloud,proto3,enum=rig.v1.ReadAloud" json:"read_aloud,omitempty"`
+	ToastSound ToastSound             `protobuf:"varint,3,opt,name=toast_sound,json=toastSound,proto3,enum=rig.v1.ToastSound" json:"toast_sound,omitempty"`
+	// A percent of full, 1 to 100, for the toast sound and the voice; 0 leaves
+	// it as it is.
+	Volume        uint32 `protobuf:"varint,4,opt,name=volume,proto3" json:"volume,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1687,6 +1690,13 @@ func (x *SoundRequest) GetToastSound() ToastSound {
 	return ToastSound_TOAST_SOUND_UNSPECIFIED
 }
 
+func (x *SoundRequest) GetVolume() uint32 {
+	if x != nil {
+		return x.Volume
+	}
+	return 0
+}
+
 type SoundResponse struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	Muted      bool                   `protobuf:"varint,1,opt,name=muted,proto3" json:"muted,omitempty"`
@@ -1698,7 +1708,9 @@ type SoundResponse struct {
 	Player string `protobuf:"bytes,5,opt,name=player,proto3" json:"player,omitempty"`
 	Engine string `protobuf:"bytes,6,opt,name=engine,proto3" json:"engine,omitempty"`
 	// Why something is silent, in words; empty when nothing is.
-	Problem       string `protobuf:"bytes,7,opt,name=problem,proto3" json:"problem,omitempty"`
+	Problem string `protobuf:"bytes,7,opt,name=problem,proto3" json:"problem,omitempty"`
+	// The volume in force, a percent of full.
+	Volume        uint32 `protobuf:"varint,8,opt,name=volume,proto3" json:"volume,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1780,6 +1792,13 @@ func (x *SoundResponse) GetProblem() string {
 		return x.Problem
 	}
 	return ""
+}
+
+func (x *SoundResponse) GetVolume() uint32 {
+	if x != nil {
+		return x.Volume
+	}
+	return 0
 }
 
 // SayRequest reads text aloud through the speech engine (S2), behind the
@@ -1973,13 +1992,14 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\x02on\x18\x01 \x01(\bR\x02on\x12\x1e\n" +
 	"\n" +
 	"suppressed\x18\x02 \x01(\rR\n" +
-	"suppressed\"\x9c\x01\n" +
+	"suppressed\"\xb4\x01\n" +
 	"\fSoundRequest\x12%\n" +
 	"\x04mute\x18\x01 \x01(\x0e2\x11.rig.v1.SoundMuteR\x04mute\x120\n" +
 	"\n" +
 	"read_aloud\x18\x02 \x01(\x0e2\x11.rig.v1.ReadAloudR\treadAloud\x123\n" +
 	"\vtoast_sound\x18\x03 \x01(\x0e2\x12.rig.v1.ToastSoundR\n" +
-	"toastSound\"\xf1\x01\n" +
+	"toastSound\x12\x16\n" +
+	"\x06volume\x18\x04 \x01(\rR\x06volume\"\x89\x02\n" +
 	"\rSoundResponse\x12\x14\n" +
 	"\x05muted\x18\x01 \x01(\bR\x05muted\x120\n" +
 	"\n" +
@@ -1989,7 +2009,8 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\bfile_set\x18\x04 \x01(\bR\afileSet\x12\x16\n" +
 	"\x06player\x18\x05 \x01(\tR\x06player\x12\x16\n" +
 	"\x06engine\x18\x06 \x01(\tR\x06engine\x12\x18\n" +
-	"\aproblem\x18\a \x01(\tR\aproblem\"4\n" +
+	"\aproblem\x18\a \x01(\tR\aproblem\x12\x16\n" +
+	"\x06volume\x18\b \x01(\rR\x06volume\"4\n" +
 	"\n" +
 	"SayRequest\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x12\x12\n" +

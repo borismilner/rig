@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/borismilner/rig/proto/rig/v1/registryv1"
@@ -14,7 +15,7 @@ import (
 
 // rig sound and rig say, section 12's sounds and speech (plan/12, S1-S5).
 
-const soundUsage = "usage: rig sound status | on | off | read off|title|title-and-body | use hail|badge|file"
+const soundUsage = "usage: rig sound status | on | off | read off|title|title-and-body | use hail|badge|file | volume 1-100"
 
 // soundWords are the CLI's words for the wire's enums.
 var (
@@ -57,6 +58,12 @@ func cmdSound(args []string) (err error) {
 		req.ReadAloud = readAloudWords[positional[1]]
 	case len(positional) == 2 && positional[0] == "use" && toastSoundWords[positional[1]] != registryv1.ToastSound_TOAST_SOUND_UNSPECIFIED:
 		req.ToastSound = toastSoundWords[positional[1]]
+	case len(positional) == 2 && positional[0] == "volume":
+		v, err := strconv.Atoi(strings.TrimSuffix(positional[1], "%"))
+		if err != nil || v < 1 || v > 100 {
+			return badArgumentf("volume is a percent, 1 to 100; got %q", positional[1])
+		}
+		req.Volume = uint32(v)
 	default:
 		return badArgumentf(soundUsage)
 	}
@@ -76,12 +83,13 @@ func cmdSound(args []string) (err error) {
 		return json.NewEncoder(os.Stdout).Encode(map[string]any{
 			"muted": resp.GetMuted(), "read_aloud": read, "toast_sound": sound, "file_set": resp.GetFileSet(),
 			"player": resp.GetPlayer(), "engine": resp.GetEngine(), "problem": resp.GetProblem(),
+			"volume": resp.GetVolume(),
 		})
 	}
 	if resp.GetMuted() {
 		fmt.Println("sounds are off: toasts are silent and nothing is read aloud")
 	} else {
-		fmt.Printf("sounds are on: toasts play the %s, and read aloud: %s\n", sound, read)
+		fmt.Printf("sounds are on at %d%%: toasts play the %s, and read aloud: %s\n", resp.GetVolume(), sound, read)
 	}
 	if p := resp.GetProblem(); p != "" {
 		fmt.Println("silent because: " + p)

@@ -358,6 +358,7 @@ func newAudio(log *slog.Logger, estate, pidPath, soundFile string) (*audio.Audio
 		SettingsPath: filepath.Join(dir, "sound.json"),
 		SoundDir:     filepath.Join(cache, "rig", "sounds"),
 		SoundFile:    soundFile,
+		Prewarm:      true,
 	})
 }
 

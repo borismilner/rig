@@ -389,6 +389,9 @@ message SoundRequest {
   SoundMute mute = 1;
   ReadAloud read_aloud = 2;
   ToastSound toast_sound = 3;
+  // A percent of full, 1 to 100, for the toast sound and the voice; 0 leaves
+  // it as it is.
+  uint32 volume = 4;
 }
 
 message SoundResponse {
@@ -402,6 +405,8 @@ message SoundResponse {
   string engine = 6;
   // Why something is silent, in words; empty when nothing is.
   string problem = 7;
+  // The volume in force, a percent of full.
+  uint32 volume = 8;
 }
 
 // SayRequest reads text aloud through the speech engine (S2), behind the

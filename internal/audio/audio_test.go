@@ -73,7 +73,8 @@ func fakes(t *testing.T, withEngine bool) (look func(string) (string, error), lo
 	}
 	// The player: a file argument is a sound; "-" means PCM on stdin, and as
 	// the real pw-play 1.6 does, only with --raw.
-	write("pw-play", `last=""; raw=""; for a in "$@"; do last="$a"; [ "$a" = "--raw" ] && raw=1; done
+	write("pw-play", `last=""; raw=""; for a in "$@"; do last="$a"; [ "$a" = "--raw" ] && raw=1
+case "$a" in --volume=*) echo "$a" >> `+log+`.volume;; esac; done
 if [ "$last" = "-" ] && [ -z "$raw" ]; then echo 'sndfile: failed to open audio file "-": Format not recognised.' >&2; exit 1; fi
 if [ "$last" = "-" ]; then while :; do n=$(head -c 4800 | wc -c); [ "$n" -eq 0 ] && break; echo "pcm $n" >> `+log+`; done
 else echo "file $(basename "$last")" >> `+log+`; fi
@@ -81,6 +82,7 @@ else echo "file $(basename "$last")" >> `+log+`; fi
 	if withEngine {
 		// 4800 bytes of s16 at 24 kHz is 0.1s of audio per line.
 		write("kokoro-say", `[ "$1" = "--rate" ] && { echo 24000; exit 0; }
+echo started >> `+log+`.engine
 while IFS= read -r line; do echo "say $line" >> `+log+`; head -c 4800 /dev/zero; done
 `)
 	}
@@ -232,6 +234,8 @@ func TestBadSettingsAreRefused(t *testing.T) {
 		"read aloud": func(s *Settings) { s.ReadAloud = "shout" },
 		"sound":      func(s *Settings) { s.Sound = "klaxon" },
 		"file unset": func(s *Settings) { s.Sound = SoundFile },
+		"too loud":   func(s *Settings) { s.Volume = 101 },
+		"negative":   func(s *Settings) { s.Volume = -1 },
 	} {
 		if _, err := a.Change(change); err == nil {
 			t.Errorf("%s accepted", name)
@@ -261,5 +265,72 @@ func TestCleanMakesOneLine(t *testing.T) {
 	}
 	if got := clean(strings.Repeat("word ", 200), 50); len([]rune(got)) > 53 || !strings.HasSuffix(got, "...") {
 		t.Errorf("capped %q", got)
+	}
+}
+
+// The volume set is the one the player is started at, for the toast sound
+// and the voice, and a change reaches a voice already running (plan/12 S6).
+func TestTheVolumeReachesThePlayer(t *testing.T) {
+	look, log := fakes(t, true)
+	a := newAudio(t, look, "")
+	if got := a.Status().Level(); got != MaxVolume {
+		t.Fatalf("the default level is %d, want full", got)
+	}
+	if _, err := a.Change(func(s *Settings) { s.Volume = 50 }); err != nil {
+		t.Fatal(err)
+	}
+	a.Toast("half", "", "")
+	waitLog(t, log, 3)
+	if _, err := a.Change(func(s *Settings) { s.Volume = 25 }); err != nil {
+		t.Fatal(err)
+	}
+	a.Toast("quarter", "", "")
+	waitLog(t, log, 6)
+	vols := waitLog(t, log+".volume", 4)
+	want := []string{"--volume=0.50", "--volume=0.50", "--volume=0.25", "--volume=0.25"}
+	if strings.Join(vols, " ") != strings.Join(want, " ") {
+		t.Errorf("the player was started at %q, want %q", vols, want)
+	}
+}
+
+// Prewarm starts the engine before anybody speaks, so the model's load is
+// not paid by the first line.
+func TestPrewarmStartsTheEngineBeforeTheFirstLine(t *testing.T) {
+	look, log := fakes(t, true)
+	a, err := New(Options{Look: look, SoundDir: t.TempDir(), Prewarm: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(a.Close)
+	if got := waitLog(t, log+".engine", 1); got[0] != "started" {
+		t.Errorf("engine log %q", got)
+	}
+	if data, _ := os.ReadFile(log); len(data) != 0 {
+		t.Errorf("prewarm said or played something: %q", data)
+	}
+}
+
+// An engine installed while rigd runs is found without a restart.
+func TestAMissingEngineIsLookedForAgain(t *testing.T) {
+	look, _ := fakes(t, true)
+	present := false
+	a := newAudio(t, func(name string) (string, error) {
+		if !present && name != "pw-play" {
+			return "", exec.ErrNotFound
+		}
+		return look(name)
+	}, "")
+	if _, err := a.Say("x"); !errors.Is(err, errNoEngine) {
+		t.Fatalf("Say with no engine: %v", err)
+	}
+	present = true
+	if _, err := a.Say("x"); !errors.Is(err, errNoEngine) {
+		t.Errorf("looked again at once rather than after engRetry: %v", err)
+	}
+	a.mu.Lock()
+	a.engAt = a.engAt.Add(-engRetry)
+	a.mu.Unlock()
+	if _, err := a.Say("x"); err != nil {
+		t.Errorf("the engine installed since was not found: %v", err)
 	}
 }

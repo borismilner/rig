@@ -84,6 +84,7 @@ type pipeline struct {
 	// what the player said and how it ended, readable once playGone closes
 	playErr  error
 	playSaid *tail
+	volume   int // the percent the player was started at
 }
 
 // tail keeps the last bytes a child wrote to stderr, for the log line that
@@ -127,7 +128,7 @@ func (p *pipeline) playerDied() (error, bool) { //nolint:revive // the error is 
 // drainGrace is how long a pipeline that is let go may finish its sentence.
 const drainGrace = 5 * time.Second
 
-func startPipeline(eng engine, player string) (*pipeline, error) {
+func startPipeline(eng engine, player string, volume int) (*pipeline, error) {
 	//rig:allow nocontextfree: the engine lives across lines until idle or a cut; close and kill end it
 	synth := exec.CommandContext(context.Background(), eng.argv[0], eng.argv[1:]...)
 	in, err := synth.StdinPipe()
@@ -160,7 +161,7 @@ func startPipeline(eng engine, player string) (*pipeline, error) {
 	synth.Stderr = nil // piper narrates progress there; nobody reads it
 
 	//rig:allow nocontextfree: as the engine above
-	play := exec.CommandContext(context.Background(), player, pcmArgs(player, eng.rate)...)
+	play := exec.CommandContext(context.Background(), player, pcmArgs(player, eng.rate, volume)...)
 	play.Stdin = playR
 	said := &tail{}
 	play.Stderr = said
@@ -186,6 +187,7 @@ func startPipeline(eng engine, player string) (*pipeline, error) {
 		synthGone: make(chan struct{}),
 		playGone:  make(chan struct{}),
 		playSaid:  said,
+		volume:    volume,
 	}
 	go func() {
 		_, _ = io.Copy(counted{w: playW, m: p.meter}, synthR)
@@ -339,32 +341,53 @@ func (p *pipeline) written() int64 {
 
 // pcmArgs are the player's flags for raw mono s16 PCM at rate. The players
 // differ in every detail, including the spelling of the sample format.
-func pcmArgs(player string, rate int) []string {
+func pcmArgs(player string, rate, volume int) []string {
 	r := strconv.Itoa(rate)
 	switch filepath.Base(player) {
 	case "pw-play":
 		return []string{
+			volumeArg(player, volume),
 			// --raw: pw-play 1.6 reads "-" as a sound file without it, and
 			// refuses PCM with "Format not recognised"
 			"--raw", "--rate=" + r, "--channels=1", "--format=s16",
 			"--quality=" + strconv.Itoa(resamplerQuality), "-",
 		}
 	case "paplay":
-		return []string{"--raw", "--rate=" + r, "--channels=1", "--format=s16le"}
+		return []string{volumeArg(player, volume), "--raw", "--rate=" + r, "--channels=1", "--format=s16le"}
 	case "play":
-		return []string{"-q", "-t", "raw", "-r", r, "-e", "signed", "-b", "16", "-c", "1", "-"}
+		return []string{"-v", volumeFraction(volume), "-q", "-t", "raw", "-r", r, "-e", "signed", "-b", "16", "-c", "1", "-"}
 	default: // aplay
 		return []string{"-q", "-t", "raw", "-f", "S16_LE", "-r", r, "-c", "1"}
 	}
 }
 
-// fileArgs are the player's flags for a sound file.
-func fileArgs(player, path string) []string {
+// volumeArg is the player's own volume flag for a percent. aplay has none, so
+// it plays at the system volume; play takes -v, placed by its callers.
+func volumeArg(player string, volume int) string {
 	switch filepath.Base(player) {
 	case "pw-play":
-		return []string{"--quality=" + strconv.Itoa(resamplerQuality), path}
+		return "--volume=" + volumeFraction(volume)
+	case "paplay":
+		return "--volume=" + strconv.Itoa(volume*65536/100)
+	default:
+		return ""
+	}
+}
+
+// volumeFraction is a percent as the 0..1 the players take.
+func volumeFraction(volume int) string {
+	return strconv.FormatFloat(float64(volume)/100, 'f', 2, 64)
+}
+
+// fileArgs are the player's flags for a sound file.
+func fileArgs(player, path string, volume int) []string {
+	switch filepath.Base(player) {
+	case "pw-play":
+		return []string{volumeArg(player, volume), "--quality=" + strconv.Itoa(resamplerQuality), path}
+	case "paplay":
+		return []string{volumeArg(player, volume), path}
 	case "play":
-		return []string{"-q", path}
+		return []string{"-q", "-v", volumeFraction(volume), path}
 	case "aplay":
 		return []string{"-q", path}
 	default:
