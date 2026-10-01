@@ -259,8 +259,9 @@ func declaration() *rigv1.Declaration {
 				Effects:    rigv1.Effects_EFFECTS_DRIVES_INPUT,
 				Idempotent: rigv1.Tristate_TRISTATE_NO,
 				Sensitive:  &rigv1.SensitiveFields{Pointers: []string{"/script"}},
-				Duration:   rigv1.Duration_DURATION_SECONDS,
-				Confirms:   rigv1.Tristate_TRISTATE_YES,
+				// minutes: typing a page at a person's pace takes them
+				Duration: rigv1.Duration_DURATION_MINUTES,
+				Confirms: rigv1.Tristate_TRISTATE_YES,
 			}),
 			cmd(&rigv1.Command{
 				Id: "windows", Title: "Windows on screen", Summary: "Titles and boxes, for planning a script",
