@@ -769,10 +769,13 @@ moves DOWN in its own commit.
   commit names what grew.
 - **`rigseed --check` was not runnable as written:** the seeder moved to
   docket (§50 move 8), and `BACKLOG.md` and `DECISIONS.md` are now
-  indexes it cannot parse. It runs as: build `docket/cmd/rigseed`, feed
-  it `rig logbook cat BACKLOG.md` and `DECISIONS.md`, against a scratch
-  `development` rigd with `RIG_ROOT` and a short `XDG_RUNTIME_DIR` of its
-  own. Seeding takes 13 s.
+  indexes it could not parse. **It is now one command, `make seed-check`**
+  (`tools/seed-check.sh`, decision 0253's second item): it builds
+  docket's rigseed, starts a throwaway `development` rigd with its own
+  `RIG_ROOT` and a short `XDG_RUNTIME_DIR`, refuses if rigd reports any
+  other state path, seeds, runs `--check` and exits with its code. 15 s.
+  rigseed now reads a logbook index whole through `rig logbook cat`
+  (docket `50f6749`).
 - **It then failed on four heading collisions,** so four requirements
   never reached the store: §12 "Toasts, built" and §48's second
   "RULED BY BORIS", third "RULED BY BORIS", and second "Boris". Each now

@@ -729,6 +729,9 @@ deps-check: ## Check the build against the stack table, plan section 22 (NOT ups
 # next "## " or to EOF, which is what that section's own file gives it.
 	go run ./cmd/depscheck --plan plan/22-tech-stack.md
 
+seed-check: build-rigd build-rig ## The seeder gate, plan/48 acceptance 7: seed a throwaway rigd, then rigseed --check
+	@tools/seed-check.sh
+
 release: ci ## Tag, generate the changelog and build release artefacts
 	@test -n "$(V)" || { echo "usage: make release V=1.2.3"; exit 1; }
 	git tag -a v$(V) -m "release v$(V)"
@@ -791,7 +794,7 @@ help: ## Show this help
         run dev clean test test-unit test-race \
         test-chaos test-e2e test-wire fuzz cover cover-html lint lint-house fmt vet audit \
         vet-window test-window verify contrast contrast-selftest contrast-window theme-gate generate proto proto-check schema types docs bench bench-ipc profile \
-        up down doctor apps logs tui tidy deps-check tag-check release package ci fmt-check \
+        up down doctor apps logs tui tidy deps-check seed-check tag-check release package ci fmt-check \
         bench-idle bench-scale bench-size bench-size-update bench-size-one build-minimal \
         bench-size-window bench-size-window-update \
         modules modules-matrix version help
