@@ -77,6 +77,9 @@ larger figure includes. **A row without the on-binary number is not evidence of
 adoption, it is a citation.** Both were measured against the `rigd` at
 `f921a04`, whose 10,998,023 bytes match the size ratchet exactly - so the
 baseline is known not to have drifted under the measurement.
+**bbolt's row has since read REMOVED (2026-10-01, S1 slice 4)**; it
+keeps its on-binary numbers, which is what a removal row should look like
+too.
 
 
 **Two binaries** (§17): `cmd/rigd` links none of the terminal stack; `cmd/rig` links

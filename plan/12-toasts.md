@@ -122,7 +122,7 @@ triggers it, because the trigger is what makes it hard to get right: once and
 not every run, naming what changed, and NOT wearing the shape of an error.
 **This heading exists so a reader of the toast surface finds it.**
 
-## Toasts, built 2026-09-24, and the three rulings they were built to
+## Toasts as built, 2026-09-24, and the three rulings they were built to
 
 The lead ruled three open questions on 2026-09-24, relaying the owner:
 

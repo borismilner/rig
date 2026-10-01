@@ -49,7 +49,7 @@ leaving sensitive fields out and he chose otherwise, so it holds. What follows
 from it, for whoever builds this: the tree's file modes match the store's
 (owner only), and **no rig logic pushes it anywhere** without his ruling.
 
-### ⛔ RULED BY BORIS, 2026-09-26, later the same day: each program's own free tree, and one configurable root
+### ⛔ RULED BY BORIS SECOND, 2026-09-26, later the same day: each program's own free tree, and one configurable root
 
 **Boris, verbatim:** *"Each program should have its own filesystem under that
 filesystem that I've mentioned, into which it can write freely and read
@@ -87,7 +87,7 @@ with a snapshot first (plan/46), never a silent re-open of an empty store.
 | Where a program's dump and its free files sit relative to each other | side by side in the program's directory but in separate subdirectories, so a program writing freely can never overwrite the dump rig writes |
 | One git repository for all programs, or one per program | one per estate, as he said "this whole filesystem"; each program a top-level directory in it |
 
-### ⛔ RULED BY BORIS, 2026-09-26, third: two storage ways, and export instead of a dump
+### ⛔ RULED BY BORIS THIRD, 2026-09-26: two storage ways, and export instead of a dump
 
 **Boris, verbatim:** *"Wait so lets do it smarter. Two storage ways: 1) DB 2)
 Freely accessible text files. No need to duplicate the DB content into files but
@@ -183,7 +183,7 @@ text under that entry. rig also lists, at each commit, every file with no entry
 or an entry older than the file, so a missed registration is visible rather
 than silently unfindable.
 
-### ⛔ Boris, 2026-09-26: rig controls the layout of the free files
+### ⛔ Boris on the free-file layout, 2026-09-26: rig controls the layout of the free files
 
 **Boris, verbatim:** *"`rig` also controls the structure where the agents/programs save their
 freely written files. There can be different files, such as agent
@@ -709,7 +709,8 @@ with `fields=title,status` against the same query without, at a named sha.
 ### The gates, before every commit
 
 `make ci` 0, `make lint` 0, `make proto` idempotent, `rigseed --check`
-unchanged from the sha before the seat's first commit, `make deps-check` 0
+(in `~/me/projects/docket` since §50 move 8, run as below) unchanged from
+the sha before the seat's first commit, `make deps-check` 0
 once the lead has moved §22's rows, `make bench-size` green after the ratchet
 moves DOWN in its own commit.
 
@@ -758,11 +759,24 @@ moves DOWN in its own commit.
 | 4 | passes: 10.7x on the wire; `--json` 43,734 to 28,479 bytes after `0d944f0` |
 | 5 | passes in `make ci`; no live `rig backup` was run, it is his to ask for. coord is outside the archive by §46 decision 5, so the engine change does not reach it |
 | 6 | passes: §22's row reads REMOVED, -323,584 bytes on `rigd`; `make deps-check` 0 |
-| 7 | `make ci` 0, `make lint` 0, `make proto` idempotent. **`rigseed --check` cannot run: no such command exists in the tree** |
+| 7 | passes. `make ci` 0, `make lint` 0, `make proto` idempotent. `rigseed --check` exits 0 on the commit after `17ed01f`, which fixed the four heading collisions below were fixed |
 
-**Found, not caused, by S1:** `make bench-size-one B=rigd` is OVER its
-ratchet by 1,314,816 bytes. It drifted after `bench-size` left `make ci`
-on 2026-09-12; S1 moved `rigd` DOWN. Moving the row is his call.
+**Found, not caused, by S1, and fixed under §38f:**
+
+- **The size ratchet had drifted on all seven rows** since its last
+  record on 2026-09-24 (rigd +1,314,816, rig +966,656, rigwindow
+  +732,856). Every row was shipped work; re-recorded at `17ed01f`, the
+  commit names what grew.
+- **`rigseed --check` was not runnable as written:** the seeder moved to
+  docket (§50 move 8), and `BACKLOG.md` and `DECISIONS.md` are now
+  indexes it cannot parse. It runs as: build `docket/cmd/rigseed`, feed
+  it `rig logbook cat BACKLOG.md` and `DECISIONS.md`, against a scratch
+  `development` rigd with `RIG_ROOT` and a short `XDG_RUNTIME_DIR` of its
+  own. Seeding takes 13 s.
+- **It then failed on four heading collisions,** so four requirements
+  never reached the store: §12 "Toasts, built" and §48's second
+  "RULED BY BORIS", third "RULED BY BORIS", and second "Boris". Each now
+  has its own lead words; `--check` exits 0.
 
 **One coord test changed, a finding by the slice's own bar:**
 `TestANewerSchemaRefusesToOpen` planted its newer schema through bbolt;
