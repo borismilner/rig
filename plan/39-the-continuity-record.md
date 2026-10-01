@@ -273,9 +273,11 @@ and is deliberately not answered here.
   **2026-10-01, Boris, after deploying the event bus:** *"I wish you would be
   able to deploy too. Give me a shell script that after I run it will allow
   you to do all of it instead of asking me to do it."* **He wants the seat to
-  run the deploy itself.** Until a permission rule allows `build/deploy.sh`,
-  the seat cannot, and the rule is his to add. The quiesce rule below still
-  binds a seat that deploys.
+  run the deploy itself.** **GRANTED the same day:** he ran
+  `build/allow-deploy.sh`, which allows `build/deploy.sh` and `make deploy`
+  in this checkout, and a seat deployed `db74b87` through it with no prompt.
+  **A seat deploys when a batch deserves it**, after `list_agents` shows no
+  peer working on rig; the quiesce rule below still binds it.
 - ⛔ **EVERY PEER QUIESCES FOR IT.** *"while all peers are awaiting
   redeployment"* - the daemon under them is being replaced, so a seat mid-call
   during a redeploy is a seat whose result is undefined. **Peers wait; they do
