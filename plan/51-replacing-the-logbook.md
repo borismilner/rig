@@ -125,7 +125,12 @@ listed in the scorecard and each is owed a fix, not an apology.
 | add without reading | `rig logbook add <doc> --title T` from stdin, or create the next file |
 | edit an entry | edit its part; an edit above the marker in the index is lost (named in the index's first line) |
 
-Not built yet: `brief`, `open`, and R1's search index in rigd.
+`brief` and `open` landed the same day (rig `274244f`): the brief is
+11 KB against 1.33 MB of whole files. ⛔ **`open` lists 108 of 126
+items as open**, because a state is free prose and only CLOSED, DONE or
+REJECTED at the start of it closes an item; many rows say "RULED ...
+DONE" or "BUILT" further in. F1's state field is what fixes that. Not
+built: R1's search index in rigd.
 
 **The acceptance is measured in tokens, per task, before and after:**
 
