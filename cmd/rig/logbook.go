@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -26,6 +27,8 @@ const logbookUsage = `usage: rig logbook <cmd> [--dir D] ...
   add <doc> [--title T]   a new entry from stdin; the index is rebuilt
   index [<doc>...]        move what sits below the marker into parts, then rebuild
   check [<doc>...]        exit 1 when an index is stale
+  open [--all] [<doc>...] the work items not closed, one line each
+  brief                   what a resuming session needs first, in a few KB
   split <doc>             once: a document becomes parts and an index`
 
 func cmdLogbook(args []string) (err error) {
@@ -37,6 +40,7 @@ func cmdLogbook(args []string) (err error) {
 	fold := fs.Bool("i", false, "grep: ignore case")
 	fixed := fs.Bool("F", false, "grep: the pattern is a fixed string")
 	names := fs.Bool("l", false, "grep: print only the files that match")
+	all := fs.Bool("all", false, "open: closed items too")
 	flags, positional := partition(args)
 	if err := fs.Parse(flags); err != nil {
 		return badArgumentf("%v\n%s", err, logbookUsage)
@@ -60,6 +64,10 @@ func cmdLogbook(args []string) (err error) {
 		return lb.add(rest[0], *title, os.Stdin)
 	case sub == "index" || sub == "check":
 		return lb.index(rest, sub == "check")
+	case sub == "open":
+		return lb.open(rest, *all)
+	case sub == "brief" && len(rest) == 0:
+		return lb.brief()
 	case sub == "split" && len(rest) == 1:
 		return lb.split(rest[0])
 	}
@@ -464,5 +472,146 @@ func (lb logbookIn) split(name string) error {
 		return lb.emit(map[string]any{"doc": d.Name, "bytes": before, "parts": parts, "dir": d.Dir})
 	}
 	fmt.Printf("%s: %d bytes -> %s/ (%d top-level parts)\n", d.Name, before, d.Stem, parts)
+	return nil
+}
+
+// clip cuts s to n characters, marking the cut.
+func clip(s string, n int) string {
+	if r := []rune(s); len(r) > n {
+		return string(r[:n-3]) + "..."
+	}
+	return s
+}
+
+// items are the work items of the named documents, or of every split one.
+func (lb logbookIn) items(names []string, all bool) ([]logbook.Item, error) {
+	docs, err := lb.docs(names)
+	if err != nil {
+		return nil, err
+	}
+	var out []logbook.Item
+	for _, d := range docs {
+		leaves, err := d.Leaves()
+		if err != nil {
+			return nil, err
+		}
+		for _, it := range logbook.Items(leaves) {
+			if all || it.Open {
+				out = append(out, it)
+			}
+		}
+	}
+	return out, nil
+}
+
+func (lb logbookIn) open(names []string, all bool) error {
+	items, err := lb.items(names, all)
+	if err != nil {
+		return err
+	}
+	if lb.asJSON {
+		if items == nil {
+			items = []logbook.Item{}
+		}
+		return lb.emit(items)
+	}
+	for _, it := range items {
+		line := fmt.Sprintf("%-6s %s", it.ID, clip(it.Title, 60))
+		if it.State != "" {
+			line += "  | " + clip(it.State, 50)
+		}
+		fmt.Println(line)
+	}
+	fmt.Printf("%d items; rig logbook show <doc> <id> reads one\n", len(items))
+	return nil
+}
+
+// brief is what a resuming session reads first: the handoffs, what each
+// document holds and its newest entries, what waits below a marker, and the
+// open work, so the whole files are read only when a line here points there.
+func (lb logbookIn) brief() error {
+	docs, err := lb.docs(nil)
+	if err != nil {
+		return err
+	}
+	home := filepath.Dir(docs[0].Index)
+	type docBrief struct {
+		Doc     string   `json:"doc"`
+		Entries int      `json:"entries"`
+		KB      int      `json:"kb"`
+		Newest  []string `json:"newest"`
+		Pending bool     `json:"pending"`
+		Stale   bool     `json:"stale"`
+	}
+	var briefs []docBrief
+	var open []logbook.Item
+	for _, d := range docs {
+		leaves, err := d.Leaves()
+		if err != nil {
+			return err
+		}
+		b := docBrief{Doc: d.Name, Entries: len(leaves)}
+		for _, l := range leaves {
+			b.KB += len(l.Text)
+		}
+		b.KB /= 1024
+		for _, l := range leaves[max(0, len(leaves)-4):] {
+			b.Newest = append(b.Newest, l.Title)
+		}
+		p, err := d.Pending()
+		if err != nil {
+			return err
+		}
+		b.Pending = p != ""
+		if b.Stale, err = d.Stale(); err != nil {
+			return err
+		}
+		briefs = append(briefs, b)
+		for _, it := range logbook.Items(leaves) {
+			if it.Open {
+				open = append(open, it)
+			}
+		}
+	}
+	handoffs, _ := filepath.Glob(filepath.Join(home, "HANDOFF*.md"))
+	type handoff struct {
+		Path    string `json:"path"`
+		KB      int    `json:"kb"`
+		Written string `json:"written"`
+	}
+	var hs []handoff
+	for _, h := range handoffs {
+		if st, err := os.Stat(h); err == nil {
+			hs = append(hs, handoff{h, int(st.Size() / 1024), st.ModTime().Format("2006-01-02 15:04")})
+		}
+	}
+	slices.SortFunc(hs, func(a, b handoff) int { return strings.Compare(b.Written, a.Written) })
+	if lb.asJSON {
+		if open == nil {
+			open = []logbook.Item{}
+		}
+		return lb.emit(map[string]any{"dir": home, "handoffs": hs, "documents": briefs, "open": open})
+	}
+	fmt.Printf("notes: %s\n\nhandoffs, newest first:\n", shown(home))
+	for _, h := range hs {
+		fmt.Printf("  %s  %s  %d KB\n", h.Written, filepath.Base(h.Path), h.KB)
+	}
+	for _, b := range briefs {
+		fmt.Printf("\n%s: %d entries, %d KB", b.Doc, b.Entries, b.KB)
+		if b.Pending {
+			fmt.Print("; entries wait below the marker")
+		}
+		if b.Stale {
+			fmt.Print("; index STALE, run rig logbook index")
+		}
+		fmt.Println("\n  newest:")
+		for _, t := range b.Newest {
+			fmt.Println("    " + clip(t, 90))
+		}
+	}
+	fmt.Printf("\nopen work, in document order (%d; rig logbook open for states):\n", len(open))
+	for _, it := range open {
+		fmt.Printf("  %-6s %s\n", it.ID, clip(it.Title, 80))
+	}
 	return nil
 }

@@ -180,3 +180,27 @@ func TestOpenFollowsASymlink(t *testing.T) {
 		t.Fatalf("the link resolved to %s, not %s", got.Dir, d.Dir)
 	}
 }
+
+func TestItemsReadRowsAndHeadings(t *testing.T) {
+	text := "## Open\n\n| # | Item | State |\n|---|---|---|\n" +
+		"| **B1** | **first** | argued, startable |\n" +
+		"| ⛔ **B2** | second | CLOSED, rig abc |\n" +
+		"| **B3** | third | ~~argued~~ **DONE** |\n" +
+		"\n## B4 - a heading item\n\nbody\n\n## Rejected\n\n| B5 | fifth | argued |\n"
+	// One leaf per row, the way a big section is split.
+	var leaves []Leaf
+	for i, r := range rows(text[:strings.Index(text, "\n## B4")+1]) {
+		leaves = append(leaves, Leaf{Path: fmt.Sprintf("x/0001-open/%04d.md", i), Text: r})
+	}
+	leaves = append(leaves,
+		Leaf{Path: "x/0002-b4.md", Text: "## B4 - a heading item\n\nbody\n"},
+		Leaf{Path: "x/0003-rejected/0001.md", Text: "| B5 | fifth | argued |\n"})
+	var got []string
+	for _, it := range Items(leaves) {
+		got = append(got, fmt.Sprintf("%s:%s:%v", it.ID, it.Title, it.Open))
+	}
+	want := "B1:first:true B2:second:false B3:third:true B4:a heading item:true B5:fifth:false"
+	if strings.Join(got, " ") != want {
+		t.Fatalf("got  %s\nwant %s", strings.Join(got, " "), want)
+	}
+}

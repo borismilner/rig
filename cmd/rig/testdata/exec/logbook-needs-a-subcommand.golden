@@ -1,7 +1,7 @@
 $ rig logbook
 exit 1
 --- stdout (0 bytes)
---- stderr (647 bytes)
+--- stderr (789 bytes)
 rig: usage: rig logbook <cmd> [--dir D] ...
   grep [-i] [-F] [-l] <pattern> [<doc>...]  search the parts, and what waits below the marker
   show <doc> <NNNN|key>   one entry, by its number or the start of its title (B107)
@@ -10,4 +10,6 @@ rig: usage: rig logbook <cmd> [--dir D] ...
   add <doc> [--title T]   a new entry from stdin; the index is rebuilt
   index [<doc>...]        move what sits below the marker into parts, then rebuild
   check [<doc>...]        exit 1 when an index is stale
+  open [--all] [<doc>...] the work items not closed, one line each
+  brief                   what a resuming session needs first, in a few KB
   split <doc>             once: a document becomes parts and an index

@@ -617,3 +617,62 @@ func (d Doc) Generated() bool {
 	n, _ := io.ReadFull(f, head)
 	return d.Split() && headRE.Match(head[:n])
 }
+
+// Item is one work item: a table row or a heading whose title starts with
+// an id like B107.
+type Item struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	State string `json:"state"` // a row's last cell, as written; empty for a heading
+	Path  string `json:"path"`
+	Open  bool   `json:"open"`
+}
+
+var (
+	itemIDRE  = regexp.MustCompile(`^(B\d+[a-z]?)\b`)
+	markupRE  = regexp.MustCompile("[*`⛔✅~]+")
+	spacesRE  = regexp.MustCompile(`\s+`)
+	closedRE  = regexp.MustCompile(`(?i)^(closed|done|rejected)\b`)
+	rejectsRE = regexp.MustCompile(`/\d{4}-rejected`)
+)
+
+func plain(s string) string {
+	return strings.TrimSpace(spacesRE.ReplaceAllString(markupRE.ReplaceAllString(s, ""), " "))
+}
+
+// Items are the work items in leaves, in document order. A row's state is
+// free prose, so an item counts as closed only when that prose begins with
+// CLOSED, DONE or REJECTED, or it sits under a "Rejected" section. Nothing
+// else is guessed.
+func Items(leaves []Leaf) []Item {
+	var out []Item
+	for _, l := range leaves {
+		first := ""
+		for ln := range strings.SplitSeq(l.Text, "\n") {
+			if strings.TrimSpace(ln) != "" && !bannerRE.MatchString(ln) {
+				first = strings.TrimSpace(ln)
+				break
+			}
+		}
+		var it Item
+		if strings.HasPrefix(first, "|") {
+			cells := strings.Split(strings.Trim(first, "|"), "|")
+			id := itemIDRE.FindString(plain(cells[0]))
+			if id == "" || len(cells) < 2 {
+				continue
+			}
+			it = Item{ID: id, Title: plain(cells[1]), State: plain(cells[len(cells)-1])}
+		} else {
+			t := plain(hashRE.ReplaceAllString(first, ""))
+			id := itemIDRE.FindString(t)
+			if id == "" || !strings.HasPrefix(first, "#") {
+				continue
+			}
+			it = Item{ID: id, Title: strings.TrimLeft(strings.TrimPrefix(t, id), " -:")}
+		}
+		it.Path = l.Path
+		it.Open = !closedRE.MatchString(it.State) && !rejectsRE.MatchString(l.Path)
+		out = append(out, it)
+	}
+	return out
+}
