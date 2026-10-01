@@ -106,6 +106,13 @@ logbook/projects/rig/
 | R3 | **With rig down, `rig log` still works on the files directly** (slower search, same answers), and plain `grep` and an editor always work | no agent's work stops because rig is down |
 | R4 | **Agents reach it through the CLI and MCP alike**; the skills (`/resume`, `/handoff`, `where-it-belongs`) are pointed at it | the token saving only happens if the tooling uses it |
 
+⛔ **NO REGRESSION, Boris 2026-10-01, verbatim:** *"go ahead with all the
+splits and then what's needed in `rig` to support it; note it must not
+regress from the current usage of the files."* **Every way an agent or he
+uses these files today - read, grep, append, edit, cite, resume - keeps
+working after a split, or the split is wrong.** The breaks found so far are
+listed in the scorecard and each is owed a fix, not an apology.
+
 **The acceptance is measured in tokens, per task, before and after:**
 
 | Task | Today | Target |
