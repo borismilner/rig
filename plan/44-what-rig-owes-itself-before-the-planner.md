@@ -376,7 +376,7 @@ check to run on each of the four, not a separate milestone.**
 
 | | Service | Why here |
 |---|---|---|
-| **0** | **the event bus** (`events`) | ⛔ **Boris, 2026-10-01: *"Put the bus next, before storage"*.** It has a named user now: timed events such as a cron fire (§5), for the task scheduler that is the first program on rig (§25). Its first consumers are rig's own three hand-built feeds, `toast.wait`, `hand.wait` and `message.await`. **Retention is in memory until S1 lands**: a cursor older than the buffer gets `gap: true` (§16), never a silent hole |
+| **0, after S1** | **the event bus** (`events`) | ⛔ **Boris, 2026-10-01: *"Put the bus next, before storage"*, then the same day, after the bus was specified (§52): *"Lets finish with the storage first."* So S1 is finished first and the bus follows it.** It has a named user now: timed events such as a cron fire (§5), for the task scheduler that is the first program on rig (§25). Its first consumers are rig's own three hand-built feeds, `toast.wait`, `hand.wait` and `message.await`. **Retention is in memory until S1 lands**: a cursor older than the buffer gets `gap: true` (§16), never a silent hole |
 | **1** | **S1 storage** | ⛔ **Everything else needs somewhere to put bytes.** The log service stores segments, config stores layers, backup archives a store. Doing it first means each of the others has one store to consume rather than a fourth hand-rolled one |
 | **2** | **S2 backup** | **Immediately after S1 and before anything else writes into it.** A store gains a backup before it gains more writers, not after |
 | **3** | **S4 config** | Smaller than logging, and its first consumer is three flags. **It is the cheapest proof that the dogfooding test works at all** |
