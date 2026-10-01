@@ -861,7 +861,8 @@ decline or pause the time until in the hands-off mode."* So:
 | H2 | **During the countdown he can decline it, or hold it.** Holding stops the clock until he lets it run again or allows it at once; a held countdown never turns into driving by itself |
 | H3 | **While rig drives, the strip stays up for exactly as long, on top, and shows how long it has been driving.** Presence is the signal: gone means the desktop is his |
 | H4 | **He can take the desktop back at any moment**, from the strip or the terminal. The hand stops at the end of the current step (inside a `type`, between characters, per the park latch) and waits; only he can resume it, and he can stop the run outright instead |
-| H5 | **Only he answers.** The allow, decline, hold, take-back, resume and stop doors are refused to programs and agents, or the strip is a suggestion |
+| H5 | **Only he answers.** The allow, decline, hold, take-back, resume and stop doors are refused to programs and agents, or the strip is a suggestion. Derived from his request, not his words |
+| H6 | **Where the strip sits is a stated rule, never an arbitrary spot.** Boris, 2026-10-01: *"The placement of the hands-off panel should not be arbitrary."* Which rule is OPEN, asked the same day. The first build put it at the top centre with no reason given; a known hazard of any fixed spot is that it can cover the point a step clicks |
 
 **The service is named `hand`, and the verb is `rig hand`.** One syllable, the thing it is, and
 it does not collide with `rig window`, which draws.
