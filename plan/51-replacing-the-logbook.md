@@ -102,8 +102,8 @@ logbook/projects/rig/
 | F3 | **The index files are generated** by a tool that needs no daemon, and checked like `plansplit.py --check` | an index nobody regenerates goes stale silently |
 | F4 | **Old paths keep resolving:** DECISIONS.md and BACKLOG.md stay, as indexes | the same reason PLAN.md stayed: hundreds of citations |
 | R1 | **rig watches the logbook and keeps a search index over it**; it never writes an entry on an agent's behalf | his constraint: rig is never on the write path |
-| R2 | **`rig log` answers small questions**: `brief`, `search <words>`, `show <id>`, `open` (open items in order), `add decision|item` | an answer in 1-5 KB instead of a whole-file read |
-| R3 | **With rig down, `rig log` still works on the files directly** (slower search, same answers), and plain `grep` and an editor always work | no agent's work stops because rig is down |
+| R2 | **`rig logbook` answers small questions**: `brief`, `grep <pattern>`, `show <id>`, `open` (open items in order), `add <doc>`. Named `logbook`, not `log`, so it never collides with §49's logging | an answer in 1-5 KB instead of a whole-file read |
+| R3 | **With rig down, `rig logbook` still works on the files directly** (slower search, same answers), and plain `grep` and an editor always work | no agent's work stops because rig is down |
 | R4 | **Agents reach it through the CLI and MCP alike**; the skills (`/resume`, `/handoff`, `where-it-belongs`) are pointed at it | the token saving only happens if the tooling uses it |
 
 ⛔ **NO REGRESSION, Boris 2026-10-01, verbatim:** *"go ahead with all the
@@ -113,13 +113,27 @@ uses these files today - read, grep, append, edit, cite, resume - keeps
 working after a split, or the split is wrong.** The breaks found so far are
 listed in the scorecard and each is owed a fix, not an apology.
 
+**As built, 2026-10-01 (rig `8015d70`): how each use survives the split.**
+`rig logbook` runs client-side, so R3 holds by construction.
+
+| Use today | After the split |
+|---|---|
+| read the whole file | `rig logbook cat <doc>`: byte-identical to the pre-split file, proved on all five |
+| `grep DECISIONS.md` | `rig logbook grep <pat> DECISIONS.md`: the same lines, plus what waits below the marker |
+| cite "DECISIONS.md line 5889" | `rig logbook line DECISIONS.md 5889`: the part and its line |
+| append the old way | still works below the marker; `index` moves it into a part |
+| add without reading | `rig logbook add <doc> --title T` from stdin, or create the next file |
+| edit an entry | edit its part; an edit above the marker in the index is lost (named in the index's first line) |
+
+Not built yet: `brief`, `open`, and R1's search index in rigd.
+
 **The acceptance is measured in tokens, per task, before and after:**
 
 | Task | Today | Target |
 |---|---|---|
 | append a decision | read 629 KB | search 1-3 KB, write one file |
 | find one backlog item | read 270 KB | one file, 0.4-6 KB |
-| cold resume | 1.33 MB over 7 files | HANDOFF + `rig log brief`, under 20 KB |
+| cold resume | 1.33 MB over 7 files | HANDOFF + `rig logbook brief`, under 20 KB |
 
 **Not in this design:** the record does not become the source of the
 logbook, and §39 slice 5's projection is not built for it.
