@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -52,7 +53,7 @@ func run() error {
 		return err
 	}
 	defer c.Close()
-	p := &program{log: log}
+	p := &program{log: log, c: c}
 	c.Handle(p.handle)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	_, err = c.Hello(ctx, declaration())
@@ -61,12 +62,16 @@ func run() error {
 		return err
 	}
 	fmt.Println("righand: registered")
+	p.report(idle)
 	<-c.Done()
 	return nil
 }
 
 type program struct {
 	log *slog.Logger
+	c   *client.Client
+	// marker counts scripts started and finished, for rig's health check
+	marker atomic.Uint64
 	// one script drives the desktop at a time: two interleaved scripts would
 	// each click where the other left the pointer.
 	busy sync.Mutex
@@ -159,6 +164,8 @@ func (p *program) script(method string, raw []byte) (any, error) {
 		return nil, err
 	}
 	defer func() { _ = desk.Close() }()
+	p.report(fmt.Sprintf("a script of %d steps to finish", len(steps)))
+	defer p.report(idle)
 
 	h, err := hand.Open(0)
 	if err != nil {
@@ -181,6 +188,23 @@ func (p *program) script(method string, raw []byte) (any, error) {
 			fmt.Sprintf("righand: %v (ran %d of %d steps)", err, ran, len(steps)), "")
 	}
 	return map[string]any{"ran": ran, "of": len(steps)}, nil
+}
+
+// idle is what the hand waits on between scripts.
+const idle = "a script to run"
+
+// report is rig.health.report. Without it the supervisor reads a hand with
+// nothing to do as stalled and restarts it every minute (plan/18). While a
+// script runs it reports waiting on that script rather than moving the
+// marker per step: a `wait` step is still, and the call's own deadline is
+// what bounds a hand that hangs. Run by hand rather than by rig up, the
+// report is refused and that is fine.
+func (p *program) report(waiting string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_ = p.c.Call(ctx, "rig.health.report", &rigv1.HealthReportRequest{
+		Marker: p.marker.Add(1), Waiting: waiting,
+	}, &rigv1.HealthReportResponse{})
 }
 
 // desktopLock is held while a script drives the desktop. It is under the
