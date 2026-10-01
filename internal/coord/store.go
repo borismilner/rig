@@ -27,7 +27,8 @@
 // which B25 had chosen before B28 ruled one engine. What is written here is
 // the SEMANTICS section 16 specifies - the two-step expiry, the witness and the
 // fencing - which no storage engine has an opinion about. A file still in
-// bbolt's format is refused by name and converted once by cmd/coordconvert.
+// bbolt's format is refused by name; cmd/coordconvert, which converted every
+// estate once on 2026-10-01, is in rig's history at 8aa9a1c.
 package coord
 
 import (
@@ -80,9 +81,9 @@ func (e *BoltFileError) Error() string {
 	return fmt.Sprintf(
 		"coord: %s is a bbolt file, and this rigd stores coord in SQLite: it "+
 			"will not be opened\n"+
-			"       stop rigd and run `coordconvert %s` once; it keeps the epoch "+
-			"and the mail and leaves the original beside it as %s.bbolt",
-		e.Path, e.Path, e.Path)
+			"       every estate was converted on 2026-10-01; the one-off converter "+
+			"is cmd/coordconvert at rig 8aa9a1c: build it there, stop rigd, run it on %s",
+		e.Path, e.Path)
 }
 
 // UnnamedEstateError means persistent state was asked for without an estate name.
@@ -173,7 +174,7 @@ func refuseBolt(path string) error {
 // schema is coord's registration with the one runner (plan/48 decision 3).
 //
 // LEASES, TASKS AND MESSAGES ARE STORED AS THE SAME JSON THE bbolt BUCKETS
-// HELD, one row each, so the converter copies values rather than re-encoding
+// HELD, one row each, so the converter copied values rather than re-encoding
 // them and a field added to a record needs no column. The keys a read seeks
 // on - a lease's name, a message's seat and id, a task's queue, sequence and
 // idempotency key - are columns.

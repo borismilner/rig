@@ -745,7 +745,7 @@ moves DOWN in its own commit.
 | 1, one opener and runner | `d6568fb` | `internal/store/sqlite.go` (`OpenDB`, `Migrate`, `Schema`); record, files index and program stores register with it |
 | 2, `fields` on `record.query` | `7a553f8` | field 5, `--fields`; projected before the page is sized |
 | 3, `rig store list` | `f291e02` | record, coord, `programs/<id>`; a registered program is refused |
-| 4, coord off `bbolt` | `0b76df5` | leases, mail and queues on the one runner, values the same JSON as the buckets held; rigd refuses a bbolt `coord.db` by name; `cmd/coordconvert` carries epoch, mail counter, trim lines and queue sequences once, original kept as `coord.db.bbolt`; `tools/coord-cutover.sh` converts the three live files and deploys. `rigd` links no `bbolt`; it leaves `go.mod` with `coordconvert` once every estate has converted |
+| 4, coord off `bbolt` | `0b76df5` | leases, mail and queues on the one runner, values the same JSON as the buckets held; rigd refuses a bbolt `coord.db` by name; `cmd/coordconvert` carries epoch, mail counter, trim lines and queue sequences once, original kept as `coord.db.bbolt`; `tools/coord-cutover.sh` converted the three live files and deployed (`750f150`, epoch 83 to 85). Then `bbolt`, `coordconvert` and the script left the tree: acceptance 1 and 6 |
 | 4a, `--json --fields` | `0d944f0` | unrequested `body` and `provenance` omitted; live: 43,734 to 28,479 bytes |
 
 **One coord test changed, a finding by the slice's own bar:**

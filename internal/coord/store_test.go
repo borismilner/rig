@@ -266,3 +266,35 @@ func TestAStoreNoticesAReboot(t *testing.T) {
 			"deadline is on CLOCK_BOOTTIME and is meaningless after a reboot")
 	}
 }
+
+// Decision 0251: a coord.db still in bbolt's format is refused by name, before
+// sqlite sees it, and nothing is written into it.
+func TestABoltFileIsRefusedByName(t *testing.T) {
+	name := estate(t, "development")
+	fakeBoot(t)
+	dir, err := paths.EstateStateDir(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, DBName)
+	// A bbolt file begins with a page header, never with SQLite's magic.
+	bolt := append(make([]byte, 16), "bbolt meta page"...)
+	if err := os.WriteFile(path, bolt, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Open(name)
+	if err == nil {
+		_ = s.Close()
+		t.Fatal("a bbolt coord.db was opened")
+	}
+	var be *BoltFileError
+	if !errors.As(err, &be) || !strings.Contains(err.Error(), "coordconvert") {
+		t.Fatalf("want a BoltFileError naming the converter, got %T: %v", err, err)
+	}
+	if got, _ := os.ReadFile(path); string(got) != string(bolt) {
+		t.Fatal("the refused file was written to")
+	}
+}
