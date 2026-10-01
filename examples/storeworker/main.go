@@ -47,7 +47,9 @@ func main() {
 func serve() error {
 	id := flag.String("name", "storeworker", "the program id to register")
 	seat := flag.String("seat", "storeworker", "the seat its worker takes")
-	addr := flag.String("addr", "127.0.0.1:7454", "where to serve its pane, on loopback")
+	// Port 0 by default: two estates on one machine each autostart this
+	// program, and a fixed port let the second one lose the bind.
+	addr := flag.String("addr", "127.0.0.1:0", "where to serve its pane, on loopback; port 0 picks a free one")
 	budget := flag.Float64("budget", 1.0, "a run costing more than this, in dollars, waits for an answer")
 	step := flag.Duration("step", 1500*time.Millisecond, "how long one simulated step takes")
 	flag.Parse()
@@ -82,6 +84,7 @@ func serve() error {
 	if err != nil {
 		return err
 	}
+	*addr = ln.Addr().String()
 	sub, err := fs.Sub(rigFS, "rig")
 	if err != nil {
 		return err
