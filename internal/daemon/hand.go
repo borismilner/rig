@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"time"
 	"unicode/utf8"
@@ -324,9 +325,15 @@ func (h *handDesk) answer(a registryv1.HandAction) (*registryv1.HandState, error
 		h.end(handStopped)
 	default:
 		return nil, handRefused(rigv1.Code_CODE_CONFLICT,
-			"rig.hand.answer: "+a.String()+" does not apply while the desktop is "+ph.String())
+			"rig.hand.answer: "+handWord(a.String(), "HAND_ACTION_")+" does not apply while the desktop is "+
+				handWord(ph.String(), "HAND_PHASE_"))
 	}
 	return h.snapshot(), nil
+}
+
+// handWord is an enum value as he would say it: "pause", "idle".
+func handWord(full, prefix string) string {
+	return strings.ToLower(strings.TrimPrefix(full, prefix))
 }
 
 // after answers the state once its seq is past seq, waiting up to wait. A

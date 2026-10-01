@@ -1,0 +1,5 @@
+$ rig hand grab
+exit 1
+--- stdout (0 bytes)
+--- stderr (95 bytes)
+rig: "grab" is not a hand command; usage: rig hand status|allow|decline|hold|pause|resume|stop

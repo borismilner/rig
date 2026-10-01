@@ -210,6 +210,8 @@ func usage() {
   sound status|on|off  toast sounds and speech; read off|title|title-and-body,
                    use hail|badge|file
   say <text>       read text aloud; --wait D returns once it has been heard
+  hand <cmd>       the desktop's one run: status, and your answer to it -
+                   allow, decline, hold, pause, resume, stop
   record <cmd>     the continuity record: put, get, query, history, link,
                    unlink, refs, retract, delete, replace
   progress step <item>
@@ -261,6 +263,7 @@ var plainVerbs = map[string]func([]string) error{
 	"stop":      cmdStop,
 	"restart":   cmdRestart,
 	"health":    cmdHealth,
+	"hand":      cmdHand,
 }
 
 // verbAt is the index of the command word, so rig's own flags may come BEFORE
@@ -342,7 +345,7 @@ func run(args []string) error {
 		// capability with two halves, and this is its single seam into run.
 		return cmdBackupOrRestore(args[0], with(args[1:], lead))
 	case "peers", "knowledge", "worknote", "message", "queue", "store", "files", "notify", "dnd",
-		"sound", "say", "up", "stop", "restart", "health":
+		"sound", "say", "up", "stop", "restart", "health", "hand":
 		return plainVerbs[args[0]](with(args[1:], lead))
 	case "record":
 		return cmdRecord(with(args[1:], lead))

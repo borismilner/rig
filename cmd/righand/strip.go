@@ -94,6 +94,7 @@ func (p *program) askDesktop(why string, steps []hand.Step) (*deskGate, func(), 
 		return nil, nil, err
 	}
 	g := &deskGate{c: p.c}
+	//rig:allow nocontextfree: the watch lives exactly as long as the run, and release is what ends it
 	watch, stop := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() { defer close(done); g.follow(watch) }()
