@@ -429,5 +429,9 @@ func resolveRoot(estate, flagValue string) (string, error) {
 	if estate == "" {
 		return paths.ScratchRoot(flagValue)
 	}
-	return paths.Root(flagValue)
+	root, err := paths.Root(flagValue)
+	if err == nil && flagValue != "" {
+		paths.UseRoot(root)
+	}
+	return root, err
 }

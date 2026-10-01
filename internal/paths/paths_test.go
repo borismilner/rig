@@ -304,3 +304,50 @@ func TestTheClaimAndTheStateSubtreeRefuseTheSameNames(t *testing.T) {
 		}
 	}
 }
+
+// plan/48 D7a: a given root moves the databases, XDG_STATE_HOME still names
+// them when set, and the name claim never moves.
+func TestAGivenRootMovesTheDatabasesButNotTheClaim(t *testing.T) {
+	t.Setenv("HOME", "/home/u")
+	defer givenRoot.Store(nil)
+	for _, tc := range []struct {
+		name, state, env, flag string
+		db, backups            string
+	}{
+		{"neither", "", "", "", "/home/u/.local/state/rig/estates/development", "/home/u/.local/state/rig/backups"},
+		{"RIG_ROOT alone", "", "/tmp/rd/root", "", "/tmp/rd/root/state/estates/development", "/tmp/rd/root/state/backups"},
+		{"--root alone", "", "", "/tmp/rd/flag", "/tmp/rd/flag/state/estates/development", "/tmp/rd/flag/state/backups"},
+		{"--root beats RIG_ROOT", "", "/tmp/rd/root", "/tmp/rd/flag", "/tmp/rd/flag/state/estates/development", "/tmp/rd/flag/state/backups"},
+		{"rig-team: both set", "/home/u/.local/state/rig-team", "/home/u/.rig-team", "", "/home/u/.local/state/rig-team/rig/estates/development", "/home/u/.local/state/rig-team/rig/backups"},
+	} {
+		t.Setenv("XDG_STATE_HOME", tc.state)
+		t.Setenv(RootEnv, tc.env)
+		givenRoot.Store(nil)
+		if tc.flag != "" {
+			UseRoot(tc.flag)
+		}
+		db, err := EstateStateDir("development")
+		if err != nil || db != tc.db {
+			t.Errorf("%s: databases at %q (%v), want %q", tc.name, db, err, tc.db)
+		}
+		if b, _ := BackupDir(); b != tc.backups {
+			t.Errorf("%s: backups at %q, want %q", tc.name, b, tc.backups)
+		}
+		claim, _ := EstateLock("development")
+		wantClaim := "/home/u/.local/state/rig/estates/development.pid"
+		if tc.state != "" {
+			wantClaim = tc.state + "/rig/estates/development.pid"
+		}
+		if claim != wantClaim {
+			t.Errorf("%s: the claim moved to %q, want %q", tc.name, claim, wantClaim)
+		}
+	}
+}
+
+func TestARelativeRigRootIsRefusedForTheDatabases(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", "")
+	t.Setenv(RootEnv, "rel/root")
+	if _, err := EstateStateDir("development"); err == nil {
+		t.Error("a relative RIG_ROOT placed the databases")
+	}
+}

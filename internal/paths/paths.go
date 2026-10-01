@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 )
 
 // MaxSocketPath is the longest usable unix socket path.
@@ -165,6 +166,40 @@ func StateDir() (string, error) {
 	return filepath.Join(home, ".local", "state", "rig"), nil
 }
 
+// givenRoot is the --root rigd was started with, if any; see UseRoot.
+var givenRoot atomic.Pointer[string]
+
+// UseRoot tells this process the storage root came from --root, so its
+// databases follow it as they follow RIG_ROOT (plan/48 D7a). rigd calls it
+// once, before it opens anything; the flag is not visible to the packages
+// that open the stores, and the environment is.
+func UseRoot(dir string) { givenRoot.Store(&dir) }
+
+// dataDir is where a named estate's databases and the backups live (plan/48
+// D7a): XDG_STATE_HOME when it is set, else under a root that was GIVEN, else
+// the old default. A given root moving everything is R15; before D7a it moved
+// the areas and left the databases behind, so a scratch rigd with RIG_ROOT in
+// /tmp wrote into the live development estate.
+//
+// The name claim is NOT here and stays on StateDir: it must be seen by every
+// estate of that name, whatever its root.
+func dataDir() (string, error) {
+	if os.Getenv("XDG_STATE_HOME") != "" {
+		return StateDir()
+	}
+	if r := givenRoot.Load(); r != nil && *r != "" {
+		return filepath.Join(*r, "state"), nil
+	}
+	if env := os.Getenv(RootEnv); env != "" {
+		root, err := CheckRoot(env, RootEnv)
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(root, "state"), nil
+	}
+	return StateDir()
+}
+
 // EstateLock is the claim path for a NAMED estate (section 37, precondition 6).
 //
 // An estate started without a name never calls this and claims nothing, which
@@ -255,7 +290,7 @@ func EstateStateDir(name string) (string, error) {
 		return "", fmt.Errorf("paths: an estate has no persistent state until "+
 			"it is named, and this name cannot be used: %w", err)
 	}
-	d, err := StateDir()
+	d, err := dataDir()
 	if err != nil {
 		return "", err
 	}
@@ -282,7 +317,7 @@ func EstateStateDir(name string) (string, error) {
 // It resolves a path and creates nothing, exactly as every other function here.
 // The mkdir belongs to whoever is about to write.
 func BackupDir() (string, error) {
-	d, err := StateDir()
+	d, err := dataDir()
 	if err != nil {
 		return "", err
 	}
