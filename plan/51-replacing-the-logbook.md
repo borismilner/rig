@@ -151,3 +151,32 @@ logbook, and §39 slice 5's projection is not built for it.
 | Q2 | ~~scope of the first switch: `rig` alone, or every project and area at once~~ **ANSWERED 2026-10-01: *"rig alone first, go ahead"*.** The rig project switches first; the others follow on its scorecard |
 | Q3 | which "new level" rows are in the first switch, and which come after |
 | Q4 | the dual run (§39): kept as ruled, ending on his word |
+
+### Lessons from the rig switch, kept for the rollout
+
+⛔ **Boris, 2026-10-01, verbatim:** *"Make sure all lessons learned are
+persisted so that we can implement them later after we see using it on
+`rig` works well."* **The other projects switch only after rig's use
+proves out (scorecard), and each switch applies every row below.**
+d2d stays out (his ruling, same day).
+
+| | Lesson | Apply it as |
+|---|---|---|
+| L1 | **Plain `grep` on a generated index sees only titles**: a silent miss, the worst regression | every instruction that says "grep FILE" moves to `rig logbook grep` or `grep -r` the folder, the same commit as the split |
+| L2 | A citation by line ("DECISIONS.md line 5889") survives only through a mapping; entries append at the end, so old line numbers stay stable | keep append-at-end; `rig logbook line` resolves them |
+| L3 | **A project checkout symlinks some documents into the logbook, not all** | resolve through links; never take a checkout for the notes folder |
+| L4 | A file beside a same-named folder is not a logbook document (`PLAN.md` + `plan/`) | require the generated header before treating it as one |
+| L5 | **Markdown rows break naive parsing**: pipes inside code spans, rows without a closing pipe | never count cells; anchor on a stamp. A cell-counting stamp landed inside a code span once |
+| L6 | **Free-prose state cannot be parsed**: the heuristic called 108 of 126 items open; the stamped truth is 74 | every item's state starts with a word (`backlog/` "States"); front matter would break the tables |
+| L7 | A convention kept in prose ("a struck title is closed") is invisible to tools, and `~~` in prose is not a struck title (B46b) | make each convention a stamp before tooling depends on it |
+| L8 | **About 20 rows said OPEN for work done in code**; `git log --grep <id>` and the CLI found them | the commit that closes an item also changes its state word |
+| L9 | `index` races an agent appending below the marker | move the late append in, never refuse after moving entries |
+| L10 | **Documents must not name a command before it is deployed** | build, deploy, then retarget CLAUDE.md and the skills |
+| L11 | `rig log` would have collided with §49's logging | grep the plan for a verb name before choosing it |
+| L12 | **HANDOFF.md grew to 49 KB** because parallel seats cannot overwrite one file, so each appended archives | one file per seat handoff in `handoffs/`; HANDOFF.md is a pointer list; history is git's |
+| L13 | `make lint \| tail` let a commit pass a failed lint | a gate's own exit status decides, never a pipeline's |
+| L14 | **Byte-identical reassembly, plus a parity run of two implementations, made the switch provable** | rerun both for every project before its commit |
+
+**Measured on rig, the bar for "works well":** a resume from the brief
+(8 KB) instead of 1.33 MB; a search over every document in 12 ms; no
+entry lost (`cat` byte-identical). The scorecard records each re-measure.
