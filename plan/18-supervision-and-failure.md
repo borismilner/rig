@@ -220,4 +220,27 @@ two tables are meant to diverge - one is the target, the other is the distance
 to it - and **merging "does not exist" with "exists and is lost" is the thing
 that would make both useless.**
 
+### rig mcp across a daemon restart
+
+**Ordered by Boris 2026-10-01 (decision 0253), built per decision 0254.**
+Every deploy restarts rigd. The bridge used to exit with it, the agent host
+never restarted it, and every live session lost rig's tools until `/mcp`.
+
+| Case | What `rig mcp` does |
+|---|---|
+| rigd goes away, host still there | redials for up to 30 s; replays the host's `initialize` under its own id and swallows the answer; resends `notifications/initialized`; tells the host `tools/list_changed` |
+| a call was in flight | **answered with a JSON-RPC error, never replayed**: it may have run, and only the caller knows if it is idempotent (the "rig dies" row above) |
+| a call the dead socket refused to take | sent to the new rigd: nothing ran it, so it is not a replay |
+| rigd not back within 30 s | exits non-zero, as decision 0123 requires |
+| host closes stdin | exits 0 |
+
+**The seat learns through decision 0126's carrier, not from the bridge.** A
+restart empties the roster, so the session's next `set_activity` is refused
+with *"this connection has not announced"*. Nothing is added to a successful
+answer: 0126 rules that a successful answer carrying bad news is the failure.
+
+**Demonstrated 2026-10-01** against a real rigd: announce, SIGTERM, restart,
+`list` answered after 3.2 s, `set_activity` refused, exit 0 on host EOF.
+`cmd/rig/mcp_bridge_test.go` covers the in-flight error and the bound.
+
 ---
