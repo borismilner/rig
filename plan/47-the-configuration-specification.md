@@ -1,11 +1,9 @@
 ## 47. The configuration specification
 
-⛔ **DRAFT. STEP 1 AND A STEP-4 DRAFT OF §45's LOOP FOR B105 (S4), WRITTEN
-2026-09-23 EVENING WITHOUT HIM, ON HIS WORD TO DO AS MUCH AS POSSIBLE ALONE.**
-§45's 2026-09-23 block binds: *preparing is not approving*. **He has not
-approved, reshaped or killed S4, and no subagent is spawned from this section
-until he does.** Every row below is the seat's unless it cites a ruling, and a
-row he reshapes is edited here, not argued in a handoff.
+✅ **APPROVED 2026-10-01, decision 0256: Boris, *"Approve all!"*, on the six
+open rows below as recommended and one new row: a change publishes
+`config.changed {keys}` on the bus (plan/52), which reverses decisions 9 and
+16's "no bus". Built by the lead seat inline, not by a `config` subagent.**
 
 ⛔ **A STANDING REQUIREMENT, Boris 2026-09-26:** a tunable in rig is
 *"configurable like all other aspects of rig should be"* (said of the free
