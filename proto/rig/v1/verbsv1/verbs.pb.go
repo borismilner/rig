@@ -2725,6 +2725,14 @@ type RecordQueryRequest struct {
 	// get every record back and nothing would say its predicate had vanished.
 	Field string `protobuf:"bytes,3,opt,name=field,proto3" json:"field,omitempty"`
 	Value string `protobuf:"bytes,4,opt,name=value,proto3" json:"value,omitempty"`
+	// fields is section 48 decision 6's PROJECTION, and B108 is why: serialising
+	// a full answer cost 69x what the socket needed to move it. EMPTY MEANS
+	// EVERY FIELD, as before (section 21, additive). Non-empty returns id,
+	// version, kind, project and the retraction mark always, plus only the
+	// named ones: "body", "prov", or a typed field's key. The retraction mark
+	// always travels because dropping it would make a withdrawn record read as
+	// live. At most 32 names, each non-empty; anything else is CODE_INVALID.
+	Fields []string `protobuf:"bytes,5,rep,name=fields,proto3" json:"fields,omitempty"`
 	// limit and after page the answer - section 50, "B116, the answer is paged".
 	// Empty `after` is the first page; an empty `next` in the answer is the last
 	// one. A request carrying neither field is what it always was, and its
@@ -2806,6 +2814,13 @@ func (x *RecordQueryRequest) GetValue() string {
 		return x.Value
 	}
 	return ""
+}
+
+func (x *RecordQueryRequest) GetFields() []string {
+	if x != nil {
+		return x.Fields
+	}
+	return nil
 }
 
 func (x *RecordQueryRequest) GetLimit() uint32 {
@@ -11302,12 +11317,13 @@ const file_proto_rig_v1_verbs_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x04R\aversion\";\n" +
 	"\x11RecordGetResponse\x12&\n" +
-	"\x06record\x18\x01 \x01(\v2\x0e.rig.v1.RecordR\x06record\"\x9a\x01\n" +
+	"\x06record\x18\x01 \x01(\v2\x0e.rig.v1.RecordR\x06record\"\xb2\x01\n" +
 	"\x12RecordQueryRequest\x12\x18\n" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x14\n" +
 	"\x05field\x18\x03 \x01(\tR\x05field\x12\x14\n" +
-	"\x05value\x18\x04 \x01(\tR\x05value\x12\x14\n" +
+	"\x05value\x18\x04 \x01(\tR\x05value\x12\x16\n" +
+	"\x06fields\x18\x05 \x03(\tR\x06fields\x12\x14\n" +
 	"\x05limit\x18\x06 \x01(\rR\x05limit\x12\x14\n" +
 	"\x05after\x18\a \x01(\tR\x05after\"S\n" +
 	"\x13RecordQueryResponse\x12(\n" +

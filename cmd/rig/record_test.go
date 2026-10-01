@@ -2648,6 +2648,12 @@ func TestTheFieldPredicateReachesTheAPI(t *testing.T) {
 			[]string{"--field", "closure_note", "--value", ""},
 			QueryArgs{Field: "closure_note", Value: ""},
 		},
+		{
+			// plan/48 decision 6: the projection, split and trimmed.
+			"--fields reaches the API as a list",
+			[]string{"rig", "--fields", "title, status"},
+			QueryArgs{Project: "rig", Fields: []string{"title", "status"}},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := &fakeRecord{}
@@ -2655,10 +2661,23 @@ func TestTheFieldPredicateReachesTheAPI(t *testing.T) {
 			if err := run(append([]string{"record", "query"}, tc.argv...)); err != nil {
 				t.Fatalf("rig record query %v: %v", tc.argv, err)
 			}
-			if f.lastFilter != tc.want {
+			if !reflect.DeepEqual(f.lastFilter, tc.want) {
 				t.Errorf("the CLI asked for %+v, want %+v", f.lastFilter, tc.want)
 			}
 		})
+	}
+}
+
+// An empty name in --fields is a variable that expanded to nothing; it is
+// refused at the prompt rather than read as a narrower or wider answer.
+func TestAnEmptyFieldsNameIsRefused(t *testing.T) {
+	f := &fakeRecord{}
+	serving(t, f)
+	for _, v := range []string{"", "title,,status", "title,"} {
+		if err := run([]string{"record", "query", "--fields", v}); err == nil ||
+			!strings.Contains(err.Error(), "--fields") {
+			t.Errorf("--fields %q: %v", v, err)
+		}
 	}
 }
 

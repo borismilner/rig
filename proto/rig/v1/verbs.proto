@@ -610,10 +610,14 @@ message RecordQueryRequest {
   string field = 3;
   string value = 4;
 
-  // ⛔ FIELD 5 IS NOT TAKEN HERE: it is section 48 decision 6's
-  // `repeated string fields` projection, so this message's next free numbers
-  // are 6 and 7. A note rather than a `reserved 5`, so that section 48 ADDS a
-  // field instead of editing this line to take its own number back.
+  // fields is section 48 decision 6's PROJECTION, and B108 is why: serialising
+  // a full answer cost 69x what the socket needed to move it. EMPTY MEANS
+  // EVERY FIELD, as before (section 21, additive). Non-empty returns id,
+  // version, kind, project and the retraction mark always, plus only the
+  // named ones: "body", "prov", or a typed field's key. The retraction mark
+  // always travels because dropping it would make a withdrawn record read as
+  // live. At most 32 names, each non-empty; anything else is CODE_INVALID.
+  repeated string fields = 5;
 
   // limit and after page the answer - section 50, "B116, the answer is paged".
   // Empty `after` is the first page; an empty `next` in the answer is the last

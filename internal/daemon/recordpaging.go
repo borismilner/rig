@@ -149,6 +149,7 @@ func decodeRecordCursor(s string) (record.Cursor, error) {
 // failure and not this one.
 func recordPage(
 	ctx context.Context, st *record.Store, f record.QueryFilter, after record.Cursor, limit int,
+	keep func(*verbsv1.Record) *verbsv1.Record,
 ) ([]*verbsv1.Record, record.Cursor, error) {
 	var (
 		out  []*verbsv1.Record
@@ -168,7 +169,9 @@ func recordPage(
 			return nil, record.Cursor{}, err
 		}
 		for _, r := range batch {
-			w := recordToWire(r)
+			// Projected BEFORE it is sized, so a projected page carries more
+			// records per frame rather than the same count in fewer bytes.
+			w := keep(recordToWire(r))
 
 			// The cost of this record IN the answer: its own encoded size
 			// plus the tag and length that carry it as a repeated field.
@@ -197,3 +200,48 @@ func recordPage(
 // a page pays for. It is named rather than spelled 1 at the call site because
 // the number is part of the wire and a bare 1 reads as an index.
 const recordsFieldNumber = 1
+
+// maxProjection bounds one query's field list, as store.MaxTerms does.
+const maxProjection = 32
+
+// recordProjection is section 48 decision 6: the four fixed fields and the
+// retraction mark always, then only what is named. No list means every field.
+func recordProjection(fields []string) (func(*verbsv1.Record) *verbsv1.Record, error) {
+	if len(fields) == 0 {
+		return func(r *verbsv1.Record) *verbsv1.Record { return r }, nil
+	}
+	if len(fields) > maxProjection {
+		return nil, fmt.Errorf("at most %d fields may be named, and %d were", maxProjection, len(fields))
+	}
+	named := make(map[string]bool, len(fields))
+	for _, f := range fields {
+		if f == "" {
+			return nil, errors.New("an empty name in fields; leave fields out to ask for every field")
+		}
+		named[f] = true
+	}
+	return func(r *verbsv1.Record) *verbsv1.Record {
+		out := &verbsv1.Record{
+			Id:         r.GetId(),
+			Version:    r.GetVersion(),
+			Kind:       r.GetKind(),
+			Project:    r.GetProject(),
+			Retraction: r.GetRetraction(),
+		}
+		if named["body"] {
+			out.Body = r.GetBody()
+		}
+		if named["prov"] {
+			out.Prov = r.GetProv()
+		}
+		for k, v := range r.GetFields() {
+			if named[k] {
+				if out.Fields == nil {
+					out.Fields = map[string]string{}
+				}
+				out.Fields[k] = v
+			}
+		}
+		return out
+	}, nil
+}

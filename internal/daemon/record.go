@@ -395,12 +395,17 @@ func (d *Daemon) serveRecordQuery(ctx context.Context, c *conn, f *rigv1.Frame, 
 	// all" - the widening direction this verb is careful about everywhere
 	// else. The budget bounds the page either way, so the clamp costs a
 	// caller nothing it could have used.
+	keep, err := recordProjection(req.GetFields())
+	if err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "record.query: "+err.Error())
+		return
+	}
 	recs, next, err := recordPage(ctx, st, record.QueryFilter{
 		Project: req.GetProject(),
 		Kind:    req.GetKind(),
 		Field:   req.GetField(),
 		Value:   req.GetValue(),
-	}, after, int(min(req.GetLimit(), recordPageMaxLimit)))
+	}, after, int(min(req.GetLimit(), recordPageMaxLimit)), keep)
 	if err != nil {
 		c.failErr(f.GetStreamId(), recordCode(err), err)
 		return

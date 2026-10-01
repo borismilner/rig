@@ -244,6 +244,9 @@ type QueryArgs struct {
 	// because dropping it widens the answer silently.
 	Field string
 	Value string
+
+	// Fields is the projection (plan/48 decision 6). Empty means every field.
+	Fields []string
 }
 
 type PutArgs struct {
@@ -548,6 +551,7 @@ type recordFlags struct {
 	body         *string
 	bodyFile     *string
 	fields       *fieldFlag
+	fieldList    *string
 	field        *string
 	value        *string
 	ifVersion    *uint64
@@ -627,6 +631,9 @@ func recordFlagSet(sub string) *recordFlags {
 		r.value = r.fs.String("value", "",
 			"the exact value --field must have; empty means the EMPTY STRING, "+
 				"not every value")
+		r.fieldList = r.fs.String("fields", "",
+			"comma-separated: answer with only these fields (body, prov, or a "+
+				"field's key) beside id, version, kind and project")
 	case "refs":
 		// ⛔ ZERO MEANS "THE DAEMON'S DEFAULT", AND THE DEFAULT USED TO BE 1
 		// HERE WHILE THE STORE'S WAS 4.
@@ -1268,7 +1275,18 @@ func recordQuery(rf *recordFlags, rest []string) error {
 				"       --field <name>            narrow by a field")
 	}
 
-	a := QueryArgs{Project: project, Kind: kind, Field: field, Value: value}
+	var fields []string
+	if rf.wasSet("fields") {
+		for _, f := range strings.Split(*rf.fieldList, ",") {
+			if f = strings.TrimSpace(f); f == "" {
+				return badArgumentf("--fields has an empty name in %q. Leave the "+
+					"flag out to ask for every field", *rf.fieldList)
+			}
+			fields = append(fields, f)
+		}
+	}
+
+	a := QueryArgs{Project: project, Kind: kind, Field: field, Value: value, Fields: fields}
 	return withRecordAPI(*rf.timeout, func(ctx context.Context, api RecordAPI) error {
 		recs, err := api.Query(ctx, a)
 		if err != nil {
@@ -2427,6 +2445,7 @@ func (w wireRecord) Query(ctx context.Context, a QueryArgs) ([]Record, error) {
 			Kind:    a.Kind,
 			Field:   a.Field,
 			Value:   a.Value,
+			Fields:  a.Fields,
 			After:   after,
 		}, resp); err != nil {
 			return nil, err
