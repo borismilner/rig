@@ -77,24 +77,49 @@ def rows(text):
 
 
 def title_of(part):
-    first = part.lstrip("\n").splitlines()[0] if part.strip() else ""
+    lines = [l for l in part.splitlines() if l.strip() and not re.match(r"^\s*[-=]{20,}\s*$", l)]
+    first = lines[0].strip() if lines else ""
     if first.startswith("|"):
         cells = [c.strip() for c in first.strip("|").split("|")]
         return " - ".join(c for c in cells[:2] if c)
     return re.sub(r"^#+\s*", "", first)
 
 
-def plan(text, level=2):
+def paragraphs(text, size=BIG // 2):
+    """Pack blank-line-separated paragraphs into pieces of about size bytes:
+    the last resort for prose with no headings and no tables."""
+    paras = re.split(r"(?<=\n\n)", text)
+    out, cur = [], ""
+    for p in paras:
+        if cur and len(cur) + len(p) > size:
+            out.append(cur)
+            cur = ""
+        cur += p
+    if cur:
+        out.append(cur)
+    return out
+
+
+# A heading, by format: markdown's `## `, or the banner a .txt file uses
+# (a dashed rule, a title line, a dashed rule).
+HEADINGS = {".md": lambda level: r"^#{%d} " % level,
+            ".txt": lambda level: r"^-{20,}\n(?=[^\n]+\n-{20,}\n)" if level == 2 else r"(?!)"}
+
+
+def plan(text, level=2, ext=".md"):
     """The parts of text: a list of (name, content | sublist). A part over
-    BIG splits at its next heading level, or failing that at table rows."""
-    pieces = [p for p in cut(text, r"^#{%d} " % level) if p]
+    BIG splits at its next heading level, then at table rows, then at
+    paragraphs."""
+    pieces = [p for p in cut(text, HEADINGS[ext](level)) if p]
     if level > 2 and len(pieces) == 1:
         pieces = rows(text)
+    if level > 2 and len(pieces) == 1 and len(text) > BIG:
+        pieces = paragraphs(text)
     out = []
     for n, p in enumerate(pieces):
         name = "%04d-%s" % (n, slug(title_of(p)) if n else "about")
         if len(p) > BIG and level < 5:
-            sub = plan(p, level + 1)
+            sub = plan(p, level + 1, ext)
             if len(sub) > 1:
                 out.append((name, sub))
                 continue
@@ -146,8 +171,8 @@ def index_text(name, stem, parts):
 
     def walk(ps, rel, depth):
         for pname, c in ps:
-            if depth == 0 and pname.startswith("0000-about"):
-                continue
+            if depth == 0 and pname.startswith("0000-about") and isinstance(c, str):
+                continue  # shown inline above
             size = len(join(c) if isinstance(c, list) else c) / 1024
             t = title_of(join(c) if isinstance(c, list) else c)
             t = (t[:110] + "...") if len(t) > 113 else t
@@ -200,7 +225,7 @@ def main(argv):
             print("%s/ exists: already split; use index" % stem)
             return 1
         text = open(doc, encoding="utf-8").read()
-        parts = plan(text)
+        parts = plan(text, ext=os.path.splitext(name)[1] or ".md")
         if join(parts) != text:
             print("reassembly differs from %s: nothing written" % name)
             return 1
