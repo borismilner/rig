@@ -276,6 +276,9 @@ message NotifyRequest {
   repeated string replies = 4;
   // Offer a free-text reply as well as, or instead of, the buttons.
   bool reply_text = 5;
+  // A line written to be heard, up to 400 bytes. Read aloud in place of the
+  // title or the body whenever toasts are read aloud at all (section 12, S6).
+  string speak = 6;
 }
 
 // ToastReplyRequest answers a toast that asked for a reply: a button's label,

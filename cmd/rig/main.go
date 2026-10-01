@@ -127,6 +127,7 @@ var valuedFlags = map[string]bool{
 	"kind":    true,
 	"project": true,
 	"body":    true,
+	"speak":   true,
 	"field":   true,
 
 	// B77's `--reason`, on `record retract` and `record replace`. It carries

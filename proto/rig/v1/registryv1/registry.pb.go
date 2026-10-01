@@ -988,7 +988,10 @@ type NotifyRequest struct {
 	// was pressed with toast.answer.
 	Replies []string `protobuf:"bytes,4,rep,name=replies,proto3" json:"replies,omitempty"`
 	// Offer a free-text reply as well as, or instead of, the buttons.
-	ReplyText     bool `protobuf:"varint,5,opt,name=reply_text,json=replyText,proto3" json:"reply_text,omitempty"`
+	ReplyText bool `protobuf:"varint,5,opt,name=reply_text,json=replyText,proto3" json:"reply_text,omitempty"`
+	// A line written to be heard, up to 400 bytes. Read aloud in place of the
+	// title or the body whenever toasts are read aloud at all (section 12, S6).
+	Speak         string `protobuf:"bytes,6,opt,name=speak,proto3" json:"speak,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1056,6 +1059,13 @@ func (x *NotifyRequest) GetReplyText() bool {
 		return x.ReplyText
 	}
 	return false
+}
+
+func (x *NotifyRequest) GetSpeak() string {
+	if x != nil {
+		return x.Speak
+	}
+	return ""
 }
 
 // ToastReplyRequest answers a toast that asked for a reply: a button's label,
@@ -1917,14 +1927,15 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\areplies\x18\t \x03(\tR\areplies\x12\x1d\n" +
 	"\n" +
 	"reply_text\x18\n" +
-	" \x01(\bR\treplyText\"\xa0\x01\n" +
+	" \x01(\bR\treplyText\"\xb6\x01\n" +
 	"\rNotifyRequest\x12,\n" +
 	"\bseverity\x18\x01 \x01(\x0e2\x10.rig.v1.SeverityR\bseverity\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x12\n" +
 	"\x04body\x18\x03 \x01(\tR\x04body\x12\x18\n" +
 	"\areplies\x18\x04 \x03(\tR\areplies\x12\x1d\n" +
 	"\n" +
-	"reply_text\x18\x05 \x01(\bR\treplyText\"x\n" +
+	"reply_text\x18\x05 \x01(\bR\treplyText\x12\x14\n" +
+	"\x05speak\x18\x06 \x01(\tR\x05speak\"x\n" +
 	"\x11ToastReplyRequest\x12\x1b\n" +
 	"\trecord_id\x18\x01 \x01(\tR\brecordId\x12\x14\n" +
 	"\x05reply\x18\x02 \x01(\tR\x05reply\x12\x12\n" +

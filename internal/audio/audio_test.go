@@ -122,7 +122,7 @@ func waitLog(t *testing.T, log string, want int) []string {
 func TestAToastSoundsThenReadsItsTitle(t *testing.T) {
 	look, log := fakes(t, true)
 	a := newAudio(t, look, "")
-	a.Toast("Deploy finished", "all green")
+	a.Toast("Deploy finished", "all green", "")
 	lines := waitLog(t, log, 3)
 	if lines[0] != "file hail.wav" || lines[1] != "say Deploy finished" || !strings.HasPrefix(lines[2], "pcm ") {
 		t.Errorf("played %q", lines)
@@ -135,13 +135,26 @@ func TestTitleAndBodyReadsBoth(t *testing.T) {
 	if _, err := a.Change(func(s *Settings) { s.ReadAloud = ReadTitleAndBody; s.Sound = SoundBadge }); err != nil {
 		t.Fatal(err)
 	}
-	a.Toast("Deploy finished!", "all\ngreen")
+	a.Toast("Deploy finished!", "all\ngreen", "")
 	lines := waitLog(t, log, 2)
 	if lines[0] != "file badge.wav" || lines[1] != "say Deploy finished! all green" {
 		t.Errorf("played %q", lines)
 	}
-	a.Toast("Ready", "go")
+	a.Toast("Ready", "go", "")
 	if lines = waitLog(t, log, 5); lines[4] != "say Ready. go" {
+		t.Errorf("played %q", lines)
+	}
+}
+
+// A speak line is read in place of the title and the body (plan/12 S6).
+func TestASpeakLineIsReadInPlaceOfTheToast(t *testing.T) {
+	look, log := fakes(t, true)
+	a := newAudio(t, look, "")
+	if _, err := a.Change(func(s *Settings) { s.ReadAloud = ReadTitleAndBody }); err != nil {
+		t.Fatal(err)
+	}
+	a.Toast("Deploy finished", "all green", "The deploy is done.")
+	if lines := waitLog(t, log, 2); lines[1] != "say The deploy is done." {
 		t.Errorf("played %q", lines)
 	}
 }
@@ -152,7 +165,7 @@ func TestReadAloudOffOnlySounds(t *testing.T) {
 	if _, err := a.Change(func(s *Settings) { s.ReadAloud = ReadOff }); err != nil {
 		t.Fatal(err)
 	}
-	a.Toast("quiet", "")
+	a.Toast("quiet", "", "a speak line is silent too")
 	waitLog(t, log, 1)
 	time.Sleep(200 * time.Millisecond)
 	if lines := waitLog(t, log, 1); len(lines) != 1 {
@@ -167,7 +180,7 @@ func TestMuteSilencesToastsAndSay(t *testing.T) {
 	if _, err := a.Change(func(s *Settings) { s.Muted = true }); err != nil {
 		t.Fatal(err)
 	}
-	a.Toast("nobody hears this", "")
+	a.Toast("nobody hears this", "", "")
 	if _, err := a.Say("nor this"); !errors.Is(err, ErrMuted) {
 		t.Errorf("Say muted: %v", err)
 	}
@@ -231,7 +244,7 @@ func TestBadSettingsAreRefused(t *testing.T) {
 func TestNoEngineStillSounds(t *testing.T) {
 	look, log := fakes(t, false)
 	a := newAudio(t, look, "")
-	a.Toast("still chirps", "")
+	a.Toast("still chirps", "", "")
 	if lines := waitLog(t, log, 1); lines[0] != "file hail.wav" {
 		t.Errorf("played %q", lines)
 	}

@@ -13,7 +13,7 @@ import (
 	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
-// `rig notify <severity> <title> [--body B] [--reply R]... [--text] [--wait D]`
+// `rig notify <severity> <title> [--body B] [--reply R]... [--text] [--speak S] [--wait D]`
 // - section 12's toast from a shell. The severity is one of the wire enum's
 // five, read off its descriptor. --reply and --text make it ask for a reply,
 // and --wait waits that long for the answer and prints it.
@@ -25,6 +25,7 @@ type notifyFlags struct {
 	body    *string
 	replies []string
 	text    *bool
+	speak   *string
 	wait    *time.Duration
 }
 
@@ -38,6 +39,7 @@ func notifyFlagSet() *notifyFlags {
 		return nil
 	})
 	n.text = n.fs.Bool("text", false, "take a free-text reply")
+	n.speak = n.fs.String("speak", "", "a line to read aloud instead of the title or the body")
 	n.wait = n.fs.Duration("wait", 0, "wait this long for the reply, and print it")
 	return n
 }
@@ -78,6 +80,7 @@ func cmdNotify(args []string) (err error) {
 	var resp registryv1.NotifyResponse
 	if err := call(ctx, c, "rig.notify", &registryv1.NotifyRequest{
 		Severity: sev, Title: positional[1], Body: *n.body, Replies: n.replies, ReplyText: *n.text,
+		Speak: *n.speak,
 	}, &resp); err != nil {
 		return err
 	}

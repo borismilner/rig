@@ -29,6 +29,7 @@ import (
 const (
 	maxToastTitle = 200
 	maxToastBody  = 4 << 10
+	maxToastSpeak = 400
 	toastRingSize = 64
 	maxToastWait  = 60 * time.Second
 
@@ -211,9 +212,10 @@ func (d *Daemon) serveNotify(ctx context.Context, c *conn, f *rigv1.Frame) {
 		return
 	}
 	if req.GetTitle() == "" || len(req.GetTitle()) > maxToastTitle || len(req.GetBody()) > maxToastBody ||
-		!utf8.ValidString(req.GetTitle()) || !utf8.ValidString(req.GetBody()) {
+		len(req.GetSpeak()) > maxToastSpeak ||
+		!utf8.ValidString(req.GetTitle()) || !utf8.ValidString(req.GetBody()) || !utf8.ValidString(req.GetSpeak()) {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID,
-			"rig.notify: a notification has a title of 1 to 200 bytes and a body of at most 4096, in UTF-8")
+			"rig.notify: a notification has a title of 1 to 200 bytes, a body of at most 4096 and a speak line of at most 400, in UTF-8")
 		return
 	}
 	if msg := checkReplies(req.GetReplies()); msg != "" {
@@ -279,7 +281,7 @@ func (d *Daemon) serveNotify(ctx context.Context, c *conn, f *rigv1.Frame) {
 	if !suppressed {
 		d.toasts.add(t)
 		if d.audio != nil {
-			d.audio.Toast(t.GetTitle(), t.GetBody())
+			d.audio.Toast(t.GetTitle(), t.GetBody(), req.GetSpeak())
 		}
 	}
 	c.reply(f.GetStreamId(), &registryv1.NotifyResponse{Toast: t})

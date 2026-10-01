@@ -283,8 +283,9 @@ func (a *Audio) Change(change func(*Settings)) (Status, error) {
 }
 
 // Toast sounds a toast that was drawn: its sound, then as much of it read
-// aloud as the settings say.
-func (a *Audio) Toast(title, body string) {
+// aloud as the settings say. A speak line, written to be heard, is read in
+// place of the title or the body; read-aloud off still silences it.
+func (a *Audio) Toast(title, body, speak string) {
 	a.mu.Lock()
 	s := a.settings
 	file := a.sounds[s.Sound]
@@ -296,10 +297,13 @@ func (a *Audio) Toast(title, body string) {
 		a.enqueue(item{file: file})
 	}
 	var text string
-	switch s.ReadAloud {
-	case ReadTitle:
+	switch {
+	case s.ReadAloud == ReadOff:
+	case strings.TrimSpace(speak) != "":
+		text = speak
+	case s.ReadAloud == ReadTitle:
 		text = title
-	case ReadTitleAndBody:
+	case s.ReadAloud == ReadTitleAndBody:
 		text = strings.TrimSpace(title)
 		if !strings.HasSuffix(text, ".") && !strings.HasSuffix(text, "!") && !strings.HasSuffix(text, "?") {
 			text += "." // a pause between the title and the body
