@@ -142,8 +142,10 @@ type Daemon struct {
 	// toasts wakes a renderer when rig.notify is called (toast.go).
 	toasts toastRing
 
-	// events is section 52's bus (events.go).
+	// events is section 52's bus (events.go), and timers its clock
+	// (timers.go).
 	events eventBus
+	timers timerDesk
 
 	// hand is the HANDS OFF strip's one run at a time (hand.go).
 	hand *handDesk
@@ -521,6 +523,7 @@ func (d *Daemon) Serve(ctx context.Context, l net.Listener) error {
 
 	// Section 52's system.resumed, for as long as serving lasts (resume.go).
 	d.startResumeWatch(ctx)
+	d.startTimers(ctx)
 
 	go func() {
 		<-ctx.Done()
@@ -984,7 +987,7 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	// So does section 5m's HANDS OFF strip, the tray's other surface, and
 	// section 52's event bus, which the tray waits on; events.go has who may
 	// publish and wait on what.
-	case "events.publish", "events.wait",
+	case "events.publish", "events.wait", "timer.arm", "timer.disarm", "timer.list",
 		"notify", "toast.wait", "toast.dnd", "toast.reply", "toast.answer",
 		"sound", "say",
 		"hand.request", "hand.step", "hand.release", "hand.wait", "hand.answer", "hand.strip":

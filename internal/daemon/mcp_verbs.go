@@ -67,6 +67,9 @@ var bridged = map[string]struct {
 	// a missing tool.
 	"events.publish":    {func() proto.Message { return &registryv1.EventsPublishRequest{} }, func() proto.Message { return &registryv1.EventsPublishResponse{} }},
 	"events.wait":       {func() proto.Message { return &registryv1.EventsWaitRequest{} }, func() proto.Message { return &registryv1.EventsWaitResponse{} }},
+	"timer.arm":         {func() proto.Message { return &registryv1.TimerArmRequest{} }, func() proto.Message { return &registryv1.TimerArmResponse{} }},
+	"timer.disarm":      {func() proto.Message { return &registryv1.TimerDisarmRequest{} }, func() proto.Message { return &registryv1.TimerDisarmResponse{} }},
+	"timer.list":        {func() proto.Message { return &registryv1.TimerListRequest{} }, func() proto.Message { return &registryv1.TimerListResponse{} }},
 	"hand.request":      {func() proto.Message { return &registryv1.HandRequestRequest{} }, func() proto.Message { return &registryv1.HandRequestResponse{} }},
 	"hand.step":         {func() proto.Message { return &registryv1.HandStepRequest{} }, func() proto.Message { return &registryv1.HandStepResponse{} }},
 	"hand.release":      {func() proto.Message { return &registryv1.HandReleaseRequest{} }, func() proto.Message { return &registryv1.HandReleaseResponse{} }},

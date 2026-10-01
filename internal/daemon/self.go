@@ -452,6 +452,19 @@ func selfDeclaration() kernel.Declaration {
 				"Wait for events of the kinds you name",
 				"Answers every event after the cursor whose kind matches one of the patterns (a kind like hand.changed, or a prefix like hand.*), oldest first, as soon as there is one, or nothing once the timeout (at most 60 seconds) passes. Carry latest and epoch into the next call. gap means events were lost, past the ring or across a restart: re-read the state rather than assume nothing happened. rig's own kinds (hand.*, toast.*, system.*, timer.*) are open to every caller; a program may also wait on its own.",
 				"The matching events, the latest seq, the epoch, and whether any were lost."),
+			// SECTION 52's TIMERS, in memory beside the bus.
+			leaseWriter("timer.arm", "Timer arm", kernel.Yes,
+				"Arm a named timer; rig publishes timer.fired to you when it comes due",
+				"A registered program arms a timer under its own name with a schedule: every 15m (a minute at least), at 09:00, a five-field cron line, or @hourly, @daily, @weekly, @monthly, in local time. rig keeps the clock, so a fire due while the machine slept comes once at resume with missed counting the rest. Arming the same name and schedule again changes nothing, so arm your timers each time you start; another schedule replaces it. Timers live in memory and end when rigd restarts.",
+				"The timer with its next fire, and whether an earlier schedule was replaced."),
+			leaseWriter("timer.disarm", "Timer disarm", kernel.Yes,
+				"Disarm one of your timers",
+				"Removes the caller's timer of that name. Disarming one that is not armed changes nothing.",
+				"Whether a timer was disarmed."),
+			readOnly("timer.list", "Timer list",
+				"Your armed timers",
+				"Answers the caller's timers, by name, each with its schedule and next fire.",
+				"The timers."),
 			// THE HANDS OFF STRIP (plan/05 section 5m). The state is in
 			// memory; nothing here writes a file, but a request and an answer
 			// change who has the desktop.

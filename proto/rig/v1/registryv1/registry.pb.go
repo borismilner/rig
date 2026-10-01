@@ -3194,6 +3194,409 @@ func (x *SystemResumed) GetSleptMs() uint64 {
 	return 0
 }
 
+// Timer is one armed timer.
+type Timer struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// As armed: a five-field cron line or @daily-style descriptor, "every
+	// 15m", or "at 09:00" (Q2). Local time.
+	Schedule      string `protobuf:"bytes,2,opt,name=schedule,proto3" json:"schedule,omitempty"`
+	NextUnixNano  int64  `protobuf:"varint,3,opt,name=next_unix_nano,json=nextUnixNano,proto3" json:"next_unix_nano,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Timer) Reset() {
+	*x = Timer{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Timer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Timer) ProtoMessage() {}
+
+func (x *Timer) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Timer.ProtoReflect.Descriptor instead.
+func (*Timer) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *Timer) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Timer) GetSchedule() string {
+	if x != nil {
+		return x.Schedule
+	}
+	return ""
+}
+
+func (x *Timer) GetNextUnixNano() int64 {
+	if x != nil {
+		return x.NextUnixNano
+	}
+	return 0
+}
+
+// TimerArmRequest arms a timer under the caller's own name, or re-arms it.
+// Arming the same name with the same schedule changes nothing, so a program
+// arms its timers every time it starts.
+type TimerArmRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Schedule      string                 `protobuf:"bytes,2,opt,name=schedule,proto3" json:"schedule,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TimerArmRequest) Reset() {
+	*x = TimerArmRequest{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TimerArmRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TimerArmRequest) ProtoMessage() {}
+
+func (x *TimerArmRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TimerArmRequest.ProtoReflect.Descriptor instead.
+func (*TimerArmRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *TimerArmRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *TimerArmRequest) GetSchedule() string {
+	if x != nil {
+		return x.Schedule
+	}
+	return ""
+}
+
+type TimerArmResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Timer *Timer                 `protobuf:"bytes,1,opt,name=timer,proto3" json:"timer,omitempty"`
+	// An earlier timer of this name, with another schedule, was replaced.
+	Replaced      bool `protobuf:"varint,2,opt,name=replaced,proto3" json:"replaced,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TimerArmResponse) Reset() {
+	*x = TimerArmResponse{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TimerArmResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TimerArmResponse) ProtoMessage() {}
+
+func (x *TimerArmResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TimerArmResponse.ProtoReflect.Descriptor instead.
+func (*TimerArmResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *TimerArmResponse) GetTimer() *Timer {
+	if x != nil {
+		return x.Timer
+	}
+	return nil
+}
+
+func (x *TimerArmResponse) GetReplaced() bool {
+	if x != nil {
+		return x.Replaced
+	}
+	return false
+}
+
+type TimerDisarmRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TimerDisarmRequest) Reset() {
+	*x = TimerDisarmRequest{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TimerDisarmRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TimerDisarmRequest) ProtoMessage() {}
+
+func (x *TimerDisarmRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TimerDisarmRequest.ProtoReflect.Descriptor instead.
+func (*TimerDisarmRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *TimerDisarmRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type TimerDisarmResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Disarmed      bool                   `protobuf:"varint,1,opt,name=disarmed,proto3" json:"disarmed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TimerDisarmResponse) Reset() {
+	*x = TimerDisarmResponse{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TimerDisarmResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TimerDisarmResponse) ProtoMessage() {}
+
+func (x *TimerDisarmResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TimerDisarmResponse.ProtoReflect.Descriptor instead.
+func (*TimerDisarmResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *TimerDisarmResponse) GetDisarmed() bool {
+	if x != nil {
+		return x.Disarmed
+	}
+	return false
+}
+
+type TimerListRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TimerListRequest) Reset() {
+	*x = TimerListRequest{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TimerListRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TimerListRequest) ProtoMessage() {}
+
+func (x *TimerListRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TimerListRequest.ProtoReflect.Descriptor instead.
+func (*TimerListRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{45}
+}
+
+type TimerListResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Timers        []*Timer               `protobuf:"bytes,1,rep,name=timers,proto3" json:"timers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TimerListResponse) Reset() {
+	*x = TimerListResponse{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TimerListResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TimerListResponse) ProtoMessage() {}
+
+func (x *TimerListResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TimerListResponse.ProtoReflect.Descriptor instead.
+func (*TimerListResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *TimerListResponse) GetTimers() []*Timer {
+	if x != nil {
+		return x.Timers
+	}
+	return nil
+}
+
+// TimerFired is timer.fired's payload.
+type TimerFired struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// When it was due: the first fire missed, if any were.
+	DueUnixNano int64 `protobuf:"varint,2,opt,name=due_unix_nano,json=dueUnixNano,proto3" json:"due_unix_nano,omitempty"`
+	// How many more fires fell due before this one was published, while the
+	// machine slept or rigd was busy. They are not published one by one.
+	Missed        uint32 `protobuf:"varint,3,opt,name=missed,proto3" json:"missed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TimerFired) Reset() {
+	*x = TimerFired{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TimerFired) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TimerFired) ProtoMessage() {}
+
+func (x *TimerFired) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TimerFired.ProtoReflect.Descriptor instead.
+func (*TimerFired) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *TimerFired) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *TimerFired) GetDueUnixNano() int64 {
+	if x != nil {
+		return x.DueUnixNano
+	}
+	return 0
+}
+
+func (x *TimerFired) GetMissed() uint32 {
+	if x != nil {
+		return x.Missed
+	}
+	return 0
+}
+
 var File_proto_rig_v1_registry_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_registry_proto_rawDesc = "" +
@@ -3385,7 +3788,29 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\x05epoch\x18\x03 \x01(\x04R\x05epoch\x12\x10\n" +
 	"\x03gap\x18\x04 \x01(\bR\x03gap\"*\n" +
 	"\rSystemResumed\x12\x19\n" +
-	"\bslept_ms\x18\x01 \x01(\x04R\asleptMs*V\n" +
+	"\bslept_ms\x18\x01 \x01(\x04R\asleptMs\"]\n" +
+	"\x05Timer\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
+	"\bschedule\x18\x02 \x01(\tR\bschedule\x12$\n" +
+	"\x0enext_unix_nano\x18\x03 \x01(\x03R\fnextUnixNano\"A\n" +
+	"\x0fTimerArmRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
+	"\bschedule\x18\x02 \x01(\tR\bschedule\"S\n" +
+	"\x10TimerArmResponse\x12#\n" +
+	"\x05timer\x18\x01 \x01(\v2\r.rig.v1.TimerR\x05timer\x12\x1a\n" +
+	"\breplaced\x18\x02 \x01(\bR\breplaced\"(\n" +
+	"\x12TimerDisarmRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"1\n" +
+	"\x13TimerDisarmResponse\x12\x1a\n" +
+	"\bdisarmed\x18\x01 \x01(\bR\bdisarmed\"\x12\n" +
+	"\x10TimerListRequest\":\n" +
+	"\x11TimerListResponse\x12%\n" +
+	"\x06timers\x18\x01 \x03(\v2\r.rig.v1.TimerR\x06timers\"\\\n" +
+	"\n" +
+	"TimerFired\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\"\n" +
+	"\rdue_unix_nano\x18\x02 \x01(\x03R\vdueUnixNano\x12\x16\n" +
+	"\x06missed\x18\x03 \x01(\rR\x06missed*V\n" +
 	"\x05Depth\x12\x15\n" +
 	"\x11DEPTH_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eDEPTH_PROGRAMS\x10\x01\x12\x12\n" +
@@ -3455,7 +3880,7 @@ func file_proto_rig_v1_registry_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_registry_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
-var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
+var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 48)
 var file_proto_rig_v1_registry_proto_goTypes = []any{
 	(Depth)(0),                    // 0: rig.v1.Depth
 	(EstateRole)(0),               // 1: rig.v1.EstateRole
@@ -3506,14 +3931,22 @@ var file_proto_rig_v1_registry_proto_goTypes = []any{
 	(*EventsWaitRequest)(nil),     // 46: rig.v1.EventsWaitRequest
 	(*EventsWaitResponse)(nil),    // 47: rig.v1.EventsWaitResponse
 	(*SystemResumed)(nil),         // 48: rig.v1.SystemResumed
-	(*v1.Identity)(nil),           // 49: rig.v1.Identity
-	(v1.Coverage)(0),              // 50: rig.v1.Coverage
-	(*v1.Command)(nil),            // 51: rig.v1.Command
+	(*Timer)(nil),                 // 49: rig.v1.Timer
+	(*TimerArmRequest)(nil),       // 50: rig.v1.TimerArmRequest
+	(*TimerArmResponse)(nil),      // 51: rig.v1.TimerArmResponse
+	(*TimerDisarmRequest)(nil),    // 52: rig.v1.TimerDisarmRequest
+	(*TimerDisarmResponse)(nil),   // 53: rig.v1.TimerDisarmResponse
+	(*TimerListRequest)(nil),      // 54: rig.v1.TimerListRequest
+	(*TimerListResponse)(nil),     // 55: rig.v1.TimerListResponse
+	(*TimerFired)(nil),            // 56: rig.v1.TimerFired
+	(*v1.Identity)(nil),           // 57: rig.v1.Identity
+	(v1.Coverage)(0),              // 58: rig.v1.Coverage
+	(*v1.Command)(nil),            // 59: rig.v1.Command
 }
 var file_proto_rig_v1_registry_proto_depIdxs = []int32{
-	49, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
-	50, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
-	51, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
+	57, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
+	58, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
+	59, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
 	0,  // 3: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
 	9,  // 4: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
 	1,  // 5: rig.v1.EstateResponse.role:type_name -> rig.v1.EstateRole
@@ -3539,11 +3972,13 @@ var file_proto_rig_v1_registry_proto_depIdxs = []int32{
 	30, // 25: rig.v1.HandAnswerResponse.state:type_name -> rig.v1.HandState
 	43, // 26: rig.v1.EventsPublishResponse.event:type_name -> rig.v1.Event
 	43, // 27: rig.v1.EventsWaitResponse.events:type_name -> rig.v1.Event
-	28, // [28:28] is the sub-list for method output_type
-	28, // [28:28] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	49, // 28: rig.v1.TimerArmResponse.timer:type_name -> rig.v1.Timer
+	49, // 29: rig.v1.TimerListResponse.timers:type_name -> rig.v1.Timer
+	30, // [30:30] is the sub-list for method output_type
+	30, // [30:30] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_registry_proto_init() }
@@ -3557,7 +3992,7 @@ func file_proto_rig_v1_registry_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_registry_proto_rawDesc), len(file_proto_rig_v1_registry_proto_rawDesc)),
 			NumEnums:      9,
-			NumMessages:   40,
+			NumMessages:   48,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

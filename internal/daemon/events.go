@@ -33,11 +33,22 @@ type eventBus struct {
 	mu    sync.Mutex
 	seq   uint64
 	lost  uint64 // the newest seq the ring has dropped; 0 while it dropped none
-	items []*registryv1.Event
+	items []busItem
 	wake  chan struct{}
 }
 
+// busItem is an event and who may see it: empty is everyone, otherwise one
+// program's id. A timer's fire is its owner's business alone.
+type busItem struct {
+	ev *registryv1.Event
+	to string
+}
+
 func (b *eventBus) publish(kind, source, payload string) *registryv1.Event {
+	return b.publishTo(kind, source, payload, "")
+}
+
+func (b *eventBus) publishTo(kind, source, payload, to string) *registryv1.Event {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.seq++
@@ -45,9 +56,9 @@ func (b *eventBus) publish(kind, source, payload string) *registryv1.Event {
 		Seq: b.seq, Kind: kind, AtUnixNano: time.Now().UnixNano(),
 		Source: source, PayloadJson: payload,
 	}
-	b.items = append(b.items, ev)
+	b.items = append(b.items, busItem{ev: ev, to: to})
 	if over := len(b.items) - eventRingSize; over > 0 {
-		b.lost = b.items[over-1].GetSeq()
+		b.lost = b.items[over-1].ev.GetSeq()
 		b.items = append(b.items[:0:0], b.items[over:]...)
 	}
 	if b.wake != nil {
@@ -61,23 +72,30 @@ func (b *eventBus) publish(kind, source, payload string) *registryv1.Event {
 // payload. A message that does not render is published with none, because a
 // waiter woken without the detail still knows to re-read the state.
 func (b *eventBus) publishRig(kind string, m proto.Message) {
+	b.publishRigTo(kind, m, "")
+}
+
+// publishRigTo is publishRig seen by one program alone.
+func (b *eventBus) publishRigTo(kind string, m proto.Message, to string) {
 	payload := ""
 	if m != nil {
 		if raw, err := protojson.Marshal(m); err == nil {
 			payload = string(raw)
 		}
 	}
-	b.publish(kind, eventSourceRig, payload)
+	b.publishTo(kind, eventSourceRig, payload, to)
 }
 
-// after answers the matching events newer than seq, the latest seq, whether
-// some after seq were dropped, and a channel that closes at the next publish.
-func (b *eventBus) after(seq uint64, match func(string) bool) (got []*registryv1.Event, latest uint64, gap bool, wake <-chan struct{}) {
+// after answers the matching events newer than seq that viewer may see, the
+// latest seq, whether some after seq were dropped, and a channel that closes
+// at the next publish. viewer is a program's id, or empty for any other
+// caller.
+func (b *eventBus) after(seq uint64, match func(string) bool, viewer string) (got []*registryv1.Event, latest uint64, gap bool, wake <-chan struct{}) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	for _, ev := range b.items {
-		if ev.GetSeq() > seq && match(ev.GetKind()) {
-			got = append(got, ev)
+	for _, it := range b.items {
+		if it.ev.GetSeq() > seq && match(it.ev.GetKind()) && (it.to == "" || it.to == viewer) {
+			got = append(got, it.ev)
 		}
 	}
 	if b.wake == nil {
@@ -141,6 +159,8 @@ func (d *Daemon) serveEvents(ctx context.Context, c *conn, f *rigv1.Frame, comma
 		d.serveEventsPublish(c, f)
 	case "events.wait":
 		d.serveEventsWait(ctx, c, f)
+	default:
+		d.serveTimer(c, f, command)
 	}
 }
 
@@ -213,7 +233,7 @@ func (d *Daemon) serveEventsWait(ctx context.Context, c *conn, f *rigv1.Frame) {
 	timer := time.NewTimer(min(time.Duration(req.GetTimeoutMs())*time.Millisecond, maxEventWait))
 	defer timer.Stop()
 	for {
-		got, latest, lost, wake := d.events.after(after, match)
+		got, latest, lost, wake := d.events.after(after, match, c.name())
 		resp := &registryv1.EventsWaitResponse{Events: got, Latest: latest, Epoch: d.epoch, Gap: gap || lost}
 		if len(got) > 0 || resp.GetGap() {
 			c.reply(id, resp)

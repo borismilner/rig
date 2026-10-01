@@ -192,14 +192,14 @@ func TestFallingBehindTheRingIsAGap(t *testing.T) {
 		b.publish("graft.tick", "graft", "")
 	}
 	all := eventMatcher([]string{"graft.*"})
-	got, latest, gap, _ := b.after(0, all)
+	got, latest, gap, _ := b.after(0, all, "")
 	if !gap || len(got) != eventRingSize || latest != eventRingSize+10 || got[0].GetSeq() != 11 {
 		t.Fatalf("behind the ring: %d events, latest %d, gap %v", len(got), latest, gap)
 	}
-	if _, _, gap, _ := b.after(10, all); gap {
+	if _, _, gap, _ := b.after(10, all, ""); gap {
 		t.Fatal("a cursor at the oldest dropped seq lost nothing, and was told it did")
 	}
-	if _, _, gap, _ := b.after(9, all); !gap {
+	if _, _, gap, _ := b.after(9, all, ""); !gap {
 		t.Fatal("a cursor before a dropped seq was not told")
 	}
 }

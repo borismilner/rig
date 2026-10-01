@@ -622,3 +622,56 @@ message EventsWaitResponse {
 message SystemResumed {
   uint64 slept_ms = 1;
 }
+
+// ---- Section 52's timers: rig owns the clock (Q1) ---------------------------
+//
+// A registered program arms a named timer; when it comes due, rig publishes
+// timer.fired, seen by that program alone. A fire missed while the machine
+// slept comes once at resume, with missed counting the rest (Q3).
+
+// Timer is one armed timer.
+message Timer {
+  string name = 1;
+  // As armed: a five-field cron line or @daily-style descriptor, "every
+  // 15m", or "at 09:00" (Q2). Local time.
+  string schedule = 2;
+  int64 next_unix_nano = 3;
+}
+
+// TimerArmRequest arms a timer under the caller's own name, or re-arms it.
+// Arming the same name with the same schedule changes nothing, so a program
+// arms its timers every time it starts.
+message TimerArmRequest {
+  string name = 1;
+  string schedule = 2;
+}
+
+message TimerArmResponse {
+  Timer timer = 1;
+  // An earlier timer of this name, with another schedule, was replaced.
+  bool replaced = 2;
+}
+
+message TimerDisarmRequest {
+  string name = 1;
+}
+
+message TimerDisarmResponse {
+  bool disarmed = 1;
+}
+
+message TimerListRequest {}
+
+message TimerListResponse {
+  repeated Timer timers = 1;
+}
+
+// TimerFired is timer.fired's payload.
+message TimerFired {
+  string name = 1;
+  // When it was due: the first fire missed, if any were.
+  int64 due_unix_nano = 2;
+  // How many more fires fell due before this one was published, while the
+  // machine slept or rigd was busy. They are not published one by one.
+  uint32 missed = 3;
+}

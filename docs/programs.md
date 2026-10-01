@@ -246,6 +246,21 @@ they are refused.
 At a terminal: `rig events wait <kind>... [--follow]`. Agents get
 `events_wait` and `events_publish`.
 
+**Timers: rig keeps the clock.** Arm a named timer at every start; the
+same name and schedule again changes nothing:
+
+```go
+c.Call(ctx, "rig.timer.arm", &registryv1.TimerArmRequest{
+	Name: "sweep", Schedule: "every 15m", // or "at 09:00", "0 12 * * 1-5", "@daily"
+}, &registryv1.TimerArmResponse{})
+```
+
+Then wait on `timer.fired`; only you see your own. Times are local. A
+fire due while the machine slept comes once at resume, with `missed`
+counting the rest, so never catch up by looping. `system.resumed`
+says the machine woke. Timers end when rigd restarts, which is why you
+arm them at start.
+
 ## Work queues
 
 A named estate keeps claimable work queues (PLAN.md section 16). A producer

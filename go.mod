@@ -8,6 +8,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jezek/xgb v1.3.1
 	github.com/modelcontextprotocol/go-sdk v1.7.0
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/wailsapp/wails/v3 v3.0.0-beta.19
 	go.uber.org/goleak v1.3.0

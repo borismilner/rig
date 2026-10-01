@@ -129,5 +129,27 @@ change and nothing is published. rigd logs "the machine resumed".
 closes; a real suspend is not exercised by any test.** The first morning
 after a deploy, rigd's log either has the line or it does not.
 
-**Not yet built:** timers and `timer.fired` (slice 3, Q1-Q3); `hand.wait` and `toast.wait` still answer from their own
-rings rather than from the bus.
+### As built: slice 3, timers, 2026-10-01
+
+**A registered program arms a named timer and rig publishes
+`timer.fired {name, dueUnixNano, missed}` to that program alone.** Verbs
+`timer.arm`, `timer.disarm`, `timer.list`, also MCP tools. Schedules (Q2):
+`every 15m`, `at 09:00`, a five-field cron line, or `@daily` and its
+kin, in local time, parsed by `robfig/cron/v3` (§22 row).
+
+| Ruling | What |
+|---|---|
+| **T1, the clock** | one `CLOCK_REALTIME` timerfd, absolute, armed at the earliest fire with `TFD_TIMER_CANCEL_ON_SET`. A Go timer is monotonic and stops during a suspend |
+| **T2, missed (Q3)** | a timer due many times while asleep fires once at resume; `missed` counts the rest, capped at 100,000 |
+| **T3, the audience** | a bus event may carry one recipient; `timer.fired` is seen only by its owner's waits |
+| **T4, idempotent** | arming the same name and schedule changes nothing, so a program arms at every start; another schedule replaces it |
+| **T5, bounds** | 64 timers a program, names 1-64 printable bytes, `every` at least 1 min, because every fire takes a slot in the one ring all waiters share |
+| **T6, memory** | timers live in memory, as the bus does (E7), and end with rigd |
+
+**Seat rulings T3-T6 are the seat's, not Boris's.** Tested: syntaxes, a
+slept-through timer with injected time, idempotence and bounds, and a
+live fire over the wire reaching its owner and not another program. **A
+real suspend is not exercised.**
+
+**Not yet built:** `hand.wait` and `toast.wait` still answer from their
+own rings rather than from the bus.
