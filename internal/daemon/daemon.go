@@ -973,13 +973,11 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	// holder and the witness come off the connection.
 	// SECTION 12's TOASTS. toast.go has why the daemon writes the record.
 	// Its sounds and speech ride the same arm; sound.go has the one queue.
+	// So does section 5m's HANDS OFF strip, the tray's other surface.
 	case "notify", "toast.wait", "toast.dnd", "toast.reply", "toast.answer",
-		"sound", "say":
+		"sound", "say",
+		"hand.request", "hand.step", "hand.release", "hand.wait", "hand.answer":
 		d.serveToast(ctx, c, f, command)
-
-	// SECTION 5m's HANDS OFF strip. hand.go has the one-run state machine.
-	case "hand.request", "hand.step", "hand.release", "hand.wait", "hand.answer":
-		d.serveHand(ctx, c, f, command)
 
 	case "lease.list", "lease.acquire", "lease.renew", "lease.release", "lease.break",
 		"lease.check":

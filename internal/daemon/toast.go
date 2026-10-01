@@ -191,6 +191,8 @@ func (d *Daemon) serveToast(ctx context.Context, c *conn, f *rigv1.Frame, comman
 		d.serveToastAnswer(ctx, c, f)
 	case "sound", "say":
 		d.serveSound(ctx, c, f, command)
+	default:
+		d.serveHand(ctx, c, f, command)
 	}
 }
 

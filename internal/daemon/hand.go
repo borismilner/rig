@@ -34,9 +34,9 @@ import (
 // and a run whose program died is ended by its connection closing.
 
 const (
-	handCountdown    = 20 * time.Second
-	handCountdownMin = 10 * time.Second
-	handCountdownMax = 120 * time.Second
+	handCountdown      = 20 * time.Second
+	handCountdownLeast = 10 * time.Second
+	handCountdownMost  = 120 * time.Second
 	// How long he may hold a countdown or a run before it ends: AgentBox's
 	// pause bound, which nobody has asked to change.
 	handHoldMax  = 10 * time.Minute
@@ -83,15 +83,15 @@ func newHandDesk(now func() time.Time) *handDesk {
 	}
 }
 
-// handErr is a refusal with the code its handler answers.
-type handErr struct {
+// handError is a refusal with the code its handler answers.
+type handError struct {
 	code rigv1.Code
 	msg  string
 }
 
-func (e *handErr) Error() string { return e.msg }
+func (e *handError) Error() string { return e.msg }
 
-func handRefused(code rigv1.Code, msg string) error { return &handErr{code: code, msg: msg} }
+func handRefused(code rigv1.Code, msg string) error { return &handError{code: code, msg: msg} }
 
 // changed publishes the state: a new seq, and every waiter woken. Called with
 // mu held.
@@ -112,7 +112,8 @@ func (h *handDesk) waitChan() <-chan struct{} {
 }
 
 func (h *handDesk) snapshot() *registryv1.HandState {
-	return proto.Clone(h.st).(*registryv1.HandState)
+	st, _ := proto.Clone(h.st).(*registryv1.HandState)
+	return st
 }
 
 // end closes the current run. Called with mu held.
@@ -131,6 +132,12 @@ func (h *handDesk) end(why string) {
 
 func (h *handDesk) unixNano(d time.Duration) int64 { return h.now().Add(d).UnixNano() }
 
+// ms is a bounded duration in milliseconds; every duration here is at most
+// minutes, so the clamp only guards the conversion.
+func ms(d time.Duration) uint32 {
+	return uint32(min(max(d.Milliseconds(), 0), int64(^uint32(0))))
+}
+
 // ask starts the countdown, or refuses while somebody else has the desktop.
 func (h *handDesk) ask(owner any, holder, reason string, window time.Duration) (*handRun, error) {
 	h.mu.Lock()
@@ -143,8 +150,7 @@ func (h *handDesk) ask(owner any, holder, reason string, window time.Duration) (
 	h.st = &registryv1.HandState{
 		Seq: h.st.GetSeq(), Phase: registryv1.HandPhase_HAND_PHASE_ASKING,
 		Holder: holder, Reason: reason, AskedUnixNano: h.now().UnixNano(),
-		DeadlineUnixNano: h.unixNano(window), WindowMs: uint32(window.Milliseconds()),
-		LeftMs: uint32(window.Milliseconds()),
+		DeadlineUnixNano: h.unixNano(window), WindowMs: ms(window), LeftMs: ms(window),
 	}
 	h.changed()
 	return h.run, nil
@@ -297,7 +303,7 @@ func (h *handDesk) answer(a registryv1.HandAction) (*registryv1.HandState, error
 	case a == registryv1.HandAction_HAND_ACTION_HOLD && asking:
 		left := max(time.Duration(h.st.GetDeadlineUnixNano()-h.now().UnixNano()), 0)
 		h.st.Phase = registryv1.HandPhase_HAND_PHASE_HELD
-		h.st.LeftMs = uint32(left.Milliseconds())
+		h.st.LeftMs = ms(left)
 		h.st.DeadlineUnixNano = h.unixNano(h.holdMax)
 		h.changed()
 	case a == registryv1.HandAction_HAND_ACTION_RESUME && held:
@@ -400,7 +406,7 @@ func (d *Daemon) serveHand(ctx context.Context, c *conn, f *rigv1.Frame, command
 	if err == nil || ctx.Err() != nil {
 		return
 	}
-	var he *handErr
+	var he *handError
 	if errors.As(err, &he) {
 		c.fail(f.GetStreamId(), he.code, he.msg)
 		return
@@ -413,7 +419,7 @@ func (d *Daemon) serveHandRequest(ctx context.Context, c *conn, req *registryv1.
 	if ms := req.GetCountdownMs(); ms != 0 {
 		window = time.Duration(ms) * time.Millisecond
 	}
-	if window < handCountdownMin || window > handCountdownMax {
+	if window < handCountdownLeast || window > handCountdownMost {
 		return nil, handRefused(rigv1.Code_CODE_INVALID,
 			"rig.hand.request: the countdown is 10 to 120 seconds, so he always has time to decline")
 	}
