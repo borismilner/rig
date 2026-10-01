@@ -839,6 +839,17 @@ D-Bus API, plus a GNOME extension for window geometry; that is the backend
 to port first, XTEST stays for an X11 session, and the portal/libei row
 below stays the named successor.
 
+**Boris, 2026-10-01: the hand never switches keyboard layout.** Switching
+to type a foreign run dropped characters in AgentBox, restarted Espanso on
+every switch, and coincided with a colour flash on screen. Asked, he took
+the recommendation (*"Do as recommended."*). **Text the active layout
+cannot type is pasted** with Shift+Insert (Insert is on every layout); the
+clipboard and the primary selection are saved first and restored after,
+and a clipboard history extension still records the pasted run. **A
+shortcut whose key the active layout lacks goes by key position**
+(`NotifyKeyboardKeycode`, US positions), so ctrl+c is ctrl+c from Hebrew.
+Built as `cmd/righand` on `internal/hand`.
+
 **The service is named `hand`, and the verb is `rig hand`.** One syllable, the thing it is, and
 it does not collide with `rig window`, which draws.
 
