@@ -433,6 +433,15 @@ mechanism for the subset of that coordination which is naturally
 asynchronous (something happened, zero or more modules care), as opposed to
 a direct call through a kernel-owned interface for the subset that is not.
 
+**Boris, 2026-10-01, asked whether rig has pub/sub: *"What if I want to use it
+for future events, like chrontab."*** So `events` carries timed events as well
+as ones something caused: a schedule entry that fires is a publisher like any
+other. **This is the use B107's "owed if rig uses it" test was waiting for**,
+since the first program on rig is a task scheduler (§25). Until `events`
+exists, every live feed is its own long poll with its own cursor
+(`toast.wait`, `hand.wait`, `message.await`); those are its first consumers
+to fold in, never a fourth copy.
+
 **Searched rather than assumed, per §38's standing rule, and set aside:**
 `asaskevich/EventBus` is the established, widely-used option for exactly
 this - in-process pub-sub, sync and async. **It is not adopted.** The
