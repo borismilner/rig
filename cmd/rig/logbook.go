@@ -110,7 +110,9 @@ func splitHere(dir string) bool {
 		return false
 	}
 	for _, e := range ents {
-		if ext := filepath.Ext(e.Name()); !e.IsDir() && (ext == ".md" || ext == ".txt") &&
+		// A regular file only: a project's checkout links DECISIONS.md in,
+		// and that makes it a project, not the notes folder.
+		if ext := filepath.Ext(e.Name()); e.Type().IsRegular() && (ext == ".md" || ext == ".txt") &&
 			logbook.Open(filepath.Join(dir, e.Name())).Generated() {
 			return true
 		}
@@ -159,7 +161,7 @@ func (lb logbookIn) docs(names []string) ([]logbook.Doc, error) {
 	}
 	ents, err := os.ReadDir(h)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("no logbook notes at %s; pass --dir", h)
 	}
 	for _, e := range ents {
 		if ext := filepath.Ext(e.Name()); e.IsDir() || (ext != ".md" && ext != ".txt") {
