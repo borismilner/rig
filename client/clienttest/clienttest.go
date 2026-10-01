@@ -18,7 +18,8 @@
 // is unnamed, so nothing is written outside the temporary directory and
 // nothing persists after the test. StartEstate names one, for a program that
 // needs what only a named estate keeps: leases and queues. Its state is still
-// under the test's temporary directory.
+// under the test's temporary directory. StartStored adds the storage root a
+// program needs for its store, files and exports, also under that directory.
 package clienttest
 
 import (
@@ -39,16 +40,23 @@ import (
 // XDG_RUNTIME_DIR at it. Everything stops and is removed at test cleanup.
 func Start(tb testing.TB) string {
 	tb.Helper()
-	return start(tb, "")
+	return start(tb, "", false)
 }
 
 // StartEstate is Start for a named estate, with its lease and queue store.
 func StartEstate(tb testing.TB, estate string) string {
 	tb.Helper()
-	return start(tb, estate)
+	return start(tb, estate, false)
 }
 
-func start(tb testing.TB, estate string) string {
+// StartStored is StartEstate with a storage root, for a program that keeps
+// records, files or exports in rig.
+func StartStored(tb testing.TB, estate string) string {
+	tb.Helper()
+	return start(tb, estate, true)
+}
+
+func start(tb testing.TB, estate string, stored bool) string {
 	tb.Helper()
 	// Short on purpose: a unix socket path is capped near 108 bytes and a
 	// test's own temp directory can already be most of that.
@@ -71,6 +79,9 @@ func start(tb testing.TB, estate string) string {
 	tb.Cleanup(func() { _ = lock.Close() })
 
 	cfg := daemon.Config{Version: "clienttest", Wire: "v1", Lock: lock, Estate: estate}
+	if stored {
+		cfg.Root = filepath.Join(dir, "root")
+	}
 	if estate != "" {
 		st, err := coord.Open(estate)
 		if err != nil {

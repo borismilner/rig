@@ -3,78 +3,22 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"net"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/borismilner/rig/client"
-	"github.com/borismilner/rig/internal/coord"
-	"github.com/borismilner/rig/internal/daemon"
-	"github.com/borismilner/rig/internal/instance"
+	"github.com/borismilner/rig/client/clienttest"
 	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
-
-// rigd starts a daemon for a named estate WITH a storage root, which
-// clienttest does not give: storeworker needs its store, files and exports.
-// It is clienttest's start plus Config.Root.
-func rigd(t *testing.T) {
-	t.Helper()
-	dir, err := os.MkdirTemp("", "rigsw") // a unix socket path is capped near 108 bytes
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.RemoveAll(dir) })
-	t.Setenv("XDG_RUNTIME_DIR", dir)
-	t.Setenv("XDG_STATE_HOME", filepath.Join(dir, "state"))
-	run := filepath.Join(dir, "rig")
-	if err := os.MkdirAll(run, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	lock, err := instance.Acquire(filepath.Join(run, "rigd.pid"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = lock.Close() })
-	st, err := coord.Open("development")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = st.Close() })
-	d, err := daemon.New(daemon.Config{
-		Version: "test", Wire: "v1", Lock: lock, Estate: "development",
-		Epoch: st.Epoch(), Leases: st, Root: filepath.Join(dir, "root"),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	l, err := (&net.ListenConfig{}).Listen(ctx, "unix", filepath.Join(run, "rigd.sock"))
-	if err != nil {
-		cancel()
-		t.Fatal(err)
-	}
-	done := make(chan error, 1)
-	go func() { done <- d.Serve(ctx, l) }()
-	t.Cleanup(func() {
-		cancel()
-		if err := <-done; err != nil && !errors.Is(err, context.Canceled) {
-			t.Errorf("rigd stopped with %v", err)
-		}
-		_ = d.Close()
-	})
-}
 
 // start registers a storeworker against a real daemon and runs its worker
 // until the test ends.
 func start(t *testing.T, budget float64) *app {
 	t.Helper()
-	rigd(t)
+	clienttest.StartStored(t, "development")
 	c, err := client.Connect()
 	if err != nil {
 		t.Fatal(err)
