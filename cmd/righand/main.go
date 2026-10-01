@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -25,6 +26,8 @@ import (
 
 	"github.com/borismilner/rig/client"
 	"github.com/borismilner/rig/internal/hand"
+	"github.com/borismilner/rig/internal/instance"
+	"github.com/borismilner/rig/internal/paths"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
@@ -143,6 +146,19 @@ func (p *program) script(method string, raw []byte) (any, error) {
 			"righand: another script is driving the desktop", "retry when it has finished")
 	}
 	defer p.busy.Unlock()
+	// The desktop is one, and every estate's rigd reads the same
+	// programs.json, so one righand runs per estate: this lock is what keeps
+	// two of them from driving it at once.
+	desk, err := desktopLock()
+	if err != nil {
+		var held *instance.HeldError
+		if errors.As(err, &held) {
+			return nil, refuse(method, rigv1.Code_CODE_CONFLICT,
+				"righand: another estate's hand is driving the desktop", "retry when it has finished")
+		}
+		return nil, err
+	}
+	defer func() { _ = desk.Close() }()
 
 	h, err := hand.Open(0)
 	if err != nil {
@@ -165,6 +181,17 @@ func (p *program) script(method string, raw []byte) (any, error) {
 			fmt.Sprintf("righand: %v (ran %d of %d steps)", err, ran, len(steps)), "")
 	}
 	return map[string]any{"ran": ran, "of": len(steps)}, nil
+}
+
+// desktopLock is held while a script drives the desktop. It is under the
+// user's runtime directory rather than an estate's, because what it guards is
+// the session's one pointer and keyboard.
+func desktopLock() (*instance.Lock, error) {
+	dir, err := paths.RuntimeDir()
+	if err != nil {
+		return nil, err
+	}
+	return instance.Acquire(filepath.Join(dir, "hand.lock"))
 }
 
 func ops(steps []hand.Step) string {
