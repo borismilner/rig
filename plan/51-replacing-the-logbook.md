@@ -4,6 +4,15 @@
 plan so that we cover all logbook functionality and take it to the whole new
 level."*
 
+⛔ **THE BAR, Boris 2026-10-01, verbatim:** *"The next thing I want us to do
+is to come to a phase where you as my agent (and all other agents) can use
+`rig` instead of the logbook, but for that to happen, the `rig` must be
+absolutely awesome and superior to the logbook in all aspects."* **So the
+switch is gated on superiority, not on parity:** every row L1-L16 must be
+MEASURED better in rig than in the logbook, for agents and for him, before
+any agent is pointed at rig instead. Parity is a failure of this bar. It is
+the next phase, ahead of S1's remaining clean-up and the bus.
+
 ⛔ **DRAFT, written the same turn so the requirement is not held only in a
 session.** The inventory below is measured; every "new level" row is a
 proposal of the lead's (§37) and is his to accept, reshape or refuse. §39
