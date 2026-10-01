@@ -229,6 +229,22 @@ last hour* is a question an agent asks. `ingest` and `coverage` are not.
   today, and §45's recommendation is one BUILD at a time on the shared tree.
 - **S1 and S4 first, in §44's order.** S3 is last and stays last.
 
+### Build notes, 2026-10-01, before the first line (the seat's)
+
+- **No stream machinery exists** in rigd or `client` (`git grep STREAM_DATA
+  internal/daemon client` finds only `frame.go`). So `logs.query` follows
+  `events.wait`: a unary call carrying a cursor that may wait up to 60 s, and
+  `rig logs -f` loops on it. `logs.ingest` is a unary call carrying a batch and
+  acknowledged per BATCH (one 24 µs round trip per 250 ms flush), not per record.
+- **`wire.MaxFrameSize` is 1 MiB**, so a query answer is bounded: the newest
+  records up to a limit, with `truncated` said.
+- **All three verbs go on the MCP door**: plan/09's rule (Boris 2026-09-26)
+  outranks the "query only" line above, as it did for `config.set`.
+- **Knobs are §6 keys under `logs.`** (decision 0257) in `internal/config/schema.json`.
+- Slices planned: (1) store, rigd's handler, `logs.query`, `rig logs`;
+  (2) call records and redaction, the leak test; (3) ingest, the principal
+  filter, the rate ceiling; (4) zstd at rotation, archive, delete, pin, coverage.
+
 ### Open rows. His, each with a recommendation
 
 | Row | Recommendation | If he rules the other way |
