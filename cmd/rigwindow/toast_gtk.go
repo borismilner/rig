@@ -31,8 +31,12 @@ static void rig_toast_clear_theme(void) {
 }
 // rig_toast_workarea fills the primary monitor's work area, the part the
 // panels leave free, and answers 1; or 0 where it cannot be known.
+//
+// GTK 4.18 deprecated its X11 API as a whole and GTK has no work area outside
+// it, so the warning is silenced here rather than the call replaced.
 static int rig_toast_workarea(int *x, int *y, int *w, int *h) {
 #ifdef GDK_WINDOWING_X11
+G_GNUC_BEGIN_IGNORE_DEPRECATIONS
 	GdkDisplay *d = gdk_display_get_default();
 	if (d == NULL || !GDK_IS_X11_DISPLAY(d)) return 0;
 	GdkMonitor *m = gdk_x11_display_get_primary_monitor(d);
@@ -41,6 +45,7 @@ static int rig_toast_workarea(int *x, int *y, int *w, int *h) {
 	gdk_x11_monitor_get_workarea(m, &r);
 	*x = r.x; *y = r.y; *w = r.width; *h = r.height;
 	return 1;
+G_GNUC_END_IGNORE_DEPRECATIONS
 #else
 	return 0;
 #endif

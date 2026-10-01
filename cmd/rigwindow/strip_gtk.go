@@ -14,6 +14,12 @@ package main
 #include <gdk/x11/gdkx.h>
 #endif
 
+// GTK 4.18 deprecated its X11 API as a whole, and an X window id has no
+// replacement outside it: the override-redirect below is the only way the
+// strip refuses focus. So the warning is silenced for this file's C, not the
+// calls replaced.
+G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+
 // rig_strip_nofocus realizes the window and makes it override-redirect at
 // x, y, and answers 1; or 0 where the window is not an X11 one. An
 // override-redirect window is outside the window manager, which is what
@@ -47,6 +53,8 @@ static void rig_strip_move(void *win, int x, int y) {
 	XFlush(d);
 #endif
 }
+
+G_GNUC_END_IGNORE_DEPRECATIONS
 */
 import "C"
 
