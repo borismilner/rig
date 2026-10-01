@@ -610,10 +610,13 @@ type run struct {
 // two pasted letters joins their run, so "שלום עולם" is one paste rather
 // than two pastes and a typed space. Pure, so it is tested without a desktop.
 func splitRuns(text string, ids []string) []run {
-	if len(ids) == 0 {
-		return []run{{text: text}} // layouts unreadable: type as is, as X does
+	// Layouts unreadable: no letter is known to be on the active layout, and
+	// mutter drops a keysym it has no key for without a word, so every letter
+	// is pasted. Seen when gsettings read an empty dconf.
+	active := ""
+	if len(ids) > 0 {
+		active = ids[0]
 	}
-	active := ids[0]
 	rs := []rune(text)
 	foreign := make([]bool, len(rs))
 	neutral := make([]bool, len(rs))

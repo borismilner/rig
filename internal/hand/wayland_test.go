@@ -68,7 +68,8 @@ func TestSplitRuns(t *testing.T) {
 			[]run{{"שלום ", false}, {"ok", true}, {" 1", false}},
 		},
 		{[]string{"us"}, "a Ж b", []run{{"a ", false}, {"Ж", true}, {" b", false}}},
-		{nil, "anything שלום", []run{{"anything שלום", false}}},
+		{nil, "ab 12 שלום", []run{{"ab 12 שלום", true}}},
+		{nil, "12 ab", []run{{"12 ", false}, {"ab", true}}},
 	}
 	for _, c := range cases {
 		got := splitRuns(c.text, c.ids)
