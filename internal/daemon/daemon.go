@@ -142,6 +142,9 @@ type Daemon struct {
 	// toasts wakes a renderer when rig.notify is called (toast.go).
 	toasts toastRing
 
+	// events is section 52's bus (events.go).
+	events eventBus
+
 	// hand is the HANDS OFF strip's one run at a time (hand.go).
 	hand *handDesk
 	// audio sounds and speaks; nil is a silent daemon (sound.go).
@@ -361,7 +364,7 @@ func New(cfg Config) (*Daemon, error) {
 		return nil, fmt.Errorf("daemon: placing the free files: %w", err)
 	}
 
-	return &Daemon{
+	d := &Daemon{
 		files:    freeFiles,
 		stores:   progStores,
 		version:  cfg.Version,
@@ -381,7 +384,9 @@ func New(cfg Config) (*Daemon, error) {
 		super:    cfg.Supervisor,
 		audio:    cfg.Audio,
 		hand:     newHandDesk(time.Now),
-	}, nil
+	}
+	d.hand.published = func(st *registryv1.HandState) { d.events.publishRig("hand.changed", st) }
+	return d, nil
 }
 
 // Close releases what New opened: the record store. Call it after Serve and
@@ -973,8 +978,11 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	// holder and the witness come off the connection.
 	// SECTION 12's TOASTS. toast.go has why the daemon writes the record.
 	// Its sounds and speech ride the same arm; sound.go has the one queue.
-	// So does section 5m's HANDS OFF strip, the tray's other surface.
-	case "notify", "toast.wait", "toast.dnd", "toast.reply", "toast.answer",
+	// So does section 5m's HANDS OFF strip, the tray's other surface, and
+	// section 52's event bus, which the tray waits on; events.go has who may
+	// publish and wait on what.
+	case "events.publish", "events.wait",
+		"notify", "toast.wait", "toast.dnd", "toast.reply", "toast.answer",
 		"sound", "say",
 		"hand.request", "hand.step", "hand.release", "hand.wait", "hand.answer", "hand.strip":
 		d.serveToast(ctx, c, f, command)

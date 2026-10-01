@@ -412,6 +412,11 @@ message Declaration {
   // Config may SUBTRACT from this list and never add to it (R3). Subtraction
   // arrives with config at M4; today the declared list is the whole list.
   repeated string elements = 11;
+
+  // The event kinds this program publishes (section 5e, section 52 E3), each
+  // its own id, a dot, and lower-case dotted words: graft.job.done. A
+  // program publishes only these; a kind it did not declare is refused.
+  repeated string events = 12;
 }
 
 // ---- Invoking a declared command (PLAN.md section 5e, M1 slice 5) ----------

@@ -259,6 +259,7 @@ type programJSON struct {
 	SemanticsGen int32         `json:"semanticsGen,omitempty"`
 	Services     []string      `json:"services,omitempty"`
 	Elements     []string      `json:"elements,omitempty"`
+	Events       []string      `json:"events,omitempty"`
 	Hosted       bool          `json:"hosted,omitempty"`
 	PaneURL      string        `json:"paneUrl,omitempty"`
 	Preamble     string        `json:"preamble,omitempty"`
@@ -345,6 +346,7 @@ func oneProgramJSON(p kernel.Program) programJSON {
 		SemanticsGen: p.SemanticsGen,
 		Services:     p.Services,
 		Elements:     p.Elements,
+		Events:       p.Events,
 		Hosted:       p.Hosted,
 		PaneURL:      p.PaneURL,
 		Preamble:     p.Preamble,

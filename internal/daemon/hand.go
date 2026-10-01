@@ -86,6 +86,12 @@ type handDesk struct {
 	stripBy any
 	// stripClear is handStripClear; tests shorten it.
 	stripClear time.Duration
+	// published hears every change, for section 52's hand.changed; nil in
+	// tests that build a desk alone. Called with mu held.
+	published func(*registryv1.HandState)
+	// expiry makes the transition a deadline owes when it comes, rather than
+	// when somebody next asks: a waiter on the bus asks nothing.
+	expiry *time.Timer
 }
 
 // handRect is the strip's window on the root, shadow included: all of it
@@ -126,6 +132,20 @@ func (h *handDesk) changed() {
 	if h.wake != nil {
 		close(h.wake)
 		h.wake = nil
+	}
+	if h.published != nil {
+		h.published(h.snapshot())
+	}
+	if h.expiry != nil {
+		h.expiry.Stop()
+		h.expiry = nil
+	}
+	if dl := h.st.GetDeadlineUnixNano(); dl != 0 && h.run != nil {
+		h.expiry = time.AfterFunc(time.Duration(dl-h.now().UnixNano()), func() {
+			h.mu.Lock()
+			defer h.mu.Unlock()
+			h.expire()
+		})
 	}
 }
 

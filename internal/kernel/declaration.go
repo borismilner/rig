@@ -21,6 +21,7 @@ type Declaration struct {
 	SemanticsGen int32
 	Services     []string
 	Elements     []string // kit elements this program's own page uses (5h R3)
+	Events       []string // event kinds it publishes (section 52 E3)
 	Preamble     string
 	Commands     []Command
 	Scope        string
@@ -280,6 +281,17 @@ func (d Declaration) validate(self bool) error {
 		if !kitElements[name] {
 			add("element %q is not one rig serves: the kit has %s (section 5h R3, R7)",
 				name, strings.Join(KitElements(), ", "))
+		}
+	}
+
+	seenEvent := map[string]bool{}
+	for _, kind := range d.Events {
+		if seenEvent[kind] {
+			add("event %q is declared twice", kind)
+		}
+		seenEvent[kind] = true
+		if bad := badEvent(d.Identity.ID, kind); bad != "" {
+			add("event %q %s", kind, bad)
 		}
 	}
 

@@ -75,6 +75,7 @@ var cliDoesNotCarry = []string{
 	"preamble",
 	"services",
 	"elements",
+	"events",
 	"hosted",
 	"pane_url",
 
@@ -329,6 +330,7 @@ func kernelFixture(t *testing.T) kernel.Program {
 		SemanticsGen: 3,
 		Services:     []string{"index"},
 		Elements:     []string{"rigTable"},
+		Events:       []string{"fakeapp.shelved"},
 		Hosted:       true,
 		PaneURL:      "http://127.0.0.1:9/pane",
 		Preamble:     "read this first",
@@ -387,6 +389,7 @@ func wireFixture(t *testing.T) *registryv1.Program {
 		SemanticsGen: 3,
 		Services:     []string{"index"},
 		Elements:     []string{"rigTable"},
+		Events:       []string{"fakeapp.shelved"},
 		Hosted:       true,
 		PaneUrl:      "http://127.0.0.1:9/pane",
 		Preamble:     "read this first",

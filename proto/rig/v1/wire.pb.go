@@ -1381,7 +1381,11 @@ type Declaration struct {
 	//
 	// Config may SUBTRACT from this list and never add to it (R3). Subtraction
 	// arrives with config at M4; today the declared list is the whole list.
-	Elements      []string `protobuf:"bytes,11,rep,name=elements,proto3" json:"elements,omitempty"`
+	Elements []string `protobuf:"bytes,11,rep,name=elements,proto3" json:"elements,omitempty"`
+	// The event kinds this program publishes (section 5e, section 52 E3), each
+	// its own id, a dot, and lower-case dotted words: graft.job.done. A
+	// program publishes only these; a kind it did not declare is refused.
+	Events        []string `protobuf:"bytes,12,rep,name=events,proto3" json:"events,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1489,6 +1493,13 @@ func (x *Declaration) GetPaneUrl() string {
 func (x *Declaration) GetElements() []string {
 	if x != nil {
 		return x.Elements
+	}
+	return nil
+}
+
+func (x *Declaration) GetEvents() []string {
+	if x != nil {
+		return x.Events
 	}
 	return nil
 }
@@ -1756,7 +1767,7 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\adry_run\x18\x11 \x01(\bR\x06dryRun\x12\x12\n" +
 	"\x04cost\x18\x12 \x01(\tR\x04cost\x12$\n" +
 	"\rpreconditions\x18\x13 \x03(\tR\rpreconditions\x12\x18\n" +
-	"\apromote\x18\x14 \x01(\bR\apromote\"\xfd\x02\n" +
+	"\apromote\x18\x14 \x01(\bR\apromote\"\x95\x03\n" +
 	"\vDeclaration\x12,\n" +
 	"\bidentity\x18\x01 \x01(\v2\x10.rig.v1.IdentityR\bidentity\x12,\n" +
 	"\bcoverage\x18\x02 \x01(\x0e2\x10.rig.v1.CoverageR\bcoverage\x12#\n" +
@@ -1769,7 +1780,8 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\x06hosted\x18\t \x01(\bR\x06hosted\x12\x19\n" +
 	"\bpane_url\x18\n" +
 	" \x01(\tR\apaneUrl\x12\x1a\n" +
-	"\belements\x18\v \x03(\tR\belements\"!\n" +
+	"\belements\x18\v \x03(\tR\belements\x12\x16\n" +
+	"\x06events\x18\f \x03(\tR\x06events\"!\n" +
 	"\vCallRequest\x12\x12\n" +
 	"\x04args\x18\x01 \x01(\fR\x04args\"&\n" +
 	"\fCallResponse\x12\x16\n" +

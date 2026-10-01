@@ -143,7 +143,7 @@ func FuzzRawPayload(f *testing.F) {
 		"lease.release", "lease.break", "lease.list", "describe",
 		"knowledge.add", "knowledge.search", "knowledge.get",
 		"queue.push", "queue.claim", "queue.complete", "queue.list",
-		"lease.check", "notify",
+		"lease.check", "notify", "events.publish", "events.wait",
 		"store.put", "store.get", "store.query", "store.delete",
 		"store.transact", "store.collections", "store.list", "store.export", "store.import", "files.root",
 		"files.index", "files.search", "files.unindexed",

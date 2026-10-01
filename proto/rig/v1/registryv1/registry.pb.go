@@ -599,7 +599,9 @@ type Program struct {
 	// Carried at DEPTH_FULL only. It is prose, it can be long, and fifteen of
 	// them in one list is the context cost section 9's whole tiering argument
 	// exists to avoid - so it travels with describe and not with list.
-	Preamble      string `protobuf:"bytes,10,opt,name=preamble,proto3" json:"preamble,omitempty"`
+	Preamble string `protobuf:"bytes,10,opt,name=preamble,proto3" json:"preamble,omitempty"`
+	// The event kinds it publishes (section 52 E3).
+	Events        []string `protobuf:"bytes,11,rep,name=events,proto3" json:"events,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -702,6 +704,13 @@ func (x *Program) GetPreamble() string {
 		return x.Preamble
 	}
 	return ""
+}
+
+func (x *Program) GetEvents() []string {
+	if x != nil {
+		return x.Events
+	}
+	return nil
 }
 
 type ProgramsRequest struct {
@@ -2811,11 +2820,339 @@ func (x *HandAnswerResponse) GetState() *HandState {
 	return nil
 }
 
+// Event is one thing that happened. It carries what happened, never a
+// command (E4).
+type Event struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// One counter for the whole daemon, never reused while it runs (E1).
+	Seq uint64 `protobuf:"varint,1,opt,name=seq,proto3" json:"seq,omitempty"`
+	// Dotted lower case. rig's own kinds are bare (hand.changed); a
+	// program's start with its id (graft.job.done).
+	Kind       string `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	AtUnixNano int64  `protobuf:"varint,3,opt,name=at_unix_nano,json=atUnixNano,proto3" json:"at_unix_nano,omitempty"`
+	// "rig", or the id of the program that published it.
+	Source string `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"`
+	// A JSON value, at most 16 KiB.
+	PayloadJson   string `protobuf:"bytes,5,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Event) Reset() {
+	*x = Event{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Event) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Event) ProtoMessage() {}
+
+func (x *Event) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Event.ProtoReflect.Descriptor instead.
+func (*Event) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *Event) GetSeq() uint64 {
+	if x != nil {
+		return x.Seq
+	}
+	return 0
+}
+
+func (x *Event) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *Event) GetAtUnixNano() int64 {
+	if x != nil {
+		return x.AtUnixNano
+	}
+	return 0
+}
+
+func (x *Event) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *Event) GetPayloadJson() string {
+	if x != nil {
+		return x.PayloadJson
+	}
+	return ""
+}
+
+// EventsPublishRequest is a registered program saying something happened. The
+// kind must be one it declared under events, so it starts with its own id.
+type EventsPublishRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	PayloadJson   string                 `protobuf:"bytes,2,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EventsPublishRequest) Reset() {
+	*x = EventsPublishRequest{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EventsPublishRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EventsPublishRequest) ProtoMessage() {}
+
+func (x *EventsPublishRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EventsPublishRequest.ProtoReflect.Descriptor instead.
+func (*EventsPublishRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *EventsPublishRequest) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *EventsPublishRequest) GetPayloadJson() string {
+	if x != nil {
+		return x.PayloadJson
+	}
+	return ""
+}
+
+type EventsPublishResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Event         *Event                 `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EventsPublishResponse) Reset() {
+	*x = EventsPublishResponse{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EventsPublishResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EventsPublishResponse) ProtoMessage() {}
+
+func (x *EventsPublishResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EventsPublishResponse.ProtoReflect.Descriptor instead.
+func (*EventsPublishResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *EventsPublishResponse) GetEvent() *Event {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
+// EventsWaitRequest parks until an event after the cursor matches one of the
+// kinds, for at most 60 s (E6). A kind is a kind or a prefix ending ".*".
+//
+// epoch is the epoch the cursor came from, 0 on a first call. A cursor from
+// another epoch is a restart in between, and answers gap (E1).
+type EventsWaitRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	After         uint64                 `protobuf:"varint,1,opt,name=after,proto3" json:"after,omitempty"`
+	Epoch         uint64                 `protobuf:"varint,2,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	Kinds         []string               `protobuf:"bytes,3,rep,name=kinds,proto3" json:"kinds,omitempty"`
+	TimeoutMs     uint32                 `protobuf:"varint,4,opt,name=timeout_ms,json=timeoutMs,proto3" json:"timeout_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EventsWaitRequest) Reset() {
+	*x = EventsWaitRequest{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EventsWaitRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EventsWaitRequest) ProtoMessage() {}
+
+func (x *EventsWaitRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EventsWaitRequest.ProtoReflect.Descriptor instead.
+func (*EventsWaitRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *EventsWaitRequest) GetAfter() uint64 {
+	if x != nil {
+		return x.After
+	}
+	return 0
+}
+
+func (x *EventsWaitRequest) GetEpoch() uint64 {
+	if x != nil {
+		return x.Epoch
+	}
+	return 0
+}
+
+func (x *EventsWaitRequest) GetKinds() []string {
+	if x != nil {
+		return x.Kinds
+	}
+	return nil
+}
+
+func (x *EventsWaitRequest) GetTimeoutMs() uint32 {
+	if x != nil {
+		return x.TimeoutMs
+	}
+	return 0
+}
+
+// EventsWaitResponse is everything matching after the cursor, oldest first.
+// Carry latest and epoch into the next call.
+//
+// gap means events after the cursor were lost - past the ring, or before a
+// restart - so the waiter re-reads whatever state it keeps rather than assume
+// nothing happened (E7).
+type EventsWaitResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Events        []*Event               `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
+	Latest        uint64                 `protobuf:"varint,2,opt,name=latest,proto3" json:"latest,omitempty"`
+	Epoch         uint64                 `protobuf:"varint,3,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	Gap           bool                   `protobuf:"varint,4,opt,name=gap,proto3" json:"gap,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EventsWaitResponse) Reset() {
+	*x = EventsWaitResponse{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EventsWaitResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EventsWaitResponse) ProtoMessage() {}
+
+func (x *EventsWaitResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EventsWaitResponse.ProtoReflect.Descriptor instead.
+func (*EventsWaitResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *EventsWaitResponse) GetEvents() []*Event {
+	if x != nil {
+		return x.Events
+	}
+	return nil
+}
+
+func (x *EventsWaitResponse) GetLatest() uint64 {
+	if x != nil {
+		return x.Latest
+	}
+	return 0
+}
+
+func (x *EventsWaitResponse) GetEpoch() uint64 {
+	if x != nil {
+		return x.Epoch
+	}
+	return 0
+}
+
+func (x *EventsWaitResponse) GetGap() bool {
+	if x != nil {
+		return x.Gap
+	}
+	return false
+}
+
 var File_proto_rig_v1_registry_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\n" +
-	"\x1bproto/rig/v1/registry.proto\x12\x06rig.v1\x1a\x17proto/rig/v1/wire.proto\"\xe3\x02\n" +
+	"\x1bproto/rig/v1/registry.proto\x12\x06rig.v1\x1a\x17proto/rig/v1/wire.proto\"\xfb\x02\n" +
 	"\aProgram\x12,\n" +
 	"\bidentity\x18\x01 \x01(\v2\x10.rig.v1.IdentityR\bidentity\x12,\n" +
 	"\bcoverage\x18\x02 \x01(\x0e2\x10.rig.v1.CoverageR\bcoverage\x12#\n" +
@@ -2827,7 +3164,8 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\bpane_url\x18\b \x01(\tR\apaneUrl\x12\x1a\n" +
 	"\belements\x18\t \x03(\tR\belements\x12\x1a\n" +
 	"\bpreamble\x18\n" +
-	" \x01(\tR\bpreamble\"6\n" +
+	" \x01(\tR\bpreamble\x12\x16\n" +
+	"\x06events\x18\v \x03(\tR\x06events\"6\n" +
 	"\x0fProgramsRequest\x12#\n" +
 	"\x05depth\x18\x01 \x01(\x0e2\r.rig.v1.DepthR\x05depth\"?\n" +
 	"\x10ProgramsResponse\x12+\n" +
@@ -2976,7 +3314,30 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\x11HandAnswerRequest\x12*\n" +
 	"\x06action\x18\x01 \x01(\x0e2\x12.rig.v1.HandActionR\x06action\"=\n" +
 	"\x12HandAnswerResponse\x12'\n" +
-	"\x05state\x18\x01 \x01(\v2\x11.rig.v1.HandStateR\x05state*V\n" +
+	"\x05state\x18\x01 \x01(\v2\x11.rig.v1.HandStateR\x05state\"\x8a\x01\n" +
+	"\x05Event\x12\x10\n" +
+	"\x03seq\x18\x01 \x01(\x04R\x03seq\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12 \n" +
+	"\fat_unix_nano\x18\x03 \x01(\x03R\n" +
+	"atUnixNano\x12\x16\n" +
+	"\x06source\x18\x04 \x01(\tR\x06source\x12!\n" +
+	"\fpayload_json\x18\x05 \x01(\tR\vpayloadJson\"M\n" +
+	"\x14EventsPublishRequest\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12!\n" +
+	"\fpayload_json\x18\x02 \x01(\tR\vpayloadJson\"<\n" +
+	"\x15EventsPublishResponse\x12#\n" +
+	"\x05event\x18\x01 \x01(\v2\r.rig.v1.EventR\x05event\"t\n" +
+	"\x11EventsWaitRequest\x12\x14\n" +
+	"\x05after\x18\x01 \x01(\x04R\x05after\x12\x14\n" +
+	"\x05epoch\x18\x02 \x01(\x04R\x05epoch\x12\x14\n" +
+	"\x05kinds\x18\x03 \x03(\tR\x05kinds\x12\x1d\n" +
+	"\n" +
+	"timeout_ms\x18\x04 \x01(\rR\ttimeoutMs\"{\n" +
+	"\x12EventsWaitResponse\x12%\n" +
+	"\x06events\x18\x01 \x03(\v2\r.rig.v1.EventR\x06events\x12\x16\n" +
+	"\x06latest\x18\x02 \x01(\x04R\x06latest\x12\x14\n" +
+	"\x05epoch\x18\x03 \x01(\x04R\x05epoch\x12\x10\n" +
+	"\x03gap\x18\x04 \x01(\bR\x03gap*V\n" +
 	"\x05Depth\x12\x15\n" +
 	"\x11DEPTH_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eDEPTH_PROGRAMS\x10\x01\x12\x12\n" +
@@ -3046,59 +3407,64 @@ func file_proto_rig_v1_registry_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_registry_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
-var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
+var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
 var file_proto_rig_v1_registry_proto_goTypes = []any{
-	(Depth)(0),                  // 0: rig.v1.Depth
-	(EstateRole)(0),             // 1: rig.v1.EstateRole
-	(Severity)(0),               // 2: rig.v1.Severity
-	(DndChange)(0),              // 3: rig.v1.DndChange
-	(SoundMute)(0),              // 4: rig.v1.SoundMute
-	(ReadAloud)(0),              // 5: rig.v1.ReadAloud
-	(ToastSound)(0),             // 6: rig.v1.ToastSound
-	(HandPhase)(0),              // 7: rig.v1.HandPhase
-	(HandAction)(0),             // 8: rig.v1.HandAction
-	(*Program)(nil),             // 9: rig.v1.Program
-	(*ProgramsRequest)(nil),     // 10: rig.v1.ProgramsRequest
-	(*ProgramsResponse)(nil),    // 11: rig.v1.ProgramsResponse
-	(*EstateRequest)(nil),       // 12: rig.v1.EstateRequest
-	(*EstateResponse)(nil),      // 13: rig.v1.EstateResponse
-	(*Toast)(nil),               // 14: rig.v1.Toast
-	(*NotifyRequest)(nil),       // 15: rig.v1.NotifyRequest
-	(*ToastReplyRequest)(nil),   // 16: rig.v1.ToastReplyRequest
-	(*ToastReplyResponse)(nil),  // 17: rig.v1.ToastReplyResponse
-	(*ToastAnswer)(nil),         // 18: rig.v1.ToastAnswer
-	(*ToastAnswerRequest)(nil),  // 19: rig.v1.ToastAnswerRequest
-	(*ToastAnswerResponse)(nil), // 20: rig.v1.ToastAnswerResponse
-	(*NotifyResponse)(nil),      // 21: rig.v1.NotifyResponse
-	(*ToastWaitRequest)(nil),    // 22: rig.v1.ToastWaitRequest
-	(*ToastWaitResponse)(nil),   // 23: rig.v1.ToastWaitResponse
-	(*ToastDndRequest)(nil),     // 24: rig.v1.ToastDndRequest
-	(*ToastDndResponse)(nil),    // 25: rig.v1.ToastDndResponse
-	(*SoundRequest)(nil),        // 26: rig.v1.SoundRequest
-	(*SoundResponse)(nil),       // 27: rig.v1.SoundResponse
-	(*SayRequest)(nil),          // 28: rig.v1.SayRequest
-	(*SayResponse)(nil),         // 29: rig.v1.SayResponse
-	(*HandState)(nil),           // 30: rig.v1.HandState
-	(*HandRequestRequest)(nil),  // 31: rig.v1.HandRequestRequest
-	(*HandRequestResponse)(nil), // 32: rig.v1.HandRequestResponse
-	(*HandStepRequest)(nil),     // 33: rig.v1.HandStepRequest
-	(*HandStepResponse)(nil),    // 34: rig.v1.HandStepResponse
-	(*HandReleaseRequest)(nil),  // 35: rig.v1.HandReleaseRequest
-	(*HandReleaseResponse)(nil), // 36: rig.v1.HandReleaseResponse
-	(*HandWaitRequest)(nil),     // 37: rig.v1.HandWaitRequest
-	(*HandWaitResponse)(nil),    // 38: rig.v1.HandWaitResponse
-	(*HandStripRequest)(nil),    // 39: rig.v1.HandStripRequest
-	(*HandStripResponse)(nil),   // 40: rig.v1.HandStripResponse
-	(*HandAnswerRequest)(nil),   // 41: rig.v1.HandAnswerRequest
-	(*HandAnswerResponse)(nil),  // 42: rig.v1.HandAnswerResponse
-	(*v1.Identity)(nil),         // 43: rig.v1.Identity
-	(v1.Coverage)(0),            // 44: rig.v1.Coverage
-	(*v1.Command)(nil),          // 45: rig.v1.Command
+	(Depth)(0),                    // 0: rig.v1.Depth
+	(EstateRole)(0),               // 1: rig.v1.EstateRole
+	(Severity)(0),                 // 2: rig.v1.Severity
+	(DndChange)(0),                // 3: rig.v1.DndChange
+	(SoundMute)(0),                // 4: rig.v1.SoundMute
+	(ReadAloud)(0),                // 5: rig.v1.ReadAloud
+	(ToastSound)(0),               // 6: rig.v1.ToastSound
+	(HandPhase)(0),                // 7: rig.v1.HandPhase
+	(HandAction)(0),               // 8: rig.v1.HandAction
+	(*Program)(nil),               // 9: rig.v1.Program
+	(*ProgramsRequest)(nil),       // 10: rig.v1.ProgramsRequest
+	(*ProgramsResponse)(nil),      // 11: rig.v1.ProgramsResponse
+	(*EstateRequest)(nil),         // 12: rig.v1.EstateRequest
+	(*EstateResponse)(nil),        // 13: rig.v1.EstateResponse
+	(*Toast)(nil),                 // 14: rig.v1.Toast
+	(*NotifyRequest)(nil),         // 15: rig.v1.NotifyRequest
+	(*ToastReplyRequest)(nil),     // 16: rig.v1.ToastReplyRequest
+	(*ToastReplyResponse)(nil),    // 17: rig.v1.ToastReplyResponse
+	(*ToastAnswer)(nil),           // 18: rig.v1.ToastAnswer
+	(*ToastAnswerRequest)(nil),    // 19: rig.v1.ToastAnswerRequest
+	(*ToastAnswerResponse)(nil),   // 20: rig.v1.ToastAnswerResponse
+	(*NotifyResponse)(nil),        // 21: rig.v1.NotifyResponse
+	(*ToastWaitRequest)(nil),      // 22: rig.v1.ToastWaitRequest
+	(*ToastWaitResponse)(nil),     // 23: rig.v1.ToastWaitResponse
+	(*ToastDndRequest)(nil),       // 24: rig.v1.ToastDndRequest
+	(*ToastDndResponse)(nil),      // 25: rig.v1.ToastDndResponse
+	(*SoundRequest)(nil),          // 26: rig.v1.SoundRequest
+	(*SoundResponse)(nil),         // 27: rig.v1.SoundResponse
+	(*SayRequest)(nil),            // 28: rig.v1.SayRequest
+	(*SayResponse)(nil),           // 29: rig.v1.SayResponse
+	(*HandState)(nil),             // 30: rig.v1.HandState
+	(*HandRequestRequest)(nil),    // 31: rig.v1.HandRequestRequest
+	(*HandRequestResponse)(nil),   // 32: rig.v1.HandRequestResponse
+	(*HandStepRequest)(nil),       // 33: rig.v1.HandStepRequest
+	(*HandStepResponse)(nil),      // 34: rig.v1.HandStepResponse
+	(*HandReleaseRequest)(nil),    // 35: rig.v1.HandReleaseRequest
+	(*HandReleaseResponse)(nil),   // 36: rig.v1.HandReleaseResponse
+	(*HandWaitRequest)(nil),       // 37: rig.v1.HandWaitRequest
+	(*HandWaitResponse)(nil),      // 38: rig.v1.HandWaitResponse
+	(*HandStripRequest)(nil),      // 39: rig.v1.HandStripRequest
+	(*HandStripResponse)(nil),     // 40: rig.v1.HandStripResponse
+	(*HandAnswerRequest)(nil),     // 41: rig.v1.HandAnswerRequest
+	(*HandAnswerResponse)(nil),    // 42: rig.v1.HandAnswerResponse
+	(*Event)(nil),                 // 43: rig.v1.Event
+	(*EventsPublishRequest)(nil),  // 44: rig.v1.EventsPublishRequest
+	(*EventsPublishResponse)(nil), // 45: rig.v1.EventsPublishResponse
+	(*EventsWaitRequest)(nil),     // 46: rig.v1.EventsWaitRequest
+	(*EventsWaitResponse)(nil),    // 47: rig.v1.EventsWaitResponse
+	(*v1.Identity)(nil),           // 48: rig.v1.Identity
+	(v1.Coverage)(0),              // 49: rig.v1.Coverage
+	(*v1.Command)(nil),            // 50: rig.v1.Command
 }
 var file_proto_rig_v1_registry_proto_depIdxs = []int32{
-	43, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
-	44, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
-	45, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
+	48, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
+	49, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
+	50, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
 	0,  // 3: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
 	9,  // 4: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
 	1,  // 5: rig.v1.EstateResponse.role:type_name -> rig.v1.EstateRole
@@ -3122,11 +3488,13 @@ var file_proto_rig_v1_registry_proto_depIdxs = []int32{
 	30, // 23: rig.v1.HandStripResponse.state:type_name -> rig.v1.HandState
 	8,  // 24: rig.v1.HandAnswerRequest.action:type_name -> rig.v1.HandAction
 	30, // 25: rig.v1.HandAnswerResponse.state:type_name -> rig.v1.HandState
-	26, // [26:26] is the sub-list for method output_type
-	26, // [26:26] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	43, // 26: rig.v1.EventsPublishResponse.event:type_name -> rig.v1.Event
+	43, // 27: rig.v1.EventsWaitResponse.events:type_name -> rig.v1.Event
+	28, // [28:28] is the sub-list for method output_type
+	28, // [28:28] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_registry_proto_init() }
@@ -3140,7 +3508,7 @@ func file_proto_rig_v1_registry_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_registry_proto_rawDesc), len(file_proto_rig_v1_registry_proto_rawDesc)),
 			NumEnums:      9,
-			NumMessages:   34,
+			NumMessages:   39,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

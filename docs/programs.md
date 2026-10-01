@@ -218,6 +218,34 @@ needs a seat (`rig.announce` first; a terminal has one) and is attributed to
 it. At a terminal the same verbs are `rig knowledge search|get|add`; agents
 get `knowledge_search`, `knowledge_get` and `knowledge_add`.
 
+## Events
+
+rig keeps one event log (PLAN.md section 52). A program says that
+something happened; every connection waiting on a matching kind is woken
+with everything after its cursor.
+
+| method | request | answer |
+|---|---|---|
+| `rig.events.publish` | `kind`, `payload_json` (one JSON value, at most 16 KiB) | the event, with its `seq` |
+| `rig.events.wait` | `kinds`, `after`, `epoch`, `timeout_ms` (at most 60 s) | matching `events`, oldest first, `latest`, `epoch`, `gap` |
+
+**Declare what you publish.** List each kind under `events` in your
+declaration, as your id, a dot and lower-case words: `graft.job.done`. A
+kind you did not declare is refused.
+
+**Wait in a loop and carry the cursor.** Pass the answer's `latest` and
+`epoch` into the next call. A kind is matched exactly; `graft.*` matches
+everything below it. `gap` means events were lost, because you fell behind
+the last 4096 or rigd restarted: re-read whatever state you keep.
+
+**Who may wait on what.** rig's own kinds (`hand.changed`,
+`toast.posted`) are open to everyone, and a program may wait on its own.
+Another program's kinds need a subscribe grant that is not built yet, so
+they are refused.
+
+At a terminal: `rig events wait <kind>... [--follow]`. Agents get
+`events_wait` and `events_publish`.
+
 ## Work queues
 
 A named estate keeps claimable work queues (PLAN.md section 16). A producer

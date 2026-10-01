@@ -191,6 +191,8 @@ func (d *Daemon) serveToast(ctx context.Context, c *conn, f *rigv1.Frame, comman
 		d.serveToastAnswer(ctx, c, f)
 	case "sound", "say":
 		d.serveSound(ctx, c, f, command)
+	case "events.publish", "events.wait":
+		d.serveEvents(ctx, c, f, command)
 	default:
 		d.serveHand(ctx, c, f, command)
 	}
@@ -282,6 +284,7 @@ func (d *Daemon) serveNotify(ctx context.Context, c *conn, f *rigv1.Frame) {
 	}
 	if !suppressed {
 		d.toasts.add(t)
+		d.events.publishRig("toast.posted", t)
 		if d.audio != nil {
 			d.audio.Toast(t.GetTitle(), t.GetBody(), req.GetSpeak())
 		}

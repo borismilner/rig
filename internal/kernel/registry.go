@@ -320,6 +320,7 @@ type Program struct {
 	SemanticsGen int32
 	Services     []string
 	Elements     []string
+	Events       []string
 	Hosted       bool
 	PaneURL      string
 
@@ -482,6 +483,7 @@ func program(e entry) Program {
 		SemanticsGen: e.decl.SemanticsGen,
 		Services:     slices.Clone(e.decl.Services),
 		Elements:     slices.Clone(e.decl.Elements),
+		Events:       slices.Clone(e.decl.Events),
 		Hosted:       e.decl.Hosted,
 		PaneURL:      e.decl.PaneURL,
 		Preamble:     e.decl.Preamble,

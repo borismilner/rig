@@ -161,6 +161,7 @@ func fullKernelProgram() kernel.Program {
 		SemanticsGen: 3,
 		Services:     []string{"search"},
 		Elements:     []string{"pane"},
+		Events:       []string{"shelf.shelved"},
 		Hosted:       true,
 		PaneURL:      "http://127.0.0.1:1/pane",
 		Preamble:     "read this first",

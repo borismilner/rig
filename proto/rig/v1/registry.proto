@@ -51,6 +51,8 @@ message Program {
   // them in one list is the context cost section 9's whole tiering argument
   // exists to avoid - so it travels with describe and not with list.
   string preamble = 10;
+  // The event kinds it publishes (section 52 E3).
+  repeated string events = 11;
 }
 
 // Depth is how much of the estate a read wants (section 9).
@@ -555,4 +557,62 @@ message HandAnswerRequest {
 
 message HandAnswerResponse {
   HandState state = 1;
+}
+
+// ---- Section 52's event bus -------------------------------------------------
+//
+// Something happens, rig numbers it on one counter, and every waiter whose
+// kinds match gets everything after its cursor in one batch, or gap when it
+// fell too far behind. In the window's file because the tray and the strip
+// are its first waiters.
+
+// Event is one thing that happened. It carries what happened, never a
+// command (E4).
+message Event {
+  // One counter for the whole daemon, never reused while it runs (E1).
+  uint64 seq = 1;
+  // Dotted lower case. rig's own kinds are bare (hand.changed); a
+  // program's start with its id (graft.job.done).
+  string kind = 2;
+  int64 at_unix_nano = 3;
+  // "rig", or the id of the program that published it.
+  string source = 4;
+  // A JSON value, at most 16 KiB.
+  string payload_json = 5;
+}
+
+// EventsPublishRequest is a registered program saying something happened. The
+// kind must be one it declared under events, so it starts with its own id.
+message EventsPublishRequest {
+  string kind = 1;
+  string payload_json = 2;
+}
+
+message EventsPublishResponse {
+  Event event = 1;
+}
+
+// EventsWaitRequest parks until an event after the cursor matches one of the
+// kinds, for at most 60 s (E6). A kind is a kind or a prefix ending ".*".
+//
+// epoch is the epoch the cursor came from, 0 on a first call. A cursor from
+// another epoch is a restart in between, and answers gap (E1).
+message EventsWaitRequest {
+  uint64 after = 1;
+  uint64 epoch = 2;
+  repeated string kinds = 3;
+  uint32 timeout_ms = 4;
+}
+
+// EventsWaitResponse is everything matching after the cursor, oldest first.
+// Carry latest and epoch into the next call.
+//
+// gap means events after the cursor were lost - past the ring, or before a
+// restart - so the waiter re-reads whatever state it keeps rather than assume
+// nothing happened (E7).
+message EventsWaitResponse {
+  repeated Event events = 1;
+  uint64 latest = 2;
+  uint64 epoch = 3;
+  bool gap = 4;
 }

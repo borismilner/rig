@@ -65,6 +65,8 @@ var bridged = map[string]struct {
 	// The HANDS OFF strip. hand.answer and hand.strip are carried and refused
 	// to an agent (H5, H6): the tool exists so the refusal is the answer, not
 	// a missing tool.
+	"events.publish":    {func() proto.Message { return &registryv1.EventsPublishRequest{} }, func() proto.Message { return &registryv1.EventsPublishResponse{} }},
+	"events.wait":       {func() proto.Message { return &registryv1.EventsWaitRequest{} }, func() proto.Message { return &registryv1.EventsWaitResponse{} }},
 	"hand.request":      {func() proto.Message { return &registryv1.HandRequestRequest{} }, func() proto.Message { return &registryv1.HandRequestResponse{} }},
 	"hand.step":         {func() proto.Message { return &registryv1.HandStepRequest{} }, func() proto.Message { return &registryv1.HandStepResponse{} }},
 	"hand.release":      {func() proto.Message { return &registryv1.HandReleaseRequest{} }, func() proto.Message { return &registryv1.HandReleaseResponse{} }},

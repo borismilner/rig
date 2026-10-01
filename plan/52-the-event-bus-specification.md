@@ -95,3 +95,26 @@ The ring and the wake are already written twice in this tree
 | Q2 | **Timer syntax:** cron lines, plain `every 15m` / `at 09:00`, or both | both, cron via `robfig/cron/v3` |
 | Q3 | **A missed fire after suspend:** fire once on wake, fire every missed one, or skip | once, with `missed: N` in the payload (§18: cron drops, anacron floods, both wrong) |
 | Q4 | **May an agent's MCP door wait on events?** | yes for rig's kinds, behind the same grant; it is how an agent hears the hand stopped |
+
+---
+
+### As built: slice 1, 2026-10-01
+
+**`events.publish` and `events.wait` are served, with `hand.changed` and
+`toast.posted`.** On the wire, the CLI (`rig events wait`) and the MCP
+door (`events_wait`, `events_publish`, which is Q4). Demonstrated on a
+scratch rigd: a follower woke on two toasts, a stale epoch answered
+`gap`, an agent's `events_wait` returned the toast.
+
+**The seat's rulings, each where the rows left a choice:**
+
+| | Ruling | Why |
+|---|---|---|
+| B1 | **Until §13's grant exists, rig's kinds are open to every caller, and a program may wait on its own; another program's kinds are refused `DENIED`** | E5 needs a grant nothing implements; `hand.wait` and `toast.wait` are open today, so rig's kinds stay as open as they were |
+| B2 | **Only a registered program publishes.** A terminal or an agent is refused | E3 names kinds by program id; a seat has none |
+| B3 | **A program named after one of rig's roots (`hand`, `toast`, `system`, `timer`) cannot declare events** | its kinds would read as rig's |
+| B4 | **A HANDS OFF deadline is now a change when it comes**, by a timer in the desk, not when somebody next calls `hand.wait` | a waiter on the bus calls nothing, so a held countdown would never have ended |
+
+**Not yet built:** `system.resumed` (slice 2); timers and `timer.fired`
+(slice 3, Q1-Q3); `hand.wait` and `toast.wait` still answer from their own
+rings rather than from the bus.

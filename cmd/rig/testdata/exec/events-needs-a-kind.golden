@@ -1,0 +1,5 @@
+$ rig events wait
+exit 1
+--- stdout (0 bytes)
+--- stderr (71 bytes)
+rig: usage: rig events wait <kind>... [--after N --epoch E] [--follow]

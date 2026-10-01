@@ -191,6 +191,12 @@
       },
       "type": "array"
     },
+    "events": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "hosted": {
       "type": "boolean"
     },

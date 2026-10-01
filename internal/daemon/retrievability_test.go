@@ -46,6 +46,7 @@ func everyFieldSet(id string) *rigv1.Declaration {
 		Hosted:       true,
 		PaneUrl:      "http://127.0.0.1:8731/pane",
 		Elements:     []string{"rigTable"},
+		Events:       []string{id + ".shelved"},
 		Commands: []*rigv1.Command{{
 			Id:            "reindex",
 			Title:         "Reindex",

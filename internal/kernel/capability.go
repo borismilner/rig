@@ -184,6 +184,7 @@ func writeProgram(h hash.Hash, p Program) {
 	writeInt(h, int64(p.SemanticsGen))
 	writeStrings(h, p.Services)
 	writeStrings(h, p.Elements)
+	writeStrings(h, p.Events)
 	writeBool(h, p.Hosted)
 	writeString(h, p.PaneURL)
 	writeString(h, p.Preamble)

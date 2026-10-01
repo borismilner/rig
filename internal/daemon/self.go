@@ -441,6 +441,17 @@ func selfDeclaration() kernel.Declaration {
 				"Wait for the reply to a toast you sent",
 				"Answers the reply to a toast that asked for one, waiting up to the timeout (at most 60 seconds) if nobody has replied yet; zero asks without waiting. A toast that asks never closes on its own, so the reply may come much later: ask again.",
 				"The answer, or answered false while nobody has replied."),
+			// SECTION 52's EVENT BUS. The log is in memory; publishing
+			// writes no file, but it is a change others act on, so it is not
+			// read-only, and publishing twice is two events.
+			leaseWriter("events.publish", "Events publish", kernel.No,
+				"Say that something happened, for every program waiting on it",
+				"A registered program publishes one of the kinds it declared under events, named <its id>.<what happened>, with a JSON payload of at most 16 KiB. An event says what happened, never what to do. Everyone waiting on a matching kind is woken.",
+				"The event, with its seq."),
+			readOnly("events.wait", "Events wait",
+				"Wait for events of the kinds you name",
+				"Answers every event after the cursor whose kind matches one of the patterns (a kind like hand.changed, or a prefix like hand.*), oldest first, as soon as there is one, or nothing once the timeout (at most 60 seconds) passes. Carry latest and epoch into the next call. gap means events were lost, past the ring or across a restart: re-read the state rather than assume nothing happened. rig's own kinds (hand.*, toast.*, system.*, timer.*) are open to every caller; a program may also wait on its own.",
+				"The matching events, the latest seq, the epoch, and whether any were lost."),
 			// THE HANDS OFF STRIP (plan/05 section 5m). The state is in
 			// memory; nothing here writes a file, but a request and an answer
 			// change who has the desktop.
