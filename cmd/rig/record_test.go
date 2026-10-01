@@ -2681,6 +2681,50 @@ func TestAnEmptyFieldsNameIsRefused(t *testing.T) {
 	}
 }
 
+// Under --fields, --json carries only what was named: an unrequested body
+// printed as "" and a placeholder provenance read as answers (handoff
+// 2026-10-01-3, found live after the deploy).
+func TestJSONWithFieldsOmitsWhatWasNotNamed(t *testing.T) {
+	rec := Record{
+		ID: "r1", Version: 2, Kind: "work-item", Project: "rig",
+		Body: "prose", Fields: map[string]string{"title": "t"},
+	}
+	f := &fakeRecord{query: func(QueryArgs) ([]Record, error) { return []Record{rec}, nil }}
+	serving(t, f)
+	for _, tc := range []struct {
+		fields      string
+		want, never []string
+	}{
+		{
+			"title",
+			[]string{"id", "version", "kind", "project", "fields", "retraction"},
+			[]string{"body", "provenance"},
+		},
+		{"title,body,prov", []string{"body", "provenance"}, nil},
+	} {
+		out, err := captureStdout(t, func() error {
+			return run([]string{"record", "query", "--json", "--fields", tc.fields, "rig"})
+		})
+		if err != nil {
+			t.Fatalf("--fields %s: %v", tc.fields, err)
+		}
+		var got []map[string]any
+		if err := json.Unmarshal([]byte(out), &got); err != nil || len(got) != 1 {
+			t.Fatalf("--fields %s: %q: %v", tc.fields, out, err)
+		}
+		for _, k := range tc.want {
+			if _, ok := got[0][k]; !ok {
+				t.Errorf("--fields %s: %q missing from %s", tc.fields, k, out)
+			}
+		}
+		for _, k := range tc.never {
+			if _, ok := got[0][k]; ok {
+				t.Errorf("--fields %s: %q was not named and is in %s", tc.fields, k, out)
+			}
+		}
+	}
+}
+
 // TestAValueWithNoFieldIsRefusedAtThePrompt is the CLI half of the refusal.
 // The store refuses it too, and the two are not redundant: only this layer can
 // tell a value that was TYPED from one the daemon simply received, because on

@@ -1293,7 +1293,8 @@ func recordQuery(rf *recordFlags, rest []string) error {
 			return err
 		}
 		if *rf.asJSON {
-			return json.NewEncoder(os.Stdout).Encode(recordsJSON(recs, time.Now()))
+			return json.NewEncoder(os.Stdout).Encode(
+				projectedJSON(recordsJSON(recs, time.Now()), a.Fields))
 		}
 		fmt.Print(queryText(a, recs, briefStyleFor(os.Stdout).Width))
 		return nil
@@ -1516,6 +1517,32 @@ func recordsJSON(rs []Record, now time.Time) []map[string]any {
 		out = append(out, recordJSON(r, now))
 	}
 	return out
+}
+
+// projectedJSON drops the keys a --fields projection did not name.
+//
+// recordJSON's every-key-present rule reads an absent key as "never
+// considered"; under a projection the caller DID consider it and declined, so
+// an empty body or a placeholder provenance would be a wrong answer rather
+// than a missing one. The four fixed keys, `fields` and `retraction` stay,
+// as the daemon's projection keeps them (plan/48 decision 6).
+func projectedJSON(rs []map[string]any, fields []string) []map[string]any {
+	if len(fields) == 0 {
+		return rs
+	}
+	named := map[string]bool{}
+	for _, f := range fields {
+		named[f] = true
+	}
+	for _, r := range rs {
+		if !named["body"] {
+			delete(r, "body")
+		}
+		if !named["prov"] {
+			delete(r, "provenance")
+		}
+	}
+	return rs
 }
 
 // provTime renders a stamp, and A ZERO IS NOT THE UNIX EPOCH.
