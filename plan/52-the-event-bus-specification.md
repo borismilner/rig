@@ -1,11 +1,10 @@
 ## 52. The event bus specification
 
-⛔ **DRAFT. STEP 1 AND A STEP-4 DRAFT OF §45's LOOP FOR B107, WRITTEN
-2026-10-01.** Boris put the bus first (§44, *"Put the bus next, before
-storage"*) and said *"start working on it"*. Under §45 the start is this
-draft: **he has not yet approved, reshaped or killed it, and no subagent is
-spawned from it until he does.** Every row is the seat's unless it cites a
-ruling.
+⛔ **APPROVED 2026-10-01, decision 0255.** Written as a step-1 draft of
+§45's loop for B107; Boris put the bus first (§44, *"Put the bus next,
+before storage"*), and on being shown Q1-Q4 with the seat's leans said
+*"Go as recommended"*. The leans below are now his rulings. Every other
+row is the seat's unless it cites a ruling.
 
 > **In one line: something happens, rig numbers it on one global counter,
 > and every connection that armed a matching kind gets everything since its
@@ -28,7 +27,7 @@ a cursor per subscriber, one batch per wake, and `gap: true` past retention.
 |---|---|
 | hear that something happened | `rig.events.wait {after, kinds: ["hand.*"], timeout_ms}` in a loop, carrying `latest` forward |
 | say that something happened | `rig.events.publish {kind: "<its id>.<name>", payload}`, for a kind it declared under `events` (§5e) |
-| run at a time | (step 2: see Q1) arms a timer; rig publishes `timer.fired` to it |
+| run at a time | arms a timer (Q1); rig publishes `timer.fired` to it |
 | catch up after a restart | waits from the cursor it kept; a `gap` means re-read the state, never assume nothing happened |
 
 **What it costs.**
@@ -36,7 +35,7 @@ a cursor per subscriber, one batch per wake, and `gap: true` past retention.
 | Cost | Size |
 |---|---|
 | New verbs | 2 (`events.publish`, `events.wait`); the timer verbs are Q1's |
-| New dependency | none for the bus; `robfig/cron/v3` only if Q1 says cron syntax |
+| New dependency | none for the bus; `robfig/cron/v3` for cron lines (Q2) |
 | Memory | a ring of the last 4096 events, payloads at most 16 KB each: a bounded 64 MB worst case, a few hundred KB in practice |
 | Code it removes | the hand-built wake-and-cursor loops in `toast.wait` and `hand.wait` |
 
@@ -81,16 +80,16 @@ in-memory event log cannot honour. Only its wake-up may ride the bus.
 | `cskr/pubsub` | channels per topic, no replay from a cursor: the property that matters is missing |
 | `ThreeDotsLabs/watermill` | a framework over brokers; its in-memory `gochannel` has no cursor either, and it brings a large tree |
 | embedded `nats-server` + JetStream | has cursors and durability, and is the real alternative; ⛔ a second server inside `rigd`, against §2's footprint (its size not measured here) |
-| `robfig/cron/v3` | **the cron parser if Q1 wants cron syntax**: standard, small, no dependencies |
+| `robfig/cron/v3` | **the cron parser (Q2)**: standard, small, no dependencies |
 
 The ring and the wake are already written twice in this tree
 (`toastRing`, `handDesk`); the bus is those, once.
 
 ---
 
-### Unresolved: step 2, for Boris
+### Step 2, ruled by Boris 2026-10-01 (decision 0255: *"Go as recommended"*)
 
-| | Question | The seat's lean |
+| | Question | Ruled: the seat's lean, taken |
 |---|---|---|
 | Q1 | **Who owns the clock for "like crontab"?** rig fires armed timers (`timer.fired`), or the scheduler program keeps its own clock and only publishes | rig: it is the only one that knows about suspend (`system.resumed`), and §18 already rules on missed fires |
 | Q2 | **Timer syntax:** cron lines, plain `every 15m` / `at 09:00`, or both | both, cron via `robfig/cron/v3` |
