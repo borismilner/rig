@@ -865,6 +865,15 @@ decline or pause the time until in the hands-off mode."* So:
 | H6 | **The strip is never under the hand.** Boris, 2026-10-01: *"The placement of the hands-off panel should not be arbitrary."* Asked, he chose this rule: it sits at the bottom centre by his panel, and before a step whose point falls under it, it moves to the other edge and the step waits until it has. A click under the strip would otherwise press its own buttons |
 | H7 | **While it drives, the strip says what it is doing, in a brief explanation.** Boris, 2026-10-01: *"When the agent is driving the desktop - the panel should show what it is doing, some brief explanation, otherwise it's too opaque to the user."* "step 3 of 8: click" alone fails this: each step carries a short line in his terms (what and why), which the strip shows beside the step count. Typed text is still never shown |
 
+**Boris, 2026-10-01: the hand is part of rig, and the window shows it so.**
+Asked what the "Hand" program was, he said *"I thought it is part of the rig
+functionality that it offers to drive the keyboard and the mouse; I think it's
+not a separate program that we have that uses `rig`."* Asked how the window
+should show it, he chose: **under Rig's own capabilities, beside speech and
+toasts, and NOT in the Programs list.** `righand` stays its own process (the
+reason is below); that is an internal fact, shown in health and diagnostics
+only. Its coverage line must stay current.
+
 **The service is named `hand`, and the verb is `rig hand`.** One syllable, the thing it is, and
 it does not collide with `rig window`, which draws.
 
