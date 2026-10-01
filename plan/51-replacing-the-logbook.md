@@ -21,6 +21,16 @@ the measure is agent tokens and agent effort, and the hard constraint is
 that no agent's work may stop or slow because rig is down, busy or slow.**
 A design where rig is the only write path fails the constraint.
 
+⛔ **RULED BY BORIS THE SAME DAY: THE FILES STAY THE TRUTH, rig IS A FAST
+INDEX OVER THEM.** Offered "files stay the truth, rig answers questions about
+them, appends without reading, and the files are split smaller", he said,
+verbatim: *"yes, go with that direction; That's what I meant; this way even
+if rig is down the agents can still work with the files. Maybe along the way
+we can think of a better structure for the files, maybe a better split for
+more efficient access."* **This supersedes the projection-first path below
+for the logbook:** agents write files; rig watches, indexes and answers; with
+rig down an agent reads and writes the files exactly as before.
+
 ⛔ **DRAFT, written the same turn so the requirement is not held only in a
 session.** The inventory below is measured; every "new level" row is a
 proposal of the lead's (§37) and is his to accept, reshape or refuse. §39
