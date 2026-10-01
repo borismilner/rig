@@ -81,6 +81,47 @@ type pipeline struct {
 	meter     *meter
 	synthGone chan struct{}
 	playGone  chan struct{}
+	// what the player said and how it ended, readable once playGone closes
+	playErr  error
+	playSaid *tail
+}
+
+// tail keeps the last bytes a child wrote to stderr, for the log line that
+// says why it stopped.
+type tail struct {
+	mu  sync.Mutex
+	buf []byte
+}
+
+const tailMax = 512
+
+func (t *tail) Write(b []byte) (int, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.buf = append(t.buf, b...)
+	if over := len(t.buf) - tailMax; over > 0 {
+		t.buf = t.buf[over:]
+	}
+	return len(b), nil
+}
+
+func (t *tail) String() string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return strings.TrimSpace(string(t.buf))
+}
+
+// playerDied reports why the player stopped, if it has.
+func (p *pipeline) playerDied() (error, bool) { //nolint:revive // the error is the answer, not a failure
+	select {
+	case <-p.playGone:
+		if p.playErr == nil {
+			return fmt.Errorf("it exited: %s", p.playSaid), true
+		}
+		return fmt.Errorf("%w: %s", p.playErr, p.playSaid), true
+	default:
+		return nil, false
+	}
 }
 
 // drainGrace is how long a pipeline that is let go may finish its sentence.
@@ -121,6 +162,8 @@ func startPipeline(eng engine, player string) (*pipeline, error) {
 	//rig:allow nocontextfree: as the engine above
 	play := exec.CommandContext(context.Background(), player, pcmArgs(player, eng.rate)...)
 	play.Stdin = playR
+	said := &tail{}
+	play.Stderr = said
 
 	if err := synth.Start(); err != nil {
 		closeAll()
@@ -142,6 +185,7 @@ func startPipeline(eng engine, player string) (*pipeline, error) {
 		meter:     &meter{bps: float64(2 * eng.rate)},
 		synthGone: make(chan struct{}),
 		playGone:  make(chan struct{}),
+		playSaid:  said,
 	}
 	go func() {
 		_, _ = io.Copy(counted{w: playW, m: p.meter}, synthR)
@@ -149,7 +193,7 @@ func startPipeline(eng engine, player string) (*pipeline, error) {
 		_ = synthR.Close()
 	}()
 	go func() { _ = synth.Wait(); close(p.synthGone) }()
-	go func() { _ = play.Wait(); close(p.playGone) }()
+	go func() { p.playErr = play.Wait(); close(p.playGone) }()
 	return p, nil
 }
 
@@ -300,7 +344,9 @@ func pcmArgs(player string, rate int) []string {
 	switch filepath.Base(player) {
 	case "pw-play":
 		return []string{
-			"--rate=" + r, "--channels=1", "--format=s16",
+			// --raw: pw-play 1.6 reads "-" as a sound file without it, and
+			// refuses PCM with "Format not recognised"
+			"--raw", "--rate=" + r, "--channels=1", "--format=s16",
 			"--quality=" + strconv.Itoa(resamplerQuality), "-",
 		}
 	case "paplay":

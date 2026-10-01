@@ -522,5 +522,13 @@ func (a *Audio) speak(pipe *pipeline, line string) *pipeline {
 		pipe.kill()
 		return nil
 	}
+	// A player that refused the stream leaves the engine running and the
+	// line unheard, and nothing else would say so.
+	if why, died := pipe.playerDied(); died {
+		a.opt.Log.Warn("the player stopped, so the line was not heard",
+			"player", filepath.Base(a.player), "err", why)
+		pipe.kill()
+		return nil
+	}
 	return pipe
 }

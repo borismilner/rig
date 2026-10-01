@@ -71,8 +71,10 @@ func fakes(t *testing.T, withEngine bool) (look func(string) (string, error), lo
 			t.Fatal(err)
 		}
 	}
-	// The player: a file argument is a sound; "-" means PCM on stdin.
-	write("pw-play", `last=""; for a in "$@"; do last="$a"; done
+	// The player: a file argument is a sound; "-" means PCM on stdin, and as
+	// the real pw-play 1.6 does, only with --raw.
+	write("pw-play", `last=""; raw=""; for a in "$@"; do last="$a"; [ "$a" = "--raw" ] && raw=1; done
+if [ "$last" = "-" ] && [ -z "$raw" ]; then echo 'sndfile: failed to open audio file "-": Format not recognised.' >&2; exit 1; fi
 if [ "$last" = "-" ]; then while :; do n=$(head -c 4800 | wc -c); [ "$n" -eq 0 ] && break; echo "pcm $n" >> `+log+`; done
 else echo "file $(basename "$last")" >> `+log+`; fi
 `)
