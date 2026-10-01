@@ -578,7 +578,10 @@ func (lb logbookIn) brief() error {
 			}
 		}
 	}
+	// HANDOFF.md, plus one file per seat in handoffs/ (plan/51 L12).
 	handoffs, _ := filepath.Glob(filepath.Join(home, "HANDOFF*.md"))
+	seats, _ := filepath.Glob(filepath.Join(home, "handoffs", "*.md"))
+	handoffs = append(handoffs, seats...)
 	type handoff struct {
 		Path    string `json:"path"`
 		KB      int    `json:"kb"`
@@ -590,16 +593,32 @@ func (lb logbookIn) brief() error {
 			hs = append(hs, handoff{h, int(st.Size() / 1024), st.ModTime().Format("2006-01-02 15:04")})
 		}
 	}
-	slices.SortFunc(hs, func(a, b handoff) int { return strings.Compare(b.Written, a.Written) })
+	// HANDOFF.md first, then the seats' files by the date their names start
+	// with: a move or a checkout resets every mtime.
+	slices.SortFunc(hs, func(a, b handoff) int {
+		ka, kb := filepath.Base(a.Path), filepath.Base(b.Path)
+		if strings.HasPrefix(ka, "HANDOFF") != strings.HasPrefix(kb, "HANDOFF") {
+			if strings.HasPrefix(ka, "HANDOFF") {
+				return -1
+			}
+			return 1
+		}
+		return strings.Compare(kb, ka)
+	})
 	if lb.asJSON {
 		if open == nil {
 			open = []logbook.Item{}
 		}
 		return lb.emit(map[string]any{"dir": home, "handoffs": hs, "documents": briefs, "open": open})
 	}
-	fmt.Printf("notes: %s\n\nhandoffs, newest first:\n", shown(home))
-	for _, h := range hs {
-		fmt.Printf("  %s  %s  %d KB\n", h.Written, filepath.Base(h.Path), h.KB)
+	fmt.Printf("notes: %s\n\nhandoffs, newest first (read HANDOFF.md):\n", shown(home))
+	for i, h := range hs {
+		if i == 5 {
+			fmt.Printf("  ... %d older\n", len(hs)-i)
+			break
+		}
+		rel, _ := filepath.Rel(home, h.Path)
+		fmt.Printf("  %s  %d KB\n", rel, h.KB)
 	}
 	for _, b := range briefs {
 		fmt.Printf("\n%s: %d entries, %d KB", b.Doc, b.Entries, b.KB)
