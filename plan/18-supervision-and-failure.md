@@ -30,6 +30,12 @@
   decision and the countdown. Nothing else changes.
 - **Hang:** every call has a deadline. A program that misses them is degraded, then restarted. A
   hung program can never block a rig goroutine, and a lint rule keeps it that way.
+  **The deadline follows the command's declared `duration`** (Boris, 2026-10-01, *"Do as
+  recommended"*). It is the upper edge of the declared order of magnitude: instant and
+  undeclared 10s, seconds 1 minute, minutes 1 hour, hours 24 hours. A flat 10s cut a hand
+  script off at the caller while the program kept typing on his desktop: the caller was told
+  it failed while it was still acting. The CLI waits that deadline plus a margin, so rig's own
+  diagnosis still lands first.
 - **Flood:** per-program rate limits on events, logs and notifications, with the drop count shown.
 - **rig dies:** every program keeps running, tolerating the absence (§5g). On restart all
   reconnect, present their session token, and are told explicitly what was lost. In-flight
