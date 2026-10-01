@@ -45,7 +45,7 @@ func main() {
 	cancelNotice()
 	if err := run(os.Args[1:]); err != nil {
 		report(os.Stdout, os.Stderr, err)
-		os.Exit(1)
+		os.Exit(errorCode(err))
 	}
 }
 
@@ -218,6 +218,8 @@ func usage() {
                    allow, decline, hold, pause, resume, stop
   events wait <kind>...  wait on the event bus: hand.*, toast.posted,
                    --follow keeps printing them as they come
+  config <cmd>     rig's settings and where each came from: get, origin,
+                   set (until restart), export, diff
   logbook <cmd>    the split logbook's files, no daemon needed: grep, show,
                    line, cat, add, index, check, split
   record <cmd>     the continuity record: put, get, query, history, link,
@@ -273,6 +275,7 @@ var plainVerbs = map[string]func([]string) error{
 	"health":    cmdHealth,
 	"hand":      cmdHand,
 	"events":    cmdEvents,
+	"config":    cmdConfig,
 	"logbook":   cmdLogbook,
 }
 
@@ -355,7 +358,7 @@ func run(args []string) error {
 		// capability with two halves, and this is its single seam into run.
 		return cmdBackupOrRestore(args[0], with(args[1:], lead))
 	case "peers", "knowledge", "worknote", "message", "queue", "store", "files", "notify", "dnd",
-		"sound", "say", "up", "stop", "restart", "health", "hand", "events", "logbook":
+		"sound", "say", "up", "stop", "restart", "health", "hand", "events", "logbook", "config":
 		return plainVerbs[args[0]](with(args[1:], lead))
 	case "record":
 		return cmdRecord(with(args[1:], lead))

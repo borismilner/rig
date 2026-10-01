@@ -28,6 +28,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/borismilner/rig/internal/audio"
+	"github.com/borismilner/rig/internal/config"
 	"github.com/borismilner/rig/internal/coord"
 	"github.com/borismilner/rig/internal/instance"
 	"github.com/borismilner/rig/internal/kernel"
@@ -109,6 +110,15 @@ type Config struct {
 	// DefaultFilesCommitEvery.
 	FilesCommitEvery time.Duration
 
+	// Settings is section 6's resolver over rig's own keys, loaded by rigd
+	// (plan/47); nil resolves the built-in defaults alone. LogLevel is the
+	// level the daemon's log handler reads on every line, so a change to
+	// log.level applies live; nil means log.level changes nothing here.
+	// SnapshotPath is where every resolution is written; empty writes none.
+	Settings     *config.Resolver
+	LogLevel     *slog.LevelVar
+	SnapshotPath string
+
 	// Lock is the single-instance claim, and it is REQUIRED.
 	//
 	// Section 5f says rigd takes the flock "before it binds". Stating an
@@ -146,6 +156,11 @@ type Daemon struct {
 	// (timers.go).
 	events eventBus
 	timers timerDesk
+
+	// settings is section 6's resolver (config.go).
+	settings     *config.Resolver
+	logLevel     *slog.LevelVar
+	snapshotPath string
 
 	// hand is the HANDS OFF strip's one run at a time (hand.go).
 	hand *handDesk
@@ -386,7 +401,20 @@ func New(cfg Config) (*Daemon, error) {
 		super:    cfg.Supervisor,
 		audio:    cfg.Audio,
 		hand:     newHandDesk(time.Now),
+
+		settings:     cfg.Settings,
+		logLevel:     cfg.LogLevel,
+		snapshotPath: cfg.SnapshotPath,
 	}
+	if d.settings == nil {
+		schema, err := config.RigSchema()
+		if err != nil {
+			return nil, err
+		}
+		d.settings = config.Load(schema, config.Sources{})
+	}
+	d.applyLogLevel()
+	d.writeSnapshot()
 	d.hand.published = func(st *registryv1.HandState) { d.events.publishRig("hand.changed", st) }
 	return d, nil
 }
@@ -988,7 +1016,7 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	// section 52's event bus, which the tray waits on; events.go has who may
 	// publish and wait on what.
 	case "events.publish", "events.wait", "timer.arm", "timer.disarm", "timer.list",
-		"notify", "toast.wait", "toast.dnd", "toast.reply", "toast.answer",
+		"config.get", "config.set", "notify", "toast.wait", "toast.dnd", "toast.reply", "toast.answer",
 		"sound", "say",
 		"hand.request", "hand.step", "hand.release", "hand.wait", "hand.answer", "hand.strip":
 		d.serveToast(ctx, c, f, command)

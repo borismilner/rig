@@ -452,6 +452,15 @@ func selfDeclaration() kernel.Declaration {
 				"Wait for events of the kinds you name",
 				"Answers every event after the cursor whose kind matches one of the patterns (a kind like hand.changed, or a prefix like hand.*), oldest first, as soon as there is one, or nothing once the timeout (at most 60 seconds) passes. Carry latest and epoch into the next call. gap means events were lost, past the ring or across a restart: re-read the state rather than assume nothing happened. rig's own kinds (hand.*, toast.*, system.*, timer.*) are open to every caller; a program may also wait on its own.",
 				"The matching events, the latest seq, the epoch, and whether any were lost."),
+			// SECTION 6's SETTINGS, as plan/47 builds them.
+			readOnly("config.get", "Config get",
+				"Every setting under a key or prefix, with the layer that set it",
+				"Answers each of rig's settings under the prefix (empty is all): the value in effect, the layer and file that set it, every layer that set it and lost, lowest first, and whether a change applies live. Also the orphans (values set for a key nothing declares, usually a misspelling), the problems (a file or value that took no part, and why), and where the resolved snapshot is written.",
+				"The settings with their provenance, the orphans, the problems and the snapshot path."),
+			leaseWriter("config.set", "Config set", kernel.Yes,
+				"Change settings until rigd restarts",
+				"Sets keys in the runtime layer, the highest, which a restart clears; a lasting change is an edit to ~/.config/rig/rig.toml. Values are JSON text, and a JSON string is read as the key's type. The set is validated whole: one bad value applies nothing and names the key and why. Each key answers applied or needs-restart; a key whose value moved is published as config.changed.",
+				"Per key, applied or needs-restart, and the snapshot path."),
 			// SECTION 52's TIMERS, in memory beside the bus.
 			leaseWriter("timer.arm", "Timer arm", kernel.Yes,
 				"Arm a named timer; rig publishes timer.fired to you when it comes due",

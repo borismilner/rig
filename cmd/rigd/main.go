@@ -19,6 +19,7 @@ import (
 	"syscall"
 
 	"github.com/borismilner/rig/internal/audio"
+	"github.com/borismilner/rig/internal/config"
 	"github.com/borismilner/rig/internal/coord"
 	"github.com/borismilner/rig/internal/daemon"
 	"github.com/borismilner/rig/internal/instance"
@@ -90,7 +91,6 @@ func exitStatus(err error) int {
 }
 
 func run() error {
-	level := flag.String("log-level", "info", "debug | info | warn | error")
 	showVersion := flag.Bool("version", false, "print every version this build carries and exit")
 	estate := flag.String("estate", "", "name this estate (PLAN.md section 37); "+
 		"unnamed estates claim no name and collide with nothing")
@@ -100,6 +100,12 @@ func run() error {
 		"the least time between two commits of the free files (plan/48 R34); text files only")
 	soundFile := flag.String("toast-sound-file", "", "an absolute path to a sound a toast may play "+
 		"instead of rig's own (plan/12); chosen with `rig sound use file` or the tray")
+	// Every setting is also a flag, spelled from the schema: --log-level is
+	// log.level on the flag layer (plan/47 decision 14). Only --estate,
+	// --version and the flags above are declared by hand: identity, an
+	// action, and tunables that are not settings yet.
+	schema := config.MustRigSchema()
+	givenFlags := schema.Flags(flag.CommandLine)
 	flag.Parse()
 
 	root, err := resolveRoot(*estate, *rootFlag)
@@ -112,12 +118,14 @@ func run() error {
 		return nil
 	}
 
-	var lv slog.Level
-	if err := lv.UnmarshalText([]byte(*level)); err != nil {
-		return fmt.Errorf("log level %q: %w", *level, err)
+	settings, snapshot, err := loadSettings(schema, *estate, givenFlags())
+	if err != nil {
+		return err
 	}
+	lv := new(slog.LevelVar)
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: lv}))
 	log.Info("storage root", "root", root)
+	logSettings(log, settings)
 
 	pidPath, sockPath, mcpSockPath, err := runtimePaths()
 	if err != nil {
@@ -286,6 +294,9 @@ func run() error {
 		Root:    root,
 
 		FilesCommitEvery: *filesEvery,
+		Settings:         settings,
+		LogLevel:         lv,
+		SnapshotPath:     snapshot,
 		Log:              log,
 		Lock:             lock,
 		Leases:           leases,
@@ -434,4 +445,31 @@ func resolveRoot(estate, flagValue string) (string, error) {
 		paths.UseRoot(root)
 	}
 	return root, err
+}
+
+// loadSettings resolves rig's settings from section 6's layers, and names
+// where their snapshot goes.
+func loadSettings(schema *config.Schema, estate string, flags map[string]string) (*config.Resolver, string, error) {
+	user, err := paths.UserConfigFile()
+	if err != nil {
+		return nil, "", err
+	}
+	snapshot, err := paths.SettingsSnapshot(estate)
+	if err != nil {
+		return nil, "", err
+	}
+	return config.Load(schema, config.Sources{
+		SystemFile: paths.SystemConfigFile, UserFile: user,
+		Environ: os.Environ(), Flags: flags,
+	}), snapshot, nil
+}
+
+// logSettings says, once at start, what in the settings took no part.
+func logSettings(log *slog.Logger, settings *config.Resolver) {
+	for _, p := range settings.Problems() {
+		log.Warn("a setting took no part", "problem", p)
+	}
+	for _, o := range settings.Orphans() {
+		log.Warn("a setting names no key", "orphan", o)
+	}
 }

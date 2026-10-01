@@ -1893,12 +1893,12 @@ func TestTheRecordObjectStillCarriesTheSessionForAParser(t *testing.T) {
 // ⛔ THE UNSET PATH IS THE ONE EVERY MACHINE BUT THIS ONE TAKES, SO IT IS
 // TESTED FIRST AND HARDEST.
 //
-// `RIG_DISPLAY_NAME` is a name a person sets. The machine this was built on is
+// display.name is a name a person sets. The machine this was built on is
 // the only machine in the world where it is set, so a test suite that only
 // covered the set case would pass here forever and ship a broken default
 // everywhere else.
 func TestASeatWithNoDisplayNameSetRendersWithItsKindPrefixStripped(t *testing.T) {
-	t.Setenv("RIG_DISPLAY_NAME", "")
+	useDisplayName(t, "")
 
 	for _, tc := range []struct{ seat, want, why string }{
 		{
@@ -1942,7 +1942,7 @@ func TestADisplayNameNeverRendersOverAnotherSeatsWork(t *testing.T) {
 	saved := selfSeat
 	t.Cleanup(func() { selfSeat = saved })
 	selfSeat = func() string { return "terminal:boris-milner" }
-	t.Setenv("RIG_DISPLAY_NAME", "boris")
+	useDisplayName(t, "boris")
 
 	if got := displaySeat("terminal:boris-milner"); got != "boris" {
 		t.Errorf("displaySeat on THIS caller's own seat = %q, want the display "+
@@ -1975,9 +1975,9 @@ func TestAnEmptyDisplayNameIsTreatedAsUnsetRatherThanAsAName(t *testing.T) {
 	t.Cleanup(func() { selfSeat = saved })
 	selfSeat = func() string { return "terminal:boris-milner" }
 
-	t.Setenv("RIG_DISPLAY_NAME", "")
+	useDisplayName(t, "")
 	if got := displaySeat("terminal:boris-milner"); got != "boris-milner" {
-		t.Errorf("an empty RIG_DISPLAY_NAME rendered %q; it must fall back to "+
+		t.Errorf("an empty display.name rendered %q; it must fall back to "+
 			"the stripped seat, never to an empty author", got)
 	}
 }
@@ -1990,7 +1990,7 @@ func TestTheObjectCarriesTheStoredSeatAndNeverTheDisplayName(t *testing.T) {
 	saved := selfSeat
 	t.Cleanup(func() { selfSeat = saved })
 	selfSeat = func() string { return "terminal:boris-milner" }
-	t.Setenv("RIG_DISPLAY_NAME", "boris")
+	useDisplayName(t, "boris")
 
 	obj := recordJSON(Record{
 		ID: "01927-abc", Kind: "requirement", Project: "rig",

@@ -1677,13 +1677,10 @@ func provenanceLine(p Provenance, now time.Time) string {
 // same defect as a backlog parser that trims markers off the front of a cell
 // because the cell it was written for began with them.
 //
-// ⛔ `RIG_DISPLAY_NAME` IS §6's FIRST KEY ARRIVING AHEAD OF §6. That section
-// specifies a seven-layer resolution - /etc, ~/.config, declared defaults,
-// per-app toml, `RIG_*`, flags, runtime override - with schema-declared keys
-// and `rig config origin`. NONE OF IT IS BUILT: there is not one `RIG_*` key
-// anywhere in `cmd/` or `internal/` today. This sits exactly on the declared
-// `environment (RIG_*)` layer, so it is that system's first key rather than a
-// contradiction of it, and it must not grow into a config system here.
+// THE NAME IS THE SETTING display.name, RESOLVED BY rigd (plan/47). It was
+// read raw from RIG_DISPLAY_NAME here until section 6's resolver existed;
+// that variable is now the setting's environment spelling in rigd's own
+// environment, beside ~/.config/rig/rig.toml and `rig config set`.
 //
 // ⛔ IT SUBSTITUTES ONLY FOR THIS CALLER'S OWN SEAT, AND THAT BOUND IS LOAD
 // BEARING RATHER THAN CAUTIOUS. `record history` renders OTHER seats in the
@@ -1701,8 +1698,10 @@ func displaySeat(seat string) string {
 	if seat == "" {
 		return provWord(seat)
 	}
-	if name := os.Getenv("RIG_DISPLAY_NAME"); name != "" && seat == selfSeat() {
-		return name
+	if seat == selfSeat() {
+		if name := displayName(); name != "" {
+			return name
+		}
 	}
 	// A seat with no kind prefix is left whole. `backend-1` is a seat name,
 	// not a namespaced one, and cutting on a colon that is not there must not

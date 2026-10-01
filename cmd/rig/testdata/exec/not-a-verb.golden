@@ -1,7 +1,7 @@
 $ rig --notaverb
 exit 1
 --- stdout (0 bytes)
---- stderr (3696 bytes)
+--- stderr (3822 bytes)
 usage: rig <command> [flags]
 
   <app> <cmd>      run a command a program declared, with its declared flags
@@ -33,6 +33,8 @@ usage: rig <command> [flags]
                    allow, decline, hold, pause, resume, stop
   events wait <kind>...  wait on the event bus: hand.*, toast.posted,
                    --follow keeps printing them as they come
+  config <cmd>     rig's settings and where each came from: get, origin,
+                   set (until restart), export, diff
   logbook <cmd>    the split logbook's files, no daemon needed: grep, show,
                    line, cat, add, index, check, split
   record <cmd>     the continuity record: put, get, query, history, link,

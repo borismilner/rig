@@ -193,6 +193,8 @@ func (d *Daemon) serveToast(ctx context.Context, c *conn, f *rigv1.Frame, comman
 		d.serveSound(ctx, c, f, command)
 	case "events.publish", "events.wait", "timer.arm", "timer.disarm", "timer.list":
 		d.serveEvents(ctx, c, f, command)
+	case "config.get", "config.set":
+		d.serveConfig(c, f, command)
 	default:
 		d.serveHand(ctx, c, f, command)
 	}

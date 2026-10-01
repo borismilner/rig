@@ -36,7 +36,7 @@ never carries a second resolver.
 
 | Cost | Size |
 |---|---|
-| a dependency | `knadh/koanf/v2` core plus three providers and one parser, named in §22 since the first draft as INTENDED. **Bytes on `rigd` measured before the row flips to ADOPTED**, §22's own rule |
+| a dependency | `knadh/koanf/v2` core plus three providers and one parser, named in §22 since the first draft as INTENDED. **Bytes on `rigd` measured before the row flips to ADOPTED**, §22's own rule. **AS BUILT: `pelletier/go-toml/v2` alone, +413,696; koanf measured at +172,032 more and dropped (§22)** |
 | a service | `internal/config/`, one package: layers, resolve, provenance, validate, snapshot |
 | the wire | two verbs, `rig.config.get` and `rig.config.set`, six messages, additive under §21 |
 | the CLI | one verb with five sub-verbs, `rig config get | origin | set | export | diff` |
@@ -310,6 +310,34 @@ reported in `FINDINGS.md` before the §22 row is asked for.**
 | **spawn order once approved: S4 may run before S1 lands** | **yes.** S4 opens no database (the finding above), and one build subagent at a time on the shared tree is §45's still-open row; this seat's recommendation there is one BUILD at a time, measurements beside it | B104 finishes first either way |
 
 ---
+
+### As built, 2026-10-01
+
+**Built inline by the lead seat. All nine acceptance rows hold, eight shown
+live on a throwaway rigd with the real binaries, and row 6 by unit test.**
+
+| Row | Shown |
+|---|---|
+| 1 | `flag.String("log-level"` and `Getenv("RIG_DISPLAY_NAME")` are gone; `--log-level` is spelled from the schema |
+| 2 | `RIG_LOG_LEVEL=debug`: `origin` names env beating default |
+| 3 | `set log.level=warn` printed applied; debug lines stopped, 10 before and 10 after more calls |
+| 4 | `set log.level=loud display.name=x` refused whole, naming the key, the enum and "loud" |
+| 5 | `export` then `diff` exit 0; restarted with `RIG_DISPLAY_NAME=B`, exit 1 naming it; a missing file exits 2 |
+| 6 | `displaySeat` reads `display.name` from rigd once per process (unit test, not live) |
+| 7 | the layering test forbids go-toml and `internal/config` in `cmd/rig` |
+| 8 | §22's row reads ADOPTED with bytes; `make deps-check` 0 |
+
+**Departures from the draft, each the seat's:**
+
+| What | Why |
+|---|---|
+| **`pelletier/go-toml/v2`, not koanf** | measured: koanf only wrapped it, +172,032 bytes and five modules (§22) |
+| **`config.set` IS on the MCP door**, reversing decision 13 and 0256's row 4 | plan/09's standing rule, Boris 2026-09-26: *"don't keep things out of MCP tools"*, which a test enforces. The seat put row 4 to him without naming that rule; **he is told, and may rule again** |
+| **a bad file or value is a PROBLEM, not a failure to start** | reported in `get`, the snapshot and rigd's log; that layer takes no part for the key |
+| **`config.changed {keys}` on the bus** | decision 0256's new row |
+| messages in `registry.proto`, not `wire.proto` | beside the bus: programs read their settings the same way |
+| an unnamed estate's snapshot is in the runtime directory | it has no persistent state (§37) |
+| `NotSettings` lists rig's non-setting `RIG_*` names | so `RIG_ROOT` is not reported as an orphan; a test walks the tree for any name on neither list |
 
 ### What this section does not change
 

@@ -63,6 +63,12 @@ func upDaemon(t *testing.T, ask Asker) (string, *Daemon) {
 // is the discarding default New already applies.
 func upDaemonLogged(t *testing.T, ask Asker, log *slog.Logger) (string, *Daemon) {
 	t.Helper()
+	return upDaemonWith(t, func(c *Config) { c.Ask, c.Log = ask, log })
+}
+
+// upDaemonWith is upDaemon with the Config shaped by the test first.
+func upDaemonWith(t *testing.T, shape func(*Config)) (string, *Daemon) {
+	t.Helper()
 	// Kept short deliberately: sun_path is 108 bytes and t.TempDir under a
 	// long TMPDIR silently exceeds it, failing as EINVAL.
 	dir, err := os.MkdirTemp("", "rigt")
@@ -85,7 +91,9 @@ func upDaemonLogged(t *testing.T, ask Asker, log *slog.Logger) (string, *Daemon)
 	}
 	t.Cleanup(func() { _ = lock.Close() })
 
-	d, err := New(Config{Version: "test", Wire: "v1", Lock: lock, Ask: ask, Log: log})
+	cfg := Config{Version: "test", Wire: "v1", Lock: lock}
+	shape(&cfg)
+	d, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}

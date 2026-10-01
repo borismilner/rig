@@ -9,16 +9,17 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/borismilner/rig/internal/paths"
 )
 
 // The declared programs, on disk.
 //
 // ⛔ ONE FILE, `encoding/json`, NO LAYERING, AND THAT IS A DECISION RATHER
-// THAN A SHORTCUT. PLAN.md section 22 pins knadh/koanf/v2 as rig's config
-// library and section 23's cherry-pick table defers the config LAYERS to M4,
-// so there is no resolver to read this through yet. The two ways to go wrong
-// here were adopting koanf early - growing rigd for a file that has no layers
-// and pre-empting M4's own design - or inventing a second config mechanism
+// THAN A SHORTCUT. Section 6's resolver now exists (internal/config,
+// plan/47) for rig's own keys, and this file is not read through it yet:
+// it is a list of programs rather than keys, and folding it in is M4's
+// design. The way to go wrong here is inventing a second config mechanism
 // that M4 would later have to discover.
 //
 // So this is written down as neither: the M4 resolver's FIRST CONSUMER. When
@@ -70,15 +71,11 @@ type declaredBudget struct {
 // $XDG_CONFIG_HOME/rig/programs.json, falling back to ~/.config as the XDG
 // base directory specification says to.
 func ProgramsPath() (string, error) {
-	dir := os.Getenv("XDG_CONFIG_HOME")
-	if dir == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("no XDG_CONFIG_HOME and no home directory: %w", err)
-		}
-		dir = filepath.Join(home, ".config")
+	dir, err := paths.ConfigDir()
+	if err != nil {
+		return "", err
 	}
-	return filepath.Join(dir, "rig", ProgramsFile), nil
+	return filepath.Join(dir, ProgramsFile), nil
 }
 
 // Load reads the declared programs.

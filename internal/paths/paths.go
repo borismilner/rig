@@ -323,3 +323,48 @@ func BackupDir() (string, error) {
 	}
 	return filepath.Join(d, "backups"), nil
 }
+
+// ConfigDir is rig's directory of settings a person edits:
+// $XDG_CONFIG_HOME/rig, falling back to ~/.config as the XDG base directory
+// specification says to. programs.json and rig.toml live here.
+func ConfigDir() (string, error) {
+	dir := os.Getenv("XDG_CONFIG_HOME")
+	if dir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("no XDG_CONFIG_HOME and no home directory: %w", err)
+		}
+		dir = filepath.Join(home, ".config")
+	}
+	return filepath.Join(dir, "rig"), nil
+}
+
+// SystemConfigFile is section 6's machine-wide settings layer.
+const SystemConfigFile = "/etc/rig/rig.toml"
+
+// UserConfigFile is section 6's per-user settings layer.
+func UserConfigFile() (string, error) {
+	d, err := ConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(d, "rig.toml"), nil
+}
+
+// SettingsSnapshot is where rigd writes every resolution of the settings,
+// for a reader while rig is down (section 5g, plan/47 decision 10): the
+// estate's state directory, or the runtime directory for an unnamed estate,
+// which has no persistent state (section 37).
+func SettingsSnapshot(estate string) (string, error) {
+	var d string
+	var err error
+	if estate == "" {
+		d, err = RuntimeDir()
+	} else {
+		d, err = EstateStateDir(estate)
+	}
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(d, "config", "resolved.toml"), nil
+}

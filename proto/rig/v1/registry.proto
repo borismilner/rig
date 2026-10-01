@@ -675,3 +675,56 @@ message TimerFired {
   // machine slept or rigd was busy. They are not published one by one.
   uint32 missed = 3;
 }
+
+// Section 6's settings, as plan/47 builds them. Values travel as JSON text
+// because the schema is JSON Schema; the caller renders.
+
+message ConfigGetRequest {
+  // A key, a dotted prefix of keys, or "" for every key.
+  string prefix = 1;
+}
+
+// ConfigLayerValue is one layer's value for a key.
+message ConfigLayerValue {
+  // default, system, user, program-default, program-file, env, flag, runtime.
+  string layer = 1;
+  // The path, for a file layer; "" otherwise.
+  string file = 2;
+  string value_json = 3;
+}
+
+message ConfigValue {
+  string key = 1;
+  ConfigLayerValue winner = 2;
+  // Every layer that set the key and lost, lowest first.
+  repeated ConfigLayerValue losers = 3;
+  // live or restart: whether a change takes effect without a restart.
+  string apply = 4;
+}
+
+message ConfigGetResponse {
+  repeated ConfigValue values = 1;
+  // Values set somewhere for a key nothing declares: "<layer>:<file>:<key>".
+  repeated string orphans = 2;
+  // Where the resolved snapshot is written, for a reader while rig is down.
+  string snapshot_path = 3;
+  // Layers or values that could not take part, each with why.
+  repeated string problems = 4;
+}
+
+message ConfigSetRequest {
+  // key -> value as JSON text. Validated whole: one refusal applies nothing.
+  map<string, string> values_json = 1;
+}
+
+message ConfigSetResponse {
+  // key -> applied or needs-restart.
+  map<string, string> outcome = 1;
+  string snapshot_path = 2;
+}
+
+// ConfigChanged is config.changed's payload: the keys whose resolved value
+// moved. Read them again with config.get.
+message ConfigChanged {
+  repeated string keys = 1;
+}

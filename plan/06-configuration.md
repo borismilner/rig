@@ -45,6 +45,11 @@ reporting a renamed key's orphans - **is already a stronger configuration story
 than most programs have.** ⛔ **Proposing a config library here is the named
 failure mode: proposing what exists.**
 
+**AS BUILT 2026-10-01 (plan/47, decision 0256): koanf was built, measured, and
+dropped for `pelletier/go-toml/v2`, the parser koanf itself uses.** The
+resolver is rig's own by plan/47 decision 3, so koanf only wrapped the parse,
+at +172,032 bytes on `rigd` and five modules. §22's row has the numbers.
+
 ⛔ **AND THE ONE THING C1 CANNOT BE BUILT WITHOUT, WHICH IS A TRUST QUESTION
 AND NOT A PLUMBING ONE.** §6 already rules that reproducing the whole machine is
 an estate-wide READ and therefore needs `introspect` (§14). **Nothing anywhere

@@ -1,0 +1,33 @@
+{
+  "$id": "rig://schema/rig",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "log": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["debug", "info", "warn", "error"],
+          "default": "info",
+          "x-rig-apply": "live",
+          "description": "the daemon's log floor; read on every line"
+        }
+      }
+    },
+    "display": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxLength": 64,
+          "default": "",
+          "x-rig-apply": "live",
+          "description": "shown in place of this user's own seat on provenance surfaces; empty falls back to the seat name"
+        }
+      }
+    }
+  }
+}

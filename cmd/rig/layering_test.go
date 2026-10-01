@@ -87,6 +87,15 @@ func TestTheClientLinksNeitherTheDaemonNorItsValidator(t *testing.T) {
 				"trust a caller to have validated its own arguments",
 		},
 		{
+			"github.com/pelletier/go-toml",
+			"plan/47 decision 15: settings are resolved by rigd alone; a client " +
+				"that links a settings parser is one commit from parsing files itself",
+		},
+		{
+			"github.com/borismilner/rig/internal/config",
+			"plan/47 decision 15: the client asks rigd for its settings",
+		},
+		{
 			"golang.org/x/text",
 			"it arrives with the validator and it arrives DIRECT, which needs a " +
 				"section 22 row for a message formatter rig does not otherwise use",

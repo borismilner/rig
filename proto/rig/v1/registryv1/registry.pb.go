@@ -3597,6 +3597,399 @@ func (x *TimerFired) GetMissed() uint32 {
 	return 0
 }
 
+type ConfigGetRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// A key, a dotted prefix of keys, or "" for every key.
+	Prefix        string `protobuf:"bytes,1,opt,name=prefix,proto3" json:"prefix,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigGetRequest) Reset() {
+	*x = ConfigGetRequest{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigGetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigGetRequest) ProtoMessage() {}
+
+func (x *ConfigGetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigGetRequest.ProtoReflect.Descriptor instead.
+func (*ConfigGetRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *ConfigGetRequest) GetPrefix() string {
+	if x != nil {
+		return x.Prefix
+	}
+	return ""
+}
+
+// ConfigLayerValue is one layer's value for a key.
+type ConfigLayerValue struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// default, system, user, program-default, program-file, env, flag, runtime.
+	Layer string `protobuf:"bytes,1,opt,name=layer,proto3" json:"layer,omitempty"`
+	// The path, for a file layer; "" otherwise.
+	File          string `protobuf:"bytes,2,opt,name=file,proto3" json:"file,omitempty"`
+	ValueJson     string `protobuf:"bytes,3,opt,name=value_json,json=valueJson,proto3" json:"value_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigLayerValue) Reset() {
+	*x = ConfigLayerValue{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigLayerValue) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigLayerValue) ProtoMessage() {}
+
+func (x *ConfigLayerValue) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigLayerValue.ProtoReflect.Descriptor instead.
+func (*ConfigLayerValue) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *ConfigLayerValue) GetLayer() string {
+	if x != nil {
+		return x.Layer
+	}
+	return ""
+}
+
+func (x *ConfigLayerValue) GetFile() string {
+	if x != nil {
+		return x.File
+	}
+	return ""
+}
+
+func (x *ConfigLayerValue) GetValueJson() string {
+	if x != nil {
+		return x.ValueJson
+	}
+	return ""
+}
+
+type ConfigValue struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Key    string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Winner *ConfigLayerValue      `protobuf:"bytes,2,opt,name=winner,proto3" json:"winner,omitempty"`
+	// Every layer that set the key and lost, lowest first.
+	Losers []*ConfigLayerValue `protobuf:"bytes,3,rep,name=losers,proto3" json:"losers,omitempty"`
+	// live or restart: whether a change takes effect without a restart.
+	Apply         string `protobuf:"bytes,4,opt,name=apply,proto3" json:"apply,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigValue) Reset() {
+	*x = ConfigValue{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigValue) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigValue) ProtoMessage() {}
+
+func (x *ConfigValue) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigValue.ProtoReflect.Descriptor instead.
+func (*ConfigValue) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *ConfigValue) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *ConfigValue) GetWinner() *ConfigLayerValue {
+	if x != nil {
+		return x.Winner
+	}
+	return nil
+}
+
+func (x *ConfigValue) GetLosers() []*ConfigLayerValue {
+	if x != nil {
+		return x.Losers
+	}
+	return nil
+}
+
+func (x *ConfigValue) GetApply() string {
+	if x != nil {
+		return x.Apply
+	}
+	return ""
+}
+
+type ConfigGetResponse struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Values []*ConfigValue         `protobuf:"bytes,1,rep,name=values,proto3" json:"values,omitempty"`
+	// Values set somewhere for a key nothing declares: "<layer>:<file>:<key>".
+	Orphans []string `protobuf:"bytes,2,rep,name=orphans,proto3" json:"orphans,omitempty"`
+	// Where the resolved snapshot is written, for a reader while rig is down.
+	SnapshotPath string `protobuf:"bytes,3,opt,name=snapshot_path,json=snapshotPath,proto3" json:"snapshot_path,omitempty"`
+	// Layers or values that could not take part, each with why.
+	Problems      []string `protobuf:"bytes,4,rep,name=problems,proto3" json:"problems,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigGetResponse) Reset() {
+	*x = ConfigGetResponse{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigGetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigGetResponse) ProtoMessage() {}
+
+func (x *ConfigGetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigGetResponse.ProtoReflect.Descriptor instead.
+func (*ConfigGetResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *ConfigGetResponse) GetValues() []*ConfigValue {
+	if x != nil {
+		return x.Values
+	}
+	return nil
+}
+
+func (x *ConfigGetResponse) GetOrphans() []string {
+	if x != nil {
+		return x.Orphans
+	}
+	return nil
+}
+
+func (x *ConfigGetResponse) GetSnapshotPath() string {
+	if x != nil {
+		return x.SnapshotPath
+	}
+	return ""
+}
+
+func (x *ConfigGetResponse) GetProblems() []string {
+	if x != nil {
+		return x.Problems
+	}
+	return nil
+}
+
+type ConfigSetRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// key -> value as JSON text. Validated whole: one refusal applies nothing.
+	ValuesJson    map[string]string `protobuf:"bytes,1,rep,name=values_json,json=valuesJson,proto3" json:"values_json,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigSetRequest) Reset() {
+	*x = ConfigSetRequest{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigSetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigSetRequest) ProtoMessage() {}
+
+func (x *ConfigSetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigSetRequest.ProtoReflect.Descriptor instead.
+func (*ConfigSetRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *ConfigSetRequest) GetValuesJson() map[string]string {
+	if x != nil {
+		return x.ValuesJson
+	}
+	return nil
+}
+
+type ConfigSetResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// key -> applied or needs-restart.
+	Outcome       map[string]string `protobuf:"bytes,1,rep,name=outcome,proto3" json:"outcome,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	SnapshotPath  string            `protobuf:"bytes,2,opt,name=snapshot_path,json=snapshotPath,proto3" json:"snapshot_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigSetResponse) Reset() {
+	*x = ConfigSetResponse{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigSetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigSetResponse) ProtoMessage() {}
+
+func (x *ConfigSetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigSetResponse.ProtoReflect.Descriptor instead.
+func (*ConfigSetResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *ConfigSetResponse) GetOutcome() map[string]string {
+	if x != nil {
+		return x.Outcome
+	}
+	return nil
+}
+
+func (x *ConfigSetResponse) GetSnapshotPath() string {
+	if x != nil {
+		return x.SnapshotPath
+	}
+	return ""
+}
+
+// ConfigChanged is config.changed's payload: the keys whose resolved value
+// moved. Read them again with config.get.
+type ConfigChanged struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Keys          []string               `protobuf:"bytes,1,rep,name=keys,proto3" json:"keys,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigChanged) Reset() {
+	*x = ConfigChanged{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigChanged) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigChanged) ProtoMessage() {}
+
+func (x *ConfigChanged) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigChanged.ProtoReflect.Descriptor instead.
+func (*ConfigChanged) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *ConfigChanged) GetKeys() []string {
+	if x != nil {
+		return x.Keys
+	}
+	return nil
+}
+
 var File_proto_rig_v1_registry_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_registry_proto_rawDesc = "" +
@@ -3810,7 +4203,38 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"TimerFired\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\"\n" +
 	"\rdue_unix_nano\x18\x02 \x01(\x03R\vdueUnixNano\x12\x16\n" +
-	"\x06missed\x18\x03 \x01(\rR\x06missed*V\n" +
+	"\x06missed\x18\x03 \x01(\rR\x06missed\"*\n" +
+	"\x10ConfigGetRequest\x12\x16\n" +
+	"\x06prefix\x18\x01 \x01(\tR\x06prefix\"[\n" +
+	"\x10ConfigLayerValue\x12\x14\n" +
+	"\x05layer\x18\x01 \x01(\tR\x05layer\x12\x12\n" +
+	"\x04file\x18\x02 \x01(\tR\x04file\x12\x1d\n" +
+	"\n" +
+	"value_json\x18\x03 \x01(\tR\tvalueJson\"\x99\x01\n" +
+	"\vConfigValue\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x120\n" +
+	"\x06winner\x18\x02 \x01(\v2\x18.rig.v1.ConfigLayerValueR\x06winner\x120\n" +
+	"\x06losers\x18\x03 \x03(\v2\x18.rig.v1.ConfigLayerValueR\x06losers\x12\x14\n" +
+	"\x05apply\x18\x04 \x01(\tR\x05apply\"\x9b\x01\n" +
+	"\x11ConfigGetResponse\x12+\n" +
+	"\x06values\x18\x01 \x03(\v2\x13.rig.v1.ConfigValueR\x06values\x12\x18\n" +
+	"\aorphans\x18\x02 \x03(\tR\aorphans\x12#\n" +
+	"\rsnapshot_path\x18\x03 \x01(\tR\fsnapshotPath\x12\x1a\n" +
+	"\bproblems\x18\x04 \x03(\tR\bproblems\"\x9c\x01\n" +
+	"\x10ConfigSetRequest\x12I\n" +
+	"\vvalues_json\x18\x01 \x03(\v2(.rig.v1.ConfigSetRequest.ValuesJsonEntryR\n" +
+	"valuesJson\x1a=\n" +
+	"\x0fValuesJsonEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb6\x01\n" +
+	"\x11ConfigSetResponse\x12@\n" +
+	"\aoutcome\x18\x01 \x03(\v2&.rig.v1.ConfigSetResponse.OutcomeEntryR\aoutcome\x12#\n" +
+	"\rsnapshot_path\x18\x02 \x01(\tR\fsnapshotPath\x1a:\n" +
+	"\fOutcomeEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"#\n" +
+	"\rConfigChanged\x12\x12\n" +
+	"\x04keys\x18\x01 \x03(\tR\x04keys*V\n" +
 	"\x05Depth\x12\x15\n" +
 	"\x11DEPTH_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eDEPTH_PROGRAMS\x10\x01\x12\x12\n" +
@@ -3880,7 +4304,7 @@ func file_proto_rig_v1_registry_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_registry_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
-var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 48)
+var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 57)
 var file_proto_rig_v1_registry_proto_goTypes = []any{
 	(Depth)(0),                    // 0: rig.v1.Depth
 	(EstateRole)(0),               // 1: rig.v1.EstateRole
@@ -3939,14 +4363,23 @@ var file_proto_rig_v1_registry_proto_goTypes = []any{
 	(*TimerListRequest)(nil),      // 54: rig.v1.TimerListRequest
 	(*TimerListResponse)(nil),     // 55: rig.v1.TimerListResponse
 	(*TimerFired)(nil),            // 56: rig.v1.TimerFired
-	(*v1.Identity)(nil),           // 57: rig.v1.Identity
-	(v1.Coverage)(0),              // 58: rig.v1.Coverage
-	(*v1.Command)(nil),            // 59: rig.v1.Command
+	(*ConfigGetRequest)(nil),      // 57: rig.v1.ConfigGetRequest
+	(*ConfigLayerValue)(nil),      // 58: rig.v1.ConfigLayerValue
+	(*ConfigValue)(nil),           // 59: rig.v1.ConfigValue
+	(*ConfigGetResponse)(nil),     // 60: rig.v1.ConfigGetResponse
+	(*ConfigSetRequest)(nil),      // 61: rig.v1.ConfigSetRequest
+	(*ConfigSetResponse)(nil),     // 62: rig.v1.ConfigSetResponse
+	(*ConfigChanged)(nil),         // 63: rig.v1.ConfigChanged
+	nil,                           // 64: rig.v1.ConfigSetRequest.ValuesJsonEntry
+	nil,                           // 65: rig.v1.ConfigSetResponse.OutcomeEntry
+	(*v1.Identity)(nil),           // 66: rig.v1.Identity
+	(v1.Coverage)(0),              // 67: rig.v1.Coverage
+	(*v1.Command)(nil),            // 68: rig.v1.Command
 }
 var file_proto_rig_v1_registry_proto_depIdxs = []int32{
-	57, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
-	58, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
-	59, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
+	66, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
+	67, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
+	68, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
 	0,  // 3: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
 	9,  // 4: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
 	1,  // 5: rig.v1.EstateResponse.role:type_name -> rig.v1.EstateRole
@@ -3974,11 +4407,16 @@ var file_proto_rig_v1_registry_proto_depIdxs = []int32{
 	43, // 27: rig.v1.EventsWaitResponse.events:type_name -> rig.v1.Event
 	49, // 28: rig.v1.TimerArmResponse.timer:type_name -> rig.v1.Timer
 	49, // 29: rig.v1.TimerListResponse.timers:type_name -> rig.v1.Timer
-	30, // [30:30] is the sub-list for method output_type
-	30, // [30:30] is the sub-list for method input_type
-	30, // [30:30] is the sub-list for extension type_name
-	30, // [30:30] is the sub-list for extension extendee
-	0,  // [0:30] is the sub-list for field type_name
+	58, // 30: rig.v1.ConfigValue.winner:type_name -> rig.v1.ConfigLayerValue
+	58, // 31: rig.v1.ConfigValue.losers:type_name -> rig.v1.ConfigLayerValue
+	59, // 32: rig.v1.ConfigGetResponse.values:type_name -> rig.v1.ConfigValue
+	64, // 33: rig.v1.ConfigSetRequest.values_json:type_name -> rig.v1.ConfigSetRequest.ValuesJsonEntry
+	65, // 34: rig.v1.ConfigSetResponse.outcome:type_name -> rig.v1.ConfigSetResponse.OutcomeEntry
+	35, // [35:35] is the sub-list for method output_type
+	35, // [35:35] is the sub-list for method input_type
+	35, // [35:35] is the sub-list for extension type_name
+	35, // [35:35] is the sub-list for extension extendee
+	0,  // [0:35] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_registry_proto_init() }
@@ -3992,7 +4430,7 @@ func file_proto_rig_v1_registry_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_registry_proto_rawDesc), len(file_proto_rig_v1_registry_proto_rawDesc)),
 			NumEnums:      9,
-			NumMessages:   48,
+			NumMessages:   57,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
