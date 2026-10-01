@@ -168,3 +168,15 @@ func TestSlugAndTitle(t *testing.T) {
 		}
 	}
 }
+
+// A project links its logbook documents in; the link must reach the parts.
+func TestOpenFollowsASymlink(t *testing.T) {
+	d := split(t, "DECISIONS.md", doc())
+	link := filepath.Join(t.TempDir(), "DECISIONS.md")
+	if err := os.Symlink(d.Index, link); err != nil {
+		t.Fatal(err)
+	}
+	if got := Open(link); !got.Split() || got.Dir != d.Dir {
+		t.Fatalf("the link resolved to %s, not %s", got.Dir, d.Dir)
+	}
+}

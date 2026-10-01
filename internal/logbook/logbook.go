@@ -311,7 +311,13 @@ type Doc struct {
 }
 
 // Open names a document by the path of its index file.
+//
+// A symlink is followed first: a project links DECISIONS.md into its logbook
+// folder, and the parts sit beside the file, not beside the link.
 func Open(path string) Doc {
+	if real, err := filepath.EvalSymlinks(path); err == nil {
+		path = real
+	}
 	name := filepath.Base(path)
 	stem := strings.ToLower(strings.TrimSuffix(name, filepath.Ext(name)))
 	return Doc{Index: path, Name: name, Stem: stem, Dir: filepath.Join(filepath.Dir(path), stem)}
