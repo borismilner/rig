@@ -850,6 +850,19 @@ shortcut whose key the active layout lacks goes by key position**
 (`NotifyKeyboardKeycode`, US positions), so ctrl+c is ctrl+c from Hebrew.
 Built as `cmd/righand` on `internal/hand`.
 
+**Boris, 2026-10-01: the HANDS OFF strip, his time to say no, and taking it
+back.** *"Go on with the HANDS OFF strip, make sure the user can take the
+usage back if he sees it takes too long and make sure the user has time to
+decline or pause the time until in the hands-off mode."* So:
+
+| # | Requirement |
+|---|---|
+| H1 | **Nothing is driven before a countdown on screen has run out.** The strip shows who asks, why, and the seconds left; silence is consent (AgentBox's shape) |
+| H2 | **During the countdown he can decline it, or hold it.** Holding stops the clock until he lets it run again or allows it at once; a held countdown never turns into driving by itself |
+| H3 | **While rig drives, the strip stays up for exactly as long, on top, and shows how long it has been driving.** Presence is the signal: gone means the desktop is his |
+| H4 | **He can take the desktop back at any moment**, from the strip or the terminal. The hand stops at the end of the current step (inside a `type`, between characters, per the park latch) and waits; only he can resume it, and he can stop the run outright instead |
+| H5 | **Only he answers.** The allow, decline, hold, take-back, resume and stop doors are refused to programs and agents, or the strip is a suggestion |
+
 **The service is named `hand`, and the verb is `rig hand`.** One syllable, the thing it is, and
 it does not collide with `rig window`, which draws.
 
