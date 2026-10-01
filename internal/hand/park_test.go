@@ -15,7 +15,7 @@ type gateLog struct {
 func (g *gateLog) Blocked() bool { return false }
 func (g *gateLog) Wait() error   { return nil }
 
-func (g *gateLog) Before(i, n int, st Step) error {
+func (g *gateLog) Before(i, _ int, st Step) error {
 	g.seen = append(g.seen, string(st.Op))
 	if i == g.refuse {
 		return errors.New("he stopped the run")
