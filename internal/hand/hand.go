@@ -603,7 +603,7 @@ func (h *Hand) Run(steps []Step) (int, error) {
 			return i, fmt.Errorf("stopped after %d of %d steps: %w", i, len(steps), err)
 		}
 		if err := h.step(st); err != nil {
-			return i, fmt.Errorf("line %d (%s): %w", st.Line, st.Raw, err)
+			return i, fmt.Errorf("%s: %w", st.where(), err)
 		}
 	}
 	return len(steps), nil

@@ -119,9 +119,12 @@ func (p *program) handle(method string, payload []byte) (proto.Message, error) {
 }
 
 type scriptArgs struct {
-	Script string  `json:"script"`
-	Speed  float64 `json:"speed"`
-	WPM    int     `json:"wpm"`
+	// Steps is the contract, an array of step objects; Script is the
+	// one-step-per-line sugar over it (plan/05 section 5m). Exactly one.
+	Steps  json.RawMessage `json:"steps"`
+	Script string          `json:"script"`
+	Speed  float64         `json:"speed"`
+	WPM    int             `json:"wpm"`
 }
 
 func (p *program) script(method string, raw []byte) (any, error) {
@@ -129,10 +132,14 @@ func (p *program) script(method string, raw []byte) (any, error) {
 	if err := json.Unmarshal(raw, &a); err != nil {
 		return nil, refuse(method, rigv1.Code_CODE_INVALID, "righand: script: "+err.Error(), "")
 	}
+	typed := len(a.Steps) > 0 && string(a.Steps) != "null"
 	switch {
-	case strings.TrimSpace(a.Script) == "":
-		return nil, refuse(method, rigv1.Code_CODE_INVALID, "righand: script is empty", "pass one step per line")
-	case len(a.Script) > maxScript:
+	case typed && a.Script != "":
+		return nil, refuse(method, rigv1.Code_CODE_INVALID, "righand: pass steps or script, not both", "")
+	case !typed && strings.TrimSpace(a.Script) == "":
+		return nil, refuse(method, rigv1.Code_CODE_INVALID, "righand: no steps",
+			"pass steps, an array of step objects, or script, one step per line")
+	case len(a.Script) > maxScript || len(a.Steps) > maxScript:
 		return nil, refuse(method, rigv1.Code_CODE_INVALID,
 			fmt.Sprintf("righand: script is %d bytes, over %d", len(a.Script), maxScript), "split it into several calls")
 	case a.Speed < 0 || a.Speed > 10:
@@ -142,7 +149,11 @@ func (p *program) script(method string, raw []byte) (any, error) {
 	}
 	// Parsed whole before the first event, so a typo on line nine cannot
 	// leave the desktop half driven.
-	steps, err := hand.ParseScript(a.Script)
+	parse := hand.ParseScript
+	if typed {
+		parse = func(string) ([]hand.Step, error) { return hand.ParseSteps(a.Steps) }
+	}
+	steps, err := parse(a.Script)
 	if err != nil {
 		return nil, refuse(method, rigv1.Code_CODE_INVALID, "righand: "+err.Error(), "")
 	}
@@ -272,13 +283,27 @@ func refuse(method string, code rigv1.Code, msg, fix string) error {
 	return &client.CallError{Method: method, Status: &rigv1.Status{Code: code, Message: msg, Fix: fix}}
 }
 
-const scriptHelp = "One step per line: `window TITLE` (coordinates below are inside it, and it is " +
+const scriptHelp = "steps is an array of step objects, {\"op\":\"click\",\"x\":\"centre\",\"y\":400}, " +
+	"one per step below with its arguments as fields (title, text, keys, x, y, x2, y2, button, n, ms, by, wpm); " +
+	"script is the same as text. One step per line: `window TITLE` (coordinates below are inside it, and it is " +
 	"re-checked before every click and keystroke; prefix = for an exact title), `screen`, " +
 	"`move X Y`, `click [button|X Y [button]]`, `double`, `drag X1 Y1 X2 Y2`, `scroll N` " +
 	"(negative is up), `type TEXT` (rest of the line), `key ctrl+alt+t` (also Escape, Return, " +
 	"Tab, End, arrows), `wait MS`, `speed N`, `wpm N`. A coordinate is 400 from the near edge, " +
 	"-46 from the far edge, 60%, centre, ~ for the pointer, ~+30 relative to it. The whole " +
 	"script is checked before the first event."
+
+// stepsSchema is the typed form, so the daemon can check a call before
+// righand sees it. internal/hand's ParseSteps is still the authority.
+const stepsSchema = `{"type":"array","minItems":1,"description":"the steps, in order","items":{` +
+	`"type":"object","required":["op"],"additionalProperties":false,"properties":{` +
+	`"op":{"enum":["window","screen","move","click","double","drag","scroll","type","key","wait","speed","wpm"]},` +
+	`"title":{"type":"string"},"text":{"type":"string"},` +
+	`"keys":{"type":"array","items":{"type":"string"}},` +
+	`"x":{"type":["string","number"]},"y":{"type":["string","number"]},` +
+	`"x2":{"type":["string","number"]},"y2":{"type":["string","number"]},` +
+	`"button":{"type":"string"},"n":{"type":"integer"},"ms":{"type":"integer"},` +
+	`"by":{"type":"number"},"wpm":{"type":"integer"}}}}`
 
 func declaration() *rigv1.Declaration {
 	cmd := func(c *rigv1.Command) *rigv1.Command {
@@ -302,14 +327,20 @@ func declaration() *rigv1.Declaration {
 				Description: scriptHelp,
 				Returns:     "How many steps ran, of how many.",
 				Args: []byte(`{"type":"object","properties":{` +
-					`"script":{"type":"string","description":"the steps, one per line"},` +
+					`"steps":` + stepsSchema + `,` +
+					`"script":{"type":"string","description":"the steps as text, one per line"},` +
 					`"speed":{"type":"number","description":"movement speed, 1 is a hand's pace"},` +
 					`"wpm":{"type":"integer","description":"typing speed, default 300"}},` +
-					`"required":["script"]}`),
-				Examples:   []string{`rig righand script --args '{"script":"screen\nmove centre centre"}'`},
+					`"oneOf":[{"required":["steps"]},{"required":["script"]}]}`),
+				Examples: []string{
+					`rig righand script --args '{"steps":[{"op":"screen"},{"op":"move","x":"centre","y":"centre"}]}'`,
+					`rig righand script --args '{"script":"screen\nmove centre centre"}'`,
+				},
 				Effects:    rigv1.Effects_EFFECTS_DRIVES_INPUT,
 				Idempotent: rigv1.Tristate_TRISTATE_NO,
-				Sensitive:  &rigv1.SensitiveFields{Pointers: []string{"/script"}},
+				// the whole steps array, not /steps/*/text: a pointer cannot
+				// address every element yet (plan/26 question 12)
+				Sensitive: &rigv1.SensitiveFields{Pointers: []string{"/script", "/steps"}},
 				// minutes: typing a page at a person's pace takes them
 				Duration: rigv1.Duration_DURATION_MINUTES,
 				Confirms: rigv1.Tristate_TRISTATE_YES,

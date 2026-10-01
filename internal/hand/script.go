@@ -57,6 +57,19 @@ type Step struct {
 	F      float64  // speed multiplier
 }
 
+// where names a step in an error. The text it would type is left out: what
+// is typed is declared sensitive, and an error travels further than a log.
+func (s Step) where() string {
+	switch {
+	case s.Line == 0:
+		return s.Raw // the typed form's "step 3, click"
+	case s.Op == OpType:
+		return fmt.Sprintf("line %d (type)", s.Line)
+	default:
+		return fmt.Sprintf("line %d (%s)", s.Line, s.Raw)
+	}
+}
+
 // Coord is one axis of a position, in the frame the script is currently in.
 // The spellings exist because the useful positions are rarely absolute pixels:
 // a card's buttons sit a fixed distance from its bottom edge whatever its height,
