@@ -18,16 +18,13 @@
 // recursive CTEs are the same binary size as plain SQLite. Both are in the
 // amalgamation.
 //
-// WHY A SECOND ENGINE BESIDE bbolt, WHICH IS A REAL COST AND IS PAID
-// DELIBERATELY. internal/coord runs on bbolt because B25 measured it the best
-// answer for leases and compare-and-swap, and that search did not cover this
-// one (section 39, tension 13). The record wants query by field, ranked full
-// text and graph traversal, and bbolt has none of the three natively. Building
-// them over a key-value store is the half section 38b objects to.
+// WHY SQLITE. The record wants query by field, ranked full text and graph
+// traversal, and a key-value store has none of the three natively (section
+// 39, tension 13). It was the second engine beside coord's bbolt until
+// plan/48 decision 1 moved coord here too, so rig has one.
 //
-// THE SCHEMA VERSION AND THE REFUSAL BELOW ARE SECTION 39's, and they are the
-// same semantics internal/coord already implements over bbolt. The mechanism
-// differs - user_version rather than a meta bucket - and the rules do not.
+// THE SCHEMA VERSION AND THE REFUSAL BELOW ARE SECTION 39's, run by the one
+// runner in internal/store that coord shares.
 package record
 
 import (

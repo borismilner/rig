@@ -363,7 +363,7 @@ func selfDeclaration() kernel.Declaration {
 			},
 
 			// SECTION 16's LEASES. The list is a read; the four writers keep
-			// their state in the estate's bbolt file and it outlives the
+			// their state in the estate's coord.db and it outlives the
 			// process, so they are file writes on the same argument the
 			// record writers make above. None is destructive: a break
 			// refuses a lease still inside its deadline, so it only ever
@@ -490,7 +490,7 @@ func selfDeclaration() kernel.Declaration {
 				"Nothing. The lease is free afterwards, naming who broke it and why."),
 
 			// SECTION 16's QUEUES. The list is a read; push, claim and
-			// complete keep their state in the estate's bbolt file beside
+			// complete keep their state in the estate's coord.db beside
 			// the leases, so they are file writes on the leases' argument.
 			// Complete is not idempotent: a second completion is refused.
 			readOnly("queue.list", "Queue list",
@@ -590,7 +590,7 @@ func selfDeclaration() kernel.Declaration {
 				"Each step's new version, 0 for a delete."),
 
 			// SECTION 16's DIRECTED MESSAGES. The queue is durable and lives
-			// in the estate's bbolt file beside the leases, so send and ack
+			// in the estate's coord.db beside the leases, so send and ack
 			// are file writes on the same argument; inbox and await write too,
 			// because reading your own mail PROMOTES it - that is the point of
 			// the state ladder and it is not a read dressed up.

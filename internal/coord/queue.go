@@ -2,14 +2,16 @@ package coord
 
 import (
 	"bytes"
+	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
-
-	bolt "go.etcd.io/bbolt"
 )
 
 // Section 16's claimable queues: "Claim a task under a lease, heartbeat it, and
@@ -31,9 +33,9 @@ import (
 // Complete leaves a task that will run again. The idempotency key rides with
 // the task so the consumer can make a replay harmless; rig cannot.
 //
-// Storage: queues/<queue>/live holds tasks not yet done, keyed by an 8-byte
-// sequence so a claim takes the oldest first; queues/<queue>/done holds the
-// finished ones; queues/<queue>/keys maps an idempotency key to its task id,
+// Storage: a row in queues per queue, carrying its durable sequence; a row in
+// tasks per task, keyed by (queue, seq) so a claim takes the oldest first, with
+// done marking the finished ones. The idempotency key is unique per queue,
 // done or not, so a key pushed again after its task finished is still a
 // duplicate. Nothing is trimmed, on section 16's "values are NEVER trimmed".
 
@@ -156,31 +158,6 @@ func parseClaim(name string) (string, uint64, bool) {
 	return rest[:i], seq, true
 }
 
-// queueBuckets returns the queue's three buckets, creating them when create is
-// set. A queue nobody has pushed to has none, and reading one answers empty.
-func queueBuckets(tx *bolt.Tx, queue string, create bool) (live, done, keys *bolt.Bucket, err error) {
-	root := tx.Bucket(bucketQueues)
-	q := root.Bucket([]byte(queue))
-	if q == nil {
-		if !create {
-			return nil, nil, nil, nil
-		}
-		if q, err = root.CreateBucket([]byte(queue)); err != nil {
-			return nil, nil, nil, fmt.Errorf("coord: creating the queue %q: %w", queue, err)
-		}
-	}
-	names := [][]byte{[]byte("live"), []byte("done"), []byte("keys")}
-	out := make([]*bolt.Bucket, len(names))
-	for i, n := range names {
-		if out[i] = q.Bucket(n); out[i] == nil {
-			if out[i], err = q.CreateBucket(n); err != nil {
-				return nil, nil, nil, fmt.Errorf("coord: creating the queue %q: %w", queue, err)
-			}
-		}
-	}
-	return out[0], out[1], out[2], nil
-}
-
 func decodeTask(queue string, raw []byte) (taskRecord, error) {
 	var t taskRecord
 	if err := json.Unmarshal(raw, &t); err != nil {
@@ -189,12 +166,49 @@ func decodeTask(queue string, raw []byte) (taskRecord, error) {
 	return t, nil
 }
 
-func putTask(b *bolt.Bucket, queue string, t taskRecord) error {
+func putTask(ctx context.Context, tx *sql.Tx, queue string, t taskRecord, done bool) error {
 	raw, err := json.Marshal(t)
 	if err != nil {
 		return fmt.Errorf("coord: encoding a task in %q: %w", queue, err)
 	}
-	return b.Put(u64(t.Seq), raw)
+	if _, err := tx.ExecContext(ctx, `
+INSERT INTO tasks (queue, seq, key, done, rec) VALUES (?, ?, ?, ?, ?)
+ON CONFLICT (queue, seq) DO UPDATE SET done = excluded.done, rec = excluded.rec`,
+		queue, t.Seq, t.Key, boolInt(done), string(raw)); err != nil {
+		return fmt.Errorf("coord: writing a task in %q: %w", queue, err)
+	}
+	return nil
+}
+
+// liveTasks reads a queue's tasks not yet done, oldest first, WHOLE, so a
+// caller may write inside the same transaction without a cursor open.
+func liveTasks(ctx context.Context, tx *sql.Tx, queue string) ([]taskRecord, error) {
+	rows, err := tx.QueryContext(ctx,
+		`SELECT rec FROM tasks WHERE queue = ? AND done = 0 ORDER BY seq`, queue)
+	if err != nil {
+		return nil, fmt.Errorf("coord: reading the queue %q: %w", queue, err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []taskRecord
+	for rows.Next() {
+		var raw []byte
+		if err := rows.Scan(&raw); err != nil {
+			return nil, fmt.Errorf("coord: reading the queue %q: %w", queue, err)
+		}
+		t, err := decodeTask(queue, raw)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
+func boolInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 // Push adds a task, or answers the existing one when the idempotency key was
@@ -219,19 +233,12 @@ func (s *Store) Push(queue, key string, payload []byte) (task Task, duplicate bo
 	if err != nil {
 		return Task{}, false, err
 	}
-	err = s.db.Update(func(tx *bolt.Tx) error {
-		live, done, keys, err := queueBuckets(tx, queue, true)
-		if err != nil {
-			return err
-		}
-		if seqRaw := keys.Get([]byte(key)); seqRaw != nil {
-			raw := live.Get(seqRaw)
-			if raw == nil {
-				raw = done.Get(seqRaw)
-			}
-			if raw == nil {
-				return fmt.Errorf("coord: the key %q in %q names a task that is not stored", key, queue)
-			}
+	err = s.update(func(ctx context.Context, tx *sql.Tx) error {
+		var raw []byte
+		err := tx.QueryRowContext(ctx,
+			`SELECT rec FROM tasks WHERE queue = ? AND key = ?`, queue, key).Scan(&raw)
+		switch {
+		case err == nil:
 			t, err := decodeTask(queue, raw)
 			if err != nil {
 				return err
@@ -239,28 +246,30 @@ func (s *Store) Push(queue, key string, payload []byte) (task Task, duplicate bo
 			if !bytes.Equal(t.Payload, payload) {
 				return &KeyConflictError{Queue: queue, Key: key, TaskID: strconv.FormatUint(t.Seq, 10)}
 			}
-			task, duplicate = s.taskOf(tx, at, queue, t), true
+			task, duplicate = s.taskOf(ctx, tx, at, queue, t), true
 			return nil
+		case !errors.Is(err, sql.ErrNoRows):
+			return fmt.Errorf("coord: reading the key %q in %q: %w", key, queue, err)
 		}
-		seq, err := live.NextSequence()
-		if err != nil {
-			return err
+		var seq uint64
+		if err := tx.QueryRowContext(ctx, `
+INSERT INTO queues (name, seq) VALUES (?, 1)
+ON CONFLICT (name) DO UPDATE SET seq = seq + 1
+RETURNING seq`, queue).Scan(&seq); err != nil {
+			return fmt.Errorf("coord: taking a task id in %q: %w", queue, err)
 		}
 		t := taskRecord{Seq: seq, Key: key, Payload: payload}
-		if err := putTask(live, queue, t); err != nil {
+		if err := putTask(ctx, tx, queue, t, false); err != nil {
 			return err
 		}
-		if err := keys.Put([]byte(key), u64(seq)); err != nil {
-			return err
-		}
-		task = s.taskOf(tx, at, queue, t)
+		task = s.taskOf(ctx, tx, at, queue, t)
 		return nil
 	})
 	return task, duplicate, err
 }
 
 // taskOf evaluates a stored task now, reading its claim lease.
-func (s *Store) taskOf(tx *bolt.Tx, at Instant, queue string, t taskRecord) Task {
+func (s *Store) taskOf(ctx context.Context, tx *sql.Tx, at Instant, queue string, t taskRecord) Task {
 	out := Task{
 		Queue: queue, ID: strconv.FormatUint(t.Seq, 10), Key: t.Key,
 		Payload: t.Payload, Attempts: t.Attempts, DoneBy: t.DoneBy, State: TaskReady,
@@ -269,7 +278,7 @@ func (s *Store) taskOf(tx *bolt.Tx, at Instant, queue string, t taskRecord) Task
 		out.State = TaskDone
 		return out
 	}
-	r, err := getRecord(tx, claimName(queue, t.Seq))
+	r, err := getRecord(ctx, tx, claimName(queue, t.Seq))
 	if err != nil || r == nil {
 		return out
 	}
@@ -313,23 +322,15 @@ func (s *Store) Claim(queue, holder string, w Witness, ttl time.Duration) (Task,
 		task Task
 		h    Handle
 	)
-	err = s.db.Update(func(tx *bolt.Tx) error {
-		live, _, _, err := queueBuckets(tx, queue, false)
+	err = s.update(func(ctx context.Context, tx *sql.Tx) error {
+		empty := &EmptyError{Queue: queue}
+		live, err := liveTasks(ctx, tx, queue)
 		if err != nil {
 			return err
 		}
-		empty := &EmptyError{Queue: queue}
-		if live == nil {
-			return empty
-		}
-		c := live.Cursor()
-		for k, raw := c.First(); k != nil; k, raw = c.Next() {
-			t, err := decodeTask(queue, raw)
-			if err != nil {
-				return err
-			}
+		for _, t := range live {
 			name := claimName(queue, t.Seq)
-			r, err := getRecord(tx, name)
+			r, err := getRecord(ctx, tx, name)
 			if err != nil {
 				return err
 			}
@@ -345,14 +346,14 @@ func (s *Store) Claim(queue, holder string, w Witness, ttl time.Duration) (Task,
 					continue
 				}
 			}
-			if h, err = s.acquireTx(tx, at, name, holder, w, ttl); err != nil {
+			if h, err = s.acquireTx(ctx, tx, at, name, holder, w, ttl); err != nil {
 				return err
 			}
 			t.Attempts++
-			if err := putTask(live, queue, t); err != nil {
+			if err := putTask(ctx, tx, queue, t, false); err != nil {
 				return err
 			}
-			task = s.taskOf(tx, at, queue, t)
+			task = s.taskOf(ctx, tx, at, queue, t)
 			return nil
 		}
 		return empty
@@ -374,7 +375,7 @@ func (s *Store) Complete(h Handle) (Task, error) {
 		return Task{}, ErrClosed
 	}
 	queue, seq, ok := parseClaim(h.Name)
-	if !ok {
+	if !ok || seq > math.MaxInt64 {
 		return Task{}, &NotClaimError{Name: h.Name}
 	}
 	if h.Epoch != s.epoch {
@@ -385,8 +386,8 @@ func (s *Store) Complete(h Handle) (Task, error) {
 		return Task{}, err
 	}
 	var task Task
-	err = s.db.Update(func(tx *bolt.Tx) error {
-		r, err := getRecord(tx, h.Name)
+	err = s.update(func(ctx context.Context, tx *sql.Tx) error {
+		r, err := getRecord(ctx, tx, h.Name)
 		if err != nil {
 			return err
 		}
@@ -396,34 +397,30 @@ func (s *Store) Complete(h Handle) (Task, error) {
 		if r.Token != h.Token {
 			return &FencedError{Name: h.Name, What: "token", Want: r.Token, Got: h.Token}
 		}
-		live, done, _, err := queueBuckets(tx, queue, false)
+		var raw []byte
+		err = tx.QueryRowContext(ctx,
+			`SELECT rec FROM tasks WHERE queue = ? AND seq = ? AND done = 0`,
+			queue, seq).Scan(&raw)
+		if errors.Is(err, sql.ErrNoRows) {
+			return &NotClaimError{Name: h.Name}
+		}
 		if err != nil {
-			return err
-		}
-		if live == nil {
-			return &NotClaimError{Name: h.Name}
-		}
-		raw := live.Get(u64(seq))
-		if raw == nil {
-			return &NotClaimError{Name: h.Name}
+			return fmt.Errorf("coord: reading task %d in %q: %w", seq, queue, err)
 		}
 		t, err := decodeTask(queue, raw)
 		if err != nil {
 			return err
 		}
 		t.DoneBy = r.Holder
-		if err := putTask(done, queue, t); err != nil {
-			return err
-		}
-		if err := live.Delete(u64(seq)); err != nil {
+		if err := putTask(ctx, tx, queue, t, true); err != nil {
 			return err
 		}
 		r.Released = true
 		r.Witness = NoWitness()
-		if err := putRecord(tx, r); err != nil {
+		if err := putRecord(ctx, tx, r); err != nil {
 			return err
 		}
-		task = s.taskOf(tx, at, queue, t)
+		task = s.taskOf(ctx, tx, at, queue, t)
 		return nil
 	})
 	return task, err
@@ -446,20 +443,19 @@ func (s *Store) Tasks(queue string) ([]Task, int, error) {
 		out   []Task
 		nDone int
 	)
-	err = s.db.View(func(tx *bolt.Tx) error {
-		live, done, _, err := queueBuckets(tx, queue, false)
-		if err != nil || live == nil {
+	err = s.view(func(ctx context.Context, tx *sql.Tx) error {
+		if err := tx.QueryRowContext(ctx,
+			`SELECT count(*) FROM tasks WHERE queue = ? AND done = 1`, queue).Scan(&nDone); err != nil {
+			return fmt.Errorf("coord: counting the queue %q: %w", queue, err)
+		}
+		live, err := liveTasks(ctx, tx, queue)
+		if err != nil {
 			return err
 		}
-		nDone = done.Stats().KeyN
-		return live.ForEach(func(_, raw []byte) error {
-			t, err := decodeTask(queue, raw)
-			if err != nil {
-				return err
-			}
-			out = append(out, s.taskOf(tx, at, queue, t))
-			return nil
-		})
+		for _, t := range live {
+			out = append(out, s.taskOf(ctx, tx, at, queue, t))
+		}
+		return nil
 	})
 	return out, nDone, err
 }
@@ -470,11 +466,20 @@ func (s *Store) Queues() ([]string, error) {
 		return nil, ErrClosed
 	}
 	var out []string
-	err := s.db.View(func(tx *bolt.Tx) error {
-		return tx.Bucket(bucketQueues).ForEach(func(k, _ []byte) error {
-			out = append(out, string(k))
-			return nil
-		})
+	err := s.view(func(ctx context.Context, tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx, `SELECT name FROM queues ORDER BY name`)
+		if err != nil {
+			return fmt.Errorf("coord: reading the queues: %w", err)
+		}
+		defer func() { _ = rows.Close() }()
+		for rows.Next() {
+			var name string
+			if err := rows.Scan(&name); err != nil {
+				return fmt.Errorf("coord: reading the queues: %w", err)
+			}
+			out = append(out, name)
+		}
+		return rows.Err()
 	})
 	return out, err
 }

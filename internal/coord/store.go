@@ -22,25 +22,27 @@
 // restart, rebuild is the inner loop of self-hosting, so the estate that walks
 // this path most is the one running the work.
 //
-// THE STORAGE ENGINE IS NOT HAND-BUILT, per section 38b. BACKLOG.md B25 ran the
-// library search and resolved it by measurement: go.etcd.io/bbolt carries
-// leases, compare-and-swap, the write-ahead log and cursored subscriptions in
-// one dependency at +355 KB, MIT. pebble was refused at +19.8 MB. What is
-// written here is the SEMANTICS section 16 specifies - the two-step expiry, the
-// witness and the fencing - which no key-value store has an opinion about.
+// THE STORAGE ENGINE IS SQLITE, THROUGH internal/store, as every other
+// database in rig is (plan/48 decision 1, decision 0251). It replaced bbolt,
+// which B25 had chosen before B28 ruled one engine. What is written here is
+// the SEMANTICS section 16 specifies - the two-step expiry, the witness and the
+// fencing - which no storage engine has an opinion about. A file still in
+// bbolt's format is refused by name and converted once by cmd/coordconvert.
 package coord
 
 import (
-	"encoding/binary"
+	"bytes"
+	"context"
+	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
 
-	bolt "go.etcd.io/bbolt"
-
 	"github.com/borismilner/rig/internal/paths"
+	"github.com/borismilner/rig/internal/store"
 )
 
 // SchemaVersion is the on-disk layout this build understands.
@@ -53,61 +55,34 @@ const SchemaVersion = 1
 // DBName is the store's file inside the estate's state directory.
 const DBName = "coord.db"
 
-// openTimeout bounds the wait for bbolt's own file lock.
+// txTimeout bounds one transaction, the deadline section 3 owes every call.
 //
 // Two rigd in one estate is already refused by the pidfile flock before any of
-// this runs (section 5f), so a wait here means something is wrong rather than
-// busy - a leftover process, or a second binary reaching into an estate it does
-// not own. Blocking forever would make that look like a hang.
-const openTimeout = 3 * time.Second
-
-var (
-	bucketMeta   = []byte("meta")
-	bucketLeases = []byte("leases")
-	bucketQueues = []byte("queues")
-
-	// bucketMessages holds ONE SUB-BUCKET PER RECIPIENT SEAT, keyed by the
-	// estate-wide message id. The nesting is what makes "this seat's mail
-	// after this cursor" a seek rather than a scan of everybody's, and it is
-	// what lets retention be per seat so a chatty pair cannot evict a quiet
-	// seat's unread mail.
-	//
-	// The root bucket's own SEQUENCE is the estate-wide message counter. It
-	// is durable, so a cursor survives a restart - which a counter in memory
-	// would not, and section 16 requires a queued message to outlive the
-	// session it was addressed to.
-	bucketMessages = []byte("messages")
-
-	// bucketMsgMeta records, per seat, the highest id retention has dropped.
-	// It is separate from the queues because it must not be confused with a
-	// message: every key inside a queue is an 8-byte id and nothing else.
-	bucketMsgMeta = []byte("messages_meta")
-
-	keySchema = []byte("schema")
-	keyEpoch  = []byte("epoch")
-	keyBootID = []byte("boot_id")
-)
+// this runs (section 5f), so a long wait here means something is wrong rather
+// than busy, and blocking forever would make that look like a hang.
+const txTimeout = 10 * time.Second
 
 // FutureSchemaError means the store was written by a newer rigd.
 //
-// IT REFUSES TO START AND DOES NOT REPAIR (section 39). A downgrade that
-// silently opens a newer store is how a rollback destroys the data it exists to
-// protect: the old binary cannot see the fields it does not know about, writes
-// records without them, and the damage is only visible after the rollback is
-// rolled back.
-type FutureSchemaError struct {
-	Path  string
-	Found uint32
-	Known uint32
-}
+// IT REFUSES TO START AND DOES NOT REPAIR (section 39). It is the one runner's
+// error, so coord and the record store refuse in the same words.
+type FutureSchemaError = store.FutureSchemaError
 
-func (e *FutureSchemaError) Error() string {
+// BoltFileError means the estate's coord.db is still in bbolt's format.
+//
+// IT IS REFUSED, NOT CONVERTED IN PLACE (decision 0251): the file holds the
+// epoch, which must never go backwards, and unread mail. The conversion is a
+// one-off a person runs with rigd stopped, and it leaves the original beside
+// the new file.
+type BoltFileError struct{ Path string }
+
+func (e *BoltFileError) Error() string {
 	return fmt.Sprintf(
-		"the store at %s is schema %d and this rigd understands %d: it was "+
-			"written by a newer rigd and will not be opened\n"+
-			"       rig does not guess at a newer layout and does not repair one. "+
-			"Run the newer rigd, or rebuild the store from its export",
-		e.Path, e.Found, e.Known)
+		"coord: %s is a bbolt file, and this rigd stores coord in SQLite: it "+
+			"will not be opened\n"+
+			"       stop rigd and run `coordconvert %s` once; it keeps the epoch "+
+			"and the mail and leaves the original beside it as %s.bbolt",
+		e.Path, e.Path, e.Path)
 }
 
 // UnnamedEstateError means persistent state was asked for without an estate name.
@@ -120,7 +95,7 @@ func (e *UnnamedEstateError) Unwrap() error { return e.Err }
 
 // Store is one estate's coordination state.
 type Store struct {
-	db     *bolt.DB
+	db     *sql.DB
 	estate string
 	path   string
 	epoch  uint64
@@ -138,23 +113,22 @@ type Store struct {
 //
 // The caller is expected to be holding the estate's single-instance lock
 // already (section 5f, instance.Acquire): this is the estate's state and two
-// daemons over it is exactly what that lock exists to prevent. bbolt takes its
-// own file lock underneath, which is a second line rather than the first.
+// daemons over it is exactly what that lock exists to prevent.
 func Open(estate string) (*Store, error) {
 	dir, err := paths.EstateStateDir(estate)
 	if err != nil {
 		return nil, &UnnamedEstateError{Err: err}
 	}
-	// 0700: this is the user's own state and nothing here is a socket, so no
-	// client boundary rides on the mode (section 14).
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return nil, fmt.Errorf("coord: creating %s: %w", dir, err)
-	}
 	path := filepath.Join(dir, DBName)
+	if err := refuseBolt(path); err != nil {
+		return nil, err
+	}
 
-	db, err := bolt.Open(path, 0o600, &bolt.Options{Timeout: openTimeout})
+	ctx, cancel := context.WithTimeout(context.Background(), txTimeout)
+	defer cancel()
+	db, err := store.OpenDB(ctx, path, schema)
 	if err != nil {
-		return nil, fmt.Errorf("coord: opening %s: %w", path, err)
+		return nil, err
 	}
 
 	bootID, err := readBootID()
@@ -171,121 +145,149 @@ func Open(estate string) (*Store, error) {
 	return s, nil
 }
 
-// start writes the schema, bumps the epoch and records the boot, in ONE
-// transaction.
+// sqliteMagic is the first 16 bytes of every SQLite file.
+var sqliteMagic = []byte("SQLite format 3\x00")
+
+// refuseBolt refuses a file that is not empty and not SQLite, BEFORE the
+// opener touches it: sqlite would answer "not a database" and name nothing.
+func refuseBolt(path string) error {
+	f, err := os.Open(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("coord: opening %s: %w", path, err)
+	}
+	defer func() { _ = f.Close() }()
+	head := make([]byte, len(sqliteMagic))
+	n, err := io.ReadFull(f, head)
+	if n == 0 && (errors.Is(err, io.EOF) || err == nil) {
+		return nil // empty: a valid empty database, which the opener builds
+	}
+	if !bytes.Equal(head[:n], sqliteMagic) {
+		return &BoltFileError{Path: path}
+	}
+	return nil
+}
+
+// schema is coord's registration with the one runner (plan/48 decision 3).
 //
-// One transaction because a crash between the schema check and the epoch bump
-// would leave a store that has been opened without having taken an epoch, and
-// the next daemon could not tell. bbolt's transaction is the guarantee that
-// there is no such state to be in.
+// LEASES, TASKS AND MESSAGES ARE STORED AS THE SAME JSON THE bbolt BUCKETS
+// HELD, one row each, so the converter copies values rather than re-encoding
+// them and a field added to a record needs no column. The keys a read seeks
+// on - a lease's name, a message's seat and id, a task's queue, sequence and
+// idempotency key - are columns.
+var schema = store.Schema{
+	What:    "coord store",
+	Version: SchemaVersion,
+	Create:  createSchema,
+	Steps:   map[uint32]store.Step{},
+}
+
+func createSchema(ctx context.Context, tx *sql.Tx) error {
+	const ddl = `
+CREATE TABLE meta (
+	id          INTEGER PRIMARY KEY CHECK (id = 1),
+	epoch       INTEGER NOT NULL,
+	boot_id     TEXT    NOT NULL,
+	message_seq INTEGER NOT NULL
+) STRICT;
+
+CREATE TABLE leases (
+	name TEXT PRIMARY KEY,
+	rec  TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE messages (
+	id   INTEGER PRIMARY KEY,
+	seat TEXT    NOT NULL,
+	msg  TEXT    NOT NULL
+) STRICT;
+CREATE INDEX messages_by_seat ON messages (seat, id);
+
+CREATE TABLE messages_trimmed (
+	seat    TEXT    PRIMARY KEY,
+	through INTEGER NOT NULL
+) STRICT;
+
+CREATE TABLE queues (
+	name TEXT    PRIMARY KEY,
+	seq  INTEGER NOT NULL
+) STRICT;
+
+CREATE TABLE tasks (
+	queue TEXT    NOT NULL,
+	seq   INTEGER NOT NULL,
+	key   TEXT    NOT NULL,
+	done  INTEGER NOT NULL,
+	rec   TEXT    NOT NULL,
+	PRIMARY KEY (queue, seq),
+	UNIQUE (queue, key)
+) STRICT;
+`
+	_, err := tx.ExecContext(ctx, ddl)
+	return err
+}
+
+// update runs fn in one write transaction. _txlock=immediate takes the write
+// lock at BEGIN, so every read-evaluate-write in this package is serialised
+// exactly as bbolt's single writer serialised it.
+func (s *Store) update(fn func(ctx context.Context, tx *sql.Tx) error) error {
+	return s.run(false, fn)
+}
+
+// view runs fn in a read transaction, which WAL lets run beside a writer.
+func (s *Store) view(fn func(ctx context.Context, tx *sql.Tx) error) error {
+	return s.run(true, fn)
+}
+
+func (s *Store) run(readOnly bool, fn func(ctx context.Context, tx *sql.Tx) error) error {
+	ctx, cancel := context.WithTimeout(context.Background(), txTimeout)
+	defer cancel()
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: readOnly})
+	if err != nil {
+		return fmt.Errorf("coord: begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err := fn(ctx, tx); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// start bumps the epoch and records the boot, in ONE transaction.
+//
+// One transaction because a crash between them would leave a store that has
+// been opened without having taken an epoch, and the next daemon could not
+// tell. The schema check already ran in the opener, and a refused schema
+// never reaches here, so a refused open bumps nothing.
 func (s *Store) start() error {
-	return s.db.Update(func(tx *bolt.Tx) error {
-		meta, err := tx.CreateBucketIfNotExists(bucketMeta)
-		if err != nil {
-			return fmt.Errorf("coord: meta bucket: %w", err)
-		}
-		if _, err := tx.CreateBucketIfNotExists(bucketLeases); err != nil {
-			return fmt.Errorf("coord: leases bucket: %w", err)
-		}
-		// Section 16's queues. An added bucket, not a new layout: a rigd
-		// that predates it opens this store and never looks inside it.
-		if _, err := tx.CreateBucketIfNotExists(bucketQueues); err != nil {
-			return fmt.Errorf("coord: queues bucket: %w", err)
-		}
-
-		// THE MESSAGE BUCKETS ARE CREATED HERE AND THE SCHEMA VERSION DOES
-		// NOT MOVE FOR THEM, which is a decision rather than an omission.
-		// SchemaVersion exists to stop a rigd opening a store whose LAYOUT it
-		// cannot read, and a store that gained a bucket is not that: an older
-		// rigd opening this store finds every lease and every meta key
-		// exactly where it left them and simply never looks in here. Bumping
-		// would make every older binary refuse a store it can read perfectly,
-		// which is the damage FutureSchemaError exists to prevent rather than
-		// to cause. A CHANGE TO THE SHAPE OF WHAT IS STORED INSIDE THESE
-		// BUCKETS IS THE OPPOSITE CASE AND MUST BUMP IT.
-		if _, err := tx.CreateBucketIfNotExists(bucketMessages); err != nil {
-			return fmt.Errorf("coord: messages bucket: %w", err)
-		}
-		if _, err := tx.CreateBucketIfNotExists(bucketMsgMeta); err != nil {
-			return fmt.Errorf("coord: messages meta bucket: %w", err)
-		}
-
-		if raw := meta.Get(keySchema); raw == nil {
-			// A new store. Stamp it.
-			if err := meta.Put(keySchema, u32(SchemaVersion)); err != nil {
-				return err
-			}
-		} else {
-			found := binary.BigEndian.Uint32(raw)
-			if found > SchemaVersion {
-				return &FutureSchemaError{Path: s.path, Found: found, Known: SchemaVersion}
-			}
-			// found < SchemaVersion is where forward migrations run. There are
-			// none yet because this IS schema 1; the branch is named so the
-			// first one has an obvious home and cannot be bolted onto the
-			// refusal above.
-			if found < SchemaVersion {
-				if err := migrate(tx, found); err != nil {
-					return err
-				}
-				if err := meta.Put(keySchema, u32(SchemaVersion)); err != nil {
-					return err
-				}
-			}
+	return s.update(func(ctx context.Context, tx *sql.Tx) error {
+		var (
+			epoch uint64
+			prev  string
+		)
+		err := tx.QueryRowContext(ctx, `SELECT epoch, boot_id FROM meta WHERE id = 1`).Scan(&epoch, &prev)
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			// A new store.
+		case err != nil:
+			return fmt.Errorf("coord: reading the epoch: %w", err)
+		default:
+			s.rebooted = prev != s.bootID
 		}
 
 		// THE BUMP. Unconditional, on every start, with nothing consulted.
-		epoch := uint64(0)
-		if raw := meta.Get(keyEpoch); raw != nil {
-			epoch = binary.BigEndian.Uint64(raw)
-		}
 		epoch++
-		if err := meta.Put(keyEpoch, u64(epoch)); err != nil {
-			return err
+		if _, err := tx.ExecContext(ctx, `
+INSERT INTO meta (id, epoch, boot_id, message_seq) VALUES (1, ?, ?, 0)
+ON CONFLICT (id) DO UPDATE SET epoch = excluded.epoch, boot_id = excluded.boot_id`,
+			epoch, s.bootID); err != nil {
+			return fmt.Errorf("coord: bumping the epoch: %w", err)
 		}
 		s.epoch = epoch
-
-		if prev := meta.Get(keyBootID); prev != nil && string(prev) != s.bootID {
-			s.rebooted = true
-		}
-		return meta.Put(keyBootID, []byte(s.bootID))
+		return nil
 	})
-}
-
-// migrations maps a schema version to the step that moves a store from it to
-// the next one. IT IS DELIBERATELY EMPTY: this IS schema 1, so the only value
-// that could reach it is 0 and no build stamps 0.
-//
-// It is a table rather than a chain of ifs because the ladder below then needs
-// no editing at all to gain a step, which is the property that keeps a
-// migration a local change instead of a rewrite of the thing that runs it.
-var migrations = map[uint32]func(*bolt.Tx) error{}
-
-// migrate runs forward-only migrations from an older schema, one step at a
-// time, until the store is at SchemaVersion.
-//
-// Forward only, run at START, idempotent - section 39, and section 18 already
-// made the restart the natural moment because rig does not hot-upgrade itself.
-// Idempotence matters because the way this actually fails is a crash partway.
-//
-// IT RETURNS NIL WHEN THERE IS NOTHING TO DO, and that is not a formality.
-// The first shape of this function was a stub that returned an error
-// unconditionally, which made the caller's `err != nil` dead-true and, worse,
-// left whoever writes the first real migration inheriting a function that
-// cannot report success. staticcheck caught it as SA4023, reported by
-// backend-presence 2026-09-16.
-func migrate(tx *bolt.Tx, from uint32) error {
-	for v := from; v < SchemaVersion; v++ {
-		step, ok := migrations[v]
-		if !ok {
-			return fmt.Errorf("coord: no migration from schema %d, which this "+
-				"build should not be able to produce", v)
-		}
-		if err := step(tx); err != nil {
-			return fmt.Errorf("coord: migrating schema %d to %d: %w", v, v+1, err)
-		}
-	}
-	return nil
 }
 
 // Epoch is the epoch this daemon published when it started. Every handle it
@@ -320,18 +322,6 @@ func (s *Store) Close() error {
 		return fmt.Errorf("coord: closing %s: %w", s.path, err)
 	}
 	return nil
-}
-
-func u32(v uint32) []byte {
-	b := make([]byte, 4)
-	binary.BigEndian.PutUint32(b, v)
-	return b
-}
-
-func u64(v uint64) []byte {
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, v)
-	return b
 }
 
 // ErrClosed is returned by a call on a closed store.

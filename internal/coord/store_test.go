@@ -1,15 +1,14 @@
 package coord
 
 import (
-	"encoding/binary"
+	"database/sql"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
-
-	bolt "go.etcd.io/bbolt"
 
 	"github.com/borismilner/rig/internal/paths"
 )
@@ -192,15 +191,11 @@ func TestANewerSchemaRefusesToOpen(t *testing.T) {
 	}
 
 	// A newer rigd wrote this store.
-	db, err := bolt.Open(path, 0o600, nil)
+	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	future := make([]byte, 4)
-	binary.BigEndian.PutUint32(future, SchemaVersion+1)
-	if err := db.Update(func(tx *bolt.Tx) error {
-		return tx.Bucket(bucketMeta).Put(keySchema, future)
-	}); err != nil {
+	if _, err := db.Exec(fmt.Sprintf("PRAGMA user_version = %d", SchemaVersion+1)); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.Close(); err != nil {
@@ -224,16 +219,13 @@ func TestANewerSchemaRefusesToOpen(t *testing.T) {
 	// AND IT MUST NOT HAVE BUMPED THE EPOCH ON THE WAY OUT. A refused open is
 	// not a start, and leaving a bump behind would make every later epoch
 	// wrong by however many times a downgrade was attempted.
-	db, err = bolt.Open(path, 0o600, nil)
+	db, err = sql.Open("sqlite", path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = db.Close() }()
 	var epoch uint64
-	if err := db.View(func(tx *bolt.Tx) error {
-		epoch = binary.BigEndian.Uint64(tx.Bucket(bucketMeta).Get(keyEpoch))
-		return nil
-	}); err != nil {
+	if err := db.QueryRow(`SELECT epoch FROM meta WHERE id = 1`).Scan(&epoch); err != nil {
 		t.Fatal(err)
 	}
 	if epoch != 1 {

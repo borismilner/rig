@@ -197,8 +197,8 @@ func run() error {
 		// the claim is taken here: under the lock, before anything binds
 		// (section 37, preconditions 2 and 4). Two daemons must never have
 		// this file open at once, and the claim above is what guarantees it -
-		// bbolt's own file lock would too, but it would report the collision
-		// as a three-second timeout rather than as "that name is taken".
+		// SQLite's locking would only make a second writer wait, and would
+		// never report the collision as "that name is taken".
 		//
 		// AN UNNAMED ESTATE OPENS NOTHING, which is why this sits inside the
 		// named branch rather than beside it. It has no name to key a subtree

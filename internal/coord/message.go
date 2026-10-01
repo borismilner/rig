@@ -1,12 +1,12 @@
 package coord
 
 import (
-	"encoding/binary"
+	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"sort"
-
-	bolt "go.etcd.io/bbolt"
+	"math"
 )
 
 // Section 16's directed messages, stored. A message is addressed to a SEAT and
@@ -75,8 +75,8 @@ var rank = map[MessageState]int{
 // is one estate - so three of the four are here.
 type Message struct {
 	// ID is the estate-wide sequence number, and it is the CURSOR UNIT. It is
-	// monotonic across a daemon restart because it comes from the bucket's
-	// own durable sequence rather than from a counter in memory.
+	// monotonic across a daemon restart because it comes from the store's
+	// durable sequence rather than from a counter in memory.
 	ID uint64 `json:"id"`
 
 	// To is the recipient SEAT NAME - the addressable identity, independent
@@ -247,21 +247,18 @@ func (s *Store) Send(m Message, atUnixNano int64) (Message, error) {
 	m.SentUnixNano = atUnixNano
 	m.MovedUnixNano = atUnixNano
 
-	err := s.db.Update(func(tx *bolt.Tx) error {
-		root := tx.Bucket(bucketMessages)
-		id, err := root.NextSequence()
-		if err != nil {
+	err := s.update(func(ctx context.Context, tx *sql.Tx) error {
+		var id uint64
+		if err := tx.QueryRowContext(ctx,
+			`UPDATE meta SET message_seq = message_seq + 1 WHERE id = 1 RETURNING message_seq`,
+		).Scan(&id); err != nil {
 			return fmt.Errorf("coord: taking a message id: %w", err)
 		}
 		m.ID = id
-		q, err := root.CreateBucketIfNotExists([]byte(m.To))
-		if err != nil {
-			return fmt.Errorf("coord: the queue for seat %q: %w", m.To, err)
-		}
-		if err := putMessage(q, m); err != nil {
+		if err := putMessage(ctx, tx, m); err != nil {
 			return err
 		}
-		return trim(tx, q, m.To)
+		return trim(ctx, tx, m.To)
 	})
 	if err != nil {
 		return Message{}, err
@@ -280,24 +277,31 @@ func (s *Store) Inbox(seat string, after uint64, limit int) (Batch, error) {
 		return Batch{}, ErrClosed
 	}
 	out := Batch{Cursor: after}
-	err := s.db.View(func(tx *bolt.Tx) error {
-		root := tx.Bucket(bucketMessages)
-		out.Gap = after < trimmedThrough(tx, seat)
-		q := root.Bucket([]byte(seat))
-		if q == nil {
+	err := s.view(func(ctx context.Context, tx *sql.Tx) error {
+		through, err := trimmedThrough(ctx, tx, seat)
+		if err != nil {
+			return err
+		}
+		out.Gap = after < through
+		// The driver refuses a uint64 with its high bit set rather than
+		// wrapping it, and no id is that large, so nothing is after it.
+		if after > math.MaxInt64 {
 			return nil
 		}
-		cur := q.Cursor()
-		for k, v := cur.Seek(u64(after + 1)); k != nil; k, v = cur.Next() {
-			if limit > 0 && len(out.Messages) >= limit {
-				return nil
-			}
-			var m Message
-			if err := json.Unmarshal(v, &m); err != nil {
-				return fmt.Errorf("coord: decoding a message for seat %q: %w", seat, err)
-			}
-			out.Messages = append(out.Messages, m)
-			out.Cursor = m.ID
+		// A limit of zero or less is unbounded, and -1 is SQLite's own word
+		// for that.
+		n := int64(-1)
+		if limit > 0 {
+			n = int64(limit)
+		}
+		out.Messages, err = queryMessages(ctx, tx, seat,
+			`SELECT msg FROM messages WHERE seat = ? AND id > ? ORDER BY id LIMIT ?`,
+			seat, after, n)
+		if err != nil {
+			return err
+		}
+		if k := len(out.Messages); k > 0 {
+			out.Cursor = out.Messages[k-1].ID
 		}
 		return nil
 	})
@@ -323,13 +327,9 @@ func (s *Store) MarkRead(seat string, ids []uint64, generation, epoch uint64, at
 	if len(ids) == 0 {
 		return nil
 	}
-	return s.db.Update(func(tx *bolt.Tx) error {
-		q := tx.Bucket(bucketMessages).Bucket([]byte(seat))
-		if q == nil {
-			return nil
-		}
+	return s.update(func(ctx context.Context, tx *sql.Tx) error {
 		for _, id := range ids {
-			m, err := getMessage(q, id)
+			m, err := getMessage(ctx, tx, seat, id)
 			if err != nil {
 				return err
 			}
@@ -345,7 +345,7 @@ func (s *Store) MarkRead(seat string, ids []uint64, generation, epoch uint64, at
 				m.ReadGeneration, m.ReadEpoch = generation, epoch
 			}
 			if promote(m, Read, atUnixNano) {
-				if err := putMessage(q, *m); err != nil {
+				if err := putMessage(ctx, tx, *m); err != nil {
 					return err
 				}
 			}
@@ -367,13 +367,9 @@ func (s *Store) MarkDelivered(seat string, ids []uint64, atUnixNano int64) error
 	if len(ids) == 0 {
 		return nil
 	}
-	return s.db.Update(func(tx *bolt.Tx) error {
-		q := tx.Bucket(bucketMessages).Bucket([]byte(seat))
-		if q == nil {
-			return nil
-		}
+	return s.update(func(ctx context.Context, tx *sql.Tx) error {
 		for _, id := range ids {
-			m, err := getMessage(q, id)
+			m, err := getMessage(ctx, tx, seat, id)
 			if err != nil {
 				return err
 			}
@@ -381,7 +377,7 @@ func (s *Store) MarkDelivered(seat string, ids []uint64, atUnixNano int64) error
 				continue
 			}
 			if promote(m, Delivered, atUnixNano) {
-				if err := putMessage(q, *m); err != nil {
+				if err := putMessage(ctx, tx, *m); err != nil {
 					return err
 				}
 			}
@@ -409,12 +405,8 @@ func (s *Store) Ack(seat string, id uint64, state MessageState, outcome string, 
 		return Message{}, &OversizeError{What: "outcome", Bytes: len(outcome), Bound: MaxSubject}
 	}
 	var out Message
-	err := s.db.Update(func(tx *bolt.Tx) error {
-		q := tx.Bucket(bucketMessages).Bucket([]byte(seat))
-		if q == nil {
-			return &NoSuchMessageError{ID: id, Seat: seat}
-		}
-		m, err := getMessage(q, id)
+	err := s.update(func(ctx context.Context, tx *sql.Tx) error {
+		m, err := getMessage(ctx, tx, seat, id)
 		if err != nil {
 			return err
 		}
@@ -428,7 +420,7 @@ func (s *Store) Ack(seat string, id uint64, state MessageState, outcome string, 
 			m.Outcome = outcome
 		}
 		promote(m, state, atUnixNano)
-		if err := putMessage(q, *m); err != nil {
+		if err := putMessage(ctx, tx, *m); err != nil {
 			return err
 		}
 		out = *m
@@ -453,31 +445,21 @@ func (s *Store) Messages() ([]Message, error) {
 		return nil, ErrClosed
 	}
 	var out []Message
-	err := s.db.View(func(tx *bolt.Tx) error {
-		root := tx.Bucket(bucketMessages)
-		return root.ForEachBucket(func(seat []byte) error {
-			q := root.Bucket(seat)
-			return q.ForEach(func(_, v []byte) error {
-				var m Message
-				if err := json.Unmarshal(v, &m); err != nil {
-					return fmt.Errorf("coord: decoding a message for seat %q: %w", seat, err)
-				}
-				out = append(out, m)
-				return nil
-			})
-		})
+	err := s.view(func(ctx context.Context, tx *sql.Tx) error {
+		var err error
+		out, err = queryMessages(ctx, tx, "", `SELECT msg FROM messages ORDER BY id`)
+		return err
 	})
 	if err != nil {
 		return nil, err
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out, nil
 }
 
 // Highest is the last id this estate has issued, and it is what a reader that
 // wants only NEW mail starts its cursor at.
 //
-// IT IS THE BUCKET'S SEQUENCE AND NOT THE LAST KEY, so it does not fall back
+// IT IS THE STORE'S SEQUENCE AND NOT THE LAST ID, so it does not fall back
 // when the newest message is trimmed. A cursor that moved backwards would
 // re-deliver mail a seat had already read.
 func (s *Store) Highest() (uint64, error) {
@@ -485,9 +467,8 @@ func (s *Store) Highest() (uint64, error) {
 		return 0, ErrClosed
 	}
 	var out uint64
-	err := s.db.View(func(tx *bolt.Tx) error {
-		out = tx.Bucket(bucketMessages).Sequence()
-		return nil
+	err := s.view(func(ctx context.Context, tx *sql.Tx) error {
+		return tx.QueryRowContext(ctx, `SELECT message_seq FROM meta WHERE id = 1`).Scan(&out)
 	})
 	return out, err
 }
@@ -509,58 +490,97 @@ func promote(m *Message, to MessageState, atUnixNano int64) bool {
 // ordinary; dropping it without leaving a line that says so is how a reader
 // gets a short batch it believes is complete. The line is what `gap` is
 // computed from, and the two must never be separated.
-// ⛔ THE COUNT IS WALKED AND NOT TAKEN FROM Stats().KeyN, WHICH IS WRONG HERE.
-// Stats walks the pages, and a key Put earlier in this same writable
-// transaction is still in the node cache rather than on a page - so it counts
-// one short, and the queue settles one over the cap forever. Measured: 513
-// messages against a cap of 512.
-func trim(tx *bolt.Tx, q *bolt.Bucket, seat string) error {
-	held := 0
-	if err := q.ForEach(func(_, _ []byte) error { held++; return nil }); err != nil {
+func trim(ctx context.Context, tx *sql.Tx, seat string) error {
+	var held int
+	if err := tx.QueryRowContext(ctx,
+		`SELECT count(*) FROM messages WHERE seat = ?`, seat).Scan(&held); err != nil {
 		return fmt.Errorf("coord: counting the queue for seat %q: %w", seat, err)
 	}
 	over := held - MaxPerSeat
 	if over <= 0 {
 		return nil
 	}
-	cur := q.Cursor()
 	var through uint64
-	for k, _ := cur.First(); k != nil && over > 0; k, _ = cur.Next() {
-		through = binary.BigEndian.Uint64(k)
-		if err := cur.Delete(); err != nil {
-			return fmt.Errorf("coord: trimming the queue for seat %q: %w", seat, err)
-		}
-		over--
+	if err := tx.QueryRowContext(ctx, `
+SELECT max(id) FROM (SELECT id FROM messages WHERE seat = ? ORDER BY id LIMIT ?)`,
+		seat, over).Scan(&through); err != nil {
+		return fmt.Errorf("coord: trimming the queue for seat %q: %w", seat, err)
 	}
-	return tx.Bucket(bucketMsgMeta).Put([]byte(seat), u64(through))
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM messages WHERE seat = ? AND id <= ?`, seat, through); err != nil {
+		return fmt.Errorf("coord: trimming the queue for seat %q: %w", seat, err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+INSERT INTO messages_trimmed (seat, through) VALUES (?, ?)
+ON CONFLICT (seat) DO UPDATE SET through = excluded.through`, seat, through); err != nil {
+		return fmt.Errorf("coord: recording the trim for seat %q: %w", seat, err)
+	}
+	return nil
 }
 
 // trimmedThrough is the highest id dropped from this seat's queue by
 // retention. Zero means nothing has ever been dropped.
-func trimmedThrough(tx *bolt.Tx, seat string) uint64 {
-	raw := tx.Bucket(bucketMsgMeta).Get([]byte(seat))
-	if raw == nil {
-		return 0
+func trimmedThrough(ctx context.Context, tx *sql.Tx, seat string) (uint64, error) {
+	var through uint64
+	err := tx.QueryRowContext(ctx,
+		`SELECT through FROM messages_trimmed WHERE seat = ?`, seat).Scan(&through)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
 	}
-	return binary.BigEndian.Uint64(raw)
+	if err != nil {
+		return 0, fmt.Errorf("coord: reading the trim line for seat %q: %w", seat, err)
+	}
+	return through, nil
 }
 
-func putMessage(q *bolt.Bucket, m Message) error {
+func putMessage(ctx context.Context, tx *sql.Tx, m Message) error {
 	raw, err := json.Marshal(m)
 	if err != nil {
 		return fmt.Errorf("coord: encoding message %d: %w", m.ID, err)
 	}
-	return q.Put(u64(m.ID), raw)
+	if _, err := tx.ExecContext(ctx, `
+INSERT INTO messages (id, seat, msg) VALUES (?, ?, ?)
+ON CONFLICT (id) DO UPDATE SET msg = excluded.msg`, m.ID, m.To, string(raw)); err != nil {
+		return fmt.Errorf("coord: writing message %d: %w", m.ID, err)
+	}
+	return nil
 }
 
-func getMessage(q *bolt.Bucket, id uint64) (*Message, error) {
-	raw := q.Get(u64(id))
-	if raw == nil {
-		return nil, nil
+// getMessage reads one message from ONE SEAT'S queue: an id from another
+// seat's queue is not found, as it was not in that seat's bucket.
+func getMessage(ctx context.Context, tx *sql.Tx, seat string, id uint64) (*Message, error) {
+	if id > math.MaxInt64 {
+		return nil, nil // no id is that large; see Inbox
 	}
-	var m Message
-	if err := json.Unmarshal(raw, &m); err != nil {
-		return nil, fmt.Errorf("coord: decoding message %d: %w", id, err)
+	ms, err := queryMessages(ctx, tx, seat,
+		`SELECT msg FROM messages WHERE seat = ? AND id = ?`, seat, id)
+	if err != nil || len(ms) == 0 {
+		return nil, err
 	}
-	return &m, nil
+	return &ms[0], nil
+}
+
+// queryMessages decodes every msg column a query answers. seat names the
+// queue in an error, and is empty for a read across seats.
+func queryMessages(ctx context.Context, tx *sql.Tx, seat, query string, args ...any) ([]Message, error) {
+	rows, err := tx.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("coord: reading messages: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []Message
+	for rows.Next() {
+		var (
+			raw []byte
+			m   Message
+		)
+		if err := rows.Scan(&raw); err != nil {
+			return nil, fmt.Errorf("coord: reading messages: %w", err)
+		}
+		if err := json.Unmarshal(raw, &m); err != nil {
+			return nil, fmt.Errorf("coord: decoding a message for seat %q: %w", seat, err)
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
 }

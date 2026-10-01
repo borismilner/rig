@@ -1,11 +1,12 @@
 package coord
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
-
-	bolt "go.etcd.io/bbolt"
 )
 
 // State is where a lease is in the TWO-STEP expiry (PLAN.md section 16).
@@ -231,10 +232,14 @@ func (r *record) status(state State, live Liveness) Status {
 	}
 }
 
-func getRecord(tx *bolt.Tx, name string) (*record, error) {
-	raw := tx.Bucket(bucketLeases).Get([]byte(name))
-	if raw == nil {
+func getRecord(ctx context.Context, tx *sql.Tx, name string) (*record, error) {
+	var raw []byte
+	err := tx.QueryRowContext(ctx, `SELECT rec FROM leases WHERE name = ?`, name).Scan(&raw)
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("coord: reading the lease %q: %w", name, err)
 	}
 	var r record
 	if err := json.Unmarshal(raw, &r); err != nil {
@@ -243,12 +248,17 @@ func getRecord(tx *bolt.Tx, name string) (*record, error) {
 	return &r, nil
 }
 
-func putRecord(tx *bolt.Tx, r *record) error {
+func putRecord(ctx context.Context, tx *sql.Tx, r *record) error {
 	raw, err := json.Marshal(r)
 	if err != nil {
 		return fmt.Errorf("coord: encoding the lease %q: %w", r.Name, err)
 	}
-	return tx.Bucket(bucketLeases).Put([]byte(r.Name), raw)
+	if _, err := tx.ExecContext(ctx, `
+INSERT INTO leases (name, rec) VALUES (?, ?)
+ON CONFLICT (name) DO UPDATE SET rec = excluded.rec`, r.Name, string(raw)); err != nil {
+		return fmt.Errorf("coord: writing the lease %q: %w", r.Name, err)
+	}
+	return nil
 }
 
 // Acquire takes the lease, or refuses with the incumbent's full status.
@@ -280,9 +290,9 @@ func (s *Store) Acquire(name, holder string, w Witness, ttl time.Duration) (Hand
 	}
 
 	var h Handle
-	err = s.db.Update(func(tx *bolt.Tx) error {
+	err = s.update(func(ctx context.Context, tx *sql.Tx) error {
 		var err error
-		h, err = s.acquireTx(tx, at, name, holder, w, ttl)
+		h, err = s.acquireTx(ctx, tx, at, name, holder, w, ttl)
 		return err
 	})
 	if err != nil {
@@ -293,8 +303,8 @@ func (s *Store) Acquire(name, holder string, w Witness, ttl time.Duration) (Hand
 
 // acquireTx is Acquire inside a transaction the caller already holds, so a
 // queue claim takes its task and the task's lease in one commit.
-func (s *Store) acquireTx(tx *bolt.Tx, at Instant, name, holder string, w Witness, ttl time.Duration) (Handle, error) {
-	r, err := getRecord(tx, name)
+func (s *Store) acquireTx(ctx context.Context, tx *sql.Tx, at Instant, name, holder string, w Witness, ttl time.Duration) (Handle, error) {
+	r, err := getRecord(ctx, tx, name)
 	if err != nil {
 		return Handle{}, err
 	}
@@ -316,7 +326,7 @@ func (s *Store) acquireTx(tx *bolt.Tx, at Instant, name, holder string, w Witnes
 		Deadline: at.Add(ttl),
 	}
 	return Handle{Name: name, Holder: holder, Token: next.Token, Epoch: next.Epoch, Deadline: next.Deadline},
-		putRecord(tx, next)
+		putRecord(ctx, tx, next)
 }
 
 // Renew extends a lease against the handle that holds it.
@@ -342,8 +352,8 @@ func (s *Store) Renew(h Handle, ttl time.Duration) (Handle, error) {
 	}
 
 	var out Handle
-	err = s.db.Update(func(tx *bolt.Tx) error {
-		r, err := getRecord(tx, h.Name)
+	err = s.update(func(ctx context.Context, tx *sql.Tx) error {
+		r, err := getRecord(ctx, tx, h.Name)
 		if err != nil {
 			return err
 		}
@@ -357,7 +367,7 @@ func (s *Store) Renew(h Handle, ttl time.Duration) (Handle, error) {
 		r.Epoch = s.epoch
 		r.BootID = s.bootID
 		out = Handle{Name: r.Name, Holder: r.Holder, Token: r.Token, Epoch: r.Epoch, Deadline: r.Deadline}
-		return putRecord(tx, r)
+		return putRecord(ctx, tx, r)
 	})
 	if err != nil {
 		return Handle{}, err
@@ -378,8 +388,8 @@ func (s *Store) Release(h Handle) error {
 	if h.Epoch != s.epoch {
 		return &FencedError{Name: h.Name, What: "epoch", Want: s.epoch, Got: h.Epoch}
 	}
-	return s.db.Update(func(tx *bolt.Tx) error {
-		r, err := getRecord(tx, h.Name)
+	return s.update(func(ctx context.Context, tx *sql.Tx) error {
+		r, err := getRecord(ctx, tx, h.Name)
 		if err != nil {
 			return err
 		}
@@ -391,7 +401,7 @@ func (s *Store) Release(h Handle) error {
 		}
 		r.Released = true
 		r.Witness = NoWitness()
-		return putRecord(tx, r)
+		return putRecord(ctx, tx, r)
 	})
 }
 
@@ -419,8 +429,8 @@ func (s *Store) Break(name, by, reason string) error {
 	if err != nil {
 		return err
 	}
-	return s.db.Update(func(tx *bolt.Tx) error {
-		r, err := getRecord(tx, name)
+	return s.update(func(ctx context.Context, tx *sql.Tx) error {
+		r, err := getRecord(ctx, tx, name)
 		if err != nil {
 			return err
 		}
@@ -434,7 +444,7 @@ func (s *Store) Break(name, by, reason string) error {
 		r.BrokenBy = by
 		r.BrokenReason = reason
 		r.Witness = NoWitness()
-		return putRecord(tx, r)
+		return putRecord(ctx, tx, r)
 	})
 }
 
@@ -448,8 +458,8 @@ func (s *Store) Inspect(name string) (Status, error) {
 		return Status{}, err
 	}
 	var st Status
-	err = s.db.View(func(tx *bolt.Tx) error {
-		r, err := getRecord(tx, name)
+	err = s.view(func(ctx context.Context, tx *sql.Tx) error {
+		r, err := getRecord(ctx, tx, name)
 		if err != nil {
 			return err
 		}
@@ -477,16 +487,28 @@ func (s *Store) Leases() ([]Status, error) {
 		return nil, err
 	}
 	var out []Status
-	err = s.db.View(func(tx *bolt.Tx) error {
-		return tx.Bucket(bucketLeases).ForEach(func(k, raw []byte) error {
-			var r record
+	err = s.view(func(ctx context.Context, tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx, `SELECT name, rec FROM leases ORDER BY name`)
+		if err != nil {
+			return fmt.Errorf("coord: reading the leases: %w", err)
+		}
+		defer func() { _ = rows.Close() }()
+		for rows.Next() {
+			var (
+				k   string
+				raw []byte
+				r   record
+			)
+			if err := rows.Scan(&k, &raw); err != nil {
+				return fmt.Errorf("coord: reading the leases: %w", err)
+			}
 			if err := json.Unmarshal(raw, &r); err != nil {
 				return fmt.Errorf("coord: decoding the lease %q: %w", k, err)
 			}
 			state, live := r.evaluate(at, s.bootID)
 			out = append(out, r.status(state, live))
-			return nil
-		})
+		}
+		return rows.Err()
 	})
 	return out, err
 }

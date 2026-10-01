@@ -196,10 +196,10 @@ type Daemon struct {
 
 	// leases is section 16's lease store. Nil for an unnamed estate.
 	//
-	// SECTION 16's DIRECTED MESSAGES LIVE IN IT TOO, under their own buckets,
+	// SECTION 16's DIRECTED MESSAGES LIVE IN IT TOO, in their own tables,
 	// and the field keeps the name it was built with rather than gaining a
 	// second one. One store per estate is the decision; two fields pointing
-	// at one bbolt file would only invite a second Open.
+	// at one coord.db would only invite a second Open.
 	leases *coord.Store
 
 	// super is section 18's supervisor, nil when none was configured.
