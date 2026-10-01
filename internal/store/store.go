@@ -52,17 +52,23 @@ const (
 	MaxTerms = 32
 )
 
-// steps are the forward migrations, index i taking the store from version i
-// to i+1. Each runs inside the one transaction that also stamps the version.
-var steps = []string{
-	`CREATE TABLE docs (
+// schema is a program store's registration with the runner. Version 1 is the
+// one layout; a later one adds a step taking 1 to 2.
+var schema = Schema{What: "store", Version: SchemaVersion, Create: execStep(`CREATE TABLE docs (
 		collection TEXT    NOT NULL,
 		id         TEXT    NOT NULL,
 		version    INTEGER NOT NULL,
 		updated_ns INTEGER NOT NULL,
 		body       TEXT    NOT NULL,
 		PRIMARY KEY (collection, id)
-	) WITHOUT ROWID`,
+	) WITHOUT ROWID`)}
+
+// execStep is a step that is one statement.
+func execStep(ddl string) Step {
+	return func(ctx context.Context, tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, ddl)
+		return err
+	}
 }
 
 var (
@@ -99,30 +105,11 @@ func Open(ctx context.Context, dir, program string, ephemeral bool) (*Store, err
 		return nil, fmt.Errorf("store: creating %s: %w", dir, err)
 	}
 	path := filepath.Join(dir, program+".db")
-	// Created owner-only before sqlite sees it: sqlite would create it 0644
-	// under the usual umask, and its -wal and -shm files copy the mode of the
-	// database. An empty file is a valid empty database.
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600)
+	db, err := OpenDB(ctx, path, schema)
 	if err != nil {
-		return nil, fmt.Errorf("store: creating %s: %w", path, err)
-	}
-	_ = f.Close()
-
-	// The same three settings as the record store, for the same reasons
-	// (internal/record/store.go): the write lock at BEGIN so compare-and-swap
-	// reads and writes in one transaction, WAL so readers never wait on a
-	// writer, and a busy timeout so a concurrent writer waits rather than
-	// failing with an error a caller cannot tell from a conflict.
-	db, err := sql.Open("sqlite", "file:"+path+
-		"?_txlock=immediate&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)")
-	if err != nil {
-		return nil, fmt.Errorf("store: opening %s: %w", path, err)
-	}
-	s := &Store{db: db, path: path, ephemeral: ephemeral}
-	if err := s.migrate(ctx); err != nil {
-		_ = db.Close()
 		return nil, err
 	}
+	s := &Store{db: db, path: path, ephemeral: ephemeral}
 	return s, nil
 }
 
@@ -135,48 +122,6 @@ func (s *Store) Path() string { return s.path }
 
 // Ephemeral says whether this store vanishes with its estate.
 func (s *Store) Ephemeral() bool { return s.ephemeral }
-
-// FutureSchemaError means the file was written by a newer rigd. It refuses to
-// open and does not repair, for the reason record.FutureSchemaError gives: an
-// older binary writing into a newer layout loses data and looks healthy.
-type FutureSchemaError struct {
-	Path  string
-	Found uint32
-	Known uint32
-}
-
-func (e *FutureSchemaError) Error() string {
-	return fmt.Sprintf("store: %s is schema %d and this rigd understands %d: it was "+
-		"written by a newer rigd and will not be opened", e.Path, e.Found, e.Known)
-}
-
-// migrate applies every missing step and stamps the version in ONE
-// transaction, so a crash can never leave data moved and the number not.
-func (s *Store) migrate(ctx context.Context) error {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("store: begin: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	var found uint32
-	if err := tx.QueryRowContext(ctx, "PRAGMA user_version").Scan(&found); err != nil {
-		return fmt.Errorf("store: reading user_version: %w", err)
-	}
-	if found > SchemaVersion {
-		return &FutureSchemaError{Path: s.path, Found: found, Known: SchemaVersion}
-	}
-	for v := found; v < SchemaVersion; v++ {
-		if _, err := tx.ExecContext(ctx, steps[v]); err != nil {
-			return fmt.Errorf("store: migrating %s to %d: %w", s.path, v+1, err)
-		}
-	}
-	// PRAGMA takes no parameters; the value is this package's own constant.
-	if _, err := tx.ExecContext(ctx, fmt.Sprintf("PRAGMA user_version = %d", SchemaVersion)); err != nil {
-		return fmt.Errorf("store: stamping %s: %w", s.path, err)
-	}
-	return tx.Commit()
-}
 
 // CheckName accepts a program, collection or document id. It is the pattern
 // that lets an export write <collection>.jsonl without a path ever escaping

@@ -30,9 +30,8 @@ import (
 	"time"
 	"unicode"
 
-	_ "modernc.org/sqlite" // the engine
-
 	"github.com/borismilner/rig/internal/fts"
+	"github.com/borismilner/rig/internal/store"
 )
 
 // Bounds on an entry. A summary is the line a search shows, so it is one line.
@@ -76,50 +75,27 @@ type Index struct {
 // OpenIndex opens, or creates owner-only, the index database at dbPath over
 // the area repo keeps.
 func OpenIndex(ctx context.Context, dbPath string, repo *Repo) (*Index, error) {
-	if err := os.MkdirAll(filepath.Dir(dbPath), 0o700); err != nil {
-		return nil, fmt.Errorf("files: creating %s: %w", filepath.Dir(dbPath), err)
-	}
-	f, err := os.OpenFile(dbPath, os.O_RDWR|os.O_CREATE, 0o600)
-	if err != nil {
-		return nil, fmt.Errorf("files: creating %s: %w", dbPath, err)
-	}
-	_ = f.Close()
 	root, err := os.OpenRoot(repo.Dir())
 	if err != nil {
 		return nil, fmt.Errorf("files: opening %s: %w", repo.Dir(), err)
 	}
-	db, err := sql.Open("sqlite", "file:"+dbPath+
-		"?_txlock=immediate&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)")
+	db, err := store.OpenDB(ctx, dbPath, indexSchemaReg)
 	if err != nil {
 		_ = root.Close()
-		return nil, fmt.Errorf("files: opening %s: %w", dbPath, err)
-	}
-	ix := &Index{db: db, root: root}
-	if err := ix.migrate(ctx); err != nil {
-		_ = ix.Close()
 		return nil, err
 	}
-	return ix, nil
+	return &Index{db: db, root: root}, nil
 }
 
-func (ix *Index) migrate(ctx context.Context) error {
-	var v int
-	if err := ix.db.QueryRowContext(ctx, "PRAGMA user_version").Scan(&v); err != nil {
-		return fmt.Errorf("files: reading the index schema: %w", err)
-	}
-	switch {
-	case v == indexSchema:
-		return nil
-	case v > indexSchema:
-		return fmt.Errorf("files: the index is schema %d and this rig knows %d; a newer rig wrote it", v, indexSchema)
-	}
-	if _, err := ix.db.ExecContext(ctx, indexDDL); err != nil {
-		return fmt.Errorf("files: creating the index: %w", err)
-	}
-	if _, err := ix.db.ExecContext(ctx, fmt.Sprintf("PRAGMA user_version = %d", indexSchema)); err != nil {
-		return fmt.Errorf("files: stamping the index schema: %w", err)
-	}
-	return nil
+// indexSchemaReg is the index's registration with the one runner
+// (internal/store, plan/48 decision 3).
+var indexSchemaReg = store.Schema{
+	What:    "files index",
+	Version: indexSchema,
+	Create: func(ctx context.Context, tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, indexDDL)
+		return err
+	},
 }
 
 // Close closes the index.

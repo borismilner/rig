@@ -2,10 +2,11 @@ package record
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"path/filepath"
+
+	"github.com/borismilner/rig/internal/store"
 )
 
 // Snapshot is a consistent copy of the store on disk, and every number in it
@@ -107,7 +108,7 @@ func (s *Store) Snapshot(ctx context.Context, dst string) (Snapshot, error) {
 // query_only is set so this connection cannot write to the artefact it is
 // describing, including the recovery a plain open would perform.
 func describeSnapshot(ctx context.Context, path string) (Snapshot, error) {
-	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=query_only(1)")
+	db, err := store.OpenReadOnly(path)
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("record: reading back the snapshot at %s: %w", path, err)
 	}

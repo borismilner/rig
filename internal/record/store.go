@@ -41,9 +41,9 @@ import (
 
 	// The pure-Go SQLite driver, registered for its side effect. Ruled by B28:
 	// no cgo, so the daemon cross-compiles and ships as one static binary.
-	_ "modernc.org/sqlite"
 
 	"github.com/borismilner/rig/internal/paths"
+	"github.com/borismilner/rig/internal/store"
 )
 
 // SchemaVersion is the on-disk layout this build understands.
@@ -68,20 +68,9 @@ const DBName = "record.db"
 // THIS IS THE ONE REQUIREMENT IN THE SET WHOSE FAILURE IS SILENT. A migration
 // that does not run fails loudly at the first query. A store opened a version
 // too old loses data and looks healthy.
-type FutureSchemaError struct {
-	Path  string
-	Found uint32
-	Known uint32
-}
-
-func (e *FutureSchemaError) Error() string {
-	return fmt.Sprintf(
-		"the record store at %s is schema %d and this rigd understands %d: it "+
-			"was written by a newer rigd and will not be opened\n"+
-			"       rig does not guess at a newer layout and does not repair "+
-			"one. Run the newer rigd, or rebuild the store from its export",
-		e.Path, e.Found, e.Known)
-}
+//
+// The type is the runner's (internal/store); What reads "record store".
+type FutureSchemaError = store.FutureSchemaError
 
 // UnnamedEstateError means persistent state was asked for without an estate name.
 //
@@ -183,112 +172,28 @@ func OpenScratch() (*Store, error) {
 }
 
 func open(dir, estate string, ephemeral bool) (*Store, error) {
-	// 0700: this is the user's own state and nothing here is a socket, so no
-	// client boundary rides on the mode (section 14).
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return nil, fmt.Errorf("record: creating %s: %w", dir, err)
-	}
 	path := filepath.Join(dir, DBName)
-
-	// THREE SETTINGS, AND EACH ONE IS A REQUIREMENT RATHER THAN A TUNING.
-	//
-	//   _txlock=immediate takes the write lock at BEGIN rather than at the
-	//   first write, so a transaction cannot start, read, and then fail to
-	//   upgrade. That upgrade failure is SQLITE_BUSY arriving in the middle of
-	//   work that has already decided what to write, which is the shape
-	//   compare-and-swap must never be in: the read that the swap is checked
-	//   against and the write must be the same transaction or two callers can
-	//   both pass their check.
-	//
-	//   journal_mode(WAL) is section 39's "a reader is never blocked behind a
-	//   writer". Every arriving session calls project.brief, and a seat waiting
-	//   on another seat's write is the coordination pain the record exists to
-	//   remove.
-	//
-	//   busy_timeout(5000) makes a concurrent writer WAIT rather than fail.
-	//   Without it, two seats putting at once produce SQLITE_BUSY, which is a
-	//   different error from the version conflict a caller is meant to handle,
-	//   and a caller cannot tell "somebody edited this" from "try again".
-	db, err := sql.Open("sqlite", "file:"+path+
-		"?_txlock=immediate&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)")
+	// THE ONE ROOT CONTEXT IN THIS PACKAGE IS HERE, AND IT IS EXCUSED RATHER
+	// THAN GIVEN A DEADLINE. Open runs once at daemon start, before anything
+	// binds, so there is no caller deadline to honour: a context threaded in
+	// from New would only let a slow disk abort startup, which failing to
+	// start already does. Ruled by the team-lead 2026-09-16.
+	//rig:allow nocontextfree: Open runs once at daemon start and has no caller deadline to honour
+	db, err := store.OpenDB(context.Background(), path, schema)
 	if err != nil {
-		return nil, fmt.Errorf("record: opening %s: %w", path, err)
-	}
-
-	s := &Store{db: db, estate: estate, path: path, ephemeral: ephemeral}
-	if err := s.start(); err != nil {
-		_ = db.Close()
 		return nil, err
 	}
-	return s, nil
+	return &Store{db: db, estate: estate, path: path, ephemeral: ephemeral}, nil
 }
 
-// start reads the schema version, migrates if it is behind, and stamps it, in
-// ONE transaction.
-//
-// One transaction because a crash between a migration and its version bump
-// leaves a store that LIES ABOUT ITSELF - the data moved and the number did
-// not - and the next start would then migrate data that is already migrated.
-// Section 39 requires the data change and the version bump to be atomic for
-// exactly this reason.
-//
-// THE ONE ROOT CONTEXT IN THIS PACKAGE IS HERE, AND IT IS EXCUSED RATHER THAN
-// GIVEN A DEADLINE. Open runs once at daemon start, before anything binds, so
-// there is no caller deadline to honour: a context threaded in from New would
-// only let a slow disk abort startup, which failing to start already does.
-// Ruled by the team-lead 2026-09-16 with the blast radius as the argument - a
-// thirteenth signature moves daemon.go:239 and New's twelve call sites for no
-// change in behaviour. The exemption is one line with a mandatory reason and
-// nocontextfree reports it as a violation the moment it stops being needed,
-// which is the difference between this and turning the rule off in a config.
-func (s *Store) start() error {
-	//rig:allow nocontextfree: Open runs once at daemon start and has no caller deadline to honour
-	ctx := context.Background()
-
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("record: begin: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	var found uint32
-	if err := tx.QueryRowContext(ctx, "PRAGMA user_version").Scan(&found); err != nil {
-		return fmt.Errorf("record: reading user_version: %w", err)
-	}
-
-	switch {
-	case found == 0:
-		// A new store. Build it and stamp it.
-		//
-		// ABSENT IS NOT THE SAME AS UNKNOWN, and conflating the two is how a
-		// rollback initialises over live data. Both mean "I cannot read this";
-		// only one of them is safe to answer by building a new schema.
-		if err := createSchema(ctx, tx); err != nil {
-			return err
-		}
-	case found > SchemaVersion:
-		// THE REFUSAL. It does not open the store read-only, does not migrate
-		// down, does not repair, and does not rename the file aside. Every one
-		// of those is a guess about a layout this build has never seen.
-		//
-		// It runs BEFORE any migration and before anything is served, because a
-		// check that happens after the first write has not prevented anything.
-		return &FutureSchemaError{Path: s.path, Found: found, Known: SchemaVersion}
-	case found < SchemaVersion:
-		// Where forward migrations run. There are none yet because this IS
-		// schema 1; the branch is named so the first one has an obvious home
-		// and cannot be bolted onto the check above.
-		if err := migrate(tx, found); err != nil {
-			return err
-		}
-	}
-
-	// PRAGMA does not take a bound parameter, and SchemaVersion is a constant
-	// in this package rather than anything a caller supplies.
-	if _, err := tx.ExecContext(ctx, fmt.Sprintf("PRAGMA user_version = %d", SchemaVersion)); err != nil {
-		return fmt.Errorf("record: stamping user_version: %w", err)
-	}
-	return tx.Commit()
+// schema is the record store's registration with the one runner
+// (internal/store, plan/48 decision 3): a new file is built straight at
+// SchemaVersion, an older one is stepped forward, a newer one is refused.
+var schema = store.Schema{
+	What:    "record store",
+	Version: SchemaVersion,
+	Create:  createSchema,
+	Steps:   migrations,
 }
 
 // createSchema builds a new store at the current version.
@@ -367,14 +272,15 @@ CREATE INDEX links_by_dst ON links (dst, type);
 }
 
 // migrations maps the schema a store is AT to the step that moves it forward
-// one version. Empty because this IS schema 1 and nothing has ever shipped
-// before it.
+// one version. FORWARD ONLY, and each step must be IDEMPOTENT: the way this
+// fails is a crash between the step and the stamp, and the runner keeps both
+// in one transaction so the store is left at its old version.
 //
 // KEYED BY THE VERSION IT MIGRATES FROM, so a step cannot be run against a
 // store it was not written for, and so "which of these has already run" is
 // answered by the stamped version rather than by a second ledger that can
 // disagree with it.
-var migrations = map[uint32]func(*sql.Tx) error{
+var migrations = map[uint32]store.Step{
 	// 1 -> 2: B77's retractions table.
 	//
 	// ⛔ ADDITIVE AND IDEMPOTENT, which the doc comment below requires of every
@@ -382,8 +288,8 @@ var migrations = map[uint32]func(*sql.Tx) error{
 	// the next start able to run it again. Nothing in `records`, `heads` or
 	// `links` is touched, so a store that rolls forward carries every record it
 	// had and simply gains a verb.
-	1: func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
+	1: func(ctx context.Context, tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `
 CREATE TABLE IF NOT EXISTS retractions (
 	id          TEXT PRIMARY KEY,
 	reason      TEXT    NOT NULL,
@@ -398,34 +304,10 @@ CREATE TABLE IF NOT EXISTS retractions (
 
 	// 2 -> 3: section 40's lessons, one FTS5 table (knowledge.go). Additive
 	// and idempotent like the step above: IF NOT EXISTS, nothing else touched.
-	2: func(tx *sql.Tx) error {
-		_, err := tx.Exec(lessonsDDL)
+	2: func(ctx context.Context, tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, lessonsDDL)
 		return err
 	},
-}
-
-// migrate runs the forward migrations from found up to SchemaVersion.
-//
-// FORWARD ONLY, and no down-migration is written or run (section 39). Each step
-// must be IDEMPOTENT, because the way this actually fails is a crash partway
-// rather than a clean failure: the process dies between the step and the stamp,
-// and the next start runs the same step again against data it already moved.
-//
-// The caller runs this inside the same transaction as the stamp, so a crash
-// leaves the store at its old version with none of the step applied, rather
-// than at a version that lies about what is in it.
-func migrate(tx *sql.Tx, found uint32) error {
-	for v := found; v < SchemaVersion; v++ {
-		step, ok := migrations[v]
-		if !ok {
-			return fmt.Errorf("record: no migration from schema %d, which this "+
-				"build should not be able to produce", v)
-		}
-		if err := step(tx); err != nil {
-			return fmt.Errorf("record: migrating schema %d to %d: %w", v, v+1, err)
-		}
-	}
-	return nil
 }
 
 // Close releases the store.
