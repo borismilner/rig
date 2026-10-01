@@ -61,6 +61,6 @@ remote, 42 MB for `rig` alone, 111 agent-work folders under `rig`.
 | Q | Question |
 |---|---|
 | Q1 | ~~§43 Q1: does the record stay in rig, or move to the planner program?~~ **ANSWERED 2026-10-01: the record lives in rig.** |
-| Q2 | scope of the first switch: `rig` alone, or every project and area at once |
+| Q2 | ~~scope of the first switch: `rig` alone, or every project and area at once~~ **ANSWERED 2026-10-01: *"rig alone first, go ahead"*.** The rig project switches first; the others follow on its scorecard |
 | Q3 | which "new level" rows are in the first switch, and which come after |
 | Q4 | the dual run (§39): kept as ruled, ending on his word |
