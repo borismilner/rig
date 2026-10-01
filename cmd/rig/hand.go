@@ -88,6 +88,7 @@ type handOut struct {
 	Holder          string  `json:"holder"`
 	Reason          string  `json:"reason"`
 	Activity        string  `json:"activity"`
+	Note            string  `json:"note"`
 	Ended           string  `json:"ended"`
 	DeadlineInMs    *int64  `json:"deadline_in_ms,omitempty"`
 	CountdownLeftMs *uint32 `json:"countdown_left_ms,omitempty"`
@@ -96,7 +97,7 @@ type handOut struct {
 func handJSON(st *registryv1.HandState, now time.Time) handOut {
 	out := handOut{
 		Seq: st.GetSeq(), Phase: enumLabel(st.GetPhase().String(), "HAND_PHASE_"),
-		Holder: st.GetHolder(), Reason: st.GetReason(), Activity: st.GetActivity(), Ended: st.GetEnded(),
+		Holder: st.GetHolder(), Reason: st.GetReason(), Activity: st.GetActivity(), Note: st.GetNote(), Ended: st.GetEnded(),
 	}
 	if st.GetDeadlineUnixNano() != 0 {
 		in := handLeft(st, now).Milliseconds()
@@ -140,9 +141,14 @@ func handSince(st *registryv1.HandState, now time.Time) time.Duration {
 	return max(now.Sub(time.Unix(0, st.GetDrivingUnixNano())), 0).Round(time.Second)
 }
 
+// handDoing is what the run is doing: its note in his words, then the step.
 func handDoing(st *registryv1.HandState) string {
-	if a := strings.TrimSpace(st.GetActivity()); a != "" {
-		return ", at " + a
+	out := ""
+	if n := strings.TrimSpace(st.GetNote()); n != "" {
+		out += ": " + n
 	}
-	return ""
+	if a := strings.TrimSpace(st.GetActivity()); a != "" {
+		out += " (" + a + ")"
+	}
+	return out
 }

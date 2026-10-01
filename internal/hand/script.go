@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // A script is the form this feature is actually used in. One call that moves,
@@ -55,6 +56,23 @@ type Step struct {
 	Button byte     // 1 left, 2 middle, 3 right, 4-7 wheel
 	N      int      // scroll notches (+down), wait milliseconds
 	F      float64  // speed multiplier
+	// Note is what the step is for, in words he reads on the strip (plan/05
+	// H7). It carries on to the steps after it until another note.
+	Note string
+}
+
+// maxNote bounds a note; the strip has one line for it.
+const maxNote = 120
+
+// checkNote refuses a note the strip could not show.
+func checkNote(n string) error {
+	if len(n) > maxNote {
+		return fmt.Errorf("a note is at most %d bytes; the strip has one line for it", maxNote)
+	}
+	if strings.ContainsAny(n, "\n\r") {
+		return errors.New("a note is one line")
+	}
+	return nil
 }
 
 // where names a step in an error. The text it would type is left out: what
@@ -178,16 +196,26 @@ func parseButton(tok string) (byte, error) {
 // anything moves.
 func ParseScript(src string) ([]Step, error) {
 	var out []Step
+	note := ""
 	for i, raw := range strings.Split(src, "\n") {
 		line := strings.TrimSpace(raw)
 		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		// "note <words>" is not a step: it says what the steps after it are
+		// for, on the strip, until the next note.
+		if op, rest, _ := strings.Cut(line, " "); strings.EqualFold(op, "note") {
+			note = strings.TrimSpace(rest)
+			if err := checkNote(note); err != nil {
+				return nil, fmt.Errorf("line %d: %w", i+1, err)
+			}
 			continue
 		}
 		st, err := ParseStep(line)
 		if err != nil {
 			return nil, fmt.Errorf("line %d: %w", i+1, err)
 		}
-		st.Line, st.Raw = i+1, line
+		st.Line, st.Raw, st.Note = i+1, line, note
 		out = append(out, st)
 	}
 	if len(out) == 0 {
@@ -320,4 +348,27 @@ func parseNumberStep(st *Step, fields []string) error {
 	}
 	st.N = n
 	return nil
+}
+
+// Shown is the step as the strip may show it: the op and what it acts on,
+// and never the text a type step types, which is declared sensitive. The
+// window title and the keys are shown, since they are what he checks.
+func (s Step) Shown() string {
+	switch s.Op {
+	case OpWindow:
+		t := s.Text
+		if r := []rune(t); len(r) > 40 {
+			t = string(r[:40]) + "…"
+		}
+		return fmt.Sprintf("window %q", t)
+	case OpType:
+		return fmt.Sprintf("type %d characters", utf8.RuneCountInString(s.Text))
+	case OpKey:
+		return "key " + strings.Join(s.Keys, " ")
+	case OpWait:
+		return fmt.Sprintf("wait %dms", s.N)
+	case OpScroll:
+		return fmt.Sprintf("scroll %d", s.N)
+	}
+	return string(s.Op)
 }

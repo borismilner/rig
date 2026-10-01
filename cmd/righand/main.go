@@ -301,8 +301,10 @@ const scriptHelp = "steps is an array of step objects, {\"op\":\"click\",\"x\":\
 	"`move X Y`, `click [button|X Y [button]]`, `double`, `drag X1 Y1 X2 Y2`, `scroll N` " +
 	"(negative is up), `type TEXT` (rest of the line), `key ctrl+alt+t` (also Escape, Return, " +
 	"Tab, End, arrows), `wait MS`, `speed N`, `wpm N`. A coordinate is 400 from the near edge, " +
-	"-46 from the far edge, 60%, centre, ~ for the pointer, ~+30 relative to it. The whole " +
-	"script is checked before the first event."
+	"-46 from the far edge, 60%, centre, ~ for the pointer, ~+30 relative to it. " +
+	"Say what the steps are for, in a person's words: the strip shows it while they run. " +
+	"In text, a `note WORDS` line covers the steps after it; in steps, any step takes a note field, " +
+	"which carries on until the next. The whole script is checked before the first event."
 
 // stepsSchema is the typed form, so the daemon can check a call before
 // righand sees it. internal/hand's ParseSteps is still the authority.
@@ -314,7 +316,8 @@ const stepsSchema = `{"type":"array","minItems":1,"description":"the steps, in o
 	`"x":{"type":["string","number"]},"y":{"type":["string","number"]},` +
 	`"x2":{"type":["string","number"]},"y2":{"type":["string","number"]},` +
 	`"button":{"type":"string"},"n":{"type":"integer"},"ms":{"type":"integer"},` +
-	`"by":{"type":"number"},"wpm":{"type":"integer"}}}}`
+	`"by":{"type":"number"},"wpm":{"type":"integer"},` +
+	`"note":{"type":"string","maxLength":120,"description":"what this and the following steps are for, shown on the HANDS OFF strip"}}}}`
 
 func declaration() *rigv1.Declaration {
 	cmd := func(c *rigv1.Command) *rigv1.Command {
@@ -347,6 +350,7 @@ func declaration() *rigv1.Declaration {
 				Examples: []string{
 					`rig righand script --args '{"steps":[{"op":"screen"},{"op":"move","x":"centre","y":"centre"}]}'`,
 					`rig righand script --args '{"script":"screen\nmove centre centre"}'`,
+					`rig righand script --args '{"why":"rename the report","script":"window Files\nnote selecting the report\nclick 200 140\nnote renaming it\nkey F2"}'`,
 				},
 				Effects:    rigv1.Effects_EFFECTS_DRIVES_INPUT,
 				Idempotent: rigv1.Tristate_TRISTATE_NO,

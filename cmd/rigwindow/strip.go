@@ -152,6 +152,7 @@ type stripJSON struct {
 	Holder   string `json:"holder"`
 	Reason   string `json:"reason"`
 	Activity string `json:"activity"`
+	Note     string `json:"note"`
 	Ended    string `json:"ended"`
 	// ASKING: until it drives. HELD: until the hold declines. PAUSED: until
 	// the pause stops the run.
@@ -198,7 +199,7 @@ func (f *stripFeed) view(now time.Time) stripJSON {
 	st := f.st
 	out := stripJSON{
 		Phase:  strings.ToLower(strings.TrimPrefix(st.GetPhase().String(), "HAND_PHASE_")),
-		Holder: st.GetHolder(), Reason: st.GetReason(), Activity: st.GetActivity(), Ended: st.GetEnded(),
+		Holder: st.GetHolder(), Reason: st.GetReason(), Activity: st.GetActivity(), Note: st.GetNote(), Ended: st.GetEnded(),
 		WindowMs: int64(st.GetWindowMs()), HeldMs: int64(st.GetLeftMs()),
 		Quit: !f.idleAt.IsZero() && now.Sub(f.idleAt) > stripLinger,
 	}

@@ -7,23 +7,26 @@
 /* The toasts' dark tokens (design/theme.js DEFAULTS); the phase picks the hue:
    asking info, held dim, driving warn, paused good. */
 :root {
-  --card-top: #27303c; --card-bot: #1c232d; --line: rgba(255,255,255,.09);
-  --fg: #e6edf6; --fg-dim: #a1b1c5; --on-hue: #0d1117;
-  --sem-info: #8fc2fb; --sem-good: #92cf9a; --sem-warn: #e1b673; --sem-bad: #f7a59c;
+  --glass: rgba(20, 25, 32, .94); --line: rgba(255,255,255,.08);
+  --fg: #eef3f9; --fg-dim: #9fb0c4; --on-hue: #0d1117;
+  --sem-info: #8fc2fb; --sem-good: #92cf9a; --sem-warn: #e9bd78; --sem-bad: #f7a59c;
   --sans: "Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif;
 }
 html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
-body { font: 14px/1.35 var(--sans); color: var(--fg); -webkit-user-select: none; user-select: none;
-       -webkit-font-smoothing: antialiased; display: flex; justify-content: center; padding-top: 4px; }
+body { font: 14px/1.3 var(--sans); color: var(--fg); -webkit-user-select: none; user-select: none;
+       -webkit-font-smoothing: antialiased; display: flex; justify-content: center; align-items: center; }
 
 #bar {
   --hue: var(--sem-info);
-  box-sizing: border-box; width: 680px; min-height: 76px; position: relative; overflow: hidden;
-  display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; align-items: center; column-gap: 16px;
-  padding: 12px 14px 14px 12px; border-radius: 16px;
-  background: linear-gradient(180deg, var(--card-top), var(--card-bot));
-  border: 1px solid color-mix(in srgb, var(--hue) 45%, transparent);
-  box-shadow: 0 18px 36px -12px rgba(0,0,0,.65), 0 3px 10px rgba(0,0,0,.35);
+  box-sizing: border-box; width: 680px; height: 84px; position: relative; overflow: hidden;
+  display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: center; column-gap: 16px;
+  padding: 0 16px 0 16px; border-radius: 18px;
+  /* the phase's hue glows in from the left, behind the ring */
+  background:
+    radial-gradient(120px 90px at 42px 50%, color-mix(in srgb, var(--hue) 22%, transparent), transparent 70%),
+    var(--glass);
+  border: 1px solid var(--line);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 14px 32px -10px rgba(0,0,0,.7), 0 2px 8px rgba(0,0,0,.35);
   transition: opacity .3s;
 }
 body[data-phase=held]    #bar { --hue: var(--fg-dim); }
@@ -31,86 +34,123 @@ body[data-phase=driving] #bar { --hue: var(--sem-warn); }
 body[data-phase=paused]  #bar { --hue: var(--sem-good); }
 body[data-phase=idle]    #bar { opacity: .85; }
 
-/* The badge says the phase in two words, in the phase's hue. */
-#badge { align-self: stretch; border-radius: 10px; display: grid; place-items: center; text-align: center;
-         font-weight: 800; font-size: 15px; letter-spacing: .04em; line-height: 1.1;
-         color: var(--on-hue); background: var(--hue); padding: 4px; }
-#badge small { display: block; font-weight: 600; font-size: 12px; letter-spacing: 0; margin-top: 3px; }
+/* The ring: a countdown while it asks, a turning arc while it drives, whole
+   once the desktop is his again. */
+#orb { position: relative; width: 52px; height: 52px; }
+#orb svg.ring { position: absolute; inset: 0; transform: rotate(-90deg); }
+#orb .track { fill: none; stroke: rgba(255,255,255,.10); stroke-width: 3.5; }
+#orb .arc   { fill: none; stroke: var(--hue); stroke-width: 3.5; stroke-linecap: round;
+              transition: stroke-dashoffset .25s linear; }
+body[data-phase=driving] #orb svg.ring { animation: turn 1.4s linear infinite; }
+@keyframes turn { from { transform: rotate(-90deg); } to { transform: rotate(270deg); } }
+#icon { position: absolute; inset: 13px; color: var(--hue); }
+#icon svg { width: 26px; height: 26px; display: block; }
 
 #text { min-width: 0; }
-#head { font-weight: 650; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#sub  { color: var(--fg-dim); font-size: 13.5px; margin-top: 3px;
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#err  { color: var(--sem-bad); font-size: 13px; margin-top: 3px; }
+#eyebrow { font-size: 11.5px; font-weight: 750; letter-spacing: .08em;
+           color: var(--hue); display: flex; align-items: center; gap: 7px; }
+#eyebrow .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--hue); display: none; }
+body[data-phase=driving] #eyebrow .dot { display: block; animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+#title { font-size: 16.5px; font-weight: 640; margin-top: 3px;
+         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#meta  { color: var(--fg-dim); font-size: 13px; margin-top: 3px;
+         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#meta:empty { display: none; }
+#err   { color: var(--sem-bad); font-size: 12.5px; margin-top: 2px;
+         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #err:empty { display: none; }
 
 #buttons { display: flex; gap: 8px; }
-button { font: 600 14px/1 var(--sans); padding: 10px 14px; border-radius: 10px; cursor: pointer;
-         color: var(--fg); background: rgba(255,255,255,.07); border: 1px solid var(--line); }
-button:hover { background: rgba(255,255,255,.13); }
-button.primary { color: var(--on-hue); background: var(--hue); border-color: transparent; }
+button { font: 620 13.5px/1 var(--sans); height: 36px; padding: 0 15px; border-radius: 10px; cursor: pointer;
+         color: var(--fg); background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+         transition: background .12s, filter .12s, color .12s; }
+button:hover { background: rgba(255,255,255,.12); }
+button.primary { color: var(--on-hue); background: var(--hue); border-color: transparent;
+                 box-shadow: 0 4px 14px -4px color-mix(in srgb, var(--hue) 70%, transparent); }
 button.primary:hover { filter: brightness(1.08); }
+button.danger { color: var(--sem-bad); border-color: color-mix(in srgb, var(--sem-bad) 35%, transparent);
+                background: color-mix(in srgb, var(--sem-bad) 8%, transparent); }
 button.danger:hover { color: var(--on-hue); background: var(--sem-bad); }
-
-/* The countdown drains along the bottom edge. */
-#clock { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--hue); width: 0; }
 </style>
 </head>
 <body data-phase="idle">
 <div id="bar" role="alert">
-  <div id="badge"></div>
-  <div id="text"><div id="head"></div><div id="sub"></div><div id="err"></div></div>
+  <div id="orb">
+    <svg class="ring" viewBox="0 0 52 52"><circle class="track" cx="26" cy="26" r="23"/><circle class="arc" id="arc" cx="26" cy="26" r="23"/></svg>
+    <div id="icon"></div>
+  </div>
+  <div id="text">
+    <div id="eyebrow"><span class="dot"></span><span id="phase"></span></div>
+    <div id="title" dir="auto"></div>
+    <div id="meta" dir="auto"></div>
+    <div id="err"></div>
+  </div>
   <div id="buttons"></div>
-  <div id="clock"></div>
 </div>
 <script>
 "use strict";
 const $ = (id) => document.getElementById(id);
+const RING = 2 * Math.PI * 23;
 
 // A duration as he reads it: "14s", "2:05".
 function dur(ms) {
   const s = Math.max(0, Math.ceil(ms / 1000));
   return s < 60 ? s + "s" : Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
 }
+const join = (...parts) => parts.filter(Boolean).join(" · ");
 
-// Each phase: badge, headline, sub line, and its buttons [word, label, class].
+// The glyph in the ring, by phase: the pointer asks and drives, a clock is
+// held, a person has the desktop back.
+const svg = (d) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+  'stroke-linecap="round" stroke-linejoin="round">' + d + "</svg>";
+const ICONS = {
+  pointer: svg('<path d="M5 3l14 7.5-6.2 1.7L10 18.5z" fill="currentColor" fill-opacity=".25"/>'),
+  clock: svg('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
+  person: svg('<circle cx="12" cy="8" r="3.6"/><path d="M5 20c.8-3.8 3.6-5.6 7-5.6s6.2 1.8 7 5.6"/>'),
+  done: svg('<path d="M5.5 12.5l4.2 4.2L18.5 8"/>'),
+};
+
+// Each phase: ring fill (0-1), icon, eyebrow, title, meta line, and its
+// buttons [word, label, class]. What the run is for leads while it drives (H7).
 const PHASES = {
   asking: (s) => ({
-    badge: ["STARTS", "in " + dur(s.left_ms)],
-    head: s.holder + " wants the desktop",
-    sub: (s.reason || "no reason given") + " · it starts by itself unless you answer",
+    ring: s.window_ms ? s.left_ms / s.window_ms : 0, icon: "pointer",
+    phase: "STARTS IN " + dur(s.left_ms),
+    title: s.holder + " wants the desktop",
+    meta: join(s.reason, "starts by itself unless you answer"),
     buttons: [["allow", "Allow now", "primary"], ["hold", "Hold", ""], ["decline", "Decline", "danger"]],
-    clock: s.window_ms ? s.left_ms / s.window_ms : 0,
   }),
   held: (s) => ({
-    badge: ["HELD", dur(s.held_ms) + " left"],
-    head: s.holder + " is waiting for you",
-    sub: (s.reason || "no reason given") + " · declines itself in " + dur(s.left_ms),
+    ring: 1, icon: "clock",
+    phase: "ON HOLD · " + dur(s.held_ms) + " left",
+    title: s.holder + " is waiting for you",
+    meta: join(s.reason, "declines itself in " + dur(s.left_ms)),
     buttons: [["resume", "Let it run", "primary"], ["decline", "Decline", "danger"]],
-    clock: 0,
   }),
   driving: (s) => ({
-    badge: ["HANDS OFF", dur(s.since_ms)],
-    head: s.holder + " is driving the desktop",
-    sub: [s.activity, s.reason].filter(Boolean).join(" · ") || "working",
+    ring: .28, icon: "pointer",
+    phase: "HANDS OFF · " + dur(s.since_ms),
+    title: s.note || s.holder + " is driving the desktop",
+    meta: join(s.note ? s.holder : "", s.activity, s.reason),
     buttons: [["pause", "Take back", "primary"], ["stop", "Stop", "danger"]],
-    clock: 0,
   }),
   paused: (s) => ({
-    badge: ["YOURS", "paused"],
-    head: "You have the desktop back from " + s.holder,
-    sub: (s.activity ? "stopped at " + s.activity + " · " : "") + "the run ends itself in " + dur(s.left_ms),
+    ring: 1, icon: "person",
+    phase: "PAUSED · the run ends itself in " + dur(s.left_ms),
+    title: "The desktop is yours again",
+    meta: join(s.holder + (s.activity ? " stopped at " + s.activity : " stopped"), s.note),
     buttons: [["resume", "Resume", "primary"], ["stop", "Stop", "danger"]],
-    clock: 0,
   }),
   idle: (s) => ({
-    badge: ["DONE", ""],
-    head: s.holder ? s.holder + ": " + (s.ended || "over") : "Nobody has the desktop",
-    sub: "", buttons: [], clock: 0,
+    ring: 1, icon: "done",
+    phase: "DONE",
+    title: s.holder ? s.holder + ": " + (s.ended || "over") : "Nobody has the desktop",
+    meta: "", buttons: [],
   }),
 };
 
-let shownButtons = "";
+let shownButtons = "", shownIcon = "";
 async function answer(word) {
   $("err").textContent = "";
   const r = await fetch("/strip/answer?action=" + word, { method: "POST" });
@@ -121,14 +161,12 @@ async function answer(word) {
 function draw(s) {
   const v = (PHASES[s.phase] || PHASES.idle)(s);
   document.body.dataset.phase = s.phase;
-  $("badge").innerHTML = "";
-  $("badge").append(v.badge[0]);
-  const small = document.createElement("small");
-  small.textContent = v.badge[1];
-  $("badge").append(small);
-  $("head").textContent = v.head;
-  $("sub").textContent = v.sub;
-  $("clock").style.width = (v.clock * 100).toFixed(2) + "%";
+  $("arc").style.strokeDasharray = RING;
+  $("arc").style.strokeDashoffset = RING * (1 - Math.min(1, Math.max(0, v.ring)));
+  if (v.icon !== shownIcon) { shownIcon = v.icon; $("icon").innerHTML = ICONS[v.icon]; }
+  $("phase").textContent = v.phase;
+  $("title").textContent = v.title;
+  $("meta").textContent = v.meta;
   // Rebuilt only when the set changes, so a press is never lost to a redraw.
   const key = s.phase + v.buttons.map((b) => b[0]).join();
   if (key !== shownButtons) {

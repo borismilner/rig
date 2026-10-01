@@ -48,9 +48,12 @@ func (g *deskGate) Wait() error {
 	return nil
 }
 
-// Before names the step on the strip: its number and op, never its text.
+// Before names the step on the strip: its number, what it does and what it
+// is for (H7), never the text it types.
 func (g *deskGate) Before(i, n int, st hand.Step) error {
-	return g.gate(fmt.Sprintf("step %d of %d: %s", i+1, n, st.Op))
+	return g.call(&registryv1.HandStepRequest{
+		Activity: fmt.Sprintf("step %d of %d: %s", i+1, n, st.Shown()), Note: st.Note,
+	})
 }
 
 // Aim passes the gate again with the point the hand is about to press at,

@@ -2056,9 +2056,12 @@ type HandState struct {
 	Ended string `protobuf:"bytes,11,opt,name=ended,proto3" json:"ended,omitempty"`
 	// DRIVING: the point a step is waiting to act on because the strip covers
 	// it (H6). The strip moves to the other edge when it sees one.
-	HasAim        bool  `protobuf:"varint,12,opt,name=has_aim,json=hasAim,proto3" json:"has_aim,omitempty"`
-	AimX          int32 `protobuf:"varint,13,opt,name=aim_x,json=aimX,proto3" json:"aim_x,omitempty"`
-	AimY          int32 `protobuf:"varint,14,opt,name=aim_y,json=aimY,proto3" json:"aim_y,omitempty"`
+	HasAim bool  `protobuf:"varint,12,opt,name=has_aim,json=hasAim,proto3" json:"has_aim,omitempty"`
+	AimX   int32 `protobuf:"varint,13,opt,name=aim_x,json=aimX,proto3" json:"aim_x,omitempty"`
+	AimY   int32 `protobuf:"varint,14,opt,name=aim_y,json=aimY,proto3" json:"aim_y,omitempty"`
+	// What the run's current step is for, in his words (H7). The strip shows it
+	// above the step count.
+	Note          string `protobuf:"bytes,15,opt,name=note,proto3" json:"note,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2191,6 +2194,13 @@ func (x *HandState) GetAimY() int32 {
 	return 0
 }
 
+func (x *HandState) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
 // HandRequestRequest asks for the desktop and blocks through the countdown:
 // it answers once the run is driving, and is refused when he declines.
 type HandRequestRequest struct {
@@ -2299,9 +2309,12 @@ type HandStepRequest struct {
 	// The root point the step will press or release at, when it has one: a
 	// click, a scroll, either end of a drag. The step waits until the strip is
 	// not over it (H6).
-	HasPoint      bool  `protobuf:"varint,2,opt,name=has_point,json=hasPoint,proto3" json:"has_point,omitempty"`
-	X             int32 `protobuf:"varint,3,opt,name=x,proto3" json:"x,omitempty"`
-	Y             int32 `protobuf:"varint,4,opt,name=y,proto3" json:"y,omitempty"`
+	HasPoint bool  `protobuf:"varint,2,opt,name=has_point,json=hasPoint,proto3" json:"has_point,omitempty"`
+	X        int32 `protobuf:"varint,3,opt,name=x,proto3" json:"x,omitempty"`
+	Y        int32 `protobuf:"varint,4,opt,name=y,proto3" json:"y,omitempty"`
+	// What this step is for, in words he reads on the strip (H7). Empty keeps
+	// the note as it is.
+	Note          string `protobuf:"bytes,5,opt,name=note,proto3" json:"note,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2362,6 +2375,13 @@ func (x *HandStepRequest) GetY() int32 {
 		return x.Y
 	}
 	return 0
+}
+
+func (x *HandStepRequest) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
 }
 
 type HandStepResponse struct {
@@ -2906,7 +2926,7 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x12\x12\n" +
 	"\x04wait\x18\x02 \x01(\bR\x04wait\"#\n" +
 	"\vSayResponse\x12\x14\n" +
-	"\x05heard\x18\x01 \x01(\bR\x05heard\"\xa3\x03\n" +
+	"\x05heard\x18\x01 \x01(\bR\x05heard\"\xb7\x03\n" +
 	"\tHandState\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x04R\x03seq\x12'\n" +
 	"\x05phase\x18\x02 \x01(\x0e2\x11.rig.v1.HandPhaseR\x05phase\x12\x16\n" +
@@ -2922,17 +2942,19 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\x05ended\x18\v \x01(\tR\x05ended\x12\x17\n" +
 	"\ahas_aim\x18\f \x01(\bR\x06hasAim\x12\x13\n" +
 	"\x05aim_x\x18\r \x01(\x05R\x04aimX\x12\x13\n" +
-	"\x05aim_y\x18\x0e \x01(\x05R\x04aimY\"O\n" +
+	"\x05aim_y\x18\x0e \x01(\x05R\x04aimY\x12\x12\n" +
+	"\x04note\x18\x0f \x01(\tR\x04note\"O\n" +
 	"\x12HandRequestRequest\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason\x12!\n" +
 	"\fcountdown_ms\x18\x02 \x01(\rR\vcountdownMs\">\n" +
 	"\x13HandRequestResponse\x12'\n" +
-	"\x05state\x18\x01 \x01(\v2\x11.rig.v1.HandStateR\x05state\"f\n" +
+	"\x05state\x18\x01 \x01(\v2\x11.rig.v1.HandStateR\x05state\"z\n" +
 	"\x0fHandStepRequest\x12\x1a\n" +
 	"\bactivity\x18\x01 \x01(\tR\bactivity\x12\x1b\n" +
 	"\thas_point\x18\x02 \x01(\bR\bhasPoint\x12\f\n" +
 	"\x01x\x18\x03 \x01(\x05R\x01x\x12\f\n" +
-	"\x01y\x18\x04 \x01(\x05R\x01y\";\n" +
+	"\x01y\x18\x04 \x01(\x05R\x01y\x12\x12\n" +
+	"\x04note\x18\x05 \x01(\tR\x04note\";\n" +
 	"\x10HandStepResponse\x12'\n" +
 	"\x05state\x18\x01 \x01(\v2\x11.rig.v1.HandStateR\x05state\"\x14\n" +
 	"\x12HandReleaseRequest\">\n" +

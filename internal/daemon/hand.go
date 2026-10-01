@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"strings"
@@ -265,7 +266,7 @@ func endedErr(verb, why string) error {
 // with a point under the strip publishes that point and waits for the strip
 // to move off it (H6), and is refused if it does not: a click under the
 // strip would press the strip's own buttons.
-func (h *handDesk) step(ctx context.Context, owner any, activity string, pt *handPoint) (*registryv1.HandState, error) {
+func (h *handDesk) step(ctx context.Context, owner any, activity, note string, pt *handPoint) (*registryv1.HandState, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	var clearBy time.Time
@@ -279,8 +280,9 @@ func (h *handDesk) step(ctx context.Context, owner any, activity string, pt *han
 		}
 		switch h.st.GetPhase() {
 		case registryv1.HandPhase_HAND_PHASE_DRIVING:
-			if activity != "" && activity != h.st.GetActivity() {
-				h.st.Activity = activity
+			if (activity != "" && activity != h.st.GetActivity()) || (note != "" && note != h.st.GetNote()) {
+				h.st.Activity = cmp.Or(activity, h.st.GetActivity())
+				h.st.Note = cmp.Or(note, h.st.GetNote())
 				h.changed()
 			}
 			if pt == nil || !h.strip.covers(*pt) {
@@ -462,7 +464,7 @@ func (d *Daemon) serveHand(ctx context.Context, c *conn, f *rigv1.Frame, command
 		if req.GetHasPoint() {
 			pt = &handPoint{req.GetX(), req.GetY()}
 		}
-		if st, err = d.hand.step(ctx, c, clip(req.GetActivity()), pt); err == nil {
+		if st, err = d.hand.step(ctx, c, clip(req.GetActivity()), clip(req.GetNote()), pt); err == nil {
 			c.reply(f.GetStreamId(), &registryv1.HandStepResponse{State: st})
 		}
 	case "hand.release":

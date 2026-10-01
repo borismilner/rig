@@ -39,6 +39,9 @@ type typedStep struct {
 	MS     *int       `json:"ms"`
 	By     *float64   `json:"by"`
 	WPM    *int       `json:"wpm"`
+	// Note is taken by every op (plan/05 H7), and carries on to the steps
+	// after it until another note.
+	Note *string `json:"note"`
 }
 
 // typedAxis is one coordinate, kept as the token ParseCoord reads.
@@ -93,24 +96,39 @@ func ParseSteps(raw []byte) ([]Step, error) {
 		return nil, fmt.Errorf("%d steps, over %d", len(objs), maxSteps)
 	}
 	out := make([]Step, 0, len(objs))
+	note := ""
 	for i, obj := range objs {
-		st, err := parseTypedStep(obj)
+		st, n, err := parseTypedStep(obj)
 		if err != nil {
 			return nil, fmt.Errorf("step %d: %w", i+1, err)
 		}
-		st.Raw = fmt.Sprintf("step %d, %s", i+1, st.Op)
+		if n != nil {
+			note = strings.TrimSpace(*n)
+		}
+		st.Raw, st.Note = fmt.Sprintf("step %d, %s", i+1, st.Op), note
 		out = append(out, st)
 	}
 	return out, nil
 }
 
-func parseTypedStep(obj json.RawMessage) (Step, error) {
+func parseTypedStep(obj json.RawMessage) (Step, *string, error) {
 	var t typedStep
 	dec := json.NewDecoder(bytes.NewReader(obj))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&t); err != nil {
-		return Step{}, err
+		return Step{}, nil, err
 	}
+	if t.Note != nil {
+		if err := checkNote(strings.TrimSpace(*t.Note)); err != nil {
+			return Step{}, nil, err
+		}
+	}
+	st, err := t.step()
+	return st, t.Note, err
+}
+
+// step is the object as a Step, checked as its op requires.
+func (t *typedStep) step() (Step, error) {
 	op := Op(strings.ToLower(t.Op))
 	allowed, ok := stepFields[op]
 	if !ok {
