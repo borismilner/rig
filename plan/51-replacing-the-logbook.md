@@ -13,6 +13,14 @@ MEASURED better in rig than in the logbook, for agents and for him, before
 any agent is pointed at rig instead. Parity is a failure of this bar. It is
 the next phase, ahead of S1's remaining clean-up and the bus.
 
+⛔ **THE GOAL, RESTATED BY BORIS THE SAME DAY, verbatim:** *"What I want is
+to is to make the management of the logbook more streamlined, more
+efficient. Maybe in a way that is easier on the agents to do good job while
+wasting less tokens. But I don't want `rig` to become the bottleneck"*. **So
+the measure is agent tokens and agent effort, and the hard constraint is
+that no agent's work may stop or slow because rig is down, busy or slow.**
+A design where rig is the only write path fails the constraint.
+
 ⛔ **DRAFT, written the same turn so the requirement is not held only in a
 session.** The inventory below is measured; every "new level" row is a
 proposal of the lead's (§37) and is his to accept, reshape or refuse. §39
