@@ -1,0 +1,5 @@
+$ rig logbook line DECISIONS.md five
+exit 1
+--- stdout (0 bytes)
+--- stderr (43 bytes)
+rig: a line is a number from 1; got "five"

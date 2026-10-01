@@ -1,7 +1,7 @@
 $ rig -h
 exit 0
 --- stdout (0 bytes)
---- stderr (3400 bytes)
+--- stderr (3531 bytes)
 usage: rig <command> [flags]
 
   <app> <cmd>      run a command a program declared, with its declared flags
@@ -31,6 +31,8 @@ usage: rig <command> [flags]
   say <text>       read text aloud; --wait D returns once it has been heard
   hand <cmd>       the desktop's one run: status, and your answer to it -
                    allow, decline, hold, pause, resume, stop
+  logbook <cmd>    the split logbook's files, no daemon needed: grep, show,
+                   line, cat, add, index, check, split
   record <cmd>     the continuity record: put, get, query, history, link,
                    unlink, refs, retract, delete, replace
   progress step <item>

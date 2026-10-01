@@ -114,6 +114,8 @@ var valuedFlags = map[string]bool{
 	// rig message send's pin (section 16).
 	"generation": true, "epoch": true,
 	"depth": true,
+	// rig logbook (plan/51): the folder the documents are in.
+	"dir": true,
 
 	// Section 39's record verbs. Every one of these is a flag `rig record`,
 	// `rig progress` or `rig brief` declares as a non-boolean, and a missing
@@ -212,6 +214,8 @@ func usage() {
   say <text>       read text aloud; --wait D returns once it has been heard
   hand <cmd>       the desktop's one run: status, and your answer to it -
                    allow, decline, hold, pause, resume, stop
+  logbook <cmd>    the split logbook's files, no daemon needed: grep, show,
+                   line, cat, add, index, check, split
   record <cmd>     the continuity record: put, get, query, history, link,
                    unlink, refs, retract, delete, replace
   progress step <item>
@@ -264,6 +268,7 @@ var plainVerbs = map[string]func([]string) error{
 	"restart":   cmdRestart,
 	"health":    cmdHealth,
 	"hand":      cmdHand,
+	"logbook":   cmdLogbook,
 }
 
 // verbAt is the index of the command word, so rig's own flags may come BEFORE
@@ -345,7 +350,7 @@ func run(args []string) error {
 		// capability with two halves, and this is its single seam into run.
 		return cmdBackupOrRestore(args[0], with(args[1:], lead))
 	case "peers", "knowledge", "worknote", "message", "queue", "store", "files", "notify", "dnd",
-		"sound", "say", "up", "stop", "restart", "health", "hand":
+		"sound", "say", "up", "stop", "restart", "health", "hand", "logbook":
 		return plainVerbs[args[0]](with(args[1:], lead))
 	case "record":
 		return cmdRecord(with(args[1:], lead))
