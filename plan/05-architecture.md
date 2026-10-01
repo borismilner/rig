@@ -439,8 +439,8 @@ as ones something caused: a schedule entry that fires is a publisher like any
 other. **This is the use B107's "owed if rig uses it" test was waiting for**,
 since the first program on rig is a task scheduler (§25). Until `events`
 exists, every live feed is its own long poll with its own cursor
-(`toast.wait`, `hand.wait`, `message.await`); those are its first consumers
-to fold in, never a fourth copy.
+(`toast.wait`, `hand.wait`, `message.await`). The first two are its first
+consumers to fold in, never a fourth copy; durable mail stays its own (§52).
 
 **Searched rather than assumed, per §38's standing rule, and set aside:**
 `asaskevich/EventBus` is the established, widely-used option for exactly
