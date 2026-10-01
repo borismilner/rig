@@ -217,7 +217,18 @@ func TestSystemdItselfAcceptsTheUnit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s verify refused the unit: %v\n%s", systemdAnalyse, err, out)
 	}
-	if len(strings.TrimSpace(string(out))) != 0 {
+	// verify also loads the units this one names (default.target and its
+	// wants), and an unrelated package's unit complains through the same
+	// output: spice-vdagent's did on 2026-10-01. A line naming another file
+	// is that file's problem; any other line is still a failure.
+	var ours []string
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if strings.HasPrefix(line, "/") && !strings.HasPrefix(line, path+":") {
+			continue
+		}
+		ours = append(ours, line)
+	}
+	if out := strings.Join(ours, "\n"); len(strings.TrimSpace(out)) != 0 {
 		t.Fatalf("%s verify EXITED 0 AND STILL COMPLAINED, which is "+
 			"how a typo'd directive passes: it is parsed, rejected, ignored, and "+
 			"the setting silently falls back to its default. Output:\n%s", systemdAnalyse, out)
