@@ -133,6 +133,11 @@ linters:
       # UK, because the prose in this house is British: behaviour, analyse,
       # colour, serialised. US flagged every one of them as a typo.
       locale: UK
+      # MCP's method names (initialize, notifications/initialized) are spelt
+      # by the protocol, and rig mcp has to name them.
+      ignore-rules:
+        - initialize
+        - initialized
     nakedret:
       max-func-lines: 30
     nolintlint:

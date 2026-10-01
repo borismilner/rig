@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"strings"
@@ -21,9 +20,9 @@ import (
 // binary with an `mcp` subcommand and an agent host reaches it with
 // command/args. rig's case is thinner than agentbox's, which re-implements an
 // MCP server in the child: rigd already serves a complete MCP server on the
-// socket, so this is a byte pump and must stay one. Anything it answers
-// itself is a second surface, and section 13a puts the floor in the kernel
-// precisely so no surface can grow its own.
+// socket, so this stays a pump. It reads only the JSON-RPC framing, to carry
+// a session over a rigd restart (mcp_bridge.go), and answers nothing itself
+// except an error for a call the lost daemon never answered.
 //
 // ⛔ IT MUST BE EXEC'D DIRECTLY AND NEVER WRAPPED IN A SHELL. This is not a
 // preference and it is not inherited caution - it was measured on 2026-09-16
@@ -68,67 +67,11 @@ func cmdMCP(args []string) error {
 	if err != nil {
 		return noDoor(sock, err)
 	}
-	defer func() { _ = c.Close() }()
 
-	return pump(c)
-}
-
-// pump copies in both directions and reports WHICH SIDE ENDED FIRST, because
-// that is the only thing distinguishing the two outcomes.
-//
-// THE EXIT CODE IS THE POINT AND IT IS THE ONE PLACE THIS VERB BEATS A BYTE
-// PUMP. Measured 2026-09-16: socat cannot tell "rigd died" from "the session
-// ended normally" - both arrive as EOF and both exit 0 - so an agent host is
-// told its server finished cleanly when in fact it lost its daemon. Compare
-// the cold-dial path, which exits non-zero and prints a real reason. So:
-// ZERO ONLY WHEN THE HOST CLOSED OUR STDIN. Non-zero, with a sentence, when
-// the socket ended first.
-//
-// A clean EOF is a nil error on both sides, so the error cannot carry this
-// and the RACE is what does. Which channel fires first is the whole signal.
-//
-// AND IT DOES NOT RE-DIAL. Ruled 2026-09-16, and the reason is the presence
-// model rather than simplicity: a reconnect arrives as a brand new principal
-// with an empty roster and nothing tells the seat, which is a row frozen on
-// the board rather than absent - and a frozen row is worse than a missing one
-// because it looks supervised. Exiting hands recovery to the agent host,
-// where a new session is a new connection and a new principal by
-// construction, which is the model the daemon already has.
-func pump(c net.Conn) error {
-	toDaemon := make(chan error, 1)
-	go func() {
-		_, err := io.Copy(c, os.Stdin)
-		// Half-close rather than close: the daemon should see our EOF and
-		// finish answering, and we still want what it sends back.
-		if u, ok := c.(*net.UnixConn); ok {
-			_ = u.CloseWrite()
-		}
-		toDaemon <- err
-	}()
-
-	toHost := make(chan error, 1)
-	go func() {
-		_, err := io.Copy(os.Stdout, c)
-		toHost <- err
-	}()
-
-	select {
-	case err := <-toHost:
-		// The socket ended while the host still had us open. The daemon is
-		// gone, or stopped answering, and the host must not read that as a
-		// clean finish.
-		return lostDaemon(err)
-
-	case err := <-toDaemon:
-		if err != nil {
-			return fmt.Errorf("rig mcp: reading from the agent host: %w", err)
-		}
-		// The host closed our stdin, which is how it says stop. Drain what
-		// the daemon still has to say before going, so a reply already on
-		// the wire is not dropped on the floor.
-		<-toHost
-		return nil
+	dial := func(ctx context.Context) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, "unix", sock)
 	}
+	return newBridge(os.Stdin, os.Stdout, dial, redialFor).run(c)
 }
 
 // noDoor is the cold-dial failure: nothing is listening on the MCP socket.
