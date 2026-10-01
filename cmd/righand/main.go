@@ -121,10 +121,12 @@ func (p *program) handle(method string, payload []byte) (proto.Message, error) {
 type scriptArgs struct {
 	// Steps is the contract, an array of step objects; Script is the
 	// one-step-per-line sugar over it (plan/05 section 5m). Exactly one.
-	Steps  json.RawMessage `json:"steps"`
-	Script string          `json:"script"`
-	Speed  float64         `json:"speed"`
-	WPM    int             `json:"wpm"`
+	Steps json.RawMessage `json:"steps"`
+	// Why is the strip's line: what the run is for, in his terms.
+	Why    string  `json:"why"`
+	Script string  `json:"script"`
+	Speed  float64 `json:"speed"`
+	WPM    int     `json:"wpm"`
 }
 
 func (p *program) script(method string, raw []byte) (any, error) {
@@ -175,14 +177,23 @@ func (p *program) script(method string, raw []byte) (any, error) {
 		return nil, err
 	}
 	defer func() { _ = desk.Close() }()
-	p.report(fmt.Sprintf("a script of %d steps to finish", len(steps)))
+	// His countdown first, before the display session opens: a declined
+	// run never touches the desktop (plan/05 section 5m, H1-H2).
+	p.report("his answer to the HANDS OFF countdown")
 	defer p.report(idle)
+	gate, release, err := p.askDesktop(a.Why, steps)
+	if err != nil {
+		return nil, refuse(method, codeOf(err), "righand: "+err.Error(), "")
+	}
+	defer release()
+	p.report(fmt.Sprintf("a script of %d steps to finish", len(steps)))
 
 	h, err := hand.Open(0)
 	if err != nil {
 		return nil, err
 	}
 	defer h.Close()
+	h.SetPark(gate)
 	if a.Speed > 0 {
 		h.SetSpeed(a.Speed)
 	}
@@ -319,7 +330,7 @@ func declaration() *rigv1.Declaration {
 			Description: "Moves the pointer and presses keys on the desktop, as a person would.",
 		},
 		Coverage:     rigv1.Coverage_COVERAGE_PARTIAL,
-		CoverageNote: "section 5m's first slice: script, windows and where; no display lease or strip yet",
+		CoverageNote: "section 5m: script, windows and where, each script under the HANDS OFF countdown and strip",
 		SemanticsGen: 1,
 		Commands: []*rigv1.Command{
 			cmd(&rigv1.Command{
@@ -329,6 +340,7 @@ func declaration() *rigv1.Declaration {
 				Args: []byte(`{"type":"object","properties":{` +
 					`"steps":` + stepsSchema + `,` +
 					`"script":{"type":"string","description":"the steps as text, one per line"},` +
+					`"why":{"type":"string","description":"one line for the HANDS OFF strip: what the run is for"},` +
 					`"speed":{"type":"number","description":"movement speed, 1 is a hand's pace"},` +
 					`"wpm":{"type":"integer","description":"typing speed, default 300"}},` +
 					`"oneOf":[{"required":["steps"]},{"required":["script"]}]}`),

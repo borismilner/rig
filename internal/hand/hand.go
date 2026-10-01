@@ -87,6 +87,13 @@ type Park interface {
 	Wait() error
 }
 
+// Stepper is a Park that is also told before each step, and may refuse it:
+// the HANDS OFF strip names the step running (an op and a number, never typed
+// text), and a run he stopped ends there.
+type Stepper interface {
+	Before(i, n int, st Step) error
+}
+
 // SetPark installs the latch. Boris's rule, settled at the mock: a script parks
 // at the end of the step it is on, EXCEPT a type, which parks between characters.
 // Every other step is one movement, one click or one drag - all under a tenth of
@@ -601,6 +608,11 @@ func (h *Hand) Run(steps []Step) (int, error) {
 		// only state it is safe to hand a desktop back in (FR94).
 		if err := h.parked(); err != nil {
 			return i, fmt.Errorf("stopped after %d of %d steps: %w", i, len(steps), err)
+		}
+		if sp, ok := h.park.(Stepper); ok {
+			if err := sp.Before(i, len(steps), st); err != nil {
+				return i, fmt.Errorf("stopped after %d of %d steps: %w", i, len(steps), err)
+			}
 		}
 		if err := h.step(st); err != nil {
 			return i, fmt.Errorf("%s: %w", st.where(), err)
