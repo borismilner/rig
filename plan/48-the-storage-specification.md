@@ -738,6 +738,22 @@ moves DOWN in its own commit.
 
 ---
 
+### As built, 2026-10-01 (Boris: *"Just do it"*, decision 0251)
+
+| Slice | Commit | State |
+|---|---|---|
+| 1, one opener and runner | `d6568fb` | `internal/store/sqlite.go` (`OpenDB`, `Migrate`, `Schema`); record, files index and program stores register with it |
+| 2, `fields` on `record.query` | `7a553f8` | field 5, `--fields`; projected before the page is sized |
+| 3, `rig store list` | `f291e02` | record, coord, `programs/<id>`; a registered program is refused |
+| 4, coord off `bbolt` | open | live `coord.db` files are bbolt: a one-off converter keeps the epoch and the mail (decision 0251) |
+
+**Measured on a `VACUUM INTO` copy of production at `7a553f8`:**
+acceptance 2 holds (version 3, no migration, 1,330 live heads = 1,332
+less 2 retracted). Acceptance 4: rig's 135 work items are 213,180 bytes
+in full and 19,949 with `--fields title,status`, 10.7x.
+
+---
+
 ### ⛔ OPEN, AND EACH IS HIS. PARKED WITH A RECOMMENDATION AND WITH WHAT PROCEEDS MEANWHILE
 
 | Row | Recommendation | Proceeds meanwhile |
