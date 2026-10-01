@@ -745,7 +745,12 @@ moves DOWN in its own commit.
 | 1, one opener and runner | `d6568fb` | `internal/store/sqlite.go` (`OpenDB`, `Migrate`, `Schema`); record, files index and program stores register with it |
 | 2, `fields` on `record.query` | `7a553f8` | field 5, `--fields`; projected before the page is sized |
 | 3, `rig store list` | `f291e02` | record, coord, `programs/<id>`; a registered program is refused |
-| 4, coord off `bbolt` | open | live `coord.db` files are bbolt: a one-off converter keeps the epoch and the mail (decision 0251) |
+| 4, coord off `bbolt` | `0b76df5` | leases, mail and queues on the one runner, values the same JSON as the buckets held; rigd refuses a bbolt `coord.db` by name; `cmd/coordconvert` carries epoch, mail counter, trim lines and queue sequences once, original kept as `coord.db.bbolt`; `tools/coord-cutover.sh` converts the three live files and deploys. `rigd` links no `bbolt`; it leaves `go.mod` with `coordconvert` once every estate has converted |
+| 4a, `--json --fields` | `0d944f0` | unrequested `body` and `provenance` omitted; live: 43,734 to 28,479 bytes |
+
+**One coord test changed, a finding by the slice's own bar:**
+`TestANewerSchemaRefusesToOpen` planted its newer schema through bbolt;
+it now plants it with `PRAGMA user_version`. Its claim is unchanged.
 
 **Measured on a `VACUUM INTO` copy of production at `7a553f8`:**
 acceptance 2 holds (version 3, no migration, 1,330 live heads = 1,332
