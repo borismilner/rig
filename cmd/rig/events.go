@@ -59,7 +59,7 @@ func cmdEvents(args []string) (err error) {
 	out := json.NewEncoder(os.Stdout)
 	req := &registryv1.EventsWaitRequest{
 		After: *e.after, Epoch: *e.epoch, Kinds: positional[1:],
-		TimeoutMs: uint32(min(max(*e.timeout, 0), maxEventsWait).Milliseconds()),
+		TimeoutMs: uint32(min(max(*e.timeout, 0), maxEventsWait).Milliseconds()), //nolint:gosec // at most a minute
 	}
 	for {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(req.GetTimeoutMs())*time.Millisecond+defaultCallTimeout)

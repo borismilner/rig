@@ -519,6 +519,9 @@ func (d *Daemon) Serve(ctx context.Context, l net.Listener) error {
 	waitFiles := d.startFiles(ctx)
 	defer waitFiles()
 
+	// Section 52's system.resumed, for as long as serving lasts (resume.go).
+	d.startResumeWatch(ctx)
+
 	go func() {
 		<-ctx.Done()
 		// The listener first, so nothing new arrives, then every live

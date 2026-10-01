@@ -616,3 +616,9 @@ message EventsWaitResponse {
   uint64 epoch = 3;
   bool gap = 4;
 }
+
+// SystemResumed is system.resumed's payload: the machine slept, and every
+// timer a program measured on the monotonic clock is behind by slept_ms.
+message SystemResumed {
+  uint64 slept_ms = 1;
+}

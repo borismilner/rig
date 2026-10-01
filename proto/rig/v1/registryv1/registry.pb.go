@@ -3148,6 +3148,52 @@ func (x *EventsWaitResponse) GetGap() bool {
 	return false
 }
 
+// SystemResumed is system.resumed's payload: the machine slept, and every
+// timer a program measured on the monotonic clock is behind by slept_ms.
+type SystemResumed struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SleptMs       uint64                 `protobuf:"varint,1,opt,name=slept_ms,json=sleptMs,proto3" json:"slept_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SystemResumed) Reset() {
+	*x = SystemResumed{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SystemResumed) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SystemResumed) ProtoMessage() {}
+
+func (x *SystemResumed) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SystemResumed.ProtoReflect.Descriptor instead.
+func (*SystemResumed) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *SystemResumed) GetSleptMs() uint64 {
+	if x != nil {
+		return x.SleptMs
+	}
+	return 0
+}
+
 var File_proto_rig_v1_registry_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_registry_proto_rawDesc = "" +
@@ -3337,7 +3383,9 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\x06events\x18\x01 \x03(\v2\r.rig.v1.EventR\x06events\x12\x16\n" +
 	"\x06latest\x18\x02 \x01(\x04R\x06latest\x12\x14\n" +
 	"\x05epoch\x18\x03 \x01(\x04R\x05epoch\x12\x10\n" +
-	"\x03gap\x18\x04 \x01(\bR\x03gap*V\n" +
+	"\x03gap\x18\x04 \x01(\bR\x03gap\"*\n" +
+	"\rSystemResumed\x12\x19\n" +
+	"\bslept_ms\x18\x01 \x01(\x04R\asleptMs*V\n" +
 	"\x05Depth\x12\x15\n" +
 	"\x11DEPTH_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eDEPTH_PROGRAMS\x10\x01\x12\x12\n" +
@@ -3407,7 +3455,7 @@ func file_proto_rig_v1_registry_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_registry_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
-var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
+var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
 var file_proto_rig_v1_registry_proto_goTypes = []any{
 	(Depth)(0),                    // 0: rig.v1.Depth
 	(EstateRole)(0),               // 1: rig.v1.EstateRole
@@ -3457,14 +3505,15 @@ var file_proto_rig_v1_registry_proto_goTypes = []any{
 	(*EventsPublishResponse)(nil), // 45: rig.v1.EventsPublishResponse
 	(*EventsWaitRequest)(nil),     // 46: rig.v1.EventsWaitRequest
 	(*EventsWaitResponse)(nil),    // 47: rig.v1.EventsWaitResponse
-	(*v1.Identity)(nil),           // 48: rig.v1.Identity
-	(v1.Coverage)(0),              // 49: rig.v1.Coverage
-	(*v1.Command)(nil),            // 50: rig.v1.Command
+	(*SystemResumed)(nil),         // 48: rig.v1.SystemResumed
+	(*v1.Identity)(nil),           // 49: rig.v1.Identity
+	(v1.Coverage)(0),              // 50: rig.v1.Coverage
+	(*v1.Command)(nil),            // 51: rig.v1.Command
 }
 var file_proto_rig_v1_registry_proto_depIdxs = []int32{
-	48, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
-	49, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
-	50, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
+	49, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
+	50, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
+	51, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
 	0,  // 3: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
 	9,  // 4: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
 	1,  // 5: rig.v1.EstateResponse.role:type_name -> rig.v1.EstateRole
@@ -3508,7 +3557,7 @@ func file_proto_rig_v1_registry_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_registry_proto_rawDesc), len(file_proto_rig_v1_registry_proto_rawDesc)),
 			NumEnums:      9,
-			NumMessages:   39,
+			NumMessages:   40,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

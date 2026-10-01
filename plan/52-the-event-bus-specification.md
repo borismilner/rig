@@ -115,6 +115,19 @@ scratch rigd: a follower woke on two toasts, a stale epoch answered
 | B3 | **A program named after one of rig's roots (`hand`, `toast`, `system`, `timer`) cannot declare events** | its kinds would read as rig's |
 | B4 | **A HANDS OFF deadline is now a change when it comes**, by a timer in the desk, not when somebody next calls `hand.wait` | a waiter on the bus calls nothing, so a held countdown would never have ended |
 
-**Not yet built:** `system.resumed` (slice 2); timers and `timer.fired`
-(slice 3, Q1-Q3); `hand.wait` and `toast.wait` still answer from their own
+### As built: slice 2, `system.resumed`, 2026-10-01
+
+**rigd publishes `system.resumed {sleptMs}` after every suspend, at no
+cost while nothing happens.** It blocks on one timerfd on `CLOCK_REALTIME`
+armed with `TFD_TIMER_CANCEL_ON_SET`, which the kernel cancels on every
+resume and every wall-clock change. Neither a polling loop nor logind
+over D-Bus (a dependency rigd does not link). How far `CLOCK_BOOTTIME`
+ran ahead of `CLOCK_MONOTONIC` is the sleep; under 2 s it was a clock
+change and nothing is published. rigd logs "the machine resumed".
+
+**Tested with injected clocks (§20), and the real signal opens and
+closes; a real suspend is not exercised by any test.** The first morning
+after a deploy, rigd's log either has the line or it does not.
+
+**Not yet built:** timers and `timer.fired` (slice 3, Q1-Q3); `hand.wait` and `toast.wait` still answer from their own
 rings rather than from the bus.
