@@ -527,6 +527,10 @@ func selfDeclaration() kernel.Declaration {
 				"List the collections in a program's store",
 				"Names each collection with its document count and bytes.",
 				"The program and its collections."),
+			readOnly("store.list", "Store list",
+				"List every database this estate keeps",
+				"Names the record store, coord and each program's store, with its file, bytes, schema version and whether it is ephemeral. A registered program is refused: it sees only its own store.",
+				"Each namespace on this estate."),
 			// An export writes files and a commit; exporting an unchanged
 			// store twice writes the same bytes and no second commit. An
 			// import replaces documents, so it is destructive.

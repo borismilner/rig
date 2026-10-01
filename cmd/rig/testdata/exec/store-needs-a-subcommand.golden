@@ -1,5 +1,5 @@
 $ rig store
 exit 1
 --- stdout (0 bytes)
---- stderr (352 bytes)
-rig: usage: rig store collections | get <collection> <id>... | put <collection> <id> <json|-> [--if-version N] | delete <collection> <id> --if-version N | query <collection> [--where 'field op value']... [--fields a,b] [--order f|-f]... [--limit N] [--offset N] [--count] | export [collection]... | import [collection]...; every form takes --program P
+--- stderr (359 bytes)
+rig: usage: rig store list | collections | get <collection> <id>... | put <collection> <id> <json|-> [--if-version N] | delete <collection> <id> --if-version N | query <collection> [--where 'field op value']... [--fields a,b] [--order f|-f]... [--limit N] [--offset N] [--count] | export [collection]... | import [collection]...; every form takes --program P

@@ -149,6 +149,11 @@ func storeProgram(c *conn, asked string) (string, *rigv1.Status) {
 
 // serveStore dispatches the six store verbs.
 func (d *Daemon) serveStore(ctx context.Context, c *conn, f *rigv1.Frame, command string) {
+	// The estate's list names no program, so it is not a program's request.
+	if command == "store.list" {
+		d.serveStoreList(ctx, c, f)
+		return
+	}
 	req, ok := storeRequest(command)
 	if !ok {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_NOT_FOUND, "no such method rig."+command)

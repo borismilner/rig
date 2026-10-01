@@ -18,6 +18,7 @@ import (
 
 // `rig store` - section 48's program stores at the prompt.
 //
+//	rig store list
 //	rig store collections --program P
 //	rig store get <collection> <id>... --program P
 //	rig store put <collection> <id> <json|-> [--if-version N] --program P
@@ -83,7 +84,7 @@ const (
 	storeColls  = "collections"
 )
 
-const storeUsage = "usage: rig store collections | get <collection> <id>... | " +
+const storeUsage = "usage: rig store list | collections | get <collection> <id>... | " +
 	"put <collection> <id> <json|-> [--if-version N] | delete <collection> <id> --if-version N | " +
 	"query <collection> [--where 'field op value']... [--fields a,b] [--order f|-f]... " +
 	"[--limit N] [--offset N] [--count] | export [collection]... | import [collection]...; " +
@@ -96,6 +97,9 @@ func cmdStore(args []string) (err error) {
 		return err
 	}
 	defer func() { err = inMode(err, *s.asJSON) }()
+	if len(positional) == 1 && positional[0] == "list" {
+		return storeList(*s.timeout, *s.asJSON)
+	}
 	if len(positional) == 0 || !storeArity(positional[0], len(positional)-1) {
 		return badArgumentf("%s", storeUsage)
 	}
@@ -345,6 +349,17 @@ func storeJSON(resp proto.Message) map[string]any {
 			cs = append(cs, map[string]any{"name": c.GetName(), "documents": c.GetDocuments(), "bytes": c.GetBytes()})
 		}
 		return map[string]any{keyProgram: r.GetProgram(), storeColls: cs}
+	case *verbsv1.StoreListResponse:
+		// ephemeral is written whether true or false: a script must never
+		// read an absent key as durable.
+		ns := make([]map[string]any, 0, len(r.GetNamespaces()))
+		for _, n := range r.GetNamespaces() {
+			ns = append(ns, map[string]any{
+				"namespace": n.GetName(), "path": n.GetPath(), "bytes": n.GetBytes(),
+				"schema_version": n.GetSchemaVersion(), "ephemeral": n.GetEphemeral(),
+			})
+		}
+		return map[string]any{"namespaces": ns}
 	case *verbsv1.StoreExportResponse:
 		return map[string]any{
 			keyProgram: r.GetProgram(), "dir": r.GetDir(), storeColls: countsJSON(r.GetCollections()),
@@ -377,4 +392,39 @@ func nonNil(s []string) []string {
 		return []string{}
 	}
 	return s
+}
+
+// storeList is `rig store list`: every database this estate keeps (plan/48
+// decision 7). It takes no --program, since it names them all.
+func storeList(timeout time.Duration, asJSON bool) error {
+	c, err := connect()
+	if err != nil {
+		return noDaemon(err)
+	}
+	defer c.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	resp := &verbsv1.StoreListResponse{}
+	if err := call(ctx, c, "rig.store.list", &verbsv1.StoreListRequest{}, resp); err != nil {
+		return err
+	}
+	if asJSON {
+		return json.NewEncoder(os.Stdout).Encode(storeJSON(resp))
+	}
+	printStoreList(os.Stdout, resp)
+	return nil
+}
+
+func printStoreList(w io.Writer, resp *verbsv1.StoreListResponse) {
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(tw, "NAMESPACE\tSCHEMA\tBYTES\tKEPT\tPATH")
+	for _, ns := range resp.GetNamespaces() {
+		kept := "durable"
+		if ns.GetEphemeral() {
+			kept = "ephemeral"
+		}
+		_, _ = fmt.Fprintf(tw, "%s\t%d\t%d\t%s\t%s\n",
+			ns.GetName(), ns.GetSchemaVersion(), ns.GetBytes(), kept, ns.GetPath())
+	}
+	_ = tw.Flush()
 }

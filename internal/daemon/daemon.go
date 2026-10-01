@@ -991,7 +991,8 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	// SECTION 48's PROGRAM STORES. store.go has why whose store a call
 	// reaches comes off the connection.
 	case "store.put", "store.get", "store.query", "store.delete",
-		"store.transact", "store.collections", "store.export", "store.import":
+		"store.transact", "store.collections", "store.export", "store.import",
+		"store.list":
 		d.serveStore(ctx, c, f, command)
 
 	// SECTION 40's LESSONS ride here: they are a view of the shared lessons

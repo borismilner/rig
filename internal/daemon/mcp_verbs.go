@@ -86,6 +86,7 @@ var bridged = map[string]struct {
 	"store.delete":      {func() proto.Message { return &verbsv1.StoreDeleteRequest{} }, func() proto.Message { return &verbsv1.StoreDeleteResponse{} }},
 	"store.transact":    {func() proto.Message { return &verbsv1.StoreTransactRequest{} }, func() proto.Message { return &verbsv1.StoreTransactResponse{} }},
 	"store.collections": {func() proto.Message { return &verbsv1.StoreCollectionsRequest{} }, func() proto.Message { return &verbsv1.StoreCollectionsResponse{} }},
+	"store.list":        {func() proto.Message { return &verbsv1.StoreListRequest{} }, func() proto.Message { return &verbsv1.StoreListResponse{} }},
 	"store.export":      {func() proto.Message { return &verbsv1.StoreExportRequest{} }, func() proto.Message { return &verbsv1.StoreExportResponse{} }},
 	"store.import":      {func() proto.Message { return &verbsv1.StoreImportRequest{} }, func() proto.Message { return &verbsv1.StoreImportResponse{} }},
 }

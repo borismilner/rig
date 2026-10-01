@@ -2267,6 +2267,23 @@ message StoreCollectionsResponse {
   repeated StoreCollection collections = 2;
 }
 
+// StoreListRequest asks for every database this estate keeps: the record,
+// coord and each program's store (plan/48 decision 7, the
+// store browser at the CLI tier). Read-only, and a terminal's or an agent's:
+// a registered program is refused, since it sees only its own store (D2).
+message StoreListRequest {}
+
+message StoreNamespace {
+  string name = 1;             // record | coord | programs/<id>
+  string path = 2;
+  uint64 bytes = 3;            // the main file; -wal and -shm are not counted
+  uint64 schema_version = 4;
+  // ⛔ protojson drops a false, so a test owes the true case and the false.
+  bool ephemeral = 5;
+}
+
+message StoreListResponse { repeated StoreNamespace namespaces = 1; }
+
 // StoreExportRequest writes a program's collections as text into the exports
 // area, one <collection>.jsonl each, one line per document sorted by id, and
 // commits them to the exports repository (plan/48 R19, R21, R22, R35). An
