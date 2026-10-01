@@ -43,6 +43,7 @@ LDFLAGS    := -s -w \
               -X main.version=$(VERSION) -X main.wire=$(WIRE) \
               -X main.sha=$(SHA)         -X main.date=$(DATE)
 GOFLAGS    := -trimpath
+RIGGED     := ../rigged
 COVER_MIN  := 90
 RATCHET    := size-ratchet.json
 # The binaries `build` produces and the ratchet guards, in ONE list so
@@ -94,7 +95,7 @@ SHELL := bash
 # cold checkout while passing on a warm one. build-abacus was missing and
 # bench-size measured build/abacus anyway, so ci depended on a binary it never
 # built - invisible locally because the file was left over from an earlier run.
-build: build-rigd build-rig build-fakeapp build-ledger build-abacus build-lantern build-storeworker build-righand ## Build every binary into build/
+build: build-rigd build-rig build-fakeapp build-ledger build-abacus build-lantern build-righand ## Build every binary into build/
 
 build-rigd: ## Build the daemon (links none of the terminal stack)
 	@mkdir -p build
@@ -143,15 +144,6 @@ build-lantern: ## Build the embedded-tier demo program
 	@find cmd/lantern/rig -mindepth 1 ! -name .gitkeep -delete
 	cp design/kit/pane.js cmd/lantern/rig/
 	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o build/lantern ./cmd/lantern
-
-# The demo program that uses most of rig (plan/48, slice 6). Embedded tier like
-# lantern, so it takes pane.js alone. Not part of `build`: it is an example,
-# and go test compiles it from the .gitkeep.
-build-storeworker: ## Build the storeworker demo program
-	@mkdir -p build examples/storeworker/rig
-	@find examples/storeworker/rig -mindepth 1 ! -name .gitkeep -delete
-	cp design/kit/pane.js examples/storeworker/rig/
-	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o build/storeworker ./examples/storeworker
 
 # The window is the third binary (section 17, section 22) and deliberately not
 # part of `build`: it is the only one that needs cgo, gtk and a webview, so a
@@ -290,6 +282,10 @@ install-window: build-rigwindow ## Install the window, tray, user service and de
 # "the daemon" by pattern would take a peer's work with it, and that rule is
 # not narrowed by wanting one call.
 redeploy: build build-rigwindow ## Build and redeploy EVERYTHING live - daemon, client, window and the programs rigd autostarts
+	@# The programs that use rig live in ../rigged (plan/28) and rigd autostarts
+	@# them from there, so one deploy builds them too.
+	@if [ -f $(RIGGED)/Makefile ]; then $(MAKE) --no-print-directory -C $(RIGGED) build; \
+	  else echo "  no $(RIGGED): the programs that use rig were not rebuilt"; fi
 	@build/$(BIND) --version >/dev/null 2>&1 || { \
 	  echo "the new $(BIND) does not answer --version; NOTHING was replaced"; exit 1; }
 	@build/rigwindow --version >/dev/null 2>&1 || { \
