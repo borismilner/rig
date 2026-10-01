@@ -315,8 +315,8 @@ type Doc struct {
 // A symlink is followed first: a project links DECISIONS.md into its logbook
 // folder, and the parts sit beside the file, not beside the link.
 func Open(path string) Doc {
-	if real, err := filepath.EvalSymlinks(path); err == nil {
-		path = real
+	if target, err := filepath.EvalSymlinks(path); err == nil {
+		path = target
 	}
 	name := filepath.Base(path)
 	stem := strings.ToLower(strings.TrimSuffix(name, filepath.Ext(name)))
