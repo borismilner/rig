@@ -759,7 +759,7 @@ moves DOWN in its own commit.
 | 4 | passes: 10.7x on the wire; `--json` 43,734 to 28,479 bytes after `0d944f0` |
 | 5 | passes in `make ci`; no live `rig backup` was run, it is his to ask for. coord is outside the archive by §46 decision 5, so the engine change does not reach it |
 | 6 | passes: §22's row reads REMOVED, -323,584 bytes on `rigd`; `make deps-check` 0 |
-| 7 | passes. `make ci` 0, `make lint` 0, `make proto` idempotent. `rigseed --check` exits 0 on the commit after `17ed01f`, which fixed the four heading collisions below were fixed |
+| 7 | passes. `make ci` 0, `make lint` 0, `make proto` idempotent. `rigseed --check` exits 0 on the commit after `17ed01f`, which fixed the four heading collisions below |
 
 **Found, not caused, by S1, and fixed under §38f:**
 
