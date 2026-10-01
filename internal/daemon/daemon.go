@@ -141,6 +141,9 @@ type Config struct {
 type Daemon struct {
 	// toasts wakes a renderer when rig.notify is called (toast.go).
 	toasts toastRing
+
+	// hand is the HANDS OFF strip's one run at a time (hand.go).
+	hand *handDesk
 	// audio sounds and speaks; nil is a silent daemon (sound.go).
 	audio *audio.Audio
 
@@ -377,6 +380,7 @@ func New(cfg Config) (*Daemon, error) {
 		leases:   cfg.Leases,
 		super:    cfg.Supervisor,
 		audio:    cfg.Audio,
+		hand:     newHandDesk(time.Now),
 	}, nil
 }
 
@@ -563,6 +567,9 @@ func (d *Daemon) handle(ctx context.Context, nc net.Conn) {
 		// The seat empties with the connection. This is the whole expiry
 		// mechanism for presence: no TTL, no reaper, no orphan state.
 		d.presence.leave(c.occ)
+		// A run dies with the connection that asked for it, so a program
+		// that crashed mid-run never leaves the strip up or the desktop held.
+		d.hand.drop(c)
 		d.resyncMCP(ctx)
 		if n := c.name(); n != "" {
 			d.mu.Lock()
@@ -969,6 +976,10 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	case "notify", "toast.wait", "toast.dnd", "toast.reply", "toast.answer",
 		"sound", "say":
 		d.serveToast(ctx, c, f, command)
+
+	// SECTION 5m's HANDS OFF strip. hand.go has the one-run state machine.
+	case "hand.request", "hand.step", "hand.release", "hand.wait", "hand.answer":
+		d.serveHand(ctx, c, f, command)
 
 	case "lease.list", "lease.acquire", "lease.renew", "lease.release", "lease.break",
 		"lease.check":

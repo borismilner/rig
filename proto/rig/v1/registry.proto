@@ -421,3 +421,107 @@ message SayResponse {
   // queue; false when the bound passed first.
   bool heard = 1;
 }
+
+// THE HANDS OFF STRIP (plan/05 section 5m, H1-H5). One desktop, so one run at
+// a time: a program asks for the pointer and keyboard, a countdown gives the
+// person time to decline or hold it, and while it drives he can take it back.
+enum HandPhase {
+  HAND_PHASE_UNSPECIFIED = 0;
+  // Nobody holds the desktop.
+  HAND_PHASE_IDLE = 1;
+  // A countdown is running; silence is consent (H1).
+  HAND_PHASE_ASKING = 2;
+  // He held the countdown. It never becomes driving by itself (H2).
+  HAND_PHASE_HELD = 3;
+  HAND_PHASE_DRIVING = 4;
+  // He took the desktop back; only he resumes (H4).
+  HAND_PHASE_PAUSED = 5;
+}
+
+message HandState {
+  // Moves on every change; the strip's long-poll cursor.
+  uint64 seq = 1;
+  HandPhase phase = 2;
+  // The program that asked, off its connection.
+  string holder = 3;
+  string reason = 4;
+  // What the run is doing now: an op and a step number, never typed text.
+  string activity = 5;
+  // When the run was asked for, and when it started driving.
+  int64 asked_unix_nano = 6;
+  int64 driving_unix_nano = 7;
+  // ASKING: when the countdown ends in driving. HELD: when the hold ends in
+  // a decline. PAUSED: when the pause ends the run.
+  int64 deadline_unix_nano = 8;
+  // The whole countdown, and what was left of it when it was held.
+  uint32 window_ms = 9;
+  uint32 left_ms = 10;
+  // IDLE after a run: how the last one ended (finished, declined, stopped,
+  // the program left, paused too long, held too long).
+  string ended = 11;
+}
+
+// HandRequestRequest asks for the desktop and blocks through the countdown:
+// it answers once the run is driving, and is refused when he declines.
+message HandRequestRequest {
+  string reason = 1;
+  // 10000 to 120000; zero is 20000.
+  uint32 countdown_ms = 2;
+}
+
+message HandRequestResponse {
+  HandState state = 1;
+}
+
+// HandStepRequest is the gate before each step: it answers at once while the
+// run drives, blocks while he holds the desktop, and is refused once the run
+// was stopped.
+message HandStepRequest {
+  string activity = 1;
+}
+
+message HandStepResponse {
+  HandState state = 1;
+}
+
+message HandReleaseRequest {}
+
+message HandReleaseResponse {
+  HandState state = 1;
+}
+
+// HandWaitRequest answers the state once its seq is past `after`, or the
+// current state once timeout_ms (at most 60000) has passed. Zero answers now.
+message HandWaitRequest {
+  uint64 after = 1;
+  uint32 timeout_ms = 2;
+}
+
+message HandWaitResponse {
+  HandState state = 1;
+}
+
+enum HandAction {
+  HAND_ACTION_UNSPECIFIED = 0;
+  // Start driving now, without the rest of the countdown.
+  HAND_ACTION_ALLOW = 1;
+  HAND_ACTION_DECLINE = 2;
+  // Freeze the countdown.
+  HAND_ACTION_HOLD = 3;
+  // Take the desktop back from a run that drives.
+  HAND_ACTION_PAUSE = 4;
+  // Let a held countdown run on, or a paused run drive again.
+  HAND_ACTION_RESUME = 5;
+  // End the run, whatever its phase.
+  HAND_ACTION_STOP = 6;
+}
+
+// HandAnswerRequest is the person's answer, from the strip or a terminal.
+// Refused to a program and to an agent (H5).
+message HandAnswerRequest {
+  HandAction action = 1;
+}
+
+message HandAnswerResponse {
+  HandState state = 1;
+}
