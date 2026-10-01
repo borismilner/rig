@@ -1,12 +1,13 @@
 ## 38. Four standing rules, and none of them is a preference
 
-⛔ **FIVE SINCE 2026-09-18. THE TITLE IS KEPT BECAUSE `PLAN.md section 38` IS
+⛔ **SIX SINCE 2026-10-01. THE TITLE IS KEPT BECAUSE `PLAN.md section 38` IS
 CITED BY NUMBER AND A RENAMED SECTION FILE IS A RENAMED RECORD** - `plansplit`
 derives the file name from the heading, and §39's grain keys a requirement on
-its heading slug. **38e is below and is as standing as the other four.**
+its heading slug. **38e and 38f are below and are as standing as the other four.**
 
 **The first three are Boris's, stated 2026-09-12; the fourth is his, stated
-2026-09-17; the fifth is his, stated 2026-09-18. They bind every milestone
+2026-09-17; the fifth is his, stated 2026-09-18; the sixth
+is his, stated 2026-10-01. They bind every milestone
 rather than any one of them.** They are here rather than folded into §22 or §29 because a
 rule that applies to all future work needs an address a seat can be pointed at.
 
@@ -190,3 +191,25 @@ POINTER, never from comment to nothing.
 
 **The first application is the session he said it in**, which trimmed its own
 comments to pointers and moved the substance into §39, §11 and `DECISIONS.md`.
+
+### 38f. Don't leave drifts
+
+**Boris, verbatim, 2026-10-01**, answering whether to re-record a size ratchet
+found 1,314,816 bytes over:
+
+> *"Don't leave drifts."*
+
+**A drift is any place where a recorded number, claim or reference no longer
+matches what the tree does**: a ratchet baseline the build has outgrown, an
+acceptance item naming a command that does not exist, plan prose describing a
+dependency that was removed, a handoff claim the repository contradicts.
+
+**The obligation, on the seat that finds one:** fix it in the same session it
+was found in, in its own commit that says why it moved. **Reporting it as a
+finding and moving on is the failure this rule names.** A drift that needs a
+ruling from Boris is still fixed as far as the tree allows, and the open part is
+put to him the same turn, not left in a handoff.
+
+**What this does not license:** re-recording a baseline to make a gate quiet.
+A number moved under this rule carries its reason (what grew, and why that is
+accepted), or it is not moved and the growth is fixed instead.
