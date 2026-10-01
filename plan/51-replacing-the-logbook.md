@@ -74,6 +74,49 @@ remote, 42 MB for `rig` alone, 111 agent-work folders under `rig`.
 | N6 | the window shows a project's brief, timeline and gaps; toasts and speech for deadlines and blocked items | files have no push |
 | N7 | one search across every project, record and artefact, ranked | grep has no ranking and no kinds |
 
+### The design: files stay the truth, rig is the fast index (DRAFT, 2026-10-01)
+
+**Every row is the lead's proposal until he approves it.** It follows his
+ruling above. Measured on the rig project the same day: DECISIONS.md has
+247 entries (median 2.2 KB, largest 18 KB) in one 629 KB file; BACKLOG.md
+has 248 rows (median 0.4 KB, largest 5.8 KB) in one 270 KB file.
+
+**One entry, one file; the big file becomes a generated index.** This is
+the split `plan/` already proved (`tools/plansplit.py`): citations keep
+resolving, and a byte-for-byte reassembly check proves nothing was lost.
+
+```
+logbook/projects/rig/
+  HANDOFF.md                 small, overwritten per session (unchanged)
+  DECISIONS.md               GENERATED index: one line per decision
+  decisions/2026-10-01-the-logbook-files-stay-the-truth.md
+  BACKLOG.md                 GENERATED index: open items in order, then closed
+  backlog/B107-the-event-bus.md      front matter: status, order, owner
+  ...
+```
+
+| | Rule | Why |
+|---|---|---|
+| F1 | **An entry is one markdown file with a few front-matter fields** (date, title, status, order, owner, links). The body is free prose, as today | an agent reads the 2 KB it needs, not the 629 KB around it |
+| F2 | **Adding an entry is creating a file.** No read before append, and two peers never collide on one file | the "read it before appending" rule cost ~157k tokens per decision |
+| F3 | **The index files are generated** by a tool that needs no daemon, and checked like `plansplit.py --check` | an index nobody regenerates goes stale silently |
+| F4 | **Old paths keep resolving:** DECISIONS.md and BACKLOG.md stay, as indexes | the same reason PLAN.md stayed: hundreds of citations |
+| R1 | **rig watches the logbook and keeps a search index over it**; it never writes an entry on an agent's behalf | his constraint: rig is never on the write path |
+| R2 | **`rig log` answers small questions**: `brief`, `search <words>`, `show <id>`, `open` (open items in order), `add decision|item` | an answer in 1-5 KB instead of a whole-file read |
+| R3 | **With rig down, `rig log` still works on the files directly** (slower search, same answers), and plain `grep` and an editor always work | no agent's work stops because rig is down |
+| R4 | **Agents reach it through the CLI and MCP alike**; the skills (`/resume`, `/handoff`, `where-it-belongs`) are pointed at it | the token saving only happens if the tooling uses it |
+
+**The acceptance is measured in tokens, per task, before and after:**
+
+| Task | Today | Target |
+|---|---|---|
+| append a decision | read 629 KB | search 1-3 KB, write one file |
+| find one backlog item | read 270 KB | one file, 0.4-6 KB |
+| cold resume | 1.33 MB over 7 files | HANDOFF + `rig log brief`, under 20 KB |
+
+**Not in this design:** the record does not become the source of the
+logbook, and §39 slice 5's projection is not built for it.
+
 ### Open, and his
 
 | Q | Question |
