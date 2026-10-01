@@ -1,13 +1,9 @@
 ## 49. The logging specification
 
-⛔ **DRAFT. STEP 1 AND A STEP-4 DRAFT OF §45's LOOP FOR B106 (S3), WRITTEN
-2026-09-23 EVENING WITHOUT HIM, ON HIS WORD TO DO AS MUCH AS POSSIBLE ALONE.**
-§45's 2026-09-23 block binds: *preparing is not approving*. **He has not
-approved, reshaped or killed S3, and no subagent is spawned from this section
-until he does.** Every row below is the seat's unless it cites a ruling, and a
-row he reshapes is edited here, not argued in a handoff. **§44 puts S3 LAST of
-the four, and this section does not move it**: it is written now so his
-approval is one word when its turn comes.
+✅ **APPROVED 2026-10-01, decision 0257: Boris, *"Approve all."*, on the six
+open rows below as recommended and one new row: decision 12's knobs are §6
+settings under `logs.` from day one, since S4 is built. Built by the lead
+seat inline, not by a `logging` subagent.**
 
 > **In one line: `rigd` keeps one buffered, never-fsynced segment store per
 > estate; its own `slog` records and every program's log records land in it,
