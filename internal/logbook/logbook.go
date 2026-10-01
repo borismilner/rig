@@ -623,29 +623,36 @@ func (d Doc) Generated() bool {
 type Item struct {
 	ID    string `json:"id"`
 	Title string `json:"title"`
-	State string `json:"state"` // a row's last cell, as written; empty for a heading
+	Word  string `json:"word"`  // the state word the item starts with; empty when unclassified
+	State string `json:"state"` // the prose after it, as written
 	Path  string `json:"path"`
 	Open  bool   `json:"open"`
 }
 
+// States are the words an item's state starts with (BACKLOG.md "States").
+// The last three close it.
+var States = []string{"proposed", "argued", "owned", "held", "deferred", "moved", "done", "rejected", "superseded"}
+
 var (
-	itemIDRE  = regexp.MustCompile(`^(B\d+[a-z]?)\b`)
-	markupRE  = regexp.MustCompile("[*`⛔✅~]+")
-	spacesRE  = regexp.MustCompile(`\s+`)
-	closedRE  = regexp.MustCompile(`(?i)^(closed|done|rejected)\b`)
-	rejectsRE = regexp.MustCompile(`/\d{4}-rejected`)
+	itemIDRE = regexp.MustCompile(`^(B\d+[a-z]?)\b`)
+	markupRE = regexp.MustCompile("[*`⛔✅~]+")
+	spacesRE = regexp.MustCompile(`\s+`)
+	wordRE   = regexp.MustCompile("\\|\\s*`(" + strings.Join(States, "|") + ")` · ")
+	headWord = regexp.MustCompile("(?m)^State: `(" + strings.Join(States, "|") + ")`$")
+	closedRE = regexp.MustCompile(`^(done|rejected|superseded)$`)
 )
 
 func plain(s string) string {
 	return strings.TrimSpace(spacesRE.ReplaceAllString(markupRE.ReplaceAllString(s, ""), " "))
 }
 
-// Items are the work items in leaves, in document order. A row's state is
-// free prose, so an item counts as closed only when that prose begins with
-// CLOSED, DONE or REJECTED, or it sits under a "Rejected" section. Nothing
-// else is guessed.
+// Items are the work items in leaves, in document order, each id once. A
+// row's state starts with one of States in backticks and a heading's is a
+// "State: `word`" line. An item without one is unclassified and counts as
+// open: hiding it would lose it.
 func Items(leaves []Leaf) []Item {
 	var out []Item
+	seen := map[string]bool{}
 	for _, l := range leaves {
 		first := ""
 		for ln := range strings.SplitSeq(l.Text, "\n") {
@@ -661,7 +668,14 @@ func Items(leaves []Leaf) []Item {
 			if id == "" || len(cells) < 2 {
 				continue
 			}
-			it = Item{ID: id, Title: plain(cells[1]), State: plain(cells[len(cells)-1])}
+			// The stamp is found in the row rather than in a counted cell:
+			// a pipe inside a code span splits a row wrongly.
+			state := cells[len(cells)-1]
+			if ms := wordRE.FindAllStringSubmatchIndex(first, -1); ms != nil {
+				m := ms[len(ms)-1]
+				it.Word, state = first[m[2]:m[3]], strings.TrimSuffix(strings.TrimSpace(first[m[1]:]), "|")
+			}
+			it.ID, it.Title, it.State = id, plain(cells[1]), plain(state)
 		} else {
 			t := plain(hashRE.ReplaceAllString(first, ""))
 			id := itemIDRE.FindString(t)
@@ -669,9 +683,16 @@ func Items(leaves []Leaf) []Item {
 				continue
 			}
 			it = Item{ID: id, Title: strings.TrimLeft(strings.TrimPrefix(t, id), " -:")}
+			if m := headWord.FindStringSubmatch(l.Text); m != nil {
+				it.Word = m[1]
+			}
 		}
+		if seen[it.ID] {
+			continue
+		}
+		seen[it.ID] = true
 		it.Path = l.Path
-		it.Open = !closedRE.MatchString(it.State) && !rejectsRE.MatchString(l.Path)
+		it.Open = !closedRE.MatchString(it.Word)
 		out = append(out, it)
 	}
 	return out

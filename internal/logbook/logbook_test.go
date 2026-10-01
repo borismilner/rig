@@ -181,25 +181,20 @@ func TestOpenFollowsASymlink(t *testing.T) {
 	}
 }
 
-func TestItemsReadRowsAndHeadings(t *testing.T) {
-	text := "## Open\n\n| # | Item | State |\n|---|---|---|\n" +
-		"| **B1** | **first** | argued, startable |\n" +
-		"| ⛔ **B2** | second | CLOSED, rig abc |\n" +
-		"| **B3** | third | ~~argued~~ **DONE** |\n" +
-		"\n## B4 - a heading item\n\nbody\n\n## Rejected\n\n| B5 | fifth | argued |\n"
-	// One leaf per row, the way a big section is split.
-	var leaves []Leaf
-	for i, r := range rows(text[:strings.Index(text, "\n## B4")+1]) {
-		leaves = append(leaves, Leaf{Path: fmt.Sprintf("x/0001-open/%04d.md", i), Text: r})
+func TestItemsReadTheStateWord(t *testing.T) {
+	leaves := []Leaf{
+		{Path: "x/1.md", Text: "| **B1** | **first** | `argued` · startable |\n"},
+		{Path: "x/2.md", Text: "| ⛔ **B2** | second | `done` · rig abc |\n"},
+		{Path: "x/3.md", Text: "| **B3** | third | CLOSED, but no word |\n"},
+		{Path: "x/4.md", Text: "## B4 - a heading item\n\nState: `superseded`\n\nbody\n"},
+		{Path: "x/5.md", Text: "## B5 - no state line\n\nbody\n"},
+		{Path: "x/6.md", Text: "| B1 | a second table naming B1 again | adopter |\n"},
 	}
-	leaves = append(leaves,
-		Leaf{Path: "x/0002-b4.md", Text: "## B4 - a heading item\n\nbody\n"},
-		Leaf{Path: "x/0003-rejected/0001.md", Text: "| B5 | fifth | argued |\n"})
 	var got []string
 	for _, it := range Items(leaves) {
-		got = append(got, fmt.Sprintf("%s:%s:%v", it.ID, it.Title, it.Open))
+		got = append(got, fmt.Sprintf("%s:%s:%s:%v", it.ID, it.Title, it.Word, it.Open))
 	}
-	want := "B1:first:true B2:second:false B3:third:true B4:a heading item:true B5:fifth:false"
+	want := "B1:first:argued:true B2:second:done:false B3:third::true B4:a heading item:superseded:false B5:no state line::true"
 	if strings.Join(got, " ") != want {
 		t.Fatalf("got  %s\nwant %s", strings.Join(got, " "), want)
 	}

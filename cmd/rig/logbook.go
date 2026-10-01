@@ -515,14 +515,19 @@ func (lb logbookIn) open(names []string, all bool) error {
 		}
 		return lb.emit(items)
 	}
+	unclassified := 0
 	for _, it := range items {
-		line := fmt.Sprintf("%-6s %s", it.ID, clip(it.Title, 60))
-		if it.State != "" {
-			line += "  | " + clip(it.State, 50)
+		word := it.Word
+		if word == "" {
+			word, unclassified = "?", unclassified+1
 		}
-		fmt.Println(line)
+		fmt.Printf("%-6s %-10s %s\n", it.ID, word, clip(it.Title, 70))
 	}
 	fmt.Printf("%d items; rig logbook show <doc> <id> reads one\n", len(items))
+	if unclassified > 0 {
+		fmt.Printf("%d marked ? have no state word: start the state with one of %s\n",
+			unclassified, strings.Join(logbook.States, ", "))
+	}
 	return nil
 }
 
@@ -611,7 +616,7 @@ func (lb logbookIn) brief() error {
 	}
 	fmt.Printf("\nopen work, in document order (%d; rig logbook open for states):\n", len(open))
 	for _, it := range open {
-		fmt.Printf("  %-6s %s\n", it.ID, clip(it.Title, 80))
+		fmt.Printf("  %-6s %-9s %s\n", it.ID, it.Word, clip(it.Title, 70))
 	}
 	return nil
 }
