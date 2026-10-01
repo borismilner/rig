@@ -34,6 +34,7 @@ type deskGate struct {
 var (
 	_ hand.Park    = (*deskGate)(nil)
 	_ hand.Stepper = (*deskGate)(nil)
+	_ hand.Aimer   = (*deskGate)(nil)
 )
 
 func (g *deskGate) Blocked() bool { return g.held.Load() }
@@ -52,10 +53,20 @@ func (g *deskGate) Before(i, n int, st hand.Step) error {
 	return g.gate(fmt.Sprintf("step %d of %d: %s", i+1, n, st.Op))
 }
 
+// Aim passes the gate again with the point the hand is about to press at,
+// and rigd holds it until the strip has moved off that point (H6).
+func (g *deskGate) Aim(p hand.Pt) error {
+	return g.call(&registryv1.HandStepRequest{HasPoint: true, X: int32(p.X), Y: int32(p.Y)}) //nolint:gosec // screen coordinates
+}
+
 func (g *deskGate) gate(activity string) error {
+	return g.call(&registryv1.HandStepRequest{Activity: activity})
+}
+
+func (g *deskGate) call(req *registryv1.HandStepRequest) error {
 	ctx, cancel := context.WithTimeout(context.Background(), gateWait)
 	defer cancel()
-	return g.c.Call(ctx, "rig.hand.step", &registryv1.HandStepRequest{Activity: activity}, &registryv1.HandStepResponse{})
+	return g.c.Call(ctx, "rig.hand.step", req, &registryv1.HandStepResponse{})
 }
 
 // follow keeps held current until ctx ends, so a type stops at the next

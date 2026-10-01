@@ -2053,7 +2053,12 @@ type HandState struct {
 	LeftMs   uint32 `protobuf:"varint,10,opt,name=left_ms,json=leftMs,proto3" json:"left_ms,omitempty"`
 	// IDLE after a run: how the last one ended (finished, declined, stopped,
 	// the program left, paused too long, held too long).
-	Ended         string `protobuf:"bytes,11,opt,name=ended,proto3" json:"ended,omitempty"`
+	Ended string `protobuf:"bytes,11,opt,name=ended,proto3" json:"ended,omitempty"`
+	// DRIVING: the point a step is waiting to act on because the strip covers
+	// it (H6). The strip moves to the other edge when it sees one.
+	HasAim        bool  `protobuf:"varint,12,opt,name=has_aim,json=hasAim,proto3" json:"has_aim,omitempty"`
+	AimX          int32 `protobuf:"varint,13,opt,name=aim_x,json=aimX,proto3" json:"aim_x,omitempty"`
+	AimY          int32 `protobuf:"varint,14,opt,name=aim_y,json=aimY,proto3" json:"aim_y,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2165,6 +2170,27 @@ func (x *HandState) GetEnded() string {
 	return ""
 }
 
+func (x *HandState) GetHasAim() bool {
+	if x != nil {
+		return x.HasAim
+	}
+	return false
+}
+
+func (x *HandState) GetAimX() int32 {
+	if x != nil {
+		return x.AimX
+	}
+	return 0
+}
+
+func (x *HandState) GetAimY() int32 {
+	if x != nil {
+		return x.AimY
+	}
+	return 0
+}
+
 // HandRequestRequest asks for the desktop and blocks through the countdown:
 // it answers once the run is driving, and is refused when he declines.
 type HandRequestRequest struct {
@@ -2268,8 +2294,14 @@ func (x *HandRequestResponse) GetState() *HandState {
 // run drives, blocks while he holds the desktop, and is refused once the run
 // was stopped.
 type HandStepRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Activity      string                 `protobuf:"bytes,1,opt,name=activity,proto3" json:"activity,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Activity string                 `protobuf:"bytes,1,opt,name=activity,proto3" json:"activity,omitempty"`
+	// The root point the step will press or release at, when it has one: a
+	// click, a scroll, either end of a drag. The step waits until the strip is
+	// not over it (H6).
+	HasPoint      bool  `protobuf:"varint,2,opt,name=has_point,json=hasPoint,proto3" json:"has_point,omitempty"`
+	X             int32 `protobuf:"varint,3,opt,name=x,proto3" json:"x,omitempty"`
+	Y             int32 `protobuf:"varint,4,opt,name=y,proto3" json:"y,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2309,6 +2341,27 @@ func (x *HandStepRequest) GetActivity() string {
 		return x.Activity
 	}
 	return ""
+}
+
+func (x *HandStepRequest) GetHasPoint() bool {
+	if x != nil {
+		return x.HasPoint
+	}
+	return false
+}
+
+func (x *HandStepRequest) GetX() int32 {
+	if x != nil {
+		return x.X
+	}
+	return 0
+}
+
+func (x *HandStepRequest) GetY() int32 {
+	if x != nil {
+		return x.Y
+	}
+	return 0
 }
 
 type HandStepResponse struct {
@@ -2533,6 +2586,121 @@ func (x *HandWaitResponse) GetState() *HandState {
 	return nil
 }
 
+// HandStripRequest is where the strip is now, from the strip itself, on a
+// connection it holds: when that connection closes the rect is forgotten.
+// Refused to a program and to an agent, as an answer is.
+type HandStripRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	X             int32                  `protobuf:"varint,1,opt,name=x,proto3" json:"x,omitempty"`
+	Y             int32                  `protobuf:"varint,2,opt,name=y,proto3" json:"y,omitempty"`
+	Width         int32                  `protobuf:"varint,3,opt,name=width,proto3" json:"width,omitempty"`
+	Height        int32                  `protobuf:"varint,4,opt,name=height,proto3" json:"height,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HandStripRequest) Reset() {
+	*x = HandStripRequest{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HandStripRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HandStripRequest) ProtoMessage() {}
+
+func (x *HandStripRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HandStripRequest.ProtoReflect.Descriptor instead.
+func (*HandStripRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *HandStripRequest) GetX() int32 {
+	if x != nil {
+		return x.X
+	}
+	return 0
+}
+
+func (x *HandStripRequest) GetY() int32 {
+	if x != nil {
+		return x.Y
+	}
+	return 0
+}
+
+func (x *HandStripRequest) GetWidth() int32 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *HandStripRequest) GetHeight() int32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+type HandStripResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	State         *HandState             `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HandStripResponse) Reset() {
+	*x = HandStripResponse{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HandStripResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HandStripResponse) ProtoMessage() {}
+
+func (x *HandStripResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HandStripResponse.ProtoReflect.Descriptor instead.
+func (*HandStripResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *HandStripResponse) GetState() *HandState {
+	if x != nil {
+		return x.State
+	}
+	return nil
+}
+
 // HandAnswerRequest is the person's answer, from the strip or a terminal.
 // Refused to a program and to an agent (H5).
 type HandAnswerRequest struct {
@@ -2544,7 +2712,7 @@ type HandAnswerRequest struct {
 
 func (x *HandAnswerRequest) Reset() {
 	*x = HandAnswerRequest{}
-	mi := &file_proto_rig_v1_registry_proto_msgTypes[30]
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2556,7 +2724,7 @@ func (x *HandAnswerRequest) String() string {
 func (*HandAnswerRequest) ProtoMessage() {}
 
 func (x *HandAnswerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_registry_proto_msgTypes[30]
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2569,7 +2737,7 @@ func (x *HandAnswerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HandAnswerRequest.ProtoReflect.Descriptor instead.
 func (*HandAnswerRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{30}
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *HandAnswerRequest) GetAction() HandAction {
@@ -2588,7 +2756,7 @@ type HandAnswerResponse struct {
 
 func (x *HandAnswerResponse) Reset() {
 	*x = HandAnswerResponse{}
-	mi := &file_proto_rig_v1_registry_proto_msgTypes[31]
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2600,7 +2768,7 @@ func (x *HandAnswerResponse) String() string {
 func (*HandAnswerResponse) ProtoMessage() {}
 
 func (x *HandAnswerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_registry_proto_msgTypes[31]
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2613,7 +2781,7 @@ func (x *HandAnswerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HandAnswerResponse.ProtoReflect.Descriptor instead.
 func (*HandAnswerResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{31}
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *HandAnswerResponse) GetState() *HandState {
@@ -2738,7 +2906,7 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x12\x12\n" +
 	"\x04wait\x18\x02 \x01(\bR\x04wait\"#\n" +
 	"\vSayResponse\x12\x14\n" +
-	"\x05heard\x18\x01 \x01(\bR\x05heard\"\xe0\x02\n" +
+	"\x05heard\x18\x01 \x01(\bR\x05heard\"\xa3\x03\n" +
 	"\tHandState\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x04R\x03seq\x12'\n" +
 	"\x05phase\x18\x02 \x01(\x0e2\x11.rig.v1.HandPhaseR\x05phase\x12\x16\n" +
@@ -2751,14 +2919,20 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\twindow_ms\x18\t \x01(\rR\bwindowMs\x12\x17\n" +
 	"\aleft_ms\x18\n" +
 	" \x01(\rR\x06leftMs\x12\x14\n" +
-	"\x05ended\x18\v \x01(\tR\x05ended\"O\n" +
+	"\x05ended\x18\v \x01(\tR\x05ended\x12\x17\n" +
+	"\ahas_aim\x18\f \x01(\bR\x06hasAim\x12\x13\n" +
+	"\x05aim_x\x18\r \x01(\x05R\x04aimX\x12\x13\n" +
+	"\x05aim_y\x18\x0e \x01(\x05R\x04aimY\"O\n" +
 	"\x12HandRequestRequest\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason\x12!\n" +
 	"\fcountdown_ms\x18\x02 \x01(\rR\vcountdownMs\">\n" +
 	"\x13HandRequestResponse\x12'\n" +
-	"\x05state\x18\x01 \x01(\v2\x11.rig.v1.HandStateR\x05state\"-\n" +
+	"\x05state\x18\x01 \x01(\v2\x11.rig.v1.HandStateR\x05state\"f\n" +
 	"\x0fHandStepRequest\x12\x1a\n" +
-	"\bactivity\x18\x01 \x01(\tR\bactivity\";\n" +
+	"\bactivity\x18\x01 \x01(\tR\bactivity\x12\x1b\n" +
+	"\thas_point\x18\x02 \x01(\bR\bhasPoint\x12\f\n" +
+	"\x01x\x18\x03 \x01(\x05R\x01x\x12\f\n" +
+	"\x01y\x18\x04 \x01(\x05R\x01y\";\n" +
 	"\x10HandStepResponse\x12'\n" +
 	"\x05state\x18\x01 \x01(\v2\x11.rig.v1.HandStateR\x05state\"\x14\n" +
 	"\x12HandReleaseRequest\">\n" +
@@ -2769,6 +2943,13 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\n" +
 	"timeout_ms\x18\x02 \x01(\rR\ttimeoutMs\";\n" +
 	"\x10HandWaitResponse\x12'\n" +
+	"\x05state\x18\x01 \x01(\v2\x11.rig.v1.HandStateR\x05state\"\\\n" +
+	"\x10HandStripRequest\x12\f\n" +
+	"\x01x\x18\x01 \x01(\x05R\x01x\x12\f\n" +
+	"\x01y\x18\x02 \x01(\x05R\x01y\x12\x14\n" +
+	"\x05width\x18\x03 \x01(\x05R\x05width\x12\x16\n" +
+	"\x06height\x18\x04 \x01(\x05R\x06height\"<\n" +
+	"\x11HandStripResponse\x12'\n" +
 	"\x05state\x18\x01 \x01(\v2\x11.rig.v1.HandStateR\x05state\"?\n" +
 	"\x11HandAnswerRequest\x12*\n" +
 	"\x06action\x18\x01 \x01(\x0e2\x12.rig.v1.HandActionR\x06action\"=\n" +
@@ -2843,7 +3024,7 @@ func file_proto_rig_v1_registry_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_registry_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
-var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
+var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
 var file_proto_rig_v1_registry_proto_goTypes = []any{
 	(Depth)(0),                  // 0: rig.v1.Depth
 	(EstateRole)(0),             // 1: rig.v1.EstateRole
@@ -2884,16 +3065,18 @@ var file_proto_rig_v1_registry_proto_goTypes = []any{
 	(*HandReleaseResponse)(nil), // 36: rig.v1.HandReleaseResponse
 	(*HandWaitRequest)(nil),     // 37: rig.v1.HandWaitRequest
 	(*HandWaitResponse)(nil),    // 38: rig.v1.HandWaitResponse
-	(*HandAnswerRequest)(nil),   // 39: rig.v1.HandAnswerRequest
-	(*HandAnswerResponse)(nil),  // 40: rig.v1.HandAnswerResponse
-	(*v1.Identity)(nil),         // 41: rig.v1.Identity
-	(v1.Coverage)(0),            // 42: rig.v1.Coverage
-	(*v1.Command)(nil),          // 43: rig.v1.Command
+	(*HandStripRequest)(nil),    // 39: rig.v1.HandStripRequest
+	(*HandStripResponse)(nil),   // 40: rig.v1.HandStripResponse
+	(*HandAnswerRequest)(nil),   // 41: rig.v1.HandAnswerRequest
+	(*HandAnswerResponse)(nil),  // 42: rig.v1.HandAnswerResponse
+	(*v1.Identity)(nil),         // 43: rig.v1.Identity
+	(v1.Coverage)(0),            // 44: rig.v1.Coverage
+	(*v1.Command)(nil),          // 45: rig.v1.Command
 }
 var file_proto_rig_v1_registry_proto_depIdxs = []int32{
-	41, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
-	42, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
-	43, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
+	43, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
+	44, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
+	45, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
 	0,  // 3: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
 	9,  // 4: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
 	1,  // 5: rig.v1.EstateResponse.role:type_name -> rig.v1.EstateRole
@@ -2914,13 +3097,14 @@ var file_proto_rig_v1_registry_proto_depIdxs = []int32{
 	30, // 20: rig.v1.HandStepResponse.state:type_name -> rig.v1.HandState
 	30, // 21: rig.v1.HandReleaseResponse.state:type_name -> rig.v1.HandState
 	30, // 22: rig.v1.HandWaitResponse.state:type_name -> rig.v1.HandState
-	8,  // 23: rig.v1.HandAnswerRequest.action:type_name -> rig.v1.HandAction
-	30, // 24: rig.v1.HandAnswerResponse.state:type_name -> rig.v1.HandState
-	25, // [25:25] is the sub-list for method output_type
-	25, // [25:25] is the sub-list for method input_type
-	25, // [25:25] is the sub-list for extension type_name
-	25, // [25:25] is the sub-list for extension extendee
-	0,  // [0:25] is the sub-list for field type_name
+	30, // 23: rig.v1.HandStripResponse.state:type_name -> rig.v1.HandState
+	8,  // 24: rig.v1.HandAnswerRequest.action:type_name -> rig.v1.HandAction
+	30, // 25: rig.v1.HandAnswerResponse.state:type_name -> rig.v1.HandState
+	26, // [26:26] is the sub-list for method output_type
+	26, // [26:26] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_registry_proto_init() }
@@ -2934,7 +3118,7 @@ func file_proto_rig_v1_registry_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_registry_proto_rawDesc), len(file_proto_rig_v1_registry_proto_rawDesc)),
 			NumEnums:      9,
-			NumMessages:   32,
+			NumMessages:   34,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

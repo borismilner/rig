@@ -976,7 +976,7 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	// So does section 5m's HANDS OFF strip, the tray's other surface.
 	case "notify", "toast.wait", "toast.dnd", "toast.reply", "toast.answer",
 		"sound", "say",
-		"hand.request", "hand.step", "hand.release", "hand.wait", "hand.answer":
+		"hand.request", "hand.step", "hand.release", "hand.wait", "hand.answer", "hand.strip":
 		d.serveToast(ctx, c, f, command)
 
 	case "lease.list", "lease.acquire", "lease.renew", "lease.release", "lease.break",

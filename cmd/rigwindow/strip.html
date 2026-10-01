@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Rig HANDS OFF</title>
+<style>
+/* The toasts' dark tokens (design/theme.js DEFAULTS); the phase picks the hue:
+   asking info, held dim, driving warn, paused good. */
+:root {
+  --card-top: #27303c; --card-bot: #1c232d; --line: rgba(255,255,255,.09);
+  --fg: #e6edf6; --fg-dim: #a1b1c5; --on-hue: #0d1117;
+  --sem-info: #8fc2fb; --sem-good: #92cf9a; --sem-warn: #e1b673; --sem-bad: #f7a59c;
+  --sans: "Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif;
+}
+html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+body { font: 14px/1.35 var(--sans); color: var(--fg); -webkit-user-select: none; user-select: none;
+       -webkit-font-smoothing: antialiased; display: flex; justify-content: center; padding-top: 4px; }
+
+#bar {
+  --hue: var(--sem-info);
+  box-sizing: border-box; width: 680px; min-height: 76px; position: relative; overflow: hidden;
+  display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; align-items: center; column-gap: 16px;
+  padding: 12px 14px 14px 12px; border-radius: 16px;
+  background: linear-gradient(180deg, var(--card-top), var(--card-bot));
+  border: 1px solid color-mix(in srgb, var(--hue) 45%, transparent);
+  box-shadow: 0 18px 36px -12px rgba(0,0,0,.65), 0 3px 10px rgba(0,0,0,.35);
+  transition: opacity .3s;
+}
+body[data-phase=held]    #bar { --hue: var(--fg-dim); }
+body[data-phase=driving] #bar { --hue: var(--sem-warn); }
+body[data-phase=paused]  #bar { --hue: var(--sem-good); }
+body[data-phase=idle]    #bar { opacity: .85; }
+
+/* The badge says the phase in two words, in the phase's hue. */
+#badge { align-self: stretch; border-radius: 10px; display: grid; place-items: center; text-align: center;
+         font-weight: 800; font-size: 15px; letter-spacing: .04em; line-height: 1.1;
+         color: var(--on-hue); background: var(--hue); padding: 4px; }
+#badge small { display: block; font-weight: 600; font-size: 12px; letter-spacing: 0; margin-top: 3px; }
+
+#text { min-width: 0; }
+#head { font-weight: 650; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#sub  { color: var(--fg-dim); font-size: 13.5px; margin-top: 3px;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#err  { color: var(--sem-bad); font-size: 13px; margin-top: 3px; }
+#err:empty { display: none; }
+
+#buttons { display: flex; gap: 8px; }
+button { font: 600 14px/1 var(--sans); padding: 10px 14px; border-radius: 10px; cursor: pointer;
+         color: var(--fg); background: rgba(255,255,255,.07); border: 1px solid var(--line); }
+button:hover { background: rgba(255,255,255,.13); }
+button.primary { color: var(--on-hue); background: var(--hue); border-color: transparent; }
+button.primary:hover { filter: brightness(1.08); }
+button.danger:hover { color: var(--on-hue); background: var(--sem-bad); }
+
+/* The countdown drains along the bottom edge. */
+#clock { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--hue); width: 0; }
+</style>
+</head>
+<body data-phase="idle">
+<div id="bar" role="alert">
+  <div id="badge"></div>
+  <div id="text"><div id="head"></div><div id="sub"></div><div id="err"></div></div>
+  <div id="buttons"></div>
+  <div id="clock"></div>
+</div>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+
+// A duration as he reads it: "14s", "2:05".
+function dur(ms) {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return s < 60 ? s + "s" : Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+}
+
+// Each phase: badge, headline, sub line, and its buttons [word, label, class].
+const PHASES = {
+  asking: (s) => ({
+    badge: ["STARTS", "in " + dur(s.left_ms)],
+    head: s.holder + " wants the desktop",
+    sub: (s.reason || "no reason given") + " · it starts by itself unless you answer",
+    buttons: [["allow", "Allow now", "primary"], ["hold", "Hold", ""], ["decline", "Decline", "danger"]],
+    clock: s.window_ms ? s.left_ms / s.window_ms : 0,
+  }),
+  held: (s) => ({
+    badge: ["HELD", dur(s.held_ms) + " left"],
+    head: s.holder + " is waiting for you",
+    sub: (s.reason || "no reason given") + " · declines itself in " + dur(s.left_ms),
+    buttons: [["resume", "Let it run", "primary"], ["decline", "Decline", "danger"]],
+    clock: 0,
+  }),
+  driving: (s) => ({
+    badge: ["HANDS OFF", dur(s.since_ms)],
+    head: s.holder + " is driving the desktop",
+    sub: [s.activity, s.reason].filter(Boolean).join(" · ") || "working",
+    buttons: [["pause", "Take back", "primary"], ["stop", "Stop", "danger"]],
+    clock: 0,
+  }),
+  paused: (s) => ({
+    badge: ["YOURS", "paused"],
+    head: "You have the desktop back from " + s.holder,
+    sub: (s.activity ? "stopped at " + s.activity + " · " : "") + "the run ends itself in " + dur(s.left_ms),
+    buttons: [["resume", "Resume", "primary"], ["stop", "Stop", "danger"]],
+    clock: 0,
+  }),
+  idle: (s) => ({
+    badge: ["DONE", ""],
+    head: s.holder ? s.holder + ": " + (s.ended || "over") : "Nobody has the desktop",
+    sub: "", buttons: [], clock: 0,
+  }),
+};
+
+let shownButtons = "";
+async function answer(word) {
+  $("err").textContent = "";
+  const r = await fetch("/strip/answer?action=" + word, { method: "POST" });
+  if (!r.ok) $("err").textContent = (await r.text()).trim();
+  poll();
+}
+
+function draw(s) {
+  const v = (PHASES[s.phase] || PHASES.idle)(s);
+  document.body.dataset.phase = s.phase;
+  $("badge").innerHTML = "";
+  $("badge").append(v.badge[0]);
+  const small = document.createElement("small");
+  small.textContent = v.badge[1];
+  $("badge").append(small);
+  $("head").textContent = v.head;
+  $("sub").textContent = v.sub;
+  $("clock").style.width = (v.clock * 100).toFixed(2) + "%";
+  // Rebuilt only when the set changes, so a press is never lost to a redraw.
+  const key = s.phase + v.buttons.map((b) => b[0]).join();
+  if (key !== shownButtons) {
+    shownButtons = key;
+    $("buttons").replaceChildren(...v.buttons.map(([word, label, cls]) => {
+      const b = document.createElement("button");
+      b.textContent = label;
+      b.className = cls;
+      b.onclick = () => answer(word);
+      return b;
+    }));
+  }
+}
+
+async function poll() {
+  try {
+    const r = await fetch("/strip/poll");
+    draw(await r.json());
+  } catch (e) { /* the process is ending */ }
+}
+setInterval(poll, 250);
+poll();
+</script>
+</body>
+</html>

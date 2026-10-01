@@ -94,6 +94,47 @@ type Stepper interface {
 	Before(i, n int, st Step) error
 }
 
+// Aimer is a Park that is told each point the hand is about to press or
+// release at, and may hold the step until that point is clear, or refuse it:
+// the HANDS OFF strip moves off a point it covers (plan/05 H6), because a
+// click there would press the strip's own buttons.
+type Aimer interface {
+	Aim(p Pt) error
+}
+
+// aim tells the Aimer, if there is one, where the next press lands.
+func (h *Hand) aim(p Pt) error {
+	if a, ok := h.park.(Aimer); ok {
+		return a.Aim(p)
+	}
+	return nil
+}
+
+// pressHere checks a press at the pointer may go ahead: the window under it
+// is the one locked, and, for a step that did not move there (approach
+// aimed those), the strip is not under it.
+func (h *Hand) pressHere(st Step, what string) error {
+	if err := h.aimedAt(what); err != nil {
+		return err
+	}
+	if st.To {
+		return nil
+	}
+	return h.aimHere()
+}
+
+// aimHere is aim at wherever the pointer is now.
+func (h *Hand) aimHere() error {
+	if _, ok := h.park.(Aimer); !ok {
+		return nil
+	}
+	at, err := h.Pointer()
+	if err != nil {
+		return err
+	}
+	return h.aim(at)
+}
+
 // SetPark installs the latch. Boris's rule, settled at the mock: a script parks
 // at the end of the step it is on, EXCEPT a type, which parks between characters.
 // Every other step is one movement, one click or one drag - all under a tenth of
@@ -640,6 +681,11 @@ func (h *Hand) approach(st Step) (done bool, err error) {
 		Y: st.Y.Resolve(h.frame.Y, h.frame.H, at.Y),
 	}
 	h.trace("%s -> %d,%d", st.Op, target.X, target.Y)
+	if st.Op != OpMove {
+		if err := h.aim(target); err != nil {
+			return false, err
+		}
+	}
 	if err := h.MoveTo(target); err != nil {
 		return false, err
 	}
@@ -652,6 +698,9 @@ func (h *Hand) approach(st Step) (done bool, err error) {
 	end := Pt{
 		X: st.X2.Resolve(h.frame.X, h.frame.W, target.X),
 		Y: st.Y2.Resolve(h.frame.Y, h.frame.H, target.Y),
+	}
+	if err := h.aim(end); err != nil {
+		return true, err
 	}
 	return true, h.Drag(end)
 }
@@ -678,19 +727,19 @@ func (h *Hand) step(st Step) error {
 	case OpMove:
 		// the movement was the step, and moving the pointer changes nothing
 	case OpClick:
-		if err := h.aimedAt("click"); err != nil {
+		if err := h.pressHere(st, "click"); err != nil {
 			return err
 		}
 		return h.Click(st.Button)
 	case OpDouble:
-		if err := h.aimedAt("double-click"); err != nil {
+		if err := h.pressHere(st, "double-click"); err != nil {
 			return err
 		}
 		return h.DoubleClick(st.Button)
 	case OpDrag:
 		// handled above, where both ends are in scope
 	case OpScroll:
-		if err := h.aimedAt("scroll"); err != nil {
+		if err := h.pressHere(st, "scroll"); err != nil {
 			return err
 		}
 		h.trace("scroll %d", st.N)

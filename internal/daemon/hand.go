@@ -44,6 +44,10 @@ const (
 	handPauseMax = 10 * time.Minute
 	maxHandWait  = 60 * time.Second
 	maxHandText  = 200
+	// How long a step waits for the strip to move off its point (H6), and
+	// how far around the strip a point still counts as under it.
+	handStripClear = 3 * time.Second
+	handStripPad   = 4
 )
 
 // How a run ends, in his words on the strip and in the refusal its program
@@ -75,12 +79,32 @@ type handDesk struct {
 	// holdMax and pauseMax are handHoldMax and handPauseMax; tests shorten
 	// them.
 	holdMax, pauseMax time.Duration
+	// strip is where the strip last said it is, and stripBy the connection
+	// that said so; nil while no strip is up.
+	strip   *handRect
+	stripBy any
+	// stripClear is handStripClear; tests shorten it.
+	stripClear time.Duration
+}
+
+// handRect is the strip's window on the root, shadow included: all of it
+// takes the pointer.
+type handRect struct{ x, y, w, h int32 }
+
+// handPoint is where a step will press or release.
+type handPoint struct{ x, y int32 }
+
+// covers is true when p is under the strip, or too close to it to trust.
+func (r *handRect) covers(p handPoint) bool {
+	return r != nil &&
+		p.x >= r.x-handStripPad && p.x < r.x+r.w+handStripPad &&
+		p.y >= r.y-handStripPad && p.y < r.y+r.h+handStripPad
 }
 
 func newHandDesk(now func() time.Time) *handDesk {
 	return &handDesk{
 		st:  &registryv1.HandState{Seq: 1, Phase: registryv1.HandPhase_HAND_PHASE_IDLE},
-		now: now, holdMax: handHoldMax, pauseMax: handPauseMax,
+		now: now, holdMax: handHoldMax, pauseMax: handPauseMax, stripClear: handStripClear,
 	}
 }
 
@@ -237,10 +261,14 @@ func endedErr(verb, why string) error {
 }
 
 // step is the gate before one step. It answers at once while the run drives,
-// blocks while he has the desktop, and refuses once the run is over.
-func (h *handDesk) step(ctx context.Context, owner any, activity string) (*registryv1.HandState, error) {
+// blocks while he has the desktop, and refuses once the run is over. A step
+// with a point under the strip publishes that point and waits for the strip
+// to move off it (H6), and is refused if it does not: a click under the
+// strip would press the strip's own buttons.
+func (h *handDesk) step(ctx context.Context, owner any, activity string, pt *handPoint) (*registryv1.HandState, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	var clearBy time.Time
 	for {
 		h.expire()
 		if h.run == nil || h.run.owner != owner {
@@ -255,7 +283,23 @@ func (h *handDesk) step(ctx context.Context, owner any, activity string) (*regis
 				h.st.Activity = activity
 				h.changed()
 			}
-			return h.snapshot(), nil
+			if pt == nil || !h.strip.covers(*pt) {
+				h.aim(nil)
+				return h.snapshot(), nil
+			}
+			if clearBy.IsZero() {
+				clearBy = h.now().Add(h.stripClear)
+				h.aim(pt)
+			} else if !h.now().Before(clearBy) {
+				h.aim(nil)
+				return nil, handRefused(rigv1.Code_CODE_CONFLICT,
+					"rig.hand.step: the HANDS OFF strip did not move off the point this step acts on")
+			}
+			if !h.awaitUntil(ctx, clearBy) && ctx.Err() != nil {
+				h.aim(nil)
+				return nil, ctx.Err()
+			}
+			continue
 		case registryv1.HandPhase_HAND_PHASE_ASKING, registryv1.HandPhase_HAND_PHASE_HELD:
 			return nil, handRefused(rigv1.Code_CODE_CONFLICT, "rig.hand.step: the run is not granted yet; rig.hand.request answers when it is")
 		}
@@ -263,6 +307,36 @@ func (h *handDesk) step(ctx context.Context, owner any, activity string) (*regis
 			return nil, ctx.Err()
 		}
 	}
+}
+
+// awaitUntil is await bounded by t as well as by ctx. Called with mu held.
+func (h *handDesk) awaitUntil(ctx context.Context, t time.Time) bool {
+	bound, cancel := context.WithDeadline(ctx, t)
+	defer cancel()
+	return h.await(bound)
+}
+
+// aim publishes the point a step waits on, or clears it. Called with mu
+// held.
+func (h *handDesk) aim(pt *handPoint) {
+	has := pt != nil
+	if has == h.st.GetHasAim() && (!has || (pt.x == h.st.GetAimX() && pt.y == h.st.GetAimY())) {
+		return
+	}
+	h.st.HasAim, h.st.AimX, h.st.AimY = has, 0, 0
+	if has {
+		h.st.AimX, h.st.AimY = pt.x, pt.y
+	}
+	h.changed()
+}
+
+// placed records where the strip is, from the strip's own connection.
+func (h *handDesk) placed(by any, r handRect) *registryv1.HandState {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.strip, h.stripBy = &r, by
+	h.changed()
+	return h.snapshot()
 }
 
 // release ends owner's run as finished. Releasing nothing is not an error: a
@@ -285,6 +359,10 @@ func (h *handDesk) drop(owner any) {
 	}
 	if h.last != nil && h.last.owner == owner {
 		h.last = nil
+	}
+	if h.stripBy == owner {
+		h.strip, h.stripBy = nil, nil
+		h.changed()
 	}
 }
 
@@ -358,7 +436,7 @@ func (h *handDesk) after(ctx context.Context, seq uint64, wait time.Duration) (*
 	}
 }
 
-// serveHand dispatches the five hand verbs through one arm of the daemon's
+// serveHand dispatches the six hand verbs through one arm of the daemon's
 // switch.
 func (d *Daemon) serveHand(ctx context.Context, c *conn, f *rigv1.Frame, command string) {
 	var (
@@ -380,7 +458,11 @@ func (d *Daemon) serveHand(ctx context.Context, c *conn, f *rigv1.Frame, command
 		if !unmarshalOr(c, f, command, &req) {
 			return
 		}
-		if st, err = d.hand.step(ctx, c, clip(req.GetActivity())); err == nil {
+		var pt *handPoint
+		if req.GetHasPoint() {
+			pt = &handPoint{req.GetX(), req.GetY()}
+		}
+		if st, err = d.hand.step(ctx, c, clip(req.GetActivity()), pt); err == nil {
 			c.reply(f.GetStreamId(), &registryv1.HandStepResponse{State: st})
 		}
 	case "hand.release":
@@ -394,6 +476,8 @@ func (d *Daemon) serveHand(ctx context.Context, c *conn, f *rigv1.Frame, command
 		if st, ok := d.hand.after(ctx, req.GetAfter(), wait); ok {
 			c.reply(f.GetStreamId(), &registryv1.HandWaitResponse{State: st})
 		}
+	case "hand.strip":
+		d.serveHandStrip(c, f, command)
 	case "hand.answer":
 		var req registryv1.HandAnswerRequest
 		if !unmarshalOr(c, f, command, &req) {
@@ -419,6 +503,27 @@ func (d *Daemon) serveHand(ctx context.Context, c *conn, f *rigv1.Frame, command
 		return
 	}
 	c.failErr(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err)
+}
+
+// serveHandStrip takes where the strip is. Where the strip is decides where
+// a click may land, so only the strip says so, and it is a person's process
+// as an answer is.
+func (d *Daemon) serveHandStrip(c *conn, f *rigv1.Frame, command string) {
+	var req registryv1.HandStripRequest
+	if !unmarshalOr(c, f, command, &req) {
+		return
+	}
+	if c.scoped.Load() || c.agentDoor {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_DENIED,
+			"rig.hand.strip: only the HANDS OFF strip says where it is")
+		return
+	}
+	if req.GetWidth() <= 0 || req.GetHeight() <= 0 {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "rig.hand.strip: the strip has a width and a height")
+		return
+	}
+	st := d.hand.placed(c, handRect{req.GetX(), req.GetY(), req.GetWidth(), req.GetHeight()})
+	c.reply(f.GetStreamId(), &registryv1.HandStripResponse{State: st})
 }
 
 func (d *Daemon) serveHandRequest(ctx context.Context, c *conn, req *registryv1.HandRequestRequest) (*registryv1.HandState, error) {

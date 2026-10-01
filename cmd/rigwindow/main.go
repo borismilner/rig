@@ -50,6 +50,7 @@ func main() {
 	window := flag.Bool("window", false, "be the window rather than the tray (the tray starts this itself)")
 	toasts := flag.Bool("toasts", false, "be the toast renderer (the tray starts this itself)")
 	after := flag.String("after", "0", "with --toasts: draw the toasts after this cursor")
+	strip := flag.Bool("strip", false, "be the HANDS OFF strip (the tray starts this itself)")
 	flag.Parse()
 	if *showVersion {
 		fmt.Printf("product %s\nwire    %s\ncommit  %s\nbuilt   %s\n", version, wire, sha, date)
@@ -62,6 +63,13 @@ func main() {
 			err = runToasts(cursor)
 		}
 		if err != nil {
+			fmt.Fprintln(os.Stderr, "rigwindow: "+err.Error())
+			os.Exit(1)
+		}
+		return
+	}
+	if *strip {
+		if err := runStrip(); err != nil {
 			fmt.Fprintln(os.Stderr, "rigwindow: "+err.Error())
 			os.Exit(1)
 		}

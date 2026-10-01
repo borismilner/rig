@@ -75,7 +75,7 @@ func TestADeclinedCountdownRefusesTheProgram(t *testing.T) {
 		t.Fatal(err)
 	}
 	refusedWith(t, within(t, done, time.Second), rigv1.Code_CODE_DENIED, handDeclined)
-	if _, err := h.step(context.Background(), "prog", "x"); err == nil {
+	if _, err := h.step(context.Background(), "prog", "x", nil); err == nil {
 		t.Fatal("a declined run took a step")
 	}
 }
@@ -131,14 +131,14 @@ func TestTakeBackBlocksTheStepAndStopRefusesIt(t *testing.T) {
 	_, _ = h.answer(registryv1.HandAction_HAND_ACTION_ALLOW)
 	_ = within(t, done, time.Second)
 	ctx := context.Background()
-	if st, err := h.step(ctx, "prog", "step 1 of 3: click"); err != nil || st.GetActivity() != "step 1 of 3: click" {
+	if st, err := h.step(ctx, "prog", "step 1 of 3: click", nil); err != nil || st.GetActivity() != "step 1 of 3: click" {
 		t.Fatalf("step: %v %v", st, err)
 	}
 	if _, err := h.answer(registryv1.HandAction_HAND_ACTION_PAUSE); err != nil {
 		t.Fatal(err)
 	}
 	stepped := make(chan error, 1)
-	go func() { _, err := h.step(ctx, "prog", "step 2 of 3: type"); stepped <- err }()
+	go func() { _, err := h.step(ctx, "prog", "step 2 of 3: type", nil); stepped <- err }()
 	select {
 	case err := <-stepped:
 		t.Fatalf("a step ran while he had the desktop: %v", err)
@@ -151,7 +151,7 @@ func TestTakeBackBlocksTheStepAndStopRefusesIt(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, _ = h.answer(registryv1.HandAction_HAND_ACTION_PAUSE)
-	go func() { _, err := h.step(ctx, "prog", "step 3 of 3: key"); stepped <- err }()
+	go func() { _, err := h.step(ctx, "prog", "step 3 of 3: key", nil); stepped <- err }()
 	time.Sleep(50 * time.Millisecond)
 	if _, err := h.answer(registryv1.HandAction_HAND_ACTION_STOP); err != nil {
 		t.Fatal(err)
@@ -167,7 +167,7 @@ func TestAPausePastItsBoundStopsTheRun(t *testing.T) {
 	_, _ = h.answer(registryv1.HandAction_HAND_ACTION_ALLOW)
 	_ = within(t, done, time.Second)
 	_, _ = h.answer(registryv1.HandAction_HAND_ACTION_PAUSE)
-	_, err := h.step(context.Background(), "prog", "x")
+	_, err := h.step(context.Background(), "prog", "x", nil)
 	refusedWith(t, err, rigv1.Code_CODE_DEADLINE, handPausedLong)
 }
 
@@ -176,7 +176,7 @@ func TestOneRunAtATimeAndItEndsWithItsConnection(t *testing.T) {
 	if _, err := h.ask("other", "x", "y", time.Second); err == nil {
 		t.Fatal("a second run was let in")
 	}
-	if _, err := h.step(context.Background(), "other", "x"); err == nil {
+	if _, err := h.step(context.Background(), "other", "x", nil); err == nil {
 		t.Fatal("a stranger stepped")
 	}
 	h.drop("prog")
@@ -269,5 +269,91 @@ func TestOnlyATerminalAnswersAndTheHolderIsTheConnection(t *testing.T) {
 	}
 	if w.GetState().GetEnded() != handLeft {
 		t.Fatalf("ended %q", w.GetState().GetEnded())
+	}
+}
+
+// drivingDesk is a desk whose run already drives, with the strip at the
+// bottom of a 1000x800 screen.
+func drivingDesk(t *testing.T) *handDesk {
+	t.Helper()
+	h, done := handDesk4(t, 10*time.Second)
+	h.stripClear = 300 * time.Millisecond
+	if _, err := h.answer(registryv1.HandAction_HAND_ACTION_ALLOW); err != nil {
+		t.Fatal(err)
+	}
+	if err := within(t, done, time.Second); err != nil {
+		t.Fatal(err)
+	}
+	h.placed("strip", handRect{140, 690, 720, 112})
+	return h
+}
+
+// H6: a point clear of the strip passes at once and publishes no aim.
+func TestAStepClearOfTheStripPasses(t *testing.T) {
+	h := drivingDesk(t)
+	st, err := h.step(context.Background(), "prog", "", &handPoint{500, 300})
+	if err != nil || st.GetHasAim() {
+		t.Fatalf("step: %v, aim %v", err, st.GetHasAim())
+	}
+}
+
+// H6: a point under the strip waits until the strip moves off it.
+func TestAStepUnderTheStripWaitsForItToMove(t *testing.T) {
+	h := drivingDesk(t)
+	done := make(chan error, 1)
+	go func() { _, err := h.step(context.Background(), "prog", "", &handPoint{500, 700}); done <- err }()
+	// The strip sees the aim, and moves to the top edge.
+	st, _ := h.after(context.Background(), 0, 0)
+	for !st.GetHasAim() {
+		st, _ = h.after(context.Background(), st.GetSeq(), time.Second)
+	}
+	if st.GetAimX() != 500 || st.GetAimY() != 700 {
+		t.Fatalf("aim %d,%d", st.GetAimX(), st.GetAimY())
+	}
+	select {
+	case err := <-done:
+		t.Fatalf("stepped under the strip: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	h.placed("strip", handRect{140, 6, 720, 112})
+	if err := within(t, done, time.Second); err != nil {
+		t.Fatal(err)
+	}
+	if st, _ := h.after(context.Background(), 0, 0); st.GetHasAim() {
+		t.Fatal("the aim outlived the step")
+	}
+}
+
+// H6: a strip that never moves refuses the step rather than let it click
+// the strip's own buttons.
+func TestAStripThatStaysRefusesTheStep(t *testing.T) {
+	h := drivingDesk(t)
+	_, err := h.step(context.Background(), "prog", "", &handPoint{500, 700})
+	refusedWith(t, err, rigv1.Code_CODE_CONFLICT, "did not move off")
+}
+
+// H6: a strip whose connection closed is forgotten, so it never blocks.
+func TestAGoneStripIsForgotten(t *testing.T) {
+	h := drivingDesk(t)
+	h.drop("strip")
+	if _, err := h.step(context.Background(), "prog", "", &handPoint{500, 700}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// H6 on the wire: only the strip, never a program, says where the strip is.
+func TestAProgramCannotPlaceTheStrip(t *testing.T) {
+	sock, _ := upDaemon(t, nil)
+	prog := program(t, sock, "handprog")
+	term := dial(t, sock)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	rect := &registryv1.HandStripRequest{X: 0, Y: 0, Width: 720, Height: 112}
+	err := prog.Call(ctx, "rig.hand.strip", rect, &registryv1.HandStripResponse{})
+	wantCode(t, err, rigv1.Code_CODE_DENIED, "a program placing the strip")
+	err = term.Call(ctx, "rig.hand.strip", &registryv1.HandStripRequest{Width: 0, Height: 1}, &registryv1.HandStripResponse{})
+	wantCode(t, err, rigv1.Code_CODE_INVALID, "a strip with no width")
+	if err := term.Call(ctx, "rig.hand.strip", rect, &registryv1.HandStripResponse{}); err != nil {
+		t.Fatal(err)
 	}
 }

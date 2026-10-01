@@ -62,13 +62,15 @@ var bridged = map[string]struct {
 	"health":         {func() proto.Message { return &verbsv1.HealthRequest{} }, func() proto.Message { return &verbsv1.HealthResponse{} }},
 	"backup.create":  {func() proto.Message { return &verbsv1.BackupCreateRequest{} }, func() proto.Message { return &verbsv1.BackupCreateResponse{} }},
 	"health.report":  {func() proto.Message { return &rigv1.HealthReportRequest{} }, func() proto.Message { return &rigv1.HealthReportResponse{} }},
-	// The HANDS OFF strip. hand.answer is carried and refused to an agent
-	// (H5): the tool exists so the refusal is the answer, not a missing tool.
+	// The HANDS OFF strip. hand.answer and hand.strip are carried and refused
+	// to an agent (H5, H6): the tool exists so the refusal is the answer, not
+	// a missing tool.
 	"hand.request":      {func() proto.Message { return &registryv1.HandRequestRequest{} }, func() proto.Message { return &registryv1.HandRequestResponse{} }},
 	"hand.step":         {func() proto.Message { return &registryv1.HandStepRequest{} }, func() proto.Message { return &registryv1.HandStepResponse{} }},
 	"hand.release":      {func() proto.Message { return &registryv1.HandReleaseRequest{} }, func() proto.Message { return &registryv1.HandReleaseResponse{} }},
 	"hand.wait":         {func() proto.Message { return &registryv1.HandWaitRequest{} }, func() proto.Message { return &registryv1.HandWaitResponse{} }},
 	"hand.answer":       {func() proto.Message { return &registryv1.HandAnswerRequest{} }, func() proto.Message { return &registryv1.HandAnswerResponse{} }},
+	"hand.strip":        {func() proto.Message { return &registryv1.HandStripRequest{} }, func() proto.Message { return &registryv1.HandStripResponse{} }},
 	"project.brief":     {func() proto.Message { return &verbsv1.ProjectBriefRequest{} }, func() proto.Message { return &verbsv1.ProjectBriefResponse{} }},
 	"down":              {func() proto.Message { return &verbsv1.DownRequest{} }, func() proto.Message { return &verbsv1.DownResponse{} }},
 	"files.root":        {func() proto.Message { return &verbsv1.FilesRootRequest{} }, func() proto.Message { return &verbsv1.FilesRootResponse{} }},

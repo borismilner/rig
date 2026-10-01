@@ -148,6 +148,10 @@ func runTraySupervisor(sup *supervisor) {
 			spawn: spawnToasts, fallback: notifyDesktop,
 			warn: func(msg string) { fmt.Fprintln(os.Stderr, "rigwindow: "+msg) },
 		})
+		go watchHand(&stripWatcher{
+			spawn: spawnStrip, fallback: notifyHand,
+			warn: func(msg string) { fmt.Fprintln(os.Stderr, "rigwindow: "+msg) },
+		})
 	}, nil)
 }
 

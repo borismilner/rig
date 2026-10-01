@@ -459,6 +459,11 @@ message HandState {
   // IDLE after a run: how the last one ended (finished, declined, stopped,
   // the program left, paused too long, held too long).
   string ended = 11;
+  // DRIVING: the point a step is waiting to act on because the strip covers
+  // it (H6). The strip moves to the other edge when it sees one.
+  bool has_aim = 12;
+  int32 aim_x = 13;
+  int32 aim_y = 14;
 }
 
 // HandRequestRequest asks for the desktop and blocks through the countdown:
@@ -478,6 +483,12 @@ message HandRequestResponse {
 // was stopped.
 message HandStepRequest {
   string activity = 1;
+  // The root point the step will press or release at, when it has one: a
+  // click, a scroll, either end of a drag. The step waits until the strip is
+  // not over it (H6).
+  bool has_point = 2;
+  int32 x = 3;
+  int32 y = 4;
 }
 
 message HandStepResponse {
@@ -514,6 +525,20 @@ enum HandAction {
   HAND_ACTION_RESUME = 5;
   // End the run, whatever its phase.
   HAND_ACTION_STOP = 6;
+}
+
+// HandStripRequest is where the strip is now, from the strip itself, on a
+// connection it holds: when that connection closes the rect is forgotten.
+// Refused to a program and to an agent, as an answer is.
+message HandStripRequest {
+  int32 x = 1;
+  int32 y = 2;
+  int32 width = 3;
+  int32 height = 4;
+}
+
+message HandStripResponse {
+  HandState state = 1;
 }
 
 // HandAnswerRequest is the person's answer, from the strip or a terminal.
