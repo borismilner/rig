@@ -279,4 +279,15 @@ was "tune it"; B (three rising blips) and C (high then low) lost.
 |---|---|
 | S6 | **rig's speech is the same as AgentBox's or better, on every axis AgentBox has.** Checked against AgentBox `speak`: a line said with no card, `wait` until heard, and a spoken line carried on a card or toast so the chime and the voice arrive together. A gap found is a work item, not a footnote |
 
+**Status 2026-10-01: at parity on every axis found.** Three gaps closed at
+`fa93651`, each heard live on the deployed daemon:
+
+| Gap | Closed by |
+|---|---|
+| G2 volume | `rig sound volume 1-100` and the tray menu; heard at 25% |
+| G3 prewarm | rigd loads the engine at start; idle release is 10 minutes, AgentBox's figure |
+| G4 re-detect | a missing engine is looked for again after a minute |
+
+aplay has no volume flag, so on aplay the setting does nothing.
+
 ---
