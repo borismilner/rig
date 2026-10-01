@@ -863,6 +863,7 @@ decline or pause the time until in the hands-off mode."* So:
 | H4 | **He can take the desktop back at any moment**, from the strip or the terminal. The hand stops at the end of the current step (inside a `type`, between characters, per the park latch) and waits; only he can resume it, and he can stop the run outright instead |
 | H5 | **Only he answers.** The allow, decline, hold, take-back, resume and stop doors are refused to programs and agents, or the strip is a suggestion. Derived from his request, not his words |
 | H6 | **The strip is never under the hand.** Boris, 2026-10-01: *"The placement of the hands-off panel should not be arbitrary."* Asked, he chose this rule: it sits at the bottom centre by his panel, and before a step whose point falls under it, it moves to the other edge and the step waits until it has. A click under the strip would otherwise press its own buttons |
+| H7 | **While it drives, the strip says what it is doing, in a brief explanation.** Boris, 2026-10-01: *"When the agent is driving the desktop - the panel should show what it is doing, some brief explanation, otherwise it's too opaque to the user."* "step 3 of 8: click" alone fails this: each step carries a short line in his terms (what and why), which the strip shows beside the step count. Typed text is still never shown |
 
 **The service is named `hand`, and the verb is `rig hand`.** One syllable, the thing it is, and
 it does not collide with `rig window`, which draws.
