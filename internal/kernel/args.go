@@ -231,6 +231,23 @@ func commandByID(d Declaration, commandID string) (Command, bool) {
 	return Command{}, false
 }
 
+// DeclaredDuration is the duration one command declared, read the way
+// ValidateArgs reads its schema: as the TARGET declared it. An unknown program
+// or command is DurationUnspecified, which the caller treats as the shortest.
+func (k *Kernel) DeclaredDuration(programID, commandID string) Duration {
+	k.registry.mu.RLock()
+	defer k.registry.mu.RUnlock()
+	e, known := k.registry.programs[programID]
+	if !known {
+		return DurationUnspecified
+	}
+	c, ok := commandByID(e.decl, commandID)
+	if !ok {
+		return DurationUnspecified
+	}
+	return c.Duration
+}
+
 // ArgSchema hands back the raw declared schema for one command, as this
 // principal may see it.
 //

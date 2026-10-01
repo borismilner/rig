@@ -673,3 +673,27 @@ func TestAConnectionArrivingDuringShutdownIsNotServed(t *testing.T) {
 		t.Fatal("a connection accepted during shutdown was served")
 	}
 }
+
+// Section 18: the deadline is the upper edge of the declared order of
+// magnitude, so it grows with it and never falls below CallTimeout.
+func TestTheCallDeadlineGrowsWithTheDeclaredDuration(t *testing.T) {
+	order := []rigv1.Duration{
+		rigv1.Duration_DURATION_UNSPECIFIED,
+		rigv1.Duration_DURATION_INSTANT,
+		rigv1.Duration_DURATION_SECONDS,
+		rigv1.Duration_DURATION_MINUTES,
+		rigv1.Duration_DURATION_HOURS,
+	}
+	if got := CallDeadline(order[0]); got != CallTimeout {
+		t.Fatalf("an undeclared duration gets %s, want CallTimeout %s", got, CallTimeout)
+	}
+	for i := 1; i < len(order); i++ {
+		if CallDeadline(order[i]) < CallDeadline(order[i-1]) {
+			t.Errorf("%s gets %s, less than %s's %s", order[i], CallDeadline(order[i]),
+				order[i-1], CallDeadline(order[i-1]))
+		}
+	}
+	if got := CallDeadline(rigv1.Duration_DURATION_MINUTES); got != time.Hour {
+		t.Errorf("minutes gets %s, want an hour", got)
+	}
+}

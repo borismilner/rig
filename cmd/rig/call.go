@@ -46,10 +46,29 @@ var ownFlags = map[string]bool{"json": true, "timeout": true, "args": true}
 // TestTheClientOutlastsTheDaemonsOwnDeadline stops the two drifting apart.
 const defaultCallTimeout = 30 * time.Second
 
+// patience is how long the CLI waits for one command when --timeout was not
+// given: the daemon's deadline for the duration it declared (section 18), plus
+// the same margin defaultCallTimeout keeps over CallTimeout.
+// TestTheClientOutlastsEveryDeclaredDeadline holds the two tables together.
+func patience(d rigv1.Duration) time.Duration {
+	const margin = 20 * time.Second
+	switch d {
+	case rigv1.Duration_DURATION_SECONDS:
+		return time.Minute + margin
+	case rigv1.Duration_DURATION_MINUTES:
+		return time.Hour + margin
+	case rigv1.Duration_DURATION_HOURS:
+		return 24*time.Hour + margin
+	default:
+		return defaultCallTimeout
+	}
+}
+
 // callFlags is what rig itself takes on a call.
 type callFlags struct {
 	asJSON  bool
 	timeout time.Duration
+	timed   bool   // --timeout was given, so patience does not apply
 	args    string // a whole JSON object, given verbatim
 	hasArgs bool
 }
@@ -78,6 +97,10 @@ func cmdCall(program, command string, argv []string) (err error) {
 	decl, err := lookup(ctx, c, program, command)
 	if err != nil {
 		return err
+	}
+	if !own.timed {
+		ctx, cancel = context.WithTimeout(context.Background(), patience(decl.GetDuration()))
+		defer cancel()
 	}
 
 	args, err := buildArgs(decl, own, rest)
@@ -139,7 +162,7 @@ func splitOwnFlags(argv []string) (callFlags, []string, error) {
 			if err != nil {
 				return own, nil, badArgumentf("--timeout: %s", err)
 			}
-			own.timeout = d
+			own.timeout, own.timed = d, true
 		case "args":
 			own.args, own.hasArgs = value, true
 		}

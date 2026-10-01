@@ -48,6 +48,24 @@ import (
 // which makes it the part that must exist from the first commit.
 const CallTimeout = 10 * time.Second
 
+// CallDeadline is how long a routed call to a command of this declared
+// duration may take before rig answers it as a hang: the upper edge of the
+// order of magnitude it declared (PLAN.md section 18). A flat CallTimeout cut
+// a hand script off at the caller while the program kept typing, so the
+// caller was told it failed while it was still acting.
+func CallDeadline(d rigv1.Duration) time.Duration {
+	switch d {
+	case rigv1.Duration_DURATION_SECONDS:
+		return time.Minute
+	case rigv1.Duration_DURATION_MINUTES:
+		return time.Hour
+	case rigv1.Duration_DURATION_HOURS:
+		return 24 * time.Hour
+	default:
+		return CallTimeout
+	}
+}
+
 // Config is what a daemon needs to exist.
 type Config struct {
 	Version string
@@ -1198,7 +1216,8 @@ func (d *Daemon) call(
 			fmt.Sprintf("program %q: %v", program, err))
 	}
 
-	callCtx, cancel := context.WithTimeout(ctx, CallTimeout)
+	deadline := CallDeadline(durationOut[d.kernel.DeclaredDuration(program, command)])
+	callCtx, cancel := context.WithTimeout(ctx, deadline)
 	defer cancel()
 
 	select {
@@ -1209,7 +1228,7 @@ func (d *Daemon) call(
 		// The deadline is rig's, not the program's: a hung program must never
 		// hold a rig goroutine or the caller (section 18).
 		return nil, failure(rigv1.Code_CODE_DEADLINE,
-			fmt.Sprintf("program %q did not answer within %s", program, CallTimeout))
+			fmt.Sprintf("program %q did not answer within %s", program, deadline))
 	}
 }
 

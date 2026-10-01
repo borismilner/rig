@@ -226,3 +226,30 @@ func TestARefusalWithNothingTrueToSayLeavesTheFieldsEmpty(t *testing.T) {
 			"examples: %q", f.FixCommand)
 	}
 }
+
+// The daemon's call deadline is chosen from this (section 18), so a command
+// that declared minutes must read back as minutes, and anything rig does not
+// know must read as unspecified, which the daemon gives the shortest deadline.
+func TestDeclaredDurationIsWhatTheTargetDeclared(t *testing.T) {
+	k := kernel.New()
+	d := good("hand")
+	slow := d.Commands[0]
+	slow.ID = "script"
+	slow.Duration = kernel.DurationMinutes
+	d.Commands = []kernel.Command{slow}
+	if _, err := k.Register(programPrincipal("hand"), d); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	for _, tc := range []struct {
+		program, command string
+		want             kernel.Duration
+	}{
+		{"hand", "script", kernel.DurationMinutes},
+		{"hand", "nothing", kernel.DurationUnspecified},
+		{"nobody", "script", kernel.DurationUnspecified},
+	} {
+		if got := k.DeclaredDuration(tc.program, tc.command); got != tc.want {
+			t.Errorf("%s.%s: got %s, want %s", tc.program, tc.command, got, tc.want)
+		}
+	}
+}

@@ -9,7 +9,21 @@ import (
 	"testing"
 
 	"github.com/borismilner/rig/internal/daemon"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
+
+// The same promise per declared duration: a command that declared minutes is
+// given an hour by the daemon, and a CLI that still gave up at 30s would
+// report a timeout on a call rig was still carrying (section 18).
+func TestTheClientOutlastsEveryDeclaredDeadline(t *testing.T) {
+	for d := range rigv1.Duration_name {
+		dur := rigv1.Duration(d)
+		if patience(dur) <= daemon.CallDeadline(dur) {
+			t.Errorf("%s: the CLI waits %s and the daemon answers a hang at %s",
+				dur, patience(dur), daemon.CallDeadline(dur))
+		}
+	}
+}
 
 // Section 10 promises --json on everything. Go's flag package stops at the
 // first positional, so this is the test that keeps the promise independent of
