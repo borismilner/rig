@@ -174,3 +174,18 @@ not a closed class** - the push was closed correctly by generation 13 and the
 condition recurred anyway. ⛔ **So do not treat "the push landed" as a durable
 fact. Measure with `git ls-remote origin main` against HEAD, never against a
 local `origin/main` ref a fetch has not touched.**
+
+### Programs that use rig live in `~/me/projects/rigged`, one repository
+
+**Boris, 2026-10-01:** *"Under /home/boris-milner/me/projects/ I want to
+create a folder under which we'll write all the project that integrate with
+rig (uses rig) such as the storeworker."* Asked, he named it `rigged`, chose
+**one git repository for the whole folder** over one per program, and had
+storeworker **moved there now** rather than only new programs.
+
+- `~/me/projects/rigged/<program>/`, all under one repository and one history.
+- A program there reaches rig only as an outside program would: through
+  `client/` and the wire, never `internal/`. That is the point of moving
+  storeworker - it proves a program can be built against rig from outside.
+- What rig itself carries stays in rig, `righand` included: rig is the
+  single source of truth for its own capabilities (§38).
