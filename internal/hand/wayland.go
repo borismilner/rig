@@ -798,7 +798,7 @@ func (s savedSelection) restore(primary bool) {
 	if primary {
 		args = append(args, "--primary")
 	}
-	_, _ = output(nil, "wl-copy", args...)
+	_ = runTool(nil, "wl-copy", args...)
 }
 
 // setSelection hands data to wl-copy, which forks a server for it and exits.
@@ -807,8 +807,7 @@ func setSelection(primary bool, mime string, data []byte) error {
 	if primary {
 		args = append(args, "--primary")
 	}
-	_, err := output(data, "wl-copy", args...)
-	return err
+	return runTool(data, "wl-copy", args...)
 }
 
 // toolTimeout bounds one gsettings, wl-paste or wl-copy run; a compositor
@@ -820,10 +819,25 @@ func output(stdin []byte, name string, args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), toolTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.WaitDelay = time.Second
 	if stdin != nil {
 		cmd.Stdin = bytes.NewReader(stdin)
 	}
 	return cmd.Output()
+}
+
+// runTool runs a desktop tool without reading what it prints. wl-copy needs it:
+// the server it forks keeps stdout open, so Output would wait for that server
+// to lose the selection rather than for wl-copy to exit.
+func runTool(stdin []byte, name string, args ...string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), toolTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.WaitDelay = time.Second
+	if stdin != nil {
+		cmd.Stdin = bytes.NewReader(stdin)
+	}
+	return cmd.Run()
 }
 
 // evdevLatin is where each Latin letter and digit sits on a US keyboard, as
