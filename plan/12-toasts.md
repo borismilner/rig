@@ -268,3 +268,15 @@ was "tune it"; B (three rising blips) and C (high then low) lost.
 | S5 | **Read-aloud uses the best sound quality available** (Boris, 2026-09-27: *"The read-aloud must use the best available quality of sound."*). Today that is Kokoro-82M through `kokoro-say` at its native 24 kHz, piper only as the fallback, and `pw-play` with its resampler pinned to its maximum quality (15, not the default 4), which `~/.local/bin/say` measured as a bigger audible difference than any tuning flag |
 
 ---
+
+## Speech at AgentBox parity or better. Boris, 2026-10-01.
+
+> "I want rig to be able to speak out loud, I think it's already
+> implemented but maybe broken - make sure it's same or better than in
+> AgentBox." - Boris, 2026-10-01
+
+| # | Requirement |
+|---|---|
+| S6 | **rig's speech is the same as AgentBox's or better, on every axis AgentBox has.** Checked against AgentBox `speak`: a line said with no card, `wait` until heard, and a spoken line carried on a card or toast so the chime and the voice arrive together. A gap found is a work item, not a footnote |
+
+---

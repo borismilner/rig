@@ -826,6 +826,19 @@ tool in that daemon that *acts* on the desktop instead of putting something in f
 waiting, and it works. What follows is that capability brought over, and the several places
 where rig's own model makes it better rather than merely relocated.
 
+**Boris, 2026-10-01: parity or better, and on Wayland.** *"I want rig to be
+able to speak out loud [...] make sure it's same or better than in AgentBox.
+Same for controlling the mouse and the keyboard."* Then: *"If needed, adjust
+`rig` to the fact we are working with Wayland."* So the hand is owed now,
+at AgentBox's level or above, on his GNOME Wayland session. ⛔ **This section
+predates that and says "X11 through XTEST today". On his desktop that is
+wrong:** XTEST on XWayland reaches XWayland clients only, never the shell,
+GTK4 apps, Terminator or Chrome. AgentBox already solved it in
+`internal/hand/wayland.go` with mutter's `org.gnome.Mutter.RemoteDesktop`
+D-Bus API, plus a GNOME extension for window geometry; that is the backend
+to port first, XTEST stays for an X11 session, and the portal/libei row
+below stays the named successor.
+
 **The service is named `hand`, and the verb is `rig hand`.** One syllable, the thing it is, and
 it does not collide with `rig window`, which draws.
 
