@@ -748,6 +748,22 @@ moves DOWN in its own commit.
 | 4, coord off `bbolt` | `0b76df5` | leases, mail and queues on the one runner, values the same JSON as the buckets held; rigd refuses a bbolt `coord.db` by name; `cmd/coordconvert` carries epoch, mail counter, trim lines and queue sequences once, original kept as `coord.db.bbolt`; `tools/coord-cutover.sh` converted the three live files and deployed (`750f150`, epoch 83 to 85). Then `bbolt`, `coordconvert` and the script left the tree: acceptance 1 and 6 |
 | 4a, `--json --fields` | `0d944f0` | unrequested `body` and `provenance` omitted; live: 43,734 to 28,479 bytes |
 
+**Acceptance at `0013f87`, 2026-10-01:**
+
+| # | Result |
+|---|---|
+| 1 | passes: `sql.Open` only in `internal/store`; `go.mod` has no `bbolt`. `PRAGMA user_version` remains in tests and in `internal/record/snapshot.go`, which reads a backup snapshot's version, not a second runner |
+| 2 | passes (measured at `7a553f8`, above) |
+| 3 | passes live: record v3, coord v1, programs/storeworker |
+| 4 | passes: 10.7x on the wire; `--json` 43,734 to 28,479 bytes after `0d944f0` |
+| 5 | passes in `make ci`; no live `rig backup` was run, it is his to ask for. coord is outside the archive by §46 decision 5, so the engine change does not reach it |
+| 6 | passes: §22's row reads REMOVED, -323,584 bytes on `rigd`; `make deps-check` 0 |
+| 7 | `make ci` 0, `make lint` 0, `make proto` idempotent. **`rigseed --check` cannot run: no such command exists in the tree** |
+
+**Found, not caused, by S1:** `make bench-size-one B=rigd` is OVER its
+ratchet by 1,314,816 bytes. It drifted after `bench-size` left `make ci`
+on 2026-09-12; S1 moved `rigd` DOWN. Moving the row is his call.
+
 **One coord test changed, a finding by the slice's own bar:**
 `TestANewerSchemaRefusesToOpen` planted its newer schema through bbolt;
 it now plants it with `PRAGMA user_version`. Its claim is unchanged.
