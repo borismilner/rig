@@ -111,3 +111,46 @@ possible"*.
   ghost. A grant that races a timeout is kept, never dropped.
 - **`wait_ms` 0 keeps today's refusal**; the most a wait parks is 25
   minutes, AgentBox's bound, for the same MCP-client reason.
+
+### As built: slice 2, 2026-10-02
+
+`f8c135f`, `c5963bf` (size), `ec7e843`; AgentBox `a1fe921`.
+
+- **Built as designed above.** A holder's purpose and activity come from
+  its seat's roster row; `held_ms` counts from when the current holder
+  took it, kept across a same-seat re-acquire and reset by a reboot.
+- **A refusal without a wait carries the same picture** in its `Actual`,
+  so `wait_ms` 0 callers decide without a second call.
+- **`released` names the holder that released**, so a waiter on
+  `lease.changed` learns whose turn ended.
+- **Proved by tests that fail when the property is removed:** LIFO order,
+  no deadlock walk, no departure on a closed connection, no watcher, and
+  no incumbent picture each broke its test. Race detector clean.
+- **Demonstrated live on production, three `rig mcp` sessions:** a wait
+  timed out with holder, purpose, activity, held-for and queue; a release
+  handed the lease to the queue's head as `released`; a deadlock was
+  refused naming *"demo-a would wait on demo:deploy, held by demo-b;
+  demo-b waits on demo:repo, held by demo-a"*. A holder's `rig mcp`
+  SIGKILLed with a 3 s lease: the queued seat was granted it `expired`
+  at 3.0 s, and `lease.changed` said acquired, queued, expired, acquired.
+- **AgentBox side done:** `acquire_lock`, `try_lock` and `release_lock`
+  are off its MCP surface (35 tools listed live); its manual's "Taking
+  turns" names rig's `lease_*`. `agentbox sync lock` stays for shells.
+- **The logbook protocol moved with it:** COORDINATION rule 5 and the
+  lock names are rig leases now, under the same names.
+
+Known gaps, none blocking:
+
+- **AgentBox's Agents board no longer shows agents' holds**; rig's
+  `lease_list` does. A shell's `agentbox sync lock` and an agent's rig
+  lease of the same name do not exclude each other.
+- **Terminal seats share `terminal:<user>`**, so two terminals do not
+  queue against each other; one is "already yours" to the other.
+- **rig leases are per estate**; AgentBox's locks were machine-wide.
+- **A session started before the deploy keeps the old tool schema**:
+  no `wait_ms` until its `rig mcp` restarts, and the retired AgentBox
+  tools still listed until its AgentBox MCP restarts.
+- **No `rig lease` CLI yet**; it is #6's wrapped run.
+- **Untested:** a newcomer arriving in the instant a lease expires.
+  `serveLeaseAcquire` looks first so the queue's head wins; no test
+  pins it.
