@@ -387,3 +387,36 @@ than no notification at all."* rig had no way to withdraw a toast.
 - **AgentBox's `retract` stays** while its `notify_user` cards do:
   it withdraws those, and the cards were not taken (decided for Boris,
   2026-10-02, to be put to him).
+
+### As built: slice 7, 2026-10-02
+
+`5ec5e00`, `2cf4d5d` (size, rig +12 KiB, rigd +20 KiB); AgentBox `08c64ff`.
+
+- **Built as designed.** `toast.retract` is the verb, `toast_retract`
+  the MCP tool, `rig notify retract [ID] [--reason R]` the shell's door.
+  A `Toast` carries `retracted`, and a `ToastAnswer` carries `withdrawn`.
+- **Proved by tests that fail when the property is removed:** any
+  sender allowed, a sweep taking another's toast, a closed toast swept,
+  the waiter not told, the tray not handed it, a second retraction
+  counted, a withdrawal starting a renderer, and the feed drawing a
+  withdrawal as a toast each broke a test. Race detector clean.
+- **Demonstrated live on production:** an info toast, taken back after
+  4 s, left the screen and its renderer exited 5 s later, against its
+  own 20 s dwell. The record reads *"RETRACTED ... withdrawn by its
+  sender: demo over"*. An urgent ask taken back while `rig notify
+  --wait` waited answered *"taken back by its sender ... before anybody
+  answered"*.
+- **AgentBox's `retract` stays**, as designed, for its own cards; its
+  manuals and ADR-0014 send a rig toast to `toast_retract`.
+
+Known gaps, none blocking:
+
+- **`make install` does not install `rigwindow`**; `make install-window`
+  does, and the running tray needs a restart. The first live run used
+  the morning's tray and looked like a failure: the bubble stayed for
+  its whole dwell. Evidence for §37: it cost one false demo result.
+- **A toast that went to the desktop's notification service** because
+  the renderer would not start is not taken down there; its record is
+  still retracted.
+- **The sweep's "still on screen" is an estimate**: rig cannot see the
+  pointer, so it doubles the page's dwell.
