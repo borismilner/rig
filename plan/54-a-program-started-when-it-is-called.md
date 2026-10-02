@@ -7,8 +7,9 @@ its own when it has nothing left to do. Its commands stay under its name
 (`rig beacon ask`, MCP `invoke`): *"yes, exactly - that's how I envisioned
 it."* Backlog 0018. First adopter: `~/me/projects/rigged/beacon`.
 
-**Status: PROPOSED, put to Boris 2026-10-02.** Nothing below is built. The
-open rows at the end are his.
+**Status: APPROVED by Boris, 2026-10-02:** *"Seems good - do it"*, said of
+this section as drafted, with the three open rows at the end ruled as
+recommended. Decision 0264.
 
 ### ⛔ The program decides when it is idle, not rig
 
@@ -138,7 +139,7 @@ hello, so **a program needs no special mode** to be read:
 - shows its commands in `rig apps list` and `rig describe` while it is
   down.
 
-### Open rows. His, each with a recommendation
+### The three rows put to him, ruled as recommended
 
 | Row | Recommendation |
 |---|---|
