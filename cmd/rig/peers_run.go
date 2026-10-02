@@ -29,8 +29,13 @@ import (
 // EX_TEMPFAIL: try again later.
 const exitLeaseLost = 75
 
-// runGrace is how long a run stopped for a lost lease has after SIGTERM.
+// runGrace is the most a run stopped for a lost lease has after SIGTERM.
 const runGrace = 2 * time.Second
+
+// grace is the SIGTERM-to-SIGKILL wait for a TTL: a sixth of it, at most
+// runGrace. A run stops at the deadline less two of these, so even the
+// SIGKILL lands before the hold ends.
+func grace(ttl time.Duration) time.Duration { return min(runGrace, ttl/6) }
 
 const peersRunUsage = "usage: rig peers run --lease=NAME [--ttl=30s] [--wait=0s] -- CMD [ARG...]"
 
@@ -63,7 +68,7 @@ func cmdPeersRun(args []string) error {
 	}
 	r.c = c
 	defer func() { r.c.Close() }()
-	if err := r.acquire(*wait); err != nil {
+	if err := r.acquire(context.Background(), *wait); err != nil {
 		return err
 	}
 
@@ -77,7 +82,7 @@ func cmdPeersRun(args []string) error {
 		return err
 	}
 	r.pid = cmd.Process.Pid
-	if err := r.fence(); err != nil {
+	if err := r.fence(context.Background()); err != nil {
 		// Never run unfenced: the fence is the point of this verb.
 		r.stop()
 		_ = cmd.Wait()
@@ -105,22 +110,28 @@ func cmdPeersRun(args []string) error {
 				_ = syscall.Kill(-r.pid, sig)
 			}
 		case <-tick.C:
-			if err := r.renew(); err == nil {
+			// One attempt, bounded by the stop point, so a daemon that is gone
+			// or wedged cannot hold the loop past it.
+			stopAt := deadline.Add(-2 * grace(r.ttl))
+			ctx, cancel := context.WithDeadline(context.Background(), stopAt)
+			err := r.renew(ctx)
+			cancel()
+			switch {
+			case err == nil:
 				deadline = time.Now().Add(r.ttl)
 				continue
-			} else if time.Now().Add(r.ttl / 6).Before(deadline) {
-				continue // a missed renew with time left: try at the next tick
-			} else {
-				r.stop()
-				select {
-				case <-done:
-				case <-time.After(runGrace):
-					_ = syscall.Kill(-r.pid, syscall.SIGKILL)
-					<-done
-				}
-				return &exitCodeError{exitLeaseLost, fmt.Errorf(
-					"rig peers run: the lease %s could not be kept (%w), so the command was stopped", r.name, err)}
+			case time.Now().Add(r.ttl / 3).Before(stopAt):
+				continue // a missed renew with a tick to spare: try at the next
 			}
+			r.stop()
+			select {
+			case <-done:
+			case <-time.After(grace(r.ttl)):
+				_ = syscall.Kill(-r.pid, syscall.SIGKILL)
+				<-done
+			}
+			return &exitCodeError{exitLeaseLost, fmt.Errorf(
+				"rig peers run: the lease %s could not be kept (%w), so the command was stopped", r.name, err)}
 		}
 	}
 }
@@ -138,8 +149,8 @@ func callCtx() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), 5*time.Second)
 }
 
-func (r *leasedRun) acquire(wait time.Duration) error {
-	ctx, cancel := context.WithTimeout(context.Background(), wait+10*time.Second)
+func (r *leasedRun) acquire(ctx context.Context, wait time.Duration) error {
+	ctx, cancel := context.WithTimeout(ctx, wait+10*time.Second)
 	defer cancel()
 	resp := &verbsv1.LeaseAcquireResponse{}
 	if err := call(ctx, r.c, "rig.lease.acquire", &verbsv1.LeaseAcquireRequest{
@@ -159,8 +170,8 @@ func (r *leasedRun) acquire(wait time.Duration) error {
 	return nil
 }
 
-func (r *leasedRun) fence() error {
-	ctx, cancel := callCtx()
+func (r *leasedRun) fence(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	return call(ctx, r.c, "rig.lease.fence", &verbsv1.LeaseFenceRequest{
 		Name: r.name, Token: r.h.GetToken(), Epoch: r.h.GetEpoch(), Pid: uint32(r.pid), //nolint:gosec // a pid the kernel gave this process
@@ -170,9 +181,7 @@ func (r *leasedRun) fence() error {
 // renew keeps the hold. A daemon that restarted fenced the handle by its
 // epoch, so the run takes its own lease again, the reconnect path, and
 // fences the new hold.
-func (r *leasedRun) renew() error {
-	ctx, cancel := callCtx()
-	defer cancel()
+func (r *leasedRun) renew(ctx context.Context) error {
 	resp := &verbsv1.LeaseRenewResponse{}
 	err := call(ctx, r.c, "rig.lease.renew", &verbsv1.LeaseRenewRequest{
 		Name: r.name, Token: r.h.GetToken(), Epoch: r.h.GetEpoch(), TtlMs: ms(r.ttl),
@@ -187,10 +196,10 @@ func (r *leasedRun) renew() error {
 	}
 	r.c.Close()
 	r.c = c
-	if aerr := r.acquire(0); aerr != nil {
+	if aerr := r.acquire(ctx, 0); aerr != nil {
 		return errors.Join(err, aerr)
 	}
-	return r.fence()
+	return r.fence(ctx)
 }
 
 // ms is a duration the flags bounded to an hour, in milliseconds.

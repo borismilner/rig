@@ -1,17 +1,22 @@
 package daemon
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"testing"
 	"time"
 
+	"github.com/borismilner/rig/internal/coord"
+	"github.com/borismilner/rig/internal/instance"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
@@ -244,5 +249,139 @@ func TestASecondRunFromTheSameUserWaitsForTheFirst(t *testing.T) {
 	time.Sleep(400 * time.Millisecond)
 	if after := size(log); after != at {
 		t.Fatalf("the frozen run was still writing after the lease passed on: %d then %d", at, after)
+	}
+}
+
+// restartable is a lease daemon a test can stop and start again on the same
+// state, as `systemctl restart rigd` would: each start opens coord afresh,
+// which takes a new epoch.
+type restartable struct {
+	dir, sock string
+	stop      func()
+}
+
+func newRestartable(t *testing.T) *restartable {
+	t.Helper()
+	dir, err := os.MkdirTemp("", "rigr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	t.Setenv("XDG_STATE_HOME", filepath.Join(dir, "state"))
+	r := &restartable{dir: dir, sock: filepath.Join(dir, "s")}
+	r.start(t)
+	t.Cleanup(func() { r.down() })
+	return r
+}
+
+func (r *restartable) start(t *testing.T) {
+	t.Helper()
+	st, err := coord.Open("leasewire")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = os.Remove(r.sock)
+	l, err := net.Listen("unix", r.sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lock, err := instance.Acquire(filepath.Join(r.dir, "p"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	d, err := New(Config{Version: "test", Wire: "v1", Lock: lock, Estate: "leasewire", Epoch: st.Epoch(), Leases: st})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { defer close(done); _ = d.Serve(ctx, l) }()
+	r.stop = func() {
+		cancel()
+		<-done
+		if d.records != nil {
+			_ = d.records.Close()
+		}
+		_ = st.Close()
+		_ = lock.Close()
+	}
+}
+
+func (r *restartable) down() {
+	if r.stop != nil {
+		r.stop()
+		r.stop = nil
+	}
+}
+
+// writing starts `rig peers run` on a writer loop of n lines, and waits for
+// the first line.
+func writing(t *testing.T, sock string, n int) (*exec.Cmd, string) {
+	t.Helper()
+	log := filepath.Join(t.TempDir(), "writes")
+	run := runUnder(t, sock, "--lease=deploy", "--ttl=3s", "--", "sh", "-c",
+		`i=0; while [ $i -lt $N ]; do echo w >> "$WRITES"; sleep 0.05; i=$((i+1)); done`)
+	run.Env = append(run.Env, "WRITES="+log, "N="+strconv.Itoa(n))
+	if err := run.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = run.Process.Kill(); _ = run.Wait() })
+	for deadline := time.Now().Add(10 * time.Second); size(log) == 0; time.Sleep(20 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatal("the run never started writing")
+		}
+	}
+	return run, log
+}
+
+// ⛔ A RUN THAT CANNOT KEEP ITS LEASE STOPS ITS OWN COMMAND: with rigd gone
+// nobody can renew it or kill anything, so the CLI stops the group itself
+// before the hold's deadline, and says so with exit 75.
+func TestARunThatCannotRenewStopsItsCommand(t *testing.T) {
+	r := newRestartable(t)
+	run, log := writing(t, r.sock, 1000)
+	time.Sleep(300 * time.Millisecond) // past the fence
+	r.down()
+	stopped := time.Now()
+
+	done := make(chan error, 1)
+	go func() { done <- run.Wait() }()
+	select {
+	case err := <-done:
+		if exitCode(err) != exitLeaseLostForTest {
+			t.Fatalf("the run ended with %v, want exit 75", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("the run outlived a daemon it could not renew with")
+	}
+	if took := time.Since(stopped); took > 3*time.Second {
+		t.Fatalf("the run stopped %s after the daemon went, past its 3s hold", took)
+	}
+	at := size(log)
+	time.Sleep(300 * time.Millisecond)
+	if after := size(log); after != at {
+		t.Fatalf("the command kept writing after the run stopped: %d then %d", at, after)
+	}
+}
+
+// ⛔ A DAEMON RESTART DOES NOT COST A RUN ITS LEASE: the old handle is fenced
+// by the epoch, so the run takes its own lease again, the reconnect path, and
+// fences the new hold. The command never notices, and its status is passed on.
+func TestARunRidesOutADaemonRestart(t *testing.T) {
+	r := newRestartable(t)
+	run, log := writing(t, r.sock, 80) // about four seconds
+	time.Sleep(300 * time.Millisecond)
+	r.down()
+	r.start(t)
+
+	if err := run.Wait(); err != nil {
+		t.Fatalf("the run did not ride out the restart: %v", err)
+	}
+	if n := size(log) / 2; n != 80 {
+		t.Fatalf("the command wrote %d lines, want all 80", n)
+	}
+	watch := dial(t, r.sock)
+	if l := leaseList(recordCtx(t), t, watch)["deploy"]; l != nil && l.GetState() == verbsv1.LeaseState_LEASE_STATE_HELD {
+		t.Fatalf("the run left its lease held: %+v", l)
 	}
 }
