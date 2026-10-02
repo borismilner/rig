@@ -296,8 +296,11 @@ Known gaps, none blocking:
   so they grew without bound. 687 lines out. Its tests and lint pass.
   `tools/sync-probe.py signals` fails the same way on the old and new
   binaries, each run on its own throwaway instance: an MCP child
-  announcing as `claude` leaves no row. That defect predates this work
-  and is open.
+  announcing as `claude` left no row. **Fixed at AgentBox `5dfab37`:**
+  every child the probe spawned derived one shared key, from
+  `AGENTBOX_SESSION_ID` or from the probe's own process, so B's
+  announce overwrote A's row. Each child now gets its own key, and the
+  probe passes both inside a session and under `systemd-run`.
 - **Mail is not on the line**: `message_inbox` and `message_await`
   carry it.
 - **A session started before the install has no line** until its
