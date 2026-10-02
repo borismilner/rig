@@ -210,8 +210,8 @@ agents rely on in AgentBox's `shared`, and where rig's must beat it:
   `ownerGone` and `owner_gone` was posted within 1 s; the takeover
   landed at its version; a stale delete was refused; a key made again
   got v15, not the reused v12; values round-tripped as JSON objects.
-- **AgentBox side committed, not yet deployed:** `shared` is off its
-  MCP surface, its manual and wiki point agents at rig's `shared_*`,
+- **AgentBox side deployed:** `shared` is off its MCP surface (34
+  tools listed live), its manual and wiki point agents at rig's `shared_*`,
   and `tools/sync-probe.py` lost the shared scenario. Its full test
   suite passes. `agentbox sync set` stays for shells.
 
