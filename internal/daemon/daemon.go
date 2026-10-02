@@ -1061,7 +1061,7 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	// plan/53's SHARED TABLE rides the same arm: it lives in coord.db beside
 	// the leases, and shared.go has why its writer and an owner's witness
 	// come off the connection, as a holder's do.
-	case "lease.list", "lease.acquire", "lease.renew", "lease.release", "lease.break",
+	case "lease.list", "lease.acquire", "lease.renew", "lease.fence", "lease.release", "lease.break",
 		"lease.check", "shared.get", "shared.set", "shared.delete":
 		d.serveLease(ctx, c, f, command)
 

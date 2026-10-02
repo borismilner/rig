@@ -85,6 +85,8 @@ type Status struct {
 	// from somebody says who took it and why.
 	BrokenBy     string `json:",omitempty"`
 	BrokenReason string `json:",omitempty"`
+	// Fence is the process group a wrapped run registered, nil when none.
+	Fence *Witness `json:",omitempty"`
 }
 
 // HeldError refuses an acquisition, naming the incumbent and its state.
@@ -175,6 +177,9 @@ type record struct {
 	Released     bool    `json:"released"`
 	BrokenBy     string  `json:"broken_by,omitempty"`
 	BrokenReason string  `json:"broken_reason,omitempty"`
+	// Fence is the process group a wrapped run started under this lease
+	// (plan/53 slice 6), which rigd kills before the lease can pass on.
+	Fence *Witness `json:"fence,omitempty"`
 }
 
 // evaluate derives the CURRENT state of a stored lease. It writes nothing.
@@ -234,6 +239,7 @@ func (r *record) status(state State, live Liveness) Status {
 		NeedsBreak:   state == Orphaned && r.Witness.Kind == Unwitnessed,
 		BrokenBy:     r.BrokenBy,
 		BrokenReason: r.BrokenReason,
+		Fence:        r.Fence,
 	}
 }
 
@@ -385,6 +391,35 @@ func (s *Store) Renew(h Handle, ttl time.Duration) (Handle, error) {
 		return Handle{}, err
 	}
 	return out, nil
+}
+
+// Fence records the process group a wrapped run started under h, so rigd
+// can stop it before the lease passes to anybody else (plan/53 slice 6). The
+// caller checks the group is its own; this checks the handle still holds.
+func (s *Store) Fence(h Handle, group Witness) error {
+	if s == nil || s.db == nil {
+		return ErrClosed
+	}
+	if h.Epoch != s.epoch {
+		return &FencedError{Name: h.Name, What: "epoch", Want: s.epoch, Got: h.Epoch}
+	}
+	if group.Kind != PID {
+		return fmt.Errorf("coord: the lease %q can only be fenced by a process", h.Name)
+	}
+	return s.update(func(ctx context.Context, tx *sql.Tx) error {
+		r, err := getRecord(ctx, tx, h.Name)
+		if err != nil {
+			return err
+		}
+		if r == nil || r.Released {
+			return &NotHeldError{Name: h.Name}
+		}
+		if r.Token != h.Token {
+			return &FencedError{Name: h.Name, What: "token", Want: r.Token, Got: h.Token}
+		}
+		r.Fence = &group
+		return putRecord(ctx, tx, r)
+	})
 }
 
 // Release gives the lease back.

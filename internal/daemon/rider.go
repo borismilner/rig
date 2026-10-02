@@ -127,6 +127,8 @@ func riderSays(it busItem, seat string) string {
 			return fmt.Sprintf("your lease %s was broken by %s", p.Name, p.By)
 		case "expired":
 			return fmt.Sprintf("your lease %s expired", p.Name)
+		case "fenced":
+			return fmt.Sprintf("your lease %s ran out, so rig stopped the run it fenced", p.Name)
 		case "queued":
 			return fmt.Sprintf("%s is waiting on your lease %s", p.By, p.Name)
 		}

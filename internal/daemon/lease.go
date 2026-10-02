@@ -52,6 +52,8 @@ func (d *Daemon) serveLease(ctx context.Context, c *conn, f *rigv1.Frame, comman
 		d.serveLeaseAcquire(ctx, c, f)
 	case "lease.renew":
 		d.serveLeaseRenew(c, f)
+	case "lease.fence":
+		d.serveLeaseFence(c, f)
 	case "lease.release":
 		d.serveLeaseRelease(c, f)
 	case "lease.break":
@@ -304,6 +306,39 @@ func (d *Daemon) serveLeaseRenew(c *conn, f *rigv1.Frame) {
 	d.lq.noteLocked(coord.Status{Name: h.Name, State: coord.Held, Holder: h.Holder, Deadline: h.Deadline})
 	d.lq.mu.Unlock()
 	c.reply(f.GetStreamId(), &verbsv1.LeaseRenewResponse{Handle: handleToWire(h)})
+}
+
+// serveLeaseFence records a wrapped run's process group with its lease
+// (plan/53 slice 6). The caller must be the very process the lease
+// witnessed, and the group one it started: rigd kills only that.
+func (d *Daemon) serveLeaseFence(c *conn, f *rigv1.Frame) {
+	var req verbsv1.LeaseFenceRequest
+	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "lease.fence: "+err.Error())
+		return
+	}
+	st, err := d.leases.Inspect(req.GetName())
+	if err != nil {
+		c.failErr(f.GetStreamId(), leaseCode(err), err)
+		return
+	}
+	if st.Witness.Kind != coord.PID || st.Witness.Pid != c.principal().PID {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_DENIED,
+			"lease.fence: only the process that took the lease may fence it, and this caller is not it")
+		return
+	}
+	group, err := coord.WitnessGroup(int(req.GetPid()), st.Witness)
+	if err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "lease.fence: "+err.Error())
+		return
+	}
+	if err := d.leases.Fence(coord.Handle{
+		Name: req.GetName(), Token: req.GetToken(), Epoch: req.GetEpoch(),
+	}, group); err != nil {
+		c.failErr(f.GetStreamId(), leaseCode(err), err)
+		return
+	}
+	c.reply(f.GetStreamId(), &verbsv1.LeaseFenceResponse{})
 }
 
 func (d *Daemon) serveLeaseRelease(c *conn, f *rigv1.Frame) {

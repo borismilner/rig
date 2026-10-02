@@ -450,7 +450,7 @@ func selfDeclaration() kernel.Declaration {
 				"The event, with its seq, and delivered: how many waits in progress it reached."),
 			readOnly("events.wait", "Events wait",
 				"Wait for events of the kinds you name",
-				"Answers every event after the cursor whose kind matches one of the patterns (a kind like hand.changed, or a prefix like hand.*), oldest first, as soon as there is one, or nothing once the timeout (at most 60 seconds) passes. Carry latest and epoch into the next call. gap means events were lost, past the ring or across a restart: re-read the state rather than assume nothing happened. Signals (signal.*) are kept for 7 days, up to 1000 per kind, so a cursor from before a restart still gets every signal after it, with no gap; a first call with after 0 gets only this run's. rig's own kinds are open to every caller: signal.* (seats' signals), lease.* (lease.changed when a lease is acquired, released, broken, queued, orphaned or expired), roster.* (roster.changed when a seat announces or leaves), shared.* (shared.<key> when a shared key is set, deleted or its owner is gone, so shared.claims.* is one family), hand.*, toast.*, system.*, timer.*, config.*. A program may also wait on its own.",
+				"Answers every event after the cursor whose kind matches one of the patterns (a kind like hand.changed, or a prefix like hand.*), oldest first, as soon as there is one, or nothing once the timeout (at most 60 seconds) passes. Carry latest and epoch into the next call. gap means events were lost, past the ring or across a restart: re-read the state rather than assume nothing happened. Signals (signal.*) are kept for 7 days, up to 1000 per kind, so a cursor from before a restart still gets every signal after it, with no gap; a first call with after 0 gets only this run's. rig's own kinds are open to every caller: signal.* (seats' signals), lease.* (lease.changed when a lease is acquired, released, broken, queued, orphaned, fenced or expired), roster.* (roster.changed when a seat announces or leaves), shared.* (shared.<key> when a shared key is set, deleted or its owner is gone, so shared.claims.* is one family), hand.*, toast.*, system.*, timer.*, config.*. A program may also wait on its own.",
 				"The matching events, the latest seq, the epoch, and whether any were lost."),
 			// SECTION 6's SETTINGS, as plan/47 builds them.
 			readOnly("config.get", "Config get",
@@ -515,12 +515,16 @@ func selfDeclaration() kernel.Declaration {
 				"Takes the lease for the caller's seat, witnessed by the pid the socket reports for the caller, or declared unwitnessed. Take one before anything shared - deploy:<project>, repo:<project>, vm:<name> - and release it as soon as the work is done; never hold one across a question to the human. "+
 					"With wait_ms (at most 25 minutes) a held lease is QUEUED for, first come first served: a lease that frees goes to the queue's head, never to a newcomer, and rig hands over one that expires because its holder died. A wait that would deadlock is refused at once, naming the chain. "+
 					"Without wait_ms, a held or orphaned lease is refused with who holds it, what for, what they are doing and for how long. Re-acquiring your own is the reconnect path and issues a new token. "+
-					"Every change is posted as lease.changed (acquired, released, broken, queued, orphaned, expired), so watching a resource is one events_wait.",
+					"Every change is posted as lease.changed (acquired, released, broken, queued, orphaned, fenced, expired), so watching a resource is one events_wait.",
 				"The handle and granted_because (free, released, broken, expired). A wait that ran out is a RESULT, not an error: timed_out with the incumbent's full picture, and your place given up."),
 			leaseWriter("lease.renew", "Lease renew", kernel.No,
 				"Extend a lease you hold",
 				"Extends the lease against its token and epoch. An orphaned lease is renewable by its own holder, which is why orphaned is not free. A handle from before a daemon restart is fenced by its epoch.",
 				"The handle with its new deadline."),
+			leaseWriter("lease.fence", "Lease fence", kernel.Yes,
+				"Name the process group a wrapped run started under your lease",
+				"What `rig peers run --lease` calls once its command has started: rig then kills that group before the lease can pass to anybody else, so a stalled holder's work stops rather than racing the next holder. Only the process the lease witnessed may fence it, with a group it started as its own user.",
+				"Nothing. The lease is fenced afterwards or the call was refused."),
 			leaseWriter("lease.release", "Lease release", kernel.Yes,
 				"Give a lease back",
 				"Frees the lease against its token and epoch. The token stays monotonic per lease, so an old handle can never match again.",

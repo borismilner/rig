@@ -460,6 +460,20 @@ message LeaseRenewResponse {
   LeaseHandle handle = 1;
 }
 
+// LeaseFenceRequest names the process group a wrapped run started under a
+// lease it holds (plan/53 slice 6). rigd kills that group before the lease
+// passes to anybody else. Only the process the lease witnessed may fence it,
+// and only with a group it started.
+message LeaseFenceRequest {
+  string name = 1;
+  uint64 token = 2;
+  uint64 epoch = 3;
+  // pid leads the group, as Setpgid makes the child it starts.
+  uint32 pid = 4;
+}
+
+message LeaseFenceResponse {}
+
 message LeaseReleaseRequest {
   string name = 1;
   uint64 token = 2;

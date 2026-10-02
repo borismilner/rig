@@ -72,7 +72,7 @@ func (d *Daemon) serveSignalPublish(c *conn, id uint32, req *registryv1.EventsPu
 // leaseChange is lease.changed's payload.
 type leaseChange struct {
 	Name   string `json:"name"`
-	Change string `json:"change"` // acquired, released, broken, queued, orphaned or expired
+	Change string `json:"change"` // acquired, released, broken, queued, orphaned, fenced or expired
 	Holder string `json:"holder,omitempty"`
 	Token  uint64 `json:"token,omitempty"`
 	By     string `json:"by,omitempty"` // who broke it, or who queued

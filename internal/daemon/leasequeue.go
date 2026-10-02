@@ -184,6 +184,17 @@ func (d *Daemon) lookLocked(name string) {
 		if was.state != coord.Orphaned {
 			d.publishJSON("lease.changed", leaseChange{Name: name, Change: "orphaned", Holder: st.Holder, Token: st.Token, NeedsBreak: st.NeedsBreak})
 		}
+		// A wrapped run's lease ran out with its holder alive but silent: a
+		// stalled or stopped `rig peers run`. Its work is stopped before the
+		// lease can pass on, which is the fence (plan/53 slice 6), and the
+		// next look finds the holder dead and frees it as expired.
+		if st.Fence != nil {
+			run, holder := st.Fence.Kill(true), st.Witness.Kill(false)
+			if !run && !holder {
+				break
+			}
+			d.publishJSON("lease.changed", leaseChange{Name: name, Change: "fenced", Holder: st.Holder, Token: st.Token})
+		}
 	case coord.Free:
 		if was.state == coord.Held || was.state == coord.Orphaned {
 			d.publishJSON("lease.changed", leaseChange{Name: name, Change: "expired", Holder: st.Holder, Token: st.Token})

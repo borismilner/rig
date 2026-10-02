@@ -42,6 +42,7 @@ var bridged = map[string]struct {
 	"lease.list":     {func() proto.Message { return &verbsv1.LeaseListRequest{} }, func() proto.Message { return &verbsv1.LeaseListResponse{} }},
 	"lease.acquire":  {func() proto.Message { return &verbsv1.LeaseAcquireRequest{} }, func() proto.Message { return &verbsv1.LeaseAcquireResponse{} }},
 	"lease.renew":    {func() proto.Message { return &verbsv1.LeaseRenewRequest{} }, func() proto.Message { return &verbsv1.LeaseRenewResponse{} }},
+	"lease.fence":    {func() proto.Message { return &verbsv1.LeaseFenceRequest{} }, func() proto.Message { return &verbsv1.LeaseFenceResponse{} }},
 	"lease.release":  {func() proto.Message { return &verbsv1.LeaseReleaseRequest{} }, func() proto.Message { return &verbsv1.LeaseReleaseResponse{} }},
 	"lease.break":    {func() proto.Message { return &verbsv1.LeaseBreakRequest{} }, func() proto.Message { return &verbsv1.LeaseBreakResponse{} }},
 	"lease.check":    {func() proto.Message { return &verbsv1.LeaseCheckRequest{} }, func() proto.Message { return &verbsv1.LeaseCheckResponse{} }},

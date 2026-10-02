@@ -34,6 +34,9 @@ import (
 // of the daemon this shell reached, and a request field selecting one would be
 // a second way to name an estate that XDG_RUNTIME_DIR already names.
 func cmdPeers(args []string) (err error) {
+	if len(args) > 0 && args[0] == "run" {
+		return cmdPeersRun(args[1:])
+	}
 	fs, asJSON, timeout := peersFlagSet()
 	flags, positional := partition(args)
 	if err := fs.Parse(flags); err != nil {

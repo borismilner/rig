@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"syscall"
 )
 
 // Liveness is what rig OBSERVED about a witness, and Unknown is a first-class
@@ -177,6 +178,8 @@ var procPath = "/proc"
 // and the start time.
 type procStat struct {
 	state byte   // field 3: R, S, D, Z, T ...
+	ppid  int    // field 4: the parent
+	pgrp  int    // field 5: the process group
 	ticks uint64 // field 22: start time, in clock ticks since boot
 }
 
@@ -206,7 +209,71 @@ func readStat(pid int) (procStat, error) {
 	if err != nil {
 		return procStat{}, fmt.Errorf("coord: /proc/%d/stat start time %q: %w", pid, f[startTimeIndex], err)
 	}
-	return procStat{state: f[0][0], ticks: ticks}, nil
+	ppid, err := strconv.Atoi(f[1])
+	if err != nil {
+		return procStat{}, fmt.Errorf("coord: /proc/%d/stat parent %q: %w", pid, f[1], err)
+	}
+	pgrp, err := strconv.Atoi(f[2])
+	if err != nil {
+		return procStat{}, fmt.Errorf("coord: /proc/%d/stat group %q: %w", pid, f[2], err)
+	}
+	return procStat{state: f[0][0], ppid: ppid, pgrp: pgrp, ticks: ticks}, nil
+}
+
+// WitnessGroup witnesses pid as the leader of a process group that parent
+// started, for a wrapped run's fence (plan/53 slice 6). It refuses a pid that
+// does not lead its own group, whose parent is not exactly parent, or that
+// runs as another user, so rigd only ever kills what its caller started.
+func WitnessGroup(pid int, parent Witness) (Witness, error) {
+	if pid <= 1 {
+		return Witness{}, fmt.Errorf("coord: %d is not a process a run could have started", pid)
+	}
+	st, err := readStat(pid)
+	if err != nil {
+		return Witness{}, fmt.Errorf("coord: reading process %d: %w", pid, err)
+	}
+	if st.pgrp != pid {
+		return Witness{}, fmt.Errorf("coord: process %d does not lead its own process group (it is in %d)", pid, st.pgrp)
+	}
+	if parent.Kind != PID || st.ppid != parent.Pid {
+		return Witness{}, fmt.Errorf("coord: process %d was not started by the caller (its parent is %d)", pid, st.ppid)
+	}
+	if pst, err := readStat(parent.Pid); err != nil || pst.ticks != parent.StartTicks {
+		return Witness{}, fmt.Errorf("coord: the caller's process %d is not the one that took the lease", parent.Pid)
+	}
+	info, err := os.Stat(fmt.Sprintf("%s/%d", procPath, pid))
+	if err != nil {
+		return Witness{}, fmt.Errorf("coord: reading process %d: %w", pid, err)
+	}
+	if sys, ok := info.Sys().(*syscall.Stat_t); !ok || int(sys.Uid) != os.Getuid() {
+		return Witness{}, fmt.Errorf("coord: process %d runs as another user", pid)
+	}
+	return WitnessProcess(pid)
+}
+
+// Kill sends SIGKILL to the process w names, or to the whole group it leads
+// when group is set, only while w is still exactly that process. It answers
+// whether a signal was sent: false for a process already gone or a pid that
+// now names somebody else.
+func (w Witness) Kill(group bool) bool {
+	if w.Kind != PID || w.Pid <= 1 {
+		return false
+	}
+	if boot, err := readBootID(); err != nil || boot != w.BootID {
+		return false
+	}
+	st, err := readStat(w.Pid)
+	if err != nil || st.ticks != w.StartTicks {
+		return false
+	}
+	target := w.Pid
+	if group {
+		if st.pgrp != w.Pid {
+			return false
+		}
+		target = -w.Pid
+	}
+	return syscall.Kill(target, syscall.SIGKILL) == nil
 }
 
 // startTicks is readStat's start time alone, for taking a witness.
