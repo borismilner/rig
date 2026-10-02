@@ -289,8 +289,15 @@ Known gaps, none blocking:
   controlled: a holder whose process lives is orphaned at its deadline,
   another seat breaks it, and the holder's next call says *"your lease
   deploy was broken by seat-b"*, once, never as an expiry.
-- **AgentBox's rider code stays** (`SyncRider`, `internal/mcp/rider.go`
-  and their tests), now inert. Deleting it is a follow-up.
+- ~~AgentBox's rider code stayed, inert.~~ Removed at AgentBox
+  `d6c5a5d`, deployed and pushed: the envelope's `sync` member, the
+  per-session peer cursor, the identity's `via` field, and the lock
+  notices. Those notices were still written with nothing reading them,
+  so they grew without bound. 687 lines out. Its tests and lint pass.
+  `tools/sync-probe.py signals` fails the same way on the old and new
+  binaries, each run on its own throwaway instance: an MCP child
+  announcing as `claude` leaves no row. That defect predates this work
+  and is open.
 - **Mail is not on the line**: `message_inbox` and `message_await`
   carry it.
 - **A session started before the install has no line** until its
