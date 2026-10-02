@@ -293,3 +293,36 @@ Known gaps, none blocking:
   carry it.
 - **A session started before the install has no line** until its
   `rig mcp` restarts.
+
+### Slice 6, #6: the wrapped run (designed 2026-10-02)
+
+`rig peers run --lease=NAME [--ttl=30s] [--wait=0s] -- CMD ...` holds a
+lease for exactly as long as one command runs. AgentBox's
+`agentbox sync lock NAME -- CMD` releases when the command ends, but
+nothing stops the command when the hold is lost. §16's fifth gate asks
+for that: *"a stalled holder's work stops, not merely that its token
+is rejected"*.
+
+| Step | What rig does |
+|---|---|
+| take | acquires NAME, queueing up to `--wait`, witnessed by the `rig` process |
+| run | starts CMD in its own process group, killed if `rig` dies |
+| fence | `lease.fence` records the group's leader with the lease |
+| hold | renews every TTL/3; exits with CMD's code and releases |
+| lose | a failed renew stops the group: SIGTERM, then SIGKILL after 2 s; exit 75 |
+| stall | at the deadline rigd kills the fenced group and the stalled `rig`, sees both dead, then frees it as `expired` |
+
+- **Better than AgentBox by:** a stalled or suspended holder cannot
+  keep writing while the next holder starts. rigd stops it first and
+  posts `lease.changed` `fenced`, and the rider tells the holder.
+- **rigd never kills a pid it was handed unchecked.** `lease.fence`
+  refuses unless the pid leads its own process group, its parent is
+  the caller's witnessed process, and it runs as rigd's user. The
+  leader is recorded as a witness (pid, start ticks, boot id), so a
+  recycled pid is never killed.
+- **The fence is in the lease record**, so it outlives a rigd restart.
+- **The holder is the `rig` CLI's seat**, so `terminal:<user>` from a
+  shell. Holding under an agent's own seat is a later step.
+- **AgentBox's side:** its manual and its own `make deploy` wrapper
+  point to `rig peers run`; `agentbox sync lock` stays for the shells
+  that use it, as `sync set` did.
