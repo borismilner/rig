@@ -11,6 +11,18 @@ import (
 	"testing"
 )
 
+// TestMain moves the abstract name claims aside, so this package's
+// "production" never meets the machine's. A child process inherits the space.
+func TestMain(m *testing.M) {
+	space := os.Getenv("RIG_TEST_CLAIM_SPACE")
+	if space == "" {
+		space = "rig-test-" + strconv.Itoa(os.Getpid())
+		_ = os.Setenv("RIG_TEST_CLAIM_SPACE", space)
+	}
+	SetClaimSpace(space)
+	os.Exit(m.Run())
+}
+
 func TestAcquireAndRelease(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "rigd.pid")
 	l, err := Acquire(path)
@@ -236,4 +248,36 @@ func TestTwoDifferentlyNamedEstatesBothStart(t *testing.T) {
 		t.Fatalf("development was refused while production held its own name: %v", err)
 	}
 	defer dev.Close()
+}
+
+// DECISION 0259'S REGRESSION: on 2026-10-02 two daemons ran as production
+// because each had a private XDG_STATE_HOME, so their pidfile claims were two
+// files. The name must still be refused.
+func TestTheSameNameInTwoStateHomesIsRefused(t *testing.T) {
+	first, err := AcquireName(filepath.Join(t.TempDir(), "production.pid"), "production")
+	if err != nil {
+		t.Fatalf("first claim: %v", err)
+	}
+	_, err = AcquireName(filepath.Join(t.TempDir(), "production.pid"), "production")
+	var held *NameHeldError
+	if !errors.As(err, &held) {
+		_ = first.Close()
+		t.Fatalf("a second production in another state home was not refused: %v", err)
+	}
+	if held.Incumbent != os.Getpid() {
+		t.Errorf("the refusal named pid %d, the holder is %d", held.Incumbent, os.Getpid())
+	}
+	if !strings.HasPrefix(held.Path, "@") {
+		t.Errorf("the refusal named %q, not the abstract claim", held.Path)
+	}
+
+	// Released, the name is free again: Close drops the abstract claim too.
+	if err := first.Close(); err != nil {
+		t.Fatal(err)
+	}
+	again, err := AcquireName(filepath.Join(t.TempDir(), "production.pid"), "production")
+	if err != nil {
+		t.Fatalf("the name stayed held after Close: %v", err)
+	}
+	_ = again.Close()
 }

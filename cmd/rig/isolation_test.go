@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/borismilner/rig/internal/instance"
 	"github.com/borismilner/rig/internal/paths"
 )
 
@@ -51,7 +53,11 @@ func isolateRoots() (cleanup func(), err error) {
 		cleanup()
 		return nil, fmt.Errorf("XDG_RUNTIME_DIR: %w", err)
 	}
-	return cleanup, nil
+	// The abstract name claim (internal/instance/name.go) ignores both
+	// variables by design, so a test's "development" moves aside by hand.
+	undo := instance.SetClaimSpace("rig-test-" + strconv.Itoa(os.Getpid()))
+	rm := cleanup
+	return func() { undo(); rm() }, nil
 }
 
 // existingDir is dir if it names a directory, else "" so MkdirTemp falls back

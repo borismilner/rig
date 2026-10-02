@@ -29,6 +29,7 @@ package instance
 import (
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -56,6 +57,7 @@ func (e *HeldError) Error() string {
 type Lock struct {
 	f    *os.File
 	path string
+	name *net.UnixListener // a named estate's abstract claim, see name.go
 }
 
 // Path is the pidfile this lock is held on.
@@ -114,6 +116,10 @@ func Acquire(path string) (*Lock, error) {
 func (l *Lock) Close() error {
 	if l == nil || l.f == nil {
 		return nil
+	}
+	if l.name != nil {
+		_ = l.name.Close()
+		l.name = nil
 	}
 	err := syscall.Flock(int(l.f.Fd()), syscall.LOCK_UN)
 	if cerr := l.f.Close(); err == nil {
@@ -183,6 +189,12 @@ func AcquireName(path, name string) (*Lock, error) {
 		if errors.As(err, &held) {
 			return nil, &NameHeldError{Name: name, Path: held.Path, Incumbent: held.Incumbent}
 		}
+		return nil, err
+	}
+	// The pidfile is one per state home; the abstract name is one per user,
+	// and it is the one a private XDG_STATE_HOME cannot dodge.
+	if l.name, err = bindName(name); err != nil {
+		_ = l.Close()
 		return nil, err
 	}
 	return l, nil
