@@ -61,10 +61,33 @@ signalled `to_seat: lead`, and took and released a lease over MCP. The
 terminal saw every one but the addressed signal; `lead` saw both.
 
 **What it does not do yet:**
-- **A signal does not outlive rigd.** §52's ring is in memory; a
-  restart answers `gap: true`. AgentBox keeps signals 7 days in SQLite,
-  so `post_signal`/`await_signal` stay in AgentBox until rig's signals
-  are durable.
 - **An expiry posts nothing.** coord finds an expired lease when it is
   next touched. Slice 2's queue needs the wake, so it adds the post.
-- **No `rig signal` at the prompt.** Agents use `events_publish`.
+
+### As built: slice 1b, durable signals, 2026-10-02
+
+`d275489`, `44b663b`, `4977746`, `e6e256e`; AgentBox `46ac47f`.
+
+| Against AgentBox | AgentBox | rig |
+|---|---|---|
+| kept past a restart | 1000 per topic, 7 days | the same, in coord.db (schema v2) |
+| a trim is told | per-topic recorded watermark | the same, per kind |
+| sender | a key the request carries | the seat rigd names |
+| addressed | `to:<key>`, any waiter on it sees it | `to_seat`, that seat alone |
+| delivered | parked waits woken | the same |
+| one answer | capped by count | count and 768 KiB, resumes where it stopped |
+| at the prompt | `agentbox sync post` | `rig events publish` |
+
+- **Cursors order across restarts:** seq is `epoch<<32` onward, so an old
+  cursor reads stored signals with `gap: false`; naming a non-durable kind
+  beside them still answers `gap: true`, since the ring is gone.
+- **A first wait (`after 0`) gets this run's signals only**, never a
+  backlog from earlier runs.
+- **Demonstrated live on production:** a signal published at epoch 95
+  came back after `systemctl --user restart rigd.service` (epoch 96) with
+  `gap: false`; `delivered: 1` with a terminal wait parked; the CLI
+  published as `seat:terminal:boris-milner` and reached its waiter.
+- **AgentBox side done:** `post_signal` is off its MCP surface (38 tools
+  listed live); its manual names `events_publish`/`events_wait`.
+  `await_signal` stays for AgentBox's own `lock:`, `agents:` and
+  `shared:` topics until #2 and #3 land.
