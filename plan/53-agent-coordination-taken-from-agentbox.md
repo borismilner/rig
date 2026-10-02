@@ -27,7 +27,7 @@ it, before AgentBox's tool is removed.
 | 3 | witnessed claims on a shared table | the store's `expected_version` CAS plus a witness | an entry dies with its owner, as a lease does |
 | 4 | the `sync:` rider | what changed since your last call, on any answer | no extra call to learn the world moved |
 | 6 | the wrapped run | `rig peers run --lease=NAME -- cmd` (§16) | expiry kills the writer, the only real fence rig has |
-| 7 | retraction | `retract` of a signal or claim | recorded, so a retraction is seen as one |
+| 7 | retraction | `toast.retract` of a toast you sent | recorded, so a retraction is seen as one; a waiter on its reply is told |
 
 **Not taken**: form, secret, the countdown card, the progress bar
 (cards on his screen), walkthroughs, assignments, artifacts,
@@ -360,3 +360,30 @@ Known gaps, none blocking:
   it was never `agentbox sync lock`, and a kernel lock does not need
   rigd up. AgentBox `180979a` points its manuals and ADR-0014 at
   `rig peers run`, deployed and read back from `agentbox docs agent`.
+
+### Slice 7, #7: retraction (designed 2026-10-02)
+
+**The row above was corrected on 2026-10-02.** It said "retract of a
+signal or claim". AgentBox's `retract` does something else: it takes
+back a `notify_user` card its own session posted, before Boris deals
+with it. *"A 'build failed' whose build you have since fixed is worse
+than no notification at all."* rig had no way to withdraw a toast.
+
+| Step | What rig does |
+|---|---|
+| ask | `toast.retract {record_id?, reason?}`; with no id, every toast of the caller's still on screen |
+| check | only the toast's own sender, named from the connection as `notify` names it |
+| record | the notification record is retracted, the reason kept |
+| screen | the ring carries the withdrawal; the bubble says "withdrawn" and leaves |
+| reply | an unanswered ask is answered `withdrawn`, so `toast.answer` wakes and a late reply is refused |
+| bus | `toast.retracted {record_id, sender}` |
+
+- **Better than AgentBox by:** the record keeps the toast and its
+  retraction, so what was said and taken back is never lost. A seat
+  waiting on the reply learns it was withdrawn, not merely unanswered.
+- **"Still on screen", with no id:** an unanswered ask or an urgent
+  toast, which never close by themselves, or one inside its dwell.
+- **A tray that has no renderer running starts none** for a withdrawal.
+- **AgentBox's `retract` stays** while its `notify_user` cards do:
+  it withdraws those, and the cards were not taken (decided for Boris,
+  2026-10-02, to be put to him).
