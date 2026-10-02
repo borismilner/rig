@@ -210,6 +210,7 @@ func usage() {
   files <cmd>      free files: root, place (where a file goes), layout,
                    relayout, index, search, unindexed
   notify <sev> <title>  a toast at the tray: info, success, warning, error, urgent
+  notify retract [ID]   take back a toast you sent; no id: every one still on screen
                    --reply R (up to 3) and --text ask for a reply; --wait D
                    waits for it and prints it
   dnd on|off|status  do not disturb: toasts go to the record only, urgent still shows

@@ -236,6 +236,15 @@ async function sendReply(slot, what) {
 function answered(slot, a) {
   if (slot._answered || slot.classList.contains("leaving")) return;
   slot._answered = true;
+  // Its sender took it back (plan/53 slice 7): said, on any bubble, then gone.
+  if (a.withdrawn) {
+    const said = el("div", "ask");
+    said.append(el("span", "said", "Withdrawn by " + (a.by || "its sender")));
+    (slot.querySelector(".ask") || slot.firstChild.appendChild(el("div"))).replaceWith(said);
+    slot.querySelector(".left").textContent = "withdrawn";
+    setTimeout(() => leave(slot), 2500);
+    return;
+  }
   const ask = slot.querySelector(".ask");
   if (!ask) return;
   ask.textContent = "";

@@ -265,6 +265,9 @@ message Toast {
   repeated string replies = 9;
   // The sender takes a free-text reply.
   bool reply_text = 10;
+  // The sender took it back (plan/53 slice 7). A withdrawal carries the
+  // record id and sender only; a renderer drops the bubble it names.
+  bool retracted = 11;
 }
 
 // NotifyRequest sends one. Severity is required; title up to 200 bytes, body
@@ -310,6 +313,24 @@ message ToastAnswer {
   // Who replied: the replying connection's seat.
   string by = 6;
   int64 at_unix_nano = 7;
+  // The sender took the toast back before anybody answered it; answered is
+  // true, since nothing will be.
+  bool withdrawn = 8;
+}
+
+// ToastRetractRequest takes back toasts the caller sent: one by its record
+// id, or with none, every one of the caller's still on screen. The reason is
+// kept with the retraction in the record.
+message ToastRetractRequest {
+  string record_id = 1;
+  string reason = 2;
+}
+
+message ToastRetractResponse {
+  // The notification records retracted by this call.
+  repeated string record_ids = 1;
+  // Set when nothing was retracted, saying why.
+  string note = 2;
 }
 
 // ToastAnswerRequest waits for the reply to a toast the caller filed, up to

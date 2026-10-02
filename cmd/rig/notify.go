@@ -57,6 +57,9 @@ func severities() []string {
 }
 
 func cmdNotify(args []string) (err error) {
+	if len(args) > 0 && args[0] == "retract" {
+		return cmdNotifyRetract(args[1:])
+	}
 	n := notifyFlagSet()
 	flags, positional := partition(args)
 	if err := n.fs.Parse(flags); err != nil {
@@ -99,7 +102,7 @@ func cmdNotify(args []string) (err error) {
 		if answer != nil {
 			out["answer"] = map[string]any{
 				"answered": answer.GetAnswered(), "reply": answer.GetReply(), "text": answer.GetText(),
-				"dismissed": answer.GetDismissed(), "by": answer.GetBy(),
+				"dismissed": answer.GetDismissed(), "withdrawn": answer.GetWithdrawn(), "by": answer.GetBy(),
 			}
 		}
 		return json.NewEncoder(os.Stdout).Encode(out)
@@ -112,6 +115,8 @@ func cmdNotify(args []string) (err error) {
 	case answer == nil:
 	case !answer.GetAnswered():
 		fmt.Printf("no reply within %s; the toast stays up until answered\n", *n.wait)
+	case answer.GetWithdrawn():
+		fmt.Printf("taken back by its sender, %s, before anybody answered\n", answer.GetBy())
 	case answer.GetDismissed():
 		fmt.Printf("closed without a reply, by %s\n", answer.GetBy())
 	case answer.GetReply() != "":
@@ -175,6 +180,48 @@ func cmdDND(args []string) (err error) {
 		fmt.Printf("do not disturb is on: %d held back so far, all in the record; urgent still shows\n", resp.GetSuppressed())
 	} else {
 		fmt.Println("do not disturb is off")
+	}
+	return nil
+}
+
+// cmdNotifyRetract is `rig notify retract [RECORD_ID] [--reason R]`
+// (plan/53 slice 7): take back a toast this terminal sent, or with no id,
+// every one of its still on screen.
+func cmdNotifyRetract(args []string) (err error) {
+	fs := flag.NewFlagSet("notify retract", flag.ContinueOnError)
+	reason := fs.String("reason", "", "why it is taken back, kept with the retraction")
+	asJSON := fs.Bool("json", false, "emit JSON")
+	flags, positional := partition(args)
+	if err := fs.Parse(flags); err != nil {
+		return err
+	}
+	defer func() { err = inMode(err, *asJSON) }()
+	if len(positional) > 1 {
+		return badArgumentf("usage: rig notify retract [RECORD_ID] [--reason R]")
+	}
+	req := &registryv1.ToastRetractRequest{Reason: *reason}
+	if len(positional) == 1 {
+		req.RecordId = positional[0]
+	}
+	c, err := connect()
+	if err != nil {
+		return noDaemon(err)
+	}
+	defer c.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), defaultCallTimeout)
+	defer cancel()
+	var resp registryv1.ToastRetractResponse
+	if err := call(ctx, c, "rig.toast.retract", req, &resp); err != nil {
+		return err
+	}
+	if *asJSON {
+		return json.NewEncoder(os.Stdout).Encode(map[string]any{"record_ids": resp.GetRecordIds(), "note": resp.GetNote()})
+	}
+	for _, id := range resp.GetRecordIds() {
+		fmt.Printf("taken back: %s\n", id)
+	}
+	if resp.GetNote() != "" {
+		fmt.Println(resp.GetNote())
 	}
 	return nil
 }

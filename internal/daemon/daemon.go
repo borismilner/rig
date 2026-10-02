@@ -1054,6 +1054,7 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	// publish and wait on what.
 	case "events.publish", "events.wait", "timer.arm", "timer.disarm", "timer.list",
 		"config.get", "config.set", "logs.query", "notify", "toast.wait", "toast.dnd", "toast.reply", "toast.answer",
+		"toast.retract",
 		"sound", "say",
 		"hand.request", "hand.step", "hand.release", "hand.wait", "hand.answer", "hand.strip":
 		d.serveToast(ctx, c, f, command)

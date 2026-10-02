@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -82,6 +83,10 @@ type toastWatcher struct {
 // on the daemon itself. A renderer that cannot start, or dies before it
 // could draw, sends the batch to the desktop's notification service.
 func (w *toastWatcher) deliver(batch []*registryv1.Toast) {
+	// A withdrawal only matters to a renderer already showing its bubble:
+	// one that is running reads it from the ring itself, and with none, there
+	// is no bubble to take down (plan/53 slice 7).
+	batch = slices.DeleteFunc(slices.Clone(batch), (*registryv1.Toast).GetRetracted)
 	if len(batch) == 0 {
 		return
 	}
@@ -239,6 +244,7 @@ type answerJSON struct {
 	Reply     string `json:"reply"`
 	Text      string `json:"text"`
 	Dismissed bool   `json:"dismissed"`
+	Withdrawn bool   `json:"withdrawn,omitempty"`
 	By        string `json:"by"`
 }
 
@@ -283,6 +289,10 @@ func (f *toastFeed) add(ts []*registryv1.Toast) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	for _, t := range ts {
+		if t.GetRetracted() {
+			f.withdraw(t)
+			continue
+		}
 		f.pending = append(f.pending, toastJSON{
 			Seq: t.GetSeq(), RecordID: t.GetRecordId(), Severity: severityWord(t.GetSeverity()),
 			Title: t.GetTitle(), Body: t.GetBody(), Sender: t.GetSender(),
@@ -291,6 +301,16 @@ func (f *toastFeed) add(ts []*registryv1.Toast) {
 		if (len(t.GetReplies()) > 0 || t.GetReplyText()) && f.watch != nil {
 			go f.watch(t.GetRecordId(), f.answered)
 		}
+	}
+}
+
+// withdraw takes down a toast its sender took back: one not yet handed to
+// the page never reaches it, and one on the page is told.
+func (f *toastFeed) withdraw(t *registryv1.Toast) {
+	before := len(f.pending)
+	f.pending = slices.DeleteFunc(f.pending, func(p toastJSON) bool { return p.RecordID == t.GetRecordId() })
+	if len(f.pending) == before {
+		f.answers = append(f.answers, answerJSON{RecordID: t.GetRecordId(), Withdrawn: true, By: t.GetSender()})
 	}
 }
 
@@ -524,7 +544,7 @@ func watchAnswer(ctx context.Context, id string, answered func(answerJSON)) {
 		case err != nil && ctx.Err() == nil:
 			time.Sleep(time.Second)
 		case a.GetAnswered():
-			answered(answerJSON{RecordID: id, Reply: a.GetReply(), Text: a.GetText(), Dismissed: a.GetDismissed(), By: a.GetBy()})
+			answered(answerJSON{RecordID: id, Reply: a.GetReply(), Text: a.GetText(), Dismissed: a.GetDismissed(), Withdrawn: a.GetWithdrawn(), By: a.GetBy()})
 			return
 		}
 	}

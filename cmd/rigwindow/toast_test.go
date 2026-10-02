@@ -238,3 +238,28 @@ func TestARepliedToastReachesRigAndItsAnswerReachesThePage(t *testing.T) {
 		t.Fatalf("answers %+v after watching %v; only the asking toast is followed", got.Answers, watched)
 	}
 }
+
+// plan/53 slice 7: a toast its sender took back. With no renderer running
+// there is no bubble to take down, so none is started; a renderer drops one
+// it has not shown yet, and tells the page about one it has.
+func TestAWithdrawalStartsNothingAndTakesTheBubbleDown(t *testing.T) {
+	w := &toastWatcher{
+		spawn:    func(uint64) (<-chan error, error) { t.Error("a withdrawal started a renderer"); return nil, nil },
+		fallback: func(*registryv1.Toast) error { t.Error("a withdrawal went to the desktop"); return nil },
+		warn:     func(string) {},
+	}
+	w.deliver([]*registryv1.Toast{{Seq: 3, RecordId: "r1", Retracted: true}})
+
+	f := &toastFeed{}
+	f.add([]*registryv1.Toast{{Seq: 1, RecordId: "unseen"}, {Seq: 2, RecordId: "unseen", Retracted: true}})
+	if got := f.poll(0, inputRegion{}, time.Now()); len(got.Toasts) != 0 || len(got.Answers) != 0 {
+		t.Fatalf("a toast taken back before it was shown reached the page: %+v", got)
+	}
+	f.add([]*registryv1.Toast{{Seq: 3, RecordId: "shown"}})
+	f.poll(0, inputRegion{}, time.Now())
+	f.add([]*registryv1.Toast{{Seq: 4, RecordId: "shown", Sender: "backend-1", Retracted: true}})
+	got := f.poll(1, inputRegion{}, time.Now())
+	if len(got.Answers) != 1 || !got.Answers[0].Withdrawn || got.Answers[0].RecordID != "shown" || got.Answers[0].By != "backend-1" {
+		t.Fatalf("the page was not told the bubble was withdrawn: %+v", got)
+	}
+}

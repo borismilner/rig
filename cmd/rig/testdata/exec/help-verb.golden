@@ -1,7 +1,7 @@
 $ rig help
 exit 0
 --- stdout (0 bytes)
---- stderr (4083 bytes)
+--- stderr (4168 bytes)
 usage: rig <command> [flags]
 
   <app> <cmd>      run a command a program declared, with its declared flags
@@ -23,6 +23,7 @@ usage: rig <command> [flags]
   files <cmd>      free files: root, place (where a file goes), layout,
                    relayout, index, search, unindexed
   notify <sev> <title>  a toast at the tray: info, success, warning, error, urgent
+  notify retract [ID]   take back a toast you sent; no id: every one still on screen
                    --reply R (up to 3) and --text ask for a reply; --wait D
                    waits for it and prints it
   dnd on|off|status  do not disturb: toasts go to the record only, urgent still shows

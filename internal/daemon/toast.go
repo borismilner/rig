@@ -64,6 +64,9 @@ type toastRing struct {
 	// daemon never comes back silent without anyone having said so.
 	dnd        bool
 	suppressed uint32
+
+	// gone are the toasts their senders took back (toastretract.go).
+	gone map[string]bool
 }
 
 // toastAsk is one toast's question and, once somebody replied, its answer.
@@ -189,6 +192,8 @@ func (d *Daemon) serveToast(ctx context.Context, c *conn, f *rigv1.Frame, comman
 		d.serveToastReply(ctx, c, f)
 	case "toast.answer":
 		d.serveToastAnswer(ctx, c, f)
+	case "toast.retract":
+		d.serveToastRetract(ctx, c, f)
 	case "sound", "say":
 		d.serveSound(ctx, c, f, command)
 	case "events.publish", "events.wait", "timer.arm", "timer.disarm", "timer.list":
@@ -371,6 +376,11 @@ func (d *Daemon) serveToastReply(ctx context.Context, c *conn, f *rigv1.Frame) {
 	if !ok {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_NOT_FOUND,
 			"rig.toast.reply: no toast "+strconv.Quote(req.GetRecordId())+" is waiting for a reply")
+		return
+	}
+	if q.answer.GetWithdrawn() {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_CONFLICT,
+			"rig.toast.reply: its sender "+q.answer.GetBy()+" took the toast back")
 		return
 	}
 	if q.answer != nil {
