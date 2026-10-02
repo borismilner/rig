@@ -285,8 +285,10 @@ same way, and says more:
 
 Known gaps, none blocking:
 
-- **"Your lease was broken" has no test**; expiry does. It uses the
-  same holder and by fields.
+- ~~"Your lease was broken" had no test.~~ Tested at `0331862`, red
+  controlled: a holder whose process lives is orphaned at its deadline,
+  another seat breaks it, and the holder's next call says *"your lease
+  deploy was broken by seat-b"*, once, never as an expiry.
 - **AgentBox's rider code stays** (`SyncRider`, `internal/mcp/rider.go`
   and their tests), now inert. Deleting it is a follow-up.
 - **Mail is not on the line**: `message_inbox` and `message_await`
