@@ -134,10 +134,12 @@ linters:
       # colour, serialised. US flagged every one of them as a typo.
       locale: UK
       # MCP's method names (initialize, notifications/initialized) are spelt
-      # by the protocol, and rig mcp has to name them.
+      # by the protocol, and rig mcp has to name them; slog.Leveler by the
+      # standard library.
       ignore-rules:
         - initialize
         - initialized
+        - leveler
     nakedret:
       max-func-lines: 30
     nolintlint:

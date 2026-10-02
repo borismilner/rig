@@ -29,12 +29,17 @@ func write(t *testing.T, body string) string {
 	return p
 }
 
-func TestRigsSchemaDeclaresItsTwoKeys(t *testing.T) {
+func TestRigsSchemaDeclaresItsKeys(t *testing.T) {
 	var names []string
 	for _, k := range rig(t).Keys() {
 		names = append(names, k.Name+" "+k.Env+" "+k.Flag+" "+k.Apply)
 	}
-	want := []string{"display.name RIG_DISPLAY_NAME display-name live", "log.level RIG_LOG_LEVEL log-level live"}
+	want := []string{
+		"display.name RIG_DISPLAY_NAME display-name live", "log.level RIG_LOG_LEVEL log-level live",
+		"logs.buffer.bytes RIG_LOGS_BUFFER_BYTES logs-buffer-bytes restart",
+		"logs.flush.bytes RIG_LOGS_FLUSH_BYTES logs-flush-bytes restart",
+		"logs.flush.ms RIG_LOGS_FLUSH_MS logs-flush-ms restart",
+	}
 	if !slices.Equal(names, want) {
 		t.Fatalf("keys %q", names)
 	}
@@ -196,5 +201,23 @@ func TestEveryRigVariableInTheTreeIsAKeyOrListed(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestIntReadsAnIntegerKeyFromEveryLayer(t *testing.T) {
+	s := MustRigSchema()
+	if got := Load(s, Sources{}).Int("logs.flush.ms"); got != 250 {
+		t.Fatalf("default = %d, want 250", got)
+	}
+	r := Load(s, Sources{Environ: []string{"RIG_LOGS_FLUSH_MS=40"}})
+	if got := r.Int("logs.flush.ms"); got != 40 {
+		t.Fatalf("env = %d, want 40; problems %v", got, r.Problems())
+	}
+	r = Load(s, Sources{Environ: []string{"RIG_LOGS_FLUSH_MS=5"}})
+	if got := r.Int("logs.flush.ms"); got != 250 || len(r.Problems()) != 1 {
+		t.Fatalf("an out-of-range value = %d with problems %v, want the default and one problem", got, r.Problems())
+	}
+	if got := r.Int("log.level"); got != 0 {
+		t.Fatalf("a string key read as an int = %d", got)
 	}
 }

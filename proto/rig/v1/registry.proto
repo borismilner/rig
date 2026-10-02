@@ -728,3 +728,66 @@ message ConfigSetResponse {
 message ConfigChanged {
   repeated string keys = 1;
 }
+
+// ---- Section 49's logs: one store per estate, read back merged -------------
+//
+// logs.query is unary with a cursor, as events.wait is: rigd has no stream
+// handler yet, so `rig logs -f` is a loop of waits (plan/49 build notes).
+
+// LogRecord is one record in the estate's log store.
+message LogRecord {
+  // The store's sequence, rising across restarts; the cursor.
+  uint64 seq = 1;
+  int64 unix_nanos = 2;
+  // slog.Level as an integer: -4 debug, 0 info, 4 warn, 8 error.
+  int32 level = 3;
+  // "rigd", or the id of the program that logged it.
+  string client = 4;
+  string message = 5;
+  // Flattened, groups joined with ".", values as text.
+  map<string, string> attrs = 6;
+}
+
+// GapBand is a stretch the store knows it does not hold whole (decision 10).
+message GapBand {
+  int64 from_unix_nanos = 1;
+  int64 to_unix_nanos = 2;
+  // A client, or "*" for every client.
+  string client = 3;
+  // unclean close, ring overwrite.
+  string cause = 4;
+  // Records kept of those written, when known; 0/0 when not.
+  uint64 retained = 5;
+  uint64 total = 6;
+}
+
+// LogsQueryRequest reads the merged view. With timeout_ms set, the call
+// parks until a record after the cursor matches, for at most 60 s.
+message LogsQueryRequest {
+  // 0 is open-ended on that side.
+  int64 since_unix_nanos = 1;
+  int64 until_unix_nanos = 2;
+  // Only these clients; empty is every client the caller may read.
+  repeated string clients = 3;
+  // The least slog level answered; 0 is info.
+  int32 min_level = 4;
+  // An RE2 expression over the message and attrs, at most 256 bytes.
+  string grep = 5;
+  // Only records after this seq.
+  uint64 after = 6;
+  uint32 timeout_ms = 7;
+  // At most this many records, newest kept; 0 is 1000, at most 10000.
+  uint32 limit = 8;
+}
+
+// LogsQueryResponse is time-ordered, oldest first. Carry latest into the
+// next call's after to follow.
+message LogsQueryResponse {
+  repeated LogRecord records = 1;
+  // Every gap that overlaps the range asked, so a view can say what it
+  // does not hold.
+  repeated GapBand gaps = 2;
+  uint64 latest = 3;
+  // More records matched than the answer carries; the oldest were left out.
+  bool truncated = 4;
+}

@@ -96,6 +96,10 @@ func TestTheClientLinksNeitherTheDaemonNorItsValidator(t *testing.T) {
 			"plan/47 decision 15: the client asks rigd for its settings",
 		},
 		{
+			"github.com/borismilner/rig/internal/observe",
+			"plan/49: rigd is the log store's only writer; the client reads it with rig.logs.query",
+		},
+		{
 			"golang.org/x/text",
 			"it arrives with the validator and it arrives DIRECT, which needs a " +
 				"section 22 row for a message formatter rig does not otherwise use",

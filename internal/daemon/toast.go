@@ -195,6 +195,8 @@ func (d *Daemon) serveToast(ctx context.Context, c *conn, f *rigv1.Frame, comman
 		d.serveEvents(ctx, c, f, command)
 	case "config.get", "config.set":
 		d.serveConfig(c, f, command)
+	case "logs.query":
+		d.serveLogs(ctx, c, f)
 	default:
 		d.serveHand(ctx, c, f, command)
 	}

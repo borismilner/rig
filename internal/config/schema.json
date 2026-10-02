@@ -16,6 +16,48 @@
         }
       }
     },
+    "logs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "buffer": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "bytes": {
+              "type": "integer",
+              "minimum": 65536,
+              "maximum": 67108864,
+              "default": 2097152,
+              "x-rig-apply": "restart",
+              "description": "the log store's ring in memory, for every client together (plan/49 decision 5)"
+            }
+          }
+        },
+        "flush": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "ms": {
+              "type": "integer",
+              "minimum": 10,
+              "maximum": 10000,
+              "default": 250,
+              "x-rig-apply": "restart",
+              "description": "how long after the first unwritten record the log store writes; a crash loses at most this much"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 4096,
+              "maximum": 4194304,
+              "default": 262144,
+              "x-rig-apply": "restart",
+              "description": "the log store writes sooner once this much is waiting"
+            }
+          }
+        }
+      }
+    },
     "display": {
       "type": "object",
       "additionalProperties": false,

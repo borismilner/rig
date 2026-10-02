@@ -476,6 +476,24 @@ func (r *Resolver) String(name string) string {
 	return s
 }
 
+// Int answers an integer key's resolved value; 0 for a key that is not one.
+func (r *Resolver) Int(name string) int64 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	switch v := r.winnerLocked(name).Value.(type) {
+	case json.Number:
+		n, _ := v.Int64()
+		return n
+	case float64:
+		return int64(v)
+	case int64:
+		return v
+	case int:
+		return int64(v)
+	}
+	return 0
+}
+
 // Orphans are values set somewhere for a key nothing declares, as
 // "<layer>:<file>:<key>".
 func (r *Resolver) Orphans() []string {

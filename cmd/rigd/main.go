@@ -17,12 +17,14 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/borismilner/rig/internal/audio"
 	"github.com/borismilner/rig/internal/config"
 	"github.com/borismilner/rig/internal/coord"
 	"github.com/borismilner/rig/internal/daemon"
 	"github.com/borismilner/rig/internal/instance"
+	"github.com/borismilner/rig/internal/observe"
 	"github.com/borismilner/rig/internal/paths"
 	"github.com/borismilner/rig/internal/supervise"
 )
@@ -122,8 +124,12 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	// Section 49: rigd logs into its estate's store, in memory until the
+	// estate's directory is known, teeing WARN and above to stderr until
+	// then (decision 14).
 	lv := new(slog.LevelVar)
-	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: lv}))
+	logs := observe.New(logOptions(settings))
+	log := slog.New(observe.NewHandler(logs, "rigd", lv, os.Stderr))
 	log.Info("storage root", "root", root)
 	logSettings(log, settings)
 
@@ -151,6 +157,10 @@ func run() error {
 		return err
 	}
 	defer func() { _ = lock.Close() }()
+	// Closed while the lock is still held, so the next rigd cannot attach
+	// to the store before this one has written its last record and taken
+	// its open marker away.
+	defer closeLogs(logs)
 
 	// A NAMED estate takes a SECOND claim, and it is taken HERE - beside the
 	// directory lock and before the first os.Remove below - rather than
@@ -231,6 +241,7 @@ func run() error {
 			"path", st.Path(),
 			"epoch", epoch,
 			"rebooted", st.Rebooted())
+		attachLogs(log, logs, *estate)
 	}
 
 	// Only now, holding the lock, is a stale socket ours to remove. Doing this
@@ -297,6 +308,7 @@ func run() error {
 		Settings:         settings,
 		LogLevel:         lv,
 		SnapshotPath:     snapshot,
+		Logs:             logs,
 		Log:              log,
 		Lock:             lock,
 		Leases:           leases,
@@ -345,6 +357,39 @@ func run() error {
 	closeDaemon(d, log)
 	log.Info("rigd down")
 	return nil
+}
+
+// logOptions reads the store's knobs from the logs.* settings (plan/49
+// decision 12), every one applied at start.
+func logOptions(settings *config.Resolver) observe.Options {
+	return observe.Options{
+		BufferBytes: int(settings.Int("logs.buffer.bytes")),
+		FlushAfter:  time.Duration(settings.Int("logs.flush.ms")) * time.Millisecond,
+		FlushBytes:  int(settings.Int("logs.flush.bytes")),
+	}
+}
+
+// attachLogs gives the store its directory. A store that cannot open keeps
+// working in memory and the tee keeps reaching stderr, so the failure is
+// visible where it would have been without the store.
+func attachLogs(log *slog.Logger, logs *observe.Store, estate string) {
+	dir, err := paths.EstateLogsDir(estate)
+	if err == nil {
+		err = logs.Attach(dir)
+	}
+	if err != nil {
+		log.Error("the log store did not open; rigd's log stays in memory and on stderr", "err", err)
+		return
+	}
+	log.Info("log store opened", "path", dir)
+}
+
+// closeLogs writes the store's last records. A failure goes to stderr, the
+// one place left to say it.
+func closeLogs(logs *observe.Store) {
+	if err := logs.Close(); err != nil {
+		fmt.Fprintln(os.Stderr, "rigd: closing the log store: "+err.Error())
+	}
 }
 
 // newAudio builds section 12's audio queue (plan/12, S1-S5). The settings

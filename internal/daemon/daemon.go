@@ -33,6 +33,7 @@ import (
 	"github.com/borismilner/rig/internal/instance"
 	"github.com/borismilner/rig/internal/kernel"
 	"github.com/borismilner/rig/internal/mcpserver"
+	"github.com/borismilner/rig/internal/observe"
 	"github.com/borismilner/rig/internal/record"
 	"github.com/borismilner/rig/internal/supervise"
 	"github.com/borismilner/rig/internal/wire"
@@ -119,6 +120,10 @@ type Config struct {
 	LogLevel     *slog.LevelVar
 	SnapshotPath string
 
+	// Logs is section 49's log store, which rig.logs.query reads; nil
+	// answers that this daemon keeps none. rigd opens it, not New.
+	Logs *observe.Store
+
 	// Lock is the single-instance claim, and it is REQUIRED.
 	//
 	// Section 5f says rigd takes the flock "before it binds". Stating an
@@ -161,6 +166,9 @@ type Daemon struct {
 	settings     *config.Resolver
 	logLevel     *slog.LevelVar
 	snapshotPath string
+
+	// logs is section 49's store (observe.go).
+	logs *observe.Store
 
 	// hand is the HANDS OFF strip's one run at a time (hand.go).
 	hand *handDesk
@@ -405,6 +413,7 @@ func New(cfg Config) (*Daemon, error) {
 		settings:     cfg.Settings,
 		logLevel:     cfg.LogLevel,
 		snapshotPath: cfg.SnapshotPath,
+		logs:         cfg.Logs,
 	}
 	if d.settings == nil {
 		schema, err := config.RigSchema()
@@ -1016,7 +1025,7 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	// section 52's event bus, which the tray waits on; events.go has who may
 	// publish and wait on what.
 	case "events.publish", "events.wait", "timer.arm", "timer.disarm", "timer.list",
-		"config.get", "config.set", "notify", "toast.wait", "toast.dnd", "toast.reply", "toast.answer",
+		"config.get", "config.set", "logs.query", "notify", "toast.wait", "toast.dnd", "toast.reply", "toast.answer",
 		"sound", "say",
 		"hand.request", "hand.step", "hand.release", "hand.wait", "hand.answer", "hand.strip":
 		d.serveToast(ctx, c, f, command)

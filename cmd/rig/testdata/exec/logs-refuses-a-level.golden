@@ -1,0 +1,5 @@
+$ rig logs --level loud
+exit 1
+--- stdout (0 bytes)
+--- stderr (65 bytes)
+rig: rig logs: --level is debug, info, warn or error, not "loud"

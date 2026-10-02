@@ -3990,6 +3990,364 @@ func (x *ConfigChanged) GetKeys() []string {
 	return nil
 }
 
+// LogRecord is one record in the estate's log store.
+type LogRecord struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The store's sequence, rising across restarts; the cursor.
+	Seq       uint64 `protobuf:"varint,1,opt,name=seq,proto3" json:"seq,omitempty"`
+	UnixNanos int64  `protobuf:"varint,2,opt,name=unix_nanos,json=unixNanos,proto3" json:"unix_nanos,omitempty"`
+	// slog.Level as an integer: -4 debug, 0 info, 4 warn, 8 error.
+	Level int32 `protobuf:"varint,3,opt,name=level,proto3" json:"level,omitempty"`
+	// "rigd", or the id of the program that logged it.
+	Client  string `protobuf:"bytes,4,opt,name=client,proto3" json:"client,omitempty"`
+	Message string `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
+	// Flattened, groups joined with ".", values as text.
+	Attrs         map[string]string `protobuf:"bytes,6,rep,name=attrs,proto3" json:"attrs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogRecord) Reset() {
+	*x = LogRecord{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogRecord) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogRecord) ProtoMessage() {}
+
+func (x *LogRecord) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogRecord.ProtoReflect.Descriptor instead.
+func (*LogRecord) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *LogRecord) GetSeq() uint64 {
+	if x != nil {
+		return x.Seq
+	}
+	return 0
+}
+
+func (x *LogRecord) GetUnixNanos() int64 {
+	if x != nil {
+		return x.UnixNanos
+	}
+	return 0
+}
+
+func (x *LogRecord) GetLevel() int32 {
+	if x != nil {
+		return x.Level
+	}
+	return 0
+}
+
+func (x *LogRecord) GetClient() string {
+	if x != nil {
+		return x.Client
+	}
+	return ""
+}
+
+func (x *LogRecord) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *LogRecord) GetAttrs() map[string]string {
+	if x != nil {
+		return x.Attrs
+	}
+	return nil
+}
+
+// GapBand is a stretch the store knows it does not hold whole (decision 10).
+type GapBand struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FromUnixNanos int64                  `protobuf:"varint,1,opt,name=from_unix_nanos,json=fromUnixNanos,proto3" json:"from_unix_nanos,omitempty"`
+	ToUnixNanos   int64                  `protobuf:"varint,2,opt,name=to_unix_nanos,json=toUnixNanos,proto3" json:"to_unix_nanos,omitempty"`
+	// A client, or "*" for every client.
+	Client string `protobuf:"bytes,3,opt,name=client,proto3" json:"client,omitempty"`
+	// unclean close, ring overwrite.
+	Cause string `protobuf:"bytes,4,opt,name=cause,proto3" json:"cause,omitempty"`
+	// Records kept of those written, when known; 0/0 when not.
+	Retained      uint64 `protobuf:"varint,5,opt,name=retained,proto3" json:"retained,omitempty"`
+	Total         uint64 `protobuf:"varint,6,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GapBand) Reset() {
+	*x = GapBand{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GapBand) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GapBand) ProtoMessage() {}
+
+func (x *GapBand) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GapBand.ProtoReflect.Descriptor instead.
+func (*GapBand) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *GapBand) GetFromUnixNanos() int64 {
+	if x != nil {
+		return x.FromUnixNanos
+	}
+	return 0
+}
+
+func (x *GapBand) GetToUnixNanos() int64 {
+	if x != nil {
+		return x.ToUnixNanos
+	}
+	return 0
+}
+
+func (x *GapBand) GetClient() string {
+	if x != nil {
+		return x.Client
+	}
+	return ""
+}
+
+func (x *GapBand) GetCause() string {
+	if x != nil {
+		return x.Cause
+	}
+	return ""
+}
+
+func (x *GapBand) GetRetained() uint64 {
+	if x != nil {
+		return x.Retained
+	}
+	return 0
+}
+
+func (x *GapBand) GetTotal() uint64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+// LogsQueryRequest reads the merged view. With timeout_ms set, the call
+// parks until a record after the cursor matches, for at most 60 s.
+type LogsQueryRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 0 is open-ended on that side.
+	SinceUnixNanos int64 `protobuf:"varint,1,opt,name=since_unix_nanos,json=sinceUnixNanos,proto3" json:"since_unix_nanos,omitempty"`
+	UntilUnixNanos int64 `protobuf:"varint,2,opt,name=until_unix_nanos,json=untilUnixNanos,proto3" json:"until_unix_nanos,omitempty"`
+	// Only these clients; empty is every client the caller may read.
+	Clients []string `protobuf:"bytes,3,rep,name=clients,proto3" json:"clients,omitempty"`
+	// The least slog level answered; 0 is info.
+	MinLevel int32 `protobuf:"varint,4,opt,name=min_level,json=minLevel,proto3" json:"min_level,omitempty"`
+	// An RE2 expression over the message and attrs, at most 256 bytes.
+	Grep string `protobuf:"bytes,5,opt,name=grep,proto3" json:"grep,omitempty"`
+	// Only records after this seq.
+	After     uint64 `protobuf:"varint,6,opt,name=after,proto3" json:"after,omitempty"`
+	TimeoutMs uint32 `protobuf:"varint,7,opt,name=timeout_ms,json=timeoutMs,proto3" json:"timeout_ms,omitempty"`
+	// At most this many records, newest kept; 0 is 1000, at most 10000.
+	Limit         uint32 `protobuf:"varint,8,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogsQueryRequest) Reset() {
+	*x = LogsQueryRequest{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogsQueryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogsQueryRequest) ProtoMessage() {}
+
+func (x *LogsQueryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogsQueryRequest.ProtoReflect.Descriptor instead.
+func (*LogsQueryRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *LogsQueryRequest) GetSinceUnixNanos() int64 {
+	if x != nil {
+		return x.SinceUnixNanos
+	}
+	return 0
+}
+
+func (x *LogsQueryRequest) GetUntilUnixNanos() int64 {
+	if x != nil {
+		return x.UntilUnixNanos
+	}
+	return 0
+}
+
+func (x *LogsQueryRequest) GetClients() []string {
+	if x != nil {
+		return x.Clients
+	}
+	return nil
+}
+
+func (x *LogsQueryRequest) GetMinLevel() int32 {
+	if x != nil {
+		return x.MinLevel
+	}
+	return 0
+}
+
+func (x *LogsQueryRequest) GetGrep() string {
+	if x != nil {
+		return x.Grep
+	}
+	return ""
+}
+
+func (x *LogsQueryRequest) GetAfter() uint64 {
+	if x != nil {
+		return x.After
+	}
+	return 0
+}
+
+func (x *LogsQueryRequest) GetTimeoutMs() uint32 {
+	if x != nil {
+		return x.TimeoutMs
+	}
+	return 0
+}
+
+func (x *LogsQueryRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+// LogsQueryResponse is time-ordered, oldest first. Carry latest into the
+// next call's after to follow.
+type LogsQueryResponse struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Records []*LogRecord           `protobuf:"bytes,1,rep,name=records,proto3" json:"records,omitempty"`
+	// Every gap that overlaps the range asked, so a view can say what it
+	// does not hold.
+	Gaps   []*GapBand `protobuf:"bytes,2,rep,name=gaps,proto3" json:"gaps,omitempty"`
+	Latest uint64     `protobuf:"varint,3,opt,name=latest,proto3" json:"latest,omitempty"`
+	// More records matched than the answer carries; the oldest were left out.
+	Truncated     bool `protobuf:"varint,4,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogsQueryResponse) Reset() {
+	*x = LogsQueryResponse{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[58]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogsQueryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogsQueryResponse) ProtoMessage() {}
+
+func (x *LogsQueryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[58]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogsQueryResponse.ProtoReflect.Descriptor instead.
+func (*LogsQueryResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{58}
+}
+
+func (x *LogsQueryResponse) GetRecords() []*LogRecord {
+	if x != nil {
+		return x.Records
+	}
+	return nil
+}
+
+func (x *LogsQueryResponse) GetGaps() []*GapBand {
+	if x != nil {
+		return x.Gaps
+	}
+	return nil
+}
+
+func (x *LogsQueryResponse) GetLatest() uint64 {
+	if x != nil {
+		return x.Latest
+	}
+	return 0
+}
+
+func (x *LogsQueryResponse) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
+}
+
 var File_proto_rig_v1_registry_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_registry_proto_rawDesc = "" +
@@ -4234,7 +4592,41 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"#\n" +
 	"\rConfigChanged\x12\x12\n" +
-	"\x04keys\x18\x01 \x03(\tR\x04keys*V\n" +
+	"\x04keys\x18\x01 \x03(\tR\x04keys\"\xf2\x01\n" +
+	"\tLogRecord\x12\x10\n" +
+	"\x03seq\x18\x01 \x01(\x04R\x03seq\x12\x1d\n" +
+	"\n" +
+	"unix_nanos\x18\x02 \x01(\x03R\tunixNanos\x12\x14\n" +
+	"\x05level\x18\x03 \x01(\x05R\x05level\x12\x16\n" +
+	"\x06client\x18\x04 \x01(\tR\x06client\x12\x18\n" +
+	"\amessage\x18\x05 \x01(\tR\amessage\x122\n" +
+	"\x05attrs\x18\x06 \x03(\v2\x1c.rig.v1.LogRecord.AttrsEntryR\x05attrs\x1a8\n" +
+	"\n" +
+	"AttrsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb5\x01\n" +
+	"\aGapBand\x12&\n" +
+	"\x0ffrom_unix_nanos\x18\x01 \x01(\x03R\rfromUnixNanos\x12\"\n" +
+	"\rto_unix_nanos\x18\x02 \x01(\x03R\vtoUnixNanos\x12\x16\n" +
+	"\x06client\x18\x03 \x01(\tR\x06client\x12\x14\n" +
+	"\x05cause\x18\x04 \x01(\tR\x05cause\x12\x1a\n" +
+	"\bretained\x18\x05 \x01(\x04R\bretained\x12\x14\n" +
+	"\x05total\x18\x06 \x01(\x04R\x05total\"\xfc\x01\n" +
+	"\x10LogsQueryRequest\x12(\n" +
+	"\x10since_unix_nanos\x18\x01 \x01(\x03R\x0esinceUnixNanos\x12(\n" +
+	"\x10until_unix_nanos\x18\x02 \x01(\x03R\x0euntilUnixNanos\x12\x18\n" +
+	"\aclients\x18\x03 \x03(\tR\aclients\x12\x1b\n" +
+	"\tmin_level\x18\x04 \x01(\x05R\bminLevel\x12\x12\n" +
+	"\x04grep\x18\x05 \x01(\tR\x04grep\x12\x14\n" +
+	"\x05after\x18\x06 \x01(\x04R\x05after\x12\x1d\n" +
+	"\n" +
+	"timeout_ms\x18\a \x01(\rR\ttimeoutMs\x12\x14\n" +
+	"\x05limit\x18\b \x01(\rR\x05limit\"\x9b\x01\n" +
+	"\x11LogsQueryResponse\x12+\n" +
+	"\arecords\x18\x01 \x03(\v2\x11.rig.v1.LogRecordR\arecords\x12#\n" +
+	"\x04gaps\x18\x02 \x03(\v2\x0f.rig.v1.GapBandR\x04gaps\x12\x16\n" +
+	"\x06latest\x18\x03 \x01(\x04R\x06latest\x12\x1c\n" +
+	"\ttruncated\x18\x04 \x01(\bR\ttruncated*V\n" +
 	"\x05Depth\x12\x15\n" +
 	"\x11DEPTH_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eDEPTH_PROGRAMS\x10\x01\x12\x12\n" +
@@ -4304,7 +4696,7 @@ func file_proto_rig_v1_registry_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_registry_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
-var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 57)
+var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 62)
 var file_proto_rig_v1_registry_proto_goTypes = []any{
 	(Depth)(0),                    // 0: rig.v1.Depth
 	(EstateRole)(0),               // 1: rig.v1.EstateRole
@@ -4370,16 +4762,21 @@ var file_proto_rig_v1_registry_proto_goTypes = []any{
 	(*ConfigSetRequest)(nil),      // 61: rig.v1.ConfigSetRequest
 	(*ConfigSetResponse)(nil),     // 62: rig.v1.ConfigSetResponse
 	(*ConfigChanged)(nil),         // 63: rig.v1.ConfigChanged
-	nil,                           // 64: rig.v1.ConfigSetRequest.ValuesJsonEntry
-	nil,                           // 65: rig.v1.ConfigSetResponse.OutcomeEntry
-	(*v1.Identity)(nil),           // 66: rig.v1.Identity
-	(v1.Coverage)(0),              // 67: rig.v1.Coverage
-	(*v1.Command)(nil),            // 68: rig.v1.Command
+	(*LogRecord)(nil),             // 64: rig.v1.LogRecord
+	(*GapBand)(nil),               // 65: rig.v1.GapBand
+	(*LogsQueryRequest)(nil),      // 66: rig.v1.LogsQueryRequest
+	(*LogsQueryResponse)(nil),     // 67: rig.v1.LogsQueryResponse
+	nil,                           // 68: rig.v1.ConfigSetRequest.ValuesJsonEntry
+	nil,                           // 69: rig.v1.ConfigSetResponse.OutcomeEntry
+	nil,                           // 70: rig.v1.LogRecord.AttrsEntry
+	(*v1.Identity)(nil),           // 71: rig.v1.Identity
+	(v1.Coverage)(0),              // 72: rig.v1.Coverage
+	(*v1.Command)(nil),            // 73: rig.v1.Command
 }
 var file_proto_rig_v1_registry_proto_depIdxs = []int32{
-	66, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
-	67, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
-	68, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
+	71, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
+	72, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
+	73, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
 	0,  // 3: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
 	9,  // 4: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
 	1,  // 5: rig.v1.EstateResponse.role:type_name -> rig.v1.EstateRole
@@ -4410,13 +4807,16 @@ var file_proto_rig_v1_registry_proto_depIdxs = []int32{
 	58, // 30: rig.v1.ConfigValue.winner:type_name -> rig.v1.ConfigLayerValue
 	58, // 31: rig.v1.ConfigValue.losers:type_name -> rig.v1.ConfigLayerValue
 	59, // 32: rig.v1.ConfigGetResponse.values:type_name -> rig.v1.ConfigValue
-	64, // 33: rig.v1.ConfigSetRequest.values_json:type_name -> rig.v1.ConfigSetRequest.ValuesJsonEntry
-	65, // 34: rig.v1.ConfigSetResponse.outcome:type_name -> rig.v1.ConfigSetResponse.OutcomeEntry
-	35, // [35:35] is the sub-list for method output_type
-	35, // [35:35] is the sub-list for method input_type
-	35, // [35:35] is the sub-list for extension type_name
-	35, // [35:35] is the sub-list for extension extendee
-	0,  // [0:35] is the sub-list for field type_name
+	68, // 33: rig.v1.ConfigSetRequest.values_json:type_name -> rig.v1.ConfigSetRequest.ValuesJsonEntry
+	69, // 34: rig.v1.ConfigSetResponse.outcome:type_name -> rig.v1.ConfigSetResponse.OutcomeEntry
+	70, // 35: rig.v1.LogRecord.attrs:type_name -> rig.v1.LogRecord.AttrsEntry
+	64, // 36: rig.v1.LogsQueryResponse.records:type_name -> rig.v1.LogRecord
+	65, // 37: rig.v1.LogsQueryResponse.gaps:type_name -> rig.v1.GapBand
+	38, // [38:38] is the sub-list for method output_type
+	38, // [38:38] is the sub-list for method input_type
+	38, // [38:38] is the sub-list for extension type_name
+	38, // [38:38] is the sub-list for extension extendee
+	0,  // [0:38] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_registry_proto_init() }
@@ -4430,7 +4830,7 @@ func file_proto_rig_v1_registry_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_registry_proto_rawDesc), len(file_proto_rig_v1_registry_proto_rawDesc)),
 			NumEnums:      9,
-			NumMessages:   57,
+			NumMessages:   62,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

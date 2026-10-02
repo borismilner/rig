@@ -118,6 +118,8 @@ var valuedFlags = map[string]bool{
 	"depth": true,
 	// rig logbook (plan/51): the folder the documents are in.
 	"dir": true,
+	// rig logs (section 49).
+	"since": true, "until": true, "client": true, "level": true, "grep": true,
 
 	// Section 39's record verbs. Every one of these is a flag `rig record`,
 	// `rig progress` or `rig brief` declares as a non-boolean, and a missing
@@ -220,6 +222,8 @@ func usage() {
                    --follow keeps printing them as they come
   config <cmd>     rig's settings and where each came from: get, origin,
                    set (until restart), export, diff
+  logs             the estate's log, rigd and every program merged by
+                   time, gaps shown: --since 1h, --client X, -f follows
   logbook <cmd>    the split logbook's files, no daemon needed: grep, show,
                    line, cat, add, index, check, split
   record <cmd>     the continuity record: put, get, query, history, link,
@@ -276,6 +280,7 @@ var plainVerbs = map[string]func([]string) error{
 	"hand":      cmdHand,
 	"events":    cmdEvents,
 	"config":    cmdConfig,
+	"logs":      cmdLogs,
 	"logbook":   cmdLogbook,
 }
 
@@ -358,7 +363,7 @@ func run(args []string) error {
 		// capability with two halves, and this is its single seam into run.
 		return cmdBackupOrRestore(args[0], with(args[1:], lead))
 	case "peers", "knowledge", "worknote", "message", "queue", "store", "files", "notify", "dnd",
-		"sound", "say", "up", "stop", "restart", "health", "hand", "events", "logbook", "config":
+		"sound", "say", "up", "stop", "restart", "health", "hand", "events", "logbook", "config", "logs":
 		return plainVerbs[args[0]](with(args[1:], lead))
 	case "record":
 		return cmdRecord(with(args[1:], lead))

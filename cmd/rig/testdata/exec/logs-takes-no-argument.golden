@@ -1,0 +1,5 @@
+$ rig logs rigd
+exit 1
+--- stdout (0 bytes)
+--- stderr (115 bytes)
+rig: usage: rig logs [--since D|T] [--until D|T] [--client X]... [--level L] [--grep RE] [--limit N] [-f] [--json]

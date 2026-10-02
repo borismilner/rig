@@ -297,6 +297,19 @@ func EstateStateDir(name string) (string, error) {
 	return filepath.Join(d, "estates", name), nil
 }
 
+// EstateLogsDir is section 49's log store: <estate state dir>/logs/
+// (plan/49 decision 1). Only a named estate has one; an unnamed estate keeps
+// its records in memory.
+//
+// It resolves a path and creates nothing, exactly as every other function here.
+func EstateLogsDir(name string) (string, error) {
+	d, err := EstateStateDir(name)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(d, "logs"), nil
+}
+
 // BackupDir is where `rig backup` puts its archives:
 // $XDG_STATE_HOME/rig/backups/.
 //
