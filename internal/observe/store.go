@@ -27,6 +27,12 @@ const (
 	DefaultFlushAfter  = 250 * time.Millisecond
 	DefaultFlushBytes  = 256 << 10
 
+	// The per-client rate ceiling (decision 11), enforced before the size
+	// ceiling so one noisy client cannot evict the estate's record. §15
+	// gives no number; these are the seat's.
+	DefaultRateRecords = 1000
+	DefaultRateBurst   = 5000
+
 	// segmentBytes is where a segment rotates. Not a setting: retention is
 	// by total bytes (logs.retention.bytes, slice 4), and this only decides
 	// how finely that is cut.
@@ -43,7 +49,15 @@ const (
 	CauseUncleanClose  = "unclean close"
 	CauseRingOverwrite = "ring overwrite"
 	CauseWriteFailed   = "write failed"
+	CauseSampled       = "sampled"
+	CauseClientDropped = "dropped by the client"
 )
+
+// KindAudit marks an audit entry, which the rate ceiling never samples (§15).
+const KindAudit = "audit"
+
+// sampleWindow is how long one sampled band runs before it is written.
+const sampleWindow = time.Second
 
 // Record is one log record. Attrs are flattened, groups joined with ".".
 type Record struct {
@@ -111,6 +125,8 @@ type Options struct {
 	FlushAfter  time.Duration
 	FlushBytes  int
 	PayloadCap  int // a call payload inline up to this, else in the blob area
+	RateRecords int // per client per second, past the burst
+	RateBurst   int
 	Now         func() time.Time
 }
 
@@ -144,6 +160,16 @@ type Store struct {
 	closed   bool
 
 	blobs blobArea
+
+	buckets map[string]*bucket // the rate ceiling's, per client
+}
+
+// bucket is one client's token bucket, and the sampled band open on it.
+type bucket struct {
+	tokens float64
+	last   int64 // when tokens was last refilled, by the store's clock
+	opened int64 // when the open band began, by the same clock
+	band   Gap   // Total 0 when none is open
 }
 
 // New is a store in memory, holding what rigd logs before its estate's
@@ -158,10 +184,16 @@ func New(opt Options) *Store {
 	if opt.FlushBytes <= 0 {
 		opt.FlushBytes = DefaultFlushBytes
 	}
+	if opt.RateRecords <= 0 {
+		opt.RateRecords = DefaultRateRecords
+	}
+	if opt.RateBurst <= 0 {
+		opt.RateBurst = DefaultRateBurst
+	}
 	if opt.Now == nil {
 		opt.Now = time.Now
 	}
-	return &Store{opt: opt}
+	return &Store{opt: opt, buckets: map[string]*bucket{}}
 }
 
 // Durable says whether the store writes to disk. Decision 14's tee runs
@@ -312,12 +344,18 @@ func scanSegment(path string, fn func(*Record) bool) error {
 // flush past FlushBytes or FlushAfter runs on its own goroutine. The one
 // exception is backpressure, when a whole ring is waiting on a flush that
 // has not kept up: then this caller writes, rather than the record be lost.
-func (s *Store) Append(r Record) {
+//
+// It answers false for a record the client's rate ceiling sampled out.
+func (s *Store) Append(r Record) bool {
 	clip(&r)
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
-		return
+		return false
+	}
+	if r.Kind != KindAudit && !s.admitLocked(&r) {
+		s.mu.Unlock()
+		return false
 	}
 	s.seq++
 	r.Seq = s.seq
@@ -348,6 +386,84 @@ func (s *Store) Append(r Record) {
 		s.mu.Lock()
 		s.evictLocked()
 		s.mu.Unlock()
+	}
+	return true
+}
+
+// admitLocked is the rate ceiling: a token bucket per client, refilled by
+// the store's clock rather than the record's, which a program writes. A
+// record past it is counted into the client's sampled band, and the band is
+// written once it has run a second, so retained/total stays true.
+func (s *Store) admitLocked(r *Record) bool {
+	now := s.opt.Now().UnixNano()
+	b := s.buckets[r.Client]
+	if b == nil {
+		b = &bucket{tokens: float64(s.opt.RateBurst), last: now}
+		s.buckets[r.Client] = b
+	}
+	b.tokens = min(float64(s.opt.RateBurst), b.tokens+float64(now-b.last)/1e9*float64(s.opt.RateRecords))
+	b.last = now
+	if b.band.Total > 0 && now-b.opened >= int64(sampleWindow) {
+		s.closeBandLocked(b)
+	}
+	keep := b.tokens >= 1
+	if keep {
+		b.tokens--
+	}
+	switch {
+	case !keep && b.band.Total == 0:
+		b.opened = now
+		b.band = Gap{From: r.At, To: r.At, Client: r.Client, Cause: CauseSampled}
+	case b.band.Total == 0:
+		return true
+	}
+	b.band.From, b.band.To = min(b.band.From, r.At), max(b.band.To, r.At)
+	b.band.Total++
+	if keep {
+		b.band.Retained++
+	}
+	return keep
+}
+
+func (s *Store) closeBandLocked(b *bucket) {
+	s.noteGapLocked(b.band)
+	b.band = Gap{}
+}
+
+// settleLocked writes every band that has run its second and forgets the
+// buckets that are full again, on the cold path: a flush, or Close.
+func (s *Store) settleLocked(all bool) {
+	now := s.opt.Now().UnixNano()
+	for client, b := range s.buckets {
+		if b.band.Total > 0 && (all || now-b.opened >= int64(sampleWindow)) {
+			s.closeBandLocked(b)
+		}
+		full := b.tokens+float64(now-b.last)/1e9*float64(s.opt.RateRecords) >= float64(s.opt.RateBurst)
+		if b.band.Total == 0 && full {
+			delete(s.buckets, client)
+		}
+	}
+}
+
+// openBandsLocked are the sampled bands not yet written, so a read during
+// a flood still states what it does not hold.
+func (s *Store) openBandsLocked() []Gap {
+	var out []Gap
+	for _, b := range s.buckets {
+		if b.band.Total > 0 {
+			out = append(out, b.band)
+		}
+	}
+	return out
+}
+
+// NoteGap records a loss the store did not see happen, such as records a
+// program's own buffer dropped before they were sent.
+func (s *Store) NoteGap(g Gap) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.closed {
+		s.noteGapLocked(g)
 	}
 }
 
@@ -400,16 +516,22 @@ func (s *Store) evictLocked() (behind bool) {
 // noteLossLocked records a loss. In memory it widens this run's last gap of
 // the same cause, or opens one; attached, it is a line in the coverage log.
 func (s *Store) noteLossLocked(cause string, from, to int64, n uint64) {
+	s.noteGapLocked(Gap{From: from, To: to, Client: "*", Cause: cause, Total: n})
+}
+
+func (s *Store) noteGapLocked(g Gap) {
 	if s.dir != "" {
-		s.appendCoverageLocked(Gap{From: from, To: to, Client: "*", Cause: cause, Total: n})
+		s.appendCoverageLocked(g)
 		return
 	}
-	if k := len(s.gaps) - 1; k >= 0 && s.gaps[k].Cause == cause {
-		s.gaps[k].To = to
-		s.gaps[k].Total += n
+	if k := len(s.gaps) - 1; k >= 0 && s.gaps[k].Cause == g.Cause && s.gaps[k].Client == g.Client {
+		s.gaps[k].From = min(s.gaps[k].From, g.From)
+		s.gaps[k].To = max(s.gaps[k].To, g.To)
+		s.gaps[k].Retained += g.Retained
+		s.gaps[k].Total += g.Total
 		return
 	}
-	s.gaps = append(s.gaps, Gap{From: from, To: to, Client: "*", Cause: cause, Total: n})
+	s.gaps = append(s.gaps, g)
 }
 
 // flush encodes the ring's records after onDisk and writes them to the
@@ -430,6 +552,7 @@ func (s *Store) flush() {
 		s.timer = nil
 	}
 	s.kicked = false
+	s.settleLocked(false)
 	if s.dir == "" || len(s.ring) == 0 || s.ring[len(s.ring)-1].Seq <= s.onDisk {
 		s.mu.Unlock()
 		return
@@ -521,6 +644,7 @@ func (s *Store) Close() error {
 		s.mu.Unlock()
 		return nil
 	}
+	s.settleLocked(true)
 	s.closed = true
 	if s.wake != nil {
 		close(s.wake)

@@ -4237,7 +4237,8 @@ type GapBand struct {
 	ToUnixNanos   int64                  `protobuf:"varint,2,opt,name=to_unix_nanos,json=toUnixNanos,proto3" json:"to_unix_nanos,omitempty"`
 	// A client, or "*" for every client.
 	Client string `protobuf:"bytes,3,opt,name=client,proto3" json:"client,omitempty"`
-	// unclean close, ring overwrite.
+	// unclean close, ring overwrite, write failed, sampled, dropped by the
+	// client.
 	Cause string `protobuf:"bytes,4,opt,name=cause,proto3" json:"cause,omitempty"`
 	// Records kept of those written, when known; 0/0 when not.
 	Retained      uint64 `protobuf:"varint,5,opt,name=retained,proto3" json:"retained,omitempty"`
@@ -4497,6 +4498,118 @@ func (x *LogsQueryResponse) GetTruncated() bool {
 		return x.Truncated
 	}
 	return false
+}
+
+// LogsIngestRequest is one batch of a program's own records (decision 4, a
+// unary call per the build notes, acknowledged per batch). Every record is
+// filed under the caller's own name: seq and client in a record are ignored.
+type LogsIngestRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// At most 1000. unix_nanos 0 is the time rig received it.
+	Records []*LogRecord `protobuf:"bytes,1,rep,name=records,proto3" json:"records,omitempty"`
+	// Records the program's own buffer dropped before this batch; the
+	// coverage log says so.
+	DroppedBefore uint32 `protobuf:"varint,2,opt,name=dropped_before,json=droppedBefore,proto3" json:"dropped_before,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogsIngestRequest) Reset() {
+	*x = LogsIngestRequest{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[61]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogsIngestRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogsIngestRequest) ProtoMessage() {}
+
+func (x *LogsIngestRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[61]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogsIngestRequest.ProtoReflect.Descriptor instead.
+func (*LogsIngestRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{61}
+}
+
+func (x *LogsIngestRequest) GetRecords() []*LogRecord {
+	if x != nil {
+		return x.Records
+	}
+	return nil
+}
+
+func (x *LogsIngestRequest) GetDroppedBefore() uint32 {
+	if x != nil {
+		return x.DroppedBefore
+	}
+	return 0
+}
+
+type LogsIngestResponse struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Accepted uint32                 `protobuf:"varint,1,opt,name=accepted,proto3" json:"accepted,omitempty"`
+	// Records the per-client rate ceiling sampled out of this batch. The
+	// coverage log carries the band, so counts stay correct.
+	Sampled       uint32 `protobuf:"varint,2,opt,name=sampled,proto3" json:"sampled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogsIngestResponse) Reset() {
+	*x = LogsIngestResponse{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[62]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogsIngestResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogsIngestResponse) ProtoMessage() {}
+
+func (x *LogsIngestResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[62]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogsIngestResponse.ProtoReflect.Descriptor instead.
+func (*LogsIngestResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{62}
+}
+
+func (x *LogsIngestResponse) GetAccepted() uint32 {
+	if x != nil {
+		return x.Accepted
+	}
+	return 0
+}
+
+func (x *LogsIngestResponse) GetSampled() uint32 {
+	if x != nil {
+		return x.Sampled
+	}
+	return 0
 }
 
 var File_proto_rig_v1_registry_proto protoreflect.FileDescriptor
@@ -4788,7 +4901,13 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\arecords\x18\x01 \x03(\v2\x11.rig.v1.LogRecordR\arecords\x12#\n" +
 	"\x04gaps\x18\x02 \x03(\v2\x0f.rig.v1.GapBandR\x04gaps\x12\x16\n" +
 	"\x06latest\x18\x03 \x01(\x04R\x06latest\x12\x1c\n" +
-	"\ttruncated\x18\x04 \x01(\bR\ttruncated*V\n" +
+	"\ttruncated\x18\x04 \x01(\bR\ttruncated\"g\n" +
+	"\x11LogsIngestRequest\x12+\n" +
+	"\arecords\x18\x01 \x03(\v2\x11.rig.v1.LogRecordR\arecords\x12%\n" +
+	"\x0edropped_before\x18\x02 \x01(\rR\rdroppedBefore\"J\n" +
+	"\x12LogsIngestResponse\x12\x1a\n" +
+	"\baccepted\x18\x01 \x01(\rR\baccepted\x12\x18\n" +
+	"\asampled\x18\x02 \x01(\rR\asampled*V\n" +
 	"\x05Depth\x12\x15\n" +
 	"\x11DEPTH_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eDEPTH_PROGRAMS\x10\x01\x12\x12\n" +
@@ -4858,7 +4977,7 @@ func file_proto_rig_v1_registry_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_registry_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
-var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 64)
+var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 66)
 var file_proto_rig_v1_registry_proto_goTypes = []any{
 	(Depth)(0),                    // 0: rig.v1.Depth
 	(EstateRole)(0),               // 1: rig.v1.EstateRole
@@ -4930,17 +5049,19 @@ var file_proto_rig_v1_registry_proto_goTypes = []any{
 	(*GapBand)(nil),               // 67: rig.v1.GapBand
 	(*LogsQueryRequest)(nil),      // 68: rig.v1.LogsQueryRequest
 	(*LogsQueryResponse)(nil),     // 69: rig.v1.LogsQueryResponse
-	nil,                           // 70: rig.v1.ConfigSetRequest.ValuesJsonEntry
-	nil,                           // 71: rig.v1.ConfigSetResponse.OutcomeEntry
-	nil,                           // 72: rig.v1.LogRecord.AttrsEntry
-	(*v1.Identity)(nil),           // 73: rig.v1.Identity
-	(v1.Coverage)(0),              // 74: rig.v1.Coverage
-	(*v1.Command)(nil),            // 75: rig.v1.Command
+	(*LogsIngestRequest)(nil),     // 70: rig.v1.LogsIngestRequest
+	(*LogsIngestResponse)(nil),    // 71: rig.v1.LogsIngestResponse
+	nil,                           // 72: rig.v1.ConfigSetRequest.ValuesJsonEntry
+	nil,                           // 73: rig.v1.ConfigSetResponse.OutcomeEntry
+	nil,                           // 74: rig.v1.LogRecord.AttrsEntry
+	(*v1.Identity)(nil),           // 75: rig.v1.Identity
+	(v1.Coverage)(0),              // 76: rig.v1.Coverage
+	(*v1.Command)(nil),            // 77: rig.v1.Command
 }
 var file_proto_rig_v1_registry_proto_depIdxs = []int32{
-	73, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
-	74, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
-	75, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
+	75, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
+	76, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
+	77, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
 	0,  // 3: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
 	9,  // 4: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
 	1,  // 5: rig.v1.EstateResponse.role:type_name -> rig.v1.EstateRole
@@ -4971,16 +5092,17 @@ var file_proto_rig_v1_registry_proto_depIdxs = []int32{
 	60, // 30: rig.v1.ConfigValue.winner:type_name -> rig.v1.ConfigLayerValue
 	60, // 31: rig.v1.ConfigValue.losers:type_name -> rig.v1.ConfigLayerValue
 	61, // 32: rig.v1.ConfigGetResponse.values:type_name -> rig.v1.ConfigValue
-	70, // 33: rig.v1.ConfigSetRequest.values_json:type_name -> rig.v1.ConfigSetRequest.ValuesJsonEntry
-	71, // 34: rig.v1.ConfigSetResponse.outcome:type_name -> rig.v1.ConfigSetResponse.OutcomeEntry
-	72, // 35: rig.v1.LogRecord.attrs:type_name -> rig.v1.LogRecord.AttrsEntry
+	72, // 33: rig.v1.ConfigSetRequest.values_json:type_name -> rig.v1.ConfigSetRequest.ValuesJsonEntry
+	73, // 34: rig.v1.ConfigSetResponse.outcome:type_name -> rig.v1.ConfigSetResponse.OutcomeEntry
+	74, // 35: rig.v1.LogRecord.attrs:type_name -> rig.v1.LogRecord.AttrsEntry
 	66, // 36: rig.v1.LogsQueryResponse.records:type_name -> rig.v1.LogRecord
 	67, // 37: rig.v1.LogsQueryResponse.gaps:type_name -> rig.v1.GapBand
-	38, // [38:38] is the sub-list for method output_type
-	38, // [38:38] is the sub-list for method input_type
-	38, // [38:38] is the sub-list for extension type_name
-	38, // [38:38] is the sub-list for extension extendee
-	0,  // [0:38] is the sub-list for field type_name
+	66, // 38: rig.v1.LogsIngestRequest.records:type_name -> rig.v1.LogRecord
+	39, // [39:39] is the sub-list for method output_type
+	39, // [39:39] is the sub-list for method input_type
+	39, // [39:39] is the sub-list for extension type_name
+	39, // [39:39] is the sub-list for extension extendee
+	0,  // [0:39] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_registry_proto_init() }
@@ -4994,7 +5116,7 @@ func file_proto_rig_v1_registry_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_registry_proto_rawDesc), len(file_proto_rig_v1_registry_proto_rawDesc)),
 			NumEnums:      9,
-			NumMessages:   64,
+			NumMessages:   66,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

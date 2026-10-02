@@ -167,8 +167,10 @@ type Daemon struct {
 	logLevel     *slog.LevelVar
 	snapshotPath string
 
-	// logs is section 49's store (observe.go).
-	logs *observe.Store
+	// logs is section 49's store (observe.go), and logsRead the audit
+	// entries it has written this minute, so each is written once.
+	logs     *observe.Store
+	logsRead logAudit
 
 	// hand is the HANDS OFF strip's one run at a time (hand.go).
 	hand *handDesk
@@ -1060,7 +1062,7 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	// section 52's event bus, which the tray waits on; events.go has who may
 	// publish and wait on what.
 	case "events.publish", "events.wait", "timer.arm", "timer.disarm", "timer.list",
-		"config.get", "config.set", "logs.query", "notify", "toast.wait", "toast.dnd", "toast.reply", "toast.answer",
+		"config.get", "config.set", "logs.query", "logs.ingest", "notify", "toast.wait", "toast.dnd", "toast.reply", "toast.answer",
 		"toast.retract",
 		"sound", "say",
 		"hand.request", "hand.step", "hand.release", "hand.wait", "hand.answer", "hand.strip":

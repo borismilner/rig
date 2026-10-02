@@ -470,6 +470,10 @@ func selfDeclaration() kernel.Declaration {
 				"Read the estate's logs, merged across rigd and every program",
 				"Answers the log records of rigd and every program, time-ordered by each record's own clock, filtered by time (unix nanos, 0 is open), clients, least level (slog's integers: -4 debug, 0 info, 4 warn, 8 error) and an RE2 grep over the message and its attrs. The newest records are kept up to the limit (default 1000, at most 10000) and truncated says some were left out. gaps lists every stretch the store knows it does not hold whole, such as an unclean close, so a view never reads as complete when it is not. With timeout_ms, the call waits up to 60 s for a record after the cursor: carry latest into after to follow. A program reads its own records; a terminal or an agent, everyone's.",
 				"The matching records oldest first, the gaps over the range, the latest seq, and whether the answer was truncated."),
+			leaseWriter("logs.ingest", "Logs ingest", kernel.No,
+				"Send a batch of your own log records to the estate's log store",
+				"Files up to 1000 records under the caller's own name: a registered program's id, else the caller's seat; the seq and client a record carries are ignored. unix_nanos 0 is the time rig received it. Each client has a rate ceiling, 1000 records a second past a burst of 5000; records past it are sampled out, the answer counts them, and the coverage log carries a sampled band with retained/total so counts stay correct. dropped_before reports records your own buffer dropped, and becomes a band too. Read them back with logs.query.",
+				"How many records were accepted, and how many the rate ceiling sampled out."),
 			// SECTION 52's TIMERS, in memory beside the bus.
 			leaseWriter("timer.arm", "Timer arm", kernel.Yes,
 				"Arm a named timer; rig publishes timer.fired to you when it comes due",

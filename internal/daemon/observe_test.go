@@ -82,3 +82,119 @@ func TestLogsQueryWithoutAStoreSaysSo(t *testing.T) {
 	err := dial(t, sock).Call(ctx5(t), "rig.logs.query", &registryv1.LogsQueryRequest{}, &registryv1.LogsQueryResponse{})
 	wantCode(t, err, rigv1.Code_CODE_UNAVAILABLE, "a daemon with no store")
 }
+
+func logStore(t *testing.T) (*observe.Store, string) {
+	t.Helper()
+	store := observe.New(observe.Options{RateRecords: 10, RateBurst: 20})
+	if err := store.Attach(filepath.Join(t.TempDir(), "logs")); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	sock, _ := upDaemonWith(t, func(c *Config) { c.Logs = store })
+	return store, sock
+}
+
+// Decision 4: a program's records are filed under its own name whatever
+// the batch says, past its ceiling they are counted as sampled, and its own
+// dropped records become a band.
+func TestIngestFilesUnderTheCallersNameAndCountsWhatItSampled(t *testing.T) {
+	store, sock := logStore(t)
+	ctx := ctx5(t)
+	graft := eventProgram(t, sock, "graft")
+	batch := &registryv1.LogsIngestRequest{DroppedBefore: 3}
+	for range 25 {
+		batch.Records = append(batch.Records, &registryv1.LogRecord{Client: "rigd", Seq: 99, Level: 4, Message: "job failed", Attrs: map[string]string{"job": "7"}})
+	}
+	var resp registryv1.LogsIngestResponse
+	if err := graft.Call(ctx, "rig.logs.ingest", batch, &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.GetAccepted() != 20 || resp.GetSampled() != 5 {
+		t.Fatalf("accepted %d, sampled %d; want 20 and 5", resp.GetAccepted(), resp.GetSampled())
+	}
+	res, err := store.Query(observe.Query{Clients: []string{"graft"}})
+	if err != nil || len(res.Records) != 20 || res.Records[0].Attrs["job"] != "7" || res.Records[0].Level != 4 {
+		t.Fatalf("graft's records read %+v, %v", res.Records, err)
+	}
+	if forged, _ := store.Query(observe.Query{Clients: []string{"rigd"}, MinLevel: 4}); len(forged.Records) != 0 {
+		t.Fatalf("a batch naming rigd was filed as rigd: %+v", forged.Records)
+	}
+	causes := map[string]uint64{}
+	for _, g := range res.Gaps {
+		causes[g.Cause] += g.Total
+	}
+	if causes[observe.CauseClientDropped] != 3 || causes[observe.CauseSampled] != 5 {
+		t.Fatalf("the bands read %+v", res.Gaps)
+	}
+
+	big := &registryv1.LogsIngestRequest{Records: make([]*registryv1.LogRecord, maxIngestBatch+1)}
+	for i := range big.GetRecords() {
+		big.Records[i] = &registryv1.LogRecord{}
+	}
+	wantCode(t, graft.Call(ctx, "rig.logs.ingest", big, &resp), rigv1.Code_CODE_INVALID, "a batch over the bound")
+}
+
+// A seated agent's records go under its seat; and a seat cannot pose as rigd.
+func TestIngestFromASeatIsFiledUnderTheSeat(t *testing.T) {
+	store, sock := logStore(t)
+	ctx := ctx5(t)
+	agent := seated(t, sock, "backend-1")
+	if err := agent.Call(ctx, "rig.logs.ingest", &registryv1.LogsIngestRequest{
+		Records: []*registryv1.LogRecord{{Message: "built"}},
+	}, &registryv1.LogsIngestResponse{}); err != nil {
+		t.Fatal(err)
+	}
+	res, _ := store.Query(observe.Query{Clients: []string{"backend-1"}})
+	if len(res.Records) != 1 || res.Records[0].At == 0 {
+		t.Fatalf("the seat's record read %+v", res.Records)
+	}
+	rigd := seated(t, sock, "rigd")
+	err := rigd.Call(ctx, "rig.logs.ingest", &registryv1.LogsIngestRequest{
+		Records: []*registryv1.LogRecord{{Message: "forged"}},
+	}, &registryv1.LogsIngestResponse{})
+	wantCode(t, err, rigv1.Code_CODE_DENIED, "a seat named rigd ingesting")
+}
+
+// Decision 13: opening another client's records writes one audit entry per
+// reader per view per minute; reading your own writes none.
+func TestReadingAnotherClientsLogsIsAuditedOncePerMinute(t *testing.T) {
+	store, sock := logStore(t)
+	ctx := ctx5(t)
+	graft := eventProgram(t, sock, "graft")
+	if err := graft.Call(ctx, "rig.logs.ingest", &registryv1.LogsIngestRequest{
+		Records: []*registryv1.LogRecord{{Message: "graft's"}},
+	}, &registryv1.LogsIngestResponse{}); err != nil {
+		t.Fatal(err)
+	}
+	for range 3 {
+		if err := graft.Call(ctx, "rig.logs.query", &registryv1.LogsQueryRequest{}, &registryv1.LogsQueryResponse{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	audits := func() []observe.Record {
+		res, _ := store.Query(observe.Query{Kind: observe.KindAudit})
+		return res.Records
+	}
+	if a := audits(); len(a) != 0 {
+		t.Fatalf("a program reading its own logs was audited: %+v", a)
+	}
+	term := dial(t, sock)
+	for range 3 {
+		if err := term.Call(ctx, "rig.logs.query", &registryv1.LogsQueryRequest{Clients: []string{"graft"}}, &registryv1.LogsQueryResponse{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	a := audits()
+	if len(a) != 1 || a[0].Attrs["clients"] != "graft" || a[0].Attrs["reader"] == "" {
+		t.Fatalf("three reads of graft's logs audited as %+v", a)
+	}
+	var shown registryv1.LogsQueryResponse
+	if err := term.Call(ctx, "rig.logs.query", &registryv1.LogsQueryRequest{Clients: []string{"rigd"}, MinLevel: -8}, &shown); err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range shown.GetRecords() {
+		if r.GetMessage() == "read another client's logs" {
+			t.Fatal("rig logs showed an audit entry")
+		}
+	}
+}

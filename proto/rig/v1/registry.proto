@@ -783,7 +783,8 @@ message GapBand {
   int64 to_unix_nanos = 2;
   // A client, or "*" for every client.
   string client = 3;
-  // unclean close, ring overwrite.
+  // unclean close, ring overwrite, write failed, sampled, dropped by the
+  // client.
   string cause = 4;
   // Records kept of those written, when known; 0/0 when not.
   uint64 retained = 5;
@@ -819,4 +820,22 @@ message LogsQueryResponse {
   uint64 latest = 3;
   // More records matched than the answer carries; the oldest were left out.
   bool truncated = 4;
+}
+
+// LogsIngestRequest is one batch of a program's own records (decision 4, a
+// unary call per the build notes, acknowledged per batch). Every record is
+// filed under the caller's own name: seq and client in a record are ignored.
+message LogsIngestRequest {
+  // At most 1000. unix_nanos 0 is the time rig received it.
+  repeated LogRecord records = 1;
+  // Records the program's own buffer dropped before this batch; the
+  // coverage log says so.
+  uint32 dropped_before = 2;
+}
+
+message LogsIngestResponse {
+  uint32 accepted = 1;
+  // Records the per-client rate ceiling sampled out of this batch. The
+  // coverage log carries the band, so counts stay correct.
+  uint32 sampled = 2;
 }

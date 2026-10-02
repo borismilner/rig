@@ -4,7 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"maps"
 	"regexp"
+	"slices"
+	"strings"
+	"sync"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -80,7 +85,119 @@ func (d *Daemon) serveLogs(ctx context.Context, c *conn, f *rigv1.Frame) {
 		c.fail(id, rigv1.Code_CODE_INTERNAL, "rig.logs.query: the log store could not be read: "+err.Error())
 		return
 	}
+	d.auditRead(c, res.Records)
 	c.reply(id, logsAnswer(res))
+}
+
+// logAudit coalesces decision 13's audit entries: one per reader per view
+// per minute, where a view is the set of other clients' records it opened.
+type logAudit struct {
+	mu     sync.Mutex
+	minute int64
+	seen   map[string]bool
+}
+
+// once answers true the first time key is seen in the current minute.
+func (a *logAudit) once(key string, now time.Time) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if m := now.Unix() / 60; m != a.minute || a.seen == nil {
+		a.minute, a.seen = m, map[string]bool{}
+	}
+	if a.seen[key] {
+		return false
+	}
+	a.seen[key] = true
+	return true
+}
+
+// auditRead writes the audit entry for a read that opened another
+// client's records. It is never sampled, and `rig logs` does not show it.
+func (d *Daemon) auditRead(c *conn, records []observe.Record) {
+	reader := c.name()
+	if reader == "" {
+		reader = callerName(c.principal())
+	}
+	others := map[string]bool{}
+	for i := range records {
+		if records[i].Client != reader {
+			others[records[i].Client] = true
+		}
+	}
+	if len(others) == 0 {
+		return
+	}
+	view := strings.Join(slices.Sorted(maps.Keys(others)), ",")
+	now := time.Now()
+	if !d.logsRead.once(reader+"\x00"+view, now) {
+		return
+	}
+	d.logs.Append(observe.Record{
+		At: now.UnixNano(), Client: "rigd", Kind: observe.KindAudit,
+		Message: "read another client's logs",
+		Attrs:   map[string]string{"reader": reader, "clients": view, "principal": c.principal().Kind.String()},
+	})
+}
+
+// Ingest (decision 4), a unary call per batch as the build notes cut it.
+
+const maxIngestBatch = 1000
+
+func (d *Daemon) serveLogsIngest(c *conn, f *rigv1.Frame) {
+	var req registryv1.LogsIngestRequest
+	if !unmarshalOr(c, f, "logs.ingest", &req) {
+		return
+	}
+	id := f.GetStreamId()
+	if d.logs == nil {
+		c.fail(id, rigv1.Code_CODE_UNAVAILABLE, "rig.logs.ingest: this rigd keeps no log store")
+		return
+	}
+	if n := len(req.GetRecords()); n > maxIngestBatch {
+		c.fail(id, rigv1.Code_CODE_INVALID, fmt.Sprintf("rig.logs.ingest: a batch is at most %d records, got %d", maxIngestBatch, n))
+		return
+	}
+	// The client is the connection's, never the batch's, so a program can
+	// file records only under its own name, and never a call or an audit.
+	client := c.name()
+	if client == "" {
+		if _, seat, _, seated := d.provenance(c); seated {
+			client = seat
+		}
+	}
+	switch client {
+	case "":
+		c.failStatus(id, &rigv1.Status{
+			Code:         rigv1.Code_CODE_DENIED,
+			Message:      "rig.logs.ingest: this connection has no name to file records under",
+			Precondition: "the caller is a registered program, or announced into a seat",
+			Actual:       "it is neither",
+			Fix:          "register with hello, or call rig.announce with a seat first",
+		})
+		return
+	case "rigd":
+		c.fail(id, rigv1.Code_CODE_DENIED, "rig.logs.ingest: rigd's own records come only from rigd")
+		return
+	}
+	now := time.Now().UnixNano()
+	resp := &registryv1.LogsIngestResponse{}
+	if n := req.GetDroppedBefore(); n > 0 {
+		d.logs.NoteGap(observe.Gap{From: now, To: now, Client: client, Cause: observe.CauseClientDropped, Total: uint64(n)})
+	}
+	for _, r := range req.GetRecords() {
+		at := r.GetUnixNanos()
+		if at == 0 {
+			at = now
+		}
+		if d.logs.Append(observe.Record{
+			At: at, Level: int(r.GetLevel()), Client: client, Message: r.GetMessage(), Attrs: r.GetAttrs(),
+		}) {
+			resp.Accepted++
+		} else {
+			resp.Sampled++
+		}
+	}
+	c.reply(id, resp)
 }
 
 // compileGrep is RE2, so a pattern costs time linear in what it reads.

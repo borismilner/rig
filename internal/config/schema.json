@@ -54,6 +54,28 @@
             }
           }
         },
+        "rate": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "records": {
+              "type": "integer",
+              "minimum": 10,
+              "maximum": 1000000,
+              "default": 1000,
+              "x-rig-apply": "restart",
+              "description": "each client's rate ceiling in records a second, past its burst; records over it are sampled out and a band says how many (plan/49 decision 11)"
+            },
+            "burst": {
+              "type": "integer",
+              "minimum": 10,
+              "maximum": 10000000,
+              "default": 5000,
+              "x-rig-apply": "restart",
+              "description": "how many records a client may send at once before its rate ceiling applies"
+            }
+          }
+        },
         "flush": {
           "type": "object",
           "additionalProperties": false,

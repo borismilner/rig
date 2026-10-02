@@ -25,9 +25,10 @@ type Query struct {
 	MaxBytes     int    // the same, by size; <= 0 is no limit
 	// Allow is the principal filter (decision 13); nil allows every client.
 	Allow func(client string) bool
-	// Calls reads call records instead of log records. `rig logs` never
-	// sets it: a call record's reader is §15's `rig history`.
-	Calls bool
+	// Kind reads one record kind: "" log records, KindCall, KindAudit.
+	// `rig logs` reads only the first; a call record's reader is §15's
+	// `rig history`, M5's.
+	Kind string
 }
 
 // Result is a query's answer, time-ordered, oldest first.
@@ -41,7 +42,7 @@ type Result struct {
 func (q *Query) match(r *Record) bool {
 	switch {
 	case r.Seq <= q.After,
-		(r.Kind == KindCall) != q.Calls,
+		r.Kind != q.Kind,
 		r.Level < q.MinLevel,
 		q.Since != 0 && r.At < q.Since,
 		q.Until != 0 && r.At > q.Until,
@@ -63,7 +64,8 @@ func grepAttrs(re *regexp.Regexp, attrs map[string]string) bool {
 
 func (q *Query) overlaps(g *Gap) bool {
 	return (q.Until == 0 || g.From <= q.Until) && (q.Since == 0 || g.To >= q.Since) &&
-		(g.Client == "*" || len(q.Clients) == 0 || slices.Contains(q.Clients, g.Client))
+		(g.Client == "*" || (len(q.Clients) == 0 || slices.Contains(q.Clients, g.Client)) &&
+			(q.Allow == nil || q.Allow(g.Client)))
 }
 
 // Query answers the records matching q: from the ring, and from the
@@ -80,6 +82,7 @@ func (s *Store) query(q *Query) (Result, <-chan struct{}, error) {
 	ring := slices.Clone(s.ring)
 	dir, latest := s.dir, s.seq
 	gaps := slices.Clone(s.gaps)
+	open := s.openBandsLocked()
 	if s.wake == nil && !s.closed {
 		s.wake = make(chan struct{})
 	}
@@ -109,6 +112,7 @@ func (s *Store) query(q *Query) (Result, <-chan struct{}, error) {
 		}
 	}
 	res := Result{Latest: latest}
+	gaps = append(gaps, open...)
 	for i := range gaps {
 		if q.overlaps(&gaps[i]) {
 			res.Gaps = append(res.Gaps, gaps[i])

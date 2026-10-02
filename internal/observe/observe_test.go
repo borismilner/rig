@@ -322,8 +322,12 @@ func TestARecordIsClippedNotDropped(t *testing.T) {
 // handler and a ring slot. §8's 627 ns for the stdlib text handler is the
 // ceiling (plan/49 decision 3). The encoding and the write are the flush's,
 // off the caller's path, and BenchmarkSustained measures them.
+// unbound is a ceiling a benchmark loop cannot reach, so it times the
+// append and not the sampled-out path.
+var unbound = Options{RateRecords: 1 << 40, RateBurst: 1 << 40}
+
 func BenchmarkHandler(b *testing.B) {
-	s := New(Options{})
+	s := New(unbound)
 	log := slog.New(NewHandler(s, "rigd", slog.LevelInfo, nil))
 	b.ReportAllocs()
 	for b.Loop() {
@@ -334,7 +338,7 @@ func BenchmarkHandler(b *testing.B) {
 // BenchmarkSustained is records per second to disk at saturation, where
 // backpressure makes the callers pay for the encoding and the write too.
 func BenchmarkSustained(b *testing.B) {
-	s := New(Options{})
+	s := New(unbound)
 	if err := s.Attach(filepath.Join(b.TempDir(), "logs")); err != nil {
 		b.Fatal(err)
 	}

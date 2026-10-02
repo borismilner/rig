@@ -74,6 +74,7 @@ var bridged = map[string]struct {
 	"events.wait":       {func() proto.Message { return &registryv1.EventsWaitRequest{} }, func() proto.Message { return &registryv1.EventsWaitResponse{} }},
 	"config.get":        {func() proto.Message { return &registryv1.ConfigGetRequest{} }, func() proto.Message { return &registryv1.ConfigGetResponse{} }},
 	"logs.query":        {func() proto.Message { return &registryv1.LogsQueryRequest{} }, func() proto.Message { return &registryv1.LogsQueryResponse{} }},
+	"logs.ingest":       {func() proto.Message { return &registryv1.LogsIngestRequest{} }, func() proto.Message { return &registryv1.LogsIngestResponse{} }},
 	"config.set":        {func() proto.Message { return &registryv1.ConfigSetRequest{} }, func() proto.Message { return &registryv1.ConfigSetResponse{} }},
 	"timer.arm":         {func() proto.Message { return &registryv1.TimerArmRequest{} }, func() proto.Message { return &registryv1.TimerArmResponse{} }},
 	"timer.disarm":      {func() proto.Message { return &registryv1.TimerDisarmRequest{} }, func() proto.Message { return &registryv1.TimerDisarmResponse{} }},

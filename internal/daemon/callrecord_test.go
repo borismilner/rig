@@ -74,7 +74,7 @@ func leaks(t *testing.T, sensitive []string) (found []string, calls []observe.Re
 			t.Fatal(err)
 		}
 	}
-	res, err := store.Query(observe.Query{Calls: true, MinLevel: -8})
+	res, err := store.Query(observe.Query{Kind: observe.KindCall, MinLevel: -8})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +157,7 @@ func TestTheSecretsServiceIsRecordedByKeyNameOnly(t *testing.T) {
 	if err := caller.Call(ctx5(t), "secrets.login", &rigv1.CallRequest{Args: []byte(args)}, &rigv1.CallResponse{}); err != nil {
 		t.Fatal(err)
 	}
-	res, err := store.Query(observe.Query{Calls: true})
+	res, err := store.Query(observe.Query{Kind: observe.KindCall})
 	if err != nil || len(res.Records) != 1 {
 		t.Fatalf("recorded %+v", res.Records)
 	}
