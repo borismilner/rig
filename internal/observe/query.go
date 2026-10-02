@@ -25,6 +25,9 @@ type Query struct {
 	MaxBytes     int    // the same, by size; <= 0 is no limit
 	// Allow is the principal filter (decision 13); nil allows every client.
 	Allow func(client string) bool
+	// Calls reads call records instead of log records. `rig logs` never
+	// sets it: a call record's reader is §15's `rig history`.
+	Calls bool
 }
 
 // Result is a query's answer, time-ordered, oldest first.
@@ -38,6 +41,7 @@ type Result struct {
 func (q *Query) match(r *Record) bool {
 	switch {
 	case r.Seq <= q.After,
+		(r.Kind == KindCall) != q.Calls,
 		r.Level < q.MinLevel,
 		q.Since != 0 && r.At < q.Since,
 		q.Until != 0 && r.At > q.Until,

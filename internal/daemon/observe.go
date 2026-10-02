@@ -2,10 +2,14 @@ package daemon
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"regexp"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
+	"github.com/borismilner/rig/internal/kernel"
 	"github.com/borismilner/rig/internal/observe"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 	"github.com/borismilner/rig/proto/rig/v1/registryv1"
@@ -104,4 +108,131 @@ func logsAnswer(res observe.Result) *registryv1.LogsQueryResponse {
 		})
 	}
 	return out
+}
+
+// Call records (plan/49 decision 2): every call routed to a program is
+// recorded at dispatch, its payloads redacted by the target's declaration
+// on the way in (decision 8), so nothing a program declared sensitive ever
+// reaches a segment. rig's own verbs are not recorded: they declare no
+// pointers, so §15's option 2 would leave only a size, and the waiting
+// verbs (logs.query, events.wait) would record a call per poll.
+
+// secretsProgram is §15's secrets service. Whatever it is sent or answers
+// is recorded only by its key name (decision 9), before any declaration is
+// consulted, because a field not declared sensitive IS recorded.
+const secretsProgram = "secrets"
+
+// The notes a call record carries where a payload is not recorded.
+const (
+	noteOpaque     = "not JSON, so recorded by size only (section 15, option 2)"
+	noteUndeclared = "the command is not declared, so there is nothing to redact by: size only"
+	noteSecret     = "the secrets service: only the key name is recorded"
+	noteError      = "an error answer: its code is recorded, its message is not declared and is not"
+)
+
+// compileRedaction compiles each command's sensitive pointers. A list that
+// does not compile redacts the whole payload rather than none of it.
+func (d *Daemon) compileRedaction(decl kernel.Declaration) map[string]*observe.Redactor {
+	out := make(map[string]*observe.Redactor, len(decl.Commands))
+	for _, cmd := range decl.Commands {
+		r, err := observe.Compile(cmd.Sensitive)
+		if err != nil {
+			d.log.Warn("a sensitive pointer did not compile, so the command's payloads are redacted whole",
+				"program", decl.Identity.ID, "command", cmd.ID, "err", err)
+			r, _ = observe.Compile([]string{""})
+		}
+		out[cmd.ID] = r
+	}
+	return out
+}
+
+func (d *Daemon) recordCall(from caller, program, command string, start time.Time, reply *rigv1.Frame, bad *callFailure) {
+	if d.logs == nil || command == ProbeCommand {
+		return
+	}
+	args := callArgs(from.args)
+	rec := observe.Call{
+		At: start, Took: time.Since(start), Caller: callerName(from.who),
+		Method: program + "." + command, ArgsSize: len(args),
+	}
+	var r *observe.Redactor
+	known := false
+	d.mu.RLock()
+	if to := d.programs[program]; to != nil {
+		r, known = to.redact[command]
+	}
+	d.mu.RUnlock()
+
+	switch {
+	case program == secretsProgram:
+		rec.Args, rec.ArgsNote = secretKey(args), ""
+		if rec.Args == nil {
+			rec.ArgsNote = noteSecret
+		}
+	case !known:
+		rec.ArgsNote = noteUndeclared
+	default:
+		rec.Args, rec.ArgsNote = redacted(r, args)
+	}
+
+	switch {
+	case bad != nil:
+		rec.Code = bad.status.GetCode().String()
+		rec.ResNote = "refused by rig: " + bad.status.GetMessage()
+	case reply.GetKind() == rigv1.FrameKind_FRAME_KIND_ERROR:
+		rec.Code = reply.GetStatus().GetCode().String()
+		rec.ResSize = len(reply.GetStatus().GetMessage())
+		rec.ResNote = noteError
+	default:
+		var resp rigv1.CallResponse
+		if proto.Unmarshal(reply.GetPayload(), &resp) != nil {
+			rec.ResSize, rec.ResNote = len(reply.GetPayload()), noteOpaque
+			break
+		}
+		rec.ResSize = len(resp.GetResult())
+		switch {
+		case program == secretsProgram:
+			rec.ResNote = noteSecret
+		case !known:
+			rec.ResNote = noteUndeclared
+		default:
+			rec.Result, rec.ResNote = redacted(r, resp.GetResult())
+		}
+	}
+	d.logs.AppendCall(rec)
+}
+
+func redacted(r *observe.Redactor, payload []byte) ([]byte, string) {
+	out, err := r.Apply(payload)
+	if err != nil {
+		return nil, noteOpaque
+	}
+	return out, ""
+}
+
+// secretKey is a secrets call's arguments reduced to the key it names: the
+// top-level "key" or "name" string, re-encoded, or nil.
+func secretKey(args []byte) []byte {
+	var m map[string]any
+	if json.Unmarshal(args, &m) != nil {
+		return nil
+	}
+	for _, k := range []string{"key", "name"} {
+		if v, ok := m[k].(string); ok {
+			b, err := json.Marshal(map[string]string{k: v})
+			if err != nil {
+				return nil
+			}
+			return b
+		}
+	}
+	return nil
+}
+
+// callerName is who made a call, as its record names it.
+func callerName(p kernel.Principal) string {
+	if p.ClientID != "" {
+		return p.ClientID
+	}
+	return p.Kind.String()
 }

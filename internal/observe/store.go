@@ -53,6 +53,7 @@ type Record struct {
 	Client  string            `json:"client"`
 	Message string            `json:"msg"`
 	Attrs   map[string]string `json:"attrs,omitempty"`
+	Kind    string            `json:"kind,omitempty"` // "" a log record, KindCall a call
 }
 
 // size is what a record costs the ring, roughly what it costs encoded.
@@ -78,7 +79,7 @@ func clip(r *Record) {
 		r.Attrs["observe.clipped_attrs"] = strconv.Itoa(len(keys) - maxAttrs)
 	}
 	for k, v := range r.Attrs {
-		if len(v) > maxAttrValue {
+		if len(v) > maxAttrValue && clipsAttr(r, k) {
 			r.Attrs[k] = v[:maxAttrValue] + "...(clipped)"
 		}
 	}
@@ -109,6 +110,7 @@ type Options struct {
 	BufferBytes int
 	FlushAfter  time.Duration
 	FlushBytes  int
+	PayloadCap  int // a call payload inline up to this, else in the blob area
 	Now         func() time.Time
 }
 
@@ -140,6 +142,8 @@ type Store struct {
 	segSize  int64
 	writeErr error // the latest write failure, until one succeeds
 	closed   bool
+
+	blobs blobArea
 }
 
 // New is a store in memory, holding what rigd logs before its estate's
@@ -537,6 +541,9 @@ func (s *Store) Close() error {
 		err = errors.Join(err, s.seg.Close())
 		s.seg = nil
 	}
+	s.blobs.mu.Lock()
+	err = errors.Join(err, s.blobs.close())
+	s.blobs.mu.Unlock()
 	if err == nil {
 		err = os.Remove(filepath.Join(s.dir, "open"))
 	}

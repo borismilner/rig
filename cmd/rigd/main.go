@@ -366,6 +366,7 @@ func logOptions(settings *config.Resolver) observe.Options {
 		BufferBytes: int(settings.Int("logs.buffer.bytes")),
 		FlushAfter:  time.Duration(settings.Int("logs.flush.ms")) * time.Millisecond,
 		FlushBytes:  int(settings.Int("logs.flush.bytes")),
+		PayloadCap:  int(settings.Int("logs.call.payload.cap")),
 	}
 }
 

@@ -549,6 +549,11 @@ type conn struct {
 	// gone closes when a socket connection ends, so a call parked on its
 	// behalf stops waiting. Nil on the agent door, whose call has a context.
 	gone chan struct{}
+
+	// redact is a registered program's sensitive pointers per command,
+	// compiled at the handshake (plan/49 decision 8). Set once, before the
+	// connection is published in d.programs, and never changed after.
+	redact map[string]*observe.Redactor
 }
 
 func (c *conn) name() string {
@@ -883,6 +888,8 @@ func (d *Daemon) serveHello(ctx context.Context, c *conn, f *rigv1.Frame) {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_DENIED, err.Error())
 		return
 	}
+
+	c.redact = d.compileRedaction(decl)
 
 	d.mu.Lock()
 	if existing, taken := d.programs[req.GetProgram()]; taken && existing != c {
@@ -1228,6 +1235,16 @@ func callerOf(c *conn, f *rigv1.Frame) caller {
 // forbids, and it would have looked correct: the same four checks in the same
 // order, drifting the first time one of them changed.
 func (d *Daemon) call(
+	ctx context.Context, from caller, program, command string,
+) (*rigv1.Frame, *callFailure) {
+	start := time.Now()
+	reply, bad := d.forward(ctx, from, program, command)
+	d.recordCall(from, program, command, start, reply, bad)
+	return reply, bad
+}
+
+// forward is call less the call record: the floor, then the round trip.
+func (d *Daemon) forward(
 	ctx context.Context, from caller, program, command string,
 ) (*rigv1.Frame, *callFailure) {
 	// Section 14, and this is the check routing did not have: a principal

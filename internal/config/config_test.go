@@ -37,6 +37,7 @@ func TestRigsSchemaDeclaresItsKeys(t *testing.T) {
 	want := []string{
 		"display.name RIG_DISPLAY_NAME display-name live", "log.level RIG_LOG_LEVEL log-level live",
 		"logs.buffer.bytes RIG_LOGS_BUFFER_BYTES logs-buffer-bytes restart",
+		"logs.call.payload.cap RIG_LOGS_CALL_PAYLOAD_CAP logs-call-payload-cap restart",
 		"logs.flush.bytes RIG_LOGS_FLUSH_BYTES logs-flush-bytes restart",
 		"logs.flush.ms RIG_LOGS_FLUSH_MS logs-flush-ms restart",
 	}

@@ -34,6 +34,26 @@
             }
           }
         },
+        "call": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "cap": {
+                  "type": "integer",
+                  "minimum": 256,
+                  "maximum": 65536,
+                  "default": 4096,
+                  "x-rig-apply": "restart",
+                  "description": "a call record holds a payload inline up to this many bytes, else in the blob area; its full size is always recorded (plan/49 decision 7)"
+                }
+              }
+            }
+          }
+        },
         "flush": {
           "type": "object",
           "additionalProperties": false,
