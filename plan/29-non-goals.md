@@ -41,5 +41,7 @@ seats, leases, messages, slots and progress are rig's own and always were.
     a selection. §11's window and §12's toasts are rig's answer to "ask a human something".
   - **`request_review`** - a blocking diff review returning approved plus a comment. The
     small sibling of walkthroughs, and OUT for the same reason.
+  - **`show_document`** - opening markdown in a reading window. OUT, ruled 2026-10-02
+    (decision 0258), with the four above.
 
 ---

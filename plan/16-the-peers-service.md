@@ -43,6 +43,19 @@ expires the whole estate's leases at once, on the machine this is built for.
 class needs a real-clock test with an injected clock jump, or the Simulated gate below is
 structurally blind to it.
 
+### ⛔ Ruled 2026-10-02: build the non-visual AgentBox mechanisms now
+
+Boris, decision 0258: *"Start as recommended and take all non-visual
+capabilities, the ones that help agents do a better job. Take the code as
+is if it saves tokens but make the logic better if possible."* **In this
+order:** agent signals on the bus with rig posting lease and peer changes;
+a blocking `acquire` with a FIFO queue; witnessed claims on a shared CAS
+table; the rider; the wrapped run whose expiry kills the writer;
+retraction. AgentBox's own Go is the starting point wherever reusing it is
+cheaper, and every row below that improves on AgentBox is the bar its
+logic must clear. Cards on his screen (form, secret, the countdown, the
+progress bar) are not in this ruling.
+
 ### The primitives
 
 **Presence.** What AgentBox does today, kept because it works.
