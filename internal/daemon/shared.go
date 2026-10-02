@@ -42,7 +42,9 @@ type sharedChange struct {
 	Change  string `json:"change"` // set, deleted or owner_gone
 	Version uint64 `json:"version"`
 	Owner   string `json:"owner,omitempty"`
-	By      string `json:"by,omitempty"`
+	// Was is the owner a set replaced, when rig knows it exactly.
+	Was string `json:"was,omitempty"`
+	By  string `json:"by,omitempty"`
 }
 
 func (d *Daemon) serveShared(c *conn, f *rigv1.Frame, command string) {
@@ -198,6 +200,14 @@ func (d *Daemon) serveSharedSet(c *conn, f *rigv1.Frame) {
 		}
 	}
 	expected := req.GetExpectedVersion()
+	// Who held it, for the rider's "your claim was taken over". Versions are
+	// never reused, so a write that lands at expected replaced exactly the
+	// value read here when this read saw expected; otherwise was stays empty
+	// rather than guessed.
+	was := ""
+	if pre, found, err := d.leases.SharedGet(key); err == nil && found && pre.Version == expected {
+		was = pre.Owner
+	}
 	v, applied, err := d.leases.SharedSet(key, json.RawMessage(value), expected, owner, w, seat)
 	if errors.Is(err, coord.ErrSharedFull) {
 		c.failStatus(f.GetStreamId(), &rigv1.Status{
@@ -220,7 +230,7 @@ func (d *Daemon) serveSharedSet(c *conn, f *rigv1.Frame) {
 		return
 	}
 	c.reply(f.GetStreamId(), resp)
-	d.publishJSON("shared."+key, sharedChange{Key: key, Change: "set", Version: v.Version, Owner: v.Owner, By: seat})
+	d.publishJSON("shared."+key, sharedChange{Key: key, Change: "set", Version: v.Version, Owner: v.Owner, Was: was, By: seat})
 }
 
 func (d *Daemon) serveSharedDelete(c *conn, f *rigv1.Frame) {

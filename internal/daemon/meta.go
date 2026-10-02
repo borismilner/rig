@@ -178,6 +178,9 @@ type mcpCaller struct {
 	// field a caller can set to change it, which is section 39's requirement
 	// that provenance be the daemon's and unforgeable.
 	who kernel.Principal
+
+	// rider is this connection's place on the bus for the sync rider.
+	rider *riderCursor
 }
 
 // The roster is the optional half of the meta surface, and this is where it is

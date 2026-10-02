@@ -40,6 +40,34 @@ type Server struct {
 	// removing the four.
 	mu       sync.Mutex
 	promoted map[string]bool
+
+	// rider is what changed for this caller since its last call, appended to
+	// every tool's answer (plan/53 slice 4). The daemon decides what it says.
+	rider func(tool string) string
+}
+
+// SetRider installs the sync rider. Called before Run, so the middleware
+// reads it without a lock.
+func (s *Server) SetRider(f func(tool string) string) { s.rider = f }
+
+// ride appends the rider's line to a tool's answer, refusals included: news
+// that the caller's lease was broken matters most on the call it broke.
+func (s *Server) ride(next mcp.MethodHandler) mcp.MethodHandler {
+	return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
+		res, err := next(ctx, method, req)
+		if err != nil || method != "tools/call" || s.rider == nil {
+			return res, err
+		}
+		out, ok := res.(*mcp.CallToolResult)
+		call, isCall := req.(*mcp.CallToolRequest)
+		if !ok || out == nil || !isCall {
+			return res, err
+		}
+		if line := s.rider(call.Params.Name); line != "" {
+			out.Content = append(out.Content, &mcp.TextContent{Text: line})
+		}
+		return out, nil
+	}
 }
 
 // Connect serves one MCP session.
@@ -145,6 +173,7 @@ func New(m *meta.Server, who kernel.Principal, version string) *Server {
 		promoted: map[string]bool{},
 	}
 	s := srv.mcp
+	s.AddReceivingMiddleware(srv.ride)
 
 	mcp.AddTool(s, &mcp.Tool{
 		Name: "list",
