@@ -91,3 +91,23 @@ terminal saw every one but the addressed signal; `lead` saw both.
   listed live); its manual names `events_publish`/`events_wait`.
   `await_signal` stays for AgentBox's own `lock:`, `agents:` and
   `shared:` topics until #2 and #3 land.
+
+### Slice 2, #2: a blocking lease with a queue (designed 2026-10-02)
+
+What agents rely on in AgentBox's `acquire_lock`, and what rig's must add
+to retire it. Boris, 2026-10-02: *"start #2 only and proceed as much as
+possible"*.
+
+| AgentBox `acquire_lock` | rig `lease.acquire` |
+|---|---|
+| blocks in a FIFO queue | `wait_ms`, a FIFO queue per lease; a free lease goes to the queue's head, never to a newcomer |
+| refuses a deadlock by name | the same, walked over seats and the leases they wait on |
+| a timeout is a result with the holder's purpose, activity, held-for, queue | the same, plus the token, the witness and its liveness |
+| a grant says why | `granted_because`: free, released, broken, expired |
+| holds are memory-only, dropped on restart | holds stay durable and fenced; the queue is memory-only, a waiter's connection is its place |
+| `lock:<name>` on a hand-over | `lease.changed` also on queued, orphaned and expired, which needs a clock: rig looks at each lease at its deadline, then polls an orphan's witness each second |
+
+- **A waiter that goes away leaves the queue**, so the head is never a
+  ghost. A grant that races a timeout is kept, never dropped.
+- **`wait_ms` 0 keeps today's refusal**; the most a wait parks is 25
+  minutes, AgentBox's bound, for the same MCP-client reason.
