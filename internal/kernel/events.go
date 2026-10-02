@@ -13,7 +13,11 @@ import (
 
 // RigEventRoots are the first words of rig's own kinds. A program whose id is
 // one of them cannot declare events: its kinds would read as rig's.
-var RigEventRoots = map[string]bool{"hand": true, "toast": true, "system": true, "timer": true, "config": true}
+var RigEventRoots = map[string]bool{
+	"hand": true, "toast": true, "system": true, "timer": true, "config": true,
+	// plan/53: rig posts lease and roster changes; a seat posts signals.
+	"lease": true, "roster": true, "signal": true,
+}
 
 // MaxEventKind bounds a kind or a pattern, in bytes.
 const MaxEventKind = 128

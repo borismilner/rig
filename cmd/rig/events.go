@@ -13,8 +13,9 @@ import (
 
 // `rig events wait <kind>...` - section 52's bus at the prompt.
 //
-// PUBLISHING IS NOT HERE: only a registered program publishes, under its own
-// name (E3), and this command is never one.
+// PUBLISHING IS NOT HERE YET. A program publishes under its own name (E3);
+// a seat, a terminal included, may publish signal.<words> (plan/53), which
+// agents do through events_publish and nothing at the prompt needs today.
 
 const eventsUsage = "usage: rig events wait <kind>... [--after N --epoch E] [--follow]"
 

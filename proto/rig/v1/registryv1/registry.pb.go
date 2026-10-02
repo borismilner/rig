@@ -2830,7 +2830,8 @@ type Event struct {
 	// program's start with its id (graft.job.done).
 	Kind       string `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
 	AtUnixNano int64  `protobuf:"varint,3,opt,name=at_unix_nano,json=atUnixNano,proto3" json:"at_unix_nano,omitempty"`
-	// "rig", or the id of the program that published it.
+	// "rig", the id of the program that published it, or "seat:<name>" for
+	// an agent's signal.
 	Source string `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"`
 	// A JSON value, at most 16 KiB.
 	PayloadJson   string `protobuf:"bytes,5,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"`
@@ -2905,10 +2906,13 @@ func (x *Event) GetPayloadJson() string {
 
 // EventsPublishRequest is a registered program saying something happened. The
 // kind must be one it declared under events, so it starts with its own id.
+// A seat publishes signal.<words> (plan/53); a program, the kinds it
+// declared. to_seat, on a signal only, makes it that seat's alone.
 type EventsPublishRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
 	PayloadJson   string                 `protobuf:"bytes,2,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"`
+	ToSeat        string                 `protobuf:"bytes,3,opt,name=to_seat,json=toSeat,proto3" json:"to_seat,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2953,6 +2957,13 @@ func (x *EventsPublishRequest) GetKind() string {
 func (x *EventsPublishRequest) GetPayloadJson() string {
 	if x != nil {
 		return x.PayloadJson
+	}
+	return ""
+}
+
+func (x *EventsPublishRequest) GetToSeat() string {
+	if x != nil {
+		return x.ToSeat
 	}
 	return ""
 }
@@ -4521,10 +4532,11 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\fat_unix_nano\x18\x03 \x01(\x03R\n" +
 	"atUnixNano\x12\x16\n" +
 	"\x06source\x18\x04 \x01(\tR\x06source\x12!\n" +
-	"\fpayload_json\x18\x05 \x01(\tR\vpayloadJson\"M\n" +
+	"\fpayload_json\x18\x05 \x01(\tR\vpayloadJson\"f\n" +
 	"\x14EventsPublishRequest\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12!\n" +
-	"\fpayload_json\x18\x02 \x01(\tR\vpayloadJson\"<\n" +
+	"\fpayload_json\x18\x02 \x01(\tR\vpayloadJson\x12\x17\n" +
+	"\ato_seat\x18\x03 \x01(\tR\x06toSeat\"<\n" +
 	"\x15EventsPublishResponse\x12#\n" +
 	"\x05event\x18\x01 \x01(\v2\r.rig.v1.EventR\x05event\"t\n" +
 	"\x11EventsWaitRequest\x12\x14\n" +

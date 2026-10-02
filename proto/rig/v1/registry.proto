@@ -575,7 +575,8 @@ message Event {
   // program's start with its id (graft.job.done).
   string kind = 2;
   int64 at_unix_nano = 3;
-  // "rig", or the id of the program that published it.
+  // "rig", the id of the program that published it, or "seat:<name>" for
+  // an agent's signal.
   string source = 4;
   // A JSON value, at most 16 KiB.
   string payload_json = 5;
@@ -583,9 +584,12 @@ message Event {
 
 // EventsPublishRequest is a registered program saying something happened. The
 // kind must be one it declared under events, so it starts with its own id.
+// A seat publishes signal.<words> (plan/53); a program, the kinds it
+// declared. to_seat, on a signal only, makes it that seat's alone.
 message EventsPublishRequest {
   string kind = 1;
   string payload_json = 2;
+  string to_seat = 3;
 }
 
 message EventsPublishResponse {

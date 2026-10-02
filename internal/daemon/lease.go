@@ -116,6 +116,7 @@ func (d *Daemon) serveLeaseAcquire(c *conn, f *rigv1.Frame) {
 		c.failErr(f.GetStreamId(), leaseCode(err), err)
 		return
 	}
+	d.publishJSON("lease.changed", leaseChange{Name: h.Name, Change: "acquired", Holder: h.Holder, Token: h.Token})
 	c.reply(f.GetStreamId(), &verbsv1.LeaseAcquireResponse{Handle: handleToWire(h)})
 }
 
@@ -147,6 +148,7 @@ func (d *Daemon) serveLeaseRelease(c *conn, f *rigv1.Frame) {
 		c.failErr(f.GetStreamId(), leaseCode(err), err)
 		return
 	}
+	d.publishJSON("lease.changed", leaseChange{Name: req.GetName(), Change: "released", Token: req.GetToken()})
 	c.reply(f.GetStreamId(), &verbsv1.LeaseReleaseResponse{})
 }
 
@@ -172,6 +174,7 @@ func (d *Daemon) serveLeaseBreak(c *conn, f *rigv1.Frame) {
 		c.failErr(f.GetStreamId(), leaseCode(err), err)
 		return
 	}
+	d.publishJSON("lease.changed", leaseChange{Name: req.GetName(), Change: "broken", By: seat})
 	c.reply(f.GetStreamId(), &verbsv1.LeaseBreakResponse{})
 }
 

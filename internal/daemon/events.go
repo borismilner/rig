@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -38,7 +39,8 @@ type eventBus struct {
 }
 
 // busItem is an event and who may see it: empty is everyone, otherwise one
-// program's id. A timer's fire is its owner's business alone.
+// program's id, or "seat:<name>" for a signal addressed to one seat. A
+// timer's fire is its owner's business alone.
 type busItem struct {
 	ev *registryv1.Event
 	to string
@@ -86,15 +88,26 @@ func (b *eventBus) publishRigTo(kind string, m proto.Message, to string) {
 	b.publishTo(kind, eventSourceRig, payload, to)
 }
 
-// after answers the matching events newer than seq that viewer may see, the
+// viewer is who is reading: a program's id, a seat's name, either or
+// neither.
+type viewer struct{ program, seat string }
+
+func (v viewer) sees(to string) bool {
+	return to == "" || v.program != "" && to == v.program || v.seat != "" && to == seatSource(v.seat)
+}
+
+// seatSource is how a seat is named as an event's source or addressee, so
+// a seat and a program of the same name never read as one another.
+func seatSource(seat string) string { return "seat:" + seat }
+
+// after answers the matching events newer than seq that v may see, the
 // latest seq, whether some after seq were dropped, and a channel that closes
-// at the next publish. viewer is a program's id, or empty for any other
-// caller.
-func (b *eventBus) after(seq uint64, match func(string) bool, viewer string) (got []*registryv1.Event, latest uint64, gap bool, wake <-chan struct{}) {
+// at the next publish.
+func (b *eventBus) after(seq uint64, match func(string) bool, v viewer) (got []*registryv1.Event, latest uint64, gap bool, wake <-chan struct{}) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	for _, it := range b.items {
-		if it.ev.GetSeq() > seq && match(it.ev.GetKind()) && (it.to == "" || it.to == viewer) {
+		if it.ev.GetSeq() > seq && match(it.ev.GetKind()) && v.sees(it.to) {
 			got = append(got, it.ev)
 		}
 	}
@@ -151,7 +164,14 @@ func badPattern(p, program string) (msg string, denied bool) {
 	}
 }
 
-func rigRoots() []string { return []string{"hand", "system", "timer", "toast"} }
+func rigRoots() []string {
+	roots := make([]string, 0, len(kernel.RigEventRoots))
+	for r := range kernel.RigEventRoots {
+		roots = append(roots, r)
+	}
+	slices.Sort(roots)
+	return roots
+}
 
 func (d *Daemon) serveEvents(ctx context.Context, c *conn, f *rigv1.Frame, command string) {
 	switch command {
@@ -170,6 +190,10 @@ func (d *Daemon) serveEventsPublish(c *conn, f *rigv1.Frame) {
 		return
 	}
 	id := f.GetStreamId()
+	if root, _, _ := strings.Cut(req.GetKind(), "."); root == "signal" || req.GetToSeat() != "" {
+		d.serveSignalPublish(c, id, &req)
+		return
+	}
 	program := c.name()
 	if program == "" {
 		c.failStatus(id, &rigv1.Status{
@@ -192,13 +216,10 @@ func (d *Daemon) serveEventsPublish(c *conn, f *rigv1.Frame) {
 		})
 		return
 	}
-	payload := req.GetPayloadJson()
-	if len(payload) > maxEventPayload || payload != "" && !json.Valid([]byte(payload)) {
-		c.fail(id, rigv1.Code_CODE_INVALID,
-			"rig.events.publish: payload_json is one JSON value of at most 16384 bytes, or empty; it is refused, never truncated (E4)")
+	if !payloadOK(c, id, req.GetPayloadJson()) {
 		return
 	}
-	c.reply(id, &registryv1.EventsPublishResponse{Event: d.events.publish(req.GetKind(), program, payload)})
+	c.reply(id, &registryv1.EventsPublishResponse{Event: d.events.publish(req.GetKind(), program, req.GetPayloadJson())})
 }
 
 func (d *Daemon) serveEventsWait(ctx context.Context, c *conn, f *rigv1.Frame) {
@@ -230,10 +251,14 @@ func (d *Daemon) serveEventsWait(ctx context.Context, c *conn, f *rigv1.Frame) {
 		after, gap = 0, true
 	}
 	match := eventMatcher(kinds)
+	v := viewer{program: c.name()}
+	if _, seat, _, ok := d.provenance(c); ok {
+		v.seat = seat
+	}
 	timer := time.NewTimer(min(time.Duration(req.GetTimeoutMs())*time.Millisecond, maxEventWait))
 	defer timer.Stop()
 	for {
-		got, latest, lost, wake := d.events.after(after, match, c.name())
+		got, latest, lost, wake := d.events.after(after, match, v)
 		resp := &registryv1.EventsWaitResponse{Events: got, Latest: latest, Epoch: d.epoch, Gap: gap || lost}
 		if len(got) > 0 || resp.GetGap() {
 			c.reply(id, resp)
@@ -248,6 +273,16 @@ func (d *Daemon) serveEventsWait(ctx context.Context, c *conn, f *rigv1.Frame) {
 			return
 		}
 	}
+}
+
+// payloadOK refuses a payload that is not one JSON value of at most 16 KiB.
+func payloadOK(c *conn, id uint32, payload string) bool {
+	if len(payload) > maxEventPayload || payload != "" && !json.Valid([]byte(payload)) {
+		c.fail(id, rigv1.Code_CODE_INVALID,
+			"rig.events.publish: payload_json is one JSON value of at most 16384 bytes, or empty; it is refused, never truncated (E4)")
+		return false
+	}
+	return true
 }
 
 func quoteKind(k string) string {

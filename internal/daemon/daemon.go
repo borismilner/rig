@@ -425,6 +425,7 @@ func New(cfg Config) (*Daemon, error) {
 	d.applyLogLevel()
 	d.writeSnapshot()
 	d.hand.published = func(st *registryv1.HandState) { d.events.publishRig("hand.changed", st) }
+	d.presence.changed = func(ch rosterChange) { d.publishJSON("roster.changed", ch) }
 	return d, nil
 }
 

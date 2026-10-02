@@ -106,6 +106,10 @@ type presence struct {
 	// others names the estates this daemon knows about and cannot see into.
 	// Injectable for the same reason - the real one reads a directory.
 	others func() []string
+
+	// changed hears a seat arrive or go (plan/53's roster.changed). Set once
+	// before serving and called outside mu; nil in tests that do not ask.
+	changed func(rosterChange)
 }
 
 type occupant struct {
@@ -162,6 +166,21 @@ func (e *seatHeldError) Error() string {
 // make, so laundering a day-old activity line into a fresh-looking one on the
 // way past is a failure that arrives through the recommended path.
 func (p *presence) announce(c *occupancy, seat, purpose, activity string) (occupant, error) {
+	prev, had := p.occupantOf(c)
+	o, err := p.announceRow(c, seat, purpose, activity)
+	if err != nil || p.changed == nil {
+		return o, err
+	}
+	if had && prev.seat != "" && prev.seat != o.seat {
+		p.changed(rosterChange{Seat: prev.seat, Change: "left"})
+	}
+	if o.seat != "" {
+		p.changed(rosterChange{Seat: o.seat, Change: "announced", Purpose: o.purpose})
+	}
+	return o, nil
+}
+
+func (p *presence) announceRow(c *occupancy, seat, purpose, activity string) (occupant, error) {
 	seat = strings.TrimSpace(seat)
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -342,8 +361,12 @@ func (p *presence) occupantOf(c *occupancy) (occupant, bool) {
 // dropped peer empties its seat with nothing scheduled and nothing to expire.
 func (p *presence) leave(c *occupancy) {
 	p.mu.Lock()
-	defer p.mu.Unlock()
+	o, had := p.by[c]
 	delete(p.by, c)
+	p.mu.Unlock()
+	if had && o.seat != "" && p.changed != nil {
+		p.changed(rosterChange{Seat: o.seat, Change: "left"})
+	}
 }
 
 // crew is every occupant, ordered so two callers reading the same roster in
