@@ -61,9 +61,12 @@ func (d *Daemon) serveSignalPublish(c *conn, id uint32, req *registryv1.EventsPu
 	if !payloadOK(c, id, req.GetPayloadJson()) {
 		return
 	}
-	c.reply(id, &registryv1.EventsPublishResponse{
-		Event: d.events.publishTo(kind, seatSource(seat), req.GetPayloadJson(), to),
-	})
+	ev, err := d.events.publishTo(kind, seatSource(seat), req.GetPayloadJson(), to)
+	if err != nil {
+		c.fail(id, rigv1.Code_CODE_INTERNAL, "rig.events.publish: the signal could not be stored, so nobody was woken: "+err.Error())
+		return
+	}
+	c.reply(id, &registryv1.EventsPublishResponse{Event: ev})
 }
 
 // leaseChange is lease.changed's payload.

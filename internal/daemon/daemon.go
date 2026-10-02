@@ -426,6 +426,13 @@ func New(cfg Config) (*Daemon, error) {
 	d.writeSnapshot()
 	d.hand.published = func(st *registryv1.HandState) { d.events.publishRig("hand.changed", st) }
 	d.presence.changed = func(ch rosterChange) { d.publishJSON("roster.changed", ch) }
+	d.events.seq = seqBase(cfg.Epoch)
+	if cfg.Leases != nil {
+		d.events.durable = cfg.Leases
+		if err := cfg.Leases.TrimSignalsBefore(time.Now().UnixNano() - coord.SignalMaxAge); err != nil {
+			log.Warn("old signals could not be aged out", "err", err)
+		}
+	}
 	return d, nil
 }
 

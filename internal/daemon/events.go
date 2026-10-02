@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/borismilner/rig/internal/coord"
 	"github.com/borismilner/rig/internal/kernel"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 	"github.com/borismilner/rig/proto/rig/v1/registryv1"
@@ -36,7 +37,20 @@ type eventBus struct {
 	lost  uint64 // the newest seq the ring has dropped; 0 while it dropped none
 	items []busItem
 	wake  chan struct{}
+
+	// durable keeps signal.* past a restart (plan/53 slice 1b); nil on an
+	// unnamed estate, whose signals live in the ring like everything else.
+	// With it set, a signal is written there and never held in the ring.
+	durable *coord.Store
 }
+
+// seqBase is where a run's numbering starts: the epoch in the high 32 bits,
+// so a cursor from before a restart still orders against every seq after
+// it, and a stored signal is found by it.
+func seqBase(epoch uint64) uint64 { return epoch << 32 }
+
+// isDurable says which kinds are kept past a restart: a seat's signals.
+func isDurable(kind string) bool { return strings.HasPrefix(kind, "signal.") }
 
 // busItem is an event and who may see it: empty is everyone, otherwise one
 // program's id, or "seat:<name>" for a signal addressed to one seat. A
@@ -46,11 +60,17 @@ type busItem struct {
 	to string
 }
 
+// publish publishes one of rig's or a program's kinds, which are never
+// durable, so it cannot fail.
 func (b *eventBus) publish(kind, source, payload string) *registryv1.Event {
-	return b.publishTo(kind, source, payload, "")
+	ev, _ := b.publishTo(kind, source, payload, "")
+	return ev
 }
 
-func (b *eventBus) publishTo(kind, source, payload, to string) *registryv1.Event {
+// publishTo numbers and publishes an event. A durable kind is written to
+// the store under the lock, so stored order is seq order; if the write
+// fails nobody is woken and the caller is told.
+func (b *eventBus) publishTo(kind, source, payload, to string) (*registryv1.Event, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.seq++
@@ -58,16 +78,30 @@ func (b *eventBus) publishTo(kind, source, payload, to string) *registryv1.Event
 		Seq: b.seq, Kind: kind, AtUnixNano: time.Now().UnixNano(),
 		Source: source, PayloadJson: payload,
 	}
+	if b.durable != nil && isDurable(kind) {
+		if err := b.durable.PutSignal(coord.Signal{
+			Seq: ev.GetSeq(), Kind: kind, At: ev.GetAtUnixNano(), Source: source, To: to, Payload: payload,
+		}); err != nil {
+			return nil, err
+		}
+		b.ring()
+		return ev, nil
+	}
 	b.items = append(b.items, busItem{ev: ev, to: to})
 	if over := len(b.items) - eventRingSize; over > 0 {
 		b.lost = b.items[over-1].ev.GetSeq()
 		b.items = append(b.items[:0:0], b.items[over:]...)
 	}
+	b.ring()
+	return ev, nil
+}
+
+// ring wakes every waiter. Called with mu held.
+func (b *eventBus) ring() {
 	if b.wake != nil {
 		close(b.wake)
 		b.wake = nil
 	}
-	return ev
 }
 
 // publishRig publishes one of rig's own kinds with a proto message as its
@@ -85,7 +119,7 @@ func (b *eventBus) publishRigTo(kind string, m proto.Message, to string) {
 			payload = string(raw)
 		}
 	}
-	b.publishTo(kind, eventSourceRig, payload, to)
+	_, _ = b.publishTo(kind, eventSourceRig, payload, to)
 }
 
 // viewer is who is reading: a program's id, a seat's name, either or
@@ -244,13 +278,20 @@ func (d *Daemon) serveEventsWait(ctx context.Context, c *conn, f *rigv1.Frame) {
 		}
 	}
 
-	// A cursor from another epoch is from before a restart: everything it
-	// had not seen is gone, so the answer starts over and says so (E1).
+	// A cursor from another epoch is from before a restart. What the ring
+	// held is gone, so a wait on any kind kept only there is a gap (E1). A
+	// stored signal is not gone: seqs order across epochs (seqBase), so the
+	// cursor still finds exactly what came after it. Unnamed, nothing is
+	// stored, and the answer starts over.
 	after, gap := req.GetAfter(), false
 	if req.GetEpoch() != 0 && req.GetEpoch() != d.epoch {
-		after, gap = 0, true
+		gap = d.events.durable == nil || slices.ContainsFunc(kinds, func(k string) bool { return !isDurable(k) })
+		if d.events.durable == nil {
+			after = 0
+		}
 	}
 	match := eventMatcher(kinds)
+	stored := slices.ContainsFunc(kinds, isDurable)
 	v := viewer{program: c.name()}
 	if _, seat, _, ok := d.provenance(c); ok {
 		v.seat = seat
@@ -258,9 +299,13 @@ func (d *Daemon) serveEventsWait(ctx context.Context, c *conn, f *rigv1.Frame) {
 	timer := time.NewTimer(min(time.Duration(req.GetTimeoutMs())*time.Millisecond, maxEventWait))
 	defer timer.Stop()
 	for {
-		got, latest, lost, wake := d.events.after(after, match, v)
-		resp := &registryv1.EventsWaitResponse{Events: got, Latest: latest, Epoch: d.epoch, Gap: gap || lost}
-		if len(got) > 0 || resp.GetGap() {
+		resp, wake, err := d.eventsAfter(after, match, stored, v)
+		if err != nil {
+			c.fail(id, rigv1.Code_CODE_INTERNAL, "rig.events.wait: the stored signals could not be read: "+err.Error())
+			return
+		}
+		resp.Epoch, resp.Gap = d.epoch, resp.GetGap() || gap
+		if len(resp.GetEvents()) > 0 || resp.GetGap() {
 			c.reply(id, resp)
 			return
 		}
@@ -283,6 +328,79 @@ func payloadOK(c *conn, id uint32, payload string) bool {
 		return false
 	}
 	return true
+}
+
+// maxEventAnswer keeps a wait's answer inside the 1 MiB frame.
+const maxEventAnswer = 768 << 10
+
+// eventsAfter is the ring's events and the stored signals after the cursor,
+// in seq order, bounded by count and by bytes. Where it stops early, Latest
+// is the last seq it carries, so the next call misses nothing.
+//
+// stored says the patterns name a signal kind, so the store is read at all.
+func (d *Daemon) eventsAfter(after uint64, match func(string) bool, stored bool, v viewer) (*registryv1.EventsWaitResponse, <-chan struct{}, error) {
+	// The ring first: it takes the wake channel, and a signal stored after
+	// that rings it, so the read below can never miss one and park.
+	got, latest, lost, wake := d.events.after(after, match, v)
+	resp := &registryv1.EventsWaitResponse{Latest: latest, Gap: lost}
+	if st := d.events.durable; st != nil && stored {
+		// A first call (after 0) answers what this run holds, as the ring
+		// does; earlier runs' signals are reached by a cursor from then, so
+		// a fresh waiter is never handed a week of backlog.
+		if after == 0 {
+			after = seqBase(d.epoch)
+		}
+		sigs, more, err := st.SignalsAfter(after, coord.MaxSignalBatch, func(sig *coord.Signal) bool {
+			return match(sig.Kind) && v.sees(sig.To)
+		})
+		if err != nil {
+			return nil, wake, err
+		}
+		trimmed, err := st.SignalsTrimmed()
+		if err != nil {
+			return nil, wake, err
+		}
+		// Per kind, from what retention recorded taking (coord/signal.go).
+		for kind, through := range trimmed {
+			if through > after && match(kind) {
+				resp.Gap = true
+			}
+		}
+		for i := range sigs {
+			got = append(got, signalEvent(&sigs[i]))
+		}
+		slices.SortFunc(got, func(a, b *registryv1.Event) int { return cmpSeq(a.GetSeq(), b.GetSeq()) })
+		if more {
+			last := sigs[len(sigs)-1].Seq
+			got = slices.DeleteFunc(got, func(ev *registryv1.Event) bool { return ev.GetSeq() > last })
+			resp.Latest = last
+		}
+	}
+	size := 0
+	for i, ev := range got {
+		if size += proto.Size(ev); size > maxEventAnswer && i > 0 {
+			got, resp.Latest = got[:i], got[i-1].GetSeq()
+			break
+		}
+	}
+	resp.Events = got
+	return resp, wake, nil
+}
+
+func signalEvent(sig *coord.Signal) *registryv1.Event {
+	return &registryv1.Event{
+		Seq: sig.Seq, Kind: sig.Kind, AtUnixNano: sig.At, Source: sig.Source, PayloadJson: sig.Payload,
+	}
+}
+
+func cmpSeq(a, b uint64) int {
+	switch {
+	case a < b:
+		return -1
+	case a > b:
+		return 1
+	}
+	return 0
 }
 
 func quoteKind(k string) string {
