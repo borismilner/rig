@@ -56,6 +56,15 @@ cheaper, and every row below that improves on AgentBox is the bar its
 logic must clear. Cards on his screen (form, secret, the countdown, the
 progress bar) are not in this ruling.
 
+### ⛔ Ruled 2026-10-02 (later): what rig does better leaves AgentBox
+
+Boris, decision 0259: *"All functionality that is superior in `rig` over
+AgentBox should be removed at least on the API level from AgentBox and
+agents should be instructed to use it from `rig` instead."* **A capability
+taken over is done only when** its AgentBox MCP tool is gone and
+AgentBox's agent manual names the rig tool in its place. Removing the
+API is the floor; the internals may stay until nothing calls them.
+
 ### The primitives
 
 **Presence.** What AgentBox does today, kept because it works.
