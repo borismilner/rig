@@ -98,6 +98,25 @@ func TestAnUncleanCloseIsAGapFromTheNewestRecordOnDisk(t *testing.T) {
 	_ = third.Close()
 }
 
+// rigd logs its startup before the store attaches, so the gap must end at
+// the first of those records, not at the attach that came after them.
+func TestTheGapEndsWhereTheNewRunsRecordsBegin(t *testing.T) {
+	s, dir := attached(t, Options{})
+	s.Append(Record{At: 100, Client: "rigd", Message: "before the crash"})
+	s.flush()
+
+	again := New(Options{Now: func() time.Time { return time.Unix(0, 500) }})
+	again.Append(Record{At: 300, Client: "rigd", Message: "starting"})
+	if err := again.Attach(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = again.Close() }()
+	res, _ := again.Query(Query{})
+	if len(res.Gaps) != 1 || res.Gaps[0].To != 300 {
+		t.Fatalf("gaps = %+v, want one ending at 300", res.Gaps)
+	}
+}
+
 func TestTheMergedViewFollowsTheRecordsClockNotArrival(t *testing.T) {
 	s, _ := attached(t, Options{})
 	defer func() { _ = s.Close() }()

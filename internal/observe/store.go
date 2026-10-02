@@ -206,7 +206,13 @@ func (s *Store) attach(dir string) error {
 	}
 	marker := filepath.Join(dir, "open")
 	if _, err := os.Stat(marker); err == nil {
-		s.gaps = append(s.gaps, Gap{From: last.At, To: s.opt.Now().UnixNano(), Client: "*", Cause: CauseUncleanClose})
+		// The gap ends where this run's records begin, so none of them
+		// reads as inside it.
+		to := s.opt.Now().UnixNano()
+		if len(s.ring) > 0 {
+			to = min(to, s.ring[0].At)
+		}
+		s.gaps = append(s.gaps, Gap{From: last.At, To: to, Client: "*", Cause: CauseUncleanClose})
 	}
 	if err := os.WriteFile(marker, []byte(strconv.Itoa(os.Getpid())+"\n"), 0o600); err != nil {
 		return err
