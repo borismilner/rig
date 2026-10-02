@@ -245,6 +245,26 @@ last hour* is a question an agent asks. `ingest` and `coverage` are not.
   (2) call records and redaction, the leak test; (3) ingest, the principal
   filter, the rate ceiling; (4) zstd at rotation, archive, delete, pin, coverage.
 
+### As built: slice 1, 2026-10-02 (`9e5c0a7` and after)
+
+| Piece | As built |
+|---|---|
+| store | `internal/observe`: ring, async flush armed by the first record, `wmu` then `mu`, a synchronous flush at twice the ring bound |
+| segments | **JSON lines, not decision 6's interned rows**, named by first seq, rotating at 16 MiB |
+| coverage | `coverage.jsonl`; an `open` marker makes a SIGKILL a gap that ends at the new run's first record |
+| read side | `logs.query` (unary, waits up to 60 s); `rig logs` with `-f`, `--json`, gap bands |
+
+- **Why JSON lines.** Slice 1 has no call records and no redaction, so
+  the interned row buys nothing yet, and a segment stays readable with
+  `jq`. Slice 2 reopens it if the call record's size needs the row.
+- **Measured:** 544-595 ns per record through the handler, about 1.1 us
+  sustained to disk. Decision 3's ceiling is 627 ns.
+- **Demonstrated live:** startup lines read back from a segment; stderr
+  empty once the store opened; `-f` follows; a SIGKILL then restart
+  shows the `unclean close` band, in text and `--json`.
+- **Reading the log writes nothing to it**: `logs.query` logs no debug
+  line, since `-f` would otherwise wake itself up (`da98e4b`).
+
 ### Open rows. His, each with a recommendation
 
 | Row | Recommendation | If he rules the other way |
