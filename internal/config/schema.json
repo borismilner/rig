@@ -20,6 +20,20 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "archive": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "days": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3650,
+              "default": 30,
+              "x-rig-apply": "restart",
+              "description": "a closed log segment moves to archive/ after this many days since its last record; it is still read (plan/49 decision 11)"
+            }
+          }
+        },
         "buffer": {
           "type": "object",
           "additionalProperties": false,
@@ -54,6 +68,20 @@
             }
           }
         },
+        "retention": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "bytes": {
+              "type": "integer",
+              "minimum": 1048576,
+              "maximum": 1099511627776,
+              "default": 524288000,
+              "x-rig-apply": "restart",
+              "description": "the log store's size ceiling on disk, segments and blobs together; past it the oldest unpinned segment is unlinked, after the rate ceiling and before age"
+            }
+          }
+        },
         "rate": {
           "type": "object",
           "additionalProperties": false,
@@ -73,6 +101,20 @@
               "default": 5000,
               "x-rig-apply": "restart",
               "description": "how many records a client may send at once before its rate ceiling applies"
+            }
+          }
+        },
+        "delete": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "days": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3650,
+              "default": 90,
+              "x-rig-apply": "restart",
+              "description": "a log segment is unlinked after this many days since its last record, unless pinned; the coverage log says so"
             }
           }
         },

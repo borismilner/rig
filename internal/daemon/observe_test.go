@@ -198,3 +198,65 @@ func TestReadingAnotherClientsLogsIsAuditedOncePerMinute(t *testing.T) {
 		}
 	}
 }
+
+// Decision 11's coverage over the wire: the segments with their size, and
+// the gaps the caller may read, so a program is shown only its own holes.
+func TestCoverageShowsTheSegmentsAndOnlyTheCallersGaps(t *testing.T) {
+	store, sock := logStore(t)
+	ctx := ctx5(t)
+	now := time.Now().UnixNano()
+	store.Append(observe.Record{At: now, Client: "graft", Message: "one"})
+	store.NoteGap(observe.Gap{From: now, To: now + 1, Client: "graft", Cause: observe.CauseClientDropped, Total: 2})
+	store.NoteGap(observe.Gap{From: now, To: now + 1, Client: "shelf", Cause: observe.CauseClientDropped, Total: 4})
+
+	var all registryv1.LogsCoverageResponse
+	if err := dial(t, sock).Call(ctx, "rig.logs.coverage", &registryv1.LogsCoverageRequest{}, &all); err != nil {
+		t.Fatal(err)
+	}
+	segs := all.GetSegments()
+	if len(segs) == 0 || !segs[len(segs)-1].GetOpen() || all.GetBytes() == 0 {
+		t.Fatalf("a terminal's coverage read %v", &all)
+	}
+	if len(all.GetGaps()) != 2 {
+		t.Fatalf("a terminal was shown %d gaps, want both", len(all.GetGaps()))
+	}
+
+	var own registryv1.LogsCoverageResponse
+	if err := eventProgram(t, sock, "graft").Call(ctx, "rig.logs.coverage", &registryv1.LogsCoverageRequest{}, &own); err != nil {
+		t.Fatal(err)
+	}
+	if len(own.GetGaps()) != 1 || own.GetGaps()[0].GetClient() != "graft" {
+		t.Fatalf("graft was shown %v", own.GetGaps())
+	}
+}
+
+// A pin holds every client's records, so only a caller that may read them
+// all sets one; a segment that is not there is NOT_FOUND, not a silent no.
+func TestPinNeedsIntrospectionAndAnExistingSegment(t *testing.T) {
+	store, sock := logStore(t)
+	ctx := ctx5(t)
+	store.Append(observe.Record{At: time.Now().UnixNano(), Client: "rigd", Message: "one"})
+	segs, err := store.Segments()
+	if err != nil || len(segs) == 0 {
+		t.Fatalf("%v %v", segs, err)
+	}
+	id := segs[0].ID
+
+	err = eventProgram(t, sock, "graft").Call(ctx, "rig.logs.pin", &registryv1.LogsPinRequest{Segment: id}, &registryv1.LogsPinResponse{})
+	wantCode(t, err, rigv1.Code_CODE_DENIED, "a program pinning")
+
+	term := dial(t, sock)
+	for _, step := range []struct {
+		unpin, changed bool
+	}{{false, true}, {false, false}, {true, true}, {true, false}} {
+		var resp registryv1.LogsPinResponse
+		if err := term.Call(ctx, "rig.logs.pin", &registryv1.LogsPinRequest{Segment: id, Unpin: step.unpin}, &resp); err != nil {
+			t.Fatal(err)
+		}
+		if resp.GetChanged() != step.changed {
+			t.Fatalf("unpin=%v answered changed=%v, want %v", step.unpin, resp.GetChanged(), step.changed)
+		}
+	}
+	err = term.Call(ctx, "rig.logs.pin", &registryv1.LogsPinRequest{Segment: id + 999_999}, &registryv1.LogsPinResponse{})
+	wantCode(t, err, rigv1.Code_CODE_NOT_FOUND, "a segment that is not there")
+}

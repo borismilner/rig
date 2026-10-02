@@ -66,10 +66,7 @@ func (d *Daemon) serveLogs(ctx context.Context, c *conn, f *rigv1.Frame) {
 	}
 	// Decision 13: a program reads its own records; a holder of introspect,
 	// every client's.
-	if p := c.principal(); !p.Introspect {
-		me := c.name()
-		q.Allow = func(client string) bool { return me != "" && client == me }
-	}
+	q.Allow = logsReader(c)
 
 	var res observe.Result
 	var err error
@@ -352,4 +349,80 @@ func callerName(p kernel.Principal) string {
 		return p.ClientID
 	}
 	return p.Kind.String()
+}
+
+// logsReader is decision 13's filter for a caller: nil for a holder of
+// introspect, else its own name only.
+func logsReader(c *conn) func(string) bool {
+	if c.principal().Introspect {
+		return nil
+	}
+	me := c.name()
+	return func(client string) bool { return me != "" && client == me }
+}
+
+func (d *Daemon) noLogStore(c *conn, f *rigv1.Frame, command string) bool {
+	if d.logs != nil && d.logs.Durable() {
+		return false
+	}
+	c.failStatus(f.GetStreamId(), &rigv1.Status{
+		Code:    rigv1.Code_CODE_UNAVAILABLE,
+		Message: "rig." + command + ": this rigd keeps no log segments",
+		Fix:     "rigd opens them under its estate's state directory; an unnamed estate keeps its log in memory only",
+	})
+	return true
+}
+
+func (d *Daemon) serveLogsCoverage(c *conn, f *rigv1.Frame) {
+	var req registryv1.LogsCoverageRequest
+	if !unmarshalOr(c, f, "logs.coverage", &req) || d.noLogStore(c, f, "logs.coverage") {
+		return
+	}
+	id := f.GetStreamId()
+	gaps, err := d.logs.Coverage(req.GetSinceUnixNanos(), req.GetUntilUnixNanos(), logsReader(c))
+	if err != nil {
+		c.fail(id, rigv1.Code_CODE_INTERNAL, "rig.logs.coverage: "+err.Error())
+		return
+	}
+	segs, err := d.logs.Segments()
+	if err != nil {
+		c.fail(id, rigv1.Code_CODE_INTERNAL, "rig.logs.coverage: "+err.Error())
+		return
+	}
+	resp := &registryv1.LogsCoverageResponse{Gaps: logsAnswer(observe.Result{Gaps: gaps}).GetGaps()}
+	for _, g := range segs {
+		resp.Bytes += uint64(max(g.Bytes, 0))
+		resp.Segments = append(resp.Segments, &registryv1.LogSegment{
+			Id: g.ID, Bytes: uint64(max(g.Bytes, 0)), ModifiedUnixNanos: g.Modified,
+			Compressed: g.Compressed, Archived: g.Archived, Pinned: g.Pinned, Open: g.Open,
+		})
+	}
+	c.reply(id, resp)
+}
+
+func (d *Daemon) serveLogsPin(c *conn, f *rigv1.Frame) {
+	var req registryv1.LogsPinRequest
+	if !unmarshalOr(c, f, "logs.pin", &req) || d.noLogStore(c, f, "logs.pin") {
+		return
+	}
+	id := f.GetStreamId()
+	if !c.principal().Introspect {
+		c.fail(id, rigv1.Code_CODE_DENIED, "rig.logs.pin: a segment holds every client's records, so only a caller that may read them all can pin one")
+		return
+	}
+	changed, err := d.logs.Pin(req.GetSegment(), !req.GetUnpin())
+	switch {
+	case errors.Is(err, observe.ErrNoSegment):
+		c.failStatus(id, &rigv1.Status{
+			Code:    rigv1.Code_CODE_NOT_FOUND,
+			Message: fmt.Sprintf("rig.logs.pin: the store holds no segment %d", req.GetSegment()),
+			Fix:     "rig logs coverage lists the segments by id",
+		})
+		return
+	case err != nil:
+		c.fail(id, rigv1.Code_CODE_INTERNAL, "rig.logs.pin: "+err.Error())
+		return
+	}
+	d.log.Info("log segment pin changed", "segment", req.GetSegment(), "pinned", !req.GetUnpin(), "changed", changed)
+	c.reply(id, &registryv1.LogsPinResponse{Changed: changed})
 }

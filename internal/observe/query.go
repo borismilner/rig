@@ -101,7 +101,7 @@ func (s *Store) query(q *Query) (Result, <-chan struct{}, error) {
 			return Result{}, wake, err
 		}
 		if q.After+1 < oldest {
-			if out, err = scanDisk(filepath.Join(dir, "segments"), q, oldest); err != nil {
+			if out, err = scanDisk(dir, q, oldest); err != nil {
 				return Result{}, wake, err
 			}
 		}
@@ -160,28 +160,35 @@ func keepNewest(rs []Record, limit, maxBytes int) ([]Record, bool) {
 }
 
 // scanDisk reads the matching records older than the ring's oldest from the
-// segments that can hold any after the cursor.
+// segments, live and archived, that can hold any after the cursor. A
+// segment retention moved or compressed while it was being read is read
+// again from a fresh listing, once.
 func scanDisk(dir string, q *Query, ringOldest uint64) ([]Record, error) {
-	names, err := segments(dir)
+	out, err := scanOnce(dir, q, ringOldest)
+	if errors.Is(err, fs.ErrNotExist) {
+		out, err = scanOnce(dir, q, ringOldest)
+	}
+	return out, err
+}
+
+func scanOnce(dir string, q *Query, ringOldest uint64) ([]Record, error) {
+	segs, err := listSegments(dir)
 	if err != nil {
 		return nil, err
 	}
 	var out []Record
-	for i, name := range names {
+	for i, g := range segs {
 		// The next segment's first seq bounds this one's last.
-		if i+1 < len(names) && segmentFirst(names[i+1]) <= q.After+1 {
+		if i+1 < len(segs) && segs[i+1].ID <= q.After+1 {
 			continue
 		}
-		if segmentFirst(name) >= ringOldest {
+		if g.ID >= ringOldest {
 			break
 		}
-		path := filepath.Join(dir, name)
-		if q.Since != 0 {
-			if st, err := os.Stat(path); err == nil && st.ModTime().UnixNano() < q.Since {
-				continue // nothing in it was written after since
-			}
+		if q.Since != 0 && g.Modified < q.Since {
+			continue // nothing in it was written after since
 		}
-		err := scanSegment(path, func(r *Record) bool {
+		err := scanSegment(g.Path, func(r *Record) bool {
 			if r.Seq >= ringOldest {
 				return false
 			}
@@ -235,4 +242,29 @@ func (s *Store) Wait(ctx context.Context, q Query, timeout time.Duration) (Resul
 			return res, ctx.Err()
 		}
 	}
+}
+
+// Coverage is every gap over [since, until] that allow admits, the open
+// sampled bands included, without reading a record (decision 10). As in a
+// query, an attached store's gaps are the coverage log's, this run's too.
+func (s *Store) Coverage(since, until int64, allow func(string) bool) ([]Gap, error) {
+	q := Query{Since: since, Until: until, Allow: allow}
+	s.mu.Lock()
+	dir := s.dir
+	gaps := slices.Clone(s.gaps)
+	open := s.openBandsLocked()
+	s.mu.Unlock()
+	if dir != "" {
+		var err error
+		if gaps, err = readCoverage(filepath.Join(dir, "coverage.jsonl")); err != nil {
+			return nil, err
+		}
+	}
+	var out []Gap
+	for _, g := range append(gaps, open...) {
+		if q.overlaps(&g) {
+			out = append(out, g)
+		}
+	}
+	return out, nil
 }

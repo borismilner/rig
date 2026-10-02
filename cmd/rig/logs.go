@@ -8,6 +8,7 @@ import (
 	"maps"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,7 +19,9 @@ import (
 // every program, time-ordered by each record's own clock, with every gap the
 // store knows of drawn as a band rather than left out.
 
-const logsUsage = "usage: rig logs [--since D|T] [--until D|T] [--client X]... [--level L] [--grep RE] [--limit N] [-f] [--json]"
+const logsUsage = "usage: rig logs [--since D|T] [--until D|T] [--client X]... [--level L] [--grep RE] [--limit N] [-f] [--json]\n" +
+	"       rig logs coverage [--since D|T] [--until D|T] [--json]\n" +
+	"       rig logs pin|unpin SEGMENT [--json]"
 
 // maxLogsFollowWaitMs is one parked call of -f; rigd's own bound is 60 s.
 const maxLogsFollowWaitMs = 30_000
@@ -62,7 +65,7 @@ func cmdLogs(args []string) (err error) {
 	}
 	defer func() { err = inMode(err, *l.asJSON) }()
 	if len(positional) > 0 {
-		return badArgumentf(logsUsage)
+		return logsSub(l, positional)
 	}
 	req, err := l.request(time.Now())
 	if err != nil {
@@ -247,4 +250,130 @@ func gapJSON(g *registryv1.GapBand) map[string]any {
 		"to":     time.Unix(0, g.GetToUnixNanos()).UTC().Format(time.RFC3339Nano),
 		"client": g.GetClient(), "cause": g.GetCause(), "retained": g.GetRetained(), "total": g.GetTotal(),
 	}
+}
+
+// logsSub is decision 11's two retention verbs: what the store holds and
+// where its holes are, and a pin that keeps one segment past both ceilings.
+func logsSub(l *logsFlags, positional []string) error {
+	switch {
+	case positional[0] == "coverage" && len(positional) == 1:
+		return logsCoverage(l)
+	case (positional[0] == "pin" || positional[0] == "unpin") && len(positional) == 2:
+		id, err := strconv.ParseUint(positional[1], 10, 64)
+		if err != nil {
+			return badArgumentf("rig logs %s: a segment is its number, as rig logs coverage shows it, not %q",
+				positional[0], positional[1])
+		}
+		return logsPin(id, positional[0] == "unpin", *l.asJSON)
+	}
+	return badArgumentf(logsUsage)
+}
+
+func logsCoverage(l *logsFlags) error {
+	if len(l.clients.v) > 0 || *l.grep != "" || *l.limit != 0 || *l.follow {
+		return badArgumentf("rig logs coverage takes --since, --until and --json only")
+	}
+	now := time.Now()
+	req := &registryv1.LogsCoverageRequest{}
+	var err error
+	if req.SinceUnixNanos, err = logsTime(*l.since, now); err != nil {
+		return badArgumentf("rig logs coverage: --since %s", err)
+	}
+	if req.UntilUnixNanos, err = logsTime(*l.until, now); err != nil {
+		return badArgumentf("rig logs coverage: --until %s", err)
+	}
+	c, err := connect()
+	if err != nil {
+		return noDaemon(err)
+	}
+	defer c.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), defaultCallTimeout)
+	defer cancel()
+	var resp registryv1.LogsCoverageResponse
+	if err := call(ctx, c, "rig.logs.coverage", req, &resp); err != nil {
+		return err
+	}
+	if *l.asJSON {
+		segs := make([]map[string]any, 0, len(resp.GetSegments()))
+		for _, g := range resp.GetSegments() {
+			segs = append(segs, map[string]any{
+				"id": g.GetId(), sizeKey: g.GetBytes(), "compressed": g.GetCompressed(), "archived": g.GetArchived(),
+				"pinned": g.GetPinned(), "open": g.GetOpen(),
+				"modified": time.Unix(0, g.GetModifiedUnixNanos()).UTC().Format(time.RFC3339Nano),
+			})
+		}
+		gaps := make([]map[string]any, 0, len(resp.GetGaps()))
+		for _, g := range resp.GetGaps() {
+			gaps = append(gaps, gapJSON(g))
+		}
+		return json.NewEncoder(os.Stdout).Encode(map[string]any{"segments": segs, "gaps": gaps, sizeKey: resp.GetBytes()})
+	}
+	printCoverage(&resp)
+	return nil
+}
+
+func printCoverage(resp *registryv1.LogsCoverageResponse) {
+	fmt.Printf("%-12s %10s  %-19s  %s\n", "SEGMENT", "SIZE", "LAST WRITTEN", "STATE")
+	for _, g := range resp.GetSegments() {
+		var state []string
+		for _, f := range []struct {
+			on   bool
+			name string
+		}{{g.GetOpen(), "open"}, {g.GetCompressed(), "compressed"}, {g.GetArchived(), "archived"}, {g.GetPinned(), "pinned"}} {
+			if f.on {
+				state = append(state, f.name)
+			}
+		}
+		fmt.Printf("%-12d %10s  %-19s  %s\n", g.GetId(), sizeOf(g.GetBytes()),
+			time.Unix(0, g.GetModifiedUnixNanos()).Format(time.DateTime), strings.Join(state, ", "))
+	}
+	fmt.Printf("%d segments and the blob area, %s on disk\n", len(resp.GetSegments()), sizeOf(resp.GetBytes()))
+	if len(resp.GetGaps()) == 0 {
+		fmt.Println("no gaps in the range")
+	}
+	for _, g := range resp.GetGaps() {
+		printGap(g)
+	}
+}
+
+// sizeKey is the JSON name of a size in bytes, as the other verbs emit it.
+const sizeKey = "bytes"
+
+// sizeOf is a size in the largest binary unit it fills.
+func sizeOf(n uint64) string {
+	switch {
+	case n >= 1<<30:
+		return fmt.Sprintf("%.1f GiB", float64(n)/(1<<30))
+	case n >= 1<<20:
+		return fmt.Sprintf("%.1f MiB", float64(n)/(1<<20))
+	case n >= 1<<10:
+		return fmt.Sprintf("%.1f KiB", float64(n)/(1<<10))
+	}
+	return fmt.Sprintf("%d B", n)
+}
+
+func logsPin(id uint64, unpin, asJSON bool) error {
+	c, err := connect()
+	if err != nil {
+		return noDaemon(err)
+	}
+	defer c.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), defaultCallTimeout)
+	defer cancel()
+	var resp registryv1.LogsPinResponse
+	if err := call(ctx, c, "rig.logs.pin", &registryv1.LogsPinRequest{Segment: id, Unpin: unpin}, &resp); err != nil {
+		return err
+	}
+	if asJSON {
+		return json.NewEncoder(os.Stdout).Encode(map[string]any{"segment": id, "pinned": !unpin, "changed": resp.GetChanged()})
+	}
+	verb := "pinned: kept past the age and size ceilings"
+	if unpin {
+		verb = "unpinned: the ceilings apply to it again"
+	}
+	if !resp.GetChanged() {
+		verb = "already " + strings.SplitN(verb, ":", 2)[0]
+	}
+	fmt.Printf("segment %d %s\n", id, verb)
+	return nil
 }

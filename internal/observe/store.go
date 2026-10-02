@@ -11,13 +11,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
-	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -32,11 +31,6 @@ const (
 	// gives no number; these are the seat's.
 	DefaultRateRecords = 1000
 	DefaultRateBurst   = 5000
-
-	// segmentBytes is where a segment rotates. Not a setting: retention is
-	// by total bytes (logs.retention.bytes, slice 4), and this only decides
-	// how finely that is cut.
-	segmentBytes = 16 << 20
 
 	// The record caps keep one record well inside a 1 MiB frame and a
 	// bufio line.
@@ -58,6 +52,11 @@ const KindAudit = "audit"
 
 // sampleWindow is how long one sampled band runs before it is written.
 const sampleWindow = time.Second
+
+// segmentBytes is where a segment rotates. Not a setting: retention is by
+// total bytes (logs.retention.bytes), and this only decides how finely that
+// is cut. A variable so a test can rotate without writing 16 MiB.
+var segmentBytes int64 = 16 << 20
 
 // Record is one log record. Attrs are flattened, groups joined with ".".
 type Record struct {
@@ -127,7 +126,11 @@ type Options struct {
 	PayloadCap  int // a call payload inline up to this, else in the blob area
 	RateRecords int // per client per second, past the burst
 	RateBurst   int
-	Now         func() time.Time
+	// The size and age ceilings (retention.go); zero takes the defaults.
+	RetainBytes  int64
+	ArchiveAfter time.Duration
+	DeleteAfter  time.Duration
+	Now          func() time.Time
 }
 
 // Store is the estate's log store. It starts in memory; Attach gives it a
@@ -155,11 +158,18 @@ type Store struct {
 	timer    *time.Timer
 	kicked   bool // a flush past FlushBytes is already on its way
 	seg      *os.File
+	segID    uint64 // the open segment's first seq; under wmu
 	segSize  int64
 	writeErr error // the latest write failure, until one succeeds
 	closed   bool
 
 	blobs blobArea
+
+	// retention: rmu is held across a pass, which never takes wmu.
+	rmu         sync.Mutex
+	retainAgain atomic.Bool
+	retainErr   error // under mu
+	retainTick  *time.Timer
 
 	buckets map[string]*bucket // the rate ceiling's, per client
 }
@@ -223,7 +233,22 @@ func (s *Store) Attach(dir string) error {
 		return err
 	}
 	s.flush()
+	s.kickRetain()
+	s.armRetain()
 	return s.WriteErr()
+}
+
+// armRetain checks age hourly between rotations, until Close.
+func (s *Store) armRetain() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return
+	}
+	s.retainTick = time.AfterFunc(retainEvery, func() {
+		s.kickRetain()
+		s.armRetain()
+	})
 }
 
 func (s *Store) attach(dir string) error {
@@ -236,7 +261,7 @@ func (s *Store) attach(dir string) error {
 	if err := os.MkdirAll(segs, 0o700); err != nil {
 		return err
 	}
-	last, err := lastOnDisk(segs)
+	last, err := lastOnDisk(dir)
 	if err != nil {
 		return err
 	}
@@ -265,15 +290,16 @@ func (s *Store) attach(dir string) error {
 	return nil
 }
 
-// lastOnDisk is the newest whole record in the newest segment that has one.
+// lastOnDisk is the newest whole record in the newest segment that has one,
+// live or archived.
 func lastOnDisk(dir string) (Record, error) {
-	names, err := segments(dir)
+	segs, err := listSegments(dir)
 	if err != nil {
 		return Record{}, err
 	}
-	for _, name := range slices.Backward(names) {
+	for _, g := range slices.Backward(segs) {
 		var last Record
-		err := scanSegment(filepath.Join(dir, name), func(r *Record) bool {
+		err := scanSegment(g.Path, func(r *Record) bool {
 			last = *r
 			return true
 		})
@@ -287,38 +313,13 @@ func lastOnDisk(dir string) (Record, error) {
 	return Record{}, nil
 }
 
-// segments lists the segment files, oldest first. A name is the first seq
-// it holds, zero-padded, so the names sort as the sequence does.
-func segments(dir string) ([]string, error) {
-	ents, err := os.ReadDir(dir)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	var out []string
-	for _, e := range ents {
-		if e.Type().IsRegular() && strings.HasSuffix(e.Name(), ".jsonl") {
-			out = append(out, e.Name())
-		}
-	}
-	slices.Sort(out)
-	return out, nil
-}
-
 func segmentName(firstSeq uint64) string { return fmt.Sprintf("%020d.jsonl", firstSeq) }
-
-func segmentFirst(name string) uint64 {
-	n, _ := strconv.ParseUint(strings.TrimSuffix(name, ".jsonl"), 10, 64)
-	return n
-}
 
 // scanSegment calls fn for each whole record in a segment. A torn line, the
 // tail of a write cut short by a crash, is skipped: the unclean-close gap
 // already covers it.
 func scanSegment(path string, fn func(*Record) bool) error {
-	f, err := os.Open(path)
+	f, err := openSegment(path)
 	if err != nil {
 		return err
 	}
@@ -598,7 +599,7 @@ func (s *Store) write(segs string, batch []Record) error {
 		if err != nil {
 			return err
 		}
-		s.seg, s.segSize = f, 0
+		s.seg, s.segID, s.segSize = f, batch[0].Seq, 0
 	}
 	n, err := s.seg.Write(s.buf)
 	s.segSize += int64(n)
@@ -611,6 +612,7 @@ func (s *Store) write(segs string, batch []Record) error {
 	if err == nil && s.segSize >= segmentBytes {
 		err = s.seg.Close()
 		s.seg = nil
+		s.kickRetain() // compress the segment just closed, and apply the ceilings
 	}
 	return err
 }
@@ -646,6 +648,9 @@ func (s *Store) Close() error {
 	}
 	s.settleLocked(true)
 	s.closed = true
+	if s.retainTick != nil {
+		s.retainTick.Stop()
+	}
 	if s.wake != nil {
 		close(s.wake)
 		s.wake = nil
@@ -653,6 +658,8 @@ func (s *Store) Close() error {
 	s.mu.Unlock()
 
 	s.flush()
+	s.rmu.Lock() // a retention pass running finishes first
+	defer s.rmu.Unlock()
 	s.wmu.Lock()
 	defer s.wmu.Unlock()
 	s.mu.Lock()

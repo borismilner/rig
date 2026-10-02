@@ -4612,6 +4612,320 @@ func (x *LogsIngestResponse) GetSampled() uint32 {
 	return 0
 }
 
+// LogSegment is one segment file of the store, live or archived.
+type LogSegment struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Its first seq, and the name rig.logs.pin takes.
+	Id    uint64 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Bytes uint64 `protobuf:"varint,2,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	// When it was last written; age is counted from here.
+	ModifiedUnixNanos int64 `protobuf:"varint,3,opt,name=modified_unix_nanos,json=modifiedUnixNanos,proto3" json:"modified_unix_nanos,omitempty"`
+	Compressed        bool  `protobuf:"varint,4,opt,name=compressed,proto3" json:"compressed,omitempty"`
+	// Moved to archive/ at a month; still read.
+	Archived bool `protobuf:"varint,5,opt,name=archived,proto3" json:"archived,omitempty"`
+	// Kept past the age and size ceilings.
+	Pinned bool `protobuf:"varint,6,opt,name=pinned,proto3" json:"pinned,omitempty"`
+	// The segment being written.
+	Open          bool `protobuf:"varint,7,opt,name=open,proto3" json:"open,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogSegment) Reset() {
+	*x = LogSegment{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[63]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogSegment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogSegment) ProtoMessage() {}
+
+func (x *LogSegment) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[63]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogSegment.ProtoReflect.Descriptor instead.
+func (*LogSegment) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{63}
+}
+
+func (x *LogSegment) GetId() uint64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *LogSegment) GetBytes() uint64 {
+	if x != nil {
+		return x.Bytes
+	}
+	return 0
+}
+
+func (x *LogSegment) GetModifiedUnixNanos() int64 {
+	if x != nil {
+		return x.ModifiedUnixNanos
+	}
+	return 0
+}
+
+func (x *LogSegment) GetCompressed() bool {
+	if x != nil {
+		return x.Compressed
+	}
+	return false
+}
+
+func (x *LogSegment) GetArchived() bool {
+	if x != nil {
+		return x.Archived
+	}
+	return false
+}
+
+func (x *LogSegment) GetPinned() bool {
+	if x != nil {
+		return x.Pinned
+	}
+	return false
+}
+
+func (x *LogSegment) GetOpen() bool {
+	if x != nil {
+		return x.Open
+	}
+	return false
+}
+
+// LogsCoverageRequest asks what the store holds over a range, so a view can
+// state what it does not know before it answers (decision 10).
+type LogsCoverageRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 0 is open-ended on that side.
+	SinceUnixNanos int64 `protobuf:"varint,1,opt,name=since_unix_nanos,json=sinceUnixNanos,proto3" json:"since_unix_nanos,omitempty"`
+	UntilUnixNanos int64 `protobuf:"varint,2,opt,name=until_unix_nanos,json=untilUnixNanos,proto3" json:"until_unix_nanos,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *LogsCoverageRequest) Reset() {
+	*x = LogsCoverageRequest{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[64]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogsCoverageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogsCoverageRequest) ProtoMessage() {}
+
+func (x *LogsCoverageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[64]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogsCoverageRequest.ProtoReflect.Descriptor instead.
+func (*LogsCoverageRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{64}
+}
+
+func (x *LogsCoverageRequest) GetSinceUnixNanos() int64 {
+	if x != nil {
+		return x.SinceUnixNanos
+	}
+	return 0
+}
+
+func (x *LogsCoverageRequest) GetUntilUnixNanos() int64 {
+	if x != nil {
+		return x.UntilUnixNanos
+	}
+	return 0
+}
+
+type LogsCoverageResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Every gap over the range that the caller may read.
+	Gaps []*GapBand `protobuf:"bytes,1,rep,name=gaps,proto3" json:"gaps,omitempty"`
+	// The store's segments, oldest first, and their total size.
+	Segments      []*LogSegment `protobuf:"bytes,2,rep,name=segments,proto3" json:"segments,omitempty"`
+	Bytes         uint64        `protobuf:"varint,3,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogsCoverageResponse) Reset() {
+	*x = LogsCoverageResponse{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[65]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogsCoverageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogsCoverageResponse) ProtoMessage() {}
+
+func (x *LogsCoverageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[65]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogsCoverageResponse.ProtoReflect.Descriptor instead.
+func (*LogsCoverageResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{65}
+}
+
+func (x *LogsCoverageResponse) GetGaps() []*GapBand {
+	if x != nil {
+		return x.Gaps
+	}
+	return nil
+}
+
+func (x *LogsCoverageResponse) GetSegments() []*LogSegment {
+	if x != nil {
+		return x.Segments
+	}
+	return nil
+}
+
+func (x *LogsCoverageResponse) GetBytes() uint64 {
+	if x != nil {
+		return x.Bytes
+	}
+	return 0
+}
+
+// LogsPinRequest keeps one segment past the age and size ceilings, or
+// releases it (decision 11, section 7's minimal pin).
+type LogsPinRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Segment       uint64                 `protobuf:"varint,1,opt,name=segment,proto3" json:"segment,omitempty"`
+	Unpin         bool                   `protobuf:"varint,2,opt,name=unpin,proto3" json:"unpin,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogsPinRequest) Reset() {
+	*x = LogsPinRequest{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[66]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogsPinRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogsPinRequest) ProtoMessage() {}
+
+func (x *LogsPinRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[66]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogsPinRequest.ProtoReflect.Descriptor instead.
+func (*LogsPinRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{66}
+}
+
+func (x *LogsPinRequest) GetSegment() uint64 {
+	if x != nil {
+		return x.Segment
+	}
+	return 0
+}
+
+func (x *LogsPinRequest) GetUnpin() bool {
+	if x != nil {
+		return x.Unpin
+	}
+	return false
+}
+
+type LogsPinResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// False when it was already as asked.
+	Changed       bool `protobuf:"varint,1,opt,name=changed,proto3" json:"changed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogsPinResponse) Reset() {
+	*x = LogsPinResponse{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[67]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogsPinResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogsPinResponse) ProtoMessage() {}
+
+func (x *LogsPinResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[67]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogsPinResponse.ProtoReflect.Descriptor instead.
+func (*LogsPinResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{67}
+}
+
+func (x *LogsPinResponse) GetChanged() bool {
+	if x != nil {
+		return x.Changed
+	}
+	return false
+}
+
 var File_proto_rig_v1_registry_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_registry_proto_rawDesc = "" +
@@ -4907,7 +5221,30 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\x0edropped_before\x18\x02 \x01(\rR\rdroppedBefore\"J\n" +
 	"\x12LogsIngestResponse\x12\x1a\n" +
 	"\baccepted\x18\x01 \x01(\rR\baccepted\x12\x18\n" +
-	"\asampled\x18\x02 \x01(\rR\asampled*V\n" +
+	"\asampled\x18\x02 \x01(\rR\asampled\"\xca\x01\n" +
+	"\n" +
+	"LogSegment\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x14\n" +
+	"\x05bytes\x18\x02 \x01(\x04R\x05bytes\x12.\n" +
+	"\x13modified_unix_nanos\x18\x03 \x01(\x03R\x11modifiedUnixNanos\x12\x1e\n" +
+	"\n" +
+	"compressed\x18\x04 \x01(\bR\n" +
+	"compressed\x12\x1a\n" +
+	"\barchived\x18\x05 \x01(\bR\barchived\x12\x16\n" +
+	"\x06pinned\x18\x06 \x01(\bR\x06pinned\x12\x12\n" +
+	"\x04open\x18\a \x01(\bR\x04open\"i\n" +
+	"\x13LogsCoverageRequest\x12(\n" +
+	"\x10since_unix_nanos\x18\x01 \x01(\x03R\x0esinceUnixNanos\x12(\n" +
+	"\x10until_unix_nanos\x18\x02 \x01(\x03R\x0euntilUnixNanos\"\x81\x01\n" +
+	"\x14LogsCoverageResponse\x12#\n" +
+	"\x04gaps\x18\x01 \x03(\v2\x0f.rig.v1.GapBandR\x04gaps\x12.\n" +
+	"\bsegments\x18\x02 \x03(\v2\x12.rig.v1.LogSegmentR\bsegments\x12\x14\n" +
+	"\x05bytes\x18\x03 \x01(\x04R\x05bytes\"@\n" +
+	"\x0eLogsPinRequest\x12\x18\n" +
+	"\asegment\x18\x01 \x01(\x04R\asegment\x12\x14\n" +
+	"\x05unpin\x18\x02 \x01(\bR\x05unpin\"+\n" +
+	"\x0fLogsPinResponse\x12\x18\n" +
+	"\achanged\x18\x01 \x01(\bR\achanged*V\n" +
 	"\x05Depth\x12\x15\n" +
 	"\x11DEPTH_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eDEPTH_PROGRAMS\x10\x01\x12\x12\n" +
@@ -4977,7 +5314,7 @@ func file_proto_rig_v1_registry_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_registry_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
-var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 66)
+var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 71)
 var file_proto_rig_v1_registry_proto_goTypes = []any{
 	(Depth)(0),                    // 0: rig.v1.Depth
 	(EstateRole)(0),               // 1: rig.v1.EstateRole
@@ -5051,17 +5388,22 @@ var file_proto_rig_v1_registry_proto_goTypes = []any{
 	(*LogsQueryResponse)(nil),     // 69: rig.v1.LogsQueryResponse
 	(*LogsIngestRequest)(nil),     // 70: rig.v1.LogsIngestRequest
 	(*LogsIngestResponse)(nil),    // 71: rig.v1.LogsIngestResponse
-	nil,                           // 72: rig.v1.ConfigSetRequest.ValuesJsonEntry
-	nil,                           // 73: rig.v1.ConfigSetResponse.OutcomeEntry
-	nil,                           // 74: rig.v1.LogRecord.AttrsEntry
-	(*v1.Identity)(nil),           // 75: rig.v1.Identity
-	(v1.Coverage)(0),              // 76: rig.v1.Coverage
-	(*v1.Command)(nil),            // 77: rig.v1.Command
+	(*LogSegment)(nil),            // 72: rig.v1.LogSegment
+	(*LogsCoverageRequest)(nil),   // 73: rig.v1.LogsCoverageRequest
+	(*LogsCoverageResponse)(nil),  // 74: rig.v1.LogsCoverageResponse
+	(*LogsPinRequest)(nil),        // 75: rig.v1.LogsPinRequest
+	(*LogsPinResponse)(nil),       // 76: rig.v1.LogsPinResponse
+	nil,                           // 77: rig.v1.ConfigSetRequest.ValuesJsonEntry
+	nil,                           // 78: rig.v1.ConfigSetResponse.OutcomeEntry
+	nil,                           // 79: rig.v1.LogRecord.AttrsEntry
+	(*v1.Identity)(nil),           // 80: rig.v1.Identity
+	(v1.Coverage)(0),              // 81: rig.v1.Coverage
+	(*v1.Command)(nil),            // 82: rig.v1.Command
 }
 var file_proto_rig_v1_registry_proto_depIdxs = []int32{
-	75, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
-	76, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
-	77, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
+	80, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
+	81, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
+	82, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
 	0,  // 3: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
 	9,  // 4: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
 	1,  // 5: rig.v1.EstateResponse.role:type_name -> rig.v1.EstateRole
@@ -5092,17 +5434,19 @@ var file_proto_rig_v1_registry_proto_depIdxs = []int32{
 	60, // 30: rig.v1.ConfigValue.winner:type_name -> rig.v1.ConfigLayerValue
 	60, // 31: rig.v1.ConfigValue.losers:type_name -> rig.v1.ConfigLayerValue
 	61, // 32: rig.v1.ConfigGetResponse.values:type_name -> rig.v1.ConfigValue
-	72, // 33: rig.v1.ConfigSetRequest.values_json:type_name -> rig.v1.ConfigSetRequest.ValuesJsonEntry
-	73, // 34: rig.v1.ConfigSetResponse.outcome:type_name -> rig.v1.ConfigSetResponse.OutcomeEntry
-	74, // 35: rig.v1.LogRecord.attrs:type_name -> rig.v1.LogRecord.AttrsEntry
+	77, // 33: rig.v1.ConfigSetRequest.values_json:type_name -> rig.v1.ConfigSetRequest.ValuesJsonEntry
+	78, // 34: rig.v1.ConfigSetResponse.outcome:type_name -> rig.v1.ConfigSetResponse.OutcomeEntry
+	79, // 35: rig.v1.LogRecord.attrs:type_name -> rig.v1.LogRecord.AttrsEntry
 	66, // 36: rig.v1.LogsQueryResponse.records:type_name -> rig.v1.LogRecord
 	67, // 37: rig.v1.LogsQueryResponse.gaps:type_name -> rig.v1.GapBand
 	66, // 38: rig.v1.LogsIngestRequest.records:type_name -> rig.v1.LogRecord
-	39, // [39:39] is the sub-list for method output_type
-	39, // [39:39] is the sub-list for method input_type
-	39, // [39:39] is the sub-list for extension type_name
-	39, // [39:39] is the sub-list for extension extendee
-	0,  // [0:39] is the sub-list for field type_name
+	67, // 39: rig.v1.LogsCoverageResponse.gaps:type_name -> rig.v1.GapBand
+	72, // 40: rig.v1.LogsCoverageResponse.segments:type_name -> rig.v1.LogSegment
+	41, // [41:41] is the sub-list for method output_type
+	41, // [41:41] is the sub-list for method input_type
+	41, // [41:41] is the sub-list for extension type_name
+	41, // [41:41] is the sub-list for extension extendee
+	0,  // [0:41] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_registry_proto_init() }
@@ -5116,7 +5460,7 @@ func file_proto_rig_v1_registry_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_registry_proto_rawDesc), len(file_proto_rig_v1_registry_proto_rawDesc)),
 			NumEnums:      9,
-			NumMessages:   66,
+			NumMessages:   71,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

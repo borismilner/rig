@@ -75,6 +75,8 @@ var bridged = map[string]struct {
 	"config.get":        {func() proto.Message { return &registryv1.ConfigGetRequest{} }, func() proto.Message { return &registryv1.ConfigGetResponse{} }},
 	"logs.query":        {func() proto.Message { return &registryv1.LogsQueryRequest{} }, func() proto.Message { return &registryv1.LogsQueryResponse{} }},
 	"logs.ingest":       {func() proto.Message { return &registryv1.LogsIngestRequest{} }, func() proto.Message { return &registryv1.LogsIngestResponse{} }},
+	"logs.coverage":     {func() proto.Message { return &registryv1.LogsCoverageRequest{} }, func() proto.Message { return &registryv1.LogsCoverageResponse{} }},
+	"logs.pin":          {func() proto.Message { return &registryv1.LogsPinRequest{} }, func() proto.Message { return &registryv1.LogsPinResponse{} }},
 	"config.set":        {func() proto.Message { return &registryv1.ConfigSetRequest{} }, func() proto.Message { return &registryv1.ConfigSetResponse{} }},
 	"timer.arm":         {func() proto.Message { return &registryv1.TimerArmRequest{} }, func() proto.Message { return &registryv1.TimerArmResponse{} }},
 	"timer.disarm":      {func() proto.Message { return &registryv1.TimerDisarmRequest{} }, func() proto.Message { return &registryv1.TimerDisarmResponse{} }},

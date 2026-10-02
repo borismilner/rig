@@ -1,0 +1,5 @@
+$ rig logs pin seven
+exit 1
+--- stdout (0 bytes)
+--- stderr (87 bytes)
+rig: rig logs pin: a segment is its number, as rig logs coverage shows it, not "seven"

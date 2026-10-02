@@ -839,3 +839,47 @@ message LogsIngestResponse {
   // coverage log carries the band, so counts stay correct.
   uint32 sampled = 2;
 }
+
+// LogSegment is one segment file of the store, live or archived.
+message LogSegment {
+  // Its first seq, and the name rig.logs.pin takes.
+  uint64 id = 1;
+  uint64 bytes = 2;
+  // When it was last written; age is counted from here.
+  int64 modified_unix_nanos = 3;
+  bool compressed = 4;
+  // Moved to archive/ at a month; still read.
+  bool archived = 5;
+  // Kept past the age and size ceilings.
+  bool pinned = 6;
+  // The segment being written.
+  bool open = 7;
+}
+
+// LogsCoverageRequest asks what the store holds over a range, so a view can
+// state what it does not know before it answers (decision 10).
+message LogsCoverageRequest {
+  // 0 is open-ended on that side.
+  int64 since_unix_nanos = 1;
+  int64 until_unix_nanos = 2;
+}
+
+message LogsCoverageResponse {
+  // Every gap over the range that the caller may read.
+  repeated GapBand gaps = 1;
+  // The store's segments, oldest first, and their total size.
+  repeated LogSegment segments = 2;
+  uint64 bytes = 3;
+}
+
+// LogsPinRequest keeps one segment past the age and size ceilings, or
+// releases it (decision 11, section 7's minimal pin).
+message LogsPinRequest {
+  uint64 segment = 1;
+  bool unpin = 2;
+}
+
+message LogsPinResponse {
+  // False when it was already as asked.
+  bool changed = 1;
+}

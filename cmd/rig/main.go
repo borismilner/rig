@@ -226,7 +226,8 @@ func usage() {
   config <cmd>     rig's settings and where each came from: get, origin,
                    set (until restart), export, diff
   logs             the estate's log, rigd and every program merged by
-                   time, gaps shown: --since 1h, --client X, -f follows
+                   time, gaps shown: --since 1h, --client X, -f follows;
+                   coverage, pin and unpin for what the store keeps
   logbook <cmd>    the split logbook's files, no daemon needed: grep, show,
                    line, cat, add, index, check, split
   record <cmd>     the continuity record: put, get, query, history, link,

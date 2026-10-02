@@ -19,8 +19,9 @@ const KindCall = "call"
 // DefaultPayloadCap is decision 7's inline cap, logs.call.payload_cap.
 const DefaultPayloadCap = 4096
 
-// blobBytes is where a blob file rotates.
-const blobBytes = 16 << 20
+// blobBytes is where a blob file rotates; a variable for the tests, as
+// segmentBytes is.
+var blobBytes int64 = 16 << 20
 
 // Call is one dispatched call, its payloads already redacted by the caller.
 // A payload with no pointer space arrives with Opaque set and nil bytes:

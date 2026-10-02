@@ -206,8 +206,8 @@ func TestATornLastLineIsSkippedNotFatal(t *testing.T) {
 	s, dir := attached(t, Options{})
 	s.Append(Record{At: 1, Client: "rigd", Message: "whole"})
 	_ = s.Close()
-	names, _ := segments(filepath.Join(dir, "segments"))
-	f, err := os.OpenFile(filepath.Join(dir, "segments", names[0]), os.O_WRONLY|os.O_APPEND, 0)
+	segs, _ := listSegments(dir)
+	f, err := os.OpenFile(segs[0].Path, os.O_WRONLY|os.O_APPEND, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,7 +231,7 @@ func TestTheFirstRecordArmsTheFlush(t *testing.T) {
 	s.Append(Record{At: 1, Client: "rigd", Message: "x"})
 	deadline := time.Now().Add(2 * time.Second)
 	for {
-		last, _ := lastOnDisk(filepath.Join(dir, "segments"))
+		last, _ := lastOnDisk(dir)
 		if last.Seq == 1 {
 			return
 		}

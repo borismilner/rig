@@ -1,0 +1,5 @@
+$ rig logs coverage --client rigd
+exit 1
+--- stdout (0 bytes)
+--- stderr (62 bytes)
+rig: rig logs coverage takes --since, --until and --json only

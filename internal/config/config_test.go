@@ -36,12 +36,15 @@ func TestRigsSchemaDeclaresItsKeys(t *testing.T) {
 	}
 	want := []string{
 		"display.name RIG_DISPLAY_NAME display-name live", "log.level RIG_LOG_LEVEL log-level live",
+		"logs.archive.days RIG_LOGS_ARCHIVE_DAYS logs-archive-days restart",
 		"logs.buffer.bytes RIG_LOGS_BUFFER_BYTES logs-buffer-bytes restart",
 		"logs.call.payload.cap RIG_LOGS_CALL_PAYLOAD_CAP logs-call-payload-cap restart",
+		"logs.delete.days RIG_LOGS_DELETE_DAYS logs-delete-days restart",
 		"logs.flush.bytes RIG_LOGS_FLUSH_BYTES logs-flush-bytes restart",
 		"logs.flush.ms RIG_LOGS_FLUSH_MS logs-flush-ms restart",
 		"logs.rate.burst RIG_LOGS_RATE_BURST logs-rate-burst restart",
 		"logs.rate.records RIG_LOGS_RATE_RECORDS logs-rate-records restart",
+		"logs.retention.bytes RIG_LOGS_RETENTION_BYTES logs-retention-bytes restart",
 	}
 	if !slices.Equal(names, want) {
 		t.Fatalf("keys %q", names)
