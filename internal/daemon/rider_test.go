@@ -140,3 +140,37 @@ func TestTheRiderSaysHowMuchItLeftOut(t *testing.T) {
 		t.Fatal("nothing to say said something")
 	}
 }
+
+// A lease another seat broke is told to its holder by name: the holder's own
+// process still lives, so only a break frees it, and the breaker is who
+// answers for it.
+func TestTheRiderTellsAHolderWhoBrokeItsLease(t *testing.T) {
+	ctx := ctx5(t)
+	d := mailDaemon(t)
+	watch, stop := context.WithCancel(context.Background())
+	t.Cleanup(stop)
+	d.startLeaseWatch(watch)
+	d.serving.Store(&watch)
+	sock := upMCP(t, d)
+	a := dialMCP(ctx, t, sock)
+	b := dialMCP(ctx, t, sock)
+	callTool(ctx, t, a, "announce", map[string]any{"seat": "seat-a", "purpose": "deploying"})
+	callTool(ctx, t, b, "announce", map[string]any{"seat": "seat-b", "purpose": "on call"})
+	rideOf(ctx, t, a, "lease_list", nil) // seat-b's arrival, told and gone
+
+	callTool(ctx, t, a, "lease_acquire", map[string]any{"name": "deploy", "ttlMs": 300})
+	time.Sleep(600 * time.Millisecond) // past the deadline, its witness alive: orphaned
+	if line := rideOf(ctx, t, b, "lease_break", map[string]any{"name": "deploy", "reason": "seat-a is stuck"}); strings.Contains(line, "broken") {
+		t.Fatalf("the breaker was told its own break: %s", line)
+	}
+	line := rideOf(ctx, t, a, "set_activity", map[string]any{"activity": "deploying"})
+	if !strings.Contains(line, "your lease deploy was broken by seat-b") {
+		t.Fatalf("the holder was not told who broke its lease:\n%s", line)
+	}
+	if strings.Contains(line, "expired") {
+		t.Fatalf("a break was told as an expiry:\n%s", line)
+	}
+	if again := rideOf(ctx, t, a, "lease_list", nil); strings.Contains(again, "broken") {
+		t.Fatalf("the break was told twice: %s", again)
+	}
+}
