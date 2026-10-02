@@ -68,11 +68,16 @@ func cmdPeersRun(args []string) error {
 	}
 	r.c = c
 	defer func() { r.c.Close() }()
-	if err := r.acquire(context.Background(), *wait); err != nil {
+	actx, acancel := context.WithTimeout(context.Background(), *wait+10*time.Second)
+	err = r.acquire(actx, *wait)
+	acancel()
+	if err != nil {
 		return err
 	}
 
-	cmd := exec.CommandContext(context.Background(), argv[0], argv[1:]...) //nolint:gosec // CMD is the caller's own argv, run as the caller
+	// No context: CMD ends when it ends or when this stops it, never on a
+	// deadline of its own.
+	cmd := exec.Command(argv[0], argv[1:]...) //nolint:gosec,noctx // CMD is the caller's own argv, run as the caller
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	// Its own group, so a stop reaches everything it started; and killed if
 	// this process dies, so it never outlives the hold's witness.
@@ -82,7 +87,10 @@ func cmdPeersRun(args []string) error {
 		return err
 	}
 	r.pid = cmd.Process.Pid
-	if err := r.fence(context.Background()); err != nil {
+	fctx, fcancel := callCtx()
+	err = r.fence(fctx)
+	fcancel()
+	if err != nil {
 		// Never run unfenced: the fence is the point of this verb.
 		r.stop()
 		_ = cmd.Wait()
