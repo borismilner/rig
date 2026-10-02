@@ -200,7 +200,11 @@ func (d *Daemon) logDecision(from caller, dec kernel.Decision, allowed bool) {
 		args = append(args, "rule", dec.Rule)
 	}
 	if allowed {
-		d.log.Debug("house rules allowed the call", args...)
+		// Reading the log writes nothing to it: at debug, each poll of
+		// `rig logs -f` would otherwise wake the follower that made it.
+		if from.method != "rig.logs.query" {
+			d.log.Debug("house rules allowed the call", args...)
+		}
 		return
 	}
 	d.log.Warn("house rules refused the call", append(args, "reason", dec.Reason)...)
