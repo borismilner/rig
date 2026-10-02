@@ -466,4 +466,5 @@ that"*. So:
 - **Not carried: `actions`**, notify_user's buttons that run a shell
   command on click. rig's replies go back to the sender instead. The
   `agentbox notify --action` CLI keeps them, and the warm-handoff skill's
-  one-click trust prompt now uses that CLI.
+  one-click trust prompt now uses that CLI. **Ruled to stay that way**
+  (Boris, 2026-10-02, decision 0261): *"Leave actions with AgentBox"*.
