@@ -51,7 +51,7 @@ import (
 // IT IS SEPARATE FROM THE WIRE VERSION ON PURPOSE (section 21, section 39): a
 // daemon and a store move for different reasons, and one number for both makes
 // every wire change look like a migration.
-const SchemaVersion = 1
+const SchemaVersion = 2
 
 // DBName is the store's file inside the estate's state directory.
 const DBName = "coord.db"
@@ -182,7 +182,8 @@ var schema = store.Schema{
 	What:    "coord store",
 	Version: SchemaVersion,
 	Create:  createSchema,
-	Steps:   map[uint32]store.Step{},
+	// 1 -> 2: plan/53's stored signals.
+	Steps: map[uint32]store.Step{1: addSignals},
 }
 
 func createSchema(ctx context.Context, tx *sql.Tx) error {
@@ -226,8 +227,10 @@ CREATE TABLE tasks (
 	UNIQUE (queue, key)
 ) STRICT;
 `
-	_, err := tx.ExecContext(ctx, ddl)
-	return err
+	if _, err := tx.ExecContext(ctx, ddl); err != nil {
+		return err
+	}
+	return addSignals(ctx, tx)
 }
 
 // update runs fn in one write transaction. _txlock=immediate takes the write
