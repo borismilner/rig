@@ -50,6 +50,11 @@ row says what is missing.
 | lease | `lease.changed {name, change, holder, token, by}` on acquired, released, broken |
 | roster | `roster.changed {seat, change, purpose}` on announced and left, from every door |
 
+**Demonstrated live on production, 2026-10-02:** a terminal followed
+`signal.* roster.* lease.*` while seat `lead` announced, signalled,
+signalled `to_seat: lead`, and took and released a lease over MCP. The
+terminal saw every one but the addressed signal; `lead` saw both.
+
 **What it does not do yet:**
 - **A signal does not outlive rigd.** §52's ring is in memory; a
   restart answers `gap: true`. AgentBox keeps signals 7 days in SQLite,
