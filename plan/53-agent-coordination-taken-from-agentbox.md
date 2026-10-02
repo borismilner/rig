@@ -186,3 +186,43 @@ agents rely on in AgentBox's `shared`, and where rig's must beat it:
   `shared` is for state a queue does not model.
 - **Kept in coord.db** beside the leases, schema v3, so a claim survives
   a restart.
+
+### As built: slice 3, 2026-10-02
+
+`1e5c1c2`, `e00d857` (size), `45b36b7`, `7faacb2` (size); AgentBox
+`f764449`.
+
+- **Built as designed above.** Versions come from one counter in
+  coord.db (`shared_seq`, schema v3), so a key made again never repeats
+  a version. The witness is the caller's pid from `SO_PEERCRED`; a
+  terminal seat writes unwitnessed and never reads as gone.
+- **`owner_gone` needs both halves:** the seat off the roster AND its
+  witness dead. It is posted as `shared.<key>` when the roster says
+  `left`, polling 5 s for the process to end.
+- **On the agent door a value is JSON, not a string:** the MCP bridge
+  presents `value_json` as `value` both ways. `google.protobuf.Value`
+  was the alternative and cost the rig CLI +176 KiB; this cost +4 KiB.
+- **Proved by tests that fail when the property is removed:** per-key
+  versions, no roster check first, no owner watch, no witness, and no
+  JSON presentation each broke its test. Race detector clean.
+- **Demonstrated live on production, three `rig mcp` sessions:** the
+  race loser was told the key is still held; a SIGKILLed owner read
+  `ownerGone` and `owner_gone` was posted within 1 s; the takeover
+  landed at its version; a stale delete was refused; a key made again
+  got v15, not the reused v12; values round-tripped as JSON objects.
+- **AgentBox side committed, not yet deployed:** `shared` is off its
+  MCP surface, its manual and wiki point agents at rig's `shared_*`,
+  and `tools/sync-probe.py` lost the shared scenario. Its full test
+  suite passes. `agentbox sync set` stays for shells.
+
+Known gaps, none blocking:
+
+- **AgentBox's board no longer shows agents' claims**; rig's
+  `shared_get` on a family does.
+- **A shell's `agentbox sync set` and an agent's `shared_set` are
+  separate tables.**
+- **Keys are dotted lower-case words**, so AgentBox's `claims/x` keys
+  do not carry over as written.
+- **A seat taken again reads as the same live owner**, as with leases.
+- **A session started before the install lacks the `shared_*` tools**
+  until its `rig mcp` restarts.
