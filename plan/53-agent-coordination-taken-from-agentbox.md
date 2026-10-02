@@ -257,3 +257,39 @@ same way, and says more:
   AgentBox narrows to an area.
 - **AgentBox's side:** its rider stops riding MCP answers; its manual
   points to rig's.
+
+### As built: slice 4, 2026-10-02
+
+`5dda778`, `7403703` (size, rigd +28 KiB); AgentBox `2930426`.
+
+- **Built as designed, with two changes.** `list_agents` carries the
+  line, since its answer shows the roster but not leases or claims.
+  `events_wait` neither carries it nor moves the cursor, because it
+  answers only the kinds it was asked for.
+- **One middleware on `tools/call`** in `internal/mcpserver`. The
+  daemon's `rider.go` decides what the line says. A `shared.<key>`
+  set now names `was`, the owner it replaced, when rig knows it
+  exactly.
+- **Proved by tests that fail when the property is removed:** no
+  cursor move, `events_wait` spending news, broadcast signals riding,
+  no previous owner, and other seats' leases riding each broke a test.
+  Race detector clean.
+- **Demonstrated live on production, two `rig mcp` sessions:** A was
+  told *"demo-b arrived"* mid-task. One later call carried *"demo-b is
+  waiting on your lease demo:build; your claim demo.chunk-1 was taken
+  by demo-b; signal.demo.review for you from demo-b"*. The broadcast
+  signal stayed out, and the next call carried nothing.
+- **AgentBox side deployed:** its daemon no longer installs the rider,
+  so a live probe of two sessions got no `sync:` line. Its manuals
+  name rig's line, and the probe's rider scenario is gone.
+
+Known gaps, none blocking:
+
+- **"Your lease was broken" has no test**; expiry does. It uses the
+  same holder and by fields.
+- **AgentBox's rider code stays** (`SyncRider`, `internal/mcp/rider.go`
+  and their tests), now inert. Deleting it is a follow-up.
+- **Mail is not on the line**: `message_inbox` and `message_await`
+  carry it.
+- **A session started before the install has no line** until its
+  `rig mcp` restarts.
