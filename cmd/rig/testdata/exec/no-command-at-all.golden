@@ -1,7 +1,7 @@
 $ rig 
 exit 1
 --- stdout (0 bytes)
---- stderr (3952 bytes)
+--- stderr (4105 bytes)
 usage: rig <command> [flags]
 
   <app> <cmd>      run a command a program declared, with its declared flags
@@ -32,7 +32,9 @@ usage: rig <command> [flags]
   hand <cmd>       the desktop's one run: status, and your answer to it -
                    allow, decline, hold, pause, resume, stop
   events wait <kind>...  wait on the event bus: hand.*, toast.posted,
-                   --follow keeps printing them as they come
+                   signal.*, lease.*, roster.*; --follow keeps printing
+  events publish signal.<words>  tell the seats something happened;
+                   --to SEAT for one, --payload JSON; kept past a restart
   config <cmd>     rig's settings and where each came from: get, origin,
                    set (until restart), export, diff
   logs             the estate's log, rigd and every program merged by

@@ -243,7 +243,8 @@ the last 4096 or rigd restarted: re-read whatever state you keep.
 Another program's kinds need a subscribe grant that is not built yet, so
 they are refused.
 
-At a terminal: `rig events wait <kind>... [--follow]`. Agents get
+At a terminal: `rig events wait <kind>... [--follow]`, and
+`rig events publish signal.<words> [--to SEAT] [--payload JSON]`. Agents get
 `events_wait` and `events_publish`.
 
 **Timers: rig keeps the clock.** Arm a named timer at every start; the

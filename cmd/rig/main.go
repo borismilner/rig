@@ -113,8 +113,8 @@ var valuedFlags = map[string]bool{
 	"under": true, "subject": true, "type": true,
 	// rig message send's pin (section 16).
 	"generation": true, "epoch": true,
-	// rig events wait's cursor (section 52).
-	"after": true,
+	// rig events wait's cursor (section 52), and publish's seat (plan/53).
+	"after": true, "to": true,
 	"depth": true,
 	// rig logbook (plan/51): the folder the documents are in.
 	"dir": true,
@@ -219,7 +219,9 @@ func usage() {
   hand <cmd>       the desktop's one run: status, and your answer to it -
                    allow, decline, hold, pause, resume, stop
   events wait <kind>...  wait on the event bus: hand.*, toast.posted,
-                   --follow keeps printing them as they come
+                   signal.*, lease.*, roster.*; --follow keeps printing
+  events publish signal.<words>  tell the seats something happened;
+                   --to SEAT for one, --payload JSON; kept past a restart
   config <cmd>     rig's settings and where each came from: get, origin,
                    set (until restart), export, diff
   logs             the estate's log, rigd and every program merged by

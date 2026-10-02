@@ -1,5 +1,6 @@
 $ rig events wait
 exit 1
 --- stdout (0 bytes)
---- stderr (71 bytes)
+--- stderr (141 bytes)
 rig: usage: rig events wait <kind>... [--after N --epoch E] [--follow]
+       rig events publish signal.<words> [--to SEAT] [--payload JSON]

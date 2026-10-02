@@ -11,13 +11,13 @@ import (
 	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
-// `rig events wait <kind>...` - section 52's bus at the prompt.
-//
-// PUBLISHING IS NOT HERE YET. A program publishes under its own name (E3);
-// a seat, a terminal included, may publish signal.<words> (plan/53), which
-// agents do through events_publish and nothing at the prompt needs today.
+// `rig events wait <kind>...` - section 52's bus at the prompt - and
+// `rig events publish signal.<words>`, a terminal's signal (plan/53). The
+// sender is the terminal's seat, which rigd names; a program publishes its
+// own kinds through its own connection, never from here.
 
-const eventsUsage = "usage: rig events wait <kind>... [--after N --epoch E] [--follow]"
+const eventsUsage = "usage: rig events wait <kind>... [--after N --epoch E] [--follow]\n" +
+	"       rig events publish signal.<words> [--to SEAT] [--payload JSON]"
 
 type eventsFlags struct {
 	fs      *flag.FlagSet
@@ -26,6 +26,8 @@ type eventsFlags struct {
 	after   *uint64
 	epoch   *uint64
 	follow  *bool
+	to      *string
+	data    *string
 }
 
 func eventsFlagSet() *eventsFlags {
@@ -35,6 +37,8 @@ func eventsFlagSet() *eventsFlags {
 	e.after = e.fs.Uint64("after", 0, "the cursor: answer events after this seq")
 	e.epoch = e.fs.Uint64("epoch", 0, "the epoch the cursor is from")
 	e.follow = e.fs.Bool("follow", false, "keep waiting and print each event as it comes")
+	e.to = e.fs.String("to", "", "publish: the one seat the signal is for")
+	e.data = e.fs.String("payload", "", "publish: the payload, one JSON value")
 	return e
 }
 
@@ -48,6 +52,9 @@ func cmdEvents(args []string) (err error) {
 		return err
 	}
 	defer func() { err = inMode(err, *e.asJSON) }()
+	if len(positional) == 2 && positional[0] == "publish" {
+		return publishEvent(positional[1], *e.to, *e.data, *e.asJSON)
+	}
 	if len(positional) < 2 || positional[0] != "wait" {
 		return badArgumentf(eventsUsage)
 	}
@@ -90,6 +97,31 @@ func cmdEvents(args []string) (err error) {
 		}
 		req.After, req.Epoch = resp.GetLatest(), resp.GetEpoch()
 	}
+}
+
+// publishEvent posts one signal and says how many waits it reached; none is
+// a fact, not a failure, since the signal is kept for whoever looks later.
+func publishEvent(kind, to, data string, asJSON bool) error {
+	c, err := connect()
+	if err != nil {
+		return noDaemon(err)
+	}
+	defer c.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), defaultCallTimeout)
+	defer cancel()
+	var resp registryv1.EventsPublishResponse
+	req := &registryv1.EventsPublishRequest{Kind: kind, PayloadJson: data, ToSeat: to}
+	if err := call(ctx, c, "rig.events.publish", req, &resp); err != nil {
+		return err
+	}
+	ev := resp.GetEvent()
+	if asJSON {
+		m := eventJSON(ev)
+		m["delivered"] = resp.GetDelivered()
+		return json.NewEncoder(os.Stdout).Encode(m)
+	}
+	fmt.Printf("%d  %s  from %s  reached %d waiting\n", ev.GetSeq(), ev.GetKind(), ev.GetSource(), resp.GetDelivered())
+	return nil
 }
 
 func printEvents(resp *registryv1.EventsWaitResponse) {
