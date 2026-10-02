@@ -356,5 +356,7 @@ Known gaps, none blocking:
   test.** Both are in the CLI.
 - **A group whose leader exited while its children run on is not
   killed**, because rigd cannot tell that the group id was not reused.
-- **The AgentBox side is not done yet**: its manual and its own
-  `make deploy` wrapper still point to `agentbox sync lock`.
+- **AgentBox's `make deploy` keeps its `flock`**, against the design:
+  it was never `agentbox sync lock`, and a kernel lock does not need
+  rigd up. AgentBox `180979a` points its manuals and ADR-0014 at
+  `rig peers run`, deployed and read back from `agentbox docs agent`.
