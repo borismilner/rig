@@ -326,3 +326,35 @@ is rejected"*.
 - **AgentBox's side:** its manual and its own `make deploy` wrapper
   point to `rig peers run`; `agentbox sync lock` stays for the shells
   that use it, as `sync set` did.
+
+### As built: slice 6, 2026-10-02
+
+`694aeb2`, `a2b4a24` (size, rig +36 KiB, rigd +16 KiB), `54c701e`.
+
+- **Built as designed.** `lease.fence` is a new verb; the fence lives
+  in the lease record and a fresh acquire clears it.
+- **The live demonstration found a defect the tests had missed.** Every
+  shell of one user is the holder `terminal:<user>`, so a second
+  `rig peers run` took a running one's lease by the reconnect path, and
+  both wrote. The tests had used two different seats.
+- **The fix, `54c701e`: the reconnect path is only for the process that
+  holds the lease**, or for anyone once that process is dead. A holder's
+  other live process is refused like any other holder, and may queue
+  behind it; a wait on your own seat's lease is not a deadlock.
+- **Proved by tests that fail when the property is removed:** rigd never
+  killing, the CLI never fencing, any caller fencing, a non-leader or a
+  recycled pid accepted, any parent accepted, and a holder's twin
+  allowed to take over each broke a test. Race detector clean.
+- **Demonstrated live on production:** a run writing a file had its
+  `rig` frozen with SIGSTOP. A second run from the same shell user
+  queued, was granted the lease 3.5 s later at the TTL, and the frozen
+  run's writes stopped at 39 lines; its `rig` and its writer were gone.
+
+Known gaps, none blocking:
+
+- **The renew-failure path and the restart re-acquire path have no
+  test.** Both are in the CLI.
+- **A group whose leader exited while its children run on is not
+  killed**, because rigd cannot tell that the group id was not reused.
+- **The AgentBox side is not done yet**: its manual and its own
+  `make deploy` wrapper still point to `agentbox sync lock`.
