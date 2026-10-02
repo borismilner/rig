@@ -352,8 +352,13 @@ is rejected"*.
 
 Known gaps, none blocking:
 
-- **The renew-failure path and the restart re-acquire path have no
-  test.** Both are in the CLI.
+- ~~The renew-failure and restart re-acquire paths had no test.~~
+  Tested at `bfe2c3d`, each with a red control. **The renew test found a
+  defect:** a renew to a gone daemon waited out a 5 s call timeout, so
+  the run stopped 5.7 s after rigd went, past its 3 s hold. Each attempt
+  is now bounded by the stop point (deadline less two graces), and the
+  grace is a sixth of the TTL, at most 2 s. A restart is ridden out:
+  the run re-acquires, re-fences and finishes with exit 0.
 - **A group whose leader exited while its children run on is not
   killed**, because rigd cannot tell that the group id was not reused.
 - **AgentBox's `make deploy` keeps its `flock`**, against the design:
