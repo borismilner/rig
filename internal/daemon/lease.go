@@ -217,8 +217,9 @@ func (d *Daemon) abandonWait(name string, me *leaseWaiter) {
 func (d *Daemon) freed(name, change, because, by string) {
 	d.lq.mu.Lock()
 	defer d.lq.mu.Unlock()
+	holder := d.lq.known[name].holder
 	d.lq.noteLocked(coord.Status{Name: name, State: coord.Free})
-	d.publishJSON("lease.changed", leaseChange{Name: name, Change: change, By: by})
+	d.publishJSON("lease.changed", leaseChange{Name: name, Change: change, Holder: holder, By: by})
 	d.handOverLocked(name, because)
 }
 

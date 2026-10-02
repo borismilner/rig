@@ -143,7 +143,7 @@ func TestRigPostsLeaseAndRosterChanges(t *testing.T) {
 	want := []string{
 		"roster.changed:announced:seat-a",
 		"lease.changed:acquired:seat-adeploy",
-		"lease.changed:released:deploy",
+		"lease.changed:released:seat-adeploy",
 		"roster.changed:left:seat-a",
 	}
 	for i := range want {
