@@ -406,8 +406,9 @@ than no notification at all."* rig had no way to withdraw a toast.
   sender: demo over"*. An urgent ask taken back while `rig notify
   --wait` waited answered *"taken back by its sender ... before anybody
   answered"*.
-- **AgentBox's `retract` stays**, as designed, for its own cards; its
-  manuals and ADR-0014 send a rig toast to `toast_retract`.
+- **AgentBox's `retract` stayed, as designed, for one hour.** Then
+  Boris ruled (decision 0260) that `notify_user` and `retract` both
+  leave AgentBox: see "Ruled: notifying is rig's" below.
 
 Known gaps, none blocking:
 
@@ -420,3 +421,20 @@ Known gaps, none blocking:
   still retracted.
 - **The sweep's "still on screen" is an estimate**: rig cannot see the
   pointer, so it doubles the page's dwell.
+
+### Ruled: notifying is rig's (2026-10-02, decision 0260)
+
+Asked *"should I remove AgentBox's `notify_user` and `retract`, now that
+rig's `notify` and `toast_retract` do more?"*, Boris answered *"Dp all of
+that"*. So:
+
+- **AgentBox `b4002da`, deployed and pushed:** `notify_user` and
+  `retract` are off its MCP surface, which serves 32 tools, counted
+  live. Its manuals, ADR-0014 and the assignment prompt name rig's
+  `notify` and `toast_retract`.
+- **The cards that block on Boris's answer stay** (`ask_user`, forms,
+  secrets, the countdown). They were never in this plan.
+- **Not carried: `actions`**, notify_user's buttons that run a shell
+  command on click. rig's replies go back to the sender instead. The
+  `agentbox notify --action` CLI keeps them, and the warm-handoff skill's
+  one-click trust prompt now uses that CLI.
