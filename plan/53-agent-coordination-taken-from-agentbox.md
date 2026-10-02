@@ -226,3 +226,34 @@ Known gaps, none blocking:
 - **A seat taken again reads as the same live owner**, as with leases.
 - **A session started before the install lacks the `shared_*` tools**
   until its `rig mcp` restarts.
+
+### Slice 4, #4: the `sync:` rider (designed 2026-10-02)
+
+AgentBox appends one `sync:` line to any MCP answer, saying which
+agents joined or left the caller's area since its last call, and which
+of its locks the human broke. rig's rider rides every MCP answer the
+same way, and says more:
+
+| Kind | Told to seat S when |
+|---|---|
+| `roster.changed` | another seat announced or left, with its purpose |
+| `lease.changed` | a lease S holds was broken or expired, or a seat queued on it |
+| `shared.<key>` | a key S owns was set by another seat, deleted, or read as gone |
+| `signal.*` | a signal was addressed to S alone (`to_seat`) |
+
+- **Better than AgentBox by:** a lease lost, a claim taken over and a
+  peer waiting on you reach the agent mid-task, not only company.
+- **It names its cursor.** The line ends with the bus seq it read
+  through, so `events_wait` from there gives every payload in full.
+  A ring gap is said as one: re-read the state.
+- **Bounded:** at most 8 items, then "and N more".
+- **Never S's own doing**, and never on `announce`, `list_agents` or
+  `events_wait`, whose answers already carry it.
+- **The cursor starts when S takes its seat** and lives with the
+  connection. A failed send drops the connection and the seat with it,
+  so nothing is owed afterwards, which is why AgentBox's put-back has
+  no counterpart here.
+- **Scope is the estate**, rig's only scope (`list_agents`), where
+  AgentBox narrows to an area.
+- **AgentBox's side:** its rider stops riding MCP answers; its manual
+  points to rig's.
