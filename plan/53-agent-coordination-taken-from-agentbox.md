@@ -13,6 +13,11 @@ agents should be instructed to use it from `rig` instead."*
 
 ---
 
+**Boris, 2026-10-02, on durable signals before #2:** *"Proceed as
+recommended; Make sure `rig` functionality is superior."* So every row
+below must beat AgentBox at what agents use it for, not merely match
+it, before AgentBox's tool is removed.
+
 ### The six, in his order
 
 | # | Capability | rig's form | Better than AgentBox by |
