@@ -92,7 +92,7 @@ func TestAVersionOneStoreGainsTheSignalTables(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, q := range []string{"DROP TABLE signals", "DROP TABLE signals_trimmed", "PRAGMA user_version = 1"} {
+	for _, q := range []string{"DROP TABLE signals", "DROP TABLE signals_trimmed", "DROP TABLE shared", "DROP TABLE shared_seq", "PRAGMA user_version = 1"} {
 		if _, err := db.Exec(q); err != nil {
 			t.Fatal(err)
 		}

@@ -27,8 +27,12 @@ import (
 //     request would let a caller pin a lease to a process it does not own,
 //     and a lease on a pid that never dies never frees.
 
-// serveLease dispatches the five lease verbs.
+// serveLease dispatches the lease verbs, and the shared table's beside them.
 func (d *Daemon) serveLease(ctx context.Context, c *conn, f *rigv1.Frame, command string) {
+	if strings.HasPrefix(command, "shared.") {
+		d.serveShared(c, f, command)
+		return
+	}
 	if d.leases == nil {
 		c.failStatus(f.GetStreamId(), &rigv1.Status{
 			Code: rigv1.Code_CODE_UNAVAILABLE,

@@ -17,6 +17,8 @@ var RigEventRoots = map[string]bool{
 	"hand": true, "toast": true, "system": true, "timer": true, "config": true,
 	// plan/53: rig posts lease and roster changes; a seat posts signals.
 	"lease": true, "roster": true, "signal": true,
+	// plan/53 slice 3: rig posts each shared-table change as shared.<key>.
+	"shared": true,
 }
 
 // MaxEventKind bounds a kind or a pattern, in bytes.

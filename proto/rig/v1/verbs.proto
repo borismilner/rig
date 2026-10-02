@@ -1782,6 +1782,80 @@ message LeaseCheckResponse {
 }
 
 // ============================================================================
+// plan/53 slice 3: THE SHARED TABLE. Small keyed state every seat can see,
+// written under compare-and-swap, so "chunk 7 is mine" is one write that
+// either lands or says who got there first. A key is dotted lower-case words
+// and is also its change's event kind: shared.<key>.
+// ============================================================================
+
+// SharedValue is one key as a reader sees it, its owner's liveness included.
+message SharedValue {
+  string key = 1;
+  // JSON. Empty when the key does not exist, which is version 0.
+  string value_json = 2;
+  // Never reused, even after a delete, so a stale writer never matches.
+  uint64 version = 3;
+  // The seat that claimed it; empty for state nobody owns.
+  string owner = 4;
+  // The owner is off the roster and its process is observed dead: the work
+  // was started and abandoned. Take it over by writing at this version.
+  bool owner_gone = 5;
+  // The seat that wrote this version.
+  string by = 6;
+  int64 updated_unix_nano = 7;
+}
+
+// SharedGetRequest reads one key, or a family when key ends in .* (and every
+// key when it is *).
+message SharedGetRequest {
+  string key = 1;
+}
+
+message SharedGetResponse {
+  bool found = 1;
+  // An exact key: the value, at version 0 when it does not exist.
+  SharedValue value = 2;
+  // A family, in key order, at most 200.
+  repeated SharedValue values = 3;
+  bool more = 4;
+  string note = 5;
+}
+
+// SharedSetRequest writes key at expected_version: 0 claims a key nobody has,
+// any other is the version you read. own records your seat and process as
+// the owner, so a reader can tell a live claim from an abandoned one.
+message SharedSetRequest {
+  string key = 1;
+  string value_json = 2;
+  uint64 expected_version = 3;
+  bool own = 4;
+}
+
+// SharedSetResponse: a lost race is a result, never an error. applied false
+// comes back with the key as it stands and a note saying what to do next.
+message SharedSetResponse {
+  bool applied = 1;
+  bool stale = 2;
+  SharedValue value = 3;
+  string note = 4;
+}
+
+// SharedDeleteRequest removes key at the version you read, never otherwise:
+// an unconditional delete would erase a takeover made since.
+message SharedDeleteRequest {
+  string key = 1;
+  uint64 expected_version = 2;
+}
+
+message SharedDeleteResponse {
+  bool applied = 1;
+  bool stale = 2;
+  // What went, or what refused.
+  SharedValue value = 3;
+  string note = 4;
+}
+
+// ============================================================================
 // SECTION 09's WORKING NOTES (A1-A6). An agent's prose, written as it works,
 // attached to anything in the record, tagged however it likes, and handed back
 // to the SEAT that wrote it however many processes have died in between.

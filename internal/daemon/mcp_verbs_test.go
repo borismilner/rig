@@ -87,7 +87,15 @@ func TestAnAgentHoldsALeaseAndWorksAQueueThroughTheDoor(t *testing.T) {
 		t.Fatalf("an unannounced agent's lease was not refused with a fix: %v", unseated)
 	}
 
+	if noSeat := refusedTool(ctx, t, agent, "shared_set", map[string]any{"key": "claims.a", "valueJson": "1"}); !strings.Contains(noSeat["error"], "needs a seat") {
+		t.Fatalf("an unannounced agent's claim was not refused: %v", noSeat)
+	}
+
 	callTool(ctx, t, agent, "announce", map[string]any{"seat": "backend-1", "purpose": "building"})
+	shared := resultOf(t, callTool(ctx, t, agent, "shared_set", map[string]any{"key": "claims.a", "valueJson": "1", "own": true}))
+	if v, _ := shared["value"].(map[string]any); shared["applied"] != true || v["owner"] != "backend-1" {
+		t.Fatalf("the claim was not owned by the agent's seat: %v", shared)
+	}
 	got := callTool(ctx, t, agent, "lease_acquire", map[string]any{"name": "build", "ttl_ms": 5000})
 	h, _ := resultOf(t, got)["handle"].(map[string]any)
 	if h["holder"] != "backend-1" || h["name"] != "build" {

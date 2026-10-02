@@ -450,7 +450,7 @@ func selfDeclaration() kernel.Declaration {
 				"The event, with its seq, and delivered: how many waits in progress it reached."),
 			readOnly("events.wait", "Events wait",
 				"Wait for events of the kinds you name",
-				"Answers every event after the cursor whose kind matches one of the patterns (a kind like hand.changed, or a prefix like hand.*), oldest first, as soon as there is one, or nothing once the timeout (at most 60 seconds) passes. Carry latest and epoch into the next call. gap means events were lost, past the ring or across a restart: re-read the state rather than assume nothing happened. Signals (signal.*) are kept for 7 days, up to 1000 per kind, so a cursor from before a restart still gets every signal after it, with no gap; a first call with after 0 gets only this run's. rig's own kinds are open to every caller: signal.* (seats' signals), lease.* (lease.changed when a lease is acquired, released or broken), roster.* (roster.changed when a seat announces or leaves), hand.*, toast.*, system.*, timer.*, config.*. A program may also wait on its own.",
+				"Answers every event after the cursor whose kind matches one of the patterns (a kind like hand.changed, or a prefix like hand.*), oldest first, as soon as there is one, or nothing once the timeout (at most 60 seconds) passes. Carry latest and epoch into the next call. gap means events were lost, past the ring or across a restart: re-read the state rather than assume nothing happened. Signals (signal.*) are kept for 7 days, up to 1000 per kind, so a cursor from before a restart still gets every signal after it, with no gap; a first call with after 0 gets only this run's. rig's own kinds are open to every caller: signal.* (seats' signals), lease.* (lease.changed when a lease is acquired, released, broken, queued, orphaned or expired), roster.* (roster.changed when a seat announces or leaves), shared.* (shared.<key> when a shared key is set, deleted or its owner is gone, so shared.claims.* is one family), hand.*, toast.*, system.*, timer.*, config.*. A program may also wait on its own.",
 				"The matching events, the latest seq, the epoch, and whether any were lost."),
 			// SECTION 6's SETTINGS, as plan/47 builds them.
 			readOnly("config.get", "Config get",
@@ -529,6 +529,23 @@ func selfDeclaration() kernel.Declaration {
 				"Free an orphaned lease by a recorded human action",
 				"The only way an unwitnessed orphan ever becomes free. Records the caller's seat as who broke it and requires a reason. Refused for a lease still inside its deadline.",
 				"Nothing. The lease is free afterwards, naming who broke it and why."),
+
+			// plan/53's SHARED TABLE, in coord.db beside the leases, so its
+			// writes are file writes on the leases' argument. A set is not
+			// idempotent: every write takes a new version.
+			readOnly("shared.get", "Shared get",
+				"Read the shared table: one key, or a family",
+				"Reads small state every seat on the estate can see. A key is dotted lower-case words (claims.chunk-3); claims.* reads the family, * every key, at most 200 an answer. Each value carries its version, who wrote it, its owner, and owner_gone when the owner left the roster and its process is observed dead - work started and abandoned. A key that does not exist answers version 0, which is the expected_version that claims it. Reads need no seat.",
+				"The value, or the family in key order, with a note on what to do next."),
+			leaseWriter("shared.set", "Shared set", kernel.No,
+				"Write the shared table under compare-and-swap: claim an item, or update what you read",
+				"To split work, one key per item and claim it with expected_version 0: it lands only if nobody has the key, so ten seats over ten keys never double-claim. To update, pass the version you read. Losing is a RESULT, not an error: applied false, stale true, the current value and a note. own records your seat and process as the owner, so a dead owner's claim reads owner_gone and is taken over by setting it at its version. Versions are never reused, even after a delete. Values are JSON, at most 16 KiB; at most 1000 keys. "+
+					"Every change posts the event shared.<key> (set, deleted, owner_gone), so waiting for a claim, a result or abandoned work is one events_wait on shared.claims.*. For a queue of tasks, queue_push and queue_claim already do this with leases.",
+				"applied, stale, the key as it now stands, and a note when it did not land."),
+			leaseWriter("shared.delete", "Shared delete", kernel.Yes,
+				"Remove a shared key at the version you read",
+				"Removes the key only if it is still at expected_version, which is required: an unconditional delete would erase a takeover made since you read it. Delete a claim when its work is done.",
+				"applied, stale, and the key as it was."),
 
 			// SECTION 16's QUEUES. The list is a read; push, claim and
 			// complete keep their state in the estate's coord.db beside

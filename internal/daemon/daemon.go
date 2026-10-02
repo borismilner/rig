@@ -232,6 +232,9 @@ type Daemon struct {
 	// lq is who is queued on which lease, and the clock that tells them when
 	// one frees by itself (leasequeue.go).
 	lq *leaseQueue
+	// serving ends when Serve does; the shared table's owner watch stops on
+	// it. Nil until Serve, as in a test that drives the daemon without it.
+	serving atomic.Pointer[context.Context]
 
 	// super is section 18's supervisor, nil when none was configured.
 	super *supervise.Supervisor
@@ -429,7 +432,12 @@ func New(cfg Config) (*Daemon, error) {
 	d.applyLogLevel()
 	d.writeSnapshot()
 	d.hand.published = func(st *registryv1.HandState) { d.events.publishRig("hand.changed", st) }
-	d.presence.changed = func(ch rosterChange) { d.publishJSON("roster.changed", ch) }
+	d.presence.changed = func(ch rosterChange) {
+		d.publishJSON("roster.changed", ch)
+		if ch.Change == "left" {
+			d.ownerLeft(ch.Seat)
+		}
+	}
 	d.events.seq = seqBase(cfg.Epoch)
 	if cfg.Leases != nil {
 		d.events.durable = cfg.Leases
@@ -578,6 +586,7 @@ func (d *Daemon) Serve(ctx context.Context, l net.Listener) error {
 	d.startResumeWatch(ctx)
 	d.startTimers(ctx)
 	d.startLeaseWatch(ctx)
+	d.serving.Store(&ctx)
 
 	go func() {
 		<-ctx.Done()
@@ -1049,8 +1058,11 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 		"hand.request", "hand.step", "hand.release", "hand.wait", "hand.answer", "hand.strip":
 		d.serveToast(ctx, c, f, command)
 
+	// plan/53's SHARED TABLE rides the same arm: it lives in coord.db beside
+	// the leases, and shared.go has why its writer and an owner's witness
+	// come off the connection, as a holder's do.
 	case "lease.list", "lease.acquire", "lease.renew", "lease.release", "lease.break",
-		"lease.check":
+		"lease.check", "shared.get", "shared.set", "shared.delete":
 		d.serveLease(ctx, c, f, command)
 
 	// SECTION 16's QUEUES. A claim is a lease, so the store is the lease
