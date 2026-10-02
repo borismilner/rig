@@ -154,3 +154,35 @@ Known gaps, none blocking:
 - **Untested:** a newcomer arriving in the instant a lease expires.
   `serveLeaseAcquire` looks first so the queue's head wins; no test
   pins it.
+
+### Slice 3, #3: witnessed claims on a shared table (designed 2026-10-02)
+
+Boris, 2026-10-02: *"start #3 and proceed as much as possible"*. What
+agents rely on in AgentBox's `shared`, and where rig's must beat it:
+
+| What agents use it for | AgentBox `shared` | rig `shared.*` |
+|---|---|---|
+| claim an item, first writer wins | `if_version` 0 | `expected_version` 0, the store's own rule |
+| update what you read | `if_version` N, losing is `stale` with the current value | the same |
+| a version never comes back | **no**: a deleted key restarts at 1, so a stale writer can hit a new claim (ABA) | **yes**: versions come from one estate counter and are never reused |
+| an owner that died | roster, then a bare pid, which a recycled pid fakes | roster, then §16's witness, pid plus start time plus boot |
+| told it was abandoned | only when somebody reads | also posted: `shared.<key>` with `owner_gone` when the owner leaves and its process is dead |
+| who wrote it | owned writes only | every write names its seat in `by` |
+| delete | unconditional allowed, so one can erase a peer's takeover | at the version you read, always |
+| wait for a family | `shared:claims/*` | `shared.claims.*`, the same `.*` as every rig kind |
+
+- **A key is dotted lowercase words** (`claims.chunk-3`), at most 120
+  bytes, because the key IS its event kind's tail. A get on `claims.*`
+  reads the family, capped at 200 per answer with `more`.
+- **Values are JSON, at most 16 KiB; at most 1000 keys**, refused loudly
+  at the cap rather than evicting a claim. AgentBox's numbers.
+- **A lost race is a result, not an error**: `applied` false, `stale`
+  true, the current value and a note saying what to do next.
+- **Writes need a seat; reads do not.** The owner is the seat, and the
+  witness is the caller's process from the socket, never the request.
+- **A seat taken again is the same owner**, as with a lease: a session
+  that reconnects into its seat keeps its claims.
+- **For fan-out work rig already has `queue.*`**, whose claims are leases;
+  `shared` is for state a queue does not model.
+- **Kept in coord.db** beside the leases, schema v3, so a claim survives
+  a restart.
