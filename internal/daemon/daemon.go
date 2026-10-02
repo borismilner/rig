@@ -229,6 +229,9 @@ type Daemon struct {
 	// second one. One store per estate is the decision; two fields pointing
 	// at one coord.db would only invite a second Open.
 	leases *coord.Store
+	// lq is who is queued on which lease, and the clock that tells them when
+	// one frees by itself (leasequeue.go).
+	lq *leaseQueue
 
 	// super is section 18's supervisor, nil when none was configured.
 	super *supervise.Supervisor
@@ -406,6 +409,7 @@ func New(cfg Config) (*Daemon, error) {
 		presence: newPresence(cfg.Estate, cfg.Epoch),
 		records:  records,
 		leases:   cfg.Leases,
+		lq:       newLeaseQueue(),
 		super:    cfg.Supervisor,
 		audio:    cfg.Audio,
 		hand:     newHandDesk(time.Now),
@@ -533,6 +537,10 @@ type conn struct {
 
 	pmu     sync.Mutex
 	pending map[uint32]chan *rigv1.Frame
+
+	// gone closes when a socket connection ends, so a call parked on its
+	// behalf stops waiting. Nil on the agent door, whose call has a context.
+	gone chan struct{}
 }
 
 func (c *conn) name() string {
@@ -569,6 +577,7 @@ func (d *Daemon) Serve(ctx context.Context, l net.Listener) error {
 	// Section 52's system.resumed, for as long as serving lasts (resume.go).
 	d.startResumeWatch(ctx)
 	d.startTimers(ctx)
+	d.startLeaseWatch(ctx)
 
 	go func() {
 		<-ctx.Done()
@@ -611,10 +620,12 @@ func (d *Daemon) handle(ctx context.Context, nc net.Conn) {
 		log:     d.log,
 		occ:     &occupancy{},
 		pending: make(map[uint32]chan *rigv1.Frame),
+		gone:    make(chan struct{}),
 	}
 	c.nextStream.Store(0) // +2 each time, so daemon streams stay even
 	c.who.Store(newPrincipal(nc))
 	defer func() {
+		close(c.gone)
 		_ = c.w.Close()
 		// The registry forgets by session, so a restarted program can take
 		// its own id back. The connection map forgets by name, and only if
@@ -1040,7 +1051,7 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 
 	case "lease.list", "lease.acquire", "lease.renew", "lease.release", "lease.break",
 		"lease.check":
-		d.serveLease(c, f, command)
+		d.serveLease(ctx, c, f, command)
 
 	// SECTION 16's QUEUES. A claim is a lease, so the store is the lease
 	// store; queue.go has why the claimer comes off the connection.

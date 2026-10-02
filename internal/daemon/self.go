@@ -511,9 +511,12 @@ func selfDeclaration() kernel.Declaration {
 				"Answers whether the token is the lease's current fencing token: the lease carries it and is held or orphaned, so nobody has been granted it since. A resource asks this before accepting a write, and refuses a stale token. Tokens are monotonic per lease, so a token that stops being current never becomes current again.",
 				"Whether the token is current, and the lease as it stands."),
 			leaseWriter("lease.acquire", "Lease acquire", kernel.No,
-				"Take a named lease for a TTL, witnessed by the caller's own process",
-				"Takes the lease for the caller's seat, witnessed by the pid the socket reports for the caller, or declared unwitnessed. Refused with the incumbent's full status when somebody else holds it or it is orphaned. Re-acquiring your own is the reconnect path and issues a new token.",
-				"The handle: name, holder, token, epoch and the time left."),
+				"Take a named lease for a TTL, queueing for it if you ask to",
+				"Takes the lease for the caller's seat, witnessed by the pid the socket reports for the caller, or declared unwitnessed. Take one before anything shared - deploy:<project>, repo:<project>, vm:<name> - and release it as soon as the work is done; never hold one across a question to the human. "+
+					"With wait_ms (at most 25 minutes) a held lease is QUEUED for, first come first served: a lease that frees goes to the queue's head, never to a newcomer, and rig hands over one that expires because its holder died. A wait that would deadlock is refused at once, naming the chain. "+
+					"Without wait_ms, a held or orphaned lease is refused with who holds it, what for, what they are doing and for how long. Re-acquiring your own is the reconnect path and issues a new token. "+
+					"Every change is posted as lease.changed (acquired, released, broken, queued, orphaned, expired), so watching a resource is one events_wait.",
+				"The handle and granted_because (free, released, broken, expired). A wait that ran out is a RESULT, not an error: timed_out with the incumbent's full picture, and your place given up."),
 			leaseWriter("lease.renew", "Lease renew", kernel.No,
 				"Extend a lease you hold",
 				"Extends the lease against its token and epoch. An orphaned lease is renewable by its own holder, which is why orphaned is not free. A handle from before a daemon restart is fenced by its epoch.",

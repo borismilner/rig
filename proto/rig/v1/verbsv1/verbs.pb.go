@@ -1521,9 +1521,19 @@ type Lease struct {
 	OwnerGone bool     `protobuf:"varint,8,opt,name=owner_gone,json=ownerGone,proto3" json:"owner_gone,omitempty"`
 	Liveness  Liveness `protobuf:"varint,9,opt,name=liveness,proto3,enum=rig.v1.Liveness" json:"liveness,omitempty"`
 	// An orphaned lease rig can never free on its own: an unwitnessed one.
-	NeedsBreak    bool   `protobuf:"varint,10,opt,name=needs_break,json=needsBreak,proto3" json:"needs_break,omitempty"`
-	BrokenBy      string `protobuf:"bytes,11,opt,name=broken_by,json=brokenBy,proto3" json:"broken_by,omitempty"`
-	BrokenReason  string `protobuf:"bytes,12,opt,name=broken_reason,json=brokenReason,proto3" json:"broken_reason,omitempty"`
+	NeedsBreak   bool   `protobuf:"varint,10,opt,name=needs_break,json=needsBreak,proto3" json:"needs_break,omitempty"`
+	BrokenBy     string `protobuf:"bytes,11,opt,name=broken_by,json=brokenBy,proto3" json:"broken_by,omitempty"`
+	BrokenReason string `protobuf:"bytes,12,opt,name=broken_reason,json=brokenReason,proto3" json:"broken_reason,omitempty"`
+	// The holder's row on the roster, when its seat is present: what it is
+	// FOR and what it is doing, so a refused caller decides without asking.
+	HolderPurpose  string `protobuf:"bytes,13,opt,name=holder_purpose,json=holderPurpose,proto3" json:"holder_purpose,omitempty"`
+	HolderActivity string `protobuf:"bytes,14,opt,name=holder_activity,json=holderActivity,proto3" json:"holder_activity,omitempty"`
+	// How long the current holder has held it, across renewals. Zero for a
+	// free lease; counted from its next renewal for one taken before rig
+	// recorded it.
+	HeldMs int64 `protobuf:"varint,15,opt,name=held_ms,json=heldMs,proto3" json:"held_ms,omitempty"`
+	// The seats queued for it, oldest first (plan/53 slice 2).
+	Waiting       []string `protobuf:"bytes,16,rep,name=waiting,proto3" json:"waiting,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1642,6 +1652,34 @@ func (x *Lease) GetBrokenReason() string {
 	return ""
 }
 
+func (x *Lease) GetHolderPurpose() string {
+	if x != nil {
+		return x.HolderPurpose
+	}
+	return ""
+}
+
+func (x *Lease) GetHolderActivity() string {
+	if x != nil {
+		return x.HolderActivity
+	}
+	return ""
+}
+
+func (x *Lease) GetHeldMs() int64 {
+	if x != nil {
+		return x.HeldMs
+	}
+	return 0
+}
+
+func (x *Lease) GetWaiting() []string {
+	if x != nil {
+		return x.Waiting
+	}
+	return nil
+}
+
 // LeaseHandle is what a holder presents to renew or release.
 type LeaseHandle struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1726,7 +1764,11 @@ type LeaseAcquireRequest struct {
 	TtlMs uint32 `protobuf:"varint,2,opt,name=ttl_ms,json=ttlMs,proto3" json:"ttl_ms,omitempty"`
 	// True declares that rig cannot poll this holder, and buys the stricter
 	// rule: the lease never frees on its own and needs a recorded break.
-	Unwitnessed   bool `protobuf:"varint,3,opt,name=unwitnessed,proto3" json:"unwitnessed,omitempty"`
+	Unwitnessed bool `protobuf:"varint,3,opt,name=unwitnessed,proto3" json:"unwitnessed,omitempty"`
+	// How long to queue for it if somebody else holds it, at most 25 minutes.
+	// Zero refuses at once, as before. Waiters are served first come, first
+	// served, and a wait that would close a cycle is refused by name.
+	WaitMs        uint32 `protobuf:"varint,4,opt,name=wait_ms,json=waitMs,proto3" json:"wait_ms,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1782,9 +1824,26 @@ func (x *LeaseAcquireRequest) GetUnwitnessed() bool {
 	return false
 }
 
+func (x *LeaseAcquireRequest) GetWaitMs() uint32 {
+	if x != nil {
+		return x.WaitMs
+	}
+	return 0
+}
+
 type LeaseAcquireResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Handle        *LeaseHandle           `protobuf:"bytes,1,opt,name=handle,proto3" json:"handle,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Set when the lease is yours. Absent only when timed_out.
+	Handle *LeaseHandle `protobuf:"bytes,1,opt,name=handle,proto3" json:"handle,omitempty"`
+	// Why it became yours: "free", "released", "broken", "expired", or
+	// "already yours" for the reconnect path.
+	GrantedBecause string `protobuf:"bytes,2,opt,name=granted_because,json=grantedBecause,proto3" json:"granted_because,omitempty"`
+	// How long the call queued.
+	WaitedMs uint64 `protobuf:"varint,3,opt,name=waited_ms,json=waitedMs,proto3" json:"waited_ms,omitempty"`
+	// The wait ran out. A RESULT, not an error: incumbent says who still has
+	// it, and your place in the queue was given up.
+	TimedOut      bool   `protobuf:"varint,4,opt,name=timed_out,json=timedOut,proto3" json:"timed_out,omitempty"`
+	Incumbent     *Lease `protobuf:"bytes,5,opt,name=incumbent,proto3" json:"incumbent,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1822,6 +1881,34 @@ func (*LeaseAcquireResponse) Descriptor() ([]byte, []int) {
 func (x *LeaseAcquireResponse) GetHandle() *LeaseHandle {
 	if x != nil {
 		return x.Handle
+	}
+	return nil
+}
+
+func (x *LeaseAcquireResponse) GetGrantedBecause() string {
+	if x != nil {
+		return x.GrantedBecause
+	}
+	return ""
+}
+
+func (x *LeaseAcquireResponse) GetWaitedMs() uint64 {
+	if x != nil {
+		return x.WaitedMs
+	}
+	return 0
+}
+
+func (x *LeaseAcquireResponse) GetTimedOut() bool {
+	if x != nil {
+		return x.TimedOut
+	}
+	return false
+}
+
+func (x *LeaseAcquireResponse) GetIncumbent() *Lease {
+	if x != nil {
+		return x.Incumbent
 	}
 	return nil
 }
@@ -11385,7 +11472,7 @@ const file_proto_rig_v1_verbs_proto_rawDesc = "" +
 	"\fPeersRequest\"K\n" +
 	"\rPeersResponse\x12 \n" +
 	"\x04crew\x18\x01 \x03(\v2\f.rig.v1.SeatR\x04crew\x12\x18\n" +
-	"\apartial\x18\x02 \x01(\bR\apartial\"\xf6\x02\n" +
+	"\apartial\x18\x02 \x01(\bR\apartial\"\xf9\x03\n" +
 	"\x05Lease\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12(\n" +
 	"\x05state\x18\x02 \x01(\x0e2\x12.rig.v1.LeaseStateR\x05state\x12\x16\n" +
@@ -11401,19 +11488,28 @@ const file_proto_rig_v1_verbs_proto_rawDesc = "" +
 	" \x01(\bR\n" +
 	"needsBreak\x12\x1b\n" +
 	"\tbroken_by\x18\v \x01(\tR\bbrokenBy\x12#\n" +
-	"\rbroken_reason\x18\f \x01(\tR\fbrokenReason\"\x88\x01\n" +
+	"\rbroken_reason\x18\f \x01(\tR\fbrokenReason\x12%\n" +
+	"\x0eholder_purpose\x18\r \x01(\tR\rholderPurpose\x12'\n" +
+	"\x0fholder_activity\x18\x0e \x01(\tR\x0eholderActivity\x12\x17\n" +
+	"\aheld_ms\x18\x0f \x01(\x03R\x06heldMs\x12\x18\n" +
+	"\awaiting\x18\x10 \x03(\tR\awaiting\"\x88\x01\n" +
 	"\vLeaseHandle\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06holder\x18\x02 \x01(\tR\x06holder\x12\x14\n" +
 	"\x05token\x18\x03 \x01(\x04R\x05token\x12\x14\n" +
 	"\x05epoch\x18\x04 \x01(\x04R\x05epoch\x12!\n" +
-	"\fremaining_ms\x18\x05 \x01(\x03R\vremainingMs\"b\n" +
+	"\fremaining_ms\x18\x05 \x01(\x03R\vremainingMs\"{\n" +
 	"\x13LeaseAcquireRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x15\n" +
 	"\x06ttl_ms\x18\x02 \x01(\rR\x05ttlMs\x12 \n" +
-	"\vunwitnessed\x18\x03 \x01(\bR\vunwitnessed\"C\n" +
+	"\vunwitnessed\x18\x03 \x01(\bR\vunwitnessed\x12\x17\n" +
+	"\await_ms\x18\x04 \x01(\rR\x06waitMs\"\xd3\x01\n" +
 	"\x14LeaseAcquireResponse\x12+\n" +
-	"\x06handle\x18\x01 \x01(\v2\x13.rig.v1.LeaseHandleR\x06handle\"j\n" +
+	"\x06handle\x18\x01 \x01(\v2\x13.rig.v1.LeaseHandleR\x06handle\x12'\n" +
+	"\x0fgranted_because\x18\x02 \x01(\tR\x0egrantedBecause\x12\x1b\n" +
+	"\twaited_ms\x18\x03 \x01(\x04R\bwaitedMs\x12\x1b\n" +
+	"\ttimed_out\x18\x04 \x01(\bR\btimedOut\x12+\n" +
+	"\tincumbent\x18\x05 \x01(\v2\r.rig.v1.LeaseR\tincumbent\"j\n" +
 	"\x11LeaseRenewRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
 	"\x05token\x18\x02 \x01(\x04R\x05token\x12\x14\n" +
@@ -12330,102 +12426,103 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	1,   // 6: rig.v1.Lease.state:type_name -> rig.v1.LeaseState
 	2,   // 7: rig.v1.Lease.liveness:type_name -> rig.v1.Liveness
 	24,  // 8: rig.v1.LeaseAcquireResponse.handle:type_name -> rig.v1.LeaseHandle
-	24,  // 9: rig.v1.LeaseRenewResponse.handle:type_name -> rig.v1.LeaseHandle
-	23,  // 10: rig.v1.LeaseListResponse.leases:type_name -> rig.v1.Lease
-	170, // 11: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
-	35,  // 12: rig.v1.Record.prov:type_name -> rig.v1.Provenance
-	37,  // 13: rig.v1.Record.retraction:type_name -> rig.v1.Retraction
-	35,  // 14: rig.v1.Retraction.prov:type_name -> rig.v1.Provenance
-	171, // 15: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
-	36,  // 16: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
-	36,  // 17: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
-	36,  // 18: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
-	36,  // 19: rig.v1.RecordHistoryResponse.versions:type_name -> rig.v1.Record
-	37,  // 20: rig.v1.RecordRetractResponse.retraction:type_name -> rig.v1.Retraction
-	54,  // 21: rig.v1.RecordDeleteResponse.edges:type_name -> rig.v1.Edge
-	54,  // 22: rig.v1.RecordReplaceResponse.moved:type_name -> rig.v1.Edge
-	54,  // 23: rig.v1.RecordReplaceResponse.merged:type_name -> rig.v1.Edge
-	54,  // 24: rig.v1.RecordReplaceResponse.dropped:type_name -> rig.v1.Edge
-	37,  // 25: rig.v1.RecordReplaceResponse.retraction:type_name -> rig.v1.Retraction
-	51,  // 26: rig.v1.RecordRefsResponse.refs:type_name -> rig.v1.Ref
-	60,  // 27: rig.v1.RecordRefsResponse.cycles:type_name -> rig.v1.Cycle
-	59,  // 28: rig.v1.RecordRefsResponse.results:type_name -> rig.v1.RecordRefsResponse
-	3,   // 29: rig.v1.ProgressStepRequest.state:type_name -> rig.v1.StepState
-	36,  // 30: rig.v1.ProgressStepResponse.step:type_name -> rig.v1.Record
-	3,   // 31: rig.v1.ItemState.state:type_name -> rig.v1.StepState
-	3,   // 32: rig.v1.Blocker.state:type_name -> rig.v1.StepState
-	64,  // 33: rig.v1.Blockage.blockers:type_name -> rig.v1.Blocker
-	5,   // 34: rig.v1.BriefSectionStatus.section:type_name -> rig.v1.BriefSection
-	6,   // 35: rig.v1.BriefSectionStatus.state:type_name -> rig.v1.SectionState
-	35,  // 36: rig.v1.BriefNote.prov:type_name -> rig.v1.Provenance
-	63,  // 37: rig.v1.ProjectBriefResponse.open:type_name -> rig.v1.ItemState
-	63,  // 38: rig.v1.ProjectBriefResponse.next_up:type_name -> rig.v1.ItemState
-	65,  // 39: rig.v1.ProjectBriefResponse.blocked:type_name -> rig.v1.Blockage
-	60,  // 40: rig.v1.ProjectBriefResponse.cycles:type_name -> rig.v1.Cycle
-	68,  // 41: rig.v1.ProjectBriefResponse.notes:type_name -> rig.v1.BriefNote
-	69,  // 42: rig.v1.ProjectBriefResponse.drift:type_name -> rig.v1.Drift
-	72,  // 43: rig.v1.ProjectBriefResponse.health:type_name -> rig.v1.BriefHealth
-	70,  // 44: rig.v1.ProjectBriefResponse.features:type_name -> rig.v1.Feature
-	71,  // 45: rig.v1.ProjectBriefResponse.feature_stages:type_name -> rig.v1.StageCount
-	68,  // 46: rig.v1.ProjectBriefResponse.case_notes:type_name -> rig.v1.BriefNote
-	67,  // 47: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
-	73,  // 48: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
-	74,  // 49: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
-	174, // 50: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
-	75,  // 51: rig.v1.ProjectBriefResponse.closed:type_name -> rig.v1.ClosedItem
-	76,  // 52: rig.v1.ProjectBriefResponse.closed_counts:type_name -> rig.v1.WordCount
-	35,  // 53: rig.v1.Lesson.prov:type_name -> rig.v1.Provenance
-	80,  // 54: rig.v1.KnowledgeAddResponse.lesson:type_name -> rig.v1.Lesson
-	81,  // 55: rig.v1.KnowledgeSearchResponse.hits:type_name -> rig.v1.LessonHit
-	80,  // 56: rig.v1.KnowledgeGetResponse.lesson:type_name -> rig.v1.Lesson
-	7,   // 57: rig.v1.Task.state:type_name -> rig.v1.TaskState
-	23,  // 58: rig.v1.Task.claim:type_name -> rig.v1.Lease
-	88,  // 59: rig.v1.QueuePushResponse.task:type_name -> rig.v1.Task
-	88,  // 60: rig.v1.QueueClaimResponse.task:type_name -> rig.v1.Task
-	24,  // 61: rig.v1.QueueClaimResponse.handle:type_name -> rig.v1.LeaseHandle
-	88,  // 62: rig.v1.QueueCompleteResponse.task:type_name -> rig.v1.Task
-	88,  // 63: rig.v1.QueueListResponse.tasks:type_name -> rig.v1.Task
-	23,  // 64: rig.v1.LeaseCheckResponse.lease:type_name -> rig.v1.Lease
-	172, // 65: rig.v1.WorkNote.fields:type_name -> rig.v1.WorkNote.FieldsEntry
-	35,  // 66: rig.v1.WorkNote.prov:type_name -> rig.v1.Provenance
-	173, // 67: rig.v1.WorkNoteWriteRequest.fields:type_name -> rig.v1.WorkNoteWriteRequest.FieldsEntry
-	99,  // 68: rig.v1.WorkNoteWriteResponse.note:type_name -> rig.v1.WorkNote
-	99,  // 69: rig.v1.WorkNoteMineResponse.notes:type_name -> rig.v1.WorkNote
-	99,  // 70: rig.v1.WorkNoteAboutResponse.notes:type_name -> rig.v1.WorkNote
-	8,   // 71: rig.v1.Message.state:type_name -> rig.v1.MessageState
-	106, // 72: rig.v1.MessageSendResponse.message:type_name -> rig.v1.Message
-	0,   // 73: rig.v1.MessageSendResponse.to_state:type_name -> rig.v1.SeatState
-	106, // 74: rig.v1.MessageInboxResponse.messages:type_name -> rig.v1.Message
-	106, // 75: rig.v1.MessageAwaitResponse.messages:type_name -> rig.v1.Message
-	8,   // 76: rig.v1.MessageAckRequest.state:type_name -> rig.v1.MessageState
-	106, // 77: rig.v1.MessageAckResponse.message:type_name -> rig.v1.Message
-	106, // 78: rig.v1.MessageListResponse.messages:type_name -> rig.v1.Message
-	9,   // 79: rig.v1.ProgramEvent.from:type_name -> rig.v1.ProgramState
-	9,   // 80: rig.v1.ProgramEvent.to:type_name -> rig.v1.ProgramState
-	9,   // 81: rig.v1.ProgramHealth.state:type_name -> rig.v1.ProgramState
-	117, // 82: rig.v1.ProgramHealth.history:type_name -> rig.v1.ProgramEvent
-	118, // 83: rig.v1.UpResponse.programs:type_name -> rig.v1.ProgramHealth
-	118, // 84: rig.v1.StopResponse.program:type_name -> rig.v1.ProgramHealth
-	118, // 85: rig.v1.RestartResponse.program:type_name -> rig.v1.ProgramHealth
-	118, // 86: rig.v1.HealthResponse.programs:type_name -> rig.v1.ProgramHealth
-	127, // 87: rig.v1.StoreGetResponse.documents:type_name -> rig.v1.StoreDocument
-	132, // 88: rig.v1.StoreQueryRequest.where:type_name -> rig.v1.StoreCondition
-	133, // 89: rig.v1.StoreQueryRequest.order:type_name -> rig.v1.StoreOrder
-	127, // 90: rig.v1.StoreQueryResponse.documents:type_name -> rig.v1.StoreDocument
-	138, // 91: rig.v1.StoreTransactRequest.ops:type_name -> rig.v1.StoreOp
-	142, // 92: rig.v1.StoreCollectionsResponse.collections:type_name -> rig.v1.StoreCollection
-	145, // 93: rig.v1.StoreListResponse.namespaces:type_name -> rig.v1.StoreNamespace
-	148, // 94: rig.v1.StoreExportResponse.collections:type_name -> rig.v1.StoreCollectionCount
-	148, // 95: rig.v1.StoreImportResponse.collections:type_name -> rig.v1.StoreCollectionCount
-	157, // 96: rig.v1.FilesSearchResponse.hits:type_name -> rig.v1.FilesHit
-	160, // 97: rig.v1.FilesUnindexedResponse.files:type_name -> rig.v1.FilesPending
-	165, // 98: rig.v1.FilesLayoutResponse.kinds:type_name -> rig.v1.FilesKind
-	168, // 99: rig.v1.FilesRelayoutResponse.moves:type_name -> rig.v1.FilesMove
-	100, // [100:100] is the sub-list for method output_type
-	100, // [100:100] is the sub-list for method input_type
-	100, // [100:100] is the sub-list for extension type_name
-	100, // [100:100] is the sub-list for extension extendee
-	0,   // [0:100] is the sub-list for field type_name
+	23,  // 9: rig.v1.LeaseAcquireResponse.incumbent:type_name -> rig.v1.Lease
+	24,  // 10: rig.v1.LeaseRenewResponse.handle:type_name -> rig.v1.LeaseHandle
+	23,  // 11: rig.v1.LeaseListResponse.leases:type_name -> rig.v1.Lease
+	170, // 12: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
+	35,  // 13: rig.v1.Record.prov:type_name -> rig.v1.Provenance
+	37,  // 14: rig.v1.Record.retraction:type_name -> rig.v1.Retraction
+	35,  // 15: rig.v1.Retraction.prov:type_name -> rig.v1.Provenance
+	171, // 16: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
+	36,  // 17: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
+	36,  // 18: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
+	36,  // 19: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
+	36,  // 20: rig.v1.RecordHistoryResponse.versions:type_name -> rig.v1.Record
+	37,  // 21: rig.v1.RecordRetractResponse.retraction:type_name -> rig.v1.Retraction
+	54,  // 22: rig.v1.RecordDeleteResponse.edges:type_name -> rig.v1.Edge
+	54,  // 23: rig.v1.RecordReplaceResponse.moved:type_name -> rig.v1.Edge
+	54,  // 24: rig.v1.RecordReplaceResponse.merged:type_name -> rig.v1.Edge
+	54,  // 25: rig.v1.RecordReplaceResponse.dropped:type_name -> rig.v1.Edge
+	37,  // 26: rig.v1.RecordReplaceResponse.retraction:type_name -> rig.v1.Retraction
+	51,  // 27: rig.v1.RecordRefsResponse.refs:type_name -> rig.v1.Ref
+	60,  // 28: rig.v1.RecordRefsResponse.cycles:type_name -> rig.v1.Cycle
+	59,  // 29: rig.v1.RecordRefsResponse.results:type_name -> rig.v1.RecordRefsResponse
+	3,   // 30: rig.v1.ProgressStepRequest.state:type_name -> rig.v1.StepState
+	36,  // 31: rig.v1.ProgressStepResponse.step:type_name -> rig.v1.Record
+	3,   // 32: rig.v1.ItemState.state:type_name -> rig.v1.StepState
+	3,   // 33: rig.v1.Blocker.state:type_name -> rig.v1.StepState
+	64,  // 34: rig.v1.Blockage.blockers:type_name -> rig.v1.Blocker
+	5,   // 35: rig.v1.BriefSectionStatus.section:type_name -> rig.v1.BriefSection
+	6,   // 36: rig.v1.BriefSectionStatus.state:type_name -> rig.v1.SectionState
+	35,  // 37: rig.v1.BriefNote.prov:type_name -> rig.v1.Provenance
+	63,  // 38: rig.v1.ProjectBriefResponse.open:type_name -> rig.v1.ItemState
+	63,  // 39: rig.v1.ProjectBriefResponse.next_up:type_name -> rig.v1.ItemState
+	65,  // 40: rig.v1.ProjectBriefResponse.blocked:type_name -> rig.v1.Blockage
+	60,  // 41: rig.v1.ProjectBriefResponse.cycles:type_name -> rig.v1.Cycle
+	68,  // 42: rig.v1.ProjectBriefResponse.notes:type_name -> rig.v1.BriefNote
+	69,  // 43: rig.v1.ProjectBriefResponse.drift:type_name -> rig.v1.Drift
+	72,  // 44: rig.v1.ProjectBriefResponse.health:type_name -> rig.v1.BriefHealth
+	70,  // 45: rig.v1.ProjectBriefResponse.features:type_name -> rig.v1.Feature
+	71,  // 46: rig.v1.ProjectBriefResponse.feature_stages:type_name -> rig.v1.StageCount
+	68,  // 47: rig.v1.ProjectBriefResponse.case_notes:type_name -> rig.v1.BriefNote
+	67,  // 48: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
+	73,  // 49: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
+	74,  // 50: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
+	174, // 51: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
+	75,  // 52: rig.v1.ProjectBriefResponse.closed:type_name -> rig.v1.ClosedItem
+	76,  // 53: rig.v1.ProjectBriefResponse.closed_counts:type_name -> rig.v1.WordCount
+	35,  // 54: rig.v1.Lesson.prov:type_name -> rig.v1.Provenance
+	80,  // 55: rig.v1.KnowledgeAddResponse.lesson:type_name -> rig.v1.Lesson
+	81,  // 56: rig.v1.KnowledgeSearchResponse.hits:type_name -> rig.v1.LessonHit
+	80,  // 57: rig.v1.KnowledgeGetResponse.lesson:type_name -> rig.v1.Lesson
+	7,   // 58: rig.v1.Task.state:type_name -> rig.v1.TaskState
+	23,  // 59: rig.v1.Task.claim:type_name -> rig.v1.Lease
+	88,  // 60: rig.v1.QueuePushResponse.task:type_name -> rig.v1.Task
+	88,  // 61: rig.v1.QueueClaimResponse.task:type_name -> rig.v1.Task
+	24,  // 62: rig.v1.QueueClaimResponse.handle:type_name -> rig.v1.LeaseHandle
+	88,  // 63: rig.v1.QueueCompleteResponse.task:type_name -> rig.v1.Task
+	88,  // 64: rig.v1.QueueListResponse.tasks:type_name -> rig.v1.Task
+	23,  // 65: rig.v1.LeaseCheckResponse.lease:type_name -> rig.v1.Lease
+	172, // 66: rig.v1.WorkNote.fields:type_name -> rig.v1.WorkNote.FieldsEntry
+	35,  // 67: rig.v1.WorkNote.prov:type_name -> rig.v1.Provenance
+	173, // 68: rig.v1.WorkNoteWriteRequest.fields:type_name -> rig.v1.WorkNoteWriteRequest.FieldsEntry
+	99,  // 69: rig.v1.WorkNoteWriteResponse.note:type_name -> rig.v1.WorkNote
+	99,  // 70: rig.v1.WorkNoteMineResponse.notes:type_name -> rig.v1.WorkNote
+	99,  // 71: rig.v1.WorkNoteAboutResponse.notes:type_name -> rig.v1.WorkNote
+	8,   // 72: rig.v1.Message.state:type_name -> rig.v1.MessageState
+	106, // 73: rig.v1.MessageSendResponse.message:type_name -> rig.v1.Message
+	0,   // 74: rig.v1.MessageSendResponse.to_state:type_name -> rig.v1.SeatState
+	106, // 75: rig.v1.MessageInboxResponse.messages:type_name -> rig.v1.Message
+	106, // 76: rig.v1.MessageAwaitResponse.messages:type_name -> rig.v1.Message
+	8,   // 77: rig.v1.MessageAckRequest.state:type_name -> rig.v1.MessageState
+	106, // 78: rig.v1.MessageAckResponse.message:type_name -> rig.v1.Message
+	106, // 79: rig.v1.MessageListResponse.messages:type_name -> rig.v1.Message
+	9,   // 80: rig.v1.ProgramEvent.from:type_name -> rig.v1.ProgramState
+	9,   // 81: rig.v1.ProgramEvent.to:type_name -> rig.v1.ProgramState
+	9,   // 82: rig.v1.ProgramHealth.state:type_name -> rig.v1.ProgramState
+	117, // 83: rig.v1.ProgramHealth.history:type_name -> rig.v1.ProgramEvent
+	118, // 84: rig.v1.UpResponse.programs:type_name -> rig.v1.ProgramHealth
+	118, // 85: rig.v1.StopResponse.program:type_name -> rig.v1.ProgramHealth
+	118, // 86: rig.v1.RestartResponse.program:type_name -> rig.v1.ProgramHealth
+	118, // 87: rig.v1.HealthResponse.programs:type_name -> rig.v1.ProgramHealth
+	127, // 88: rig.v1.StoreGetResponse.documents:type_name -> rig.v1.StoreDocument
+	132, // 89: rig.v1.StoreQueryRequest.where:type_name -> rig.v1.StoreCondition
+	133, // 90: rig.v1.StoreQueryRequest.order:type_name -> rig.v1.StoreOrder
+	127, // 91: rig.v1.StoreQueryResponse.documents:type_name -> rig.v1.StoreDocument
+	138, // 92: rig.v1.StoreTransactRequest.ops:type_name -> rig.v1.StoreOp
+	142, // 93: rig.v1.StoreCollectionsResponse.collections:type_name -> rig.v1.StoreCollection
+	145, // 94: rig.v1.StoreListResponse.namespaces:type_name -> rig.v1.StoreNamespace
+	148, // 95: rig.v1.StoreExportResponse.collections:type_name -> rig.v1.StoreCollectionCount
+	148, // 96: rig.v1.StoreImportResponse.collections:type_name -> rig.v1.StoreCollectionCount
+	157, // 97: rig.v1.FilesSearchResponse.hits:type_name -> rig.v1.FilesHit
+	160, // 98: rig.v1.FilesUnindexedResponse.files:type_name -> rig.v1.FilesPending
+	165, // 99: rig.v1.FilesLayoutResponse.kinds:type_name -> rig.v1.FilesKind
+	168, // 100: rig.v1.FilesRelayoutResponse.moves:type_name -> rig.v1.FilesMove
+	101, // [101:101] is the sub-list for method output_type
+	101, // [101:101] is the sub-list for method input_type
+	101, // [101:101] is the sub-list for extension type_name
+	101, // [101:101] is the sub-list for extension extendee
+	0,   // [0:101] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_verbs_proto_init() }

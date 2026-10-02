@@ -392,6 +392,19 @@ message Lease {
 
   string broken_by = 11;
   string broken_reason = 12;
+
+  // The holder's row on the roster, when its seat is present: what it is
+  // FOR and what it is doing, so a refused caller decides without asking.
+  string holder_purpose = 13;
+  string holder_activity = 14;
+
+  // How long the current holder has held it, across renewals. Zero for a
+  // free lease; counted from its next renewal for one taken before rig
+  // recorded it.
+  int64 held_ms = 15;
+
+  // The seats queued for it, oldest first (plan/53 slice 2).
+  repeated string waiting = 16;
 }
 
 // LeaseHandle is what a holder presents to renew or release.
@@ -412,10 +425,28 @@ message LeaseAcquireRequest {
   // True declares that rig cannot poll this holder, and buys the stricter
   // rule: the lease never frees on its own and needs a recorded break.
   bool unwitnessed = 3;
+
+  // How long to queue for it if somebody else holds it, at most 25 minutes.
+  // Zero refuses at once, as before. Waiters are served first come, first
+  // served, and a wait that would close a cycle is refused by name.
+  uint32 wait_ms = 4;
 }
 
 message LeaseAcquireResponse {
+  // Set when the lease is yours. Absent only when timed_out.
   LeaseHandle handle = 1;
+
+  // Why it became yours: "free", "released", "broken", "expired", or
+  // "already yours" for the reconnect path.
+  string granted_because = 2;
+
+  // How long the call queued.
+  uint64 waited_ms = 3;
+
+  // The wait ran out. A RESULT, not an error: incumbent says who still has
+  // it, and your place in the queue was given up.
+  bool timed_out = 4;
+  Lease incumbent = 5;
 }
 
 message LeaseRenewRequest {

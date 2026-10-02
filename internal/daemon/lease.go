@@ -1,9 +1,11 @@
 package daemon
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -26,7 +28,7 @@ import (
 //     and a lease on a pid that never dies never frees.
 
 // serveLease dispatches the five lease verbs.
-func (d *Daemon) serveLease(c *conn, f *rigv1.Frame, command string) {
+func (d *Daemon) serveLease(ctx context.Context, c *conn, f *rigv1.Frame, command string) {
 	if d.leases == nil {
 		c.failStatus(f.GetStreamId(), &rigv1.Status{
 			Code: rigv1.Code_CODE_UNAVAILABLE,
@@ -43,7 +45,7 @@ func (d *Daemon) serveLease(c *conn, f *rigv1.Frame, command string) {
 	case "lease.list":
 		d.serveLeaseList(c, f)
 	case "lease.acquire":
-		d.serveLeaseAcquire(c, f)
+		d.serveLeaseAcquire(ctx, c, f)
 	case "lease.renew":
 		d.serveLeaseRenew(c, f)
 	case "lease.release":
@@ -69,25 +71,26 @@ func (d *Daemon) serveLeaseList(c *conn, f *rigv1.Frame) {
 	sort.Slice(all, func(i, j int) bool { return all[i].Name < all[j].Name })
 	resp := &verbsv1.LeaseListResponse{}
 	for _, st := range all {
-		resp.Leases = append(resp.Leases, leaseToWire(st, at))
+		resp.Leases = append(resp.Leases, d.leaseWire(st, at, d.lq.waiting(st.Name)))
 	}
 	c.reply(f.GetStreamId(), resp)
 }
 
-func (d *Daemon) serveLeaseAcquire(c *conn, f *rigv1.Frame) {
+func (d *Daemon) serveLeaseAcquire(ctx context.Context, c *conn, f *rigv1.Frame) {
 	var req verbsv1.LeaseAcquireRequest
 	if err := proto.Unmarshal(f.GetPayload(), &req); err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "lease.acquire: "+err.Error())
 		return
 	}
-	if !leaseTextOK(c, f, "lease.acquire", "name", req.GetName()) {
+	name := req.GetName()
+	if !leaseTextOK(c, f, "lease.acquire", "name", name) {
 		return
 	}
-	if coord.IsClaimLease(req.GetName()) {
+	if coord.IsClaimLease(name) {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, fmt.Sprintf(
 			"rig.lease.acquire: %q is a queue claim's name, and a claim is taken "+
 				"with rig.queue.claim; holding it directly would block a task "+
-				"nobody is working on", req.GetName()))
+				"nobody is working on", name))
 		return
 	}
 	_, seat, _, ok := d.provenance(c)
@@ -111,13 +114,172 @@ func (d *Daemon) serveLeaseAcquire(c *conn, f *rigv1.Frame) {
 			return
 		}
 	}
-	h, err := d.leases.Acquire(req.GetName(), seat, w, ttlOf(req.GetTtlMs()))
-	if err != nil {
+	ttl, wait := ttlOf(req.GetTtlMs()), min(ttlOf(req.GetWaitMs()), maxLeaseWait)
+	started := time.Now()
+
+	d.lq.mu.Lock()
+	// A lease that freed by itself since anybody looked goes to its queue
+	// first, and is announced as expired, before this caller is considered.
+	if seen, known := d.lq.known[name]; known && seen.state != coord.Free {
+		d.lookLocked(name)
+	}
+	because := grantFree
+	if seen := d.lq.known[name]; seen.state != coord.Free && seen.holder == seat {
+		because = grantYours
+	}
+	h, err := d.leases.Acquire(name, seat, w, ttl)
+	var held *coord.HeldError
+	switch {
+	case err == nil:
+		d.lq.noteLocked(coord.Status{Name: name, State: coord.Held, Holder: h.Holder, Deadline: h.Deadline})
+		d.lq.mu.Unlock()
+		d.publishJSON("lease.changed", leaseChange{Name: h.Name, Change: "acquired", Holder: h.Holder, Token: h.Token, Because: because})
+		c.reply(f.GetStreamId(), &verbsv1.LeaseAcquireResponse{Handle: handleToWire(h), GrantedBecause: because})
+		return
+	case !errors.As(err, &held) || wait <= 0:
+		d.lq.mu.Unlock()
+		d.failLease(c, f, "lease.acquire", err)
+		return
+	}
+	if chain := d.cycleLocked(seat, name, held.Status.Holder); chain != "" {
+		d.lq.mu.Unlock()
+		c.failStatus(f.GetStreamId(), &rigv1.Status{
+			Code:         rigv1.Code_CODE_CONFLICT,
+			Message:      "rig.lease.acquire: refused, because waiting would deadlock: " + chain,
+			Precondition: "no seat this lease's holder waits on is waiting on you",
+			Actual:       chain,
+			Fix:          "release what you hold that the others wait for, then acquire again; or coordinate with the holder",
+		})
+		return
+	}
+	me := &leaseWaiter{seat: seat, w: w, ttl: ttl, grant: make(chan leaseGrant, 1)}
+	d.lq.q[name] = append(d.lq.q[name], me)
+	if _, watched := d.lq.next[name]; !watched {
+		d.lq.noteLocked(held.Status)
+	}
+	d.lq.mu.Unlock()
+	d.publishJSON("lease.changed", leaseChange{Name: name, Change: "queued", Holder: held.Status.Holder, By: seat})
+
+	timer := time.NewTimer(wait)
+	defer timer.Stop()
+	var g leaseGrant
+	select {
+	case g = <-me.grant:
+	case <-timer.C:
+		var granted bool
+		if g, granted = d.leaveQueue(name, me); !granted {
+			d.replyTimedOut(c, f, name, time.Since(started))
+			return
+		}
+	case <-ctx.Done():
+		d.abandonWait(name, me)
+		return
+	case <-c.gone:
+		d.abandonWait(name, me)
+		return
+	}
+	if g.err != nil {
+		d.failLease(c, f, "lease.acquire", g.err)
+		return
+	}
+	c.reply(f.GetStreamId(), &verbsv1.LeaseAcquireResponse{
+		Handle: handleToWire(g.h), GrantedBecause: g.because,
+		WaitedMs: uint64(time.Since(started).Milliseconds()), //nolint:gosec // a duration since now is never negative
+	})
+}
+
+// leaveQueue takes a waiter out of its queue. If it was granted in the same
+// instant, the grant is returned rather than lost.
+func (d *Daemon) leaveQueue(name string, me *leaseWaiter) (leaseGrant, bool) {
+	d.lq.mu.Lock()
+	removed := d.lq.removeLocked(name, me)
+	d.lq.mu.Unlock()
+	if removed {
+		return leaseGrant{}, false
+	}
+	return <-me.grant, true
+}
+
+// abandonWait is a waiter whose caller went away. A lease granted to it in
+// that instant is handed on at once, so nobody waits behind a ghost.
+func (d *Daemon) abandonWait(name string, me *leaseWaiter) {
+	g, granted := d.leaveQueue(name, me)
+	if !granted || g.err != nil {
+		return
+	}
+	if err := d.leases.Release(g.h); err != nil {
+		return // the lease's witness frees it: the caller's process is gone
+	}
+	d.freed(name, "released", grantReleased, "")
+}
+
+// freed tells lease.changed a lease came free and hands it to its queue.
+func (d *Daemon) freed(name, change, because, by string) {
+	d.lq.mu.Lock()
+	defer d.lq.mu.Unlock()
+	d.lq.noteLocked(coord.Status{Name: name, State: coord.Free})
+	d.publishJSON("lease.changed", leaseChange{Name: name, Change: change, By: by})
+	d.handOverLocked(name, because)
+}
+
+func (d *Daemon) replyTimedOut(c *conn, f *rigv1.Frame, name string, waited time.Duration) {
+	st, err := d.leases.Inspect(name)
+	at, aerr := coord.Now()
+	if err != nil || aerr != nil {
+		c.failErr(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, errors.Join(err, aerr))
+		return
+	}
+	c.reply(f.GetStreamId(), &verbsv1.LeaseAcquireResponse{
+		TimedOut: true, Incumbent: d.leaseWire(st, at, d.lq.waiting(name)),
+		WaitedMs: uint64(waited.Milliseconds()), //nolint:gosec // never negative
+	})
+}
+
+// failLease refuses with coord's error; a lease somebody else holds also
+// carries who, what they are doing and how long they have had it, so the
+// caller decides without asking again.
+func (d *Daemon) failLease(c *conn, f *rigv1.Frame, command string, err error) {
+	var held *coord.HeldError
+	if !errors.As(err, &held) {
 		c.failErr(f.GetStreamId(), leaseCode(err), err)
 		return
 	}
-	d.publishJSON("lease.changed", leaseChange{Name: h.Name, Change: "acquired", Holder: h.Holder, Token: h.Token})
-	c.reply(f.GetStreamId(), &verbsv1.LeaseAcquireResponse{Handle: handleToWire(h)})
+	at, aerr := coord.Now()
+	if aerr != nil {
+		c.failErr(f.GetStreamId(), leaseCode(err), err)
+		return
+	}
+	fix := "acquire with wait_ms to queue for it, first come first served; or do something else and watch lease.changed"
+	if command == "lease.break" {
+		fix = "a lease inside its deadline is not broken: wait for it, or ask its holder to release it"
+	}
+	c.failStatus(f.GetStreamId(), &rigv1.Status{
+		Code:    rigv1.Code_CODE_CONFLICT,
+		Message: "rig." + command + ": " + err.Error(),
+		Actual:  leasePicture(d.leaseWire(held.Status, at, d.lq.waiting(held.Status.Name))),
+		Fix:     fix,
+	})
+}
+
+// leasePicture is a lease's holder in one line.
+func leasePicture(l *verbsv1.Lease) string {
+	parts := []string{"held by " + l.GetHolder()}
+	if p := l.GetHolderPurpose(); p != "" {
+		parts = append(parts, "for: "+p)
+	}
+	if a := l.GetHolderActivity(); a != "" {
+		parts = append(parts, "doing: "+a)
+	}
+	if l.GetHeldMs() > 0 {
+		parts = append(parts, "for "+(time.Duration(l.GetHeldMs())*time.Millisecond).Round(time.Second).String())
+	}
+	if n := len(l.GetWaiting()); n > 0 {
+		parts = append(parts, fmt.Sprintf("%d queued: %s", n, strings.Join(l.GetWaiting(), ", ")))
+	}
+	if l.GetState() == verbsv1.LeaseState_LEASE_STATE_ORPHANED {
+		parts = append(parts, "orphaned")
+	}
+	return strings.Join(parts, "; ")
 }
 
 func (d *Daemon) serveLeaseRenew(c *conn, f *rigv1.Frame) {
@@ -133,6 +295,9 @@ func (d *Daemon) serveLeaseRenew(c *conn, f *rigv1.Frame) {
 		c.failErr(f.GetStreamId(), leaseCode(err), err)
 		return
 	}
+	d.lq.mu.Lock()
+	d.lq.noteLocked(coord.Status{Name: h.Name, State: coord.Held, Holder: h.Holder, Deadline: h.Deadline})
+	d.lq.mu.Unlock()
 	c.reply(f.GetStreamId(), &verbsv1.LeaseRenewResponse{Handle: handleToWire(h)})
 }
 
@@ -148,7 +313,7 @@ func (d *Daemon) serveLeaseRelease(c *conn, f *rigv1.Frame) {
 		c.failErr(f.GetStreamId(), leaseCode(err), err)
 		return
 	}
-	d.publishJSON("lease.changed", leaseChange{Name: req.GetName(), Change: "released", Token: req.GetToken()})
+	d.freed(req.GetName(), "released", grantReleased, "")
 	c.reply(f.GetStreamId(), &verbsv1.LeaseReleaseResponse{})
 }
 
@@ -171,10 +336,10 @@ func (d *Daemon) serveLeaseBreak(c *conn, f *rigv1.Frame) {
 		return
 	}
 	if err := d.leases.Break(req.GetName(), seat, req.GetReason()); err != nil {
-		c.failErr(f.GetStreamId(), leaseCode(err), err)
+		d.failLease(c, f, "lease.break", err)
 		return
 	}
-	d.publishJSON("lease.changed", leaseChange{Name: req.GetName(), Change: "broken", By: seat})
+	d.freed(req.GetName(), "broken", grantBroken, seat)
 	c.reply(f.GetStreamId(), &verbsv1.LeaseBreakResponse{})
 }
 
@@ -199,7 +364,7 @@ func (d *Daemon) serveLeaseCheck(c *conn, f *rigv1.Frame) {
 		c.failErr(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err)
 		return
 	}
-	c.reply(f.GetStreamId(), &verbsv1.LeaseCheckResponse{Current: current, Lease: leaseToWire(st, at)})
+	c.reply(f.GetStreamId(), &verbsv1.LeaseCheckResponse{Current: current, Lease: d.leaseWire(st, at, d.lq.waiting(st.Name))})
 }
 
 func refuseUnseatedLease(c *conn, f *rigv1.Frame, command string) {
@@ -272,6 +437,23 @@ var livenessWire = map[coord.Liveness]verbsv1.Liveness{
 	coord.LivenessUnknown: verbsv1.Liveness_LIVENESS_UNKNOWN,
 	coord.Alive:           verbsv1.Liveness_LIVENESS_ALIVE,
 	coord.Dead:            verbsv1.Liveness_LIVENESS_DEAD,
+}
+
+// leaseWire is leaseToWire with what only the daemon knows: the holder's
+// roster row, its tenure, and who is queued.
+func (d *Daemon) leaseWire(st coord.Status, at coord.Instant, waiting []string) *verbsv1.Lease {
+	out := leaseToWire(st, at)
+	out.Waiting = waiting
+	if st.State == coord.Free {
+		return out
+	}
+	if o, ok := d.presence.seatNamed(st.Holder); ok {
+		out.HolderPurpose, out.HolderActivity = o.purpose, o.activity
+	}
+	if st.Since != 0 && !at.Before(st.Since) {
+		out.HeldMs = at.Sub(st.Since).Milliseconds()
+	}
+	return out
 }
 
 // leaseToWire renders a status. A lease nobody ever took has no deadline, and

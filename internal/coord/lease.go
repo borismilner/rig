@@ -69,6 +69,9 @@ type Status struct {
 	Epoch    uint64
 	Witness  Witness
 	Deadline Instant
+	// Since is when the current holder took it, kept across its renewals and
+	// its own re-acquires; zero for a lease stored before it was recorded.
+	Since Instant
 	// OwnerGone is true when the witness was OBSERVED dead. It is false for
 	// an owner rig could not check, which is why NeedsBreak exists beside it.
 	OwnerGone bool
@@ -168,6 +171,7 @@ type record struct {
 	Witness      Witness `json:"witness"`
 	BootID       string  `json:"boot_id"`
 	Deadline     Instant `json:"deadline"`
+	Since        Instant `json:"since,omitempty"`
 	Released     bool    `json:"released"`
 	BrokenBy     string  `json:"broken_by,omitempty"`
 	BrokenReason string  `json:"broken_reason,omitempty"`
@@ -224,6 +228,7 @@ func (r *record) status(state State, live Liveness) Status {
 		Epoch:        r.Epoch,
 		Witness:      r.Witness,
 		Deadline:     r.Deadline,
+		Since:        r.Since,
 		OwnerGone:    live == Dead,
 		Liveness:     live,
 		NeedsBreak:   state == Orphaned && r.Witness.Kind == Unwitnessed,
@@ -308,15 +313,19 @@ func (s *Store) acquireTx(ctx context.Context, tx *sql.Tx, at Instant, name, hol
 	if err != nil {
 		return Handle{}, err
 	}
-	token := uint64(0)
+	token, since := uint64(0), at
 	if r != nil {
 		token = r.Token
 		state, live := r.evaluate(at, s.bootID)
 		if state != Free && r.Holder != holder {
 			return Handle{}, &HeldError{Status: r.status(state, live)}
 		}
+		if state != Free && r.Since != 0 && r.BootID == s.bootID {
+			since = r.Since // a reconnect keeps its tenure
+		}
 	}
 	next := &record{
+		Since:    since,
 		Name:     name,
 		Holder:   holder,
 		Token:    token + 1,
@@ -362,6 +371,9 @@ func (s *Store) Renew(h Handle, ttl time.Duration) (Handle, error) {
 		}
 		if r.Token != h.Token {
 			return &FencedError{Name: h.Name, What: "token", Want: r.Token, Got: h.Token}
+		}
+		if r.BootID != s.bootID || r.Since == 0 {
+			r.Since = at // the boot clock restarted, so the old instant means nothing
 		}
 		r.Deadline = at.Add(ttl)
 		r.Epoch = s.epoch
