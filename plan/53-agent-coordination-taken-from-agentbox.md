@@ -426,10 +426,15 @@ than no notification at all."* rig had no way to withdraw a toast.
 
 Known gaps, none blocking:
 
-- **`make install` does not install `rigwindow`**; `make install-window`
-  does, and the running tray needs a restart. The first live run used
-  the morning's tray and looked like a failure: the bubble stayed for
-  its whole dwell. Evidence for §37: it cost one false demo result.
+- ~~`make install` does not install `rigwindow`.~~ **Not a gap: a
+  seat's error.** plan/28 rules that `make install` must not touch
+  rigwindow, and that `make deploy` is the one command for every part,
+  tray included (Boris, 2026-09-18 and 2026-09-27). This seat ran
+  `make install` and then `make install-window` by hand, and missed
+  the tray restart in between. The first live run used the morning's
+  tray and looked like a failure. Evidence for §37: plan/28 already
+  had the answer, and nothing pointed the seat to it at the moment it
+  ran the wrong target.
 - ~~A toast that went to the desktop's notification service was not
   taken down there.~~ Built at `d7781aa`: the tray keeps the ids `Notify`
   answered (the newest 64) and a withdrawal calls `CloseNotification`;
