@@ -421,9 +421,16 @@ Known gaps, none blocking:
   does, and the running tray needs a restart. The first live run used
   the morning's tray and looked like a failure: the bubble stayed for
   its whole dwell. Evidence for §37: it cost one false demo result.
-- **A toast that went to the desktop's notification service** because
-  the renderer would not start is not taken down there; its record is
-  still retracted.
+- ~~A toast that went to the desktop's notification service was not
+  taken down there.~~ Built at `d7781aa`: the tray keeps the ids `Notify`
+  answered (the newest 64) and a withdrawal calls `CloseNotification`;
+  a toast taken back before a late fallback is never put up. Tested
+  with two red controls. **Live, on GNOME Shell 50.1:** `Notify` gave
+  id 42 and `CloseNotification(42)` went through without error, but the
+  shell had already signalled `NotificationClosed(42, reason 2)` 30 ms
+  after showing it, and does the same for a plain `gdbus` notification.
+  So on this desktop a fallback toast may never stay up at all. That is
+  unexplained, and the screen was not looked at.
 - **The sweep's "still on screen" is an estimate**: rig cannot see the
   pointer, so it doubles the page's dwell.
 
