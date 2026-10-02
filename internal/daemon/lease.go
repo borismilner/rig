@@ -147,7 +147,10 @@ func (d *Daemon) serveLeaseAcquire(ctx context.Context, c *conn, f *rigv1.Frame)
 		d.failLease(c, f, "lease.acquire", err)
 		return
 	}
-	if chain := d.cycleLocked(seat, name, held.Status.Holder); chain != "" {
+	// A seat queued behind its own lease waits on another live process of
+	// its own, as a second `rig peers run` from one terminal user does
+	// (plan/53 slice 6); that process waits on nothing of the queuer's.
+	if chain := d.cycleLocked(seat, name, held.Status.Holder); chain != "" && held.Status.Holder != seat {
 		d.lq.mu.Unlock()
 		c.failStatus(f.GetStreamId(), &rigv1.Status{
 			Code:         rigv1.Code_CODE_CONFLICT,

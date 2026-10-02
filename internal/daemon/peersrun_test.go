@@ -205,3 +205,44 @@ func TestAFenceIsRefusedForWhatTheCallerDidNotStart(t *testing.T) {
 	t.Cleanup(func() { _ = notLeader.Process.Kill(); _ = notLeader.Wait() })
 	wantCode(t, fence(w.GetHandle(), notLeader.Process.Pid), rigv1.Code_CODE_INVALID, "a process in the caller's own group fenced")
 }
+
+// ⛔ TWO RUNS FROM ONE TERMINAL USER EXCLUDE EACH OTHER: every terminal of a
+// user is the same holder, and the reconnect path handed a running run's
+// lease straight to the next, so both wrote. Found live on 2026-10-02.
+func TestASecondRunFromTheSameUserWaitsForTheFirst(t *testing.T) {
+	sock, _ := upLeaseDaemon(t)
+	log := filepath.Join(t.TempDir(), "writes")
+	first := runUnder(t, sock, "--lease=deploy", "--ttl=3s", "--", "sh", "-c",
+		`while :; do echo w >> "$WRITES"; sleep 0.05; done`)
+	first.Env = append(first.Env, "WRITES="+log)
+	if err := first.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = first.Process.Kill(); _ = first.Wait() })
+	for deadline := time.Now().Add(10 * time.Second); size(log) == 0; time.Sleep(20 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatal("the first run never started writing")
+		}
+	}
+	time.Sleep(300 * time.Millisecond)
+
+	out, err := runUnder(t, sock, "--lease=deploy", "--", "true").CombinedOutput()
+	if exitCode(err) != exitLeaseLostForTest {
+		t.Fatalf("a second run took a lease the first still held: %v\n%s", err, out)
+	}
+
+	_ = first.Process.Signal(syscall.SIGSTOP)
+	start := time.Now()
+	out, err = runUnder(t, sock, "--lease=deploy", "--wait=15s", "--", "true").CombinedOutput()
+	if err != nil {
+		t.Fatalf("the second run was not handed the lease the frozen one lost: %v\n%s", err, out)
+	}
+	if time.Since(start) < 2*time.Second {
+		t.Fatalf("the second run did not wait for the first's deadline: %s", time.Since(start))
+	}
+	at := size(log)
+	time.Sleep(400 * time.Millisecond)
+	if after := size(log); after != at {
+		t.Fatalf("the frozen run was still writing after the lease passed on: %d then %d", at, after)
+	}
+}

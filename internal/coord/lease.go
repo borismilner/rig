@@ -323,7 +323,7 @@ func (s *Store) acquireTx(ctx context.Context, tx *sql.Tx, at Instant, name, hol
 	if r != nil {
 		token = r.Token
 		state, live := r.evaluate(at, s.bootID)
-		if state != Free && r.Holder != holder {
+		if state != Free && (r.Holder != holder || r.heldByAnother(w, live)) {
 			return Handle{}, &HeldError{Status: r.status(state, live)}
 		}
 		if state != Free && r.Since != 0 && r.BootID == s.bootID {
@@ -342,6 +342,18 @@ func (s *Store) acquireTx(ctx context.Context, tx *sql.Tx, at Instant, name, hol
 	}
 	return Handle{Name: name, Holder: holder, Token: next.Token, Epoch: next.Epoch, Deadline: next.Deadline},
 		putRecord(ctx, tx, next)
+}
+
+// heldByAnother is whether the holder's own lease is held by a live process
+// other than the one asking (plan/53 slice 6). Every terminal of one user is
+// one holder, so the reconnect path would hand a running `rig peers run`'s
+// lease to the next one; it is the reconnect path only for the process that
+// held it, or once that process is gone.
+func (r *record) heldByAnother(w Witness, live Liveness) bool {
+	if r.Witness.Kind != PID || live != Alive {
+		return false
+	}
+	return w.Kind != PID || w.Pid != r.Witness.Pid || w.StartTicks != r.Witness.StartTicks
 }
 
 // Renew extends a lease against the handle that holds it.
