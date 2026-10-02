@@ -67,15 +67,31 @@ type toastSpawn func(after uint64) (exited <-chan error, err error)
 // toastWatcher is the tray's whole toast state: a cursor, and whether a
 // renderer is alive.
 type toastWatcher struct {
-	spawn    toastSpawn
-	fallback func(*registryv1.Toast) error
-	warn     func(string)
+	spawn toastSpawn
+	// fallback puts a toast on the desktop and answers the id it was given
+	// there; closeDesktop takes one down by that id.
+	fallback     func(*registryv1.Toast) (uint32, error)
+	closeDesktop func(uint32) error
+	warn         func(string)
 	// grace is how soon an exit still counts as dying at start; zero means
 	// five seconds.
 	grace time.Duration
 
 	mu      sync.Mutex
 	running bool
+	// onDesktop is what the fallback put up, newest last, and gone is what was
+	// taken back; each keeps the newest desktopKept.
+	onDesktop []desktopToast
+	gone      []string
+}
+
+// desktopKept bounds what the tray remembers about the desktop's toasts. A
+// withdrawal comes while its toast may still be up, so the newest suffice.
+const desktopKept = 64
+
+type desktopToast struct {
+	record string
+	id     uint32
 }
 
 // deliver is called with each batch the tray's wait returns. With no renderer
@@ -83,9 +99,14 @@ type toastWatcher struct {
 // on the daemon itself. A renderer that cannot start, or dies before it
 // could draw, sends the batch to the desktop's notification service.
 func (w *toastWatcher) deliver(batch []*registryv1.Toast) {
-	// A withdrawal only matters to a renderer already showing its bubble:
-	// one that is running reads it from the ring itself, and with none, there
-	// is no bubble to take down (plan/53 slice 7).
+	// A withdrawal starts nothing (plan/53 slice 7): a running renderer reads
+	// it from the ring itself, and with none there is no bubble to take down.
+	// What the desktop shows for it is taken down here.
+	for _, t := range batch {
+		if t.GetRetracted() {
+			w.withdraw(t.GetRecordId())
+		}
+	}
 	batch = slices.DeleteFunc(slices.Clone(batch), (*registryv1.Toast).GetRetracted)
 	if len(batch) == 0 {
 		return
@@ -123,11 +144,49 @@ func (w *toastWatcher) deliver(batch []*registryv1.Toast) {
 
 func (w *toastWatcher) fallbackAll(batch []*registryv1.Toast) {
 	for _, t := range batch {
-		if err := w.fallback(t); err != nil {
+		w.mu.Lock()
+		taken := slices.Contains(w.gone, t.GetRecordId())
+		w.mu.Unlock()
+		if taken {
+			continue // taken back before a renderer that died at start was replaced
+		}
+		id, err := w.fallback(t)
+		if err != nil {
 			w.warn("the desktop's notification service refused too; the toast is in the record only: " + err.Error())
 			return
 		}
+		w.mu.Lock()
+		w.onDesktop = keepNewest(append(w.onDesktop, desktopToast{t.GetRecordId(), id}))
+		w.mu.Unlock()
 	}
+}
+
+// withdraw takes down what the desktop shows for a toast taken back, and
+// remembers it so a fallback still to come does not put it up.
+func (w *toastWatcher) withdraw(record string) {
+	w.mu.Lock()
+	w.gone = keepNewest(append(w.gone, record))
+	var ids []uint32
+	w.onDesktop = slices.DeleteFunc(w.onDesktop, func(d desktopToast) bool {
+		if d.record == record {
+			ids = append(ids, d.id)
+			return true
+		}
+		return false
+	})
+	w.mu.Unlock()
+	for _, id := range ids {
+		if err := w.closeDesktop(id); err != nil {
+			w.warn("the desktop would not close a toast taken back, or had closed it already: " + err.Error())
+		}
+	}
+}
+
+func keepNewest[T any](s []T) []T {
+	if len(s) > desktopKept {
+		return slices.Delete(s, 0, len(s)-desktopKept)
+	}
+	return s
 }
 
 // watchToasts is the tray's long poll. It starts at the daemon's latest
@@ -205,18 +264,34 @@ func freedesktopUrgency(s registryv1.Severity) byte {
 
 // notifyDesktop is the fallback: org.freedesktop.Notifications on the session
 // bus, the service GNOME, KDE and every notification daemon implement.
-func notifyDesktop(t *registryv1.Toast) error {
+func notifyDesktop(t *registryv1.Toast) (uint32, error) {
+	conn, err := dbus.ConnectSessionBus()
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = conn.Close() }()
+	sev := severityWord(t.GetSeverity())
+	var id uint32
+	err = desktopNotifications(conn).Call("org.freedesktop.Notifications.Notify", 0,
+		"rig", uint32(0), "", "["+sev+"] "+t.GetTitle(), t.GetBody(), []string{},
+		map[string]dbus.Variant{"urgency": dbus.MakeVariant(freedesktopUrgency(t.GetSeverity()))},
+		int32(-1)).Store(&id)
+	return id, err
+}
+
+// closeDesktop takes down a notification notifyDesktop put up. The spec lets
+// the service answer an error for one already dismissed or expired.
+func closeDesktop(id uint32) error {
 	conn, err := dbus.ConnectSessionBus()
 	if err != nil {
 		return err
 	}
 	defer func() { _ = conn.Close() }()
-	sev := severityWord(t.GetSeverity())
-	obj := conn.Object("org.freedesktop.Notifications", "/org/freedesktop/Notifications")
-	return obj.Call("org.freedesktop.Notifications.Notify", 0,
-		"rig", uint32(0), "", "["+sev+"] "+t.GetTitle(), t.GetBody(), []string{},
-		map[string]dbus.Variant{"urgency": dbus.MakeVariant(freedesktopUrgency(t.GetSeverity()))},
-		int32(-1)).Err
+	return desktopNotifications(conn).Call("org.freedesktop.Notifications.CloseNotification", 0, id).Err
+}
+
+func desktopNotifications(conn *dbus.Conn) dbus.BusObject {
+	return conn.Object("org.freedesktop.Notifications", "/org/freedesktop/Notifications")
 }
 
 func severityWord(s registryv1.Severity) string {

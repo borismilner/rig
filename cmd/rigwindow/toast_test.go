@@ -34,7 +34,7 @@ func TestTheTrayStartsOneRendererFromTheFirstToast(t *testing.T) {
 			spawned = append(spawned, after)
 			return exit, nil
 		},
-		fallback: func(*registryv1.Toast) error { t.Error("fell back with a renderer running"); return nil },
+		fallback: func(*registryv1.Toast) (uint32, error) { t.Error("fell back with a renderer running"); return 0, nil },
 		warn:     func(string) {},
 		grace:    time.Millisecond,
 	}
@@ -75,7 +75,12 @@ func TestTheTrayStartsOneRendererFromTheFirstToast(t *testing.T) {
 func TestARendererThatCannotStartFallsBackToTheDesktop(t *testing.T) {
 	var mu sync.Mutex
 	var fell []uint64
-	fb := func(tt *registryv1.Toast) error { mu.Lock(); fell = append(fell, tt.GetSeq()); mu.Unlock(); return nil }
+	fb := func(tt *registryv1.Toast) (uint32, error) {
+		mu.Lock()
+		fell = append(fell, tt.GetSeq())
+		mu.Unlock()
+		return 0, nil
+	}
 
 	w := &toastWatcher{
 		spawn:    func(uint64) (<-chan error, error) { return nil, errors.New("no display") },
@@ -244,9 +249,10 @@ func TestARepliedToastReachesRigAndItsAnswerReachesThePage(t *testing.T) {
 // it has not shown yet, and tells the page about one it has.
 func TestAWithdrawalStartsNothingAndTakesTheBubbleDown(t *testing.T) {
 	w := &toastWatcher{
-		spawn:    func(uint64) (<-chan error, error) { t.Error("a withdrawal started a renderer"); return nil, nil },
-		fallback: func(*registryv1.Toast) error { t.Error("a withdrawal went to the desktop"); return nil },
-		warn:     func(string) {},
+		spawn:        func(uint64) (<-chan error, error) { t.Error("a withdrawal started a renderer"); return nil, nil },
+		fallback:     func(*registryv1.Toast) (uint32, error) { t.Error("a withdrawal went to the desktop"); return 0, nil },
+		closeDesktop: func(uint32) error { t.Error("closed a desktop toast that was never put up"); return nil },
+		warn:         func(string) {},
 	}
 	w.deliver([]*registryv1.Toast{{Seq: 3, RecordId: "r1", Retracted: true}})
 
@@ -261,5 +267,45 @@ func TestAWithdrawalStartsNothingAndTakesTheBubbleDown(t *testing.T) {
 	got := f.poll(1, inputRegion{}, time.Now())
 	if len(got.Answers) != 1 || !got.Answers[0].Withdrawn || got.Answers[0].RecordID != "shown" || got.Answers[0].By != "backend-1" {
 		t.Fatalf("the page was not told the bubble was withdrawn: %+v", got)
+	}
+}
+
+// A toast that went to the desktop because no renderer could start is taken
+// down there when its sender takes it back, and only that one. One taken back
+// before a renderer that died at start was replaced is never put up.
+func TestAWithdrawalTakesDownWhatTheDesktopShows(t *testing.T) {
+	var mu sync.Mutex
+	var closed []uint32
+	var shown []string
+	w := &toastWatcher{
+		spawn: func(uint64) (<-chan error, error) { return nil, errors.New("no display") },
+		fallback: func(tt *registryv1.Toast) (uint32, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			shown = append(shown, tt.GetRecordId())
+			return uint32(100 + len(shown)), nil
+		},
+		closeDesktop: func(id uint32) error { mu.Lock(); closed = append(closed, id); mu.Unlock(); return nil },
+		warn:         func(string) {},
+	}
+	w.deliver([]*registryv1.Toast{{Seq: 1, RecordId: "a"}, {Seq: 2, RecordId: "b"}})
+	w.deliver([]*registryv1.Toast{{Seq: 3, RecordId: "b", Retracted: true}})
+	w.deliver([]*registryv1.Toast{{Seq: 4, RecordId: "b", Retracted: true}})
+	mu.Lock()
+	if len(closed) != 1 || closed[0] != 102 {
+		t.Fatalf("closed %v, want only b's desktop id 102, once", closed)
+	}
+	mu.Unlock()
+
+	dead := make(chan error, 1)
+	w.spawn = func(uint64) (<-chan error, error) { return dead, nil }
+	w.deliver([]*registryv1.Toast{{Seq: 5, RecordId: "c"}})
+	w.deliver([]*registryv1.Toast{{Seq: 6, RecordId: "c", Retracted: true}})
+	dead <- errors.New("exit status 1")
+	time.Sleep(100 * time.Millisecond)
+	mu.Lock()
+	defer mu.Unlock()
+	if len(shown) != 2 {
+		t.Fatalf("the desktop was shown %v; c was taken back before it fell back", shown)
 	}
 }

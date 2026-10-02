@@ -145,7 +145,7 @@ func runTraySupervisor(sup *supervisor) {
 
 		go pollEstate(sup)
 		go watchToasts(&toastWatcher{
-			spawn: spawnToasts, fallback: notifyDesktop,
+			spawn: spawnToasts, fallback: notifyDesktop, closeDesktop: closeDesktop,
 			warn: func(msg string) { fmt.Fprintln(os.Stderr, "rigwindow: "+msg) },
 		})
 		go watchHand(&stripWatcher{

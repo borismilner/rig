@@ -136,11 +136,12 @@ func spawnStrip() (<-chan error, error) {
 // notifyHand is the fallback: the countdown as an urgent desktop
 // notification, with the terminal words that answer it.
 func notifyHand(st *registryv1.HandState) error {
-	return notifyDesktop(&registryv1.Toast{
+	_, err := notifyDesktop(&registryv1.Toast{
 		Severity: registryv1.Severity_SEVERITY_URGENT,
 		Title:    st.GetHolder() + " asks for the desktop",
 		Body:     st.GetReason() + "\nrig hand hold, or rig hand decline, in a terminal",
 	})
+	return err
 }
 
 // --- the strip's half --------------------------------------------------------
