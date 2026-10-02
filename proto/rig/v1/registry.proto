@@ -594,6 +594,10 @@ message EventsPublishRequest {
 
 message EventsPublishResponse {
   Event event = 1;
+  // How many parked waits matched it and may see it. Zero is not a
+  // failure: a stored signal is picked up by a later wait from a cursor
+  // below its seq.
+  uint32 delivered = 2;
 }
 
 // EventsWaitRequest parks until an event after the cursor matches one of the

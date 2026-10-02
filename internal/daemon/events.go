@@ -38,10 +38,47 @@ type eventBus struct {
 	items []busItem
 	wake  chan struct{}
 
+	// parked is every wait now blocked, so a publish can say how many it
+	// reached.
+	parked map[*busWaiter]struct{}
+
 	// durable keeps signal.* past a restart (plan/53 slice 1b); nil on an
 	// unnamed estate, whose signals live in the ring like everything else.
 	// With it set, a signal is written there and never held in the ring.
 	durable *coord.Store
+}
+
+// busWaiter is one parked events.wait.
+type busWaiter struct {
+	match func(string) bool
+	v     viewer
+}
+
+// park registers w until the returned func is called.
+func (b *eventBus) park(w *busWaiter) (unpark func()) {
+	b.mu.Lock()
+	if b.parked == nil {
+		b.parked = map[*busWaiter]struct{}{}
+	}
+	b.parked[w] = struct{}{}
+	b.mu.Unlock()
+	return func() {
+		b.mu.Lock()
+		delete(b.parked, w)
+		b.mu.Unlock()
+	}
+}
+
+// reached counts the parked waits that match kind and may see it. Called
+// with mu held.
+func (b *eventBus) reached(kind, to string) uint32 {
+	var n uint32
+	for w := range b.parked {
+		if w.match(kind) && w.v.sees(to) {
+			n++
+		}
+	}
+	return n
 }
 
 // seqBase is where a run's numbering starts: the epoch in the high 32 bits,
@@ -63,14 +100,15 @@ type busItem struct {
 // publish publishes one of rig's or a program's kinds, which are never
 // durable, so it cannot fail.
 func (b *eventBus) publish(kind, source, payload string) *registryv1.Event {
-	ev, _ := b.publishTo(kind, source, payload, "")
+	ev, _, _ := b.publishTo(kind, source, payload, "")
 	return ev
 }
 
 // publishTo numbers and publishes an event. A durable kind is written to
 // the store under the lock, so stored order is seq order; if the write
-// fails nobody is woken and the caller is told.
-func (b *eventBus) publishTo(kind, source, payload, to string) (*registryv1.Event, error) {
+// fails nobody is woken and the caller is told. delivered is how many
+// waits in progress will receive it.
+func (b *eventBus) publishTo(kind, source, payload, to string) (_ *registryv1.Event, delivered uint32, _ error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.seq++
@@ -82,10 +120,10 @@ func (b *eventBus) publishTo(kind, source, payload, to string) (*registryv1.Even
 		if err := b.durable.PutSignal(coord.Signal{
 			Seq: ev.GetSeq(), Kind: kind, At: ev.GetAtUnixNano(), Source: source, To: to, Payload: payload,
 		}); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		b.ring()
-		return ev, nil
+		return ev, b.reached(kind, to), nil
 	}
 	b.items = append(b.items, busItem{ev: ev, to: to})
 	if over := len(b.items) - eventRingSize; over > 0 {
@@ -93,7 +131,7 @@ func (b *eventBus) publishTo(kind, source, payload, to string) (*registryv1.Even
 		b.items = append(b.items[:0:0], b.items[over:]...)
 	}
 	b.ring()
-	return ev, nil
+	return ev, b.reached(kind, to), nil
 }
 
 // ring wakes every waiter. Called with mu held.
@@ -119,7 +157,7 @@ func (b *eventBus) publishRigTo(kind string, m proto.Message, to string) {
 			payload = string(raw)
 		}
 	}
-	_, _ = b.publishTo(kind, eventSourceRig, payload, to)
+	_, _, _ = b.publishTo(kind, eventSourceRig, payload, to)
 }
 
 // viewer is who is reading: a program's id, a seat's name, either or
@@ -253,7 +291,8 @@ func (d *Daemon) serveEventsPublish(c *conn, f *rigv1.Frame) {
 	if !payloadOK(c, id, req.GetPayloadJson()) {
 		return
 	}
-	c.reply(id, &registryv1.EventsPublishResponse{Event: d.events.publish(req.GetKind(), program, req.GetPayloadJson())})
+	ev, delivered, _ := d.events.publishTo(req.GetKind(), program, req.GetPayloadJson(), "")
+	c.reply(id, &registryv1.EventsPublishResponse{Event: ev, Delivered: delivered})
 }
 
 func (d *Daemon) serveEventsWait(ctx context.Context, c *conn, f *rigv1.Frame) {
@@ -296,6 +335,9 @@ func (d *Daemon) serveEventsWait(ctx context.Context, c *conn, f *rigv1.Frame) {
 	if _, seat, _, ok := d.provenance(c); ok {
 		v.seat = seat
 	}
+	// Registered for the whole call, so a publish counts every wait that
+	// will receive it, not only those asleep at that instant.
+	defer d.events.park(&busWaiter{match: match, v: v})()
 	timer := time.NewTimer(min(time.Duration(req.GetTimeoutMs())*time.Millisecond, maxEventWait))
 	defer timer.Stop()
 	for {

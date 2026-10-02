@@ -2969,8 +2969,12 @@ func (x *EventsPublishRequest) GetToSeat() string {
 }
 
 type EventsPublishResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Event         *Event                 `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Event *Event                 `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
+	// How many parked waits matched it and may see it. Zero is not a
+	// failure: a stored signal is picked up by a later wait from a cursor
+	// below its seq.
+	Delivered     uint32 `protobuf:"varint,2,opt,name=delivered,proto3" json:"delivered,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3010,6 +3014,13 @@ func (x *EventsPublishResponse) GetEvent() *Event {
 		return x.Event
 	}
 	return nil
+}
+
+func (x *EventsPublishResponse) GetDelivered() uint32 {
+	if x != nil {
+		return x.Delivered
+	}
+	return 0
 }
 
 // EventsWaitRequest parks until an event after the cursor matches one of the
@@ -4536,9 +4547,10 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\x14EventsPublishRequest\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12!\n" +
 	"\fpayload_json\x18\x02 \x01(\tR\vpayloadJson\x12\x17\n" +
-	"\ato_seat\x18\x03 \x01(\tR\x06toSeat\"<\n" +
+	"\ato_seat\x18\x03 \x01(\tR\x06toSeat\"Z\n" +
 	"\x15EventsPublishResponse\x12#\n" +
-	"\x05event\x18\x01 \x01(\v2\r.rig.v1.EventR\x05event\"t\n" +
+	"\x05event\x18\x01 \x01(\v2\r.rig.v1.EventR\x05event\x12\x1c\n" +
+	"\tdelivered\x18\x02 \x01(\rR\tdelivered\"t\n" +
 	"\x11EventsWaitRequest\x12\x14\n" +
 	"\x05after\x18\x01 \x01(\x04R\x05after\x12\x14\n" +
 	"\x05epoch\x18\x02 \x01(\x04R\x05epoch\x12\x14\n" +

@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/borismilner/rig/client"
 	"github.com/borismilner/rig/internal/coord"
@@ -304,4 +305,37 @@ func TestAFirstWaitIsNotHandedAnEarlierRunsSignals(t *testing.T) {
 			t.Fatalf("a first wait on %v got %v", kinds, got.GetEvents())
 		}
 	}
+}
+
+// A publish says how many waits it reached, counting only those that may
+// see it: an addressed signal does not count a third seat's wait.
+func TestAPublishSaysHowManyWaitsItReached(t *testing.T) {
+	sock, d := upDaemon(t, nil)
+	a, b := seated(t, sock, "seat-a"), seated(t, sock, "seat-b")
+	start := waitOn(t, b, 0, 1, "signal.*").GetLatest()
+	done := make(chan struct{})
+	go func() { defer close(done); waitOn(t, b, start, 5000, "signal.*") }()
+	for {
+		d.events.mu.Lock()
+		n := len(d.events.parked)
+		d.events.mu.Unlock()
+		if n == 1 {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	publish := func(req *registryv1.EventsPublishRequest) uint32 {
+		var pub registryv1.EventsPublishResponse
+		if err := a.Call(ctx5(t), "rig.events.publish", req, &pub); err != nil {
+			t.Fatal(err)
+		}
+		return pub.GetDelivered()
+	}
+	if n := publish(&registryv1.EventsPublishRequest{Kind: "signal.x", ToSeat: "seat-c"}); n != 0 {
+		t.Fatalf("a signal for seat-c reached %d", n)
+	}
+	if n := publish(&registryv1.EventsPublishRequest{Kind: "signal.x"}); n != 1 {
+		t.Fatalf("a signal reached %d, want seat-b's one wait", n)
+	}
+	<-done
 }
