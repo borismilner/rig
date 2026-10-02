@@ -122,6 +122,12 @@ var servedByName = map[string]meta.Tool{
 	"message.list": meta.MessageListTool,
 }
 
+// jsonValued is the verbs whose value_json is a JSON VALUE on the agent
+// door, named value: an agent writes {"value": {"step": 3}} and reads the
+// object back, rather than escaping and parsing a string. The wire keeps a
+// string, so the CLI links no JSON-value type for it (plan/53 slice 3).
+var jsonValued = map[string]bool{"shared.get": true, "shared.set": true, "shared.delete": true}
+
 // verbMessageInbox is named in the dispatch, in message.go and here.
 const verbMessageInbox = "message.inbox"
 
@@ -146,7 +152,7 @@ func (m *mcpCaller) Verbs() []meta.Verb {
 		out = append(out, meta.Verb{
 			Tool: verbTool(c.ID), Command: c.ID, Title: c.Title,
 			Description: desc, Effects: c.Effects, Idempotent: c.Idempotent,
-			Input: inputSchema(b.req().ProtoReflect().Descriptor()),
+			Input: verbInput(c.ID, b.req().ProtoReflect().Descriptor()),
 		})
 	}
 	return out
@@ -162,6 +168,9 @@ func (m *mcpCaller) CallVerb(ctx context.Context, command string, args []byte) (
 	// A client that sends no arguments sends null, which is "nothing" and
 	// not a malformed object.
 	if a := bytes.TrimSpace(args); len(a) > 0 && !bytes.Equal(a, []byte("null")) {
+		if jsonValued[command] {
+			args = valueIn(args)
+		}
 		if err := protojson.Unmarshal(args, req); err != nil {
 			return nil, &kernel.RefusalError{
 				Err:          fmt.Errorf("%s: the arguments do not fit the verb: %w", verbTool(command), err),
@@ -206,7 +215,89 @@ func (m *mcpCaller) CallVerb(ctx context.Context, command string, args []byte) (
 	if err := proto.Unmarshal(f.GetPayload(), resp); err != nil {
 		return nil, err
 	}
-	return protojson.MarshalOptions{EmitUnpopulated: true}.Marshal(resp)
+	raw, err := protojson.MarshalOptions{EmitUnpopulated: true}.Marshal(resp)
+	if err != nil || !jsonValued[command] {
+		return raw, err
+	}
+	return valueOut(raw), nil
+}
+
+// verbInput is a verb's request message as a JSON Schema, in the field names
+// protojson reads. Enums take their value names; 64-bit integers are accepted
+// as numbers. A jsonValued verb's value_json is shown as a JSON value named
+// value.
+func verbInput(command string, md protoreflect.MessageDescriptor) json.RawMessage {
+	s := messageSchema(md, 0)
+	if props, ok := s["properties"].(map[string]any); ok && jsonValued[command] {
+		if _, has := props["valueJson"]; has {
+			delete(props, "valueJson")
+			props["value"] = map[string]any{"description": "any JSON value: an object, array, string, number, boolean or null"}
+		}
+	}
+	b, err := json.Marshal(s)
+	if err != nil {
+		return json.RawMessage(`{"type":"object"}`)
+	}
+	return b
+}
+
+// valueIn turns an agent's value into the string the wire carries. Anything
+// it cannot read is passed on untouched, for protojson to refuse in its
+// own words.
+func valueIn(args []byte) []byte {
+	var m map[string]json.RawMessage
+	if json.Unmarshal(args, &m) != nil {
+		return args
+	}
+	v, ok := m["value"]
+	if !ok {
+		return args
+	}
+	delete(m, "value")
+	s, err := json.Marshal(string(v))
+	if err != nil {
+		return args
+	}
+	m["valueJson"] = s
+	out, err := json.Marshal(m)
+	if err != nil {
+		return args
+	}
+	return out
+}
+
+// valueOut turns every valueJson in an answer back into a value, at any
+// depth, so a family read hands each key's value over as JSON too.
+func valueOut(raw []byte) []byte {
+	var doc any
+	if json.Unmarshal(raw, &doc) != nil {
+		return raw
+	}
+	out, err := json.Marshal(unquoteValues(doc))
+	if err != nil {
+		return raw
+	}
+	return out
+}
+
+func unquoteValues(v any) any {
+	switch t := v.(type) {
+	case map[string]any:
+		for k, x := range t {
+			t[k] = unquoteValues(x)
+		}
+		if s, ok := t["valueJson"].(string); ok {
+			delete(t, "valueJson")
+			if s != "" {
+				t["value"] = json.RawMessage(s)
+			}
+		}
+	case []any:
+		for i, x := range t {
+			t[i] = unquoteValues(x)
+		}
+	}
+	return v
 }
 
 // frameSink is the in-memory connection's other end: what serveSelf writes is
@@ -214,17 +305,6 @@ func (m *mcpCaller) CallVerb(ctx context.Context, command string, args []byte) (
 type frameSink struct{ bytes.Buffer }
 
 func (*frameSink) Close() error { return nil }
-
-// inputSchema is a request message as a JSON Schema, in the field names
-// protojson reads. Enums take their value names; 64-bit integers are accepted
-// as numbers.
-func inputSchema(md protoreflect.MessageDescriptor) json.RawMessage {
-	b, err := json.Marshal(messageSchema(md, 0))
-	if err != nil {
-		return json.RawMessage(`{"type":"object"}`)
-	}
-	return b
-}
 
 func messageSchema(md protoreflect.MessageDescriptor, depth int) map[string]any {
 	props := map[string]any{}

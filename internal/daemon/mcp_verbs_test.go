@@ -87,14 +87,22 @@ func TestAnAgentHoldsALeaseAndWorksAQueueThroughTheDoor(t *testing.T) {
 		t.Fatalf("an unannounced agent's lease was not refused with a fix: %v", unseated)
 	}
 
-	if noSeat := refusedTool(ctx, t, agent, "shared_set", map[string]any{"key": "claims.a", "valueJson": "1"}); !strings.Contains(noSeat["error"], "needs a seat") {
+	if noSeat := refusedTool(ctx, t, agent, "shared_set", map[string]any{"key": "claims.a", "value": 1}); !strings.Contains(noSeat["error"], "needs a seat") {
 		t.Fatalf("an unannounced agent's claim was not refused: %v", noSeat)
 	}
 
 	callTool(ctx, t, agent, "announce", map[string]any{"seat": "backend-1", "purpose": "building"})
-	shared := resultOf(t, callTool(ctx, t, agent, "shared_set", map[string]any{"key": "claims.a", "valueJson": "1", "own": true}))
-	if v, _ := shared["value"].(map[string]any); shared["applied"] != true || v["owner"] != "backend-1" {
+	shared := resultOf(t, callTool(ctx, t, agent, "shared_set", map[string]any{"key": "claims.a", "value": map[string]any{"step": "started"}, "own": true}))
+	if v, _ := shared["value"].(map[string]any); shared["applied"] != true || v["owner"] != "backend-1" ||
+		v["value"].(map[string]any)["step"] != "started" {
 		t.Fatalf("the claim was not owned by the agent's seat: %v", shared)
+	}
+	family := resultOf(t, callTool(ctx, t, agent, "shared_get", map[string]any{"key": "claims.*"}))
+	if vs, _ := family["values"].([]any); len(vs) != 1 || vs[0].(map[string]any)["value"].(map[string]any)["step"] != "started" {
+		t.Fatalf("a family read did not hand the value back as JSON: %v", family)
+	}
+	if none := resultOf(t, callTool(ctx, t, agent, "shared_get", map[string]any{"key": "claims.b"})); none["value"].(map[string]any)["value"] != nil {
+		t.Fatalf("a missing key carried a value: %v", none)
 	}
 	got := callTool(ctx, t, agent, "lease_acquire", map[string]any{"name": "build", "ttl_ms": 5000})
 	h, _ := resultOf(t, got)["handle"].(map[string]any)
