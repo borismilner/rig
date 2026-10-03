@@ -54,7 +54,9 @@ type onCallRig struct {
 	d    *Daemon
 
 	starts  atomic.Int32
-	fail    atomic.Bool  // the next launch exits 1 before its hello
+	fail    atomic.Bool // the next launch exits 1 before its hello
+	hang    atomic.Bool // a call is not answered until held closes
+	held    chan struct{}
 	load    atomic.Int32 // the rigv1.Load the stub declares
 	mu      sync.Mutex
 	running *stubProc
@@ -90,6 +92,9 @@ func (r *onCallRig) start(spec supervise.Spec, _ map[string]string) (supervise.P
 		}
 		p.conn.Store(c)
 		c.Handle(func(_ string, payload []byte) (proto.Message, error) {
+			if r.hang.Load() {
+				<-r.held
+			}
 			var req rigv1.PingRequest
 			if err := proto.Unmarshal(payload, &req); err != nil {
 				return nil, err
@@ -293,4 +298,36 @@ func TestAChangedBinaryIsReadAgain(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	r.settle(t, verbsv1.ProgramState_PROGRAM_STATE_AT_REST)
+}
+
+// A program killed mid-call fails the call at once, rather than leaving the
+// caller on the command's deadline, which for beacon's ask is a human's.
+func TestAProgramKilledMidCallFailsTheCall(t *testing.T) {
+	r := upOnCall(t, true)
+	r.settle(t, verbsv1.ProgramState_PROGRAM_STATE_AT_REST)
+	r.held = make(chan struct{})
+	t.Cleanup(func() { close(r.held) })
+	r.hang.Store(true)
+	got := make(chan error, 1)
+	go func() {
+		got <- dial(t, r.sock).Call(ctx5(t), "stub.ping", &rigv1.PingRequest{}, &rigv1.PingResponse{})
+	}()
+	deadline := time.Now().Add(3 * time.Second)
+	for !r.d.connected("stub") || r.starts.Load() != 2 {
+		if time.Now().After(deadline) {
+			t.Fatal("the call never started the stub")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	time.Sleep(50 * time.Millisecond) // the call is in flight
+	r.mu.Lock()
+	run := r.running
+	r.mu.Unlock()
+	run.exit(supervise.Exit{Signal: "SIGKILL"})
+	select {
+	case err := <-got:
+		wantCode(t, err, rigv1.Code_CODE_UNAVAILABLE, "a call whose program was killed")
+	case <-time.After(2 * time.Second):
+		t.Fatal("the caller is still waiting 2s after its program was killed")
+	}
 }

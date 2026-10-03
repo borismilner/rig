@@ -1387,6 +1387,16 @@ func (d *Daemon) forward(
 	select {
 	case reply := <-ch:
 		return reply, nil
+	case <-to.gone:
+		cleanup()
+		// A program that dies mid-call never answers, and its deadline may be
+		// a human's to wait on, so its caller is told now (section 54).
+		return nil, &callFailure{status: &rigv1.Status{
+			Code:       rigv1.Code_CODE_UNAVAILABLE,
+			Message:    program + " ended before it answered this call",
+			Fix:        "read its health and its log",
+			FixCommand: "rig health " + program,
+		}}
 	case <-callCtx.Done():
 		cleanup()
 		// The deadline is rig's, not the program's: a hung program must never
