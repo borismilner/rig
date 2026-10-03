@@ -47,6 +47,7 @@ browser.
 | **6** | **The Main tab, the default, shows the most important information about rig and about every program it represents**, the scanned ones included: each one's **version**, and what matters about it, there for the user to inspect |
 | **7** | **A dedicated vertical panel on the right holds the latest notifications, newest on top**, so one he missed is still there |
 | **8** | **A notification older than a configurable age is evicted from that panel. The default is one week** |
+| **9** | **The notifications panel is searchable, holds notifications from every program, and filters by source** to show only one program's |
 
 Requirements 6 to 8, Boris to the rig lead, 2026-10-03, verbatim: *"The
 main tab which is the default should show all the most important
@@ -57,6 +58,11 @@ It should have a dedicated vertical panel on the right side with the latest
 notifications sorted with the latest ones on top; in case the user missed
 them. Notifications that are older than a configurable amount of time, for
 now lets make it a week, are evicted from this panel."*
+
+Requirement 9, the same day, verbatim: *"The panel should be searchable to
+filter for relevant information. It should contain notifications from all
+the programs and we can filter by program to see only notifications
+relevant by source."*
 
 ### The write path he approved (requirement 2), as the beacon seat put it to him
 
