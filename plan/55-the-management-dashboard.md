@@ -346,8 +346,8 @@ and two sliders; rig's and the programs' settings do not reach the window
 until §47's verbs do, and a kit with nothing to edit cannot be exercised.
 
 **Honest gaps, said on screen:** the card's Settings tab waits for slice 5,
-its Activity tab and Main's Board wait for slice 3, and Needs you lists only
-programs parked on a question until slice 2 brings notifications.
+and its Activity tab and Main's Board wait for slice 3. (Needs you listed
+only parked programs until slice 2.)
 
 **Start, Stop and Restart were exercised against a scratch `rigd`**
 (greeter and lantern, 2026-10-03): stop answers with no state, start and
@@ -355,6 +355,40 @@ restart answer `starting`, an unknown program is refused with rig's own
 NOT_FOUND. The empty state after a stop is drawn as "stopped" with a Start
 button (af18fc4). **Not exercised:** the same calls through the Wails
 bridge in the running window, which needs a window on a live desktop.
+
+### Slice 2 as built (2026-10-03)
+
+| Part | As built |
+|---|---|
+| Source | `RigService.Notifications`: rig's notification and reply records joined, plus one zero-timeout `rig.toast.answer` per unanswered ask to learn whether anyone still waits. No new verb |
+| Panel | Main's right column: what waits on top, then newest first; search; a From filter with a count per source; the whole row opens the card and is tinted on hover (7, 9, 23, 31) |
+| Eviction | `dashboard.notifications.keep.days`, default 7, live; the footer names the key, its layer and how many are older. The record keeps them (8) |
+| Card | a centred `<dialog>`: facts, body, the options while undecided; decided, the options stay disabled with the choice marked; "Only X's notifications" sets the filter (26, 32) |
+| Answer | `RigService.Answer` calls `rig.toast.reply`, the bubble's own call, so the asker is told whichever surface answered |
+| Live | the window watches `rig.toast.wait` and every waiting ask, and re-reads on `rig:notifications`; nothing polls |
+| Needs you | every waiting question with its options inline, then parked programs; the figure and the tab count are the same total (24) |
+| Tray | while anything waits: an amber badge top-right on the estate's glyph (the down badge is red, bottom-right), a "Needs you (N)" row, and the click opens Needs you instead of toggling (25) |
+
+**Decided by the lead, to confirm with him:**
+- Main opens on Needs you when the window's FIRST read finds a question
+  waiting, else on Programs. Later arrivals never move the page.
+- While something waits, the tray click never closes the window. An open
+  window is told "needs" on its stdin and comes forward. "Close the
+  window" in the menu still closes it.
+
+**Exercised:** against a scratch `rigd`, the real window on a private X
+display: it opened on Needs you; a `needs` line on its stdin brought it
+back from Programs; a `rig notify` filed meanwhile appeared without a
+reload; Deploy clicked in the window reached the waiting `rig notify`
+(`reply: Deploy`). Over the Go service: option and free-text answers, a
+second answer refused CONFLICT, an unknown id refused. Headless on
+`?notes=1`: 20 checks, 8 runs clean. Contrast: `?notes=1` clean, now in
+`make contrast-window` with `?caps=1` and `?guide=1`.
+
+**Not exercised:** the tray itself (badge, row, click) on a desktop
+panel, because the private display has no status-notifier host. Its parts
+are unit-tested. The card pages (`&note=`) cannot pass the focus pass:
+behind a modal the page is inert, the same as `?card=`.
 
 ### Slice 4 as built (2026-10-03)
 
