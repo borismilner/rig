@@ -80,6 +80,9 @@ browser.
 | **39** | **Changing a value never moves the layout** (the settings row jumped when Reset appeared) |
 | **40** | **Controls are good looking, useful and convenient**, beyond a bare browser input |
 | **41** | **Every timestamp is 24-hour, never AM/PM**, wherever the dashboard or a program's GUI shows a time |
+| **42** | **Clicking a program's row on Main opens a centred card** (as a notification's does, 32) holding everything about that program |
+| **43** | **A program's GUI and its information are separate.** Picked from the side rail, a program shows its GUI; picked from Main, its information and settings. This replaces 14's "picking a program opens its tab" for Main |
+| **44** | **Every program GUI carries a button that opens its information and settings**, as a layer over the GUI, never as part of it, so they do not interfere |
 
 Requirements 6 to 8, Boris to the rig lead, 2026-10-03, verbatim: *"The
 main tab which is the default should show all the most important
@@ -213,6 +216,17 @@ user. Other than that it seems like a good start."*
 
 Requirement 41, the same session, verbatim: *"Timestamps must be 24h and
 not AM/PM."*
+
+Requirements 42 to 44, the same session, verbatim: *"On the main panel,
+when clicking on a program row, a similar card in the absolute center of
+the screen should be opened with all the relevant information of the
+program. We should separate the program GUI and it's settings and all the
+other information; when choosing a program from the side-panel we should
+get its GUI and when we choose it from the main panel we should aceess all
+the information and the settings. In each program GUI we should have a
+button that opens these settings and information for that specific
+program but the information should not part of the main gui to not
+interfere."*
 
 **Requirement 33 binds the config schema too:** a key must say what it
 holds (a folder, a list of folders, a file) for the window to choose the
