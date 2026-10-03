@@ -55,7 +55,19 @@ export type InternalGui = {
  * `indigo` and `lilac` are both free again; the other five carry a semantic
  * role and an identity hue must not be mistaken for a status.
  */
-export const INTERNAL_GUIS: InternalGui[] = [];
+export const INTERNAL_GUIS: InternalGui[] = [
+  /* plan/55 requirement 28, Boris 2026-10-03: every capability of rig and of
+   * each registered program, "kind of Swagger UI but for our needs". It is
+   * rig's own surface, so it is an internal GUI and takes the free indigo.
+   * App.svelte draws it in the branch the note above asks for. */
+  {
+    id: "capabilities",
+    title: "Capabilities",
+    note: "every command rig and its programs offer, in their own words, to try",
+    hue: "indigo",
+    icon: "M9.5 1 3 9h4.5L6.5 15 13 7H8.5z",
+  },
+];
 
 export function internalGui(id: string | null): InternalGui | null {
   if (!id) return null;

@@ -52,7 +52,14 @@
   import ProgramCard from "./lib/ProgramCard.svelte";
   import { INTERNAL_GUIS, internalGui } from "./lib/guis";
   import { programGlyph, programIcon } from "./lib/icons";
-  import { PROGRAMS, BUILD, DEPLOYMENT, RUNNING } from "./lib/fixtures";
+  import {
+    PROGRAMS,
+    BUILD,
+    DEPLOYMENT,
+    RUNNING,
+    CAPABILITIES,
+  } from "./lib/fixtures";
+  import Capabilities from "./lib/Capabilities.svelte";
 
   /* ── the fixtures, and none of them is a mock of the product path ────────
    *
@@ -67,6 +74,7 @@
    *   ?pane=1           a program's own pane, and its unserved state
    *   ?settings=1       the settings panel over a seeded rail
    *   ?dash=1           the dashboard, which is the default destination
+   *   ?caps=1           the Capabilities panel, seeded
    *   ?card=<id>        a program's card open over the dashboard, and
    *   &tab=<name>       which of its tabs
    *
@@ -80,9 +88,11 @@
   const paneFixture = params.get("pane") === "1";
   const settingsFixture = params.get("settings") === "1";
   const cardFixture = params.get("card");
+  const capsFixture = params.get("caps") === "1";
   const dashFixture = params.get("dash") === "1" || !!cardFixture;
   const railFixture = params.get("fixture") === "1";
-  const fixture = railFixture || paneFixture || settingsFixture || dashFixture;
+  const fixture =
+    railFixture || paneFixture || settingsFixture || dashFixture || capsFixture;
 
   let programs: Program[] = $state(fixture ? PROGRAMS : []);
   // What each supervised program is doing, from rig.health. Empty for an
@@ -107,9 +117,15 @@
   // WHERE YOU ARE, as two pieces rather than one. `atHome` is not
   // `selected === null`: the dashboard is a destination in its own right, and
   // leaving a GUI for it must not forget which GUI you were in.
-  let atHome = $state(!(paneFixture || railFixture));
+  let atHome = $state(!(paneFixture || railFixture || capsFixture));
   let selected: string | null = $state(
-    paneFixture ? "quarry" : fixture ? "graft" : null,
+    capsFixture
+      ? "capabilities"
+      : paneFixture
+        ? "quarry"
+        : fixture
+          ? "graft"
+          : null,
   );
   let lastRead = $state(fixture ? "09:53:41" : "");
 
@@ -385,6 +401,15 @@
           {deployment}
           bind:tab={mainTab}
           onopen={(id) => (cardFor = id)}
+        />
+      </div>
+    {:else if gui?.id === "capabilities"}
+      <!-- An internal GUI draws its own layout and owns its scroll
+           (section 11 requirement 18), so the pane hands it the area. -->
+      <div class="pane bleed">
+        <Capabilities
+          fixture={capsFixture ? CAPABILITIES : null}
+          connected={health.connected}
         />
       </div>
     {:else}

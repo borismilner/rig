@@ -7,9 +7,11 @@ export {
 };
 
 export {
+    Capability,
     Command,
     Deployment,
     Health,
     Program,
-    Running
+    Running,
+    TryResult
 } from "./models.js";

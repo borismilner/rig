@@ -31,12 +31,23 @@ export function Build(): $CancellablePromise<{ [_ in string]?: string }> {
 }
 
 /**
+ * Capabilities lists rig's verbs from the daemon and every registered
+ * program's declared commands from the registry, rig first, each group in
+ * the order its source gave it.
+ */
+export function Capabilities(): $CancellablePromise<$models.Capability[]> {
+    return $Call.ByID(3599441113).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
  * Deployment never returns an error, for Health's reason: not reaching rig is a
  * state to draw, not a failure to handle.
  */
 export function Deployment(): $CancellablePromise<$models.Deployment> {
     return $Call.ByID(69816036).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType3($result);
     });
 }
 
@@ -46,7 +57,7 @@ export function Deployment(): $CancellablePromise<$models.Deployment> {
  */
 export function Health(): $CancellablePromise<$models.Health> {
     return $Call.ByID(2625630141).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType4($result);
     });
 }
 
@@ -57,7 +68,7 @@ export function Health(): $CancellablePromise<$models.Health> {
  */
 export function Programs(): $CancellablePromise<$models.Program[]> {
     return $Call.ByID(1823204778).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
     });
 }
 
@@ -69,7 +80,7 @@ export function Programs(): $CancellablePromise<$models.Program[]> {
  */
 export function Supervise(action: string, program: string): $CancellablePromise<$models.Running> {
     return $Call.ByID(3916844919, action, program).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType7($result);
     });
 }
 
@@ -79,15 +90,29 @@ export function Supervise(action: string, program: string): $CancellablePromise<
  */
 export function Supervision(): $CancellablePromise<$models.Running[]> {
     return $Call.ByID(914839342).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
+    });
+}
+
+/**
+ * Try calls one capability. args is the JSON object the panel's form built.
+ * A refusal from rig is an answer, not an error: it comes back with OK false
+ * and rig's own words, so the panel shows it where the result goes.
+ */
+export function Try(owner: string, id: string, args: string): $CancellablePromise<$models.TryResult> {
+    return $Call.ByID(99210380, owner, id, args).then(($result: any) => {
+        return $$createType9($result);
     });
 }
 
 // Private type creation functions
 const $$createType0 = $Create.Map($Create.Any, $Create.Any);
-const $$createType1 = $models.Deployment.createFrom;
-const $$createType2 = $models.Health.createFrom;
-const $$createType3 = $models.Program.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $models.Running.createFrom;
+const $$createType1 = $models.Capability.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = $models.Deployment.createFrom;
+const $$createType4 = $models.Health.createFrom;
+const $$createType5 = $models.Program.createFrom;
 const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = $models.Running.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = $models.TryResult.createFrom;

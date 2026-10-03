@@ -14,6 +14,7 @@
  */
 
 import type {
+  Capability,
   Program,
   Running,
 } from "../../bindings/github.com/borismilner/rig/cmd/rigwindow/models.js";
@@ -43,6 +44,7 @@ export const PROGRAMS: Program[] = [
         description: "",
         effects: "read-only",
         returns: "matching items",
+        args: "",
       },
       {
         id: "admit",
@@ -51,6 +53,7 @@ export const PROGRAMS: Program[] = [
         description: "Copies the file in and indexes it.",
         effects: "writes-files",
         returns: "",
+        args: "",
       },
       {
         id: "reindex",
@@ -59,6 +62,7 @@ export const PROGRAMS: Program[] = [
         description: "",
         effects: "writes-files",
         returns: "",
+        args: "",
       },
     ],
   },
@@ -87,6 +91,7 @@ export const PROGRAMS: Program[] = [
         description: "",
         effects: "destructive",
         returns: "",
+        args: "",
       },
     ],
   },
@@ -115,6 +120,7 @@ export const PROGRAMS: Program[] = [
         description: "",
         effects: "drives-input",
         returns: "a PNG path",
+        args: "",
       },
     ],
   },
@@ -149,6 +155,7 @@ export const PROGRAMS: Program[] = [
         description: "",
         effects: "",
         returns: "",
+        args: "",
       },
       {
         id: "sift",
@@ -157,6 +164,7 @@ export const PROGRAMS: Program[] = [
         description: "",
         effects: "read-only",
         returns: "",
+        args: "",
       },
     ],
   },
@@ -213,5 +221,62 @@ export const RUNNING: Running[] = [
     waiting: "",
     parked: "Its display is gone. Restart it on the new one?",
     lastExit: "exit status 2",
+  },
+];
+
+/* Capabilities for the gate: one of each effect the panel colours, a schema
+ * with each control kind, and one with no arguments. The words are rig's
+ * own, copied from a live tools/list on 2026-10-03. */
+export const CAPABILITIES: Capability[] = [
+  {
+    owner: "rig",
+    id: "health",
+    title: "Health",
+    summary: "Each supervised program's state.",
+    description:
+      "Each supervised program's state. Answers the state, since when, restarts and what it last reported waiting on.",
+    returns: "",
+    effects: "read-only",
+    args: '{"type":"object","properties":{"programs":{"type":"array","items":{"type":"string"},"description":"ids; empty is all"}}}',
+  },
+  {
+    owner: "rig",
+    id: "notify",
+    title: "Notify",
+    summary: "Shows a toast on the desktop.",
+    description: "Shows a toast on the desktop, and files it in the record.",
+    returns: "",
+    effects: "changes state",
+    args: '{"type":"object","required":["title"],"properties":{"title":{"type":"string"},"severity":{"type":"string","enum":["info","success","warning","error"]},"sticky":{"type":"boolean"},"timeoutMs":{"type":"integer","description":"0 keeps the default"}}}',
+  },
+  {
+    owner: "rig",
+    id: "down",
+    title: "Down",
+    summary: "Stops rigd.",
+    description: "Stops rigd and every program it supervises.",
+    returns: "",
+    effects: "destructive",
+    args: '{"type":"object","properties":{}}',
+  },
+  {
+    owner: "rig",
+    id: "list_agents",
+    title: "",
+    summary: "Who is on the roster.",
+    description: "Who is on the roster, and what each says it is for.",
+    returns: "",
+    effects: "",
+    args: '{"type":"object","properties":{}}',
+  },
+  {
+    owner: "shelf",
+    id: "search",
+    title: "Search",
+    summary: "Find items in the library by text",
+    description: "",
+    returns: "matching items",
+    effects: "read-only",
+    args: '{"type":"object","required":["q"],"properties":{"q":{"type":"string"},"limit":{"type":"integer"}}}',
   },
 ];

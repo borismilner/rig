@@ -70,9 +70,8 @@ type Program struct {
 	Commands []Command `json:"commandList"`
 }
 
-// Command is one declared command as the card lists it. The argument schema
-// is left out: the card says what a command does, and calling one is
-// Capabilities' job (plan/55 build order, slice 4).
+// Command is one declared command as the card lists it, and as the
+// Capabilities panel calls it.
 type Command struct {
 	ID          string `json:"id"`
 	Title       string `json:"title"`
@@ -80,6 +79,8 @@ type Command struct {
 	Description string `json:"description"`
 	Effects     string `json:"effects"`
 	Returns     string `json:"returns"`
+	// Args is the declared JSON Schema as text, "" when none was declared.
+	Args string `json:"args"`
 }
 
 // Health is what the status strip renders.
@@ -188,6 +189,7 @@ func commands(in []*rigv1.Command) []Command {
 			Description: c.GetDescription(),
 			Effects:     effectsName(c.GetEffects()),
 			Returns:     c.GetReturns(),
+			Args:        string(c.GetArgs()),
 		})
 	}
 	return out

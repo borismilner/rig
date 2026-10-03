@@ -6,9 +6,73 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
- * Command is one declared command as the card lists it. The argument schema
- * is left out: the card says what a command does, and calling one is
- * Capabilities' job (plan/55 build order, slice 4).
+ * Capability is one thing a person can call from the Capabilities panel.
+ */
+export class Capability {
+    /**
+     * Owner is "rig" for rig's own verbs, else the program's id.
+     */
+    "owner": string;
+    "id": string;
+    "title": string;
+    "summary": string;
+    "description": string;
+    "returns": string;
+
+    /**
+     * Effects is "read-only", "destructive", a program's declared effect,
+     * "changes state" for a rig verb that is neither, or empty when nothing
+     * was declared. Anything but read-only is confirmed before it is sent.
+     */
+    "effects": string;
+
+    /**
+     * Args is the JSON Schema of the arguments, as JSON text; "" for none.
+     */
+    "args": string;
+
+    /** Creates a new Capability instance. */
+    constructor($$source: Partial<Capability> = {}) {
+        if (!("owner" in $$source)) {
+            this["owner"] = "";
+        }
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+        if (!("summary" in $$source)) {
+            this["summary"] = "";
+        }
+        if (!("description" in $$source)) {
+            this["description"] = "";
+        }
+        if (!("returns" in $$source)) {
+            this["returns"] = "";
+        }
+        if (!("effects" in $$source)) {
+            this["effects"] = "";
+        }
+        if (!("args" in $$source)) {
+            this["args"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Capability instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Capability {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Capability($$parsedSource as Partial<Capability>);
+    }
+}
+
+/**
+ * Command is one declared command as the card lists it, and as the
+ * Capabilities panel calls it.
  */
 export class Command {
     "id": string;
@@ -17,6 +81,11 @@ export class Command {
     "description": string;
     "effects": string;
     "returns": string;
+
+    /**
+     * Args is the declared JSON Schema as text, "" when none was declared.
+     */
+    "args": string;
 
     /** Creates a new Command instance. */
     constructor($$source: Partial<Command> = {}) {
@@ -37,6 +106,9 @@ export class Command {
         }
         if (!("returns" in $$source)) {
             this["returns"] = "";
+        }
+        if (!("args" in $$source)) {
+            this["args"] = "";
         }
 
         Object.assign(this, $$source);
@@ -373,6 +445,43 @@ export class Running {
     static createFrom($$source: any = {}): Running {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new Running($$parsedSource as Partial<Running>);
+    }
+}
+
+/**
+ * TryResult is what came back from one call, said as rig said it.
+ */
+export class TryResult {
+    "ok": boolean;
+    "text": string;
+
+    /**
+     * Call is the request as it went on the wire, so the panel can show
+     * exactly what was sent.
+     */
+    "call": string;
+
+    /** Creates a new TryResult instance. */
+    constructor($$source: Partial<TryResult> = {}) {
+        if (!("ok" in $$source)) {
+            this["ok"] = false;
+        }
+        if (!("text" in $$source)) {
+            this["text"] = "";
+        }
+        if (!("call" in $$source)) {
+            this["call"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TryResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TryResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TryResult($$parsedSource as Partial<TryResult>);
     }
 }
 

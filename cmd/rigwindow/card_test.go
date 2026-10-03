@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
@@ -38,5 +40,41 @@ func TestCardWords(t *testing.T) {
 	cs := commands([]*rigv1.Command{{Id: "search", Summary: "find", Effects: rigv1.Effects_EFFECTS_READ_ONLY}})
 	if len(cs) != 1 || cs[0].ID != "search" || cs[0].Summary != "find" || cs[0].Effects != "read-only" {
 		t.Errorf("commands = %+v", cs)
+	}
+}
+
+func TestTryRefusesBeforeDialling(t *testing.T) {
+	for _, tc := range []struct{ owner, id, args, want string }{
+		{"", "health", "{}", "no capability named"},
+		{"rig", "", "{}", "no capability named"},
+		{"rig", "health", "not json", "not a JSON object"},
+		{"rig", "health", "[1]", "not a JSON object"},
+	} {
+		_, err := RigService{}.Try(tc.owner, tc.id, tc.args)
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("Try(%q, %q, %q) = %v, want %q", tc.owner, tc.id, tc.args, err, tc.want)
+		}
+	}
+}
+
+func TestVerbCapability(t *testing.T) {
+	yes, no := true, false
+	for _, tc := range []struct {
+		ann  *mcp.ToolAnnotations
+		want string
+	}{
+		{&mcp.ToolAnnotations{ReadOnlyHint: true, DestructiveHint: &no}, "read-only"},
+		{&mcp.ToolAnnotations{DestructiveHint: &yes}, "destructive"},
+		{&mcp.ToolAnnotations{DestructiveHint: &no}, "changes state"},
+		// Nothing declared stays unsaid, and the panel confirms it.
+		{nil, ""},
+	} {
+		c := verbCapability(&mcp.Tool{Name: "x", Description: "Does a. Then b.", Annotations: tc.ann})
+		if c.Effects != tc.want {
+			t.Errorf("effects = %q, want %q", c.Effects, tc.want)
+		}
+		if c.Owner != "rig" || c.Summary != "Does a." {
+			t.Errorf("owner %q summary %q", c.Owner, c.Summary)
+		}
 	}
 }
