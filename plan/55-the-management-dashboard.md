@@ -385,9 +385,12 @@ second answer refused CONFLICT, an unknown id refused. Headless on
 `?notes=1`: 20 checks, 8 runs clean. Contrast: `?notes=1` clean, now in
 `make contrast-window` with `?caps=1` and `?guide=1`.
 
-**Not exercised:** the tray itself (badge, row, click) on a desktop
-panel, because the private display has no status-notifier host. Its parts
-are unit-tested. The card pages (`&note=`) cannot pass the focus pass:
+**The tray, on his panel after the deploy (v0.0.0-m0-1014-g650dde9),**
+read over D-Bus: a filed question badged the icon and showed "Needs you
+(1)" within 3 s; a left-click (StatusNotifierItem.Activate) opened the
+window, a second left it open; the answer cleared the badge and hid the
+row, and the asker was told. **Not exercised:** which tab the opened
+window showed, read by eye. The card pages (`&note=`) cannot pass the focus pass:
 behind a modal the page is inert, the same as `?card=`.
 
 ### Slice 4 as built (2026-10-03)
