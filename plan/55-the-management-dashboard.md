@@ -55,6 +55,19 @@ browser.
 | **14** | **Picking a program opens its tab** (his "I think": he sees it in the mockup next session before it is final) |
 | **15** | **Registering a GUI adds its tab, but Main stays the tab shown by default** |
 | **16** | **Main needs as little scrolling as possible**; his suggestion is tabs inside Main that group what it offers (his "perhaps": he sees it in the mockup before it is final) |
+| **17** | **The pointer over a tab is a hand, never a text cursor** |
+| **18** | **The wire is searchable** |
+| **19** | **A settings panel holds every setting rig exposes** (§6, §47: every key is schema-declared, so the settings UI is generated) |
+| **20** | **Every program exposes its settings to rig, and its GUI shows them to review and to change** (§47 requirement 1: the two program layers, wired but empty until now) |
+| **21** | **In a program's GUI, the wire shows only what concerns that program** |
+| **22** | **Panels opening from the bottom and the side open and close with a smooth animation** |
+| **23** | **Anything that needs his action, reply or decision comes on top**, close to the eye |
+| **24** | **A dedicated panel gathers everything that needs his action, decision or reply**; it can be a tab inside Main, beside Programs and Board |
+| **25** | **While such items exist, rig's tray icon shows it, and clicking the icon then opens that panel** |
+| **26** | **Clicking a notification opens a panel with its full details and every action it offers.** Undecided, the options are clickable; decided, it shows what was chosen |
+| **27** | **The board has a tab with every source, as now, plus a tab per source**, to follow one (on his reading that the board carries programs' and agents' progress, which is right: §55 req 3) |
+| **28** | **A panel holds every capability of rig and of each registered program**, each with its description taken from the binary and controls to try it: *"kind of Swagger UI but for our needs"* |
+| **29** | **rig publishes full guidelines for programs and agents: what a program must be built to and support to be rig compatible. They are time-stamped**, so a program built before a change can be found and adjusted |
 
 Requirements 6 to 8, Boris to the rig lead, 2026-10-03, verbatim: *"The
 main tab which is the default should show all the most important
@@ -122,6 +135,44 @@ main panel will need as little scrolling as possible. Perhaps it should
 have tabs inside of it to group the different functionalities offered in
 the main panel."* The goal (little scrolling) is ruled; the means (tabs
 inside Main) is his suggestion, to be shown in the mockup.
+
+Requirements 17 to 29, the same session (2026-10-03), verbatim, his
+spelling kept: *"The mouse cursor over the tabs seems like a text edit -
+it shouldn't. The wire details is good, I'd like it to be searchable. I'd
+like there to be a settins panel containing all the settings `rig`
+exposes. Also, every program should expose its settings to `rig` and the
+GUI of each program should also have these settings visually available to
+review and to change. For every program, when in its GUI, we should be
+able to see the wire only that is relevant to that program. I like the
+usage of panels than open from the bottom and from the side; Maybe they
+can be opened and closed with a smooth animation. Items that require my
+action or reply or decision and so on must come on top so that they are
+close to the eye. There should be a dedicated panel than concentrates
+everything that needs my action/decision/reply/... When such items exist
+rig the system-tray icon can have an indication and when I click on it in
+such a mode it should take me to this panel; This panel can be in a tab on
+the main tab same as programs and board. The notirifcations panel is good,
+clicking a notification should open a panel with the full details and all
+the cations and options applicable to the notification if not yet decided
+then the options should be clickable and if already clicked I should see
+what has been decided/clicked. If I understand correctly, the board shows
+the progress notifications of the different programs/agents; if so, it
+should have a tab displaying all as now and then a tab per source this way
+I can follow the progress of a specific source of interest. I want a
+dedicated panel containing all the capabilities of `rig` including all of
+its programs that are registered. Each capability should have a
+description taken from the binary and convenient visual controls to play
+with these capabilities, it kind of reminds the Swagger UI but for our
+needs. `rig` should expose full guidelines for programs and agents so that
+it is absolutely clear how the programs must be built and what they must
+support in order to be `rig` comapatible; these instructions should be
+time-stamped so that we can know when a program may need to be
+adjusted."*
+
+**Reach beyond the dashboard.** Requirements 20, 25 and 29 bind rig itself,
+not only its window: 20 fills §47's program layers, 25 is the tray (§12's
+icon), 29 is a published contract beside §19's conformance suite. Each
+points back here.
 
 He also said: *"I'm not sure I understand all these questions - you'll
 have to be more specific during our next session."* **So an open question

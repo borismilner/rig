@@ -72,3 +72,5 @@ alternative is discovering the contract's gaps from the program, which is when t
 expensive.
 
 ---
+
+**Boris, 2026-10-03 (§55 requirement 29):** rig publishes full, time-stamped guidelines for programs and agents, stating what a program must be built to and support to be rig compatible, so a program written before a change can be found and adjusted.

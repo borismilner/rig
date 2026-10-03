@@ -351,3 +351,5 @@ live on a throwaway rigd with the real binaries, and row 6 by unit test.**
 - **The tray acceptance test is untouched.**
 - **The capability after B104 is his to choose**, §45. This section is
   preparation for that choice and nothing more.
+
+**Boris, 2026-10-03 (§55 requirements 19 and 20):** a settings panel shows every key rig exposes, and every program exposes its settings to rig, shown and changed in that program's GUI. This is the demand that fills the two program layers of requirement 1.
