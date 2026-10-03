@@ -45,6 +45,7 @@ func TestRigsSchemaDeclaresItsKeys(t *testing.T) {
 		"logs.rate.burst RIG_LOGS_RATE_BURST logs-rate-burst restart",
 		"logs.rate.records RIG_LOGS_RATE_RECORDS logs-rate-records restart",
 		"logs.retention.bytes RIG_LOGS_RETENTION_BYTES logs-retention-bytes restart",
+		"programs.scan RIG_PROGRAMS_SCAN programs-scan restart",
 	}
 	if !slices.Equal(names, want) {
 		t.Fatalf("keys %q", names)

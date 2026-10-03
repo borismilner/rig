@@ -288,8 +288,7 @@ func run() error {
 	log.Info("rigd up", "version", version, "wire", wire,
 		"socket", sockPath, "mcp", mcpSockPath, "pid", os.Getpid())
 
-	sup := supervisor(log)
-	kept := declarationsDir(log, *estate)
+	sup, found := supervisor(log, settings, *estate)
 
 	sounds, err := newAudio(log, *estate, pidPath, *soundFile)
 	if err != nil {
@@ -315,7 +314,9 @@ func run() error {
 		Leases:           leases,
 
 		Supervisor:   sup,
-		Declarations: kept,
+		Declarations: found.kept,
+		Scan:         found.scan,
+		Overrides:    found.overrides,
 		Audio:        sounds,
 	})
 	if err != nil {
@@ -449,20 +450,45 @@ func newAudio(log *slog.Logger, estate, pidPath, soundFile string) (*audio.Audio
 // the whole estate down over one typo in a file that only lists what MAY run;
 // the file's error is in the log and rig health answers with nothing
 // declared, which is visibly wrong rather than silently so.
-func supervisor(log *slog.Logger) *supervise.Supervisor {
+func supervisor(log *slog.Logger, settings *config.Resolver, estate string) (*supervise.Supervisor, discovery) {
 	sup := supervise.New(supervise.Options{})
+	found := discovery{kept: declarationsDir(log, estate)}
+	home, _ := os.UserHomeDir()
+	dirs, err := supervise.ScanDirs(settings.String("programs.scan"), home)
+	if err != nil {
+		log.Error("no directory is scanned for programs", "err", err)
+	}
+	found.scan = dirs
+
 	specs, err := supervise.LoadDefault()
+	var explicit []supervise.Spec
+	for _, s := range specs {
+		if s.Path == "" {
+			found.overrides = append(found.overrides, s)
+			continue
+		}
+		explicit = append(explicit, s)
+	}
 	if err == nil {
-		err = sup.Declare(specs)
+		err = sup.Declare(explicit)
 	}
 	if err != nil {
 		log.Error("no programs are supervised: programs.json was refused", "err", err)
-		return sup
+		return sup, found
 	}
-	if len(specs) > 0 {
-		log.Info("programs declared", "count", len(specs), "ids", sup.Declared())
+	if len(explicit) > 0 {
+		log.Info("programs declared", "count", len(explicit), "ids", sup.Declared())
 	}
-	return sup
+	return sup, found
+}
+
+// discovery is what the daemon needs to find programs by itself (plan/54,
+// decision 0265): where it keeps what it learned, which directories it
+// scans, and programs.json's rows that override a scanned program.
+type discovery struct {
+	kept      string
+	scan      []string
+	overrides []supervise.Spec
 }
 
 // autostart starts the programs programs.json marks autostart (plan/18). The

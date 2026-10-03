@@ -33,6 +33,11 @@ type onCallState struct {
 	// identity is read once, and a binary that fails to start is not
 	// relaunched by every listing.
 	reading map[string]string
+
+	// scanning is a background scan under way, and again that another was
+	// asked for meanwhile, so a burst of listings costs at most two scans.
+	scanning bool
+	again    bool
 }
 
 // binaryID is a binary's identity: device, inode, size and modification
@@ -59,30 +64,50 @@ func (d *Daemon) keptPath(id string) string {
 	return filepath.Join(d.keptDir, id+".hello")
 }
 
+// kept is one kept declaration: the hello, the binary it was read from, and
+// that binary's identity when it was.
+type kept struct {
+	hello *rigv1.HelloRequest
+	bin   string
+	path  string
+}
+
+// readKept reads the kept file at file. Its first line is the binary's
+// identity and path, tab-separated; the rest is the hello.
+func readKept(file string) (kept, bool) {
+	b, err := os.ReadFile(file)
+	if err != nil {
+		return kept{}, false
+	}
+	head, body, ok := strings.Cut(string(b), "\n")
+	if !ok {
+		return kept{}, false
+	}
+	var k kept
+	k.bin, k.path, _ = strings.Cut(head, "\t")
+	k.hello = &rigv1.HelloRequest{}
+	if err := proto.Unmarshal([]byte(body), k.hello); err != nil {
+		return kept{}, false
+	}
+	return k, true
+}
+
 // loadKept answers the kept hello for id if it was read from this binary.
 func (d *Daemon) loadKept(id, bin string) (*rigv1.HelloRequest, bool) {
 	path := d.keptPath(id)
 	if path == "" {
 		return nil, false
 	}
-	b, err := os.ReadFile(path)
-	if err != nil {
+	k, ok := readKept(path)
+	if !ok || k.bin != bin {
 		return nil, false
 	}
-	head, body, ok := strings.Cut(string(b), "\n")
-	if !ok || head != bin {
-		return nil, false
-	}
-	var req rigv1.HelloRequest
-	if err := proto.Unmarshal([]byte(body), &req); err != nil {
-		return nil, false
-	}
-	return &req, true
+	return k.hello, true
 }
 
 // saveKept writes the hello, behind the identity it was read from, through a
 // temporary file so a reader never sees half of one.
-func (d *Daemon) saveKept(id, bin string, req *rigv1.HelloRequest) error {
+func (d *Daemon) saveKept(id, bin, binPath string, req *rigv1.HelloRequest) error {
 	path := d.keptPath(id)
 	if path == "" {
 		return nil
@@ -95,7 +120,7 @@ func (d *Daemon) saveKept(id, bin string, req *rigv1.HelloRequest) error {
 		return err
 	}
 	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, append([]byte(bin+"\n"), body...), 0o600); err != nil {
+	if err := os.WriteFile(tmp, append([]byte(bin+"\t"+binPath+"\n"), body...), 0o600); err != nil {
 		return err
 	}
 	return os.Rename(tmp, path)
@@ -110,17 +135,176 @@ func (d *Daemon) onCallSpec(id string) (supervise.Spec, bool) {
 	return spec, ok && spec.OnCall
 }
 
-// restOnCall is rigd starting: every on-call program's declaration is taken
-// from what was kept, or read by a declare run when the binary has changed.
-func (d *Daemon) restOnCall() {
+// adoptKept is rigd starting, before any scan (plan/54, 2026-10-03): every
+// program a scan found before is declared again from what was kept, so it
+// is listed and callable at once. On call goes to rest; resident is
+// started, as autostart would.
+func (d *Daemon) adoptKept() {
+	if d.super == nil || d.keptDir == "" {
+		return
+	}
+	entries, err := os.ReadDir(d.keptDir)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		id, ok := strings.CutSuffix(e.Name(), ".hello")
+		if !ok {
+			continue
+		}
+		if _, declared := d.super.Spec(id); declared {
+			continue // programs.json declares it; refreshKept reads its file
+		}
+		k, ok := readKept(filepath.Join(d.keptDir, e.Name()))
+		if !ok || k.path == "" {
+			continue
+		}
+		spec, _ := supervise.Merge(d.overridesFor(id), map[string]string{id: k.path})
+		if len(spec) != 1 || d.super.Declare(spec) != nil {
+			continue
+		}
+		decl, err := declarationFromWire(k.hello)
+		if err != nil {
+			continue
+		}
+		d.applyLoad(id, decl)
+		d.oncall.mu.Lock()
+		d.oncall.kept[id] = k.bin
+		d.oncall.mu.Unlock()
+	}
+}
+
+// overridesFor is programs.json's override row for id, if it has one.
+func (d *Daemon) overridesFor(id string) []supervise.Spec {
+	for _, o := range d.overrides {
+		if o.ID == id {
+			return []supervise.Spec{o}
+		}
+	}
+	return nil
+}
+
+// applyLoad puts a program in the mode its declaration asks for, unless
+// programs.json set one: on call is kept and put at rest; resident is
+// started, or left running when a declare run found it (decision 0265).
+func (d *Daemon) applyLoad(id string, decl kernel.Declaration) {
+	spec, ok := d.super.Spec(id)
+	if !ok {
+		return
+	}
+	onCall := spec.OnCall
+	if spec.FromBinary {
+		onCall = decl.Load.OnCall()
+		_ = d.super.SetLoad(id, onCall)
+	}
+	if !onCall {
+		d.kernel.Unrest(id)
+		if !d.connected(id) {
+			_, _ = d.super.Up(id)
+		}
+		return
+	}
+	if d.kernel.Rest(decl) == nil {
+		d.restIfDown(id)
+	}
+}
+
+// rescan asks for a background scan and returns at once: the scan never
+// blocks a listing, a describe or a call (plan/54, 2026-10-03).
+func (d *Daemon) rescan() {
 	if d.super == nil {
 		return
 	}
-	for _, id := range d.super.Declared() {
-		if _, ok := d.onCallSpec(id); ok {
-			d.refreshKept(id)
+	d.oncall.mu.Lock()
+	if d.oncall.scanning {
+		d.oncall.again = true
+		d.oncall.mu.Unlock()
+		return
+	}
+	d.oncall.scanning = true
+	d.oncall.mu.Unlock()
+	go func() {
+		for {
+			d.scan()
+			d.oncall.mu.Lock()
+			if !d.oncall.again {
+				d.oncall.scanning = false
+				d.oncall.mu.Unlock()
+				return
+			}
+			d.oncall.again = false
+			d.oncall.mu.Unlock()
+		}
+	}()
+}
+
+// scan is one pass: a new binary is declared and read, a changed one is
+// read again, and a scanned program whose binary is gone is forgotten,
+// kept file and all.
+func (d *Daemon) scan() {
+	if d.scanHold != nil {
+		<-d.scanHold
+	}
+	if ctx := d.serving.Load(); ctx != nil && (*ctx).Err() != nil {
+		return // shutting down: a declare run now would outlive rigd
+	}
+	found, problems := supervise.Scan(d.scanDirs)
+	for _, p := range problems {
+		d.log.Warn("program scan", "err", p)
+	}
+	// A directory that could not be read says nothing about what was
+	// deleted, so nothing is forgotten on a pass that failed to read one.
+	if !unreadable(problems) {
+		for _, id := range d.super.Declared() {
+			spec, ok := d.super.Spec(id)
+			if ok && spec.Scanned && found[id] == "" {
+				d.forget(id)
+			}
 		}
 	}
+	specs, problems := supervise.Merge(d.overrides, found)
+	for _, p := range problems {
+		d.log.Warn("program scan", "err", p)
+	}
+	for _, spec := range specs {
+		if _, declared := d.super.Spec(spec.ID); declared || !spec.Scanned {
+			continue
+		}
+		if err := d.super.Declare([]supervise.Spec{spec}); err != nil {
+			d.log.Warn("a scanned program was not declared", "program", spec.ID, "err", err)
+			continue
+		}
+		d.log.Info("program found", "program", spec.ID, "binary", spec.Path)
+	}
+	for _, id := range d.super.Declared() {
+		d.refreshKept(id)
+	}
+}
+
+// unreadable is whether a scan failed to read a directory, as opposed to
+// finding something in one it would not declare.
+func unreadable(problems []error) bool {
+	for _, p := range problems {
+		if errors.Is(p, supervise.ErrScanUnreadable) {
+			return true
+		}
+	}
+	return false
+}
+
+// forget removes a scanned program whose binary is gone: from the
+// supervisor, from what is listed, and from what is kept.
+func (d *Daemon) forget(id string) {
+	d.super.Forget(id)
+	d.kernel.Unrest(id)
+	if path := d.keptPath(id); path != "" {
+		_ = os.Remove(path)
+	}
+	d.oncall.mu.Lock()
+	delete(d.oncall.kept, id)
+	delete(d.oncall.reading, id)
+	d.oncall.mu.Unlock()
+	d.log.Info("program removed: its binary is gone", "program", id)
 }
 
 // refreshKept makes sure id's kept declaration was read from the binary on
@@ -191,26 +375,37 @@ func (d *Daemon) keptHello(c *conn, req *rigv1.HelloRequest, decl kernel.Declara
 	if !ok {
 		return
 	}
-	spec, ok := d.onCallSpec(id)
-	if !ok {
+	spec, ok := d.super.Spec(id)
+	if !ok || (!spec.OnCall && !spec.Scanned) {
 		return
 	}
 	bin, err := binaryID(spec.Path)
 	if err == nil {
-		err = d.saveKept(id, bin, req)
+		err = d.saveKept(id, bin, spec.Path, req)
 	}
 	if err != nil {
-		d.log.Warn("an on-call program's declaration was not kept on disk", "program", id, "err", err)
-	}
-	if err := d.kernel.Rest(decl); err != nil {
-		d.log.Warn("an on-call program's declaration was not kept", "program", id, "err", err)
-		return
+		d.log.Warn("a program's declaration was not kept on disk", "program", id, "err", err)
 	}
 	d.oncall.mu.Lock()
 	d.oncall.kept[id] = bin
 	declareRun := d.oncall.reading[id] != ""
 	delete(d.oncall.reading, id)
 	d.oncall.mu.Unlock()
+
+	onCall := spec.OnCall
+	if spec.FromBinary {
+		onCall = decl.Load.OnCall()
+		_ = d.super.SetLoad(id, onCall)
+	}
+	if !onCall {
+		// Resident: this run is its first, and it stays up.
+		d.kernel.Unrest(id)
+		return
+	}
+	if err := d.kernel.Rest(decl); err != nil {
+		d.log.Warn("an on-call program's declaration was not kept", "program", id, "err", err)
+		return
+	}
 	if declareRun {
 		// Stopped unless a call came for it meanwhile.
 		_ = d.super.Rest(id)

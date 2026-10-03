@@ -54,9 +54,57 @@ type onCallRig struct {
 	d    *Daemon
 
 	starts  atomic.Int32
-	fail    atomic.Bool // the next launch exits 1 before its hello
+	fail    atomic.Bool  // the next launch exits 1 before its hello
+	load    atomic.Int32 // the rigv1.Load the stub declares
 	mu      sync.Mutex
 	running *stubProc
+
+	stop    func()
+	stopped sync.Once
+}
+
+// stopOnce ends the daemon, once, so a test may end it early.
+func (r *onCallRig) stopOnce() {
+	if r.stop != nil {
+		r.stopped.Do(r.stop)
+	}
+}
+
+// start "launches" the stub: it dials the socket as the program and says
+// hello, from this process, so the pid matches the child rig started.
+func (r *onCallRig) start(spec supervise.Spec, _ map[string]string) (supervise.Process, <-chan supervise.Exit, error) {
+	r.starts.Add(1)
+	p := &stubProc{done: make(chan supervise.Exit, 1)}
+	if r.fail.Load() {
+		go p.exit(supervise.Exit{Code: 1})
+		return p, p.done, nil
+	}
+	r.mu.Lock()
+	r.running = p
+	r.mu.Unlock()
+	go func() {
+		c, err := client.Dial(r.sock)
+		if err != nil {
+			p.exit(supervise.Exit{Code: 2})
+			return
+		}
+		p.conn.Store(c)
+		c.Handle(func(_ string, payload []byte) (proto.Message, error) {
+			var req rigv1.PingRequest
+			if err := proto.Unmarshal(payload, &req); err != nil {
+				return nil, err
+			}
+			return &rigv1.PingResponse{Nonce: req.GetNonce(), Program: spec.ID, Version: "1.0"}, nil
+		})
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		decl := testDeclaration(spec.ID)
+		decl.Load = rigv1.Load(r.load.Load())
+		if _, err := c.Hello(ctx, decl); err != nil {
+			p.exit(supervise.Exit{Code: 3})
+		}
+	}()
+	return p, p.done, nil
 }
 
 // upOnCall is a daemon supervising one stub declared on call, or resident
@@ -73,40 +121,7 @@ func upOnCall(t *testing.T, onCall bool) *onCallRig {
 		t.Fatal(err)
 	}
 
-	sup := supervise.New(supervise.Options{
-		Start: func(spec supervise.Spec, _ map[string]string) (supervise.Process, <-chan supervise.Exit, error) {
-			r.starts.Add(1)
-			p := &stubProc{done: make(chan supervise.Exit, 1)}
-			if r.fail.Load() {
-				go p.exit(supervise.Exit{Code: 1})
-				return p, p.done, nil
-			}
-			r.mu.Lock()
-			r.running = p
-			r.mu.Unlock()
-			go func() {
-				c, err := client.Dial(r.sock)
-				if err != nil {
-					p.exit(supervise.Exit{Code: 2})
-					return
-				}
-				p.conn.Store(c)
-				c.Handle(func(_ string, payload []byte) (proto.Message, error) {
-					var req rigv1.PingRequest
-					if err := proto.Unmarshal(payload, &req); err != nil {
-						return nil, err
-					}
-					return &rigv1.PingResponse{Nonce: req.GetNonce(), Program: spec.ID, Version: "1.0"}, nil
-				})
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
-				if _, err := c.Hello(ctx, testDeclaration(spec.ID)); err != nil {
-					p.exit(supervise.Exit{Code: 3})
-				}
-			}()
-			return p, p.done, nil
-		},
-	})
+	sup := supervise.New(supervise.Options{Start: r.start})
 	spec := supervise.Spec{ID: "stub", Path: r.bin, OnCall: onCall, Autostart: !onCall}
 	if err := sup.Declare([]supervise.Spec{spec}); err != nil {
 		t.Fatal(err)
@@ -151,12 +166,19 @@ func (r *onCallRig) settle(t *testing.T, want verbsv1.ProgramState) {
 	t.Helper()
 	deadline := time.Now().Add(3 * time.Second)
 	for {
-		h := healthOf(ctx5(t), t, r.sock, "stub")
-		if h.GetState() == want {
-			return
+		// Not healthOf: until a background scan has declared the stub, the
+		// answer is NOT_FOUND, and that is "not yet" here.
+		var resp verbsv1.HealthResponse
+		err := dial(t, r.sock).Call(ctx5(t), "rig.health", &verbsv1.HealthRequest{Programs: []string{"stub"}}, &resp)
+		var got verbsv1.ProgramState
+		if err == nil && len(resp.GetPrograms()) == 1 {
+			got = resp.GetPrograms()[0].GetState()
+			if got == want {
+				return
+			}
 		}
 		if time.Now().After(deadline) {
-			t.Fatalf("stub is %s, want %s", h.GetState(), want)
+			t.Fatalf("stub is %s (%v), want %s", got, err, want)
 		}
 		time.Sleep(10 * time.Millisecond)
 	}

@@ -151,6 +151,12 @@ type Config struct {
 	// estate does.
 	Declarations string
 
+	// Scan is the directories a background scan reads for programs, and
+	// Overrides programs.json's rows that name no path, each overriding the
+	// scanned program of its id (decision 0265).
+	Scan      []string
+	Overrides []supervise.Spec
+
 	// Audio sounds drawn toasts and speaks (section 12, S1-S5). rigd owns
 	// it and closes it; nil means this daemon is silent, and rig.sound and
 	// rig.say refuse naming that.
@@ -246,8 +252,13 @@ type Daemon struct {
 	// super is section 18's supervisor, nil when none was configured.
 	super *supervise.Supervisor
 	// keptDir and oncall hold on-call programs' declarations (oncall.go).
-	keptDir string
-	oncall  onCallState
+	keptDir   string
+	oncall    onCallState
+	scanDirs  []string
+	overrides []supervise.Spec
+	// scanHold, when a test sets it, holds every scan until it is closed,
+	// so what is served before any scan can be told apart.
+	scanHold chan struct{}
 
 	// mail wakes rig.message.await calls parked on a seat. In memory, and
 	// losing it costs nothing: the queue behind it is durable, so a reader
@@ -406,28 +417,30 @@ func New(cfg Config) (*Daemon, error) {
 	}
 
 	d := &Daemon{
-		files:    freeFiles,
-		stores:   progStores,
-		version:  cfg.Version,
-		wire:     cfg.Wire,
-		estate:   cfg.Estate,
-		epoch:    cfg.Epoch,
-		root:     cfg.Root,
-		log:      log,
-		lock:     cfg.Lock,
-		kernel:   k,
-		ask:      cfg.Ask,
-		live:     make(map[net.Conn]struct{}),
-		programs: make(map[string]*conn),
-		presence: newPresence(cfg.Estate, cfg.Epoch),
-		records:  records,
-		leases:   cfg.Leases,
-		lq:       newLeaseQueue(),
-		super:    cfg.Supervisor,
-		keptDir:  cfg.Declarations,
-		oncall:   onCallState{kept: map[string]string{}, reading: map[string]string{}},
-		audio:    cfg.Audio,
-		hand:     newHandDesk(time.Now),
+		files:     freeFiles,
+		stores:    progStores,
+		version:   cfg.Version,
+		wire:      cfg.Wire,
+		estate:    cfg.Estate,
+		epoch:     cfg.Epoch,
+		root:      cfg.Root,
+		log:       log,
+		lock:      cfg.Lock,
+		kernel:    k,
+		ask:       cfg.Ask,
+		live:      make(map[net.Conn]struct{}),
+		programs:  make(map[string]*conn),
+		presence:  newPresence(cfg.Estate, cfg.Epoch),
+		records:   records,
+		leases:    cfg.Leases,
+		lq:        newLeaseQueue(),
+		super:     cfg.Supervisor,
+		keptDir:   cfg.Declarations,
+		scanDirs:  cfg.Scan,
+		overrides: cfg.Overrides,
+		oncall:    onCallState{kept: map[string]string{}, reading: map[string]string{}},
+		audio:     cfg.Audio,
+		hand:      newHandDesk(time.Now),
 
 		settings:     cfg.Settings,
 		logLevel:     cfg.LogLevel,
@@ -604,9 +617,10 @@ func (d *Daemon) Serve(ctx context.Context, l net.Listener) error {
 	d.startTimers(ctx)
 	d.startLeaseWatch(ctx)
 	d.serving.Store(&ctx)
-	// Section 54: on-call declarations are read in the background, so a
-	// listing is never empty for want of one and serving never waits on it.
-	go d.restOnCall()
+	// Section 54: what was kept is served at once, and the scan that
+	// updates it runs in the background, so serving never waits on it.
+	d.adoptKept()
+	d.rescan()
 
 	go func() {
 		<-ctx.Done()
@@ -995,9 +1009,9 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 		// which programs are named: the scope filter is inside See and runs
 		// first either way.
 		//
-		// An on-call program's binary is checked first, one stat each, so a
-		// rebuilt one is re-read (section 54).
-		d.restOnCall()
+		// A listing asks for a background scan, so a rebuilt, new or
+		// deleted binary is seen; it never waits for one (section 54).
+		d.rescan()
 		estate, err := d.kernel.See(c.principal()).Estate(depthIn(req.GetDepth()))
 		if err != nil {
 			c.failErr(f.GetStreamId(), rigv1.Code_CODE_INVALID, err)

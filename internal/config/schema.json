@@ -142,6 +142,19 @@
         }
       }
     },
+    "programs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scan": {
+          "type": "string",
+          "maxLength": 4096,
+          "default": "~/.local/lib/rig/apps",
+          "x-rig-apply": "restart",
+          "description": "directories rig scans for programs, colon-separated; everything in one is a program and declares how it is loaded (plan/54, decision 0265)"
+        }
+      }
+    },
     "display": {
       "type": "object",
       "additionalProperties": false,
