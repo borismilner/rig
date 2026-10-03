@@ -178,3 +178,25 @@ recommended:
 
 This supersedes `"on_call": true` in `programs.json` above as the
 source of the mode; the rest of the section stands.
+
+### ⛔ Requirement, 2026-10-03: what rig learned is persisted, and the scan only updates it
+
+**Stated by Boris, 2026-10-03, verbatim:**
+
+> The knowledge about API of the different programs must be persisted so
+> that `rig` is not dependant on re-scan every time to have this
+> functionality exposed to the users.
+> The scan happens in the background and it may update the knowledge if for
+> example the application was updated or deleted or anything like that.
+
+What it binds:
+
+| Property | Required |
+|---|---|
+| **served from what was persisted** | at rigd start, every program found before is listed and callable from its kept declaration at once, before any scan runs |
+| **for every scanned program** | on call and resident alike, not only the on-call ones of "The declaration, read once and kept" |
+| **the scan is background work** | it never blocks a listing, a describe or a call |
+| **the scan updates the knowledge** | a changed binary is re-read; a **deleted** binary's program is removed from what is kept and listed; a new one is added |
+
+Above, an unnamed estate keeps declarations in memory only; that stays, as
+an unnamed estate has no state directory to persist into.
