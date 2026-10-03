@@ -9,15 +9,15 @@
 
      ⛔ NOTHING ON THIS PAGE IS INVENTED. Every figure is read from the calls
      the window already makes - Health, Programs, Supervision, Deployment,
-     Build, Notifications. The board needs a verb rig does not have yet
-     (plan/55 build order, slice 3), so the Board tab says so instead of
-     showing a sample.
+     Build, Notifications, Board. A rig built before the board says so on
+     the Board tab instead of showing a sample.
 
      The notifications panel is the right-hand column (7 to 9); Needs you
      is every question still waiting on him plus every parked program (24),
      and the "need you" figure and the tab count are that same total. -->
 <script lang="ts">
   import type {
+    CardList,
     Deployment as DeploymentState,
     Guidelines,
     Health,
@@ -32,6 +32,7 @@
   import ProgramIcon from "./ProgramIcon.svelte";
   import Deployment from "./Deployment.svelte";
   import Notifications from "./Notifications.svelte";
+  import Board from "./Board.svelte";
   import { waiting } from "./notes";
 
   export type MainTab = "needs" | "programs" | "board";
@@ -66,6 +67,13 @@
       text: string,
       dismissed: boolean,
     ) => Promise<void>;
+    /* RigService.Board, or null before the first read (2, 3, 27). */
+    board: CardList | null;
+    boardError: string;
+    boardSrc: string;
+    boardQ: string;
+    /** Presses a card's button; rejects with rig's refusal. */
+    onpress: (card: string, action: string) => Promise<void>;
     /* The measurement fixture's fixed clock. */
     now?: number;
   }
@@ -87,6 +95,11 @@
     noteSrc = $bindable(),
     onnote,
     onanswer,
+    board,
+    boardError,
+    boardSrc = $bindable(),
+    boardQ = $bindable(),
+    onpress,
     now,
   }: Props = $props();
 
@@ -148,7 +161,9 @@
   let counts = $derived<Record<MainTab, string>>({
     needs: String(needN),
     programs: String(programs.length),
-    board: "",
+    board: board?.missing
+      ? ""
+      : String((board?.cards ?? []).filter((c) => !c.closed).length),
   });
 
   function ontabkey(e: KeyboardEvent) {
@@ -371,11 +386,14 @@
         </footer>
       </div>
     {:else}
-      <p class="empty">
-        The board is where programs and agents put what they are working on. It
-        needs rig's panel.put, which is not built yet (plan/55 build order,
-        slice 3), so there is nothing to show and nothing is faked.
-      </p>
+      <Board
+        list={board}
+        loadError={boardError}
+        bind:src={boardSrc}
+        bind:q={boardQ}
+        {onpress}
+        {now}
+      />
     {/if}
   </div>
 </div>

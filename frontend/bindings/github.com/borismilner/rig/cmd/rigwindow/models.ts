@@ -71,6 +71,143 @@ export class Capability {
 }
 
 /**
+ * Card is one card on the board, as rig.panel.list answers it.
+ */
+export class Card {
+    "id": string;
+    "version": number;
+    "from": string;
+    "project": string;
+    "title": string;
+    "status": string;
+    "severity": string;
+    "body": string;
+
+    /**
+     * Progress is 0 to 1; HasProgress says whether there is any.
+     */
+    "progress": number;
+    "hasProgress": boolean;
+    "busy": boolean;
+    "facts": Fact[];
+    "actions": string[];
+    "closed": boolean;
+    "created": string;
+    "updated": string;
+
+    /** Creates a new Card instance. */
+    constructor($$source: Partial<Card> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("version" in $$source)) {
+            this["version"] = 0;
+        }
+        if (!("from" in $$source)) {
+            this["from"] = "";
+        }
+        if (!("project" in $$source)) {
+            this["project"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("severity" in $$source)) {
+            this["severity"] = "";
+        }
+        if (!("body" in $$source)) {
+            this["body"] = "";
+        }
+        if (!("progress" in $$source)) {
+            this["progress"] = 0;
+        }
+        if (!("hasProgress" in $$source)) {
+            this["hasProgress"] = false;
+        }
+        if (!("busy" in $$source)) {
+            this["busy"] = false;
+        }
+        if (!("facts" in $$source)) {
+            this["facts"] = [];
+        }
+        if (!("actions" in $$source)) {
+            this["actions"] = [];
+        }
+        if (!("closed" in $$source)) {
+            this["closed"] = false;
+        }
+        if (!("created" in $$source)) {
+            this["created"] = "";
+        }
+        if (!("updated" in $$source)) {
+            this["updated"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Card instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Card {
+        const $$createField11_0 = $$createType1;
+        const $$createField12_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("facts" in $$parsedSource) {
+            $$parsedSource["facts"] = $$createField11_0($$parsedSource["facts"]);
+        }
+        if ("actions" in $$parsedSource) {
+            $$parsedSource["actions"] = $$createField12_0($$parsedSource["actions"]);
+        }
+        return new Card($$parsedSource as Partial<Card>);
+    }
+}
+
+/**
+ * CardList is the board: every open card and those closed in the last day,
+ * newest change first, and how many rig left out past its cap.
+ */
+export class CardList {
+    "cards": Card[];
+    "omitted": number;
+
+    /**
+     * Missing is set when the daemon has no board yet, an older rigd.
+     */
+    "missing": boolean;
+
+    /** Creates a new CardList instance. */
+    constructor($$source: Partial<CardList> = {}) {
+        if (!("cards" in $$source)) {
+            this["cards"] = [];
+        }
+        if (!("omitted" in $$source)) {
+            this["omitted"] = 0;
+        }
+        if (!("missing" in $$source)) {
+            this["missing"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CardList instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CardList {
+        const $$createField0_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("cards" in $$parsedSource) {
+            $$parsedSource["cards"] = $$createField0_0($$parsedSource["cards"]);
+        }
+        return new CardList($$parsedSource as Partial<CardList>);
+    }
+}
+
+/**
  * Command is one declared command as the card lists it, and as the
  * Capabilities panel calls it.
  */
@@ -223,6 +360,34 @@ export class Deployment {
 }
 
 /**
+ * Fact is one label and value on a card.
+ */
+export class Fact {
+    "label": string;
+    "value": string;
+
+    /** Creates a new Fact instance. */
+    constructor($$source: Partial<Fact> = {}) {
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+        if (!("value" in $$source)) {
+            this["value"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Fact instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Fact {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Fact($$parsedSource as Partial<Fact>);
+    }
+}
+
+/**
  * Guideline is one dated rule.
  */
 export class Guideline {
@@ -297,8 +462,8 @@ export class Guidelines {
      * Creates a new Guidelines instance from a string or object.
      */
     static createFrom($$source: any = {}): Guidelines {
-        const $$createField1_0 = $$createType1;
-        const $$createField2_0 = $$createType3;
+        const $$createField1_0 = $$createType6;
+        const $$createField2_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rules" in $$parsedSource) {
             $$parsedSource["rules"] = $$createField1_0($$parsedSource["rules"]);
@@ -431,8 +596,8 @@ export class Note {
      * Creates a new Note instance from a string or object.
      */
     static createFrom($$source: any = {}): Note {
-        const $$createField7_0 = $$createType4;
-        const $$createField12_0 = $$createType6;
+        const $$createField7_0 = $$createType2;
+        const $$createField12_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("replies" in $$parsedSource) {
             $$parsedSource["replies"] = $$createField7_0($$parsedSource["replies"]);
@@ -485,7 +650,7 @@ export class NoteList {
      * Creates a new NoteList instance from a string or object.
      */
     static createFrom($$source: any = {}): NoteList {
-        const $$createField0_0 = $$createType8;
+        const $$createField0_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("notes" in $$parsedSource) {
             $$parsedSource["notes"] = $$createField0_0($$parsedSource["notes"]);
@@ -601,9 +766,9 @@ export class Program {
      * Creates a new Program instance from a string or object.
      */
     static createFrom($$source: any = {}): Program {
-        const $$createField7_0 = $$createType4;
-        const $$createField15_0 = $$createType4;
-        const $$createField16_0 = $$createType10;
+        const $$createField7_0 = $$createType2;
+        const $$createField15_0 = $$createType2;
+        const $$createField16_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("services" in $$parsedSource) {
             $$parsedSource["services"] = $$createField7_0($$parsedSource["services"]);
@@ -803,14 +968,18 @@ export class TryResult {
 }
 
 // Private type creation functions
-const $$createType0 = Guideline.createFrom;
+const $$createType0 = Fact.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = ProgramBuild.createFrom;
-const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = $Create.Array($Create.Any);
-const $$createType5 = Reply.createFrom;
-const $$createType6 = $Create.Nullable($$createType5);
-const $$createType7 = Note.createFrom;
+const $$createType2 = $Create.Array($Create.Any);
+const $$createType3 = Card.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = Guideline.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = ProgramBuild.createFrom;
 const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = Command.createFrom;
-const $$createType10 = $Create.Array($$createType9);
+const $$createType9 = Reply.createFrom;
+const $$createType10 = $Create.Nullable($$createType9);
+const $$createType11 = Note.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = Command.createFrom;
+const $$createType14 = $Create.Array($$createType13);

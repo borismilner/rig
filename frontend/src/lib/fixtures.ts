@@ -15,6 +15,8 @@
 
 import type {
   Capability,
+  Card,
+  CardList,
   Guidelines,
   Note,
   NoteList,
@@ -359,7 +361,9 @@ export const GUIDELINES: Guidelines = {
  * clock the panel reads them against, so "ago" holds still. */
 export const NOTES_NOW = Date.parse("2026-10-03T18:00:00Z");
 const at = (min: number) => new Date(NOTES_NOW - min * 60_000).toISOString();
-const note = (n: Partial<Note> & Pick<Note, "id" | "title" | "sender">): Note => ({
+const note = (
+  n: Partial<Note> & Pick<Note, "id" | "title" | "sender">,
+): Note => ({
   severity: "info",
   body: "",
   at: at(5),
@@ -446,6 +450,104 @@ export const NOTES: NoteList = {
       at: at(60 * 50),
       severity: "warning",
       suppressed: true,
+    }),
+  ],
+};
+
+/* ?board=1: the board, seeded, on the notes' fixed clock. Three sources,
+ * every severity, progress, busy, facts, buttons and two closed cards, so
+ * every part of a card is on screen to be measured. */
+const minsAgo = (min: number) => new Date(NOTES_NOW - min * 60_000).toISOString();
+const card = (
+  c: Partial<Card> & Pick<Card, "id" | "from" | "title">,
+): Card => ({
+  version: 1,
+  project: "",
+  status: "",
+  severity: "info",
+  body: "",
+  progress: 0,
+  hasProgress: false,
+  busy: false,
+  facts: [],
+  actions: [],
+  closed: false,
+  created: minsAgo(30),
+  updated: minsAgo(2),
+  ...c,
+});
+export const BOARD: CardList = {
+  omitted: 0,
+  missing: false,
+  cards: [
+    card({
+      id: "b-graft",
+      from: "graft",
+      project: "rig",
+      title: "Grafting the board into rig",
+      status: "running",
+      progress: 0.62,
+      hasProgress: true,
+      version: 4,
+      updated: minsAgo(1),
+      facts: [
+        { label: "jobs", value: "5 of 8" },
+        { label: "host", value: "lab-2" },
+      ],
+      actions: ["Stop"],
+    }),
+    card({
+      id: "b-deploy",
+      from: "graft",
+      project: "rig",
+      title: "Deploy to production",
+      status: "waiting for you",
+      severity: "warning",
+      updated: minsAgo(4),
+      body: "Two commits behind. The tray, the board and the CLI change.",
+      actions: ["Deploy", "Later"],
+    }),
+    card({
+      id: "b-tests",
+      from: "lead",
+      project: "rig",
+      title: "Full test run",
+      status: "failed",
+      severity: "error",
+      version: 2,
+      updated: minsAgo(6),
+      facts: [{ label: "failed", value: "TestTheBinary/help-long" }],
+      actions: ["Retry"],
+    }),
+    card({
+      id: "b-index",
+      from: "shelf",
+      project: "library",
+      title: "Re-indexing the library",
+      status: "busy",
+      busy: true,
+      updated: minsAgo(8),
+    }),
+    card({
+      id: "b-done",
+      from: "lead",
+      project: "rig",
+      title: "Slice 2 shipped",
+      status: "done",
+      severity: "success",
+      closed: true,
+      version: 3,
+      updated: minsAgo(40),
+    }),
+    card({
+      id: "b-old",
+      from: "shelf",
+      project: "library",
+      title: "Nightly backup",
+      status: "done",
+      severity: "success",
+      closed: true,
+      updated: minsAgo(300),
     }),
   ],
 };

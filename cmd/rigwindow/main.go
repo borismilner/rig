@@ -161,6 +161,7 @@ func runWindow() error {
 	// Requirement 7: a notification lands in the panel as it is filed.
 	setEmit(func() { app.Event.Emit(notesEvent) })
 	go watchNotes()
+	go watchBoard(func() { app.Event.Emit(boardEvent) })
 
 	// Requirement 25: the tray says "needs" on stdin when he clicks while
 	// something waits; the window comes forward and the page takes the ask.

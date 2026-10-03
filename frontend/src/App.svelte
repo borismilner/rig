@@ -38,6 +38,7 @@
     Deployment,
     Guidelines as GuidelinesData,
     Health,
+    CardList,
     Note,
     NoteList,
     Program,
@@ -65,6 +66,7 @@
     GUIDELINES,
     NOTES,
     NOTES_NOW,
+    BOARD,
   } from "./lib/fixtures";
   import NoteCard from "./lib/NoteCard.svelte";
   import { waiting } from "./lib/notes";
@@ -89,6 +91,8 @@
    *   ?notes=1          the notifications panel and Needs you, seeded,
    *                     on a fixed clock; answering changes only the page
    *   &note=<id>        that notification's card open
+   *   ?board=1          Main's Board tab, seeded, on the same fixed clock;
+   *                     a button press changes only the page
    *   ?card=<id>        a program's card open over the dashboard, and
    *   &tab=<name>       which of its tabs
    *
@@ -105,8 +109,9 @@
   const capsFixture = params.get("caps") === "1";
   const guideFixture = params.get("guide") === "1";
   const notesFixture = params.get("notes") === "1";
+  const boardFixture = params.get("board") === "1";
   const dashFixture =
-    params.get("dash") === "1" || !!cardFixture || notesFixture;
+    params.get("dash") === "1" || !!cardFixture || notesFixture || boardFixture;
   const railFixture = params.get("fixture") === "1";
   const fixture =
     railFixture ||
@@ -222,6 +227,40 @@
     }
   }
 
+  // The board (plan/55 requirements 2, 3, 27). Read whole on every
+  // "rig:board", which the Go side sends on each panel.changed; the source
+  // tab and the search live here so a trip to a GUI comes back to them.
+  let board: CardList | null = $state(
+    boardFixture
+      ? structuredClone(BOARD)
+      : fixture
+        ? { cards: [], omitted: 0, missing: false }
+        : null,
+  );
+  let boardError = $state("");
+  let boardSrc = $state("");
+  let boardQ = $state("");
+
+  async function loadBoard() {
+    try {
+      board = await RigService.Board();
+      boardError = "";
+    } catch (e) {
+      board = null;
+      boardError = String(e);
+    }
+  }
+
+  async function pressCard(card: string, action: string) {
+    if (boardFixture) {
+      // The fixture has no owner to tell; the card says it heard.
+      const c = board?.cards.find((x) => x.id === card);
+      if (c) c.status = `${action}: sent`;
+      return;
+    }
+    await RigService.Press(card, action);
+  }
+
   // Requirement 25: the tray was clicked while something waits. Whatever
   // is open gives way, because he came for Needs you.
   async function takeNeeds() {
@@ -269,7 +308,11 @@
 
   // Main's inner tab, held here so a trip to a GUI comes back to it.
   let mainTab: MainTab = $state(
-    notesFixture && NOTES.notes.some(waiting) ? "needs" : "programs",
+    boardFixture
+      ? "board"
+      : notesFixture && NOTES.notes.some(waiting)
+        ? "needs"
+        : "programs",
   );
   // The program whose card is open (plan/55, requirement 42), and the tab
   // it opened on. One card at a time: it is modal.
@@ -442,6 +485,7 @@
     } else {
       void refresh();
       void loadNotes();
+      void loadBoard();
       startPolling();
     }
   }
@@ -496,6 +540,8 @@
     void refresh();
     void loadNotes();
     const unnotes = Events.On("rig:notifications", () => void loadNotes());
+    void loadBoard();
+    const unboard = Events.On("rig:board", () => void loadBoard());
     void takeNeeds();
     const unneeds = Events.On("rig:needs", () => void takeNeeds());
     RigService.Build()
@@ -510,6 +556,7 @@
       stopPolling();
       unwatch();
       unnotes();
+      unboard();
       unneeds();
       document.removeEventListener("visibilitychange", onvisibility);
     };
@@ -557,7 +604,12 @@
           bind:noteSrc
           onnote={(n) => (noteFor = n.id)}
           onanswer={answerNote}
-          now={notesFixture ? NOTES_NOW : undefined}
+          {board}
+          {boardError}
+          bind:boardSrc
+          bind:boardQ
+          onpress={pressCard}
+          now={notesFixture || boardFixture ? NOTES_NOW : undefined}
         />
       </div>
     {:else if gui?.id === "capabilities"}

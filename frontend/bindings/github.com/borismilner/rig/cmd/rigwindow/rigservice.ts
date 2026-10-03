@@ -32,12 +32,21 @@ export function Answer(id: string, reply: string, text: string, dismissed: boole
 }
 
 /**
+ * Board reads the board.
+ */
+export function Board(): $CancellablePromise<$models.CardList> {
+    return $Call.ByID(1169951761).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
  * Build is the four versions the binary carries, so the strip can show which
  * window is running without a person going to a terminal.
  */
 export function Build(): $CancellablePromise<{ [_ in string]?: string }> {
     return $Call.ByID(1191479857).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -48,7 +57,7 @@ export function Build(): $CancellablePromise<{ [_ in string]?: string }> {
  */
 export function Capabilities(): $CancellablePromise<$models.Capability[]> {
     return $Call.ByID(3599441113).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType4($result);
     });
 }
 
@@ -58,7 +67,7 @@ export function Capabilities(): $CancellablePromise<$models.Capability[]> {
  */
 export function Deployment(): $CancellablePromise<$models.Deployment> {
     return $Call.ByID(69816036).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
@@ -67,7 +76,7 @@ export function Deployment(): $CancellablePromise<$models.Deployment> {
  */
 export function Guidelines(): $CancellablePromise<$models.Guidelines> {
     return $Call.ByID(346564824).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType6($result);
     });
 }
 
@@ -77,7 +86,7 @@ export function Guidelines(): $CancellablePromise<$models.Guidelines> {
  */
 export function Health(): $CancellablePromise<$models.Health> {
     return $Call.ByID(2625630141).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType7($result);
     });
 }
 
@@ -86,8 +95,16 @@ export function Health(): $CancellablePromise<$models.Health> {
  */
 export function Notifications(): $CancellablePromise<$models.NoteList> {
     return $Call.ByID(3607183061).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType8($result);
     });
+}
+
+/**
+ * Press sends one of a card's buttons to its owner. The presser is this
+ * window's connection, which rig names.
+ */
+export function Press(card: string, action: string): $CancellablePromise<void> {
+    return $Call.ByID(2057677570, card, action);
 }
 
 /**
@@ -97,7 +114,7 @@ export function Notifications(): $CancellablePromise<$models.NoteList> {
  */
 export function Programs(): $CancellablePromise<$models.Program[]> {
     return $Call.ByID(1823204778).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType10($result);
     });
 }
 
@@ -109,7 +126,7 @@ export function Programs(): $CancellablePromise<$models.Program[]> {
  */
 export function Supervise(action: string, program: string): $CancellablePromise<$models.Running> {
     return $Call.ByID(3916844919, action, program).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType11($result);
     });
 }
 
@@ -119,7 +136,7 @@ export function Supervise(action: string, program: string): $CancellablePromise<
  */
 export function Supervision(): $CancellablePromise<$models.Running[]> {
     return $Call.ByID(914839342).then(($result: any) => {
-        return $$createType11($result);
+        return $$createType12($result);
     });
 }
 
@@ -138,21 +155,22 @@ export function TakeNeeds(): $CancellablePromise<boolean> {
  */
 export function Try(owner: string, id: string, args: string): $CancellablePromise<$models.TryResult> {
     return $Call.ByID(99210380, owner, id, args).then(($result: any) => {
-        return $$createType12($result);
+        return $$createType13($result);
     });
 }
 
 // Private type creation functions
 const $$createType0 = $models.Reply.createFrom;
-const $$createType1 = $Create.Map($Create.Any, $Create.Any);
-const $$createType2 = $models.Capability.createFrom;
-const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = $models.Deployment.createFrom;
-const $$createType5 = $models.Guidelines.createFrom;
-const $$createType6 = $models.Health.createFrom;
-const $$createType7 = $models.NoteList.createFrom;
-const $$createType8 = $models.Program.createFrom;
-const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = $models.Running.createFrom;
-const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = $models.TryResult.createFrom;
+const $$createType1 = $models.CardList.createFrom;
+const $$createType2 = $Create.Map($Create.Any, $Create.Any);
+const $$createType3 = $models.Capability.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = $models.Deployment.createFrom;
+const $$createType6 = $models.Guidelines.createFrom;
+const $$createType7 = $models.Health.createFrom;
+const $$createType8 = $models.NoteList.createFrom;
+const $$createType9 = $models.Program.createFrom;
+const $$createType10 = $Create.Array($$createType9);
+const $$createType11 = $models.Running.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = $models.TryResult.createFrom;

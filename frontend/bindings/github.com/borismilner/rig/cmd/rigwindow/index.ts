@@ -8,8 +8,11 @@ export {
 
 export {
     Capability,
+    Card,
+    CardList,
     Command,
     Deployment,
+    Fact,
     Guideline,
     Guidelines,
     Health,
