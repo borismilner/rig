@@ -167,7 +167,14 @@ What this changes in the section above:
 | each program is one row of `programs.json` | rig's configuration names **directories to scan**; what it finds there is a program |
 | `"on_call": true` / `"autostart": true` are set in `programs.json` | **the binary declares its own load mode**: on call (learn the API, hold no memory) or resident (started and supervised for crashes) |
 
-**Status: REQUIREMENT, NOT YET DESIGNED.** The design questions (which
-directories, how a found file is known to be a program before it is run,
-where the load mode sits in the declaration, what `programs.json` keeps)
-are put to him before any code.
+**Status: RULED, 2026-10-03, decision 0265**, all three rows as
+recommended:
+
+| Row | Ruling |
+|---|---|
+| which directories | **dedicated rig directories**: `~/.local/lib/rig/apps` by default, plus any configured. Everything in one is a program. Never `~/.local/bin`: finding a program costs one declare run, and rig does not execute every binary on the PATH |
+| where the binary says how to load it | **a load mode in the declaration, read from the hello** on plan/54's declare run: `on_call` or `resident` (started at rigd start, supervised for crashes) |
+| what `programs.json` keeps | **overrides only**: args, health budget, disable, or a load mode overriding the binary's. A scanned program needs no row |
+
+This supersedes `"on_call": true` in `programs.json` above as the
+source of the mode; the rest of the section stands.
