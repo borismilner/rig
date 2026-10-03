@@ -59,6 +59,7 @@ const ICON = {
   minus: '<path d="M5 12h14"/>', plus: '<path d="M12 5v14M5 12h14"/>',
   undo: '<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/>',
   chev: '<path d="m6 9 6 6 6-6"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
 };
 
 // ── controls (requirement 40): one look everywhere, each shaped to its value ──
@@ -758,8 +759,10 @@ function renderPrograms(container) {
   const body = h('tbody');
   for (const e of estate) {
     const open = S.tabs.some((x) => x.id === e.id && x.open);
-    body.append(h('tr', { class: 'row' + (open ? ' open' : '') },
-      h('td', {}, h('button', { class: 'pname', title: `Open ${e.name}'s tab`, onclick: () => openTab(e.id) },
+    // Requirement 42: the whole row opens the program's card; the name is
+    // the keyboard's way in.
+    body.append(h('tr', { class: 'row' + (open ? ' open' : ''), onclick: (ev) => { if (!ev.target.closest('button')) openProgram(e.id); } },
+      h('td', {}, h('button', { class: 'pname', 'aria-label': `${e.name}: open its card`, onclick: (ev) => { ev.stopPropagation(); openProgram(e.id); } },
         h('span', { class: 'ic', style: { '--c': progColour(e.id) } }, e.id.slice(0, 2)), e.name,
         S.guis[e.id] ? h('span', { class: 'gtag' }, 'GUI') : null)),
       h('td', { class: 'mono' }, e.version),
@@ -919,8 +922,10 @@ function renderGuiTab(view, host, t) {
     h('h1', {}, e ? e.name : t.title), e ? h('span', { class: 'mono dim' }, e.version) : null,
     h('span', { class: 'kit' }, 'its own GUI: styled by rig.css, acting through rig'),
     h('span', { class: 'dim' }, t.asked ? `${t.title} asked at ${hhmm(t.asked)}: "${t.reason}"` : `registered ${hhmm(g.at)}`),
-    e ? h('button', { class: 'act', onclick: () => openProgSettings(e.id) }, `Settings (${(PSET[e.id] || []).length})`) : null,
-    e ? h('button', { class: 'act', onclick: () => openAbout(e) }, 'What rig knows') : null));
+    h('span', { class: 'sp' }),
+    // Requirement 44: its information and settings open over the GUI,
+    // never inside it.
+    e ? h('button', { class: 'act infobtn', onclick: () => openProgram(e.id) }, svg(ICON.info), 'Info and settings') : null));
   if (!host.querySelector(`iframe[data-gui="${t.id}"]`)) {
     const mode = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
     const css = rigCss(tokens(DEFAULTS, 'dark'), tokens(DEFAULTS, 'light'));
@@ -1083,16 +1088,6 @@ function renderSettings(view) {
     e && S.guis[e.id] ? h('p', { class: 'dim small' }, `${e.name} shows these in its own GUI too, under Settings.`) : null,
     settingsTable(cur[0], cur[2])));
 }
-function openProgSettings(id) {
-  const d = $('drawer');
-  S.history = null;
-  d.replaceChildren(
-    h('header', {}, h('h3', {}, `${id}'s settings`), h('button', { class: 'iconbtn', 'aria-label': 'Close', onclick: () => { d.hidden = true; } }, svg(ICON.x))),
-    h('div', { class: 'body' }, h('p', { class: 'dim' }, `What ${id} declares to rig. rig draws them and keeps them, so they look the same here and under Settings.`),
-      settingsTable(id, PSET[id] || [])));
-  d.hidden = false;
-  d.querySelector('.body input, .body select')?.focus();
-}
 
 // ── capabilities (requirement 28): every verb, its words from the binary ──
 const PARGS = {
@@ -1193,7 +1188,7 @@ function newerFor(id) { return GUIDE.filter((g) => g.who === 'programs' && g.dat
 function guideCell(e) {
   const n = newerFor(e.id).length;
   return h('button', { class: 'gstat' + (n ? ' behind' : ''), title: n ? `${n} rule${n > 1 ? 's' : ''} newer than what ${e.name} was built to` : `built to the current guidelines, ${GUIDE_REV}`,
-    onclick: () => { S.gfocus = e.id; openTab('guidelines'); } }, n ? `${n} newer` : 'current');
+    onclick: (ev) => { ev.stopPropagation(); if ($('modal').open) $('modal').close(); S.gfocus = e.id; openTab('guidelines'); } }, n ? `${n} newer` : 'current');
 }
 function renderGuide(view) {
   const f = S.gfocus;
@@ -1268,6 +1263,7 @@ function openNote(n) {
     const chosen = n.decided && n.decided.choice === a;
     return h('button', { class: 'act' + (chosen ? ' chosen-act' : '') + (!n.decided && i === 0 ? ' primary' : ''), disabled: Boolean(n.decided), 'aria-pressed': n.decided ? String(chosen) : null,
       onclick: () => { decideNote(n, a); render(); openNote(n); } }, chosen ? `✓ ${a}` : a); })) : null;
+  m.className = 'modal';
   m.replaceChildren(
     h('header', {}, h('span', { class: 'sevdot', style: { '--sev': SEV[n.severity] } }), h('h3', { id: 'modalTitle' }, n.title),
       h('button', { class: 'iconbtn', 'aria-label': 'Close', onclick: close }, svg(ICON.x))),
@@ -1289,16 +1285,69 @@ function openNote(n) {
   (m.querySelector('.body button:not([disabled])') || m.querySelector('footer .act:last-child')).focus();
 }
 $('modal').addEventListener('click', (e) => { if (e.target === $('modal')) { S.noteOpen = null; $('modal').close(); } });
-$('modal').addEventListener('close', () => { S.noteOpen = null; render(); });
+// A close is delivered later than it happens; a card reopened meanwhile keeps its state.
+$('modal').addEventListener('close', () => { if ($('modal').open) return; S.noteOpen = null; S.progOpen = null; render(); });
 
-function openAbout(e) {
-  const d = $('drawer');
-  S.history = null;
-  d.replaceChildren(
-    h('header', {}, h('h3', {}, `${e.name}: what rig knows`), h('button', { class: 'iconbtn', 'aria-label': 'Close', onclick: () => { d.hidden = true; } }, svg(ICON.x))),
-    h('div', { class: 'body' }, inspector(e)));
-  d.hidden = false;
-  d.querySelector('button')?.focus();
+// Requirements 42 to 44: everything rig knows about one program, as a card
+// in the centre. Main's Programs list opens it; so does the button over a
+// program's GUI. The card holds a fixed size, so switching its tabs never
+// moves it (39).
+const PTABS = [['overview', 'Overview'], ['settings', 'Settings'], ['commands', 'Commands'], ['activity', 'Activity']];
+function openProgram(id, tab) {
+  const e = estate.find((x) => x.id === id);
+  if (!e) return;
+  const m = $('modal');
+  S.progOpen = { id, tab: tab || (S.progOpen?.id === id ? S.progOpen.tab : 'overview') };
+  const cur = S.progOpen.tab;
+  const own = [...S.cards.values()].filter((c) => c.from === id).sort((a, b) => b.order - a.order);
+  const counts = { settings: (PSET[id] || []).length, commands: e.commands.length, activity: own.length };
+  const go = (t) => { S.progOpen.tab = t; openProgram(id); m.querySelector('.ctabs [aria-selected="true"]')?.focus(); };
+  const act = (label, cmd) => h('button', { class: 'act', onclick: () => toast(`Mockup: this would run ${cmd}.`) }, label);
+  let body;
+  if (cur === 'overview') body = h('div', { class: 'povw' },
+    h('div', { class: 'pstate' },
+      h('span', { class: 'pst big', style: { '--c': STATE[e.state] } }, h('i'), e.state), h('span', { class: 'dim' }, e.since),
+      h('span', { class: 'sp' }),
+      e.state === 'down' ? act('Start', `rig up ${id}`) : null,
+      e.state === 'quarantined' ? act('Restart', `rig restart ${id}`) : null,
+      e.state === 'healthy' ? act('Stop', `rig stop ${id}`) : null,
+      act('Health', `rig health ${id}`), act('Describe', `rig describe ${id}`)),
+    e.hint ? h('p', { class: 'hint' }, e.hint) : null,
+    h('dl', { class: 'facts wide' },
+      h('dt', {}, 'version'), h('dd', { class: 'mono' }, e.version),
+      h('dt', {}, 'load'), h('dd', {}, e.load),
+      h('dt', {}, 'coverage'), h('dd', {}, `${e.coverage}: ${e.note}`),
+      h('dt', {}, 'binary'), h('dd', { class: 'mono' }, e.path),
+      h('dt', {}, 'identity'), h('dd', { class: 'mono' }, e.binary),
+      h('dt', {}, 'declaration'), h('dd', {}, e.read),
+      h('dt', {}, 'found by'), h('dd', {}, e.found),
+      h('dt', {}, 'own GUI'), h('dd', {}, S.guis[id] ? `registered ${hhmm(S.guis[id].at)}, ${S.guis[id].entry}` : 'none registered'),
+      h('dt', {}, 'restarts'), h('dd', {}, String(e.restarts)),
+      e.calls !== undefined ? [h('dt', {}, 'calls today'), h('dd', {}, String(e.calls))] : null,
+      e.lastExit ? [h('dt', {}, 'last exit'), h('dd', {}, e.lastExit)] : null,
+      h('dt', {}, 'guidelines'), h('dd', {}, guideCell(e))));
+  else if (cur === 'settings') body = h('div', {},
+    h('p', { class: 'dim small' }, `What ${e.name} declares to rig. rig draws them and keeps them, so they look the same here and under Settings.`),
+    settingsTable(id, PSET[id] || []));
+  else if (cur === 'commands') body = h('ul', { class: 'pcmds' }, e.commands.map(([c, d]) => h('li', {},
+    h('span', { class: 'mono' }, `${id} ${c}`), h('span', { class: 'dim' }, d),
+    h('button', { class: 'act', onclick: () => { const k = `${id} ${c}`; m.close(); S.cap = k; openTab('capabilities'); } }, 'Try it'))));
+  else body = own.length ? h('div', { class: 'items' }, own.map(cardNode)) : h('div', { class: 'empty' }, `${e.name} has pushed nothing yet.`);
+  m.className = 'modal prog';
+  m.replaceChildren(
+    h('header', {}, h('span', { class: 'ic big', style: { '--c': progColour(id) } }, id.slice(0, 2)),
+      h('h3', { id: 'modalTitle' }, e.name, h('span', { class: 'mono dim ver' }, e.version)),
+      S.guis[id] ? h('span', { class: 'gtag' }, 'GUI') : null,
+      h('button', { class: 'iconbtn', 'aria-label': 'Close', onclick: () => m.close() }, svg(ICON.x))),
+    h('div', { class: 'subtabs ctabs', role: 'tablist', 'aria-label': `${e.name}'s card` }, PTABS.map(([k, l]) =>
+      h('button', { role: 'tab', 'aria-selected': String(cur === k), tabindex: cur === k ? '0' : '-1', onclick: () => go(k),
+        onkeydown: (ev) => { const d = ev.key === 'ArrowRight' ? 1 : ev.key === 'ArrowLeft' ? -1 : 0; if (!d) return; ev.preventDefault(); const i = PTABS.findIndex((x) => x[0] === cur); go(PTABS[(i + d + PTABS.length) % PTABS.length][0]); } },
+        l, counts[k] !== undefined ? h('span', { class: 'cnt' }, String(counts[k])) : null))),
+    h('div', { class: 'body', 'data-scroll': 'progcard' }, body),
+    h('footer', {},
+      S.guis[id] && S.current !== id ? h('button', { class: 'act primary', onclick: () => { m.close(); openTab(id); } }, 'Open its GUI') : null,
+      h('span', { class: 'sp' }), h('button', { class: 'act', onclick: () => m.close() }, 'Close')));
+  if (!m.open) { m.showModal(); m.querySelector('.ctabs [aria-selected="true"]').focus(); }
 }
 
 // Open questions go to him one at a time, each with its choice shown in

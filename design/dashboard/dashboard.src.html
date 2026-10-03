@@ -418,6 +418,26 @@ button:disabled{cursor:default}
 .pathctl .paths li .iconbtn{width:24px;height:24px}
 .pathctl .act{border:1px dashed var(--border-2);border-radius:8px;padding:4px 10px;font-size:var(--fs--1);color:var(--fg-dim)}
 .pathctl .act:hover{color:var(--fg);border-color:var(--fg-faint);background:var(--tint)}
+/* 42 to 44: a program's card, a fixed size so its tabs never resize it */
+.progs tr.row{cursor:pointer}
+.modal.prog{width:min(940px,94vw);height:min(640px,86vh);max-height:none}
+.modal.prog>header .ic.big{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:var(--tint);font:600 var(--fs--1) var(--mono);box-shadow:inset 0 -3px 0 var(--c)}
+.modal.prog>header h3{display:flex;align-items:baseline;gap:10px}
+.modal.prog>header .ver{font-size:var(--fs--1);font-weight:400}
+.modal .ctabs{padding:0 18px;margin:0;flex:none}
+.modal.prog .body{flex:1;min-height:0;padding:16px 18px}
+.pstate{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.pstate .sp{flex:1}
+.pst.big{font-weight:600;font-size:var(--fs-0)}
+.facts.wide{grid-template-columns:140px minmax(0,1fr);gap:8px 16px;margin-top:14px}
+.facts.wide dd{overflow-wrap:anywhere}
+.pcmds{list-style:none;margin:0;padding:0;display:grid}
+.pcmds li{display:grid;grid-template-columns:220px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 4px;border-bottom:1px solid var(--border)}
+.modal.prog .sets{max-width:none}
+.modal.prog .setrow{grid-template-columns:minmax(0,1fr) 300px 120px 32px}
+.infobtn{display:inline-flex;align-items:center;gap:6px;align-self:center}
+.infobtn svg{width:15px;height:15px}
+.guihead .sp{flex:1}
 [hidden]{display:none !important}
 @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
 </style>
