@@ -210,8 +210,8 @@ one listed `at rest` with no process; `rig napper greet` started it and
 was answered; it exited on its own after its idle time and was `AT_REST`,
 not a crash; `rig describe` read it while down; after a rigd restart it
 was listed again with **no launch**; deleting the resident's binary
-removed it from the listing and its kept file. Not exercised live: MCP
-`invoke`, and a rebuilt binary (covered by a wire test).
+removed it from the listing and its kept file. MCP `invoke` and a rebuilt
+binary were exercised live later, with the gaps below.
 
 Where the build differs from the text above:
 
@@ -247,3 +247,36 @@ closed more than one way:
 | a running resident whose binary changed | **rig restarts it** on the new binary, recorded with rig as the actor and "its binary changed" as the trigger, and its new hello is kept |
 | a stopped resident whose binary changed | a declare run: started, its hello kept, stopped again |
 | a quarantined resident whose binary changed | **left alone**, since only a human takes a program out of quarantine (section 18). Listed with `stale` set: what is listed was read from the binary before |
+
+### As built, 2026-10-03: the two gaps closed
+
+Built in f1d3551..9abf288 and demonstrated live on a scratch rigd with the
+same two stubs. Exercised:
+
+- `rig stop keeper` left keeper listed `down`. A call was refused
+  `UNAVAILABLE`, "it is stopped", with the fix `rig up keeper`, and
+  started nothing.
+- Rebuilding keeper while it ran, then listing, restarted it on a new pid
+  and listed the new version. Its history reads healthy to `-` by "its
+  binary changed on disk", with **rig** as the actor.
+- Rebuilding it while stopped ran it once (listed at the new version)
+  and left it stopped and `down`.
+- MCP `invoke` of napper at rest started it and answered.
+
+Not exercised live: **quarantine** (a wire test covers it).
+
+| Ruled above | As built |
+|---|---|
+| a resident is listed while down | its declaration is kept on every supervised hello, and listed from the kernel's resting entries. `down` is a supervised resident with no connection |
+| what rigd may declare from a kept file alone | only one a scan found. A kept file's header gains an origin (`scan` or `config`), so a `programs.json` row taken out is never started from its file. A file with no origin predates the field and counts as `scan` |
+| rig restarts a running resident | `Supervisor.Reload`: a no-op unless running and not quarantined |
+| a declare run of a stopped resident | `Supervisor.EndRead` puts it back on the dash, rig acting. A resident a scan found is held on call until its first declaration, so that run is its start and stays up |
+| a scan never restarts a resident that registered a moment ago | a running resident is restarted only once its own hello was kept from a different binary |
+
+**Edges known, not tested:**
+
+- A stopped resident rebuilt **broken** fails its declare run like any
+  start: the supervisor restarts it until its budget quarantines it.
+- A binary caught **half-written** by a scan restarts the resident on it.
+  An install that renames into place, as `go build` and `install` do,
+  never shows one.
