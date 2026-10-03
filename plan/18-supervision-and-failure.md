@@ -85,6 +85,7 @@ tested while the supervisor is sentences, because there is nothing to express.
 | `DEGRADED` | reachable, and failing its health definition |
 | `RESTARTING` | inside the restart budget, backing off |
 | `QUARANTINED` | out of budget, or failed registration. **Visible, with history, and it stays until a human acts** |
+| `AT_REST` | loaded on call, not running, its declaration kept. **Not a failure.** Its transitions are §54's |
 
 **The transitions, with the trigger and who owns causing it.**
 

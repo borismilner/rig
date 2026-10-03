@@ -200,3 +200,39 @@ What it binds:
 
 Above, an unnamed estate keeps declarations in memory only; that stays, as
 an unnamed estate has no state directory to persist into.
+
+### As built, 2026-10-03
+
+Built in 2e92701..6062c28 and demonstrated live on a scratch rigd with
+two stub binaries in a scan directory, one declaring on call and one
+resident. Exercised: both found with no `programs.json` row; the on-call
+one listed `at rest` with no process; `rig napper greet` started it and
+was answered; it exited on its own after its idle time and was `AT_REST`,
+not a crash; `rig describe` read it while down; after a rigd restart it
+was listed again with **no launch**; deleting the resident's binary
+removed it from the listing and its kept file. Not exercised live: MCP
+`invoke`, and a rebuilt binary (covered by a wire test).
+
+Where the build differs from the text above:
+
+| Above | As built |
+|---|---|
+| kept at `<estate state dir>/declarations/<id>.pb` | `<id>.hello`. Its first line is the binary's identity and path, so rigd can declare it again with no scan |
+| an unnamed estate keeps declarations in memory | it keeps them under its scratch root, with the rest of its storage |
+| an undeclared command gets NOT_FOUND | it gets `INVALID`, the answer a running program's caller already got |
+| `RESTARTING→STARTING` while a call waits | unused: an on-call program never restarts. A crash or a stall goes straight to `AT_REST` |
+| the load mode in the declaration | `Declaration.load`: `LOAD_ON_CALL` or `LOAD_RESIDENT`. Unspecified is resident. A program a scan found is held on call until its declaration is read, so its declare run is never a blind resident start |
+| when the scan runs | at rigd start (after what was kept is served) and on each listing, in the background, single-flight. **No timer**, which would cost the idle wakeups §17 measures |
+| what a scan forgets | a scanned program whose binary is gone. **Nothing** on a pass that could not read a directory, since that says nothing about deletion |
+| `programs.json` | a row with no `path` overrides the scanned program of its id; a row with a path is declared as before. `autostart` or `on_call` in a row overrides the binary |
+| config | `programs.scan`, colon-separated, default `~/.local/lib/rig/apps`, applied at restart |
+| the idle helper | `client.Idle(d)` and `client.Hold()`, added to the client's surface |
+
+**Two gaps, known:**
+
+- **A resident program is listed only while it runs.** Its declaration is
+  kept and it is started from it at rigd start with no scan, but a
+  resident that is down is not listed, because a call to it could not
+  start it.
+- **A resident's changed binary is read at its next start**, not by the
+  scan: the scan does not restart a running program to read it.
