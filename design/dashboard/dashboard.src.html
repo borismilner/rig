@@ -218,6 +218,23 @@ select.sel{background:var(--bg-2);color:var(--fg);border:1px solid var(--border)
 .asktoast .from{font-size:var(--fs--1);color:var(--fg-dim)}
 .asktoast .acts{display:flex;gap:8px;margin-top:4px}
 .asktoast .act.primary{background:var(--h-amber);color:var(--on-hue);border-color:var(--h-amber)}
+/* requirement 16: Main's inner tabs */
+.subtabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:14px}
+.subtabs button{display:flex;align-items:center;gap:8px;padding:8px 14px;color:var(--fg-dim);border-bottom:2px solid transparent;margin-bottom:-1px;font-weight:600}
+.subtabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--h-steel)}
+.subtabs .cnt{font:500 var(--fs--1) var(--mono);color:var(--fg-dim)}
+.subtabs .warn{font-size:var(--fs--1);color:var(--h-amber)}
+button.fig{text-align:left;font:inherit;color:inherit;cursor:pointer}
+button.fig:hover{border-color:var(--fg-faint)}
+/* the rail's registered GUIs, each its colour (section 11, requirement 17) */
+.railguis{display:flex;flex-direction:column;gap:6px;padding-top:6px;margin-top:2px;border-top:1px solid var(--border)}
+.rail .railgui{font:600 var(--fs--1) var(--mono);color:var(--fg);box-shadow:inset 3px 0 0 var(--c)}
+.pname .ic{box-shadow:inset 0 -2px 0 var(--c,transparent)}
+.gtag{font:600 var(--fs--2) var(--sans);letter-spacing:.06em;color:var(--fg-dim);border:1px solid var(--border);border-radius:5px;padding:0 5px}
+.ptab .subh{font-size:var(--fs-1);margin:18px 0 10px}
+/* the GUI frame takes the keyboard, so it shows it has it */
+.guihost{padding:2px}
+.guihost:focus-within{background:var(--h-steel)}
 [hidden]{display:none !important}
 @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
 </style>
@@ -225,9 +242,10 @@ select.sel{background:var(--bg-2);color:var(--fg);border:1px solid var(--border)
 <body>
 <div class="shell">
   <nav class="rail" aria-label="rig">
-    <button aria-current="true" title="Dashboard" aria-label="Dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></button>
+    <button id="railMain" aria-current="true" title="Dashboard" aria-label="Dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></button>
     <button title="Projects" aria-label="Projects"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7h6l2 2h10v10H3z"/></svg></button>
     <button title="Agents" aria-label="Agents"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><path d="M16 4a3 3 0 0 1 0 6M21 20c0-2-1-4-3-5"/></svg></button>
+    <div id="railguis" class="railguis" aria-label="Registered GUIs"></div>
     <span class="gap"></span>
     <button title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg></button>
   </nav>

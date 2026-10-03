@@ -104,6 +104,10 @@ const estate = [
     hint: 'Its binary changed after it was quarantined: what is listed is stale until rig restart abacus' },
 ];
 
+// §11 requirement 17: an entry carries a colour, so it is told apart at a glance.
+const PROG_HUES = ['--h-steel', '--h-sage', '--h-amber', '--h-teal', '--h-indigo', '--h-rust'];
+function progColour(id) { return `var(${PROG_HUES[estate.findIndex((e) => e.id === id) % PROG_HUES.length]})`; }
+
 // ── state ──────────────────────────────────────────────────────────────────
 const S = {
   now: Date.now(),
@@ -125,6 +129,7 @@ const S = {
   nq: '', nsrc: '',      // requirement 9: search, and one source
   evicted: 0,
   guis: {},              // requirement 10: program id -> its registered GUI
+  mainTab: 'programs',   // requirement 16: Main's own tabs, so it hardly scrolls
 };
 let seq = 0;
 const flash = new Set(); // cards changed since the last draw
@@ -200,19 +205,27 @@ function releaseTab(from) {
   const t = S.tabs.find((x) => x.id === from);
   if (t) { t.released = clock(); wire('tab', 'rig.panel.tab', `${from} no longer needs its tab; it stays until you close it`); }
 }
-// Requirements 10 to 12: a program registers a GUI. Registering makes its
-// tab AVAILABLE (in the Tabs menu); the tab opens when the program asks
-// (requirement 4) or when you open it.
+// Requirements 10 to 12: a program registers a GUI. Requirement 15:
+// registering ADDS its tab, and Main stays the one shown.
 function registerGui(from, entry) {
   S.guis[from] = { entry, at: clock() };
-  if (!S.tabs.find((x) => x.id === from)) S.tabs.push({ id: from, title: from, kind: WRITERS[from]?.kind || 'program', open: false });
-  wire('tab', 'rig.gui.register', `${from} registers its GUI: ${entry}, styled by rig.css`);
+  let t = S.tabs.find((x) => x.id === from);
+  if (!t) { t = { id: from, title: from, kind: WRITERS[from]?.kind || 'program' }; S.tabs.push(t); }
+  Object.assign(t, { open: true, fresh: true });
+  wire('tab', 'rig.gui.register', `${from} registers its GUI: ${entry}, styled by rig.css; its tab is added, Main stays in front`);
 }
+// Requirement 14: picking a program opens its tab, from the rail or from
+// Main's list. A program with no GUI gets rig's own page about it.
 function openTab(id) {
-  const t = S.tabs.find((x) => x.id === id);
-  if (!t) return;
+  let t = S.tabs.find((x) => x.id === id);
+  if (!t) {
+    const e = estate.find((x) => x.id === id);
+    if (!e) return;
+    t = { id, title: id, kind: 'program' }; S.tabs.push(t);
+  }
+  if (!t.open) t.picked = clock();
   Object.assign(t, { open: true, fresh: false });
-  S.current = id; S.open = null;
+  S.current = id;
   render();
 }
 
@@ -444,7 +457,7 @@ function renderTabs() {
     h('button', { class: 'tool', 'aria-label': S.playing ? 'Pause the simulation' : 'Play the simulation', onclick: () => { S.playing = !S.playing; render(); } }, svg(S.playing ? ICON.pause : ICON.play), S.playing ? 'Live' : 'Paused'),
     h('button', { class: 'tool', 'aria-label': 'One step of the simulation', onclick: tick }, svg(ICON.step), 'Step'),
     h('button', { class: 'tool', 'aria-pressed': String(S.showWire), onclick: () => { S.showWire = !S.showWire; render(); } }, svg(ICON.wire), 'Wire'),
-    h('button', { class: 'tool', onclick: () => openQuestions() }, svg(ICON.q), 'Open questions ', h('b', {}, '5')),
+    h('button', { class: 'tool', onclick: () => openQuestions() }, svg(ICON.q), 'Open questions ', h('b', {}, String(QUESTIONS.length))),
     h('button', { class: 'tool', 'aria-label': 'Switch light and dark', onclick: () => { const r = document.documentElement; r.setAttribute('data-theme', r.getAttribute('data-theme') === 'light' ? 'dark' : 'light'); } }, svg(ICON.sun)));
 }
 
@@ -454,12 +467,9 @@ function openMenu() {
   const item = (t, note) => h('button', { onclick: () => { m.hidden = true; openTab(t.id); } },
     h('span', {}, t.title), h('span', { class: 'dim' }, S.guis[t.id] ? 'its GUI' : t.kind), h('small', {}, note));
   const before = closed.filter((t) => t.asked || t.closedAt);
-  const ready = closed.filter((t) => !t.asked && !t.closedAt && S.guis[t.id]);
   m.replaceChildren(
     h('h5', {}, 'Opened before. Reopen one to see its last state.'),
-    ...(before.length ? before.map((t) => item(t, (t.asked ? `asked ${hhmm(t.asked)}: "${t.reason}"` : 'opened by you') + (t.closedAt ? `, closed ${hhmm(t.closedAt)}` : ''))) : [h('div', { class: 'none' }, 'None yet. A tab appears here once you close it.')]),
-    h('h5', {}, 'Registered GUIs, never opened'),
-    ...(ready.length ? ready.map((t) => item(t, `registered ${hhmm(S.guis[t.id].at)}; opens when ${t.title} asks, or now`)) : [h('div', { class: 'none' }, 'None waiting.')]));
+    ...(before.length ? before.map((t) => item(t, (t.asked ? `asked ${hhmm(t.asked)}: "${t.reason}"` : S.guis[t.id] ? `registered ${hhmm(S.guis[t.id].at)}` : 'picked by you') + (t.closedAt ? `, closed ${hhmm(t.closedAt)}` : ''))) : [h('div', { class: 'none' }, 'None yet. A tab appears here once you close it.')]));
   m.hidden = !m.hidden;
   if (!m.hidden) m.querySelector('button')?.focus();
 }
@@ -563,18 +573,20 @@ function renderBoard(container) {
 function renderSummary(container) {
   const all = [...S.cards.values()].filter((c) => !c.closed || clock() - c.closed < 3600e3);
   const n = (st) => all.filter((c) => c.status === st).length;
-  const fig = (cls, num, label) => h('div', { class: 'fig ' + cls }, h('div', { class: 'n' }, String(num)), h('div', { class: 'l' }, label));
+  // A figure is a button to the inner tab that explains it.
+  const fig = (cls, num, label, to) => h('button', { class: 'fig ' + cls, title: `Show ${to === 'board' ? 'the board' : 'the programs'}`,
+    onclick: () => { S.mainTab = to; render(); } }, h('div', { class: 'n' }, String(num)), h('div', { class: 'l' }, label));
   container.append(h('div', { class: 'figs' },
-    fig('', estate.length, 'programs'),
-    fig('good', estate.filter((e) => e.state === 'healthy' || e.state === 'running').length, 'up'),
-    fig('', estate.filter((e) => e.state === 'at rest').length, 'at rest, on call'),
-    fig(estate.some((e) => e.state === 'down' || e.state === 'quarantined') ? 'bad' : '', estate.filter((e) => e.state === 'down' || e.state === 'quarantined').length, 'down or quarantined'),
-    fig('warn', n('waiting'), 'waiting on you'),
-    fig('run', n('running'), 'agents working')));
+    fig('', estate.length, 'programs', 'programs'),
+    fig('good', estate.filter((e) => e.state === 'healthy' || e.state === 'running').length, 'up', 'programs'),
+    fig('', estate.filter((e) => e.state === 'at rest').length, 'at rest, on call', 'programs'),
+    fig(estate.some((e) => e.state === 'down' || e.state === 'quarantined') ? 'bad' : '', estate.filter((e) => e.state === 'down' || e.state === 'quarantined').length, 'down or quarantined', 'programs'),
+    fig('warn', n('waiting'), 'waiting on you', 'board'),
+    fig('run', n('running'), 'agents working', 'board')));
 }
 
-// Requirement 6: rig and every program it represents, versions first, each
-// open to inspection. A row opens in place, so the list never moves.
+// Requirement 6: rig and every program it represents, versions first.
+// Requirement 14: picking one opens its tab, where it is inspected.
 function renderPrograms(container) {
   const panel = h('section', { class: 'panel', 'aria-label': 'Programs' },
     h('header', {}, h('h2', {}, 'Programs'), h('span', { class: 'dim' }, `${estate.length}, scanned in ${RIG.scan} and declared in programs.json`)));
@@ -582,10 +594,11 @@ function renderPrograms(container) {
     h('thead', {}, h('tr', {}, ...['Program', 'Version', 'Load', 'State', 'Commands', 'Restarts', 'Found by'].map((x) => h('th', { scope: 'col' }, x)))));
   const body = h('tbody');
   for (const e of estate) {
-    const open = S.open === e.id;
+    const open = S.tabs.some((x) => x.id === e.id && x.open);
     body.append(h('tr', { class: 'row' + (open ? ' open' : '') },
-      h('td', {}, h('button', { class: 'pname', 'aria-expanded': String(open), onclick: () => { S.open = open ? null : e.id; render(); } },
-        h('span', { class: 'ic' }, e.id.slice(0, 2)), e.name)),
+      h('td', {}, h('button', { class: 'pname', title: `Open ${e.name}'s tab`, onclick: () => openTab(e.id) },
+        h('span', { class: 'ic', style: { '--c': progColour(e.id) } }, e.id.slice(0, 2)), e.name,
+        S.guis[e.id] ? h('span', { class: 'gtag' }, 'GUI') : null)),
       h('td', { class: 'mono' }, e.version),
       h('td', {}, e.load),
       h('td', {}, h('span', { class: 'pst', style: { '--c': STATE[e.state] } }, h('i'), e.state), h('span', { class: 'dim' }, ' ' + e.since),
@@ -593,7 +606,6 @@ function renderPrograms(container) {
       h('td', { class: 'num' }, String(e.commands.length)),
       h('td', { class: 'num' + (e.restarts >= 5 ? ' bad' : '') }, String(e.restarts)),
       h('td', { class: 'dim' }, e.found)));
-    if (open) body.append(h('tr', { class: 'insp' }, h('td', { colspan: '7' }, inspector(e))));
   }
   table.append(body);
   panel.append(table);
@@ -618,7 +630,7 @@ function inspector(e) {
         e.state === 'down' ? act('Start', `rig up ${e.id}`) : null,
         e.state === 'quarantined' ? act('Restart', `rig restart ${e.id}`) : null,
         e.state === 'healthy' ? act('Stop', `rig stop ${e.id}`) : null,
-        act('Health', `rig health ${e.id}`), act('Describe', `rig describe ${e.id}`), S.guis[e.id] ? h('button', { class: 'act', onclick: () => openTab(e.id) }, 'Open its GUI') : null)),
+        act('Health', `rig health ${e.id}`), act('Describe', `rig describe ${e.id}`))),
     h('div', {},
       h('h3', {}, `Commands (${e.commands.length})`),
       h('ul', { class: 'cmds' }, e.commands.map(([c, d]) => h('li', {}, h('span', { class: 'mono' }, `${e.id} ${c}`), h('span', { class: 'dim' }, d))))));
@@ -665,10 +677,18 @@ function renderMain(view) {
     ['epoch', String(RIG.epoch)], ['scan', RIG.scan], ['declarations kept', String(RIG.kept)], ['seats', String(RIG.seats)], ['store', RIG.store],
   ].map(([k, v]) => h('span', {}, h('span', { class: 'dim' }, k + ' '), h('b', {}, v)))));
   renderSummary(left);
-  renderPrograms(left);
-  const boardWrap = h('div', { style: { marginTop: '16px' } });
-  renderBoard(boardWrap);
-  left.append(boardWrap);
+  // Requirement 16: Main's parts are tabs inside it, not one long page.
+  const open = [...S.cards.values()].filter((c) => !c.closed);
+  const waiting = open.filter((c) => c.status === 'waiting').length;
+  const inner = [
+    ['programs', 'Programs', String(estate.length), null],
+    ['board', 'Board', `${open.length} open`, waiting ? `${waiting} waiting` : null],
+  ];
+  left.append(h('div', { class: 'subtabs', role: 'tablist', 'aria-label': 'Main' }, inner.map(([id, label, count, warn]) =>
+    h('button', { role: 'tab', 'aria-selected': String(S.mainTab === id), onclick: () => { S.mainTab = id; render(); },
+      onkeydown: (e) => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); S.mainTab = S.mainTab === 'board' ? 'programs' : 'board'; render(); document.querySelector('.subtabs [aria-selected="true"]')?.focus(); } } },
+      label, h('span', { class: 'cnt' }, count), warn ? h('span', { class: 'warn' }, warn) : null))));
+  if (S.mainTab === 'board') renderBoard(left); else renderPrograms(left);
   grid.append(left);
   renderNotes(grid);
   view.append(grid);
@@ -676,11 +696,15 @@ function renderMain(view) {
 
 function renderTab(view, t) {
   const own = [...S.cards.values()].filter((c) => c.from === t.id).sort((a, b) => b.order - a.order);
+  const e = estate.find((x) => x.id === t.id);
   view.append(h('div', { class: 'ptab' },
-    h('div', { class: 'head' }, h('h1', {}, t.title), h('span', { class: 'dim' }, t.kind === 'program' ? 'program' : 'agent')),
+    h('div', { class: 'head' }, h('h1', {}, e ? e.name : t.title), e ? h('span', { class: 'mono dim' }, e.version) : null, h('span', { class: 'dim' }, t.kind === 'program' ? 'program' : 'agent')),
     h('div', { class: 'reason' },
-      h('div', {}, h('b', {}, `${t.title} asked for this tab at ${hhmm(t.asked)}: `), `"${t.reason}"`),
+      t.asked ? h('div', {}, h('b', {}, `${t.title} asked for this tab at ${hhmm(t.asked)}: `), `"${t.reason}"`)
+        : h('div', {}, h('b', {}, `You picked ${e ? e.name : t.title} at ${hhmm(t.picked || clock())}.`), ' It has no GUI of its own, so this is rig\'s page about it.'),
       t.released ? h('div', { class: 'frozen' }, `It no longer needs it (since ${hhmm(t.released)}). What you see is its last state. Close the tab and it moves to Reopen.`) : h('div', { class: 'dim' }, 'Close it any time; it moves to Reopen with its last state.')),
+    e ? h('section', { class: 'panel', 'aria-label': 'What rig knows' }, inspector(e)) : null,
+    h('h2', { class: 'subh' }, 'What it pushed'),
     own.length ? h('div', { class: 'items' }, own.map(cardNode)) : h('div', { class: 'empty' }, 'Nothing pushed yet.')));
 }
 
@@ -708,7 +732,8 @@ function renderGuiTab(view, host, t) {
   view.append(h('div', { class: 'guihead' },
     h('h1', {}, e ? e.name : t.title), e ? h('span', { class: 'mono dim' }, e.version) : null,
     h('span', { class: 'kit' }, 'its own GUI: styled by rig.css, acting through rig'),
-    h('span', { class: 'dim' }, t.asked ? `${t.title} asked at ${hhmm(t.asked)}: "${t.reason}"` : `registered ${hhmm(g.at)}, opened by you`)));
+    h('span', { class: 'dim' }, t.asked ? `${t.title} asked at ${hhmm(t.asked)}: "${t.reason}"` : `registered ${hhmm(g.at)}`),
+    e ? h('button', { class: 'act', onclick: () => openAbout(e) }, 'What rig knows') : null));
   if (!host.querySelector(`iframe[data-gui="${t.id}"]`)) {
     const mode = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
     const css = rigCss(tokens(DEFAULTS, 'dark'), tokens(DEFAULTS, 'light'));
@@ -717,6 +742,16 @@ function renderGuiTab(view, host, t) {
     host.append(f);
     wire('tab', 'gui.open', `${t.title}'s GUI loaded in a sandbox with rig.css`);
   }
+}
+
+function renderRail() {
+  const r = $('railguis');
+  r.replaceChildren(...Object.keys(S.guis).map((id) => {
+    const e = estate.find((x) => x.id === id);
+    return h('button', { class: 'railgui', title: `${e ? e.name : id}: open its tab`, 'aria-label': `${e ? e.name : id}, its GUI`,
+      'aria-current': String(S.current === id), style: { '--c': progColour(id) }, onclick: () => openTab(id) }, id.slice(0, 2));
+  }));
+  $('railMain').setAttribute('aria-current', String(S.current === 'main'));
 }
 
 function renderWire() {
@@ -753,19 +788,45 @@ function renderHistory() {
   d.querySelector('[aria-current="true"]')?.focus();
 }
 
-function openQuestions() {
+function openAbout(e) {
   const d = $('drawer');
   S.history = null;
   d.replaceChildren(
-    h('header', {}, h('h3', {}, 'Open questions for you'), h('button', { class: 'iconbtn', 'aria-label': 'Close', onclick: () => { d.hidden = true; } }, svg(ICON.x))),
-    h('div', { class: 'body' }, h('ol', { class: 'q' },
-      h('li', {}, h('b', {}, 'Tabs and the rail: one place or two?'), 'Programs you pick live in the rail (section 11). This mockup puts tabs a program ASKS for in a strip above the page. Should picking a program in the rail open its tab too, or do the two stay separate?'),
-      h('li', {}, h('b', {}, 'Does registering a GUI open its tab?'), 'Here it does not: registering makes the tab available under Tabs, and it opens when the program asks or when you open it. Ledger works this way.'),
-      h('li', {}, h('b', {}, 'Is this the right capability for each interaction?'), 'Requirement 13: Ledger\'s GUI acts only through rig. Match is invoke of a command Ledger declares; what it shows is read from the store; it hears changes on the bus; Reconcile again is a queued job with progress; Not a match asks through a rig toast; outcomes land in Notifications. Watch them on the Wire.'),
-      h('li', {}, h('b', {}, 'Is the board allowed on the dashboard?'), 'Section 11 rule 20 keeps agent chatter off the dashboard. I read that as the stream of all agent calls, and the board as cards agents write to you on purpose, so both hold. Is that right?'),
-      h('li', {}, h('b', {}, 'Where does the board sit?'), 'Here it is on Main, under the programs, with notifications on the right. Is that its place, or should it be a tab of its own?'))));
+    h('header', {}, h('h3', {}, `${e.name}: what rig knows`), h('button', { class: 'iconbtn', 'aria-label': 'Close', onclick: () => { d.hidden = true; } }, svg(ICON.x))),
+    h('div', { class: 'body' }, inspector(e)));
   d.hidden = false;
   d.querySelector('button')?.focus();
+}
+
+// Open questions go to him one at a time, each with its choice shown in
+// the page rather than described (plan/55, after requirement 15).
+const QUESTIONS = [
+  { q: 'Is the board in the right place?',
+    body: 'Main now has two inner tabs, Programs and Board. The board of agents\' cards is the second one. Click Board to see it. Is that its place?',
+    show: ['Show me the board tab', () => { S.current = 'main'; S.mainTab = 'board'; }] },
+  { q: 'Do Ledger\'s buttons use the right rig capability?',
+    body: 'Open Ledger, turn on the Wire, and press Match, Not a match and Reconcile again. Each line on the Wire names the rig capability that carried it: invoke, toast, queue, store, the bus.',
+    show: ['Open Ledger with the Wire on', () => { S.showWire = true; openTab('ledger'); }] },
+  { q: 'May agents\' cards be on the dashboard at all?',
+    body: 'Section 11 rule 20 keeps agent chatter off the dashboard. I read "chatter" as the stream of every agent call, which is not shown here. The board only holds cards an agent writes to you on purpose. Does that reading hold?',
+    show: ['Show me a card an agent wrote', () => { S.current = 'main'; S.mainTab = 'board'; }] },
+];
+function openQuestions(i = S.qi || 0) {
+  const d = $('drawer');
+  S.history = null; S.qi = i;
+  const q = QUESTIONS[i];
+  d.replaceChildren(
+    h('header', {}, h('h3', {}, `Question ${i + 1} of ${QUESTIONS.length}`), h('button', { class: 'iconbtn', 'aria-label': 'Close', onclick: () => { d.hidden = true; } }, svg(ICON.x))),
+    h('div', { class: 'body' },
+      h('p', {}, h('b', {}, q.q)),
+      h('p', { class: 'dim' }, q.body),
+      h('div', { class: 'acts', style: { marginTop: '14px' } },
+        h('button', { class: 'act', onclick: () => { q.show[1](); render(); openQuestions(i); } }, q.show[0])),
+      h('div', { class: 'acts', style: { marginTop: '20px' } },
+        i > 0 ? h('button', { class: 'act', onclick: () => openQuestions(i - 1) }, 'Previous') : null,
+        i < QUESTIONS.length - 1 ? h('button', { class: 'act', onclick: () => openQuestions(i + 1) }, 'Next question') : null)));
+  d.hidden = false;
+  d.querySelector('.body button')?.focus();
 }
 
 let toastTimer;
@@ -776,6 +837,7 @@ function toast(text) {
 }
 
 function render() {
+  renderRail();
   renderTabs();
   renderView();
   renderWire();
@@ -802,6 +864,7 @@ document.addEventListener('click', (e) => {
   if (!m.hidden && !m.contains(e.target) && e.target.closest('#reopenBtn') === null) m.hidden = true;
 });
 $('wireClose').addEventListener('click', () => { S.showWire = false; render(); });
+$('railMain').addEventListener('click', () => { S.current = 'main'; render(); });
 
 render();
 // While a field has the keyboard, the page is not redrawn under it.
