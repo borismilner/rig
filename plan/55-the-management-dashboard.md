@@ -44,6 +44,19 @@ browser.
 | **3** | **The board of agents' cards moves into rig**, with its own place on the dashboard. beacon keeps its board until rig's is live, then removes it |
 | **4** | **One main tab, plus a tab per program or agent.** A specific tab opens only when a program or agent asks for it, so with no requests there are none. The user can reopen a previously opened one to see its last state |
 | **5** | **He plans it visually**: a mockup he tests in his own browser |
+| **6** | **The Main tab, the default, shows the most important information about rig and about every program it represents**, the scanned ones included: each one's **version**, and what matters about it, there for the user to inspect |
+| **7** | **A dedicated vertical panel on the right holds the latest notifications, newest on top**, so one he missed is still there |
+| **8** | **A notification older than a configurable age is evicted from that panel. The default is one week** |
+
+Requirements 6 to 8, Boris to the rig lead, 2026-10-03, verbatim: *"The
+main tab which is the default should show all the most important
+information about `rig` and about all the programs that it represents (the
+ones it scanned for). It should know their versions too and it should have
+all the most important information about them to be inspected by the user.
+It should have a dedicated vertical panel on the right side with the latest
+notifications sorted with the latest ones on top; in case the user missed
+them. Notifications that are older than a configurable amount of time, for
+now lets make it a week, are evicted from this panel."*
 
 ### The write path he approved (requirement 2), as the beacon seat put it to him
 
