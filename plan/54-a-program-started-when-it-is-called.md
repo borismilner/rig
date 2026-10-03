@@ -278,5 +278,5 @@ Not exercised live: **quarantine** (a wire test covers it).
 - A stopped resident rebuilt **broken** fails its declare run like any
   start: the supervisor restarts it until its budget quarantines it.
 - A binary caught **half-written** by a scan restarts the resident on it.
-  An install that renames into place, as `go build` and `install` do,
-  never shows one.
+  An install that writes a temporary file and renames it into place
+  never shows one; whether `make deploy` does is not checked.
