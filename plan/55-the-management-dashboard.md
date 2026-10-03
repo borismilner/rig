@@ -48,6 +48,9 @@ browser.
 | **7** | **A dedicated vertical panel on the right holds the latest notifications, newest on top**, so one he missed is still there |
 | **8** | **A notification older than a configurable age is evicted from that panel. The default is one week** |
 | **9** | **The notifications panel is searchable, holds notifications from every program, and filters by source** to show only one program's |
+| **10** | **Every external program can register a GUI in rig, to interact with it both ways** |
+| **11** | **Each registered GUI is a separate tab on the dashboard** |
+| **12** | **A GUI's content is wholly the program's, but it looks and feels like one rig application: its CSS is chosen from rig's when the program is written** |
 
 Requirements 6 to 8, Boris to the rig lead, 2026-10-03, verbatim: *"The
 main tab which is the default should show all the most important
@@ -63,6 +66,19 @@ Requirement 9, the same day, verbatim: *"The panel should be searchable to
 filter for relevant information. It should contain notifications from all
 the programs and we can filter by program to see only notifications
 relevant by source."*
+
+Requirements 10 to 12, the same day, verbatim: *"Every external program
+can register a GUI in `rig` to interact with it, both ways. Each GUI is a
+separate tab on the management dashboard. The content of each GUI is
+completely up to the external program but we must make the visual parts
+feel as one `rig` application so the CSS should be chosen from `rig` when
+the external program is written."*
+
+**Open, for him:** requirement 4 opens a program's tab only on its
+request; requirement 10 has a program register a GUI. Whether
+registering opens the tab, or only lets it be opened, is not yet ruled.
+How the GUI and rig talk both ways (the board's `rig.panel.put` and
+`panel.acted`, or a channel of its own) is also open.
 
 ### The write path he approved (requirement 2), as the beacon seat put it to him
 
