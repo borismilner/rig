@@ -54,6 +54,7 @@ browser.
 | **13** | **A program's GUI uses rig's capabilities as much as possible to interact with its program, instead of rig being just a container** |
 | **14** | **Picking a program opens its tab** (his "I think": he sees it in the mockup next session before it is final) |
 | **15** | **Registering a GUI adds its tab, but Main stays the tab shown by default** |
+| **16** | **Main needs as little scrolling as possible**; his suggestion is tabs inside Main that group what it offers (his "perhaps": he sees it in the mockup before it is final) |
 
 Requirements 6 to 8, Boris to the rig lead, 2026-10-03, verbatim: *"The
 main tab which is the default should show all the most important
@@ -115,6 +116,12 @@ adds its tab but the main tab is the default to be shown."* This answers
 the rail-and-tabs question and the register-opens-the-tab question; the
 mockup's "available under Tabs, not open" is superseded by "the tab is
 added, Main stays in front".
+
+Requirement 16, the same session, verbatim: *"It would be great if the
+main panel will need as little scrolling as possible. Perhaps it should
+have tabs inside of it to group the different functionalities offered in
+the main panel."* The goal (little scrolling) is ruled; the means (tabs
+inside Main) is his suggestion, to be shown in the mockup.
 
 He also said: *"I'm not sure I understand all these questions - you'll
 have to be more specific during our next session."* **So an open question
