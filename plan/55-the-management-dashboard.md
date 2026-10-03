@@ -349,9 +349,12 @@ until §47's verbs do, and a kit with nothing to edit cannot be exercised.
 its Activity tab and Main's Board wait for slice 3, and Needs you lists only
 programs parked on a question until slice 2 brings notifications.
 
-**Not exercised:** Start, Stop and Restart against a daemon. The estate on
-this machine is Boris's own, and stopping a program in it to test a button
-is not a seat's call; a scratch `rigd` is the way.
+**Start, Stop and Restart were exercised against a scratch `rigd`**
+(greeter and lantern, 2026-10-03): stop answers with no state, start and
+restart answer `starting`, an unknown program is refused with rig's own
+NOT_FOUND. The empty state after a stop is drawn as "stopped" with a Start
+button (af18fc4). **Not exercised:** the same calls through the Wails
+bridge in the running window, which needs a window on a live desktop.
 
 ### ⛔ Two tensions with §11, for Boris, not for a seat
 
