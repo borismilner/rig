@@ -55,7 +55,70 @@ const ICON = {
   x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
   folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
   file: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+  minus: '<path d="M5 12h14"/>', plus: '<path d="M12 5v14M5 12h14"/>',
+  undo: '<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/>',
+  chev: '<path d="m6 9 6 6 6-6"/>',
 };
+
+// ── controls (requirement 40): one look everywhere, each shaped to its value ──
+// Every control is a node with sync(v), so a change redraws its value in
+// place: nothing around it moves and focus stays where it was (39).
+function selectCtl(label, value, opts, on, inline = true) {
+  const sel = h('select', { 'aria-label': label, onchange: (e) => on(e.target.value) },
+    opts.map(([v, l]) => h('option', { value: v, selected: v === value }, l)));
+  const n = h('label', { class: 'selctl' }, inline ? h('span', { class: 'sl' }, label) : null, h('span', { class: 'selbox' }, sel, svg(ICON.chev)));
+  n.sync = (v) => { sel.value = v; };
+  return n;
+}
+function switchCtl(label, value, on) {
+  const b = h('button', { class: 'switch', role: 'switch', 'aria-label': label, 'aria-checked': String(Boolean(value)),
+    onclick: () => on(b.getAttribute('aria-checked') !== 'true') }, h('i'));
+  const word = h('span', { class: 'swword' }, value ? 'On' : 'Off');
+  const n = h('span', { class: 'swctl' }, b, word);
+  n.sync = (v) => { b.setAttribute('aria-checked', String(Boolean(v))); word.textContent = v ? 'On' : 'Off'; };
+  return n;
+}
+function segCtl(label, value, opts, on) {
+  const btns = opts.map((o) => h('button', { role: 'radio', 'aria-checked': String(o === value), tabindex: o === value ? '0' : '-1', onclick: () => on(o),
+    onkeydown: (e) => {
+      const d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+      if (!d) return;
+      e.preventDefault(); const i = (opts.indexOf(o) + d + opts.length) % opts.length; on(opts[i]); btns[i].focus();
+    } }, o));
+  const n = h('div', { class: 'seg', role: 'radiogroup', 'aria-label': label }, btns);
+  n.sync = (v) => btns.forEach((b, i) => { const on = opts[i] === v; b.setAttribute('aria-checked', String(on)); b.tabIndex = on ? 0 : -1; });
+  return n;
+}
+// A whole number with its unit inside the box, and - / + beside it. Arrow
+// keys step too; typing commits on Enter or on leaving the box.
+function stepperCtl(label, value, { min, step = 1, unit = '' }, on) {
+  const inp = h('input', { type: 'text', inputmode: 'numeric', 'aria-label': label, value: value === '' ? '' : String(value),
+    onchange: (e) => on(e.target.value.trim() === '' ? NaN : Number(e.target.value)),
+    onkeydown: (e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); bump(e.key === 'ArrowUp' ? 1 : -1); } } });
+  const cur = () => Number(inp.value) || 0;
+  const bump = (d) => { const v = cur() + d * step; if (min !== undefined && v < min) return; on(v); };
+  const n = h('span', { class: 'stepper' },
+    h('button', { class: 'stp', tabindex: '-1', 'aria-label': `${label}: less`, onclick: () => bump(-1) }, svg(ICON.minus)),
+    inp, unit ? h('span', { class: 'unit' }, unit) : null,
+    h('button', { class: 'stp', tabindex: '-1', 'aria-label': `${label}: more`, onclick: () => bump(1) }, svg(ICON.plus)));
+  n.sync = (v) => { if (document.activeElement !== inp || String(v) !== inp.value) inp.value = String(v); n.toggleAttribute('data-invalid', false); };
+  n.invalid = () => n.toggleAttribute('data-invalid', true);
+  return n;
+}
+// Bytes are read in the largest unit that holds them whole, and changed in it.
+const BUNITS = [['B', 1], ['KiB', 1024], ['MiB', 1024 ** 2], ['GiB', 1024 ** 3]];
+function bytesCtl(label, value, on) {
+  const fit = (v) => [...BUNITS].reverse().find(([, m]) => v >= m && v % m === 0) || BUNITS[0];
+  let [u, m] = fit(Number(value));
+  const st = stepperCtl(label, Number(value) / m, { min: 0 }, (n) => on(Number.isFinite(n) ? n * m : NaN));
+  const us = selectCtl(`${label} unit`, u, BUNITS.map(([x]) => [x, x]), (x) => {
+    const v = Number(value); [u, m] = BUNITS.find((b) => b[0] === x); st.sync(+(v / m).toFixed(3)); }, false);
+  const n = h('span', { class: 'bytesctl' }, st, us);
+  n.sync = (v) => { value = v; [u, m] = fit(Number(v)); st.sync(Number(v) / m); us.sync(u); };
+  n.invalid = st.invalid;
+  return n;
+}
 const SEV = { info: 'var(--h-steel)', success: 'var(--h-sage)', warning: 'var(--h-amber)', error: 'var(--h-rust)' };
 const RANK = { error: 4, warning: 3, success: 2, info: 1 };
 const STATUS = {
@@ -144,6 +207,8 @@ let seq = 0;
 const flash = new Set(); // cards changed since the last draw
 const clock = () => S.now;
 const hhmm = (ms) => new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+// Requirement 41: a time is 24-hour everywhere; a full one leads with the date.
+const stamp = (ms) => { const d = new Date(ms), p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${hhmm(ms)}`; };
 function ago(ms) {
   const s = Math.max(0, Math.round((clock() - ms) / 1000));
   if (s < 10) return 'just now';
@@ -215,7 +280,7 @@ function evict() {
 function requestTab(from, reason) {
   let t = S.tabs.find((x) => x.id === from);
   if (!t) { t = { id: from, title: from, kind: WRITERS[from].kind }; S.tabs.push(t); }
-  Object.assign(t, { open: true, reason, asked: clock(), released: null, fresh: true });
+  Object.assign(t, { open: true, reason, asked: clock(), released: null, fresh: true, freshAt: 0 });
   wire('tab', 'rig.panel.tab', `${from} asks for its own tab: "${reason}"`);
 }
 function releaseTab(from) {
@@ -228,7 +293,7 @@ function registerGui(from, entry) {
   S.guis[from] = { entry, at: clock() };
   let t = S.tabs.find((x) => x.id === from);
   if (!t) { t = { id: from, title: from, kind: WRITERS[from]?.kind || 'program' }; S.tabs.push(t); }
-  Object.assign(t, { open: true, fresh: true });
+  Object.assign(t, { open: true, fresh: true, freshAt: 0 });
   wire('tab', 'rig.gui.register', `${from} registers its GUI: ${entry}, styled by rig.css; its tab is added, Main stays in front`);
 }
 const INTERNAL = { capabilities: 'Capabilities', guidelines: 'Guidelines', settings: 'Settings' };
@@ -491,31 +556,43 @@ function visible(c) {
 
 function renderTabs() {
   const bar = $('tabs');
-  bar.replaceChildren();
+  const strip = h('div', { class: 'tabstrip', onwheel: (e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && strip.scrollWidth > strip.clientWidth) { e.preventDefault(); strip.scrollLeft += e.deltaY; } } });
   for (const t of S.tabs.filter((x) => x.open)) {
     const own = [...S.cards.values()].filter((c) => c.from === t.id && !c.closed);
-    const tab = h('div', { class: 'tab' + (t.fresh ? ' fresh' : ''), role: 'tab', 'aria-selected': String(S.current === t.id), tabindex: '0',
+    // A fresh tab pulses once. A redraw makes a new node, so the pulse picks
+    // up where it was rather than starting again on every tick.
+    if (t.fresh && !t.freshAt) t.freshAt = performance.now();
+    const age = t.fresh ? performance.now() - t.freshAt : 0;
+    if (age > 3200) t.fresh = false;
+    const tab = h('div', { class: 'tab' + (t.kind === 'main' ? ' main' : '') + (t.fresh ? ' fresh' : ''), style: t.fresh ? { animationDelay: `-${Math.round(age)}ms` } : {}, role: 'tab', 'aria-selected': String(S.current === t.id), tabindex: '0',
       onclick: () => { S.current = t.id; t.fresh = false; render(); },
       onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); S.current = t.id; render(); } } },
       t.kind === 'main' || t.kind === 'rig' ? null : h('span', { class: 'dot', style: { '--sev': SEV[worst(own.map((c) => c.severity))] } }),
       h('span', { class: 'who' }, t.title),
       t.kind === 'main' ? null : h('span', { class: 'kind' }, t.kind),
       t.kind === 'main' ? null : h('button', { class: 'x', 'aria-label': `Close ${t.title}'s tab`, onclick: (e) => { e.stopPropagation(); t.open = false; t.closedAt = clock(); if (S.current === t.id) S.current = 'main'; render(); } }, svg(ICON.x)));
-    bar.append(tab);
+    strip.append(tab);
   }
   const closed = S.tabs.filter((x) => !x.open);
   const need = needsYou().length;
-  bar.append(h('span', { class: 'spacer' }),
+  const sel = strip.querySelector('[aria-selected="true"]');
+  const keep = bar.querySelector('.tabstrip')?.scrollLeft || 0;
+  bar.replaceChildren(strip, h('div', { class: 'tools' },
     h('button', { class: 'tool tray' + (need ? ' alert' : ''), id: 'tray', title: need ? `${need} need you: open them` : 'Nothing needs you',
       'aria-label': need ? `rig's tray icon: ${need} need you. Open them` : 'rig\'s tray icon: nothing needs you',
       onclick: () => { S.current = 'main'; S.mainTab = 'needs'; render(); document.querySelector('.subtabs [aria-selected="true"]')?.focus(); } },
-      h('span', { class: 'trayic' }, 'r', need ? h('i', {}, String(need)) : null), 'tray (simulated)'),
+      h('span', { class: 'trayic' }, 'r'), h('span', { class: 'lbl' }, 'tray (simulated)'), need ? h('span', { class: 'traycount' }, String(need)) : null),
     h('button', { class: 'tool', id: 'reopenBtn', 'aria-haspopup': 'menu', onclick: (e) => openMenu(e) }, svg(ICON.reopen), 'Tabs ', h('b', {}, String(closed.length))),
-    h('button', { class: 'tool', 'aria-label': S.playing ? 'Pause the simulation' : 'Play the simulation', onclick: () => { S.playing = !S.playing; render(); } }, svg(S.playing ? ICON.pause : ICON.play), S.playing ? 'Live' : 'Paused'),
-    h('button', { class: 'tool', 'aria-label': 'One step of the simulation', onclick: tick }, svg(ICON.step), 'Step'),
+    h('button', { class: 'tool', 'aria-label': S.playing ? 'Pause the simulation' : 'Play the simulation', onclick: () => { S.playing = !S.playing; render(); }, title: S.playing ? 'Live: click to pause' : 'Paused: click to play' }, svg(S.playing ? ICON.pause : ICON.play), h('span', { class: 'lbl' }, S.playing ? 'Live' : 'Paused')),
+    h('button', { class: 'tool', 'aria-label': 'One step of the simulation', title: 'Step', onclick: tick }, svg(ICON.step), h('span', { class: 'lbl' }, 'Step')),
     h('button', { class: 'tool', 'aria-pressed': String(S.showWire), onclick: () => { S.showWire = !S.showWire; render(); } }, svg(ICON.wire), 'Wire'),
-    h('button', { class: 'tool', onclick: () => openQuestions() }, svg(ICON.q), 'Open questions ', h('b', {}, String(QUESTIONS.length))),
-    h('button', { class: 'tool', 'aria-label': 'Switch light and dark', onclick: () => { const r = document.documentElement; r.setAttribute('data-theme', r.getAttribute('data-theme') === 'light' ? 'dark' : 'light'); } }, svg(ICON.sun)));
+    h('button', { class: 'tool', onclick: () => openQuestions(), title: 'Open questions', 'aria-label': `Open questions, ${QUESTIONS.length}` }, svg(ICON.q), h('span', { class: 'lbl' }, 'Open questions '), h('b', {}, String(QUESTIONS.length))),
+    h('button', { class: 'tool', 'aria-label': 'Switch light and dark', onclick: () => { const r = document.documentElement; r.setAttribute('data-theme', r.getAttribute('data-theme') === 'light' ? 'dark' : 'light'); } }, svg(ICON.sun))));
+  strip.scrollLeft = keep;
+  // A strip with more tabs than room fades at the edge that hides some.
+  const edge = () => { strip.classList.toggle('more-r', strip.scrollLeft + strip.clientWidth < strip.scrollWidth - 2); strip.classList.toggle('more-l', strip.scrollLeft > 2); };
+  strip.addEventListener('scroll', edge); edge();
+  if (sel && (sel.offsetLeft < strip.scrollLeft || sel.offsetLeft + sel.offsetWidth > strip.scrollLeft + strip.clientWidth)) sel.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
 function openMenu() {
@@ -576,35 +653,36 @@ function renderBoard(container) {
   }
   const panel = h('section', { class: 'panel', 'aria-label': 'Board' });
   const open = all.filter((c) => !c.closed);
-  panel.append(h('header', {},
-    h('h2', {}, 'Board'), h('span', { class: 'dim' }, `${open.length} open, ${all.length - open.length} closed`),
-    h('span', { class: 'sp' }),
-    h('button', { class: 'iconbtn', 'aria-label': S.minimised ? 'Restore the board' : 'Minimise the board', onclick: () => { S.minimised = !S.minimised; S.unseen = []; render(); } }, svg(S.minimised ? ICON.max : ICON.min))));
+  // Requirement 38: the inner tab already says "Board, 8 open", so the top
+  // carries only what you steer by: whose cards, then which of them.
+  const minBtn = h('button', { class: 'iconbtn', 'aria-label': S.minimised ? 'Restore the board' : 'Minimise the board', title: S.minimised ? 'Restore' : 'Minimise',
+    onclick: () => { S.minimised = !S.minimised; S.unseen = []; render(); } }, svg(S.minimised ? ICON.max : ICON.min));
   if (S.minimised) {
     const w = worst(S.unseen);
-    panel.append(h('button', { class: 'minbar', onclick: () => { S.minimised = false; S.unseen = []; render(); } },
+    panel.append(h('div', { class: 'btop1' }, h('button', { class: 'minbar', onclick: () => { S.minimised = false; S.unseen = []; render(); } },
       S.unseen.length ? h('span', { class: 'badge', style: { '--sev': SEV[w] } }, `${S.unseen.length} new`) : h('span', { class: 'dim' }, 'Nothing new'),
-      h('span', { class: 'dim' }, 'The board is minimised. Click to restore it.')));
+      h('span', { class: 'dim' }, `The board is minimised, ${open.length} open. Click to restore it.`)), minBtn));
     container.append(panel);
     return;
   }
   const srcs = [...new Set(all.map((c) => c.from))].sort();
   const openOf = (src) => all.filter((c) => !c.closed && (!src || c.from === src)).length;
-  panel.append(h('div', { class: 'srctabs', role: 'tablist', 'aria-label': 'Board sources' },
-    ['', ...srcs].map((src) => h('button', { role: 'tab', 'aria-selected': String(S.bsrc === src), onclick: () => { S.bsrc = src; render(); } },
-      src || 'Every source', h('span', { class: 'cnt' }, String(openOf(src)))))));
-  const search = h('input', { id: 'q', type: 'search', placeholder: 'Search past work: titles, bodies, facts, every version', value: S.q, 'aria-label': 'Search the board',
+  panel.append(h('div', { class: 'btop1' },
+    h('div', { class: 'srctabs', role: 'tablist', 'aria-label': 'Board sources' },
+      ['', ...srcs].map((src) => h('button', { role: 'tab', 'aria-selected': String(S.bsrc === src), onclick: () => { S.bsrc = src; render(); } },
+        src || 'Every source', h('span', { class: 'cnt' }, String(openOf(src)))))),
+    h('span', { class: 'dim small nowrap' }, `${all.length - open.length} closed`), minBtn));
+  const search = h('input', { id: 'q', type: 'search', placeholder: 'Search past work', title: 'Titles, bodies, facts, every version', value: S.q, 'aria-label': 'Search the board',
     oninput: (e) => { S.q = e.target.value; renderView(); $('q')?.focus(); const q = $('q'); if (q) q.setSelectionRange(q.value.length, q.value.length); } });
   const chip = (set, key, label, color) => h('button', { class: 'chip', 'aria-pressed': String(set.has(key)), style: color ? { '--chipc': color } : {},
     onclick: () => { set.has(key) ? set.delete(key) : set.add(key); render(); } }, color ? h('i') : null, label);
   panel.append(h('div', { class: 'filters' },
-    h('label', { class: 'search' }, search, h('kbd', {}, '/')),
-    ...Object.keys(SEV).map((s) => chip(S.sev, s, s, SEV[s])),
-    ...['running', 'waiting', 'failed', 'done'].map((s) => chip(S.status, s, s)),
-    h('label', { class: 'dim' }, 'Group ', h('select', { class: 'sel', onchange: (e) => { S.group = e.target.value; render(); } },
-      ...[['writer', 'by agent or program'], ['project', 'by project'], ['severity', 'by severity']].map(([v, l]) => h('option', { value: v, selected: S.group === v }, l)))),
-    h('label', { class: 'dim' }, 'Time ', h('select', { class: 'sel', onchange: (e) => { S.since = e.target.value; render(); } },
-      ...[['all', 'all'], ['1h', 'last hour']].map(([v, l]) => h('option', { value: v, selected: S.since === v }, l))))));
+    h('label', { class: 'search' }, svg(ICON.search), search, h('kbd', {}, '/')),
+    h('div', { class: 'chipset', role: 'group', 'aria-label': 'Severity' }, ...Object.keys(SEV).map((s) => chip(S.sev, s, s, SEV[s]))),
+    h('div', { class: 'chipset', role: 'group', 'aria-label': 'Status' }, ...['running', 'waiting', 'failed', 'done'].map((s) => chip(S.status, s, s))),
+    h('div', { class: 'selset' },
+      selectCtl('Group', S.group, [['writer', 'by source'], ['project', 'by project'], ['severity', 'by severity']], (v) => { S.group = v; render(); }),
+      selectCtl('Time', S.since, [['all', 'any time'], ['1h', 'last hour']], (v) => { S.since = v; render(); }))));
   const board = h('div', { class: 'board' });
   if (!groups.size) board.append(h('div', { class: 'empty' }, S.q || S.sev.size || S.status.size ? 'Nothing matches. Clear a filter to see more.' : 'No cards yet. Programs and agents put them here.'));
   const askN = (list) => list.filter((c) => c.actions && !c.closed && !c.decided && (c.status === 'waiting' || c.status === 'failed')).length;
@@ -726,9 +804,8 @@ function inspector(e) {
 function renderNotes(container) {
   evict();
   const unread = S.notes.filter((n) => n.unread).length;
-  const days = h('select', { class: 'sel', 'aria-label': 'Evict notifications older than',
-    onchange: (e) => { S.keepDays = Number(e.target.value); render(); } },
-    ...[[1, '1 day'], [3, '3 days'], [7, '1 week'], [30, '30 days']].map(([v, l]) => h('option', { value: String(v), selected: S.keepDays === v }, l)));
+  const days = selectCtl('Evict notifications older than', String(S.keepDays), [[1, '1 day'], [3, '3 days'], [7, '1 week'], [30, '30 days']].map(([v, l]) => [String(v), l]),
+    (v) => { S.keepDays = Number(v); render(); }, false);
   const sources = [...new Set(S.notes.map((n) => n.from))].sort();
   const q = S.nq.toLowerCase();
   const asks = (n) => Boolean(n.actions && !n.decided);
@@ -737,15 +814,14 @@ function renderNotes(container) {
     .sort((a, b) => asks(b) - asks(a) || b.at - a.at);
   const search = h('input', { id: 'nq', type: 'search', placeholder: 'Search notifications', value: S.nq, 'aria-label': 'Search notifications',
     oninput: (e) => { S.nq = e.target.value; render(); const f = $('nq'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); } });
-  const src = h('select', { class: 'sel', 'aria-label': 'Only from', onchange: (e) => { S.nsrc = e.target.value; render(); } },
-    h('option', { value: '' }, `every source (${S.notes.length})`),
-    ...sources.map((x) => h('option', { value: x, selected: S.nsrc === x }, `${x} (${S.notes.filter((n) => n.from === x).length})`)));
+  const src = selectCtl('From', S.nsrc, [['', `every source (${S.notes.length})`], ...sources.map((x) => [x, `${x} (${S.notes.filter((n) => n.from === x).length})`])],
+    (v) => { S.nsrc = v; render(); });
   const list = h('ol', { class: 'notes', 'data-scroll': 'notes' }, shown.length ? [] : h('li', { class: 'none' }, 'Nothing matches.'), shown.map((n) => h('li', { class: 'note' + (n.unread ? ' unread' : '') + (asks(n) ? ' asks' : ''), style: { '--sev': SEV[n.severity] },
     onclick: (e) => { if (!e.target.closest('.src')) openNote(n); } },
     h('span', { class: 'bullet' }),
     h('div', {},
       h('button', { class: 'nopen', 'aria-label': `${n.title}: open its details` },
-        h('span', { class: 'nt' }, h('b', {}, n.title), h('time', { class: 'dim', title: new Date(n.at).toLocaleString() }, ago(n.at))),
+        h('span', { class: 'nt' }, h('b', {}, n.title), h('time', { class: 'dim', title: stamp(n.at) }, ago(n.at))),
         h('span', { class: 'dim' }, n.body)),
       h('div', { class: 'nmeta' },
         h('button', { class: 'src', title: `Only ${n.from}`, onclick: () => { S.nsrc = n.from; render(); } }, n.from),
@@ -753,9 +829,9 @@ function renderNotes(container) {
   container.append(h('aside', { class: 'notepanel', 'aria-label': 'Notifications' },
     h('header', {}, h('h2', {}, 'Notifications'), unread ? h('span', { class: 'badge', style: { '--sev': 'var(--h-steel)' } }, `${unread} new`) : null,
       h('span', { class: 'sp' }), unread ? h('button', { class: 'linkish', onclick: () => { S.notes.forEach((n) => { n.unread = false; }); render(); } }, 'Mark read') : null),
-    h('div', { class: 'nfilter' }, h('label', { class: 'search' }, search), h('label', { class: 'dim' }, 'From ', src)),
+    h('div', { class: 'nfilter' }, h('label', { class: 'search' }, svg(ICON.search), search), src),
     list,
-    h('footer', {}, h('label', { class: 'dim' }, 'Evict after ', days),
+    h('footer', {}, h('div', { class: 'evict' }, h('span', { class: 'dim' }, 'Evict after'), days),
       h('div', { class: 'faint' }, S.evicted ? `${S.evicted} older one${S.evicted > 1 ? 's' : ''} evicted` : 'Nothing evicted yet'))));
 }
 
@@ -938,43 +1014,54 @@ function settingsTable(owner, list) {
   const q = S.sq.toLowerCase();
   const rows = list.filter((x) => !q || (x.key + ' ' + x.desc).toLowerCase().includes(q));
   if (!rows.length) return h('div', { class: 'empty' }, 'Nothing matches.');
-  return h('table', { class: 'progs sets' },
-    h('thead', {}, h('tr', {}, ...['Key', 'Value', 'Where it comes from', ''].map((x) => h('th', { scope: 'col' }, x)))),
-    h('tbody', {}, rows.map((x) => settingRow(owner, x))));
+  return h('div', { class: 'sets', role: 'list', 'aria-label': `${owner}'s settings` }, rows.map((x) => settingRow(owner, x)));
+}
+// Where a value comes from, in a word; the full sentence is its title.
+function originTag(x) {
+  const d = x.value === x.def;
+  return { text: d ? 'default' : x.origin.startsWith('runtime') ? 'this run only' : x.origin.split('/').pop(), tone: d ? '' : x.origin.startsWith('runtime') ? 'run' : 'file' };
 }
 function settingRow(owner, x) {
-  const origin = h('td', { class: 'dim' }, x.origin);
-  const err = h('div', { class: 'err', role: 'alert' });
-  const reset = h('button', { class: 'linkish', hidden: x.value === x.def, onclick: () => set(x.def) }, 'Reset');
   const label = `${owner} ${x.key}`;
+  const err = h('div', { class: 'err', role: 'alert' });
+  const org = h('span', { class: 'origin' });
+  // 39: Reset always holds its place; it is only invisible while unneeded.
+  const reset = h('button', { class: 'iconbtn reset', 'aria-label': `Reset ${x.key} to ${JSON.stringify(x.def)}`, title: `Back to ${JSON.stringify(x.def)}`, onclick: () => { set(x.def); ctl.querySelector('input,button,select')?.focus(); } }, svg(ICON.undo));
+  const paint = () => {
+    const o = originTag(x);
+    org.textContent = o.text; org.title = x.origin; org.dataset.tone = o.tone;
+    reset.style.visibility = x.value === x.def ? 'hidden' : 'visible';
+    row.classList.toggle('modified', x.value !== x.def);
+  };
   function set(v) {
     if (x.type === 'integer' && (!Number.isInteger(v) || (x.min !== undefined && v < x.min))) {
-      err.textContent = `Refused: ${x.key} takes a whole number${x.min !== undefined ? ` of at least ${x.min}` : ''}. Nothing changed.`;
+      err.textContent = `Refused: a whole number${x.min !== undefined ? ` of at least ${x.min}` : ''}. Still ${x.value}.`;
+      ctl.invalid?.();
       wire('refused', 'config.set', `${label} = ${String(v).slice(0, 40)}: not a valid ${x.type}`, owner); renderWire(); return;
     }
     err.textContent = '';
     x.value = v;
     x.origin = v === x.def ? (owner === 'rig' ? 'built-in default' : 'its declared default') : owner === 'rig' ? 'runtime override, until restart' : `~/.config/rig/apps/${owner}.toml`;
-    origin.textContent = x.origin; reset.hidden = v === x.def;
-    if (x.kind) row.replaceWith(settingRow(owner, x));
-    else if (ctl.type === 'checkbox') ctl.checked = v; else { ctl.value = String(v); if (unit === 'bytes') hint.textContent = human(v); }
+    if (x.kind) { const n = settingRow(owner, x); row.replaceWith(n); n.querySelector('.pathctl button')?.focus(); }
+    else { ctl.sync(v); paint(); }
     wire('acted', 'config.set', `${label} = ${JSON.stringify(v)}${owner === 'rig' ? '' : `, written to apps/${owner}.toml; ${owner} reads it on its next config.get`}`, owner);
     if (x.key === 'dashboard.notifications.keep.days') { S.keepDays = v; }
     renderWire();
   }
   const unit = x.type === 'integer' ? unitOf(x.key) : '';
-  const hint = h('span', { class: 'dim small' }, unit === 'bytes' ? human(Number(x.value)) : '');
   let ctl;
   if (x.kind) ctl = pathControl(x, label, set);
-  else if (x.type === 'boolean') ctl = h('input', { type: 'checkbox', 'aria-label': label, onchange: (e) => set(e.target.checked) });
-  else if (x.enum) ctl = h('select', { class: 'sel', 'aria-label': label, onchange: (e) => set(e.target.value) }, x.enum.map((o) => h('option', { value: o, selected: o === x.value }, o)));
-  else ctl = h('input', { class: 'inp', type: x.type === 'integer' ? 'number' : 'text', 'aria-label': label, value: String(x.value),
-    onchange: (e) => set(x.type === 'integer' ? Number(e.target.value) : e.target.value) });
-  if (x.type === 'boolean') ctl.checked = Boolean(x.value);
-  if (unit) ctl.addEventListener('input', (e) => { if (unit === 'bytes') hint.textContent = human(Number(e.target.value)); });
-  const row = h('tr', {},
-    h('td', {}, h('div', { class: 'mono' }, x.key, x.proposed ? h('span', { class: 'gtag' }, 'proposed') : null), h('div', { class: 'dim small' }, x.desc), err),
-    h('td', {}, unit ? h('div', { class: 'unitctl' }, ctl, h('span', { class: 'dim small' }, unit === 'bytes' ? '' : unit), hint) : ctl), origin, h('td', {}, reset));
+  else if (x.type === 'boolean') ctl = switchCtl(label, x.value, set);
+  else if (x.enum && x.enum.length <= 4) ctl = segCtl(label, x.value, x.enum, set);
+  else if (x.enum) ctl = selectCtl(label, x.value, x.enum.map((o) => [o, o]), set, false);
+  else if (unit === 'bytes') ctl = bytesCtl(label, x.value, set);
+  else if (x.type === 'integer') ctl = stepperCtl(label, x.value, { min: x.min, unit }, set);
+  else ctl = h('input', { class: 'inp text', type: 'text', 'aria-label': label, value: String(x.value), placeholder: x.def === '' ? 'not set' : '', onchange: (e) => set(e.target.value) });
+  if (!ctl.sync) ctl.sync = (v) => { ctl.value = String(v); };
+  const row = h('div', { class: 'setrow', role: 'listitem' },
+    h('div', { class: 'skey' }, h('div', { class: 'mono k' }, x.key, x.proposed ? h('span', { class: 'gtag' }, 'proposed') : null), h('div', { class: 'dim small' }, x.desc)),
+    h('div', { class: 'sctl' }, ctl, err), org, reset);
+  paint();
   return row;
 }
 function renderSettings(view) {
@@ -1027,14 +1114,15 @@ function argField(cap, name, sch, required) {
   const label = name + (required ? ' *' : '');
   const store = (v) => { if (v === '' || v === undefined) delete vals[name]; else vals[name] = v; renderCapPreview(cap); };
   let ctl;
-  if (sch.type === 'boolean') { ctl = h('input', { type: 'checkbox', onchange: (e) => store(e.target.checked || undefined) }); ctl.checked = Boolean(vals[name]); }
-  else if (sch.enum) ctl = h('select', { class: 'sel', onchange: (e) => store(e.target.value) }, h('option', { value: '' }, '(none)'), sch.enum.map((o) => h('option', { value: o, selected: vals[name] === o }, o)));
-  else if (sch.type === 'integer' || sch.type === 'number') ctl = h('input', { class: 'inp', type: 'number', value: vals[name] ?? '', oninput: (e) => store(e.target.value === '' ? '' : Number(e.target.value)) });
+  const aria = `${cap.id} ${name}`;
+  if (sch.type === 'boolean') { ctl = switchCtl(aria, vals[name], (v) => { store(v || undefined); ctl.sync(v); }); }
+  else if (sch.enum) ctl = selectCtl(aria, vals[name] ?? '', [['', '(none)'], ...sch.enum.map((o) => [o, o])], store, false);
+  else if (sch.type === 'integer' || sch.type === 'number') ctl = stepperCtl(aria, vals[name] ?? '', {}, (v) => { store(Number.isFinite(v) ? v : ''); ctl.sync(Number.isFinite(v) ? v : ''); });
   else if (sch.type === 'array') ctl = h('input', { class: 'inp', type: 'text', placeholder: 'comma, separated', value: (vals[name] || []).join(', '), oninput: (e) => store(e.target.value ? e.target.value.split(',').map((x) => x.trim()).filter(Boolean) : '') });
   else if (sch.type === 'object') ctl = h('textarea', { class: 'inp', rows: '3', placeholder: '{ JSON }', oninput: (e) => { try { store(e.target.value ? JSON.parse(e.target.value) : ''); e.target.removeAttribute('aria-invalid'); } catch { e.target.setAttribute('aria-invalid', 'true'); } } }, vals[name] ? JSON.stringify(vals[name]) : '');
   else ctl = h('input', { class: 'inp', type: 'text', value: vals[name] ?? '', oninput: (e) => store(e.target.value) });
-  ctl.setAttribute('aria-label', `${cap.id} ${name}`);
-  return h('label', { class: 'arg' }, h('span', { class: 'mono' }, label), h('span', { class: 'dim small' }, [sch.type || 'any', sch.description].filter(Boolean).join(': ')), ctl);
+  if (!ctl.sync) ctl.setAttribute('aria-label', aria);
+  return h('div', { class: 'arg' }, h('span', { class: 'mono' }, label), h('span', { class: 'dim small' }, [sch.type || 'any', sch.description].filter(Boolean).join(': ')), ctl);
 }
 function capCall(cap) {
   const args = S.capArgs[cap.key] || {};
@@ -1187,12 +1275,12 @@ function openNote(n) {
       h('dl', { class: 'facts' },
         h('dt', {}, 'from'), h('dd', {}, n.from),
         h('dt', {}, 'severity'), h('dd', {}, n.severity),
-        h('dt', {}, 'at'), h('dd', {}, new Date(n.at).toLocaleString()),
+        h('dt', {}, 'at'), h('dd', {}, stamp(n.at)),
         ...(n.facts || []).flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)])),
       h('p', {}, n.body),
       n.details ? h('p', { class: 'dim' }, n.details) : null,
       h('h4', { class: 'subh' }, n.actions ? (n.decided ? 'Decided' : 'Your decision') : 'Nothing to decide'),
-      n.decided ? h('p', { class: 'chosen' }, `You chose "${n.decided.choice}" at ${new Date(n.decided.at).toLocaleTimeString()}. ${n.from} was told.`) : null,
+      n.decided ? h('p', { class: 'chosen' }, `You chose "${n.decided.choice}" at ${hhmm(n.decided.at)}. ${n.from} was told.`) : null,
       n.actions ? opts : h('p', { class: 'dim' }, 'This notification only informs.')),
     h('footer', {},
       h('button', { class: 'act', onclick: () => { S.nsrc = n.from; close(); render(); } }, `Only ${n.from}'s notifications`),
