@@ -3,12 +3,17 @@
 // programs and agents that will call rig.panel.put, and every push is shown
 // on the wire drawer as the approved path would carry it.
 import { DEFAULTS, tokens } from '../theme.js';
+import { rigCss, guiDoc } from './rig-kit.js';
+// Ledger's GUI page, ledger-gui.html, put in here by build.py.
+const LEDGER_GUI = __LEDGER_GUI__;
 
 // ── theme ──────────────────────────────────────────────────────────────────
 function applyTheme() {
   const mode = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
   const t = tokens(DEFAULTS, mode);
   for (const [k, v] of Object.entries(t)) document.documentElement.style.setProperty(k, v);
+  // A registered GUI follows the dashboard's theme.
+  for (const f of document.querySelectorAll('#guihost iframe')) f.contentWindow?.postMessage({ type: 'theme', data: mode }, '*');
 }
 applyTheme();
 new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
@@ -76,26 +81,26 @@ const STATE = {
 const estate = [
   { id: 'beacon', name: 'Beacon', version: '0.3.1', load: 'on call', state: 'at rest', since: '12 min', found: 'scan', path: '~/.local/lib/rig/apps/beacon',
     coverage: 'partial', note: 'cards and the board; no config', commands: [['ask', 'ask the user a question on a card'], ['board.put', 'add or change a card'], ['notify', 'a one-line notice']],
-    restarts: 0, calls: 14, lastExit: 'exit 0, idle', binary: '2049:1311742:9.8 MB:10:41', read: '10:41, kept', pane: true },
+    restarts: 0, calls: 14, lastExit: 'exit 0, idle', binary: '2049:1311742:9.8 MB:10:41', read: '10:41, kept', gui: false },
   { id: 'ledger', name: 'Ledger', version: '1.2.0', load: 'resident', state: 'healthy', since: '2 h', found: 'programs.json', path: '~/.local/bin/ledger',
     coverage: 'full', note: 'everything but streams', commands: [['reconcile', 'match entries against the bank'], ['entries', 'list entries'], ['export', 'write a CSV']],
-    restarts: 0, binary: '2049:1310012:10.2 MB:08:39', read: '08:39, at its start', pane: true },
+    restarts: 0, binary: '2049:1310012:10.2 MB:08:39', read: '08:39, at its start', gui: true },
   { id: 'lantern', name: 'Lantern', version: '0.8.0', load: 'on call', state: 'running', since: '30 s', found: 'scan', path: '~/.local/lib/rig/apps/lantern',
     coverage: 'partial', note: 'search only', commands: [['search', 'full-text search'], ['index', 'reindex a folder']],
-    restarts: 0, calls: 1, binary: '2049:1311790:9.3 MB:09:02', read: '09:02, kept', pane: false },
+    restarts: 0, calls: 1, binary: '2049:1311790:9.3 MB:09:02', read: '09:02, kept', gui: false },
   { id: 'righand', name: 'righand', version: '0.9.4', load: 'resident', state: 'healthy', since: '2 h', found: 'programs.json', path: '~/.local/bin/righand',
     coverage: 'partial', note: 'scripts, windows and where', commands: [['script', 'run a desktop script'], ['windows', 'list windows'], ['where', 'locate a window']],
-    restarts: 1, binary: '2049:1310455:7.1 MB:08:39', read: '08:39, at its start', pane: false },
+    restarts: 1, binary: '2049:1310455:7.1 MB:08:39', read: '08:39, at its start', gui: false },
   { id: 'storeworker', name: 'storeworker', version: '0.4.0', load: 'resident', state: 'healthy', since: '41 min', found: 'programs.json', path: '~/.local/bin/storeworker',
     coverage: 'partial', note: 'a demonstration: store, queue, leases', commands: [['run', 'run a queued job'], ['status', 'what it is doing']],
-    restarts: 2, binary: '2049:1310460:8.0 MB:10:12', read: '10:12, at a restart', pane: false },
+    restarts: 2, binary: '2049:1310460:8.0 MB:10:12', read: '10:12, at a restart', gui: false },
   { id: 'keeper', name: 'keeper', version: 'v3', load: 'resident', state: 'down', since: '20 min', found: 'scan', path: '~/.local/lib/rig/apps/keeper',
     coverage: 'partial', note: 'the wire only', commands: [['greet', 'say hello']],
-    restarts: 0, lastExit: 'stopped by a human', binary: '2049:1311802:6.4 MB:10:33', read: '10:33, a declare run', pane: false,
+    restarts: 0, lastExit: 'stopped by a human', binary: '2049:1311802:6.4 MB:10:33', read: '10:33, a declare run', gui: false,
     hint: 'A call is refused with: rig up keeper' },
   { id: 'abacus', name: 'abacus', version: '2.0.1', load: 'resident', state: 'quarantined', stale: true, since: '1 h', found: 'scan', path: '~/.local/lib/rig/apps/abacus',
     coverage: 'partial', note: 'sums and rates', commands: [['sum', 'add a column'], ['rate', 'convert a currency']],
-    restarts: 5, lastExit: 'exit 2, five times in 4 min', binary: '2049:1311655:7.7 MB:09:47', read: '09:20, before its rebuild', pane: false,
+    restarts: 5, lastExit: 'exit 2, five times in 4 min', binary: '2049:1311655:7.7 MB:09:47', read: '09:20, before its rebuild', gui: false,
     hint: 'Its binary changed after it was quarantined: what is listed is stale until rig restart abacus' },
 ];
 
@@ -119,6 +124,7 @@ const S = {
   keepDays: 7,           // requirement 8: evicted past this age; a setting
   nq: '', nsrc: '',      // requirement 9: search, and one source
   evicted: 0,
+  guis: {},              // requirement 10: program id -> its registered GUI
 };
 let seq = 0;
 const flash = new Set(); // cards changed since the last draw
@@ -194,6 +200,76 @@ function releaseTab(from) {
   const t = S.tabs.find((x) => x.id === from);
   if (t) { t.released = clock(); wire('tab', 'rig.panel.tab', `${from} no longer needs its tab; it stays until you close it`); }
 }
+// Requirements 10 to 12: a program registers a GUI. Registering makes its
+// tab AVAILABLE (in the Tabs menu); the tab opens when the program asks
+// (requirement 4) or when you open it.
+function registerGui(from, entry) {
+  S.guis[from] = { entry, at: clock() };
+  if (!S.tabs.find((x) => x.id === from)) S.tabs.push({ id: from, title: from, kind: WRITERS[from]?.kind || 'program', open: false });
+  wire('tab', 'rig.gui.register', `${from} registers its GUI: ${entry}, styled by rig.css`);
+}
+function openTab(id) {
+  const t = S.tabs.find((x) => x.id === id);
+  if (!t) return;
+  Object.assign(t, { open: true, fresh: false });
+  S.current = id; S.open = null;
+  render();
+}
+
+// Ledger, the program behind the GUI: it holds its own state, answers what
+// the GUI sends, and pushes to it unasked. Both directions go through rig.
+const ledger = {
+  statement: 'September statement', entries: 418, matched: 412, lastRun: '', running: null,
+  open: [
+    { id: 1182, date: '09-14', payee: 'Hetzner Online', amount: '-38.20', bank: 'HETZNER ONLINE GMBH 38.20', why: 'same amount twice', sev: 'warning' },
+    { id: 1183, date: '09-14', payee: 'Hetzner Online', amount: '-38.20', bank: 'HETZNER ONLINE GMBH 38.20', why: 'same amount twice', sev: 'warning' },
+    { id: 1201, date: '09-22', payee: 'Cafe Neko', amount: '-6.40', bank: '', why: 'no bank line', sev: 'error' },
+  ],
+  done: [],
+};
+function ledgerFrame() { return document.querySelector('#guihost iframe[data-gui="ledger"]'); }
+function toLedgerGui() {
+  const f = ledgerFrame();
+  wire('put', 'gui.push', `ledger -> its GUI: state (${ledger.open.length} need you, ${ledger.matched} matched)`);
+  f?.contentWindow?.postMessage({ type: 'state', data: ledger }, '*');
+}
+const GUI_TYPES = new Set(['match', 'reject', 'reconcile']);
+function fromLedgerGui(type, data) {
+  wire('acted', 'gui.send', `ledger's GUI -> ledger: ${type}${data && data.entry ? ' ' + data.entry : ''}`);
+  setTimeout(() => {
+    if (type === 'reconcile') {
+      if (ledger.running !== null) return;
+      ledger.running = 0; toLedgerGui();
+      const step = () => {
+        ledger.running = Math.min(1, ledger.running + 0.25);
+        if (ledger.running >= 1) { ledger.running = null; ledger.lastRun = hhmm(Date.now()); notify('ledger', 'success', 'Reconciliation finished', `${ledger.matched} matched, ${ledger.open.length} need you`); render(); }
+        toLedgerGui();
+        if (ledger.running !== null) setTimeout(step, 500);
+      };
+      setTimeout(step, 500);
+      return;
+    }
+    const i = ledger.open.findIndex((x) => x.id === data.entry);
+    if (i < 0) return; // already decided, or never open: nothing changes
+    const [e] = ledger.open.splice(i, 1);
+    if (type === 'match') { ledger.matched++; ledger.done.unshift({ id: e.id, at: hhmm(Date.now()), what: 'matched', sev: 'success' }); }
+    else ledger.done.unshift({ id: e.id, at: hhmm(Date.now()), what: 'not a match, kept open in the books', sev: 'info' });
+    notify('ledger', 'info', `Entry ${e.id} ${type === 'match' ? 'matched' : 'marked not a match'}`, 'from its GUI');
+    toLedgerGui();
+    render();
+  }, 450);
+}
+// What a GUI sends is checked before it reaches its program: the frame it
+// came from, a known type, and an entry that is a number.
+window.addEventListener('message', (e) => {
+  const f = ledgerFrame();
+  if (!f || e.source !== f.contentWindow) return;
+  const m = e.data;
+  if (!m || m.rig !== 'gui' || !GUI_TYPES.has(m.type)) { wire('refused', 'gui.send', 'ledger\'s GUI sent something rig does not carry; dropped'); return; }
+  if (m.type !== 'reconcile' && !Number.isInteger(m.data?.entry)) { wire('refused', 'gui.send', 'ledger\'s GUI: entry is not a number; dropped'); return; }
+  fromLedgerGui(m.type, m.type === 'reconcile' ? {} : { entry: m.data.entry });
+});
+
 function acted(card, action) {
   wire('acted', 'panel.acted', `-> ${card.from} {card: ${card.id}, action: ${action}}`);
   toast(`Sent "${action}" to ${card.from}. It answers by updating the card.`);
@@ -207,7 +283,7 @@ const SCRIPT = [
   () => { ids.ask = put('beacon-seat', { title: 'Which board font?', status: 'waiting', severity: 'warning', body: 'Two options drawn in the pane. Pick one so I can carry on.', actions: ['Reply', 'Open pane'] }); },
   () => { put('storeworker', { progress: 0.35 }, ids.sw); },
   () => { put('rig-lead', { status: 'running', progress: 0.5, busy: false, body: 'Supervisor half done; 1 of 2 tests red as expected.' }, ids.plan); },
-  () => { ids.led = put('ledger', { title: 'Reconciliation finished', status: 'done', severity: 'success', body: '412 entries matched, 3 need a look.', facts: [{ label: 'matched', value: '412' }, { label: 'open', value: '3' }], actions: ['Review'] }); requestTab('ledger', '3 entries need you'); notify('ledger', 'success', 'Reconciliation finished', '3 entries need you'); },
+  () => { ids.led = put('ledger', { title: 'Reconciliation finished', status: 'done', severity: 'success', body: '412 entries matched, 3 need a look.', facts: [{ label: 'matched', value: '412' }, { label: 'open', value: '3' }], actions: ['Review'] }); ledger.lastRun = hhmm(Date.now()); toLedgerGui(); requestTab('ledger', '3 entries need you'); notify('ledger', 'success', 'Reconciliation finished', '3 entries need you'); },
   () => { put('storeworker', { progress: 0.62 }, ids.sw); },
   () => { ids.ci = put('rig-lead', { title: 'make ci', status: 'failed', severity: 'error', body: 'wire golden: Program gained two fields. Re-record with -update.', actions: ['Retry', 'Open log'] }); notify('rig-lead', 'error', 'make ci failed', 'wire golden: Program gained two fields'); },
   () => { put('storeworker', { progress: 0.88 }, ids.sw); },
@@ -239,6 +315,8 @@ function tick() {
   S.now += 900e3; put('rig-lead', { status: 'done', severity: 'success', progress: 1, body: 'Decision 0265 built and demonstrated.' }, a);
   const b = put('beacon-seat', { title: 'Install path for beacon', status: 'done', severity: 'success', body: '~/.local/lib/rig/apps/beacon' });
   S.now += 600e3; close('beacon-seat', b);
+  ledger.lastRun = hhmm(S.now);
+  registerGui('ledger', 'gui/index.html');
   requestTab('storeworker', 'run 417 needs a retry decision');
   put('storeworker', { title: 'Run 417 failed: disk full', status: 'failed', severity: 'error', body: 'Freed 2 GB since. Retry?', actions: ['Retry'] });
   S.tabs.find((x) => x.id === 'storeworker').open = false;
@@ -296,21 +374,26 @@ function renderTabs() {
   }
   const closed = S.tabs.filter((x) => !x.open);
   bar.append(h('span', { class: 'spacer' }),
-    h('button', { class: 'tool', id: 'reopenBtn', 'aria-haspopup': 'menu', onclick: (e) => openMenu(e) }, svg(ICON.reopen), 'Reopen ', h('b', {}, String(closed.length))),
+    h('button', { class: 'tool', id: 'reopenBtn', 'aria-haspopup': 'menu', onclick: (e) => openMenu(e) }, svg(ICON.reopen), 'Tabs ', h('b', {}, String(closed.length))),
     h('button', { class: 'tool', 'aria-label': S.playing ? 'Pause the simulation' : 'Play the simulation', onclick: () => { S.playing = !S.playing; render(); } }, svg(S.playing ? ICON.pause : ICON.play), S.playing ? 'Live' : 'Paused'),
     h('button', { class: 'tool', 'aria-label': 'One step of the simulation', onclick: tick }, svg(ICON.step), 'Step'),
     h('button', { class: 'tool', 'aria-pressed': String(S.showWire), onclick: () => { S.showWire = !S.showWire; render(); } }, svg(ICON.wire), 'Wire'),
-    h('button', { class: 'tool', onclick: () => openQuestions() }, svg(ICON.q), 'Open questions ', h('b', {}, '3')),
+    h('button', { class: 'tool', onclick: () => openQuestions() }, svg(ICON.q), 'Open questions ', h('b', {}, '5')),
     h('button', { class: 'tool', 'aria-label': 'Switch light and dark', onclick: () => { const r = document.documentElement; r.setAttribute('data-theme', r.getAttribute('data-theme') === 'light' ? 'dark' : 'light'); } }, svg(ICON.sun)));
 }
 
 function openMenu() {
   const m = $('menu');
   const closed = S.tabs.filter((x) => !x.open);
-  m.replaceChildren(h('h5', {}, 'Tabs opened before. Reopen one to see its last state.'),
-    ...(closed.length ? closed.map((t) => h('button', { onclick: () => { t.open = true; t.fresh = false; S.current = t.id; m.hidden = true; render(); } },
-      h('span', {}, t.title), h('span', { class: 'dim' }, t.kind),
-      h('small', {}, `asked ${hhmm(t.asked)}: "${t.reason}"` + (t.closedAt ? `, closed ${hhmm(t.closedAt)}` : '')))) : [h('div', { class: 'none' }, 'None yet. A tab appears here once you close it.')]));
+  const item = (t, note) => h('button', { onclick: () => { m.hidden = true; openTab(t.id); } },
+    h('span', {}, t.title), h('span', { class: 'dim' }, S.guis[t.id] ? 'its GUI' : t.kind), h('small', {}, note));
+  const before = closed.filter((t) => t.asked || t.closedAt);
+  const ready = closed.filter((t) => !t.asked && !t.closedAt && S.guis[t.id]);
+  m.replaceChildren(
+    h('h5', {}, 'Opened before. Reopen one to see its last state.'),
+    ...(before.length ? before.map((t) => item(t, (t.asked ? `asked ${hhmm(t.asked)}: "${t.reason}"` : 'opened by you') + (t.closedAt ? `, closed ${hhmm(t.closedAt)}` : ''))) : [h('div', { class: 'none' }, 'None yet. A tab appears here once you close it.')]),
+    h('h5', {}, 'Registered GUIs, never opened'),
+    ...(ready.length ? ready.map((t) => item(t, `registered ${hhmm(S.guis[t.id].at)}; opens when ${t.title} asks, or now`)) : [h('div', { class: 'none' }, 'None waiting.')]));
   m.hidden = !m.hidden;
   if (!m.hidden) m.querySelector('button')?.focus();
 }
@@ -461,7 +544,7 @@ function inspector(e) {
         h('dt', {}, 'binary'), h('dd', { class: 'mono' }, e.path),
         h('dt', {}, 'identity'), h('dd', { class: 'mono' }, e.binary),
         h('dt', {}, 'declaration'), h('dd', {}, e.read),
-        h('dt', {}, 'own pane'), h('dd', {}, e.pane ? 'yes' : 'no'),
+        h('dt', {}, 'own GUI'), h('dd', {}, S.guis[e.id] ? `registered ${hhmm(S.guis[e.id].at)}, ${S.guis[e.id].entry}` : 'none registered'),
         e.calls !== undefined ? [h('dt', {}, 'calls today'), h('dd', {}, String(e.calls))] : null,
         e.lastExit ? [h('dt', {}, 'last exit'), h('dd', {}, e.lastExit)] : null),
       e.hint ? h('p', { class: 'hint' }, e.hint) : null,
@@ -469,7 +552,7 @@ function inspector(e) {
         e.state === 'down' ? act('Start', `rig up ${e.id}`) : null,
         e.state === 'quarantined' ? act('Restart', `rig restart ${e.id}`) : null,
         e.state === 'healthy' ? act('Stop', `rig stop ${e.id}`) : null,
-        act('Health', `rig health ${e.id}`), act('Describe', `rig describe ${e.id}`), e.pane ? act('Open its pane', `the ${e.id} pane`) : null)),
+        act('Health', `rig health ${e.id}`), act('Describe', `rig describe ${e.id}`), S.guis[e.id] ? h('button', { class: 'act', onclick: () => openTab(e.id) }, 'Open its GUI') : null)),
     h('div', {},
       h('h3', {}, `Commands (${e.commands.length})`),
       h('ul', { class: 'cmds' }, e.commands.map(([c, d]) => h('li', {}, h('span', { class: 'mono' }, `${e.id} ${c}`), h('span', { class: 'dim' }, d))))));
@@ -540,7 +623,34 @@ function renderView() {
   view.replaceChildren();
   const t = S.tabs.find((x) => x.id === S.current && x.open) || S.tabs[0];
   S.current = t.id;
-  if (t.kind === 'main') renderMain(view); else renderTab(view, t);
+  const host = $('guihost');
+  const gui = t.kind !== 'main' && S.guis[t.id];
+  view.classList.toggle('strip', Boolean(gui));
+  host.hidden = !gui;
+  for (const f of host.querySelectorAll('iframe')) f.hidden = f.dataset.gui !== t.id;
+  if (t.kind === 'main') renderMain(view);
+  else if (gui) renderGuiTab(view, host, t);
+  else renderTab(view, t);
+}
+
+// A program's own GUI. The strip above it is rig's; the frame is the
+// program's page in a sandbox, built once and kept, so a redraw of the
+// dashboard never reloads it and closing the tab keeps its last state.
+function renderGuiTab(view, host, t) {
+  const g = S.guis[t.id];
+  const e = estate.find((x) => x.id === t.id);
+  view.append(h('div', { class: 'guihead' },
+    h('h1', {}, e ? e.name : t.title), e ? h('span', { class: 'mono dim' }, e.version) : null,
+    h('span', { class: 'kit' }, `its own GUI, styled by rig.css`),
+    h('span', { class: 'dim' }, t.asked ? `${t.title} asked at ${hhmm(t.asked)}: "${t.reason}"` : `registered ${hhmm(g.at)}, opened by you`)));
+  if (!host.querySelector(`iframe[data-gui="${t.id}"]`)) {
+    const mode = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    const css = rigCss(tokens(DEFAULTS, 'dark'), tokens(DEFAULTS, 'light'));
+    const f = h('iframe', { 'data-gui': t.id, title: `${t.title}'s GUI`, sandbox: 'allow-scripts' });
+    f.srcdoc = guiDoc(css, LEDGER_GUI, mode, ledger);
+    host.append(f);
+    wire('tab', 'gui.open', `${t.title}'s GUI loaded in a sandbox with rig.css`);
+  }
 }
 
 function renderWire() {
@@ -584,6 +694,8 @@ function openQuestions() {
     h('header', {}, h('h3', {}, 'Open questions for you'), h('button', { class: 'iconbtn', 'aria-label': 'Close', onclick: () => { d.hidden = true; } }, svg(ICON.x))),
     h('div', { class: 'body' }, h('ol', { class: 'q' },
       h('li', {}, h('b', {}, 'Tabs and the rail: one place or two?'), 'Programs you pick live in the rail (section 11). This mockup puts tabs a program ASKS for in a strip above the page. Should picking a program in the rail open its tab too, or do the two stay separate?'),
+      h('li', {}, h('b', {}, 'Does registering a GUI open its tab?'), 'Here it does not: registering makes the tab available under Tabs, and it opens when the program asks or when you open it. Ledger works this way.'),
+      h('li', {}, h('b', {}, 'How does a GUI talk to its program?'), 'Here by message through rig (gui.send and gui.push on the wire), not through the board\'s cards. Is a channel of its own right?'),
       h('li', {}, h('b', {}, 'Is the board allowed on the dashboard?'), 'Section 11 rule 20 keeps agent chatter off the dashboard. I read that as the stream of all agent calls, and the board as cards agents write to you on purpose, so both hold. Is that right?'),
       h('li', {}, h('b', {}, 'Where does the board sit?'), 'Here it is on Main, under the programs, with notifications on the right. Is that its place, or should it be a tab of its own?'))));
   d.hidden = false;

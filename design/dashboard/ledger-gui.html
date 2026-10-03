@@ -1,0 +1,78 @@
+<!-- Ledger's own GUI, as the program would ship it (plan/55, requirement
+     12): the content is Ledger's, the look is rig.css. No stylesheet of its
+     own, only rig's classes. It talks to Ledger through rig's bridge. -->
+<main class="rig-page">
+  <header class="rig-row rig-between">
+    <div>
+      <h1 class="rig-h1">Reconciliation</h1>
+      <p class="rig-dim" id="sub">September statement</p>
+    </div>
+    <div class="rig-row">
+      <div class="rig-progress" id="bar" hidden><i id="barFill"></i></div>
+      <button class="rig-btn rig-primary" id="rerun">Reconcile again</button>
+    </div>
+  </header>
+  <section class="rig-figures" id="figs" aria-label="Figures"></section>
+  <section class="rig-card" aria-label="Needs you">
+    <h2 class="rig-h2">Needs you</h2>
+    <table class="rig-table">
+      <thead><tr><th scope="col">Entry</th><th scope="col">Date</th><th scope="col">Payee</th><th scope="col" class="rig-num">Amount</th><th scope="col">Bank line</th><th scope="col">Why</th><th scope="col"></th></tr></thead>
+      <tbody id="open"></tbody>
+    </table>
+  </section>
+  <section class="rig-card" aria-label="Decided here">
+    <h2 class="rig-h2">Decided here</h2>
+    <ol class="rig-list" id="done"></ol>
+  </section>
+</main>
+<script>
+(function () {
+  var pending = {};
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
+  function btn(label, primary, onclick) { var b = el('button', 'rig-btn' + (primary ? ' rig-primary' : ''), label); b.onclick = onclick; return b; }
+
+  function draw(s) {
+    document.getElementById('sub').textContent = s.statement;
+    var figs = document.getElementById('figs');
+    figs.replaceChildren();
+    [['matched', s.matched], ['need you', s.open.length], ['entries', s.entries], ['last run', s.lastRun]].forEach(function (f) {
+      var d = el('div', 'rig-fig'); d.append(el('b', '', String(f[1])), el('span', '', f[0])); figs.append(d);
+    });
+    var body = document.getElementById('open');
+    body.replaceChildren();
+    if (!s.open.length) { var tr = el('tr'); var td = el('td', 'rig-empty', 'Nothing needs you.'); td.colSpan = 7; tr.append(td); body.append(tr); }
+    s.open.forEach(function (e) {
+      var tr = el('tr');
+      var why = el('span', 'rig-badge', e.why); why.dataset.sev = e.sev;
+      var acts = el('td'); var row = el('div', 'rig-row');
+      var busy = pending[e.id];
+      var a = btn('Match', true, function () { pending[e.id] = true; rig.send('match', { entry: e.id }); draw(s); });
+      var b = btn('Not a match', false, function () { pending[e.id] = true; rig.send('reject', { entry: e.id }); draw(s); });
+      a.disabled = b.disabled = !!busy || !e.bank;
+      if (!e.bank) a.title = 'no bank line to match';
+      b.disabled = !!busy;
+      row.append(a, b); acts.append(row);
+      var cells = [el('td', 'rig-mono', String(e.id)), el('td', 'rig-mono', e.date), el('td', '', e.payee), el('td', 'rig-num rig-mono', e.amount), el('td', 'rig-mono', e.bank || 'none found')];
+      tr.append.apply(tr, cells.concat([el('td'), acts]));
+      tr.children[5].append(why);
+      body.append(tr);
+    });
+    var done = document.getElementById('done');
+    done.replaceChildren();
+    if (!s.done.length) done.append(el('li', 'rig-empty', 'Nothing decided here yet.'));
+    s.done.forEach(function (d) {
+      var li = el('li'); var t = el('span', 'rig-badge', d.what); t.dataset.sev = d.sev;
+      li.append(el('span', 'rig-mono rig-dim', d.at), el('span', 'rig-mono', String(d.id)), t); done.append(li);
+    });
+    var run = document.getElementById('rerun'), bar = document.getElementById('bar');
+    run.disabled = s.running !== null;
+    run.textContent = s.running !== null ? 'Reconciling' : 'Reconcile again';
+    bar.hidden = s.running === null;
+    document.getElementById('barFill').style.width = Math.round((s.running || 0) * 100) + '%';
+  }
+
+  document.getElementById('rerun').onclick = function () { rig.send('reconcile', {}); };
+  rig.on('state', function (s) { pending = {}; draw(s); });
+  if (window.RIG_SEED) draw(window.RIG_SEED);
+})();
+</script>

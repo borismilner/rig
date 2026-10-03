@@ -80,6 +80,15 @@ registering opens the tab, or only lets it be opened, is not yet ruled.
 How the GUI and rig talk both ways (the board's `rig.panel.put` and
 `panel.acted`, or a channel of its own) is also open.
 
+**What the mockup proposes for these (the lead's, not yet his):** Ledger
+registers a GUI (`rig.gui.register`), which makes its tab available under
+Tabs without opening it. Its page runs in a sandboxed frame with rig.css
+and a bridge (`rig.send`, `rig.on`) and nothing else, so it carries no
+stylesheet of its own. It talks to its program by message through rig
+(`gui.send` and `gui.push`), not through board cards. rig checks each
+message (its frame, a known type, typed fields) and drops the rest.
+Sources: `design/dashboard/rig-kit.js`, `ledger-gui.html`.
+
 ### The write path he approved (requirement 2), as the beacon seat put it to him
 
 - `rig.panel.put {card?, fields}` adds a card, or changes the one named.
