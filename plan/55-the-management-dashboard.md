@@ -328,7 +328,7 @@ exercised in the real window before the next starts.
 | **4** | **Capabilities** (28): every verb from `describe`, with Try it | no |
 | **5** | **Program settings** (20, 34): §47's program layers, and the schema's control annotation (33) | yes |
 | **6** | **Registered GUIs** (10 to 13, 15, 21): `gui.register`, rig.css, the per-program wire | yes |
-| **7** | **Guidelines** (29): published, dated, and checked against each program | no |
+| **7** | **Guidelines** (29): published, dated, and checked against each program. Ruled 2026-10-03 (decision 0266): one dated file in the repo, embedded in rigd and served by a read-only `rig.guidelines`; a program's age is the commit date in its binary's Go build info, "unknown" without one | yes, `rig.guidelines` |
 
 ### Slice 1 as built (2026-10-03)
 
@@ -376,6 +376,30 @@ and 8 program commands listed, 29 verbs with no declared effects (drawn as "effe
 not declared" and confirmed like a write). **Not exercised:** the Wails
 bridge in the running window, and a successful write (an unnamed estate
 refuses them).
+
+### Slice 7 as built (2026-10-03)
+
+| Part | As built |
+|---|---|
+| Rules | `internal/guidelines/guidelines.json`, eight rules, each date checked against git (the mockup had A2 a day late). Served by `rig.guidelines` and the MCP `guidelines` tool, read-only |
+| Build day | rigd reads `vcs.time` and `vcs.modified` from each program binary's Go build info; never runs it. No build info, or no binary rig knows, reads unknown with the reason |
+| Main | the Programs table's Guidelines column says current, N newer or unknown; the word opens the Guidelines GUI with that program's rules marked |
+| GUI | programs against the guidelines, then the rules newest first, each naming the programs built before it |
+
+**What counts:** a rule for programs, built, and dated after the build day.
+A rule dated the build day is not counted (a day cannot say which came
+first), and a rule only ruled cannot be met yet.
+
+**rigd grew 610 KB** (3.1%) for `debug/buildinfo`'s object-file readers,
+recorded in 8272979.
+
+**Exercised:** against a scratch `rigd`, over MCP and over the control
+socket the window uses: eight rules, and greeter's and lantern's commit
+times match `go version -m`. Against production (read-only), the old daemon
+answers NOT_FOUND, which the window words as "older than rig.guidelines".
+**Not exercised:** the Wails bridge in the running window, and a program
+with no build info on a live daemon (unit-tested only). **Not built:** the
+card's Overview does not show the standing, which the mockup does.
 
 ### ⛔ Two tensions with §11, for Boris, not for a seat
 
