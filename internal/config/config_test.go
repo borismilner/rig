@@ -35,6 +35,7 @@ func TestRigsSchemaDeclaresItsKeys(t *testing.T) {
 		names = append(names, k.Name+" "+k.Env+" "+k.Flag+" "+k.Apply)
 	}
 	want := []string{
+		"dashboard.notifications.keep.days RIG_DASHBOARD_NOTIFICATIONS_KEEP_DAYS dashboard-notifications-keep-days live",
 		"display.name RIG_DISPLAY_NAME display-name live", "log.level RIG_LOG_LEVEL log-level live",
 		"logs.archive.days RIG_LOGS_ARCHIVE_DAYS logs-archive-days restart",
 		"logs.buffer.bytes RIG_LOGS_BUFFER_BYTES logs-buffer-bytes restart",

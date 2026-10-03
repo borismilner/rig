@@ -351,6 +351,150 @@ export class Health {
 }
 
 /**
+ * Note is one notification, and its answer when it has one.
+ */
+export class Note {
+    "id": string;
+    "severity": string;
+    "title": string;
+    "body": string;
+    "sender": string;
+
+    /**
+     * At is RFC 3339, the moment rig filed it.
+     */
+    "at": string;
+    "suppressed": boolean;
+
+    /**
+     * Replies are the options it offered; ReplyText says it takes free text.
+     */
+    "replies": string[];
+    "replyText": boolean;
+    "asks": boolean;
+
+    /**
+     * Waiting is true while the program is still waiting for the answer.
+     * An ask with no answer whose question rig no longer holds (the daemon
+     * restarted since) is not waiting, and Forgotten says so.
+     */
+    "waiting": boolean;
+    "forgotten": boolean;
+    "answer": Reply | null;
+
+    /** Creates a new Note instance. */
+    constructor($$source: Partial<Note> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("severity" in $$source)) {
+            this["severity"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+        if (!("body" in $$source)) {
+            this["body"] = "";
+        }
+        if (!("sender" in $$source)) {
+            this["sender"] = "";
+        }
+        if (!("at" in $$source)) {
+            this["at"] = "";
+        }
+        if (!("suppressed" in $$source)) {
+            this["suppressed"] = false;
+        }
+        if (!("replies" in $$source)) {
+            this["replies"] = [];
+        }
+        if (!("replyText" in $$source)) {
+            this["replyText"] = false;
+        }
+        if (!("asks" in $$source)) {
+            this["asks"] = false;
+        }
+        if (!("waiting" in $$source)) {
+            this["waiting"] = false;
+        }
+        if (!("forgotten" in $$source)) {
+            this["forgotten"] = false;
+        }
+        if (!("answer" in $$source)) {
+            this["answer"] = null;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Note instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Note {
+        const $$createField7_0 = $$createType4;
+        const $$createField12_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("replies" in $$parsedSource) {
+            $$parsedSource["replies"] = $$createField7_0($$parsedSource["replies"]);
+        }
+        if ("answer" in $$parsedSource) {
+            $$parsedSource["answer"] = $$createField12_0($$parsedSource["answer"]);
+        }
+        return new Note($$parsedSource as Partial<Note>);
+    }
+}
+
+/**
+ * NoteList is the panel's whole answer.
+ */
+export class NoteList {
+    "notes": Note[];
+
+    /**
+     * KeepDays is the age in force, and KeepFrom where it came from:
+     * a config layer, or "default".
+     */
+    "keepDays": number;
+    "keepFrom": string;
+
+    /**
+     * Evicted counts the notifications older than KeepDays. They stay in
+     * the record; only the panel lets them go.
+     */
+    "evicted": number;
+
+    /** Creates a new NoteList instance. */
+    constructor($$source: Partial<NoteList> = {}) {
+        if (!("notes" in $$source)) {
+            this["notes"] = [];
+        }
+        if (!("keepDays" in $$source)) {
+            this["keepDays"] = 0;
+        }
+        if (!("keepFrom" in $$source)) {
+            this["keepFrom"] = "";
+        }
+        if (!("evicted" in $$source)) {
+            this["evicted"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new NoteList instance from a string or object.
+     */
+    static createFrom($$source: any = {}): NoteList {
+        const $$createField0_0 = $$createType8;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("notes" in $$parsedSource) {
+            $$parsedSource["notes"] = $$createField0_0($$parsedSource["notes"]);
+        }
+        return new NoteList($$parsedSource as Partial<NoteList>);
+    }
+}
+
+/**
  * Program is one registered program, flattened for the rail.
  * 
  * Deliberately NOT here: an identity hue. Section 11 gives a program one
@@ -459,7 +603,7 @@ export class Program {
     static createFrom($$source: any = {}): Program {
         const $$createField7_0 = $$createType4;
         const $$createField15_0 = $$createType4;
-        const $$createField16_0 = $$createType6;
+        const $$createField16_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("services" in $$parsedSource) {
             $$parsedSource["services"] = $$createField7_0($$parsedSource["services"]);
@@ -516,6 +660,46 @@ export class ProgramBuild {
     static createFrom($$source: any = {}): ProgramBuild {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ProgramBuild($$parsedSource as Partial<ProgramBuild>);
+    }
+}
+
+/**
+ * Reply is how a notification was answered.
+ */
+export class Reply {
+    "reply": string;
+    "text": string;
+    "dismissed": boolean;
+    "by": string;
+    "at": string;
+
+    /** Creates a new Reply instance. */
+    constructor($$source: Partial<Reply> = {}) {
+        if (!("reply" in $$source)) {
+            this["reply"] = "";
+        }
+        if (!("text" in $$source)) {
+            this["text"] = "";
+        }
+        if (!("dismissed" in $$source)) {
+            this["dismissed"] = false;
+        }
+        if (!("by" in $$source)) {
+            this["by"] = "";
+        }
+        if (!("at" in $$source)) {
+            this["at"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Reply instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Reply {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Reply($$parsedSource as Partial<Reply>);
     }
 }
 
@@ -624,5 +808,9 @@ const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = ProgramBuild.createFrom;
 const $$createType3 = $Create.Array($$createType2);
 const $$createType4 = $Create.Array($Create.Any);
-const $$createType5 = Command.createFrom;
-const $$createType6 = $Create.Array($$createType5);
+const $$createType5 = Reply.createFrom;
+const $$createType6 = $Create.Nullable($$createType5);
+const $$createType7 = Note.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = Command.createFrom;
+const $$createType10 = $Create.Array($$createType9);

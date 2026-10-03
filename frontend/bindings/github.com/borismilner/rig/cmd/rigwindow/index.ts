@@ -13,8 +13,11 @@ export {
     Guideline,
     Guidelines,
     Health,
+    Note,
+    NoteList,
     Program,
     ProgramBuild,
+    Reply,
     Running,
     TryResult
 } from "./models.js";

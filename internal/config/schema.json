@@ -155,6 +155,32 @@
         }
       }
     },
+    "dashboard": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "notifications": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "keep": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "days": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3650,
+                  "default": 7,
+                  "x-rig-apply": "live",
+                  "description": "notifications older than this leave the dashboard's panel; they stay in the record (plan/55 requirement 8)"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "display": {
       "type": "object",
       "additionalProperties": false,

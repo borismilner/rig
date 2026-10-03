@@ -158,6 +158,10 @@ func runWindow() error {
 	// In front, not merely on screen: this process exists because he clicked.
 	win.Focus()
 
+	// Requirement 7: a notification lands in the panel as it is filed.
+	setEmit(func() { app.Event.Emit(notesEvent) })
+	go watchNotes()
+
 	// No WindowClosing hook. The old one cancelled the close and hid the
 	// window so the tray in this process would survive; the tray is now the
 	// parent process, so the default listener - destroy, and quit on the last
