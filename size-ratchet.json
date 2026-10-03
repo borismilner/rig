@@ -10,20 +10,20 @@
       "recorded": "2026-10-01T18:25:00Z"
     },
     "lantern": {
-      "bytes": 9777415,
-      "recorded": "2026-10-01T18:25:00Z"
+      "bytes": 9781511,
+      "recorded": "2026-10-03T07:09:48Z"
     },
     "ledger": {
       "bytes": 10166535,
       "recorded": "2026-10-01T18:25:00Z"
     },
     "rig": {
-      "bytes": 8356103,
-      "recorded": "2026-10-02T19:37:36Z"
+      "bytes": 8368391,
+      "recorded": "2026-10-03T07:09:48Z"
     },
     "rigd": {
-      "bytes": 19439879,
-      "recorded": "2026-10-02T19:37:36Z"
+      "bytes": 19484935,
+      "recorded": "2026-10-03T07:09:48Z"
     },
     "rigwindow": {
       "bytes": 15024832,
