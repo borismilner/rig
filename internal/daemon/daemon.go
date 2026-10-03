@@ -438,9 +438,12 @@ func New(cfg Config) (*Daemon, error) {
 		keptDir:   cfg.Declarations,
 		scanDirs:  cfg.Scan,
 		overrides: cfg.Overrides,
-		oncall:    onCallState{kept: map[string]string{}, reading: map[string]string{}},
-		audio:     cfg.Audio,
-		hand:      newHandDesk(time.Now),
+		oncall: onCallState{
+			kept: map[string]string{}, reading: map[string]read{},
+			helloOf: map[string]*conn{}, stale: map[string]bool{},
+		},
+		audio: cfg.Audio,
+		hand:  newHandDesk(time.Now),
 
 		settings:     cfg.Settings,
 		logLevel:     cfg.LogLevel,
@@ -1021,6 +1024,8 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 		for _, p := range estate {
 			w := programToWire(p)
 			w.AtRest = d.atRest(p.Identity.ID)
+			w.Down = d.down(p.Identity.ID)
+			w.Stale = d.stale(p.Identity.ID)
 			resp.Programs = append(resp.Programs, w)
 		}
 		c.reply(f.GetStreamId(), &resp)

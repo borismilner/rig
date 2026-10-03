@@ -21,7 +21,8 @@ import (
 // Section 54: a program started when it is called. The supervisor holds its
 // state and starts it; this file keeps its declaration while it is down, so
 // it is listed and called as though it were running, and starts it inside
-// the call that needs it.
+// the call that needs it. A resident's declaration is kept the same way, so
+// it is listed while down, and a call to it is told why it is not answered.
 
 // onCallState is what the daemon knows about its on-call programs' kept
 // declarations. Its own lock: it is read on every call to one of them.
@@ -29,15 +30,29 @@ type onCallState struct {
 	mu sync.Mutex
 	// kept is the binary identity each kept declaration was read from.
 	kept map[string]string
-	// reading is the binary identity a declare run is reading now, so one
-	// identity is read once, and a binary that fails to start is not
-	// relaunched by every listing.
-	reading map[string]string
+	// reading is the binary identity a run is reading now, so one identity
+	// is read once, and a binary that fails to start is not relaunched by
+	// every listing.
+	reading map[string]read
+	// helloOf is the connection whose hello was kept, so a scan never takes
+	// a program that registered a moment ago, its hello not yet kept, for
+	// one running an old binary.
+	helloOf map[string]*conn
+	// stale is a quarantined resident whose binary changed: what is listed
+	// was read from the binary before.
+	stale map[string]bool
 
 	// scanning is a background scan under way, and again that another was
 	// asked for meanwhile, so a burst of listings costs at most two scans.
 	scanning bool
 	again    bool
+}
+
+// read is one run reading a binary's declaration. A declare run is stopped
+// once its hello is kept; a reload of a running resident stays up.
+type read struct {
+	bin     string
+	declare bool
 }
 
 // binaryID is a binary's identity: device, inode, size and modification
@@ -65,15 +80,23 @@ func (d *Daemon) keptPath(id string) string {
 }
 
 // kept is one kept declaration: the hello, the binary it was read from, and
-// that binary's identity when it was.
+// that binary's identity when it was. scanned is whether a scan found it,
+// which is what rigd may declare again from the file alone: a programs.json
+// row taken out must not be started by what was kept for it.
 type kept struct {
-	hello *rigv1.HelloRequest
-	bin   string
-	path  string
+	hello   *rigv1.HelloRequest
+	bin     string
+	path    string
+	scanned bool
 }
 
+// keptFromConfig is the origin field of a kept file whose program a
+// programs.json row declared. A file with none predates the field, when
+// only scanned and on-call programs were kept.
+const keptFromConfig = "config"
+
 // readKept reads the kept file at file. Its first line is the binary's
-// identity and path, tab-separated; the rest is the hello.
+// identity, its path and its origin, tab-separated; the rest is the hello.
 func readKept(file string) (kept, bool) {
 	b, err := os.ReadFile(file)
 	if err != nil {
@@ -84,7 +107,10 @@ func readKept(file string) (kept, bool) {
 		return kept{}, false
 	}
 	var k kept
+	var origin string
 	k.bin, k.path, _ = strings.Cut(head, "\t")
+	k.path, origin, _ = strings.Cut(k.path, "\t")
+	k.scanned = origin != keptFromConfig
 	k.hello = &rigv1.HelloRequest{}
 	if err := proto.Unmarshal([]byte(body), k.hello); err != nil {
 		return kept{}, false
@@ -92,22 +118,9 @@ func readKept(file string) (kept, bool) {
 	return k, true
 }
 
-// loadKept answers the kept hello for id if it was read from this binary.
-func (d *Daemon) loadKept(id, bin string) (*rigv1.HelloRequest, bool) {
-	path := d.keptPath(id)
-	if path == "" {
-		return nil, false
-	}
-	k, ok := readKept(path)
-	if !ok || k.bin != bin {
-		return nil, false
-	}
-	return k.hello, true
-}
-
 // saveKept writes the hello, behind the identity it was read from, through a
 // temporary file so a reader never sees half of one.
-func (d *Daemon) saveKept(id, bin, binPath string, req *rigv1.HelloRequest) error {
+func (d *Daemon) saveKept(id, bin string, spec supervise.Spec, req *rigv1.HelloRequest) error {
 	path := d.keptPath(id)
 	if path == "" {
 		return nil
@@ -120,7 +133,12 @@ func (d *Daemon) saveKept(id, bin, binPath string, req *rigv1.HelloRequest) erro
 		return err
 	}
 	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, append([]byte(bin+"\t"+binPath+"\n"), body...), 0o600); err != nil {
+	origin := "scan"
+	if !spec.Scanned {
+		origin = keptFromConfig
+	}
+	head := bin + "\t" + spec.Path + "\t" + origin + "\n"
+	if err := os.WriteFile(tmp, append([]byte(head), body...), 0o600); err != nil {
 		return err
 	}
 	return os.Rename(tmp, path)
@@ -156,7 +174,7 @@ func (d *Daemon) adoptKept() {
 			continue // programs.json declares it; refreshKept reads its file
 		}
 		k, ok := readKept(filepath.Join(d.keptDir, e.Name()))
-		if !ok || k.path == "" {
+		if !ok || k.path == "" || !k.scanned {
 			continue
 		}
 		spec, _ := supervise.Merge(d.overridesFor(id), map[string]string{id: k.path})
@@ -185,8 +203,9 @@ func (d *Daemon) overridesFor(id string) []supervise.Spec {
 }
 
 // applyLoad puts a program in the mode its declaration asks for, unless
-// programs.json set one: on call is kept and put at rest; resident is
-// started, or left running when a declare run found it (decision 0265).
+// programs.json set one: on call is put at rest; resident is started, or
+// left running when a declare run found it (decision 0265). Either way its
+// declaration is listed while it is down.
 func (d *Daemon) applyLoad(id string, decl kernel.Declaration) {
 	spec, ok := d.super.Spec(id)
 	if !ok {
@@ -197,16 +216,16 @@ func (d *Daemon) applyLoad(id string, decl kernel.Declaration) {
 		onCall = decl.Load.OnCall()
 		_ = d.super.SetLoad(id, onCall)
 	}
+	if d.kernel.Rest(decl) != nil {
+		return
+	}
 	if !onCall {
-		d.kernel.Unrest(id)
 		if !d.connected(id) {
 			_, _ = d.super.Up(id)
 		}
 		return
 	}
-	if d.kernel.Rest(decl) == nil {
-		d.restIfDown(id)
-	}
+	d.restIfDown(id)
 }
 
 // rescan asks for a background scan and returns at once: the scan never
@@ -303,50 +322,131 @@ func (d *Daemon) forget(id string) {
 	d.oncall.mu.Lock()
 	delete(d.oncall.kept, id)
 	delete(d.oncall.reading, id)
+	delete(d.oncall.helloOf, id)
+	delete(d.oncall.stale, id)
 	d.oncall.mu.Unlock()
 	d.log.Info("program removed: its binary is gone", "program", id)
 }
 
 // refreshKept makes sure id's kept declaration was read from the binary on
-// disk now: kept as it is, loaded from the file, or read by a declare run.
+// disk now: kept as it is, loaded from the file, or read by running it.
 // One stat when nothing changed.
 func (d *Daemon) refreshKept(id string) {
-	spec, ok := d.onCallSpec(id)
-	if !ok {
+	spec, ok := d.super.Spec(id)
+	if !ok || spec.Path == "" {
 		return
 	}
 	bin, err := binaryID(spec.Path)
 	if err != nil {
 		// The binary is gone. What was kept stays listed; a call will start
 		// nothing and say why.
-		d.restIfDown(id)
+		if spec.OnCall {
+			d.restIfDown(id)
+		}
 		return
 	}
 	d.oncall.mu.Lock()
 	switch {
-	case d.oncall.kept[id] == bin, d.oncall.reading[id] == bin:
+	case d.oncall.kept[id] == bin, d.oncall.reading[id].bin == bin:
 		d.oncall.mu.Unlock()
 		return
 	}
 	d.oncall.mu.Unlock()
 
-	if req, ok := d.loadKept(id, bin); ok {
-		if decl, err := declarationFromWire(req); err == nil && d.kernel.Rest(decl) == nil {
+	k, had := d.readKeptFile(id)
+	if had && k.bin == bin {
+		if decl, err := declarationFromWire(k.hello); err == nil && d.kernel.Rest(decl) == nil {
 			d.oncall.mu.Lock()
 			d.oncall.kept[id] = bin
+			delete(d.oncall.stale, id)
 			d.oncall.mu.Unlock()
-			d.restIfDown(id)
+			if spec.OnCall {
+				d.restIfDown(id)
+			}
 			return
 		}
+	}
+	if !spec.OnCall {
+		d.rereadResident(id, bin, k, had)
+		return
 	}
 	if d.connected(id) {
 		// Its next hello is read from whatever binary it is.
 		return
 	}
+	d.reread(id, spec, read{bin: bin, declare: true})
+}
+
+// readKeptFile is id's kept file, whichever binary it was read from.
+func (d *Daemon) readKeptFile(id string) (kept, bool) {
+	path := d.keptPath(id)
+	if path == "" {
+		return kept{}, false
+	}
+	return readKept(path)
+}
+
+// rereadResident is a resident whose binary is not the one its kept
+// declaration was read from (plan/54, closing the two gaps). Running, it is
+// restarted on the new binary; stopped, it is run once to read it; while
+// it restarts on its own, its next hello reads it; quarantined, it waits
+// for a human and is listed stale. A resident never kept and not running is
+// left alone: it is listed from its first run.
+func (d *Daemon) rereadResident(id, bin string, k kept, had bool) {
+	if had {
+		// What it declared before stays listed until the new one is read.
+		if decl, err := declarationFromWire(k.hello); err == nil {
+			_ = d.kernel.Rest(decl)
+		}
+	}
+	spec, _ := d.super.Spec(id)
+	d.mu.RLock()
+	running := d.programs[id]
+	d.mu.RUnlock()
+	if running != nil {
+		d.oncall.mu.Lock()
+		ours := d.oncall.helloOf[id] == running && d.oncall.kept[id] != ""
+		d.oncall.mu.Unlock()
+		if ours {
+			// Its hello was kept, from another binary: restart it.
+			d.reread(id, spec, read{bin: bin})
+		}
+		return
+	}
+	st, err := d.super.Health(id)
+	if err != nil || len(st) != 1 {
+		return
+	}
+	switch st[0].State {
+	case supervise.StateQuarantined:
+		if had {
+			d.oncall.mu.Lock()
+			d.oncall.stale[id] = true
+			d.oncall.mu.Unlock()
+		}
+	case supervise.StateUnspecified:
+		if had {
+			d.reread(id, spec, read{bin: bin, declare: true})
+		}
+	default:
+		// Starting or restarting: its own hello is read.
+	}
+}
+
+// reread runs id to read its binary: a declare run starts it, and a reload
+// restarts the running one.
+func (d *Daemon) reread(id string, spec supervise.Spec, r read) {
 	d.oncall.mu.Lock()
-	d.oncall.reading[id] = bin
+	d.oncall.reading[id] = r
 	d.oncall.mu.Unlock()
-	d.log.Info("reading an on-call program's declaration", "program", id, "binary", spec.Path)
+	if !r.declare {
+		d.log.Info("restarting a program: its binary changed", "program", id, "binary", spec.Path)
+		if err := d.super.Reload(id); err != nil {
+			d.log.Warn("the restart did not happen", "program", id, "err", err)
+		}
+		return
+	}
+	d.log.Info("reading a program's declaration", "program", id, "binary", spec.Path)
 	if _, err := d.super.Up(id); err != nil {
 		d.log.Warn("the declare run did not start", "program", id, "err", err)
 	}
@@ -368,28 +468,31 @@ func (d *Daemon) connected(id string) bool {
 	return ok
 }
 
-// keptHello is an on-call program's hello: its declaration is kept, whether
-// this start was a declare run or a call, and a declare run ends here.
+// keptHello is a supervised program's hello: its declaration is kept,
+// whether this start was a declare run, a call or a resident's run, and a
+// declare run ends here.
 func (d *Daemon) keptHello(c *conn, req *rigv1.HelloRequest, decl kernel.Declaration) {
 	id, ok := d.supervisedChild(c)
 	if !ok {
 		return
 	}
 	spec, ok := d.super.Spec(id)
-	if !ok || (!spec.OnCall && !spec.Scanned) {
+	if !ok {
 		return
 	}
 	bin, err := binaryID(spec.Path)
 	if err == nil {
-		err = d.saveKept(id, bin, spec.Path, req)
+		err = d.saveKept(id, bin, spec, req)
 	}
 	if err != nil {
 		d.log.Warn("a program's declaration was not kept on disk", "program", id, "err", err)
 	}
 	d.oncall.mu.Lock()
 	d.oncall.kept[id] = bin
-	declareRun := d.oncall.reading[id] != ""
+	d.oncall.helloOf[id] = c
+	declareRun := d.oncall.reading[id].declare
 	delete(d.oncall.reading, id)
+	delete(d.oncall.stale, id)
 	d.oncall.mu.Unlock()
 
 	onCall := spec.OnCall
@@ -397,18 +500,23 @@ func (d *Daemon) keptHello(c *conn, req *rigv1.HelloRequest, decl kernel.Declara
 		onCall = decl.Load.OnCall()
 		_ = d.super.SetLoad(id, onCall)
 	}
-	if !onCall {
-		// Resident: this run is its first, and it stays up.
-		d.kernel.Unrest(id)
-		return
-	}
 	if err := d.kernel.Rest(decl); err != nil {
-		d.log.Warn("an on-call program's declaration was not kept", "program", id, "err", err)
+		d.log.Warn("a program's declaration was not kept", "program", id, "err", err)
 		return
 	}
-	if declareRun {
+	if !declareRun {
+		return
+	}
+	if onCall {
 		// Stopped unless a call came for it meanwhile.
 		_ = d.super.Rest(id)
+		return
+	}
+	// A resident run only to read it. One a scan found was held on call
+	// until now, so this run is its start and stays up; one that was
+	// already resident was stopped, and a human's stop stands.
+	if !spec.OnCall {
+		_ = d.super.EndRead(id)
 	}
 }
 
@@ -419,7 +527,7 @@ func (d *Daemon) keptHello(c *conn, req *rigv1.HelloRequest, decl kernel.Declara
 func (d *Daemon) startOnCall(ctx context.Context, program string) (done func(), bad *callFailure) {
 	spec, ok := d.onCallSpec(program)
 	if !ok {
-		return func() {}, nil
+		return func() {}, d.downFailure(program)
 	}
 	d.refreshKept(program)
 	ready, done, err := d.super.Call(program)
@@ -471,6 +579,52 @@ func (d *Daemon) startOnCall(ctx context.Context, program string) (done func(), 
 		}
 	}
 	return nil, &callFailure{status: st}
+}
+
+// downFailure is the answer to a call to a resident that is down, nil for
+// any other program: a call never starts a resident, so it says why it is
+// down and what starts it (plan/54, closing the two gaps).
+func (d *Daemon) downFailure(program string) *callFailure {
+	if !d.down(program) {
+		return nil
+	}
+	st := &rigv1.Status{
+		Code:         rigv1.Code_CODE_UNAVAILABLE,
+		Message:      program + " is not running, and a call does not start a resident program",
+		Precondition: "the program is running",
+		Fix:          "start it",
+		FixCommand:   "rig up " + program,
+	}
+	if h, err := d.super.Health(program); err == nil && len(h) == 1 {
+		switch h[0].State {
+		case supervise.StateUnspecified:
+			st.Actual = "it is stopped"
+		case supervise.StateQuarantined:
+			st.Actual = "it is quarantined"
+			st.Fix, st.FixCommand = "read why, then restart it by hand", "rig restart "+program
+		default:
+			st.Actual = "it is " + h[0].State.String()
+			st.Fix, st.FixCommand = "wait for it, or read its health", "rig health "+program
+		}
+	}
+	return &callFailure{status: st}
+}
+
+// down says a listed program is a supervised resident with no process
+// behind it: what is listed is its kept declaration.
+func (d *Daemon) down(id string) bool {
+	if d.super == nil {
+		return false
+	}
+	spec, ok := d.super.Spec(id)
+	return ok && !spec.OnCall && !d.connected(id)
+}
+
+// stale says what is listed for id was read from a binary since changed.
+func (d *Daemon) stale(id string) bool {
+	d.oncall.mu.Lock()
+	defer d.oncall.mu.Unlock()
+	return d.oncall.stale[id]
 }
 
 // atRest says a listed program is an on-call one with no process behind it.

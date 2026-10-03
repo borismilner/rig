@@ -244,20 +244,6 @@ func TestACallStartsAnOnCallProgramAndIsAnswered(t *testing.T) {
 	}
 }
 
-// The red control for the test above: the same daemon without on_call has
-// no stub to route to once it has exited.
-func TestWithoutOnCallAStoppedProgramIsNotFound(t *testing.T) {
-	r := upOnCall(t, false)
-	r.settle(t, verbsv1.ProgramState_PROGRAM_STATE_HEALTHY)
-	if err := dial(t, r.sock).Call(ctx5(t), "rig.stop",
-		&verbsv1.StopRequest{Program: "stub"}, &verbsv1.StopResponse{}); err != nil {
-		t.Fatalf("rig.stop: %v", err)
-	}
-	r.settle(t, verbsv1.ProgramState_PROGRAM_STATE_UNSPECIFIED)
-	wantCode(t, dial(t, r.sock).Call(ctx5(t), "stub.ping", &rigv1.PingRequest{}, &rigv1.PingResponse{}),
-		rigv1.Code_CODE_NOT_FOUND, "a call to a stopped resident program")
-}
-
 // A command the stub never declared is refused from the kept declaration,
 // and does not start it. INVALID, the answer a running program's caller gets
 // too: plan/54 said NOT_FOUND, and the as-built note corrects it.
