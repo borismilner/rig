@@ -280,6 +280,40 @@ program; every redraw restores each list's scroll; Main's head, figures,
 inner tabs and the notifications panel stay fixed while the content
 scrolls, and the board's filters stay above its cards.
 
+**What the mockup shows for 38 to 44 (2026-10-03, the lead's build):**
+
+- **Layout (38).**
+  - The tab strip scrolls sideways, fades at a hidden edge, and keeps
+    Main pinned.
+  - The mock's own tools shrink to icons on a narrow screen and never
+    wrap.
+  - The Board drops its heading for two rows: the sources, then search,
+    severity, status, grouping and time.
+- **No shift (39).**
+  - A setting is a row in a fixed grid: key, control, origin badge, Reset.
+  - Reset keeps its slot and is only hidden while the value is the
+    default.
+  - A refusal shows as a pop-over that takes no space.
+  - Measured: no box in the row or the row below moves when a value
+    changes.
+- **Controls (40).**
+  - A whole number gets a stepper with its unit inside; arrow keys step.
+  - A byte size is read in the largest whole unit (2 MiB) and changed in
+    that unit.
+  - Booleans get a switch, an enum of four or fewer a segmented control,
+    and larger enums a styled select.
+- **Times (41):** every time is 24-hour; a full one reads
+  `2026-10-03 16:32:28`.
+- **The program card (42 to 44).**
+  - A row on Main's Programs opens a centred card with Overview,
+    Settings, Commands (each with Try it) and Activity.
+  - The card keeps one size whichever tab is showing.
+  - The rail opens a program's GUI. Its strip has one "Info and settings"
+    button, which opens the same card over the GUI.
+  - From Main, a program with a GUI offers "Open its GUI".
+  - The settings drawer and the program page reached from Main are gone.
+    A program's own tab now appears only when it asks for one.
+
 ### ⛔ Two tensions with §11, for Boris, not for a seat
 
 - **§11 requirement 20** says the agents' GUI *"must not push, badge,
@@ -289,7 +323,8 @@ scrolls, and the board's filters stay above its cards.
   Read as two different things, both hold. That reading is the lead's,
   and it is to be confirmed.
 - ~~**§11's window is "dashboard or program"**~~: answered by requirement
-  14, picking a program in the rail opens its tab.
+  14, picking a program in the rail opens its tab, and by 43: the rail
+  gives its GUI, Main gives its card.
 
 ### For the mockup (beacon seat's notes, a seat's, not his)
 
