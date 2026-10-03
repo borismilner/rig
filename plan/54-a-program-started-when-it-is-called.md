@@ -146,3 +146,28 @@ hello, so **a program needs no special mode** to be read:
 | the field: `"on_call": true` or `"start": "on_call"` | **`on_call`**, matching `autostart`, so existing files keep their meaning |
 | should rig also stop an on-call program after a long idle, as a backstop? | **no.** rig cannot see what beacon holds; `rig health` showing "running, no call for N minutes" is enough |
 | the first-ever read: at rigd start, or on the first listing? | **at rigd start, in the background.** The listing is never empty for want of a read |
+
+### ⛔ Requirement, 2026-10-03: rig finds its programs, and each binary says how it loads
+
+**Stated by Boris, 2026-10-03, verbatim:**
+
+> `rig` should have in its configuration the paths it needs to scan for
+> applications to load.
+>
+> Each application found should expose as part of its binary how `rig`
+> should load it, for example take `beacon`, it should show that `rig` is
+> only to learn its API and not waste memory on keeping it always in
+> memory. Others may ask to be loaded and be monitored for crushing and so
+> on.
+
+What this changes in the section above:
+
+| Above | Now required |
+|---|---|
+| each program is one row of `programs.json` | rig's configuration names **directories to scan**; what it finds there is a program |
+| `"on_call": true` / `"autostart": true` are set in `programs.json` | **the binary declares its own load mode**: on call (learn the API, hold no memory) or resident (started and supervised for crashes) |
+
+**Status: REQUIREMENT, NOT YET DESIGNED.** The design questions (which
+directories, how a found file is known to be a program before it is run,
+where the load mode sits in the declaration, what `programs.json` keeps)
+are put to him before any code.
