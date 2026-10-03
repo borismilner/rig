@@ -306,6 +306,41 @@ button:disabled{cursor:default}
 .rules li.hit{border-color:var(--h-amber)}
 .rhead{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
 .rules p{margin:6px 0}
+/* 37: Main is a frame; only its content scrolls */
+.view.mainmode{overflow:hidden;padding-bottom:16px}
+.mainleft{display:flex;flex-direction:column;min-height:0;height:100%}
+.mainleft>.head,.mainleft>.rigstrip,.mainleft>.figs,.mainleft>.subtabs{flex:none}
+.mainscroll{flex:1;min-height:0;overflow:auto;padding-right:4px}
+.boardtop{position:sticky;top:0;z-index:2;background:var(--panel);border-radius:var(--radius) var(--radius) 0 0;border-bottom:1px solid var(--border)}
+.boardtop .filters{border-bottom:0}
+/* 31: the whole notification is the target, and shows it */
+.notes li.note{cursor:pointer;transition:background .12s}
+.notes li.note:hover,.notes li.note:focus-within{background:var(--tint)}
+.notes li.note.asks:hover,.notes li.note.asks:focus-within{background:color-mix(in srgb,var(--h-amber) 16%,transparent)}
+/* 32: details as a card in the centre */
+.modal{width:min(560px,92vw);max-height:84vh;padding:0;border:1px solid var(--border-2);border-radius:14px;background:var(--panel);color:var(--fg);box-shadow:0 24px 80px rgb(0 0 0 / .45);flex-direction:column}
+.modal[open]{display:flex;animation:pop .2s cubic-bezier(.2,.8,.2,1)}
+.modal::backdrop{background:rgb(0 0 0 / .45);animation:fade .2s ease-out}
+.modal>header{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border)}
+.modal>header h3{margin:0;font-size:var(--fs-1);flex:1}
+.modal .body{overflow:auto;padding:14px 18px}
+.modal>footer{display:flex;gap:8px;align-items:center;padding:12px 18px;border-top:1px solid var(--border)}
+.modal>footer .sp{flex:1}
+.modal .acts{display:flex;gap:8px;flex-wrap:wrap}
+@keyframes pop{from{opacity:0;transform:scale(.96)}}
+@keyframes fade{from{opacity:0}}
+/* 33: paths are chosen; numbers carry their unit */
+.pathctl{display:grid;gap:6px}
+.pathctl .row{display:flex;gap:10px;align-items:center}
+.pathctl .act{display:inline-flex;align-items:center;gap:6px}
+.pathctl .act svg,.paths svg{width:16px;height:16px}
+.paths{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.paths li{display:flex;align-items:center;gap:8px;padding:4px 8px;border:1px solid var(--border);border-radius:8px;background:var(--bg)}
+.paths li .mono{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.unitctl{display:flex;align-items:center;gap:8px}
+.unitctl .inp{width:130px}
+.ptab .subtabs{flex-wrap:wrap}
+.ptab .subtabs .ic{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:6px;background:var(--tint);font:600 var(--fs--2) var(--mono);box-shadow:inset 0 -2px 0 var(--c)}
 [hidden]{display:none !important}
 @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
 </style>
@@ -320,7 +355,7 @@ button:disabled{cursor:default}
     <span class="gap"></span>
     <button id="rail-capabilities" title="Capabilities" aria-label="Capabilities"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 3v4M15 3v4M7 7h10v4a5 5 0 0 1-10 0z"/><path d="M12 16v5"/></svg></button>
     <button id="rail-guidelines" title="Guidelines" aria-label="Guidelines"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h6a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4z"/><path d="M20 4h-6a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h7z"/></svg></button>
-    <button id="rail-settings" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg></button>
+    <button id="rail-settings" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></button>
   </nav>
   <div class="main">
     <div class="tabs" role="tablist" aria-label="Dashboard tabs" id="tabs"></div>
@@ -333,6 +368,7 @@ button:disabled{cursor:default}
 </div>
 <div id="menu" class="menu" hidden></div>
 <aside id="drawer" class="drawer" hidden aria-label="Card history"></aside>
+<dialog id="modal" class="modal" aria-labelledby="modalTitle"></dialog>
 <div id="toast" class="toast" hidden role="status"></div>
 <div id="asktoast" class="asktoast" hidden role="alertdialog" aria-label="A program asks"></div>
 <script type="module" src="./mock.js"></script>

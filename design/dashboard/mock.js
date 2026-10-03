@@ -53,6 +53,8 @@ const ICON = {
   q: '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  file: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>',
 };
 const SEV = { info: 'var(--h-steel)', success: 'var(--h-sage)', warning: 'var(--h-amber)', error: 'var(--h-rust)' };
 const RANK = { error: 4, warning: 3, success: 2, info: 1 };
@@ -136,7 +138,7 @@ const S = {
   mainTab: 'needs',      // requirement 16: Main's own tabs; 24: Needs you first
   wq: '', wireAll: false, // requirement 18: wire search; 21: one program's wire
   bsrc: '',              // requirement 27: the board's one source
-  sq: '', cq: '', cap: 'notify', capArgs: {}, capOut: {}, capConfirm: null, // 19, 28
+  sq: '', setTab: 'rig', typePath: null, cq: '', cap: 'notify', capArgs: {}, capOut: {}, capConfirm: null, // 19, 28
 };
 let seq = 0;
 const flash = new Set(); // cards changed since the last draw
@@ -630,6 +632,8 @@ function renderBoard(container) {
   }
   if (S.dismissed.size && S.group === 'writer') board.append(h('div', { class: 'more' }, `${S.dismissed.size} section${S.dismissed.size > 1 ? 's' : ''} dismissed. `,
     h('button', { onclick: () => { S.dismissed.clear(); render(); } }, 'Bring back')));
+  // The board's own controls stay put while its cards scroll under them.
+  panel.replaceChildren(h('div', { class: 'boardtop' }, ...panel.childNodes));
   panel.append(board);
   container.append(panel);
 }
@@ -736,10 +740,11 @@ function renderNotes(container) {
   const src = h('select', { class: 'sel', 'aria-label': 'Only from', onchange: (e) => { S.nsrc = e.target.value; render(); } },
     h('option', { value: '' }, `every source (${S.notes.length})`),
     ...sources.map((x) => h('option', { value: x, selected: S.nsrc === x }, `${x} (${S.notes.filter((n) => n.from === x).length})`)));
-  const list = h('ol', { class: 'notes' }, shown.length ? [] : h('li', { class: 'none' }, 'Nothing matches.'), shown.map((n) => h('li', { class: (n.unread ? 'unread' : '') + (asks(n) ? ' asks' : ''), style: { '--sev': SEV[n.severity] } },
+  const list = h('ol', { class: 'notes', 'data-scroll': 'notes' }, shown.length ? [] : h('li', { class: 'none' }, 'Nothing matches.'), shown.map((n) => h('li', { class: 'note' + (n.unread ? ' unread' : '') + (asks(n) ? ' asks' : ''), style: { '--sev': SEV[n.severity] },
+    onclick: (e) => { if (!e.target.closest('.src')) openNote(n); } },
     h('span', { class: 'bullet' }),
     h('div', {},
-      h('button', { class: 'nopen', 'aria-label': `${n.title}: open its details`, onclick: () => openNote(n) },
+      h('button', { class: 'nopen', 'aria-label': `${n.title}: open its details` },
         h('span', { class: 'nt' }, h('b', {}, n.title), h('time', { class: 'dim', title: new Date(n.at).toLocaleString() }, ago(n.at))),
         h('span', { class: 'dim' }, n.body)),
       h('div', { class: 'nmeta' },
@@ -777,7 +782,10 @@ function renderMain(view) {
       class: id === 'needs' && need ? 'hot' : null,
       onkeydown: (e) => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); const ids = inner.map((x) => x[0]); const i = ids.indexOf(S.mainTab); S.mainTab = ids[(i + (e.key === 'ArrowRight' ? 1 : ids.length - 1)) % ids.length]; render(); document.querySelector('.subtabs [aria-selected="true"]')?.focus(); } } },
       label, h('span', { class: 'cnt' }, count), warn ? h('span', { class: 'warn' }, warn) : null))));
-  if (S.mainTab === 'board') renderBoard(left); else if (S.mainTab === 'programs') renderPrograms(left); else renderNeeds(left);
+  // Requirement 37: the head, the figures and these tabs stay; this scrolls.
+  const body = h('div', { class: 'mainscroll', 'data-scroll': 'main:' + S.mainTab });
+  if (S.mainTab === 'board') renderBoard(body); else if (S.mainTab === 'programs') renderPrograms(body); else renderNeeds(body);
+  left.append(body);
   grid.append(left);
   renderNotes(grid);
   view.append(grid);
@@ -801,12 +809,20 @@ function renderTab(view, t) {
 
 function renderView() {
   const view = $('view');
+  // Requirement 35: a redraw never moves a list he scrolled.
+  const kept = { ['view:' + S.current]: view.scrollTop };
+  for (const el of view.querySelectorAll('[data-scroll]')) kept[el.dataset.scroll] = el.scrollTop;
   view.replaceChildren();
+  queueMicrotask(() => {
+    if (('view:' + S.current) in kept) view.scrollTop = kept['view:' + S.current];
+    for (const el of view.querySelectorAll('[data-scroll]')) if (el.dataset.scroll in kept) el.scrollTop = kept[el.dataset.scroll];
+  });
   const t = S.tabs.find((x) => x.id === S.current && x.open) || S.tabs[0];
   S.current = t.id;
   const host = $('guihost');
   const gui = t.kind === 'program' && S.guis[t.id];
   view.classList.toggle('strip', Boolean(gui));
+  view.classList.toggle('mainmode', t.kind === 'main');
   host.hidden = !gui;
   for (const f of host.querySelectorAll('iframe')) f.hidden = f.dataset.gui !== t.id;
   if (t.kind === 'main') renderMain(view);
@@ -863,13 +879,60 @@ const RSET = [...schemaKeys(RIG_SCHEMA),
   { key: 'dashboard.notifications.keep.days', type: 'integer', min: 1, def: 7, desc: 'notifications older than this leave the dashboard\'s panel (plan/55 requirement 8)', proposed: true }]
   .map((x) => ({ ...x, value: x.def, origin: 'built-in default' }));
 const PSET = Object.fromEntries(Object.entries({
-  ledger: [['statement.dir', 'string', '~/finance/statements', 'where it reads bank statements from'], ['match.tolerance.cents', 'integer', 0, 'how far apart two amounts may be and still match'],
+  ledger: [['statement.dir', 'string', '~/finance/statements', 'where it reads bank statements from', null, 'dir'], ['rules.file', 'string', '~/finance/ledger-rules.toml', 'its matching rules', null, 'file'], ['match.tolerance.cents', 'integer', 0, 'how far apart two amounts may be and still match'],
     ['reconcile.on.import', 'boolean', true, 'reconcile as soon as a statement is imported'], ['currency', 'string', 'ILS', 'the books\' currency', ['ILS', 'EUR', 'USD']]],
   storeworker: [['runs.parallel', 'integer', 2, 'queued runs it works on at once'], ['retry.max', 'integer', 3, 'retries before a run is reported failed']],
   beacon: [['cards.keep.days', 'integer', 7, 'how long an answered card stays on its board'], ['board.font', 'string', 'Inter', 'the board\'s font', ['Inter', 'IBM Plex Sans']]],
-  lantern: [['index.dirs', 'string', '~/me', 'folders it indexes, colon-separated']],
+  lantern: [['index.dirs', 'string', '~/me', 'folders it indexes', null, 'dirs']],
   righand: [['countdown.seconds', 'integer', 5, 'the HANDS OFF countdown before a script runs']],
-}).map(([id, list]) => [id, list.map(([key, type, def, desc, en]) => ({ key, type, def, desc, enum: en, min: type === 'integer' ? 0 : undefined, value: def, origin: 'its declared default' }))]));
+}).map(([id, list]) => [id, list.map(([key, type, def, desc, en, kind]) => ({ key, type, def, desc, enum: en || undefined, kind, min: type === 'integer' ? 0 : undefined, value: def, origin: 'its declared default' }))]));
+// What a key holds, so its control fits (requirement 33). rig's schema has
+// no such annotation yet; §47 now owes it. Until then the mock names them.
+for (const x of RSET) if (x.key === 'programs.scan') x.kind = 'dirs';
+function unitOf(key) {
+  if (key.endsWith('.bytes') || key.endsWith('.cap')) return 'bytes';
+  if (key.endsWith('.ms')) return 'ms';
+  if (key.endsWith('.days')) return 'days';
+  if (key.endsWith('.seconds')) return 'seconds';
+  if (key.endsWith('.cents')) return 'cents';
+  return '';
+}
+function human(n) {
+  if (!Number.isFinite(n)) return '';
+  const u = ['B', 'KiB', 'MiB', 'GiB']; let i = 0;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return `= ${n % 1 ? n.toFixed(1) : n} ${u[i]}`;
+}
+// The OS picker. The real window is native and gets a full path back; a
+// browser hands over only the folder's or file's name.
+async function pickPath(kind) {
+  try {
+    if (kind === 'file' && window.showOpenFilePicker) { const [f] = await window.showOpenFilePicker(); return f ? '…/' + f.name : null; }
+    if (kind !== 'file' && window.showDirectoryPicker) { const d = await window.showDirectoryPicker(); return d ? '…/' + d.name : null; }
+  } catch (e) { return null; }
+  return new Promise((res) => {
+    const i = h('input', { type: 'file' });
+    if (kind !== 'file') i.webkitdirectory = true;
+    i.onchange = () => { const f = i.files[0]; res(f ? '…/' + (kind === 'file' ? f.name : f.webkitRelativePath.split('/')[0]) : null); };
+    i.click();
+  });
+}
+function pathControl(x, label, set) {
+  const list = x.kind === 'dirs' ? String(x.value).split(':').filter(Boolean) : [String(x.value)].filter(Boolean);
+  const save = (items) => set(x.kind === 'dirs' ? items.join(':') : items[0] || '');
+  const typing = S.typePath === label;
+  if (typing) return h('div', { class: 'pathctl' },
+    h('input', { class: 'inp', type: 'text', 'aria-label': label, value: String(x.value), onchange: (e) => { S.typePath = null; set(e.target.value); } }),
+    h('button', { class: 'linkish', onclick: () => { S.typePath = null; set(x.value); } }, 'Done'));
+  return h('div', { class: 'pathctl' },
+    h('ul', { class: 'paths' }, list.map((pth, i) => h('li', {}, svg(x.kind === 'file' ? ICON.file : ICON.folder), h('span', { class: 'mono' }, pth),
+      x.kind === 'dirs' && list.length > 1 ? h('button', { class: 'iconbtn', 'aria-label': `Remove ${pth}`, onclick: () => save(list.filter((_, j) => j !== i)) }, svg(ICON.x)) : null))),
+    h('div', { class: 'row' },
+      h('button', { class: 'act', 'aria-label': `${label}: ${x.kind === 'file' ? 'choose a file' : x.kind === 'dirs' ? 'add a folder' : 'choose a folder'}`,
+        onclick: async () => { const got = await pickPath(x.kind); if (got) save(x.kind === 'dirs' ? [...list, got] : [got]); } },
+        svg(x.kind === 'file' ? ICON.file : ICON.folder), x.kind === 'file' ? 'Choose file…' : x.kind === 'dirs' ? 'Add folder…' : 'Choose folder…'),
+      h('button', { class: 'linkish', onclick: () => { S.typePath = label; set(x.value); } }, 'or type it')));
+}
 function settingsTable(owner, list) {
   if (!list.length) return h('div', { class: 'empty' }, `${owner} declares no settings.`);
   const q = S.sq.toLowerCase();
@@ -893,29 +956,45 @@ function settingRow(owner, x) {
     x.value = v;
     x.origin = v === x.def ? (owner === 'rig' ? 'built-in default' : 'its declared default') : owner === 'rig' ? 'runtime override, until restart' : `~/.config/rig/apps/${owner}.toml`;
     origin.textContent = x.origin; reset.hidden = v === x.def;
-    if (ctl.type === 'checkbox') ctl.checked = v; else ctl.value = String(v);
+    if (x.kind) row.replaceWith(settingRow(owner, x));
+    else if (ctl.type === 'checkbox') ctl.checked = v; else { ctl.value = String(v); if (unit === 'bytes') hint.textContent = human(v); }
     wire('acted', 'config.set', `${label} = ${JSON.stringify(v)}${owner === 'rig' ? '' : `, written to apps/${owner}.toml; ${owner} reads it on its next config.get`}`, owner);
     if (x.key === 'dashboard.notifications.keep.days') { S.keepDays = v; }
     renderWire();
   }
+  const unit = x.type === 'integer' ? unitOf(x.key) : '';
+  const hint = h('span', { class: 'dim small' }, unit === 'bytes' ? human(Number(x.value)) : '');
   let ctl;
-  if (x.type === 'boolean') ctl = h('input', { type: 'checkbox', 'aria-label': label, onchange: (e) => set(e.target.checked) });
+  if (x.kind) ctl = pathControl(x, label, set);
+  else if (x.type === 'boolean') ctl = h('input', { type: 'checkbox', 'aria-label': label, onchange: (e) => set(e.target.checked) });
   else if (x.enum) ctl = h('select', { class: 'sel', 'aria-label': label, onchange: (e) => set(e.target.value) }, x.enum.map((o) => h('option', { value: o, selected: o === x.value }, o)));
   else ctl = h('input', { class: 'inp', type: x.type === 'integer' ? 'number' : 'text', 'aria-label': label, value: String(x.value),
     onchange: (e) => set(x.type === 'integer' ? Number(e.target.value) : e.target.value) });
   if (x.type === 'boolean') ctl.checked = Boolean(x.value);
-  return h('tr', {},
+  if (unit) ctl.addEventListener('input', (e) => { if (unit === 'bytes') hint.textContent = human(Number(e.target.value)); });
+  const row = h('tr', {},
     h('td', {}, h('div', { class: 'mono' }, x.key, x.proposed ? h('span', { class: 'gtag' }, 'proposed') : null), h('div', { class: 'dim small' }, x.desc), err),
-    h('td', {}, ctl), origin, h('td', {}, reset));
+    h('td', {}, unit ? h('div', { class: 'unitctl' }, ctl, h('span', { class: 'dim small' }, unit === 'bytes' ? '' : unit), hint) : ctl), origin, h('td', {}, reset));
+  return row;
 }
 function renderSettings(view) {
   const search = h('input', { id: 'sq', type: 'search', class: 'inp wide', placeholder: 'Search every setting', value: S.sq, 'aria-label': 'Search settings',
     oninput: (e) => { S.sq = e.target.value; renderView(); const f = $('sq'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); } });
+  // Requirement 34: rig, then one tab per program. A search counts its hits
+  // on every tab, so a match in another tab is not missed.
+  const q = S.sq.toLowerCase();
+  const hits = (list) => list.filter((x) => !q || (x.key + ' ' + x.desc).toLowerCase().includes(q)).length;
+  const owners = [['rig', 'rig', RSET], ...estate.map((e) => [e.id, e.name, PSET[e.id] || []])];
+  const cur = owners.find((o) => o[0] === S.setTab) || owners[0];
+  const e = estate.find((x) => x.id === cur[0]);
   view.append(h('div', { class: 'ptab' },
-    h('div', { class: 'head' }, h('h1', {}, 'Settings'), h('span', { class: 'dim' }, `rig's ${RSET.length} keys, from its schema, and what each program declares`), h('span', { class: 'sp' }), search),
-    h('h2', { class: 'subh' }, 'rig'), settingsTable('rig', RSET),
-    ...estate.flatMap((e) => [h('h2', { class: 'subh' }, h('span', { class: 'ic', style: { '--c': progColour(e.id) } }, e.id.slice(0, 2)), ' ', e.name,
-      S.guis[e.id] ? h('span', { class: 'dim' }, ' also in its GUI, under Settings') : null), settingsTable(e.id, PSET[e.id] || [])])));
+    h('div', { class: 'head' }, h('h1', {}, 'Settings'), h('span', { class: 'dim' }, `rig's ${RSET.length} keys, from its schema, and each program's own`), h('span', { class: 'sp' }), search),
+    h('div', { class: 'subtabs', role: 'tablist', 'aria-label': 'Whose settings' }, owners.map(([id, name, list]) =>
+      h('button', { role: 'tab', 'aria-selected': String(cur[0] === id), onclick: () => { S.setTab = id; renderView(); },
+        onkeydown: (ev) => { if (ev.key === 'ArrowRight' || ev.key === 'ArrowLeft') { ev.preventDefault(); const i = owners.findIndex((o) => o[0] === cur[0]); S.setTab = owners[(i + (ev.key === 'ArrowRight' ? 1 : owners.length - 1)) % owners.length][0]; renderView(); document.querySelector('.ptab .subtabs [aria-selected="true"]')?.focus(); } } },
+        id === 'rig' ? null : h('span', { class: 'ic', style: { '--c': progColour(id) } }, id.slice(0, 2)), name, h('span', { class: 'cnt' }, String(q ? hits(list) : list.length))))),
+    e && S.guis[e.id] ? h('p', { class: 'dim small' }, `${e.name} shows these in its own GUI too, under Settings.`) : null,
+    settingsTable(cur[0], cur[2])));
 }
 function openProgSettings(id) {
   const d = $('drawer');
@@ -983,7 +1062,7 @@ function renderCaps(view) {
   const cap = CAPS.find((c) => c.key === S.cap) || CAPS[0];
   const search = h('input', { id: 'cq', type: 'search', class: 'inp', placeholder: `Search ${CAPS.length} capabilities`, value: S.cq, 'aria-label': 'Search capabilities',
     oninput: (e) => { S.cq = e.target.value; renderView(); const f = $('cq'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); } });
-  const left = h('nav', { class: 'caplist', 'aria-label': 'Capabilities' }, search,
+  const left = h('nav', { class: 'caplist', 'data-scroll': 'caps', 'aria-label': 'Capabilities' }, search,
     list.length ? [...groups.entries()].map(([g, cs]) => h('div', {}, h('h5', {}, g, h('span', { class: 'dim' }, ` ${cs.length}`)),
       cs.map((c) => h('button', { 'aria-current': String(c.key === cap.key), onclick: () => { S.cap = c.key; renderView(); $('capdetail')?.focus(); } },
         h('i', { style: { '--c': EFFECT_TONE[c.effects] || 'var(--fg-faint)' }, title: c.effects }), h('span', { class: 'mono' }, c.id), h('span', { class: 'dim' }, c.summary))))) : h('div', { class: 'empty' }, 'Nothing matches.'));
@@ -1090,17 +1169,20 @@ function renderHistory() {
   d.querySelector('[aria-current="true"]')?.focus();
 }
 
+// Requirement 32: a notification's details are a card in the centre of the
+// screen, modal, closed by its button, Esc, or a click outside it.
 function openNote(n) {
-  const d = $('drawer');
-  S.history = null; S.noteOpen = n.id;
+  const m = $('modal');
+  S.noteOpen = n.id;
   n.unread = false;
+  const close = () => { S.noteOpen = null; m.close(); };
   const opts = n.actions ? h('div', { class: 'acts' }, n.actions.map((a, i) => {
     const chosen = n.decided && n.decided.choice === a;
     return h('button', { class: 'act' + (chosen ? ' chosen-act' : '') + (!n.decided && i === 0 ? ' primary' : ''), disabled: Boolean(n.decided), 'aria-pressed': n.decided ? String(chosen) : null,
       onclick: () => { decideNote(n, a); render(); openNote(n); } }, chosen ? `✓ ${a}` : a); })) : null;
-  d.replaceChildren(
-    h('header', {}, h('span', { class: 'sevdot', style: { '--sev': SEV[n.severity] } }), h('h3', {}, n.title),
-      h('button', { class: 'iconbtn', 'aria-label': 'Close', onclick: () => { S.noteOpen = null; d.hidden = true; } }, svg(ICON.x))),
+  m.replaceChildren(
+    h('header', {}, h('span', { class: 'sevdot', style: { '--sev': SEV[n.severity] } }), h('h3', { id: 'modalTitle' }, n.title),
+      h('button', { class: 'iconbtn', 'aria-label': 'Close', onclick: close }, svg(ICON.x))),
     h('div', { class: 'body' },
       h('dl', { class: 'facts' },
         h('dt', {}, 'from'), h('dd', {}, n.from),
@@ -1111,12 +1193,15 @@ function openNote(n) {
       n.details ? h('p', { class: 'dim' }, n.details) : null,
       h('h4', { class: 'subh' }, n.actions ? (n.decided ? 'Decided' : 'Your decision') : 'Nothing to decide'),
       n.decided ? h('p', { class: 'chosen' }, `You chose "${n.decided.choice}" at ${new Date(n.decided.at).toLocaleTimeString()}. ${n.from} was told.`) : null,
-      n.actions ? opts : h('p', { class: 'dim' }, 'This notification only informs.'),
-      h('div', { class: 'acts', style: { marginTop: '18px' } },
-        h('button', { class: 'act', onclick: () => { S.nsrc = n.from; render(); } }, `Only ${n.from}'s notifications`))));
-  d.hidden = false;
-  d.querySelector('.body button:not([disabled])')?.focus();
+      n.actions ? opts : h('p', { class: 'dim' }, 'This notification only informs.')),
+    h('footer', {},
+      h('button', { class: 'act', onclick: () => { S.nsrc = n.from; close(); render(); } }, `Only ${n.from}'s notifications`),
+      h('span', { class: 'sp' }), h('button', { class: 'act', onclick: close }, 'Close')));
+  if (!m.open) m.showModal();
+  (m.querySelector('.body button:not([disabled])') || m.querySelector('footer .act:last-child')).focus();
 }
+$('modal').addEventListener('click', (e) => { if (e.target === $('modal')) { S.noteOpen = null; $('modal').close(); } });
+$('modal').addEventListener('close', () => { S.noteOpen = null; render(); });
 
 function openAbout(e) {
   const d = $('drawer');
@@ -1178,6 +1263,7 @@ function render() {
 document.addEventListener('keydown', (e) => {
   const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement;
   if (e.key === '/' && !typing) { e.preventDefault(); $('q')?.focus(); return; }
+  if ($('modal').open) return;   // the dialog answers its own Esc
   if (e.key === 'Escape') {
     if (!$('menu').hidden) { $('menu').hidden = true; $('reopenBtn')?.focus(); return; }
     if (!$('drawer').hidden) { S.history = null; $('drawer').hidden = true; return; }
