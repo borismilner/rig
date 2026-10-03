@@ -258,6 +258,15 @@ enum Coverage {
   COVERAGE_FULL = 2;
 }
 
+// Load is how rig keeps a program (section 54). RESIDENT is started with
+// rigd and supervised for crashes; ON_CALL holds no memory at rest, is
+// started by a call to one of its commands, and exits when it is idle.
+enum Load {
+  LOAD_UNSPECIFIED = 0;
+  LOAD_RESIDENT = 1;
+  LOAD_ON_CALL = 2;
+}
+
 // Effects is what running a command does to the world. Ordered by danger, so
 // a house rule written against one level covers everything above it.
 //
@@ -417,6 +426,12 @@ message Declaration {
   // its own id, a dot, and lower-case dotted words: graft.job.done. A
   // program publishes only these; a kind it did not declare is refused.
   repeated string events = 12;
+
+  // How rig loads this program (section 54, decision 0265): the binary says
+  // it, and programs.json may override it. Unspecified is resident, what
+  // every program was before the field existed; it carries no safety
+  // meaning, so section 5e's refusal of an unsaid default does not apply.
+  Load load = 13;
 }
 
 // ---- Invoking a declared command (PLAN.md section 5e, M1 slice 5) ----------

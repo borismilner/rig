@@ -45,6 +45,7 @@ func everyFieldSet(id string) *rigv1.Declaration {
 		Scope:        id,
 		Hosted:       true,
 		PaneUrl:      "http://127.0.0.1:8731/pane",
+		Load:         rigv1.Load_LOAD_ON_CALL,
 		Elements:     []string{"rigTable"},
 		Events:       []string{id + ".shelved"},
 		Commands: []*rigv1.Command{{

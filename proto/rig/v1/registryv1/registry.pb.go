@@ -604,7 +604,9 @@ type Program struct {
 	Events []string `protobuf:"bytes,11,rep,name=events,proto3" json:"events,omitempty"`
 	// Declared on call and not running (section 54): what is listed is the
 	// declaration kept from its last run, and a call starts it.
-	AtRest        bool `protobuf:"varint,12,opt,name=at_rest,json=atRest,proto3" json:"at_rest,omitempty"`
+	AtRest bool `protobuf:"varint,12,opt,name=at_rest,json=atRest,proto3" json:"at_rest,omitempty"`
+	// How it declared it is loaded (section 54).
+	Load          v1.Load `protobuf:"varint,13,opt,name=load,proto3,enum=rig.v1.Load" json:"load,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -721,6 +723,13 @@ func (x *Program) GetAtRest() bool {
 		return x.AtRest
 	}
 	return false
+}
+
+func (x *Program) GetLoad() v1.Load {
+	if x != nil {
+		return x.Load
+	}
+	return v1.Load(0)
 }
 
 type ProgramsRequest struct {
@@ -4940,7 +4949,7 @@ var File_proto_rig_v1_registry_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\n" +
-	"\x1bproto/rig/v1/registry.proto\x12\x06rig.v1\x1a\x17proto/rig/v1/wire.proto\"\x94\x03\n" +
+	"\x1bproto/rig/v1/registry.proto\x12\x06rig.v1\x1a\x17proto/rig/v1/wire.proto\"\xb6\x03\n" +
 	"\aProgram\x12,\n" +
 	"\bidentity\x18\x01 \x01(\v2\x10.rig.v1.IdentityR\bidentity\x12,\n" +
 	"\bcoverage\x18\x02 \x01(\x0e2\x10.rig.v1.CoverageR\bcoverage\x12#\n" +
@@ -4954,7 +4963,8 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\bpreamble\x18\n" +
 	" \x01(\tR\bpreamble\x12\x16\n" +
 	"\x06events\x18\v \x03(\tR\x06events\x12\x17\n" +
-	"\aat_rest\x18\f \x01(\bR\x06atRest\"6\n" +
+	"\aat_rest\x18\f \x01(\bR\x06atRest\x12 \n" +
+	"\x04load\x18\r \x01(\x0e2\f.rig.v1.LoadR\x04load\"6\n" +
 	"\x0fProgramsRequest\x12#\n" +
 	"\x05depth\x18\x01 \x01(\x0e2\r.rig.v1.DepthR\x05depth\"?\n" +
 	"\x10ProgramsResponse\x12+\n" +
@@ -5410,54 +5420,56 @@ var file_proto_rig_v1_registry_proto_goTypes = []any{
 	(*v1.Identity)(nil),           // 80: rig.v1.Identity
 	(v1.Coverage)(0),              // 81: rig.v1.Coverage
 	(*v1.Command)(nil),            // 82: rig.v1.Command
+	(v1.Load)(0),                  // 83: rig.v1.Load
 }
 var file_proto_rig_v1_registry_proto_depIdxs = []int32{
 	80, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
 	81, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
 	82, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
-	0,  // 3: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
-	9,  // 4: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
-	1,  // 5: rig.v1.EstateResponse.role:type_name -> rig.v1.EstateRole
-	2,  // 6: rig.v1.Toast.severity:type_name -> rig.v1.Severity
-	2,  // 7: rig.v1.NotifyRequest.severity:type_name -> rig.v1.Severity
-	18, // 8: rig.v1.ToastReplyResponse.answer:type_name -> rig.v1.ToastAnswer
-	18, // 9: rig.v1.ToastAnswerResponse.answer:type_name -> rig.v1.ToastAnswer
-	14, // 10: rig.v1.NotifyResponse.toast:type_name -> rig.v1.Toast
-	14, // 11: rig.v1.ToastWaitResponse.toasts:type_name -> rig.v1.Toast
-	3,  // 12: rig.v1.ToastDndRequest.change:type_name -> rig.v1.DndChange
-	4,  // 13: rig.v1.SoundRequest.mute:type_name -> rig.v1.SoundMute
-	5,  // 14: rig.v1.SoundRequest.read_aloud:type_name -> rig.v1.ReadAloud
-	6,  // 15: rig.v1.SoundRequest.toast_sound:type_name -> rig.v1.ToastSound
-	5,  // 16: rig.v1.SoundResponse.read_aloud:type_name -> rig.v1.ReadAloud
-	6,  // 17: rig.v1.SoundResponse.toast_sound:type_name -> rig.v1.ToastSound
-	7,  // 18: rig.v1.HandState.phase:type_name -> rig.v1.HandPhase
-	32, // 19: rig.v1.HandRequestResponse.state:type_name -> rig.v1.HandState
-	32, // 20: rig.v1.HandStepResponse.state:type_name -> rig.v1.HandState
-	32, // 21: rig.v1.HandReleaseResponse.state:type_name -> rig.v1.HandState
-	32, // 22: rig.v1.HandWaitResponse.state:type_name -> rig.v1.HandState
-	32, // 23: rig.v1.HandStripResponse.state:type_name -> rig.v1.HandState
-	8,  // 24: rig.v1.HandAnswerRequest.action:type_name -> rig.v1.HandAction
-	32, // 25: rig.v1.HandAnswerResponse.state:type_name -> rig.v1.HandState
-	45, // 26: rig.v1.EventsPublishResponse.event:type_name -> rig.v1.Event
-	45, // 27: rig.v1.EventsWaitResponse.events:type_name -> rig.v1.Event
-	51, // 28: rig.v1.TimerArmResponse.timer:type_name -> rig.v1.Timer
-	51, // 29: rig.v1.TimerListResponse.timers:type_name -> rig.v1.Timer
-	60, // 30: rig.v1.ConfigValue.winner:type_name -> rig.v1.ConfigLayerValue
-	60, // 31: rig.v1.ConfigValue.losers:type_name -> rig.v1.ConfigLayerValue
-	61, // 32: rig.v1.ConfigGetResponse.values:type_name -> rig.v1.ConfigValue
-	77, // 33: rig.v1.ConfigSetRequest.values_json:type_name -> rig.v1.ConfigSetRequest.ValuesJsonEntry
-	78, // 34: rig.v1.ConfigSetResponse.outcome:type_name -> rig.v1.ConfigSetResponse.OutcomeEntry
-	79, // 35: rig.v1.LogRecord.attrs:type_name -> rig.v1.LogRecord.AttrsEntry
-	66, // 36: rig.v1.LogsQueryResponse.records:type_name -> rig.v1.LogRecord
-	67, // 37: rig.v1.LogsQueryResponse.gaps:type_name -> rig.v1.GapBand
-	66, // 38: rig.v1.LogsIngestRequest.records:type_name -> rig.v1.LogRecord
-	67, // 39: rig.v1.LogsCoverageResponse.gaps:type_name -> rig.v1.GapBand
-	72, // 40: rig.v1.LogsCoverageResponse.segments:type_name -> rig.v1.LogSegment
-	41, // [41:41] is the sub-list for method output_type
-	41, // [41:41] is the sub-list for method input_type
-	41, // [41:41] is the sub-list for extension type_name
-	41, // [41:41] is the sub-list for extension extendee
-	0,  // [0:41] is the sub-list for field type_name
+	83, // 3: rig.v1.Program.load:type_name -> rig.v1.Load
+	0,  // 4: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
+	9,  // 5: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
+	1,  // 6: rig.v1.EstateResponse.role:type_name -> rig.v1.EstateRole
+	2,  // 7: rig.v1.Toast.severity:type_name -> rig.v1.Severity
+	2,  // 8: rig.v1.NotifyRequest.severity:type_name -> rig.v1.Severity
+	18, // 9: rig.v1.ToastReplyResponse.answer:type_name -> rig.v1.ToastAnswer
+	18, // 10: rig.v1.ToastAnswerResponse.answer:type_name -> rig.v1.ToastAnswer
+	14, // 11: rig.v1.NotifyResponse.toast:type_name -> rig.v1.Toast
+	14, // 12: rig.v1.ToastWaitResponse.toasts:type_name -> rig.v1.Toast
+	3,  // 13: rig.v1.ToastDndRequest.change:type_name -> rig.v1.DndChange
+	4,  // 14: rig.v1.SoundRequest.mute:type_name -> rig.v1.SoundMute
+	5,  // 15: rig.v1.SoundRequest.read_aloud:type_name -> rig.v1.ReadAloud
+	6,  // 16: rig.v1.SoundRequest.toast_sound:type_name -> rig.v1.ToastSound
+	5,  // 17: rig.v1.SoundResponse.read_aloud:type_name -> rig.v1.ReadAloud
+	6,  // 18: rig.v1.SoundResponse.toast_sound:type_name -> rig.v1.ToastSound
+	7,  // 19: rig.v1.HandState.phase:type_name -> rig.v1.HandPhase
+	32, // 20: rig.v1.HandRequestResponse.state:type_name -> rig.v1.HandState
+	32, // 21: rig.v1.HandStepResponse.state:type_name -> rig.v1.HandState
+	32, // 22: rig.v1.HandReleaseResponse.state:type_name -> rig.v1.HandState
+	32, // 23: rig.v1.HandWaitResponse.state:type_name -> rig.v1.HandState
+	32, // 24: rig.v1.HandStripResponse.state:type_name -> rig.v1.HandState
+	8,  // 25: rig.v1.HandAnswerRequest.action:type_name -> rig.v1.HandAction
+	32, // 26: rig.v1.HandAnswerResponse.state:type_name -> rig.v1.HandState
+	45, // 27: rig.v1.EventsPublishResponse.event:type_name -> rig.v1.Event
+	45, // 28: rig.v1.EventsWaitResponse.events:type_name -> rig.v1.Event
+	51, // 29: rig.v1.TimerArmResponse.timer:type_name -> rig.v1.Timer
+	51, // 30: rig.v1.TimerListResponse.timers:type_name -> rig.v1.Timer
+	60, // 31: rig.v1.ConfigValue.winner:type_name -> rig.v1.ConfigLayerValue
+	60, // 32: rig.v1.ConfigValue.losers:type_name -> rig.v1.ConfigLayerValue
+	61, // 33: rig.v1.ConfigGetResponse.values:type_name -> rig.v1.ConfigValue
+	77, // 34: rig.v1.ConfigSetRequest.values_json:type_name -> rig.v1.ConfigSetRequest.ValuesJsonEntry
+	78, // 35: rig.v1.ConfigSetResponse.outcome:type_name -> rig.v1.ConfigSetResponse.OutcomeEntry
+	79, // 36: rig.v1.LogRecord.attrs:type_name -> rig.v1.LogRecord.AttrsEntry
+	66, // 37: rig.v1.LogsQueryResponse.records:type_name -> rig.v1.LogRecord
+	67, // 38: rig.v1.LogsQueryResponse.gaps:type_name -> rig.v1.GapBand
+	66, // 39: rig.v1.LogsIngestRequest.records:type_name -> rig.v1.LogRecord
+	67, // 40: rig.v1.LogsCoverageResponse.gaps:type_name -> rig.v1.GapBand
+	72, // 41: rig.v1.LogsCoverageResponse.segments:type_name -> rig.v1.LogSegment
+	42, // [42:42] is the sub-list for method output_type
+	42, // [42:42] is the sub-list for method input_type
+	42, // [42:42] is the sub-list for extension type_name
+	42, // [42:42] is the sub-list for extension extendee
+	0,  // [0:42] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_registry_proto_init() }

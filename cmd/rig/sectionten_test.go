@@ -342,6 +342,7 @@ func kernelFixture(t *testing.T) kernel.Program {
 		Events:       []string{"fakeapp.shelved"},
 		Hosted:       true,
 		PaneURL:      "http://127.0.0.1:9/pane",
+		Load:         kernel.LoadOnCall,
 		Preamble:     "read this first",
 		Commands:     []kernel.Command{kernelCommandFixture()},
 	}
@@ -403,6 +404,7 @@ func wireFixture(t *testing.T) *registryv1.Program {
 		PaneUrl:      "http://127.0.0.1:9/pane",
 		Preamble:     "read this first",
 		AtRest:       true,
+		Load:         rigv1.Load_LOAD_ON_CALL,
 		Commands: []*rigv1.Command{{
 			Id: "reindex", Title: "Reindex",
 			Args:          []byte(`{"type":"object"}`),

@@ -370,6 +370,7 @@ type Program struct {
 	Events       []string
 	Hosted       bool
 	PaneURL      string
+	Load         Load
 
 	// Preamble is the one document an agent reads before touching this
 	// program (section 9). It is carried at DepthFull only: it is prose, it
@@ -539,6 +540,7 @@ func program(e entry) Program {
 		Events:       slices.Clone(e.decl.Events),
 		Hosted:       e.decl.Hosted,
 		PaneURL:      e.decl.PaneURL,
+		Load:         e.decl.Load,
 		Preamble:     e.decl.Preamble,
 		Commands:     cloneCommands(e.decl.Commands),
 	}

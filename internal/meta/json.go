@@ -262,6 +262,7 @@ type programJSON struct {
 	Events       []string      `json:"events,omitempty"`
 	Hosted       bool          `json:"hosted,omitempty"`
 	PaneURL      string        `json:"paneUrl,omitempty"`
+	Load         string        `json:"load,omitempty"`
 	Preamble     string        `json:"preamble,omitempty"`
 	Commands     []commandJSON `json:"commands,omitempty"`
 }
@@ -349,6 +350,7 @@ func oneProgramJSON(p kernel.Program) programJSON {
 		Events:       p.Events,
 		Hosted:       p.Hosted,
 		PaneURL:      p.PaneURL,
+		Load:         p.Load.String(),
 		Preamble:     p.Preamble,
 	}
 	for _, c := range p.Commands {

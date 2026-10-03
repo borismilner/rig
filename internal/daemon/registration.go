@@ -23,6 +23,14 @@ var (
 		rigv1.Coverage_COVERAGE_PARTIAL: kernel.CoveragePartial,
 		rigv1.Coverage_COVERAGE_FULL:    kernel.CoverageFull,
 	}
+	loadIn = map[rigv1.Load]kernel.Load{
+		rigv1.Load_LOAD_RESIDENT: kernel.LoadResident,
+		rigv1.Load_LOAD_ON_CALL:  kernel.LoadOnCall,
+	}
+	loadOut = map[kernel.Load]rigv1.Load{
+		kernel.LoadResident: rigv1.Load_LOAD_RESIDENT,
+		kernel.LoadOnCall:   rigv1.Load_LOAD_ON_CALL,
+	}
 	coverageOut = map[kernel.Coverage]rigv1.Coverage{
 		kernel.CoveragePartial: rigv1.Coverage_COVERAGE_PARTIAL,
 		kernel.CoverageFull:    rigv1.Coverage_COVERAGE_FULL,
@@ -120,6 +128,7 @@ func declarationFromWire(req *rigv1.HelloRequest) (kernel.Declaration, error) {
 		Scope:        w.GetScope(),
 		Hosted:       w.GetHosted(),
 		PaneURL:      w.GetPaneUrl(),
+		Load:         loadIn[w.GetLoad()],
 	}
 	for _, c := range w.GetCommands() {
 		d.Commands = append(d.Commands, commandFromWire(c))
@@ -208,6 +217,7 @@ func programToWire(p kernel.Program) *registryv1.Program {
 		Events:       p.Events,
 		Hosted:       p.Hosted,
 		PaneUrl:      p.PaneURL,
+		Load:         loadOut[p.Load],
 		Preamble:     p.Preamble,
 	}
 	for _, c := range p.Commands {

@@ -140,6 +140,14 @@
       ],
       "type": "object"
     },
+    "Load": {
+      "description": "rig.v1.Load. The zero value is omitted: it means the program did not say, and registration refuses it.",
+      "enum": [
+        "LOAD_RESIDENT",
+        "LOAD_ON_CALL"
+      ],
+      "type": "string"
+    },
     "SensitiveFields": {
       "properties": {
         "pointers": {
@@ -202,6 +210,9 @@
     },
     "identity": {
       "$ref": "#/$defs/Identity"
+    },
+    "load": {
+      "$ref": "#/$defs/Load"
     },
     "paneUrl": {
       "type": "string"

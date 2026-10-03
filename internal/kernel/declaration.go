@@ -26,6 +26,7 @@ type Declaration struct {
 	Commands     []Command
 	Scope        string
 	Hosted       bool
+	Load         Load
 
 	// PaneURL is where this program serves its own HTML for the window's
 	// pane (section 11). Empty means it declares no pane.
@@ -71,6 +72,34 @@ func (c Coverage) String() string {
 	}
 	return fmt.Sprintf("Coverage(%d)", uint8(c))
 }
+
+// Load is how rig keeps a program (section 54, decision 0265). Unsaid is
+// resident, which is what every program was before it could say.
+type Load uint8
+
+const (
+	LoadUnsaid Load = iota
+	LoadResident
+	LoadOnCall
+)
+
+var loadNames = map[Load]string{
+	LoadUnsaid:   "",
+	LoadResident: "resident",
+	LoadOnCall:   "on_call",
+}
+
+// String is the name the meta object and the CLI print; unsaid prints as
+// nothing, so it is omitted rather than claimed.
+func (l Load) String() string {
+	if n, ok := loadNames[l]; ok {
+		return n
+	}
+	return fmt.Sprintf("Load(%d)", uint8(l))
+}
+
+// OnCall is whether the program asked to be started only when called.
+func (l Load) OnCall() bool { return l == LoadOnCall }
 
 // Command is one thing a program can be asked to do.
 //

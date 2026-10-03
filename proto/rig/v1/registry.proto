@@ -56,6 +56,8 @@ message Program {
   // Declared on call and not running (section 54): what is listed is the
   // declaration kept from its last run, and a call starts it.
   bool at_rest = 12;
+  // How it declared it is loaded (section 54).
+  Load load = 13;
 }
 
 // Depth is how much of the estate a read wants (section 9).

@@ -930,6 +930,9 @@ func appsJSON(ps []*registryv1.Program, d registryv1.Depth) []map[string]any {
 		if p.GetAtRest() {
 			row["at_rest"] = true
 		}
+		if l, ok := enumWord(p.GetLoad(), "LOAD_"); ok && p.GetLoad() != rigv1.Load_LOAD_UNSPECIFIED {
+			row["load"] = l
+		}
 		// At DEPTH_PROGRAMS the daemon sent no commands at all, so an empty
 		// list here would say the program declares none.
 		if carriesCommands(d) {

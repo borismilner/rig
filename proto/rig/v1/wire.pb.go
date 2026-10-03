@@ -246,6 +246,58 @@ func (Coverage) EnumDescriptor() ([]byte, []int) {
 	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{2}
 }
 
+// Load is how rig keeps a program (section 54). RESIDENT is started with
+// rigd and supervised for crashes; ON_CALL holds no memory at rest, is
+// started by a call to one of its commands, and exits when it is idle.
+type Load int32
+
+const (
+	Load_LOAD_UNSPECIFIED Load = 0
+	Load_LOAD_RESIDENT    Load = 1
+	Load_LOAD_ON_CALL     Load = 2
+)
+
+// Enum value maps for Load.
+var (
+	Load_name = map[int32]string{
+		0: "LOAD_UNSPECIFIED",
+		1: "LOAD_RESIDENT",
+		2: "LOAD_ON_CALL",
+	}
+	Load_value = map[string]int32{
+		"LOAD_UNSPECIFIED": 0,
+		"LOAD_RESIDENT":    1,
+		"LOAD_ON_CALL":     2,
+	}
+)
+
+func (x Load) Enum() *Load {
+	p := new(Load)
+	*p = x
+	return p
+}
+
+func (x Load) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Load) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_rig_v1_wire_proto_enumTypes[3].Descriptor()
+}
+
+func (Load) Type() protoreflect.EnumType {
+	return &file_proto_rig_v1_wire_proto_enumTypes[3]
+}
+
+func (x Load) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Load.Descriptor instead.
+func (Load) EnumDescriptor() ([]byte, []int) {
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{3}
+}
+
 // Effects is what running a command does to the world. Ordered by danger, so
 // a house rule written against one level covers everything above it.
 //
@@ -300,11 +352,11 @@ func (x Effects) String() string {
 }
 
 func (Effects) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_rig_v1_wire_proto_enumTypes[3].Descriptor()
+	return file_proto_rig_v1_wire_proto_enumTypes[4].Descriptor()
 }
 
 func (Effects) Type() protoreflect.EnumType {
-	return &file_proto_rig_v1_wire_proto_enumTypes[3]
+	return &file_proto_rig_v1_wire_proto_enumTypes[4]
 }
 
 func (x Effects) Number() protoreflect.EnumNumber {
@@ -313,7 +365,7 @@ func (x Effects) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Effects.Descriptor instead.
 func (Effects) EnumDescriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{3}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{4}
 }
 
 // Duration is an order of magnitude, not an estimate. It is what tells a
@@ -357,11 +409,11 @@ func (x Duration) String() string {
 }
 
 func (Duration) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_rig_v1_wire_proto_enumTypes[4].Descriptor()
+	return file_proto_rig_v1_wire_proto_enumTypes[5].Descriptor()
 }
 
 func (Duration) Type() protoreflect.EnumType {
-	return &file_proto_rig_v1_wire_proto_enumTypes[4]
+	return &file_proto_rig_v1_wire_proto_enumTypes[5]
 }
 
 func (x Duration) Number() protoreflect.EnumNumber {
@@ -370,7 +422,7 @@ func (x Duration) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Duration.Descriptor instead.
 func (Duration) EnumDescriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{4}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{5}
 }
 
 // Shape is what a result is.
@@ -410,11 +462,11 @@ func (x Shape) String() string {
 }
 
 func (Shape) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_rig_v1_wire_proto_enumTypes[5].Descriptor()
+	return file_proto_rig_v1_wire_proto_enumTypes[6].Descriptor()
 }
 
 func (Shape) Type() protoreflect.EnumType {
-	return &file_proto_rig_v1_wire_proto_enumTypes[5]
+	return &file_proto_rig_v1_wire_proto_enumTypes[6]
 }
 
 func (x Shape) Number() protoreflect.EnumNumber {
@@ -423,7 +475,7 @@ func (x Shape) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Shape.Descriptor instead.
 func (Shape) EnumDescriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{5}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{6}
 }
 
 // Tristate is a mandatory boolean that has to have been said. A proto3 bool
@@ -462,11 +514,11 @@ func (x Tristate) String() string {
 }
 
 func (Tristate) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_rig_v1_wire_proto_enumTypes[6].Descriptor()
+	return file_proto_rig_v1_wire_proto_enumTypes[7].Descriptor()
 }
 
 func (Tristate) Type() protoreflect.EnumType {
-	return &file_proto_rig_v1_wire_proto_enumTypes[6]
+	return &file_proto_rig_v1_wire_proto_enumTypes[7]
 }
 
 func (x Tristate) Number() protoreflect.EnumNumber {
@@ -475,7 +527,7 @@ func (x Tristate) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Tristate.Descriptor instead.
 func (Tristate) EnumDescriptor() ([]byte, []int) {
-	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{6}
+	return file_proto_rig_v1_wire_proto_rawDescGZIP(), []int{7}
 }
 
 type Status struct {
@@ -1385,7 +1437,12 @@ type Declaration struct {
 	// The event kinds this program publishes (section 5e, section 52 E3), each
 	// its own id, a dot, and lower-case dotted words: graft.job.done. A
 	// program publishes only these; a kind it did not declare is refused.
-	Events        []string `protobuf:"bytes,12,rep,name=events,proto3" json:"events,omitempty"`
+	Events []string `protobuf:"bytes,12,rep,name=events,proto3" json:"events,omitempty"`
+	// How rig loads this program (section 54, decision 0265): the binary says
+	// it, and programs.json may override it. Unspecified is resident, what
+	// every program was before the field existed; it carries no safety
+	// meaning, so section 5e's refusal of an unsaid default does not apply.
+	Load          Load `protobuf:"varint,13,opt,name=load,proto3,enum=rig.v1.Load" json:"load,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1502,6 +1559,13 @@ func (x *Declaration) GetEvents() []string {
 		return x.Events
 	}
 	return nil
+}
+
+func (x *Declaration) GetLoad() Load {
+	if x != nil {
+		return x.Load
+	}
+	return Load_LOAD_UNSPECIFIED
 }
 
 type CallRequest struct {
@@ -1767,7 +1831,7 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\adry_run\x18\x11 \x01(\bR\x06dryRun\x12\x12\n" +
 	"\x04cost\x18\x12 \x01(\tR\x04cost\x12$\n" +
 	"\rpreconditions\x18\x13 \x03(\tR\rpreconditions\x12\x18\n" +
-	"\apromote\x18\x14 \x01(\bR\apromote\"\x95\x03\n" +
+	"\apromote\x18\x14 \x01(\bR\apromote\"\xb7\x03\n" +
 	"\vDeclaration\x12,\n" +
 	"\bidentity\x18\x01 \x01(\v2\x10.rig.v1.IdentityR\bidentity\x12,\n" +
 	"\bcoverage\x18\x02 \x01(\x0e2\x10.rig.v1.CoverageR\bcoverage\x12#\n" +
@@ -1781,7 +1845,8 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\bpane_url\x18\n" +
 	" \x01(\tR\apaneUrl\x12\x1a\n" +
 	"\belements\x18\v \x03(\tR\belements\x12\x16\n" +
-	"\x06events\x18\f \x03(\tR\x06events\"!\n" +
+	"\x06events\x18\f \x03(\tR\x06events\x12 \n" +
+	"\x04load\x18\r \x01(\x0e2\f.rig.v1.LoadR\x04load\"!\n" +
 	"\vCallRequest\x12\x12\n" +
 	"\x04args\x18\x01 \x01(\fR\x04args\"&\n" +
 	"\fCallResponse\x12\x16\n" +
@@ -1813,7 +1878,11 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\bCoverage\x12\x18\n" +
 	"\x14COVERAGE_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10COVERAGE_PARTIAL\x10\x01\x12\x11\n" +
-	"\rCOVERAGE_FULL\x10\x02*\x9b\x01\n" +
+	"\rCOVERAGE_FULL\x10\x02*A\n" +
+	"\x04Load\x12\x14\n" +
+	"\x10LOAD_UNSPECIFIED\x10\x00\x12\x11\n" +
+	"\rLOAD_RESIDENT\x10\x01\x12\x10\n" +
+	"\fLOAD_ON_CALL\x10\x02*\x9b\x01\n" +
 	"\aEffects\x12\x17\n" +
 	"\x13EFFECTS_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11EFFECTS_READ_ONLY\x10\x01\x12\x18\n" +
@@ -1849,53 +1918,55 @@ func file_proto_rig_v1_wire_proto_rawDescGZIP() []byte {
 	return file_proto_rig_v1_wire_proto_rawDescData
 }
 
-var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
+var file_proto_rig_v1_wire_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
 var file_proto_rig_v1_wire_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_proto_rig_v1_wire_proto_goTypes = []any{
 	(FrameKind)(0),               // 0: rig.v1.FrameKind
 	(Code)(0),                    // 1: rig.v1.Code
 	(Coverage)(0),                // 2: rig.v1.Coverage
-	(Effects)(0),                 // 3: rig.v1.Effects
-	(Duration)(0),                // 4: rig.v1.Duration
-	(Shape)(0),                   // 5: rig.v1.Shape
-	(Tristate)(0),                // 6: rig.v1.Tristate
-	(*Status)(nil),               // 7: rig.v1.Status
-	(*Frame)(nil),                // 8: rig.v1.Frame
-	(*HelloRequest)(nil),         // 9: rig.v1.HelloRequest
-	(*HelloResponse)(nil),        // 10: rig.v1.HelloResponse
-	(*PingRequest)(nil),          // 11: rig.v1.PingRequest
-	(*PingResponse)(nil),         // 12: rig.v1.PingResponse
-	(*Identity)(nil),             // 13: rig.v1.Identity
-	(*SensitiveFields)(nil),      // 14: rig.v1.SensitiveFields
-	(*Command)(nil),              // 15: rig.v1.Command
-	(*Declaration)(nil),          // 16: rig.v1.Declaration
-	(*CallRequest)(nil),          // 17: rig.v1.CallRequest
-	(*CallResponse)(nil),         // 18: rig.v1.CallResponse
-	(*HealthReportRequest)(nil),  // 19: rig.v1.HealthReportRequest
-	(*HealthReportResponse)(nil), // 20: rig.v1.HealthReportResponse
+	(Load)(0),                    // 3: rig.v1.Load
+	(Effects)(0),                 // 4: rig.v1.Effects
+	(Duration)(0),                // 5: rig.v1.Duration
+	(Shape)(0),                   // 6: rig.v1.Shape
+	(Tristate)(0),                // 7: rig.v1.Tristate
+	(*Status)(nil),               // 8: rig.v1.Status
+	(*Frame)(nil),                // 9: rig.v1.Frame
+	(*HelloRequest)(nil),         // 10: rig.v1.HelloRequest
+	(*HelloResponse)(nil),        // 11: rig.v1.HelloResponse
+	(*PingRequest)(nil),          // 12: rig.v1.PingRequest
+	(*PingResponse)(nil),         // 13: rig.v1.PingResponse
+	(*Identity)(nil),             // 14: rig.v1.Identity
+	(*SensitiveFields)(nil),      // 15: rig.v1.SensitiveFields
+	(*Command)(nil),              // 16: rig.v1.Command
+	(*Declaration)(nil),          // 17: rig.v1.Declaration
+	(*CallRequest)(nil),          // 18: rig.v1.CallRequest
+	(*CallResponse)(nil),         // 19: rig.v1.CallResponse
+	(*HealthReportRequest)(nil),  // 20: rig.v1.HealthReportRequest
+	(*HealthReportResponse)(nil), // 21: rig.v1.HealthReportResponse
 }
 var file_proto_rig_v1_wire_proto_depIdxs = []int32{
 	1,  // 0: rig.v1.Status.code:type_name -> rig.v1.Code
 	0,  // 1: rig.v1.Frame.kind:type_name -> rig.v1.FrameKind
-	7,  // 2: rig.v1.Frame.status:type_name -> rig.v1.Status
-	16, // 3: rig.v1.HelloRequest.declaration:type_name -> rig.v1.Declaration
-	3,  // 4: rig.v1.Command.effects:type_name -> rig.v1.Effects
-	6,  // 5: rig.v1.Command.idempotent:type_name -> rig.v1.Tristate
-	14, // 6: rig.v1.Command.sensitive:type_name -> rig.v1.SensitiveFields
-	6,  // 7: rig.v1.Command.interactive:type_name -> rig.v1.Tristate
-	6,  // 8: rig.v1.Command.streams:type_name -> rig.v1.Tristate
-	6,  // 9: rig.v1.Command.needs_display:type_name -> rig.v1.Tristate
-	4,  // 10: rig.v1.Command.duration:type_name -> rig.v1.Duration
-	6,  // 11: rig.v1.Command.confirms:type_name -> rig.v1.Tristate
-	5,  // 12: rig.v1.Command.shape:type_name -> rig.v1.Shape
-	13, // 13: rig.v1.Declaration.identity:type_name -> rig.v1.Identity
+	8,  // 2: rig.v1.Frame.status:type_name -> rig.v1.Status
+	17, // 3: rig.v1.HelloRequest.declaration:type_name -> rig.v1.Declaration
+	4,  // 4: rig.v1.Command.effects:type_name -> rig.v1.Effects
+	7,  // 5: rig.v1.Command.idempotent:type_name -> rig.v1.Tristate
+	15, // 6: rig.v1.Command.sensitive:type_name -> rig.v1.SensitiveFields
+	7,  // 7: rig.v1.Command.interactive:type_name -> rig.v1.Tristate
+	7,  // 8: rig.v1.Command.streams:type_name -> rig.v1.Tristate
+	7,  // 9: rig.v1.Command.needs_display:type_name -> rig.v1.Tristate
+	5,  // 10: rig.v1.Command.duration:type_name -> rig.v1.Duration
+	7,  // 11: rig.v1.Command.confirms:type_name -> rig.v1.Tristate
+	6,  // 12: rig.v1.Command.shape:type_name -> rig.v1.Shape
+	14, // 13: rig.v1.Declaration.identity:type_name -> rig.v1.Identity
 	2,  // 14: rig.v1.Declaration.coverage:type_name -> rig.v1.Coverage
-	15, // 15: rig.v1.Declaration.commands:type_name -> rig.v1.Command
-	16, // [16:16] is the sub-list for method output_type
-	16, // [16:16] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	16, // 15: rig.v1.Declaration.commands:type_name -> rig.v1.Command
+	3,  // 16: rig.v1.Declaration.load:type_name -> rig.v1.Load
+	17, // [17:17] is the sub-list for method output_type
+	17, // [17:17] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_wire_proto_init() }
@@ -1908,7 +1979,7 @@ func file_proto_rig_v1_wire_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_wire_proto_rawDesc), len(file_proto_rig_v1_wire_proto_rawDesc)),
-			NumEnums:      7,
+			NumEnums:      8,
 			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   0,

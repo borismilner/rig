@@ -187,6 +187,7 @@ func writeProgram(h hash.Hash, p Program) {
 	writeStrings(h, p.Events)
 	writeBool(h, p.Hosted)
 	writeString(h, p.PaneURL)
+	writeUint(h, uint64(p.Load))
 	writeString(h, p.Preamble)
 
 	// Sorted by id, so the map is canonical. Declaration order is what a
