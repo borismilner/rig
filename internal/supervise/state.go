@@ -20,8 +20,9 @@ import (
 	"strings"
 )
 
-// State is one of the five in PLAN.md section 18, and there are no others.
+// State is one of the six in PLAN.md section 18, and there are no others.
 // The section says so in as many words: "The states, and this is the set."
+// Section 54 added the sixth, AT_REST, for a program started when called.
 //
 // Zero is UNSPECIFIED and is not a state a program can be in. Section 21 bans
 // a meaningful enum zero, and this is the same rule one layer in: a program
@@ -48,6 +49,10 @@ const (
 	// StateQuarantined - out of budget, or failed registration. Visible,
 	// with history, and it stays until a human acts.
 	StateQuarantined
+
+	// StateAtRest - declared on call, not running, and not a failure: the
+	// next call to one of its commands starts it (section 54).
+	StateAtRest
 )
 
 var stateNames = map[State]string{
@@ -57,6 +62,7 @@ var stateNames = map[State]string{
 	StateDegraded:    "DEGRADED",
 	StateRestarting:  "RESTARTING",
 	StateQuarantined: "QUARANTINED",
+	StateAtRest:      "AT_REST",
 }
 
 func (s State) String() string {
@@ -103,6 +109,10 @@ const (
 	// ActorHuman is section 18's fourth, and the ONLY one that may leave
 	// QUARANTINED.
 	ActorHuman
+
+	// ActorCaller is whoever called a command of a program at rest, which
+	// is what starts it (section 54).
+	ActorCaller
 )
 
 var actorNames = map[Actor]string{
@@ -113,6 +123,7 @@ var actorNames = map[Actor]string{
 	ActorRestartBudget: "the restart budget",
 	ActorInvoker:       "the invoker",
 	ActorHuman:         "a human",
+	ActorCaller:        "a caller",
 }
 
 func (a Actor) String() string {
@@ -161,6 +172,25 @@ const (
 
 	// TriggerManualRestart - a human asked for it, and only a human can.
 	TriggerManualRestart
+
+	// TriggerRest - an on-call program's declaration is in hand and it is
+	// not needed, so it is at rest (section 54).
+	TriggerRest
+
+	// TriggerCalled - a call to a command of a program at rest.
+	TriggerCalled
+
+	// TriggerIdleExit - an on-call program exited cleanly with no call in
+	// flight: its normal end, not a crash.
+	TriggerIdleExit
+
+	// TriggerCrashed - an on-call program ended any other way. It is at rest
+	// again, and the exit counts against its restart budget.
+	TriggerCrashed
+
+	// TriggerStartFailed - an on-call program did not register: the call
+	// that started it is told why, and the attempt counts.
+	TriggerStartFailed
 )
 
 var triggerNames = map[Trigger]string{
@@ -175,6 +205,11 @@ var triggerNames = map[Trigger]string{
 	TriggerBudgetExhausted:    "budget exhausted",
 	TriggerPanickedTwice:      "panicked twice inside the budget",
 	TriggerManualRestart:      "a manual restart",
+	TriggerRest:               "declared on call and not needed",
+	TriggerCalled:             "a call to one of its commands",
+	TriggerIdleExit:           "exited cleanly with no call in flight",
+	TriggerCrashed:            "crashed, or exited during a call",
+	TriggerStartFailed:        "did not start",
 }
 
 func (t Trigger) String() string {
@@ -246,6 +281,48 @@ var table = map[edge]Transition{
 		From: StateQuarantined, To: StateStarting,
 		Trigger: TriggerManualRestart, Actor: ActorHuman,
 	},
+
+	// Section 54: a program started when it is called.
+	{StateUnspecified, TriggerRest}: {
+		From: StateUnspecified, To: StateAtRest,
+		Trigger: TriggerRest, Actor: ActorRig,
+	},
+	{StateHealthy, TriggerRest}: {
+		From: StateHealthy, To: StateAtRest,
+		Trigger: TriggerRest, Actor: ActorRig,
+	},
+	{StateAtRest, TriggerCalled}: {
+		From: StateAtRest, To: StateStarting,
+		Trigger: TriggerCalled, Actor: ActorCaller,
+	},
+	{StateAtRest, TriggerLaunch}: {
+		From: StateAtRest, To: StateStarting,
+		Trigger: TriggerLaunch, Actor: ActorRig,
+	},
+	{StateHealthy, TriggerIdleExit}: {
+		From: StateHealthy, To: StateAtRest,
+		Trigger: TriggerIdleExit, Actor: ActorProgram,
+	},
+	{StateDegraded, TriggerIdleExit}: {
+		From: StateDegraded, To: StateAtRest,
+		Trigger: TriggerIdleExit, Actor: ActorProgram,
+	},
+	{StateHealthy, TriggerCrashed}: {
+		From: StateHealthy, To: StateAtRest,
+		Trigger: TriggerCrashed, Actor: ActorProgram,
+	},
+	{StateDegraded, TriggerCrashed}: {
+		From: StateDegraded, To: StateAtRest,
+		Trigger: TriggerCrashed, Actor: ActorProgram,
+	},
+	{StateStarting, TriggerStartFailed}: {
+		From: StateStarting, To: StateAtRest,
+		Trigger: TriggerStartFailed, Actor: ActorRig,
+	},
+	{StateAtRest, TriggerBudgetExhausted}: {
+		From: StateAtRest, To: StateQuarantined,
+		Trigger: TriggerBudgetExhausted, Actor: ActorRestartBudget,
+	},
 }
 
 // panicTwice is section 18's "any -> QUARANTINED" row. It is held apart
@@ -311,12 +388,12 @@ func Resolve(program string, from State, trigger Trigger) (Transition, error) {
 	return Transition{}, &FaultError{Program: program, From: from, Trigger: trigger}
 }
 
-// States lists the five in the order section 18's table gives them, for any
+// States lists the six in the order section 18's table gives them, for any
 // surface that renders the set.
 func States() []State {
 	return []State{
 		StateStarting, StateHealthy, StateDegraded,
-		StateRestarting, StateQuarantined,
+		StateRestarting, StateQuarantined, StateAtRest,
 	}
 }
 

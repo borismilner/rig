@@ -51,6 +51,10 @@ type Spec struct {
 	// Autostart says rigd starts it when rigd starts, rather than on
 	// `rig up` (plan/18, Boris 2026-09-27).
 	Autostart bool
+
+	// OnCall says it holds nothing at rest: a call to one of its commands
+	// starts it, and it exits on its own when it has nothing left (plan/54).
+	OnCall bool
 }
 
 // Validate refuses a spec that could not be launched safely, before anything
@@ -71,6 +75,8 @@ func (s Spec) Validate() error {
 		return fmt.Errorf("program %q: %q is not an absolute path", s.ID, s.Path)
 	case strings.Contains(s.Path, ".."):
 		return fmt.Errorf("program %q: %q walks upward, which a declared path never needs to", s.ID, s.Path)
+	case s.Autostart && s.OnCall:
+		return fmt.Errorf("program %q: autostart and on_call contradict each other: one starts it with rigd, the other when it is called", s.ID)
 	}
 	for _, name := range s.Env {
 		if name == "" || strings.ContainsAny(name, "=\x00") {
@@ -225,11 +231,63 @@ func Start(spec Spec, handles map[string]string) (Process, <-chan Exit, error) {
 	// Section 5g: "rig collects nothing it did not see", and the journal is
 	// where a crashed program's last words are read today.
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	var tail *tailWriter
+	if spec.OnCall {
+		// A failed start is told to the caller that caused it, with the
+		// program's last words (plan/54), so they are kept as well as passed
+		// on. WaitDelay bounds the copy a grandchild holding stderr open
+		// would otherwise stretch forever.
+		tail = &tailWriter{to: os.Stderr}
+		cmd.Stderr, cmd.WaitDelay = tail, DefaultStopGrace
+	}
 	proc, exited, err := StartCommand(cmd)
 	if err != nil {
 		return nil, nil, fmt.Errorf("starting %q: %w", spec.ID, err)
 	}
+	if cp, ok := proc.(*childProcess); ok {
+		cp.tail = tail
+	}
 	return proc, exited, nil
+}
+
+// tailKeep is how much of an on-call child's stderr is kept for a failed
+// start's answer: a few lines, the end of what it said.
+const tailKeep = 2048
+
+// tailWriter passes a child's stderr on and keeps its last tailKeep bytes.
+type tailWriter struct {
+	to  *os.File
+	mu  sync.Mutex
+	buf []byte
+}
+
+func (t *tailWriter) Write(b []byte) (int, error) {
+	t.mu.Lock()
+	t.buf = append(t.buf, b...)
+	if over := len(t.buf) - tailKeep; over > 0 {
+		t.buf = append(t.buf[:0], t.buf[over:]...)
+	}
+	t.mu.Unlock()
+	_, _ = t.to.Write(b)
+	return len(b), nil
+}
+
+func (t *tailWriter) String() string {
+	if t == nil {
+		return ""
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return strings.TrimSpace(string(t.buf))
+}
+
+// Tail is the end of what a child wrote to stderr, for a process that kept
+// it; a test's stand-in need not.
+func Tail(p Process) string {
+	if c, ok := p.(*childProcess); ok {
+		return c.tail.String()
+	}
+	return ""
 }
 
 // StartCommand is the mechanism under Start with none of its policy: it
@@ -282,6 +340,7 @@ type childProcess struct {
 	cmd  *exec.Cmd
 	done chan struct{}
 	once sync.Once
+	tail *tailWriter
 }
 
 // Ended closes once the child has been reaped.

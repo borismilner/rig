@@ -154,8 +154,6 @@ func (h *harness) state(id string) State { return h.status(id).State }
 // channel the supervisor is watching. It waits for the supervisor to have
 // APPLIED it, because the observation happens on the watching goroutine and a
 // test that asserted before it ran would be asserting the scheduler.
-//
-//nolint:unparam // the harness takes an id because it supervises a set; one test declares two programs
 func (h *harness) crash(id string, exit Exit) {
 	h.t.Helper()
 	p := h.proc(id)

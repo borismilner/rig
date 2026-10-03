@@ -122,6 +122,17 @@ type program struct {
 	readyAt  time.Time
 
 	history []Event
+
+	// Section 54, for a program started when called. calls is how many are
+	// in flight or waiting for it, which is what tells an idle exit from a
+	// crash; waiters are the calls waiting for its start to end.
+	calls    int
+	lastCall time.Time
+	waiters  []chan error
+
+	// stderr is the end of what the last child wrote, kept when it ended so
+	// a failed start can say it after the process is gone.
+	stderr string
 }
 
 // Report is what a supervised program says about its own progress.
@@ -237,6 +248,12 @@ type Status struct {
 	// NextAttempt is when the backoff elapses, zero unless RESTARTING.
 	NextAttempt time.Time
 
+	// OnCall, Calls and LastCall are section 54's: whether it starts when
+	// called, how many calls it has now, and when the last one came.
+	OnCall   bool
+	Calls    int
+	LastCall time.Time
+
 	History []Event
 }
 
@@ -288,7 +305,7 @@ func (s *Supervisor) Up(ids ...string) ([]Status, error) {
 		if !ok {
 			return nil, fmt.Errorf("%w: %q", ErrNoSuchProgram, id)
 		}
-		if p.state == StateUnspecified {
+		if p.state == StateUnspecified || p.state == StateAtRest {
 			s.launch(p, now)
 		}
 		out = append(out, p.status())
@@ -330,9 +347,135 @@ func (s *Supervisor) launch(p *program, now time.Time) {
 }
 
 // Registered is the program's own row: "handshake and declaration validated".
-// The daemon calls it when a supervised program completes hello.
+// The daemon calls it when a supervised program completes hello, and a call
+// waiting for an on-call program's start is released by it.
 func (s *Supervisor) Registered(id string) error {
-	return s.trigger(id, TriggerRegistered, "")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	p, ok := s.programs[id]
+	if !ok {
+		return fmt.Errorf("%w: %q", ErrNoSuchProgram, id)
+	}
+	s.move(p, TriggerRegistered, s.now(), "")
+	if p.state == StateHealthy {
+		p.release(nil)
+	}
+	return nil
+}
+
+// ErrNotOnCall is Call or Rest naming a program not declared on call.
+var ErrNotOnCall = errors.New("not declared on_call")
+
+// ErrQuarantined is a call to an on-call program that is quarantined: it is
+// refused at once rather than started (section 54).
+var ErrQuarantined = errors.New("quarantined")
+
+// StartError is an on-call start that did not end in a registration: what
+// the call that caused it is told, with the program's last words.
+type StartError struct {
+	Program string
+	Reason  string
+	Stderr  string
+}
+
+func (e *StartError) Error() string {
+	return fmt.Sprintf("%s did not start: %s", e.Program, e.Reason)
+}
+
+// Call is section 54's entry: a call to an on-call program. It starts the
+// program if it is at rest, and answers a channel that yields nil once it
+// has registered, or why it did not. Every call waiting shares the one start.
+//
+// done must be called when the call has ended, answered or not: the count it
+// keeps is what tells an idle exit from a crash.
+func (s *Supervisor) Call(id string) (ready <-chan error, done func(), err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := s.now()
+	p, ok := s.programs[id]
+	switch {
+	case !ok:
+		return nil, nil, fmt.Errorf("%w: %q", ErrNoSuchProgram, id)
+	case !p.spec.OnCall:
+		return nil, nil, fmt.Errorf("%w: %q", ErrNotOnCall, id)
+	case p.state == StateQuarantined:
+		return nil, nil, fmt.Errorf("%w: %s", ErrQuarantined, p.lastNote())
+	}
+	ch := make(chan error, 1)
+	p.calls++
+	p.lastCall = now
+	var once sync.Once
+	done = func() {
+		once.Do(func() {
+			s.mu.Lock()
+			p.calls--
+			s.mu.Unlock()
+		})
+	}
+	switch p.state {
+	case StateHealthy, StateDegraded:
+		ch <- nil
+		return ch, done, nil
+	case StateUnspecified:
+		p.waiters = append(p.waiters, ch)
+		s.launch(p, now)
+	case StateAtRest:
+		p.waiters = append(p.waiters, ch)
+		s.move(p, TriggerCalled, now, "")
+		if p.state == StateStarting {
+			s.spawn(p, now)
+		}
+	default:
+		// STARTING or RESTARTING: this call waits behind the start already
+		// under way, and a second process is never launched.
+		p.waiters = append(p.waiters, ch)
+	}
+	return ch, done, nil
+}
+
+// Rest puts an on-call program at rest: from `-` once its declaration is in
+// hand, or by stopping the child a declare run started, unless a call has
+// come for it meanwhile.
+func (s *Supervisor) Rest(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := s.now()
+	p, ok := s.programs[id]
+	switch {
+	case !ok:
+		return fmt.Errorf("%w: %q", ErrNoSuchProgram, id)
+	case !p.spec.OnCall:
+		return fmt.Errorf("%w: %q", ErrNotOnCall, id)
+	}
+	switch p.state {
+	case StateUnspecified:
+		s.move(p, TriggerRest, now, "")
+	case StateHealthy:
+		if p.calls == 0 {
+			s.stopChild(p)
+			s.move(p, TriggerRest, now, "its declaration was read")
+		}
+	default:
+	}
+	return nil
+}
+
+// release answers every call waiting for this program's start.
+func (p *program) release(err error) {
+	for _, ch := range p.waiters {
+		ch <- err
+	}
+	p.waiters = nil
+}
+
+// lastNote is the newest history note, for a refusal that has to say why.
+func (p *program) lastNote() string {
+	for i := len(p.history) - 1; i >= 0; i-- {
+		if n := p.history[i].Note; n != "" {
+			return n
+		}
+	}
+	return "see rig health " + p.spec.ID
 }
 
 // Panicked is section 5j: the invoker recovered a panic. Twice inside the
@@ -412,11 +555,18 @@ func (s *Supervisor) Stop(id string) error {
 // the lock.
 func (s *Supervisor) halt(p *program, now time.Time, note string) {
 	s.stopChild(p)
+	// An on-call program that is stopped is at rest rather than off the
+	// table: it is still declared to start when called (section 54).
+	to := StateUnspecified
+	if p.spec.OnCall {
+		to = StateAtRest
+		p.release(&StartError{Program: p.spec.ID, Reason: note})
+	}
 	p.record(Event{
-		At: now, From: p.state, To: StateUnspecified,
+		At: now, From: p.state, To: to,
 		Trigger: TriggerManualRestart, Actor: ActorHuman, Note: note,
 	})
-	p.state, p.since = StateUnspecified, now
+	p.state, p.since = to, now
 	p.failures, p.panics, p.backoff, p.restarts = 0, 0, 0, nil
 	p.readyAt = time.Time{}
 }
@@ -462,7 +612,7 @@ func (s *Supervisor) StopAll() {
 	s.mu.Lock()
 	now := s.now()
 	for _, id := range s.order {
-		if p := s.programs[id]; p.state != StateUnspecified {
+		if p := s.programs[id]; p.state != StateUnspecified && (p.state != StateAtRest || p.proc != nil) {
 			s.halt(p, now, "rig is shutting down")
 		}
 	}
@@ -524,20 +674,6 @@ func (s *Supervisor) Health(ids ...string) ([]Status, error) {
 	return out, nil
 }
 
-// trigger takes one named edge for one program, for the callers that have
-// nothing to decide.
-func (s *Supervisor) trigger(id string, t Trigger, note string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	now := s.now()
-	p, ok := s.programs[id]
-	if !ok {
-		return fmt.Errorf("%w: %q", ErrNoSuchProgram, id)
-	}
-	s.move(p, t, now, note)
-	return nil
-}
-
 // move is THE ONLY WRITER OF p.state, and it writes what the table says.
 //
 // An illegal transition is section 18's supervisor fault: recorded with the
@@ -553,6 +689,11 @@ func (s *Supervisor) move(p *program, t Trigger, now time.Time, note string) {
 		})
 		p.state, p.since = StateQuarantined, now
 		return
+	}
+	if tr.From == StateStarting && tr.To != StateHealthy {
+		// A start that did not end in a registration answers every call
+		// waiting for it now, rather than at its deadline.
+		p.release(&StartError{Program: p.spec.ID, Reason: note, Stderr: p.stderr})
 	}
 	if tr.To == StateQuarantined {
 		// ⛔ A QUARANTINED PROGRAM HAS NO CHILD RUNNING, and that is not
@@ -583,7 +724,8 @@ func (p *program) status() Status {
 		Failures: p.failures, Restarts: len(p.restarts),
 		Marker: p.report.Marker, Waiting: p.report.Waiting, Parked: p.report.Parked,
 		LastExit: p.lastExit,
-		History:  append([]Event(nil), p.history...),
+		OnCall:   p.spec.OnCall, Calls: p.calls, LastCall: p.lastCall,
+		History: append([]Event(nil), p.history...),
 	}
 	// Only a backoff has a next attempt. readyAt outlives the backoff that
 	// set it, and a QUARANTINED row showing one tells a human rig will try
@@ -617,9 +759,10 @@ func (s *Supervisor) Tick() {
 			s.checkHealth(p, now)
 		case StateRestarting:
 			s.checkBackoff(p, now)
-		case StateUnspecified, StateQuarantined:
-			// `-` is not supervised and QUARANTINED waits for a human. Named
-			// rather than defaulted so a sixth state cannot land here silently.
+		case StateUnspecified, StateQuarantined, StateAtRest:
+			// `-` is not supervised, QUARANTINED waits for a human, and AT_REST
+			// waits for a call. Named rather than defaulted so a seventh state
+			// cannot land here silently.
 		}
 	}
 }
@@ -644,6 +787,7 @@ func (s *Supervisor) applyExit(id string, proc Process, exit Exit) {
 		return
 	}
 	p.lastExit = &exit
+	p.stderr = Tail(proc)
 	p.proc = nil
 	s.observed(p, ObservedDead, now, "the child ended: "+exit.String())
 	select {
@@ -664,6 +808,10 @@ func (s *Supervisor) checkRegistration(p *program, now time.Time) {
 		d = DefaultHealth().Register
 	}
 	if now.Sub(p.since) < d {
+		return
+	}
+	if p.spec.OnCall {
+		s.failedOnCall(p, now, TriggerStartFailed, "did not register within "+d.String())
 		return
 	}
 	s.move(p, TriggerRegistrationFailed, now,
@@ -744,6 +892,8 @@ func (s *Supervisor) escalate(p *program, now time.Time, note string) {
 	switch {
 	case p.state == StateHealthy && p.failures >= pol.Degraded:
 		s.move(p, TriggerHealthFailures, now, note)
+	case p.state == StateDegraded && p.failures >= pol.Restart && p.spec.OnCall:
+		s.failedOnCall(p, now, TriggerCrashed, "stopped after "+note)
 	case p.state == StateDegraded && p.failures >= pol.Restart:
 		s.beginRestart(p, now, note)
 	}
@@ -761,6 +911,10 @@ func (s *Supervisor) escalate(p *program, now time.Time, note string) {
 // registers failed a registration step, which is a quarantine and deliberately
 // not a retry loop.
 func (s *Supervisor) died(p *program, now time.Time, note string) {
+	if p.spec.OnCall {
+		s.endedOnCall(p, now, note)
+		return
+	}
 	if p.state == StateStarting {
 		s.move(p, TriggerRegistrationFailed, now, note)
 		return
@@ -774,6 +928,48 @@ func (s *Supervisor) died(p *program, now time.Time, note string) {
 		s.move(p, TriggerHealthFailures, now, note)
 	}
 	s.beginRestart(p, now, note)
+}
+
+// endedOnCall is section 54's reading of an on-call child's end. A clean
+// exit with no call in flight is its normal end. Anything else is a crash,
+// or a start that failed: it is at rest again, counted against the restart
+// budget, and never relaunched by rig - nobody is calling it, and a
+// relaunch would be a resident process by another route.
+func (s *Supervisor) endedOnCall(p *program, now time.Time, note string) {
+	if p.state == StateStarting {
+		s.failedOnCall(p, now, TriggerStartFailed, note)
+		return
+	}
+	if p.lastExit != nil && p.lastExit.OK() && p.calls == 0 {
+		s.move(p, TriggerIdleExit, now, note)
+		return
+	}
+	if p.calls > 0 {
+		note += fmt.Sprintf(", with %d calls in flight", p.calls)
+	}
+	s.failedOnCall(p, now, TriggerCrashed, note)
+}
+
+// failedOnCall takes an on-call program back to rest on a failure, then
+// quarantines it if that failure spent the budget.
+func (s *Supervisor) failedOnCall(p *program, now time.Time, t Trigger, note string) {
+	if p.proc != nil {
+		p.stderr = Tail(p.proc)
+	}
+	s.stopChild(p)
+	s.move(p, t, now, note)
+	if p.state != StateAtRest {
+		return
+	}
+	b := p.spec.Budget
+	if b.Restarts <= 0 {
+		b = DefaultBudget()
+	}
+	p.restarts = append(withinWindow(p.restarts, now, b.Window), now)
+	if len(p.restarts) >= b.Restarts {
+		s.move(p, TriggerBudgetExhausted, now, fmt.Sprintf(
+			"%d failures in %s is the whole budget: %s", len(p.restarts), b.Window, note))
+	}
 }
 
 // beginRestart takes DEGRADED -> RESTARTING and starts the backoff clock.
@@ -837,10 +1033,14 @@ func (s *Supervisor) spawn(p *program, now time.Time) {
 	handles["RIG_PROGRAM_ID"] = p.spec.ID
 	proc, exited, err := s.start(p.spec, handles)
 	if err != nil {
+		if p.spec.OnCall {
+			s.failedOnCall(p, now, TriggerStartFailed, "the child would not start: "+err.Error())
+			return
+		}
 		s.move(p, TriggerRegistrationFailed, now, "the child would not start: "+err.Error())
 		return
 	}
-	p.proc, p.checked, p.advanced, p.report = proc, now, now, Report{}
+	p.proc, p.checked, p.advanced, p.report, p.stderr = proc, now, now, Report{}, ""
 	id := p.spec.ID
 	go func() {
 		e, ok := <-exited
@@ -919,7 +1119,7 @@ func (s *Supervisor) Declared() []string {
 func SortStatus(in []Status) {
 	rank := map[State]int{
 		StateQuarantined: 0, StateRestarting: 1, StateDegraded: 2,
-		StateStarting: 3, StateHealthy: 4, StateUnspecified: 5,
+		StateStarting: 3, StateHealthy: 4, StateAtRest: 5, StateUnspecified: 6,
 	}
 	sort.SliceStable(in, func(i, j int) bool {
 		if rank[in[i].State] != rank[in[j].State] {
@@ -927,4 +1127,15 @@ func SortStatus(in []Status) {
 		}
 		return in[i].ID < in[j].ID
 	})
+}
+
+// Spec is one declared program's spec, as Declare was given it.
+func (s *Supervisor) Spec(id string) (Spec, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	p, ok := s.programs[id]
+	if !ok {
+		return Spec{}, false
+	}
+	return p.spec, true
 }

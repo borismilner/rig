@@ -38,6 +38,13 @@ type Registry struct {
 	// remember is how long a departure stays readable. See DefaultRemember.
 	remember time.Duration
 
+	// resting holds the declaration of each program declared to start when
+	// called (section 54), kept while it is not running, so it is listed and
+	// its commands resolve with no process behind them. A live registration
+	// under the same id is read first; this is what answers when there is
+	// none.
+	resting map[string]entry
+
 	// self is rig's OWN declaration, and it is deliberately not an entry in
 	// programs. It has no owner, no session and no scope, because it is not a
 	// registration: nothing connected to make it and nothing disconnecting
@@ -54,6 +61,16 @@ type entry struct {
 	// registration. A command that declared none is absent rather than nil,
 	// and absent means the command takes no arguments (see ValidateArgs).
 	schemas map[string]*jsonschema.Schema
+}
+
+// lookup is one program's entry, live first, else at rest. The caller holds
+// the lock.
+func (r *Registry) lookup(id string) (entry, bool) {
+	if e, ok := r.programs[id]; ok {
+		return e, true
+	}
+	e, ok := r.resting[id]
+	return e, ok
 }
 
 // departure is one program's tombstone as the registry holds it.
@@ -144,6 +161,7 @@ func New() *Kernel {
 	return &Kernel{
 		registry: &Registry{
 			programs: map[string]entry{},
+			resting:  map[string]entry{},
 			departed: map[string]departure{},
 			remember: DefaultRemember,
 		},
@@ -198,6 +216,35 @@ func (k *Kernel) Register(p Principal, d Declaration) (Principal, error) {
 	// registered and reachable right now.
 	delete(k.registry.departed, d.Identity.ID)
 	return p, nil
+}
+
+// Rest keeps a declaration for a program that is not running, so that it is
+// listed and called as though it were (section 54). The declaration is
+// validated exactly as a registration's is; nothing is scoped by it, because
+// no connection made it.
+func (k *Kernel) Rest(d Declaration) error {
+	if err := d.Validate(); err != nil {
+		return err
+	}
+	schemas, err := compileDeclaredArgs(d)
+	if err != nil {
+		return err
+	}
+	scope := d.Scope
+	if scope == "" {
+		scope = d.Identity.ID
+	}
+	k.registry.mu.Lock()
+	defer k.registry.mu.Unlock()
+	k.registry.resting[d.Identity.ID] = entry{decl: d, scope: scope, schemas: schemas}
+	return nil
+}
+
+// Unrest forgets a kept declaration.
+func (k *Kernel) Unrest(id string) {
+	k.registry.mu.Lock()
+	defer k.registry.mu.Unlock()
+	delete(k.registry.resting, id)
 }
 
 // DeclareSelf records rig's own commands, so the invoker resolves them to
@@ -350,6 +397,12 @@ func (v View) Programs() []Program {
 		}
 		out = append(out, program(e))
 	}
+	for id, e := range v.r.resting {
+		if _, live := v.r.programs[id]; live || !v.canSee(e) {
+			continue
+		}
+		out = append(out, program(e))
+	}
 	sort.Slice(out, func(i, j int) bool {
 		return out[i].Identity.ID < out[j].Identity.ID
 	})
@@ -363,7 +416,7 @@ func (v View) Program(id string) (Program, bool) {
 	v.r.mu.RLock()
 	defer v.r.mu.RUnlock()
 
-	e, ok := v.r.programs[id]
+	e, ok := v.r.lookup(id)
 	if !ok || !v.canSee(e) {
 		return Program{}, false
 	}
@@ -406,7 +459,7 @@ func (r *Registry) command(programID, commandID string) (Command, bool) {
 	// never lists rig, because rig is not one of the things it lists.
 	decl := r.self
 	if programID != SelfID {
-		e, ok := r.programs[programID]
+		e, ok := r.lookup(programID)
 		if !ok {
 			return Command{}, false
 		}

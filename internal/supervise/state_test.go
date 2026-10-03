@@ -25,6 +25,18 @@ func TestEveryRowOfSectionEighteensTable(t *testing.T) {
 		{StateRestarting, TriggerBackoffElapsed, StateStarting, ActorRestartBudget},
 		{StateRestarting, TriggerBudgetExhausted, StateQuarantined, ActorRestartBudget},
 		{StateQuarantined, TriggerManualRestart, StateStarting, ActorHuman},
+
+		// Section 54's rows, for a program started when it is called.
+		{StateUnspecified, TriggerRest, StateAtRest, ActorRig},
+		{StateHealthy, TriggerRest, StateAtRest, ActorRig},
+		{StateAtRest, TriggerCalled, StateStarting, ActorCaller},
+		{StateAtRest, TriggerLaunch, StateStarting, ActorRig},
+		{StateHealthy, TriggerIdleExit, StateAtRest, ActorProgram},
+		{StateDegraded, TriggerIdleExit, StateAtRest, ActorProgram},
+		{StateHealthy, TriggerCrashed, StateAtRest, ActorProgram},
+		{StateDegraded, TriggerCrashed, StateAtRest, ActorProgram},
+		{StateStarting, TriggerStartFailed, StateAtRest, ActorRig},
+		{StateAtRest, TriggerBudgetExhausted, StateQuarantined, ActorRestartBudget},
 	}
 	for _, r := range rows {
 		got, err := Resolve("p", r.from, r.trigger)
@@ -78,7 +90,8 @@ func TestEverythingNotInTheTableIsAFault(t *testing.T) {
 		TriggerUnspecified, TriggerLaunch, TriggerRegistered,
 		TriggerRegistrationFailed, TriggerHealthFailures, TriggerHealthRecovered,
 		TriggerBudgetRestart, TriggerBackoffElapsed, TriggerBudgetExhausted,
-		TriggerManualRestart,
+		TriggerManualRestart, TriggerRest, TriggerCalled, TriggerIdleExit,
+		TriggerCrashed, TriggerStartFailed,
 	}
 	for _, s := range allStates {
 		for _, tg := range allTriggers {

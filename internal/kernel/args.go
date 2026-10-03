@@ -93,7 +93,7 @@ func compileDeclaredArgs(d Declaration) (map[string]*jsonschema.Schema, error) {
 // reach a program on the grounds that there was no schema to fail.
 func (k *Kernel) ValidateArgs(programID, commandID string, args []byte) error {
 	k.registry.mu.RLock()
-	e, known := k.registry.programs[programID]
+	e, known := k.registry.lookup(programID)
 	var schema *jsonschema.Schema
 	var declared bool
 	var examples []string
@@ -237,7 +237,7 @@ func commandByID(d Declaration, commandID string) (Command, bool) {
 func (k *Kernel) DeclaredDuration(programID, commandID string) Duration {
 	k.registry.mu.RLock()
 	defer k.registry.mu.RUnlock()
-	e, known := k.registry.programs[programID]
+	e, known := k.registry.lookup(programID)
 	if !known {
 		return DurationUnspecified
 	}
