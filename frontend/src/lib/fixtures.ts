@@ -16,6 +16,8 @@
 import type {
   Capability,
   Guidelines,
+  Note,
+  NoteList,
   Program,
   Running,
 } from "../../bindings/github.com/borismilner/rig/cmd/rigwindow/models.js";
@@ -348,5 +350,102 @@ export const GUIDELINES: Guidelines = {
       modified: false,
       unknownBecause: "",
     },
+  ],
+};
+
+/* The notifications panel, Needs you and the card (plan/55 requirements 7
+ * to 9, 23 to 26): one ask with options, one free-text ask, one answered,
+ * one rig forgot, and plain infos from three senders. NOTES_NOW is the
+ * clock the panel reads them against, so "ago" holds still. */
+export const NOTES_NOW = Date.parse("2026-10-03T18:00:00Z");
+const at = (min: number) => new Date(NOTES_NOW - min * 60_000).toISOString();
+const note = (n: Partial<Note> & Pick<Note, "id" | "title" | "sender">): Note => ({
+  severity: "info",
+  body: "",
+  at: at(5),
+  suppressed: false,
+  replies: [],
+  replyText: false,
+  asks: false,
+  waiting: false,
+  forgotten: false,
+  answer: null,
+  ...n,
+});
+export const NOTES: NoteList = {
+  keepDays: 7,
+  keepFrom: "default",
+  evicted: 3,
+  notes: [
+    note({
+      id: "n-deploy",
+      severity: "warning",
+      title: "Deploy rigd 20.16 now?",
+      body: "The build passed and production is two commits behind. Deploying restarts rigd; supervised programs come back on their own.",
+      sender: "lead",
+      at: at(2),
+      replies: ["Deploy", "Later"],
+      asks: true,
+      waiting: true,
+    }),
+    note({
+      id: "n-shelf",
+      title: "shelf finished indexing",
+      body: "1,204 files, 3 skipped as unreadable.",
+      sender: "shelf",
+      at: at(9),
+      severity: "success",
+    }),
+    note({
+      id: "n-name",
+      title: "What should the new estate be called?",
+      body: "docket needs a name before it can file the first case.",
+      sender: "docket",
+      at: at(14),
+      replyText: true,
+      asks: true,
+      waiting: true,
+    }),
+    note({
+      id: "n-graft",
+      severity: "error",
+      title: "graft quarantined after 5 restarts",
+      body: "It exited with status 2 five times in a minute. Its log has the reason.",
+      sender: "rig",
+      at: at(40),
+    }),
+    note({
+      id: "n-answered",
+      title: "Run the nightly backup now?",
+      sender: "lead",
+      at: at(95),
+      replies: ["Run it", "Skip tonight"],
+      asks: true,
+      answer: {
+        reply: "Run it",
+        text: "",
+        dismissed: false,
+        by: "bubble",
+        at: at(93),
+      },
+    }),
+    note({
+      id: "n-forgot",
+      title: "Keep the old socket path?",
+      sender: "docket",
+      at: at(60 * 26),
+      replies: ["Keep", "Move"],
+      asks: true,
+      forgotten: true,
+    }),
+    note({
+      id: "n-dnd",
+      title: "shelf is low on space",
+      body: "2.1 GB left on the index volume.",
+      sender: "shelf",
+      at: at(60 * 50),
+      severity: "warning",
+      suppressed: true,
+    }),
   ],
 };

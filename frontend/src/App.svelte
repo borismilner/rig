@@ -32,11 +32,14 @@
      that cannot be read says so in the strip. -->
 <script lang="ts">
   import { onMount } from "svelte";
+  import { Events } from "@wailsio/runtime";
   import * as RigService from "../bindings/github.com/borismilner/rig/cmd/rigwindow/rigservice.js";
   import type {
     Deployment,
     Guidelines as GuidelinesData,
     Health,
+    Note,
+    NoteList,
     Program,
     Running,
   } from "../bindings/github.com/borismilner/rig/cmd/rigwindow/models.js";
@@ -60,7 +63,11 @@
     RUNNING,
     CAPABILITIES,
     GUIDELINES,
+    NOTES,
+    NOTES_NOW,
   } from "./lib/fixtures";
+  import NoteCard from "./lib/NoteCard.svelte";
+  import { waiting } from "./lib/notes";
   import Capabilities from "./lib/Capabilities.svelte";
   import Guidelines from "./lib/Guidelines.svelte";
 
@@ -79,6 +86,9 @@
    *   ?dash=1           the dashboard, which is the default destination
    *   ?caps=1           the Capabilities panel, seeded
    *   ?guide=1          the Guidelines GUI, seeded, with shelf marked
+   *   ?notes=1          the notifications panel and Needs you, seeded,
+   *                     on a fixed clock; answering changes only the page
+   *   &note=<id>        that notification's card open
    *   ?card=<id>        a program's card open over the dashboard, and
    *   &tab=<name>       which of its tabs
    *
@@ -94,7 +104,9 @@
   const cardFixture = params.get("card");
   const capsFixture = params.get("caps") === "1";
   const guideFixture = params.get("guide") === "1";
-  const dashFixture = params.get("dash") === "1" || !!cardFixture;
+  const notesFixture = params.get("notes") === "1";
+  const dashFixture =
+    params.get("dash") === "1" || !!cardFixture || notesFixture;
   const railFixture = params.get("fixture") === "1";
   const fixture =
     railFixture ||
@@ -173,6 +185,66 @@
     guideFocus = id;
   }
 
+  // The notifications panel, Needs you and the card (plan/55 requirements 7
+  // to 9, 23 to 26). Read whole on every change rig reports through the
+  // "rig:notifications" event, never on the poll. Search and source live
+  // here so the card's "Only X's notifications" can set the source.
+  let notes: NoteList | null = $state(
+    notesFixture
+      ? structuredClone(NOTES)
+      : fixture
+        ? { notes: [], keepDays: 7, keepFrom: "default", evicted: 0 }
+        : null,
+  );
+  let notesError = $state("");
+  let noteQ = $state("");
+  let noteSrc = $state("");
+  // By id, so a fresh read updates the open card instead of closing it.
+  let noteFor: string | null = $state(params.get("note"));
+  let noteOpen: Note | null = $derived(
+    noteFor ? (notes?.notes.find((n) => n.id === noteFor) ?? null) : null,
+  );
+  // Main opens on Needs you only from the first read, never later: a
+  // question arriving must not move the page under his hand.
+  let notesRead = false;
+
+  async function loadNotes() {
+    try {
+      notes = await RigService.Notifications();
+      notesError = "";
+    } catch (e) {
+      notes = null;
+      notesError = String(e);
+    }
+    if (!notesRead) {
+      notesRead = true;
+      if (notes?.notes.some(waiting)) mainTab = "needs";
+    }
+  }
+
+  async function answerNote(
+    id: string,
+    reply: string,
+    text: string,
+    dismissed: boolean,
+  ) {
+    if (notesFixture) {
+      // The fixture has no rig to tell; it shows what the page does after.
+      const n = notes?.notes.find((x) => x.id === id);
+      if (n)
+        n.answer = {
+          reply,
+          text,
+          dismissed,
+          by: "window",
+          at: new Date(NOTES_NOW).toISOString(),
+        };
+      return;
+    }
+    await RigService.Answer(id, reply, text, dismissed);
+    await loadNotes();
+  }
+
   // Held rather than only applied, because the pane has to push the token set
   // into a program's own page and a mode change has to reach it too. One
   // source: this is the same mode applyTheme is called with.
@@ -185,7 +257,9 @@
   let settingsOpen = $state(settingsFixture);
 
   // Main's inner tab, held here so a trip to a GUI comes back to it.
-  let mainTab: MainTab = $state("programs");
+  let mainTab: MainTab = $state(
+    notesFixture && NOTES.notes.some(waiting) ? "needs" : "programs",
+  );
   // The program whose card is open (plan/55, requirement 42), and the tab
   // it opened on. One card at a time: it is modal.
   let cardFor: string | null = $state(cardFixture);
@@ -356,6 +430,7 @@
       stopPolling();
     } else {
       void refresh();
+      void loadNotes();
       startPolling();
     }
   }
@@ -363,7 +438,9 @@
   function onkeydown(e: KeyboardEvent) {
     // The card is a modal dialog and closes itself on Esc; the shell must
     // not also take that keystroke as "go home".
-    if (cardFor) return;
+    // noteOpen and not noteFor: a note that left the list takes its card
+    // with it, and a stale id must not hold the keyboard.
+    if (cardFor || noteOpen) return;
     if (e.key === "Escape") {
       // Settings first: it is the thing most recently opened, and Esc closing
       // the panel is the path M1a step 5 shipped.
@@ -406,8 +483,10 @@
       return unwatch;
     }
     void refresh();
+    void loadNotes();
+    const unnotes = Events.On("rig:notifications", () => void loadNotes());
     RigService.Build()
-      .then((b) => (build = b))
+      .then((b) => (build = b as Record<string, string>))
       .catch(() => (build = null));
     RigService.Deployment()
       .then((d) => (deployment = d))
@@ -417,6 +496,7 @@
     return () => {
       stopPolling();
       unwatch();
+      unnotes();
       document.removeEventListener("visibilitychange", onvisibility);
     };
   });
@@ -457,6 +537,13 @@
           onopen={(id) => (cardFor = id)}
           {guide}
           onguide={openGuide}
+          {notes}
+          {notesError}
+          bind:noteQ
+          bind:noteSrc
+          onnote={(n) => (noteFor = n.id)}
+          onanswer={answerNote}
+          now={notesFixture ? NOTES_NOW : undefined}
         />
       </div>
     {:else if gui?.id === "capabilities"}
@@ -512,6 +599,18 @@
       onclose={() => (cardFor = null)}
       onopengui={pick}
       onchanged={() => void refresh()}
+    />
+  {/key}
+{/if}
+
+{#if noteOpen}
+  {#key noteOpen.id}
+    <NoteCard
+      note={noteOpen}
+      onclose={() => (noteFor = null)}
+      onanswer={(reply, text, dismissed) =>
+        answerNote(noteFor!, reply, text, dismissed)}
+      onsource={(s) => (noteSrc = s)}
     />
   {/key}
 {/if}

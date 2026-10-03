@@ -9,14 +9,20 @@
 
      ⛔ NOTHING ON THIS PAGE IS INVENTED. Every figure is read from the calls
      the window already makes - Health, Programs, Supervision, Deployment,
-     Build. The board and notifications need verbs rig does not have yet
-     (plan/55 build order, slices 2 and 3), so the Board tab says so instead
-     of showing a sample. -->
+     Build, Notifications. The board needs a verb rig does not have yet
+     (plan/55 build order, slice 3), so the Board tab says so instead of
+     showing a sample.
+
+     The notifications panel is the right-hand column (7 to 9); Needs you
+     is every question still waiting on him plus every parked program (24),
+     and the "need you" figure and the tab count are that same total. -->
 <script lang="ts">
   import type {
     Deployment as DeploymentState,
     Guidelines,
     Health,
+    Note,
+    NoteList,
     Program,
     Running,
   } from "../../bindings/github.com/borismilner/rig/cmd/rigwindow/models.js";
@@ -25,6 +31,8 @@
   import { programGlyph, programIcon } from "./icons";
   import ProgramIcon from "./ProgramIcon.svelte";
   import Deployment from "./Deployment.svelte";
+  import Notifications from "./Notifications.svelte";
+  import { waiting } from "./notes";
 
   export type MainTab = "needs" | "programs" | "board";
 
@@ -44,6 +52,22 @@
     guide: Guidelines | null;
     /** Opens the Guidelines GUI with this program's rules marked. */
     onguide: (id: string) => void;
+    /* RigService.Notifications, or null before the first read. */
+    notes: NoteList | null;
+    notesError: string;
+    noteQ: string;
+    noteSrc: string;
+    /** Opens a notification's card (requirement 26). */
+    onnote: (n: Note) => void;
+    /** Answers a waiting notification; rejects with rig's refusal. */
+    onanswer: (
+      id: string,
+      reply: string,
+      text: string,
+      dismissed: boolean,
+    ) => Promise<void>;
+    /* The measurement fixture's fixed clock. */
+    now?: number;
   }
 
   let {
@@ -57,7 +81,31 @@
     onopen,
     guide,
     onguide,
+    notes,
+    notesError,
+    noteQ = $bindable(),
+    noteSrc = $bindable(),
+    onnote,
+    onanswer,
+    now,
   }: Props = $props();
+
+  let asks = $derived((notes?.notes ?? []).filter(waiting));
+  // A refusal from an inline answer, by notification, shown on its row.
+  let refused: Record<string, string> = $state({});
+  let busy: string | null = $state(null);
+
+  async function answer(n: Note, reply: string) {
+    busy = n.id;
+    refused[n.id] = "";
+    try {
+      await onanswer(n.id, reply, "", false);
+    } catch (e) {
+      refused[n.id] = String(e);
+    } finally {
+      busy = null;
+    }
+  }
 
   let byId = $derived(new Map(running.map((r) => [r.id, r])));
   let rows = $derived(
@@ -68,6 +116,7 @@
     })),
   );
   let asking = $derived(rows.filter((r) => r.run?.parked));
+  let needN = $derived(asks.length + asking.length);
   let up = $derived(rows.filter((r) => r.st.tone === "good").length);
   let resting = $derived(rows.filter((r) => r.st.tone === "rest").length);
   let bad = $derived(rows.filter((r) => r.st.tone === "bad").length);
@@ -84,9 +133,9 @@
       to: "programs",
     },
     {
-      n: asking.length,
+      n: needN,
       label: "need you",
-      tone: asking.length ? "warn" : "",
+      tone: needN ? "warn" : "",
       to: "needs",
     },
   ]);
@@ -97,7 +146,7 @@
     ["board", "Board"],
   ];
   let counts = $derived<Record<MainTab, string>>({
-    needs: String(asking.length),
+    needs: String(needN),
     programs: String(programs.length),
     board: "",
   });
@@ -125,6 +174,7 @@
   let skew = $derived(!!deployment?.reached && !deployment.agree);
 </script>
 
+<div class="home">
 <div class="dash">
   <header class="head">
     <h1 class="t-sec">rig</h1>
@@ -170,7 +220,7 @@
         role="tab"
         aria-selected={tab === k}
         tabindex={tab === k ? 0 : -1}
-        class:hot={k === "needs" && asking.length > 0}
+        class:hot={k === "needs" && needN > 0}
         onclick={() => (tab = k)}
         onkeydown={ontabkey}
         >{label}{#if counts[k]}<span class="cnt">{counts[k]}</span>{/if}</button
@@ -185,13 +235,40 @@
         stale copy: there is no copy.
       </p>
     {:else if tab === "needs"}
-      {#if asking.length === 0}
+      {#if needN === 0}
         <p class="empty">
-          Nothing needs you. When a program rig supervises is parked on a
-          question, it lands here.
+          Nothing needs you. A question a program asks, and a program rig
+          supervises that is parked, land here.
         </p>
       {:else}
         <ul class="needs">
+          {#each asks as n (n.id)}
+            <li>
+              <div class="who">
+                <b>{n.title}</b>
+                <span class="dim">from {n.sender}</span>
+              </div>
+              {#if n.body}<p>{n.body}</p>{/if}
+              <div class="opts">
+                {#each n.replies as r, i (r)}
+                  <button
+                    class="act"
+                    class:primary={i === 0}
+                    disabled={busy === n.id}
+                    onclick={() => answer(n, r)}>{r}</button
+                  >
+                {/each}
+                <button class="act" onclick={() => onnote(n)}
+                  >{n.replyText && n.replies.length === 0
+                    ? "Answer"
+                    : "Details"}</button
+                >
+              </div>
+              {#if refused[n.id]}<p class="refused" role="alert">
+                  {refused[n.id]}
+                </p>{/if}
+            </li>
+          {/each}
           {#each asking as r (r.p.id)}
             <li>
               <div class="who">
@@ -302,11 +379,30 @@
     {/if}
   </div>
 </div>
+<Notifications
+  list={notes}
+  loadError={notesError}
+  connected={health.connected}
+  bind:q={noteQ}
+  bind:src={noteSrc}
+  onopen={onnote}
+  {now}
+/>
+</div>
 
 <style>
+  /* Main on the left, the notifications panel on the right, each owning
+     its own scroll. */
+  .home {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(280px, 28vw, 360px);
+    height: 100%;
+    min-height: 0;
+  }
   /* The page owns its scroll (requirement 37): the shell hands it the whole
      area, the top four rows keep their height and .scroll takes the rest. */
   .dash {
+    min-width: 0;
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -440,6 +536,15 @@
   }
   .needs p {
     margin: 0;
+  }
+  .needs .opts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .needs .refused {
+    color: var(--sem-bad);
+    font-size: var(--fs--1);
   }
 
   /* ── Programs ──────────────────────────────────────────────────────── */
