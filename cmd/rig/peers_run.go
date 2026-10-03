@@ -77,7 +77,7 @@ func cmdPeersRun(args []string) error {
 
 	// No context: CMD ends when it ends or when this stops it, never on a
 	// deadline of its own.
-	cmd := exec.Command(argv[0], argv[1:]...) //nolint:gosec,noctx // CMD is the caller's own argv, run as the caller
+	cmd := exec.Command(argv[0], argv[1:]...) //nolint:gosec,noctx,nolintlint // gosec taint analysis fires on some runs only; CMD is the caller's own argv, run as the caller
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	// Its own group, so a stop reaches everything it started; and killed if
 	// this process dies, so it never outlives the hold's witness.
