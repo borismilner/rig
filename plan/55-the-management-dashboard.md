@@ -240,6 +240,16 @@ him to see; the choices below are the lead's, not his):**
 | 28 | a Capabilities tab: rig's 93 commands with their own words and argument schemas from `selfDeclaration()` (dumped by `design/dashboard/dump-self.sh`), every program's commands, a generated form, the call as it goes on the wire, and a confirm before anything that writes |
 | 29 | a Guidelines tab: eight dated rules (dates from git where built, the day he ruled it where not), each program's built-to revision, and which rules are newer. Main's program list shows "current" or "N newer" |
 
+**What the mockup shows for 31 to 37 (2026-10-03, the lead's build):**
+a notification is one click target with a hover tint; its details are a
+modal `<dialog>` centred on screen (Esc, Close, or a click outside); a
+folder or file setting has a picker button (a browser returns only the
+name, the native window will return the path) with "or type it" kept as
+a fallback; byte sizes show in MiB; Settings has a tab for rig and one per
+program; every redraw restores each list's scroll; Main's head, figures,
+inner tabs and the notifications panel stay fixed while the content
+scrolls, and the board's filters stay above its cards.
+
 ### ⛔ Two tensions with §11, for Boris, not for a seat
 
 - **§11 requirement 20** says the agents' GUI *"must not push, badge,
