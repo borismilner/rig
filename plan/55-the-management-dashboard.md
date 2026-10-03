@@ -26,6 +26,11 @@ This is the content §11 left deferred for the dashboard (requirement 6,
 *"all the most important information we'll define in the future"*). The
 rig lead plans it with Boris directly.
 
+Boris, 2026-10-03, to the rig lead, verbatim: *"We should plan the
+management dashboard visually before we do much work on it - maybe with
+stubs and mocks."* **So no dashboard code is built before he has tried a
+mockup**, driven by simulated programs and agents.
+
 **Status: requirements recorded; the design is not yet put to him.** The
 next step is the visual mockup he asked for, which he tests in his own
 browser.
