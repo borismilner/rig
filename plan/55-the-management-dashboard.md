@@ -128,45 +128,16 @@ have to be more specific during our next session."* **So an open question
 goes to him concrete**: shown in the mockup, one at a time, with the
 choice drawn, never as a list of abstract readings.
 
-**What the mockup proposes for these (the lead's, not yet his):** Ledger
-registers a GUI (`rig.gui.register`), which makes its tab available under
-Tabs without opening it. Its page runs in a sandboxed frame with rig.css
-and a bridge (`rig.send`, `rig.on`) and nothing else, so it carries no
-stylesheet of its own. It talks to its program by message through rig
-(`gui.send` and `gui.push`), not through board cards. rig checks each
-message (its frame, a known type, typed fields) and drops the rest.
-Sources: `design/dashboard/rig-kit.js`, `ledger-gui.html`.
-
-### The write path he approved (requirement 2), as the beacon seat put it to him
-
-- `rig.panel.put {card?, fields}` adds a card, or changes the one named.
-  `rig.panel.close` closes a section.
-- **The writer's identity comes from its connection**, a program id or a
-  seat, never from the request. Seats write too, so §52 B2 (only programs
-  publish) does not apply.
-- rigd checks the fields and applies the caps; a refused edit changes
-  nothing. **Every version, whole, goes to the store.** Only open cards are
-  held in memory, capped.
-- rigd publishes `panel.changed` (rig's own kind) and the window waits on
-  it. A click on a card goes back to its owner as `panel.acted`.
-- Later slice: a program's declared events shown on the dashboard with no
-  code.
-- **Bus-only was turned down**: §52 E4 (an event is a fact, not a
-  command), E7/E8 (in memory and at most once, so no durable history), B2,
-  and E3 (no single checked card shape).
-
-### The board (requirement 3), carried over from rigged/SPEC.md "A board"
-
-- A section per agent, newest card on top. The agent closes a section; the
-  user dismisses one.
-- Card: title, status, severity (info, success, warning, error), body,
-  progress, busy, facts. Created, changed and closed times, each version
-  whole.
-- The board minimises and restores.
-- Uses: search past work, act on a card, filter and group, summaries.
-- The model to lift from: rigged f7bbee9, `beacon/board.go` (caps, atomic
-  apply, ids unique across runs), `history.go`, `board_test.go`,
-  `ui/board.js`.
+**What the mockup shows for 14 to 16 (2026-10-03, the lead's build, for
+him to see):** registering adds the program's tab and Main stays in
+front. A program is picked from the rail, which lists registered GUIs
+(§11 requirement 16), or from Main's program list; either opens its tab.
+A program with no GUI gets rig's own page about it; a GUI tab keeps rig's
+facts behind a "What rig knows" button. Main has two inner tabs, Programs
+and Board, and its figures jump to the one that explains them. Measured
+at 1440x900: Main scrolled 466px before, now 0px on Programs and 131px on
+Board. The superseded private channel (`gui.send`, `gui.push`) is gone
+from the mockup; requirement 13's mapping above is what it uses.
 
 ### ⛔ Two tensions with §11, for Boris, not for a seat
 
@@ -176,9 +147,8 @@ Sources: `design/dashboard/rig-kit.js`, `ledger-gui.html`.
   agents write to him on purpose, and he has now put it on the dashboard.
   Read as two different things, both hold. That reading is the lead's,
   and it is to be confirmed.
-- **§11's window is "dashboard or program"**, with programs in the rail.
-  Requirement 4's tabs are opened by a program's request, not by picking it
-  in the rail. How the rail and the tabs relate is open.
+- ~~**§11's window is "dashboard or program"**~~: answered by requirement
+  14, picking a program in the rail opens its tab.
 
 ### For the mockup (beacon seat's notes, a seat's, not his)
 
