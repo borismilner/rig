@@ -76,6 +76,9 @@ browser.
 | **35** | **A list he scrolls never jumps back to the top** (it did, in Capabilities, on every redraw) |
 | **36** | **The settings icon looks like settings**, not a sun |
 | **37** | **On Main, the content scrolls and the page does not**: the dashboard's details at the top and the notifications on the right stay in view while a long board scrolls |
+| **38** | **Layout is very important: it must be slick and good looking.** A broken layout (the Board's header after the 31 to 37 build) is a defect, not polish |
+| **39** | **Changing a value never moves the layout** (the settings row jumped when Reset appeared) |
+| **40** | **Controls are good looking, useful and convenient**, beyond a bare browser input |
 
 Requirements 6 to 8, Boris to the rig lead, 2026-10-03, verbatim: *"The
 main tab which is the default should show all the most important
@@ -197,6 +200,15 @@ page, so for example now that the board is long, scrolling it should not
 get the notifications on the right out of view and same about the details
 on the top of the dashboard, they should not be scrolled out of the
 view."*
+
+Requirements 38 to 40, the same session, verbatim, on two screenshots
+(the Board's header, a settings row): *"In general everything looks like a
+good start. I showed you in the screenshot a very bad layout; Layout is
+very important; it must be slick and good looking. In settings like in
+[the screenshot] when changing a value the whole layout jumps because
+"reset" is added to it - and it's a bad user experience. The controls
+could be much more better looking and useful and more convenient for the
+user. Other than that it seems like a good start."*
 
 **Requirement 33 binds the config schema too:** a key must say what it
 holds (a folder, a list of folders, a file) for the window to choose the
