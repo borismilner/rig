@@ -79,6 +79,7 @@ browser.
 | **38** | **Layout is very important: it must be slick and good looking.** A broken layout (the Board's header after the 31 to 37 build) is a defect, not polish |
 | **39** | **Changing a value never moves the layout** (the settings row jumped when Reset appeared) |
 | **40** | **Controls are good looking, useful and convenient**, beyond a bare browser input |
+| **41** | **Every timestamp is 24-hour, never AM/PM**, wherever the dashboard or a program's GUI shows a time |
 
 Requirements 6 to 8, Boris to the rig lead, 2026-10-03, verbatim: *"The
 main tab which is the default should show all the most important
@@ -209,6 +210,9 @@ very important; it must be slick and good looking. In settings like in
 "reset" is added to it - and it's a bad user experience. The controls
 could be much more better looking and useful and more convenient for the
 user. Other than that it seems like a good start."*
+
+Requirement 41, the same session, verbatim: *"Timestamps must be 24h and
+not AM/PM."*
 
 **Requirement 33 binds the config schema too:** a key must say what it
 holds (a folder, a list of folders, a file) for the window to choose the
