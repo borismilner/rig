@@ -393,6 +393,39 @@ row, and the asker was told. **Not exercised:** which tab the opened
 window showed, read by eye. The card pages (`&note=`) cannot pass the focus pass:
 behind a modal the page is inert, the same as `?card=`.
 
+### Slice 3 as built (2026-10-03)
+
+| Part | As built |
+|---|---|
+| Verbs | `rig.panel.put`, `rig.panel.list`, `rig.panel.act`; MCP tools from the same table; `rig panel put / list / act` at the prompt |
+| Store | one record per card, project `board`, kind `card`; every put is a version, a close is the last one, never a delete. A press is filed as kind `card-act` |
+| Owner | the connection's program id, else its seat, never the request's. Only the owner changes a card; a closed card refuses changes (CONFLICT) |
+| Caps | beacon's: title 1 to 200 bytes, status 80, body 4096, 6 facts, 3 distinct actions, progress 0 to 1, four severities. Past 40 open cards a sender's oldest is closed |
+| Bus | `panel.changed` to everyone on every version; `panel.acted` addressed to the owner only. `panel` is now one of rig's event roots |
+| List | open cards and those closed in the last 24 h, newest change first, at most 200 with a count of the rest |
+| Window | Main's Board tab: Every source, then a tab per source with its open count (27); search over titles, bodies and facts; severity chips; both rows stay above the cards (37); a section per source striped by its worst open card; closed cards folded per section; buttons call `rig.panel.act` |
+| Live | the window waits on `panel.changed` and re-reads; nothing polls. A rig without the board says so on the tab |
+
+**Decided by the lead, to confirm with him:**
+- A card with buttons is NOT counted in Needs you or on the tray badge
+  yet: a "Stop" on a running job does not need him. The mock counted
+  only waiting or failed cards; the board's status is free text, so the
+  rule needs his word.
+- Grouping by project or severity, the time filter, minimise, dismiss
+  and a card's history from the mock are not built in this slice.
+
+**Exercised:** against a scratch `rigd`, from the CLI: put, a change,
+a press, a refused action, a close, a refused change after it; a
+waiter saw three `panel.changed` and the `panel.acted`. The real window
+on a private X display: the tab counted the card from the live rigd;
+a change and a new card appeared without a reload; Deploy clicked in
+the window reached a `rig events wait panel.acted` and was filed.
+Headless on `?board=1`: 10 checks, both themes. Contrast: clean, lowest
+text 5.63; now in `make contrast-window`. **Not exercised:** a program
+(not a terminal) owning a card; beacon moving onto it (rigged repo).
+**Known limit:** each list reads every card head ever put; the closed
+ones are filtered in memory.
+
 ### Slice 4 as built (2026-10-03)
 
 | Part | In the real window |
