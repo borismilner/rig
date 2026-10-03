@@ -288,7 +288,7 @@ func run() error {
 	log.Info("rigd up", "version", version, "wire", wire,
 		"socket", sockPath, "mcp", mcpSockPath, "pid", os.Getpid())
 
-	sup, found := supervisor(log, settings, *estate)
+	sup, found := supervisor(log, settings, *estate, root)
 
 	sounds, err := newAudio(log, *estate, pidPath, *soundFile)
 	if err != nil {
@@ -401,14 +401,14 @@ func closeLogs(logs *observe.Store) {
 	}
 }
 
-// declarationsDir is where on-call programs' declarations are kept (section
-// 54): the estate's state directory, or nowhere for an unnamed estate, which
-// keeps them in memory and reads them again at its next start. A state
-// directory that cannot be named degrades to the same, said in the log:
-// keeping them costs a declare run per rigd start, nothing more.
-func declarationsDir(log *slog.Logger, estate string) string {
+// declarationsDir is where programs' declarations are kept (section 54):
+// the estate's state directory, or an unnamed estate's scratch root, where
+// it keeps the rest of its storage. A state directory that cannot be named
+// degrades to keeping them in memory, said in the log: that costs a
+// declare run per rigd start, nothing more.
+func declarationsDir(log *slog.Logger, estate, root string) string {
 	if estate == "" {
-		return ""
+		return filepath.Join(root, "declarations")
 	}
 	d, err := paths.EstateStateDir(estate)
 	if err != nil {
@@ -450,9 +450,9 @@ func newAudio(log *slog.Logger, estate, pidPath, soundFile string) (*audio.Audio
 // the whole estate down over one typo in a file that only lists what MAY run;
 // the file's error is in the log and rig health answers with nothing
 // declared, which is visibly wrong rather than silently so.
-func supervisor(log *slog.Logger, settings *config.Resolver, estate string) (*supervise.Supervisor, discovery) {
+func supervisor(log *slog.Logger, settings *config.Resolver, estate, root string) (*supervise.Supervisor, discovery) {
 	sup := supervise.New(supervise.Options{})
-	found := discovery{kept: declarationsDir(log, estate)}
+	found := discovery{kept: declarationsDir(log, estate, root)}
 	home, _ := os.UserHomeDir()
 	dirs, err := supervise.ScanDirs(settings.String("programs.scan"), home)
 	if err != nil {
