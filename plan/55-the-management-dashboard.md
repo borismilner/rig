@@ -190,6 +190,22 @@ at 1440x900: Main scrolled 466px before, now 0px on Programs and 131px on
 Board. The superseded private channel (`gui.send`, `gui.push`) is gone
 from the mockup; requirement 13's mapping above is what it uses.
 
+**What the mockup shows for 17 to 29 (2026-10-03, the lead's build, for
+him to see; the choices below are the lead's, not his):**
+
+| Req | In the mockup |
+|---|---|
+| 17 | every clickable thing shows a hand |
+| 18, 21 | the wire has a search box; on a program's tab it shows only that program's lines, with a chip back to every program |
+| 19, 20 | a Settings tab from the rail: rig's 12 real keys read from `internal/config/schema.json`, plus each program's declared ones. A GUI tab has a Settings button with the same rows. A bad value is refused in place |
+| 22 | the side drawer and the wire slide in and out |
+| 23, 24 | Main's inner tabs are **Needs you**, Programs, Board, and Main opens on Needs you. What asks sits on top of the notifications and of the board |
+| 25 | a simulated tray button carries the count; clicking it opens Needs you |
+| 26 | a notification opens a drawer: details, facts, options. Decided, the options are disabled and the choice is named. A notification linked to a card is one decision |
+| 27 | the board has Every source plus a tab per source |
+| 28 | a Capabilities tab: rig's 93 commands with their own words and argument schemas from `selfDeclaration()` (dumped by `design/dashboard/dump-self.sh`), every program's commands, a generated form, the call as it goes on the wire, and a confirm before anything that writes |
+| 29 | a Guidelines tab: eight dated rules (dates from git where built, the day he ruled it where not), each program's built-to revision, and which rules are newer. Main's program list shows "current" or "N newer" |
+
 ### ⛔ Two tensions with §11, for Boris, not for a seat
 
 - **§11 requirement 20** says the agents' GUI *"must not push, badge,
