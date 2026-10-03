@@ -606,7 +606,13 @@ type Program struct {
 	// declaration kept from its last run, and a call starts it.
 	AtRest bool `protobuf:"varint,12,opt,name=at_rest,json=atRest,proto3" json:"at_rest,omitempty"`
 	// How it declared it is loaded (section 54).
-	Load          v1.Load `protobuf:"varint,13,opt,name=load,proto3,enum=rig.v1.Load" json:"load,omitempty"`
+	Load v1.Load `protobuf:"varint,13,opt,name=load,proto3,enum=rig.v1.Load" json:"load,omitempty"`
+	// Declared resident and not running (section 54): what is listed is the
+	// declaration kept from its last run, and a call is refused, not started.
+	Down bool `protobuf:"varint,14,opt,name=down,proto3" json:"down,omitempty"`
+	// Its binary changed since what is listed was read, and rig has not read
+	// it again: a quarantined program waits for a human (section 54).
+	Stale         bool `protobuf:"varint,15,opt,name=stale,proto3" json:"stale,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -730,6 +736,20 @@ func (x *Program) GetLoad() v1.Load {
 		return x.Load
 	}
 	return v1.Load(0)
+}
+
+func (x *Program) GetDown() bool {
+	if x != nil {
+		return x.Down
+	}
+	return false
+}
+
+func (x *Program) GetStale() bool {
+	if x != nil {
+		return x.Stale
+	}
+	return false
 }
 
 type ProgramsRequest struct {
@@ -4949,7 +4969,7 @@ var File_proto_rig_v1_registry_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\n" +
-	"\x1bproto/rig/v1/registry.proto\x12\x06rig.v1\x1a\x17proto/rig/v1/wire.proto\"\xb6\x03\n" +
+	"\x1bproto/rig/v1/registry.proto\x12\x06rig.v1\x1a\x17proto/rig/v1/wire.proto\"\xe0\x03\n" +
 	"\aProgram\x12,\n" +
 	"\bidentity\x18\x01 \x01(\v2\x10.rig.v1.IdentityR\bidentity\x12,\n" +
 	"\bcoverage\x18\x02 \x01(\x0e2\x10.rig.v1.CoverageR\bcoverage\x12#\n" +
@@ -4964,7 +4984,9 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	" \x01(\tR\bpreamble\x12\x16\n" +
 	"\x06events\x18\v \x03(\tR\x06events\x12\x17\n" +
 	"\aat_rest\x18\f \x01(\bR\x06atRest\x12 \n" +
-	"\x04load\x18\r \x01(\x0e2\f.rig.v1.LoadR\x04load\"6\n" +
+	"\x04load\x18\r \x01(\x0e2\f.rig.v1.LoadR\x04load\x12\x12\n" +
+	"\x04down\x18\x0e \x01(\bR\x04down\x12\x14\n" +
+	"\x05stale\x18\x0f \x01(\bR\x05stale\"6\n" +
 	"\x0fProgramsRequest\x12#\n" +
 	"\x05depth\x18\x01 \x01(\x0e2\r.rig.v1.DepthR\x05depth\"?\n" +
 	"\x10ProgramsResponse\x12+\n" +

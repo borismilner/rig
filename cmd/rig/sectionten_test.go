@@ -231,9 +231,9 @@ func declaredFacts() []string {
 
 // daemonState is what Program carries that no program declares: rig derives
 // it, so neither "the meta object must return it" nor the CLI's gap list is
-// about it. at_rest is plan/54's, and it lives outside kernel.Program on
+// about it. at_rest, down and stale are plan/54's, and they live outside kernel.Program on
 // purpose, since the capability digest would churn on every start and exit.
-var daemonState = []string{"at_rest"}
+var daemonState = []string{"at_rest", "down", "stale"}
 
 func prefixed(prefix string, m protoreflect.MessageDescriptor) []string {
 	out := make([]string, 0, m.Fields().Len())
@@ -404,6 +404,8 @@ func wireFixture(t *testing.T) *registryv1.Program {
 		PaneUrl:      "http://127.0.0.1:9/pane",
 		Preamble:     "read this first",
 		AtRest:       true,
+		Down:         true,
+		Stale:        true,
 		Load:         rigv1.Load_LOAD_ON_CALL,
 		Commands: []*rigv1.Command{{
 			Id: "reindex", Title: "Reindex",

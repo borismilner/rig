@@ -686,11 +686,18 @@ func cmdApps(args []string) (err error) {
 		wVer = max(wVer, len(p.GetIdentity().GetVersion()))
 	}
 	for _, p := range resp.GetPrograms() {
-		// plan/54: an on-call program with no process behind it is listed
-		// like any other, and says so, since a call will start it first.
+		// plan/54: a program with no process behind it is listed like any
+		// other, and says so: at rest a call starts it, down a call is
+		// refused.
 		rest := ""
-		if p.GetAtRest() {
+		switch {
+		case p.GetAtRest():
 			rest = "  at rest"
+		case p.GetDown():
+			rest = "  down"
+		}
+		if p.GetStale() {
+			rest += "  stale"
 		}
 		fmt.Printf("%-*s  %-*s  %-8s  %ssemantics gen %d%s\n",
 			wID, p.GetIdentity().GetId(),
@@ -925,10 +932,16 @@ func appsJSON(ps []*registryv1.Program, d registryv1.Depth) []map[string]any {
 			"coverage_note": p.GetCoverageNote(),
 			"semantics_gen": p.GetSemanticsGen(),
 		}
-		// Omitted when false: a resident program and a running on-call one
-		// are both simply up, and plan/54 adds no state to either.
+		// Omitted when false: a program that is up, resident or on call,
+		// carries none of plan/54's three.
 		if p.GetAtRest() {
 			row["at_rest"] = true
+		}
+		if p.GetDown() {
+			row["down"] = true
+		}
+		if p.GetStale() {
+			row["stale"] = true
 		}
 		if l, ok := enumWord(p.GetLoad(), "LOAD_"); ok && p.GetLoad() != rigv1.Load_LOAD_UNSPECIFIED {
 			row["load"] = l
