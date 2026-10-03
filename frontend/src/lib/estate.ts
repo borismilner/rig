@@ -44,6 +44,10 @@ export function stateOf(p: Program, run?: Running): ProgramState {
           : ["restart", "stop"],
     };
   }
+  // Supervised and in no state: rig stopped it, and rig.health says so by
+  // leaving the state unset. Measured against a scratch rigd on 2026-10-03;
+  // reading it as "started by hand" hid the Start button.
+  if (run) return { word: "stopped", tone: "rest", can: ["start"] };
   if (p.down) return { word: "down", tone: "bad", can: ["start"] };
   if (p.atRest) return { word: "at rest", tone: "rest", can: ["start"] };
   return { word: "started by hand", tone: "none", can: [] };

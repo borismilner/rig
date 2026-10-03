@@ -26,6 +26,13 @@ describe("stateOf", () => {
       can: ["start"],
     });
   });
+  it("calls a supervised program with no state stopped, and offers Start", () => {
+    expect(stateOf(prog(), run(""))).toEqual({
+      word: "stopped",
+      tone: "rest",
+      can: ["start"],
+    });
+  });
   it("reads the registry's flags when rig does not supervise it", () => {
     expect(stateOf(prog({ down: true })).word).toBe("down");
     expect(stateOf(prog({ atRest: true })).word).toBe("at rest");

@@ -106,7 +106,7 @@
     failed = false;
     try {
       const r = await RigService.Supervise(action, program.id);
-      said = `${VERB[action]}: rig says ${program.id} is ${r.state ? r.state.replace("_", " ") : "no longer supervised"}.`;
+      said = `${VERB[action]}: rig says ${program.id} is ${r.state ? r.state.replace("_", " ") : "stopped"}.`;
     } catch (e) {
       failed = true;
       said = `${VERB[action]} refused: ${String(e)}`;
