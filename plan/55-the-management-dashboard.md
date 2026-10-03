@@ -52,6 +52,8 @@ browser.
 | **11** | **Each registered GUI is a separate tab on the dashboard** |
 | **12** | **A GUI's content is wholly the program's, but it looks and feels like one rig application: its CSS is chosen from rig's when the program is written** |
 | **13** | **A program's GUI uses rig's capabilities as much as possible to interact with its program, instead of rig being just a container** |
+| **14** | **Picking a program opens its tab** (his "I think": he sees it in the mockup next session before it is final) |
+| **15** | **Registering a GUI adds its tab, but Main stays the tab shown by default** |
 
 Requirements 6 to 8, Boris to the rig lead, 2026-10-03, verbatim: *"The
 main tab which is the default should show all the most important
@@ -106,6 +108,18 @@ being rebuilt on it, not yet ruled):
 The GUI's bridge exposes these, and only these: `rig.invoke`,
 `rig.store.get`, `rig.events.on`, `rig.queue.push`, `rig.toast`. Nothing
 is carried that rig does not already carry.
+
+Requirements 14 and 15, the same day, verbatim: *"Picking a program should
+open its tab I think - let me see it the next session. Registering a GUI
+adds its tab but the main tab is the default to be shown."* This answers
+the rail-and-tabs question and the register-opens-the-tab question; the
+mockup's "available under Tabs, not open" is superseded by "the tab is
+added, Main stays in front".
+
+He also said: *"I'm not sure I understand all these questions - you'll
+have to be more specific during our next session."* **So an open question
+goes to him concrete**: shown in the mockup, one at a time, with the
+choice drawn, never as a list of abstract readings.
 
 **What the mockup proposes for these (the lead's, not yet his):** Ledger
 registers a GUI (`rig.gui.register`), which makes its tab available under
