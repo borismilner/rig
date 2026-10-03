@@ -191,6 +191,10 @@ const (
 	// TriggerStartFailed - an on-call program did not register: the call
 	// that started it is told why, and the attempt counts.
 	TriggerStartFailed
+
+	// TriggerBinaryChanged - a running resident's binary changed on disk,
+	// so rig restarts it to read the new one (section 54).
+	TriggerBinaryChanged
 )
 
 var triggerNames = map[Trigger]string{
@@ -210,6 +214,7 @@ var triggerNames = map[Trigger]string{
 	TriggerIdleExit:           "exited cleanly with no call in flight",
 	TriggerCrashed:            "crashed, or exited during a call",
 	TriggerStartFailed:        "did not start",
+	TriggerBinaryChanged:      "its binary changed on disk",
 }
 
 func (t Trigger) String() string {

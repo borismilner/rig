@@ -549,8 +549,42 @@ func (s *Supervisor) Restart(id string) error {
 		s.startAfterManual(p, now)
 		return nil
 	}
-	s.halt(p, now, "a human asked for a restart")
+	s.halt(p, now, TriggerManualRestart, ActorHuman, "a human asked for a restart")
 	s.launch(p, now)
+	return nil
+}
+
+// Reload restarts a running program on the binary now on disk, with rig as
+// the actor: a rebuilt resident's commands are read from its next hello
+// (section 54). A program that is not running is left as it is, and so is a
+// quarantined one, since only a human takes a program out of quarantine.
+func (s *Supervisor) Reload(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := s.now()
+	p, ok := s.programs[id]
+	if !ok {
+		return fmt.Errorf("%w: %q", ErrNoSuchProgram, id)
+	}
+	if p.proc == nil || p.state == StateQuarantined {
+		return nil
+	}
+	s.halt(p, now, TriggerBinaryChanged, ActorRig, "its binary changed on disk")
+	s.launch(p, now)
+	return nil
+}
+
+// EndRead ends a declare run of a resident that was stopped: back to the
+// dash it was on, with rig as the actor, since rig started it only to read
+// its rebuilt binary's declaration (section 54).
+func (s *Supervisor) EndRead(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	p, ok := s.programs[id]
+	if !ok {
+		return fmt.Errorf("%w: %q", ErrNoSuchProgram, id)
+	}
+	s.halt(p, s.now(), TriggerBinaryChanged, ActorRig, "its declaration was read, and it stays stopped")
 	return nil
 }
 
@@ -580,13 +614,13 @@ func (s *Supervisor) Stop(id string) error {
 	if !ok {
 		return fmt.Errorf("%w: %q", ErrNoSuchProgram, id)
 	}
-	s.halt(p, now, "a human stopped it")
+	s.halt(p, now, TriggerManualRestart, ActorHuman, "a human stopped it")
 	return nil
 }
 
 // halt stops the child and clears the program off the table. The caller holds
 // the lock.
-func (s *Supervisor) halt(p *program, now time.Time, note string) {
+func (s *Supervisor) halt(p *program, now time.Time, t Trigger, actor Actor, note string) {
 	s.stopChild(p)
 	// An on-call program that is stopped is at rest rather than off the
 	// table: it is still declared to start when called (section 54).
@@ -597,7 +631,7 @@ func (s *Supervisor) halt(p *program, now time.Time, note string) {
 	}
 	p.record(Event{
 		At: now, From: p.state, To: to,
-		Trigger: TriggerManualRestart, Actor: ActorHuman, Note: note,
+		Trigger: t, Actor: actor, Note: note,
 	})
 	p.state, p.since = to, now
 	p.failures, p.panics, p.backoff, p.restarts = 0, 0, 0, nil
@@ -646,7 +680,7 @@ func (s *Supervisor) StopAll() {
 	now := s.now()
 	for _, id := range s.order {
 		if p := s.programs[id]; p.state != StateUnspecified && (p.state != StateAtRest || p.proc != nil) {
-			s.halt(p, now, "rig is shutting down")
+			s.halt(p, now, TriggerManualRestart, ActorHuman, "rig is shutting down")
 		}
 	}
 	// halt put every current child on dying, beside the ones already there.

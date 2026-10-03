@@ -91,7 +91,7 @@ func TestEverythingNotInTheTableIsAFault(t *testing.T) {
 		TriggerRegistrationFailed, TriggerHealthFailures, TriggerHealthRecovered,
 		TriggerBudgetRestart, TriggerBackoffElapsed, TriggerBudgetExhausted,
 		TriggerManualRestart, TriggerRest, TriggerCalled, TriggerIdleExit,
-		TriggerCrashed, TriggerStartFailed,
+		TriggerCrashed, TriggerStartFailed, TriggerBinaryChanged,
 	}
 	for _, s := range allStates {
 		for _, tg := range allTriggers {

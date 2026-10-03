@@ -600,6 +600,51 @@ func TestRestartingARunningProgramStopsItAndLaunchesAgain(t *testing.T) {
 	}
 }
 
+// A rebuilt resident is restarted by rig, and rig is the actor. The red
+// controls are the two it must leave alone: a stopped one and a quarantined
+// one, whose way out is a human's.
+func TestReloadRestartsOnlyARunningProgram(t *testing.T) {
+	h := newHarness(t)
+	defer h.sup.StopAll()
+	h.up("app")
+	first := h.proc("app")
+	if err := h.sup.Reload("app"); err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	h.mustState("app", StateStarting)
+	if !first.wasStopped() || h.startCount("app") != 2 {
+		t.Fatalf("reload left the old child (stopped %v) after %d starts", first.wasStopped(), h.startCount("app"))
+	}
+	if !hasEdge(h.status("app"), StateHealthy, StateUnspecified, ActorRig) {
+		t.Error("the reload was not recorded as rig's act")
+	}
+
+	if err := h.sup.Stop("app"); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.sup.Reload("app"); err != nil {
+		t.Fatal(err)
+	}
+	h.mustState("app", StateUnspecified)
+	if n := h.startCount("app"); n != 2 {
+		t.Fatalf("reload started a stopped program: %d starts", n)
+	}
+
+	if _, err := h.sup.Up("app"); err != nil {
+		t.Fatal(err)
+	}
+	h.crash("app", Exit{Code: 1})
+	h.mustState("app", StateQuarantined)
+	starts := h.startCount("app")
+	if err := h.sup.Reload("app"); err != nil {
+		t.Fatal(err)
+	}
+	h.mustState("app", StateQuarantined)
+	if h.startCount("app") != starts {
+		t.Fatal("reload took a program out of quarantine")
+	}
+}
+
 // `rig stop` RETURNS A PROGRAM TO THE TABLE'S DASH. There is no STOPPED state
 // and this is the test that keeps one from being added.
 func TestStopReturnsToTheDashAndUpStartsItAgain(t *testing.T) {
