@@ -48,9 +48,11 @@
   import StatusStrip from "./lib/StatusStrip.svelte";
   import Settings from "./lib/Settings.svelte";
   import Dashboard from "./lib/Dashboard.svelte";
+  import type { MainTab } from "./lib/Dashboard.svelte";
+  import ProgramCard from "./lib/ProgramCard.svelte";
   import { INTERNAL_GUIS, internalGui } from "./lib/guis";
   import { programGlyph, programIcon } from "./lib/icons";
-  import { PROGRAMS, BUILD, DEPLOYMENT } from "./lib/fixtures";
+  import { PROGRAMS, BUILD, DEPLOYMENT, RUNNING } from "./lib/fixtures";
 
   /* ── the fixtures, and none of them is a mock of the product path ────────
    *
@@ -65,6 +67,8 @@
    *   ?pane=1           a program's own pane, and its unserved state
    *   ?settings=1       the settings panel over a seeded rail
    *   ?dash=1           the dashboard, which is the default destination
+   *   ?card=<id>        a program's card open over the dashboard, and
+   *   &tab=<name>       which of its tabs
    *
    * ⛔ `?gui=projects`, `?gui=cases`, `?gui=spec` and `?gui=decisions` WERE
    * HERE AND ARE GONE. They seeded the project and case GUI, which left this
@@ -75,14 +79,15 @@
   const params = new URLSearchParams(location.search);
   const paneFixture = params.get("pane") === "1";
   const settingsFixture = params.get("settings") === "1";
-  const dashFixture = params.get("dash") === "1";
+  const cardFixture = params.get("card");
+  const dashFixture = params.get("dash") === "1" || !!cardFixture;
   const railFixture = params.get("fixture") === "1";
   const fixture = railFixture || paneFixture || settingsFixture || dashFixture;
 
   let programs: Program[] = $state(fixture ? PROGRAMS : []);
   // What each supervised program is doing, from rig.health. Empty for an
   // estate that supervises nothing, and the card says so.
-  let running: Running[] = $state([]);
+  let running: Running[] = $state(fixture ? RUNNING : []);
   let health: Health = $state(
     fixture
       ? {
@@ -118,6 +123,17 @@
   // never the problem; what was missing was the control, and the rail is where
   // the room was found.
   let settingsOpen = $state(settingsFixture);
+
+  // Main's inner tab, held here so a trip to a GUI comes back to it.
+  let mainTab: MainTab = $state("programs");
+  // The program whose card is open (plan/55, requirement 42), and the tab
+  // it opened on. One card at a time: it is modal.
+  let cardFor: string | null = $state(cardFixture);
+  const cardTabFixture = params.get("tab") as
+    "overview" | "settings" | "commands" | "activity" | null;
+  let cardProgram = $derived(
+    cardFor ? (programs.find((p) => p.id === cardFor) ?? null) : null,
+  );
   // Bumped whenever the live theme changes, so Pane re-pushes the token set to
   // every program. Without it the window changes colour and the panes keep the
   // set they were handed, which is the one bug a shell-wide theme must not
@@ -230,6 +246,9 @@
       selected = null;
       atHome = true;
     }
+    // Same for the card: a program that left takes its card with it, and
+    // the card must not reappear by itself if the program registers again.
+    if (cardFor && !programs.some((p) => p.id === cardFor)) cardFor = null;
     lastRead = stamp();
   }
 
@@ -272,6 +291,9 @@
   }
 
   function onkeydown(e: KeyboardEvent) {
+    // The card is a modal dialog and closes itself on Esc; the shell must
+    // not also take that keystroke as "go home".
+    if (cardFor) return;
     if (e.key === "Escape") {
       // Settings first: it is the thing most recently opened, and Esc closing
       // the panel is the path M1a step 5 shipped.
@@ -349,10 +371,11 @@
       program={current}
       programCount={programs.length}
       connected={health.connected}
+      oninfo={(id) => (cardFor = id)}
     />
 
     {#if atHome}
-      <div class="pane">
+      <div class="pane bleed">
         <Dashboard
           {health}
           {programs}
@@ -360,7 +383,8 @@
           {build}
           {lastRead}
           {deployment}
-          onselect={pick}
+          bind:tab={mainTab}
+          onopen={(id) => (cardFor = id)}
         />
       </div>
     {:else}
@@ -384,6 +408,20 @@
     />
   </div>
 </div>
+
+{#if cardProgram}
+  {#key cardProgram.id}
+    <ProgramCard
+      program={cardProgram}
+      run={running.find((r) => r.id === cardProgram.id)}
+      inItsGui={!atHome && selected === cardProgram.id}
+      tab={cardTabFixture ?? "overview"}
+      onclose={() => (cardFor = null)}
+      onopengui={pick}
+      onchanged={() => void refresh()}
+    />
+  {/key}
+{/if}
 
 {#if settingsOpen}
   <Settings

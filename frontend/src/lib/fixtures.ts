@@ -13,7 +13,10 @@
  * and this build's stamps.
  */
 
-import type { Program } from "../../bindings/github.com/borismilner/rig/cmd/rigwindow/models.js";
+import type {
+  Program,
+  Running,
+} from "../../bindings/github.com/borismilner/rig/cmd/rigwindow/models.js";
 export const PROGRAMS: Program[] = [
   {
     id: "shelf",
@@ -27,6 +30,37 @@ export const PROGRAMS: Program[] = [
     hosted: false,
     commands: 3,
     paneUrl: "",
+    load: "resident",
+    atRest: false,
+    down: false,
+    stale: false,
+    events: ["shelf.admitted"],
+    commandList: [
+      {
+        id: "search",
+        title: "Search",
+        summary: "Find items in the library by text",
+        description: "",
+        effects: "read-only",
+        returns: "matching items",
+      },
+      {
+        id: "admit",
+        title: "Admit",
+        summary: "Add a file to the library",
+        description: "Copies the file in and indexes it.",
+        effects: "writes-files",
+        returns: "",
+      },
+      {
+        id: "reindex",
+        title: "Reindex",
+        summary: "Rebuild the search index",
+        description: "",
+        effects: "writes-files",
+        returns: "",
+      },
+    ],
   },
   {
     id: "graft",
@@ -40,6 +74,21 @@ export const PROGRAMS: Program[] = [
     hosted: false,
     commands: 7,
     paneUrl: "",
+    load: "on call",
+    atRest: true,
+    down: false,
+    stale: false,
+    events: [],
+    commandList: [
+      {
+        id: "apply",
+        title: "Apply",
+        summary: "Graft a change onto a branch",
+        description: "",
+        effects: "destructive",
+        returns: "",
+      },
+    ],
   },
   {
     id: "snapper",
@@ -53,6 +102,21 @@ export const PROGRAMS: Program[] = [
     hosted: true,
     commands: 1,
     paneUrl: "",
+    load: "resident",
+    atRest: false,
+    down: true,
+    stale: false,
+    events: [],
+    commandList: [
+      {
+        id: "shot",
+        title: "Shot",
+        summary: "Capture the screen",
+        description: "",
+        effects: "drives-input",
+        returns: "a PNG path",
+      },
+    ],
   },
   // The pane fixture's program, and the port is DEAD on purpose.
   //
@@ -72,6 +136,29 @@ export const PROGRAMS: Program[] = [
     hosted: false,
     commands: 2,
     paneUrl: "http://127.0.0.1:7399/",
+    load: "",
+    atRest: false,
+    down: false,
+    stale: true,
+    events: [],
+    commandList: [
+      {
+        id: "dig",
+        title: "Dig",
+        summary: "",
+        description: "",
+        effects: "",
+        returns: "",
+      },
+      {
+        id: "sift",
+        title: "Sift",
+        summary: "",
+        description: "",
+        effects: "read-only",
+        returns: "",
+      },
+    ],
   },
 ];
 
@@ -105,3 +192,26 @@ export const BUILD: Record<string, string> = {
   schema: "v1",
   built: "fixture",
 };
+
+/* Supervision for the fixture estate: one of each state the Programs table
+ * colours, and one parked question so Needs you has a row to measure. */
+export const RUNNING: Running[] = [
+  {
+    id: "shelf",
+    state: "healthy",
+    since: Date.now() - 7_380_000,
+    restarts: 0,
+    waiting: "",
+    parked: "",
+    lastExit: "",
+  },
+  {
+    id: "snapper",
+    state: "quarantined",
+    since: Date.now() - 600_000,
+    restarts: 5,
+    waiting: "",
+    parked: "Its display is gone. Restart it on the new one?",
+    lastExit: "exit status 2",
+  },
+];

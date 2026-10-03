@@ -18,9 +18,13 @@
     program: Program | null;
     programCount: number;
     connected: boolean;
+    /* Opens the program's card over its GUI (plan/55, requirements 43 and
+       44): the information is one click away and never part of the GUI. */
+    oninfo: (id: string) => void;
   }
 
-  let { atHome, gui, program, programCount, connected }: Props = $props();
+  let { atHome, gui, program, programCount, connected, oninfo }: Props =
+    $props();
 </script>
 
 <header class="ctxbar">
@@ -62,7 +66,9 @@
         >{/if}
       {#if program.hosted}<span>hosted</span>{/if}
       <kbd>Esc</kbd> dashboard
-      <kbd>&uarr;</kbd><kbd>&darr;</kbd> rail
+      <button class="info" onclick={() => oninfo(program.id)}
+        >Info and settings</button
+      >
     </span>
   {:else}
     <span class="name">Rig</span>

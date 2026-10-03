@@ -62,6 +62,18 @@ export function Programs(): $CancellablePromise<$models.Program[]> {
 }
 
 /**
+ * Supervise starts, stops or restarts one program, the card's three buttons
+ * (plan/55, requirement 42). The verbs are rig's own; the window adds
+ * nothing but the call. Any other action is refused here rather than passed
+ * through, so the page cannot name a verb this method was not written for.
+ */
+export function Supervise(action: string, program: string): $CancellablePromise<$models.Running> {
+    return $Call.ByID(3916844919, action, program).then(($result: any) => {
+        return $$createType5($result);
+    });
+}
+
+/**
  * Supervision never returns an error, for Health's reason: an estate Rig
  * cannot be asked about is drawn from what Programs already said.
  */

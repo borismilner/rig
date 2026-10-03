@@ -333,6 +333,126 @@ kbd {
   background: var(--sem-bad);
 }
 
+/* ── the kit the dashboard and the program card share (plan/55) ─────────
+
+   Global rather than per component because the Programs table and the card
+   draw the same state the same way, and two copies of one rule drift. The
+   reference is design/dashboard/dashboard.src.html. */
+
+.act {
+  font: inherit;
+  font-size: var(--fs--1);
+  color: var(--fg);
+  background: none;
+  border: 1px solid var(--border-2);
+  border-radius: 7px;
+  padding: 0.2rem 0.65rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.act:hover {
+  background: var(--tint);
+}
+.act:focus-visible,
+.subtabs button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 var(--ring-w) var(--hue);
+}
+.act:disabled {
+  color: var(--fg-dim);
+  cursor: default;
+}
+.act.primary {
+  background: var(--h-steel);
+  border-color: var(--h-steel);
+  color: var(--on-hue);
+}
+
+/* A state word with its dot. The tone is set by the caller from
+   lib/estate.ts, so a hue appears only when something wants you. */
+.pst {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+  color: var(--fg-dim);
+}
+.pst i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--fg-dim);
+  flex: none;
+}
+.pst[data-tone="good"] i {
+  background: var(--sem-good);
+}
+.pst[data-tone="warn"] i {
+  background: var(--sem-warn);
+}
+.pst[data-tone="bad"] {
+  color: var(--sem-bad);
+}
+.pst[data-tone="bad"] i {
+  background: var(--sem-bad);
+}
+.pst[data-tone="rest"] i {
+  background: transparent;
+  border: 1.5px solid var(--fg-dim);
+}
+
+.subtabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.subtabs button {
+  font: inherit;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.9rem;
+  color: var(--fg-dim);
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+.subtabs button:hover {
+  color: var(--fg);
+}
+.subtabs button[aria-selected="true"] {
+  color: var(--fg);
+  border-bottom-color: var(--h-steel);
+}
+.subtabs .cnt {
+  font: 500 var(--fs--1) var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-dim);
+}
+.subtabs button.hot .cnt {
+  background: var(--sem-warn);
+  color: var(--on-hue);
+  border-radius: 9px;
+  padding: 0 0.45rem;
+}
+
+.tag {
+  font: 600 var(--fs--2) var(--sans);
+  letter-spacing: 0.06em;
+  color: var(--fg-dim);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0 0.3rem;
+  white-space: nowrap;
+}
+.tag.warn {
+  color: var(--sem-warn);
+  border-color: var(--sem-warn);
+}
+
 /* The quality floor, and it is one rule rather than a per-component decision.
    design/theme.js already ships a `--motion` token for this; until section 6's
    config surface can push it, the operating system's own preference is the
@@ -347,4 +467,25 @@ kbd {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* The door from a program's GUI to its card (plan/55, requirement 44). It
+   sits in the bar above the GUI so it is never inside the program's page. */
+.ctxbar .info {
+  font: inherit;
+  font-family: var(--sans);
+  font-size: var(--fs--1);
+  color: var(--fg);
+  background: none;
+  border: 1px solid var(--border-2);
+  border-radius: 6px;
+  padding: 0.05rem 0.55rem;
+  cursor: pointer;
+}
+.ctxbar .info:hover {
+  background: var(--tint);
+}
+.ctxbar .info:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 var(--ring-w) var(--hue);
 }

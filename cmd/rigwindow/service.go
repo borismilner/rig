@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/borismilner/rig/client"
@@ -47,7 +48,7 @@ type Program struct {
 	CoverageNote string   `json:"coverageNote"`
 	Services     []string `json:"services"`
 	Hosted       bool     `json:"hosted"`
-	Commands     int      `json:"commands"`
+	CommandCount int      `json:"commands"`
 
 	// Where the program serves its own HTML, empty if it serves none.
 	// Section 11's three tiers turn on this one field: empty means rig draws
@@ -55,6 +56,30 @@ type Program struct {
 	// rig refuses anything but a loopback origin at registration, so by the
 	// time a value reaches here it has already been checked.
 	PaneURL string `json:"paneUrl"`
+
+	// What the program card shows (plan/55, requirement 42), all of it from
+	// the same rig.programs answer, so the card costs no new verb. Load is
+	// "resident", "on call" or empty for a program that never said. AtRest,
+	// Down and Stale are section 54's three reasons the listing is a kept
+	// declaration rather than a live one.
+	Load     string    `json:"load"`
+	AtRest   bool      `json:"atRest"`
+	Down     bool      `json:"down"`
+	Stale    bool      `json:"stale"`
+	Events   []string  `json:"events"`
+	Commands []Command `json:"commandList"`
+}
+
+// Command is one declared command as the card lists it. The argument schema
+// is left out: the card says what a command does, and calling one is
+// Capabilities' job (plan/55 build order, slice 4).
+type Command struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Summary     string `json:"summary"`
+	Description string `json:"description"`
+	Effects     string `json:"effects"`
+	Returns     string `json:"returns"`
 }
 
 // Health is what the status strip renders.
@@ -100,8 +125,14 @@ func (RigService) Programs() ([]Program, error) {
 			CoverageNote: p.GetCoverageNote(),
 			Services:     p.GetServices(),
 			Hosted:       p.GetHosted(),
-			Commands:     len(p.GetCommands()),
+			CommandCount: len(p.GetCommands()),
 			PaneURL:      p.GetPaneUrl(),
+			Load:         loadName(p.GetLoad()),
+			AtRest:       p.GetAtRest(),
+			Down:         p.GetDown(),
+			Stale:        p.GetStale(),
+			Events:       p.GetEvents(),
+			Commands:     commands(p.GetCommands()),
 		})
 	}
 	return out, nil
@@ -144,6 +175,41 @@ func (RigService) Build() map[string]string {
 		"wire":    wire,
 		"commit":  sha,
 		"built":   date,
+	}
+}
+
+func commands(in []*rigv1.Command) []Command {
+	out := make([]Command, 0, len(in))
+	for _, c := range in {
+		out = append(out, Command{
+			ID:          c.GetId(),
+			Title:       c.GetTitle(),
+			Summary:     c.GetSummary(),
+			Description: c.GetDescription(),
+			Effects:     effectsName(c.GetEffects()),
+			Returns:     c.GetReturns(),
+		})
+	}
+	return out
+}
+
+// effectsName is the declared effect as the CLI spells it, empty when the
+// program never said, which the card leaves unsaid rather than guessing.
+func effectsName(e rigv1.Effects) string {
+	if e == rigv1.Effects_EFFECTS_UNSPECIFIED {
+		return ""
+	}
+	return strings.ReplaceAll(strings.ToLower(strings.TrimPrefix(e.String(), "EFFECTS_")), "_", "-")
+}
+
+func loadName(l rigv1.Load) string {
+	switch l {
+	case rigv1.Load_LOAD_RESIDENT:
+		return "resident"
+	case rigv1.Load_LOAD_ON_CALL:
+		return "on call"
+	default:
+		return ""
 	}
 }
 

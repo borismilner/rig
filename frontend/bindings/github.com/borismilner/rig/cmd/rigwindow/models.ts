@@ -6,6 +6,52 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * Command is one declared command as the card lists it. The argument schema
+ * is left out: the card says what a command does, and calling one is
+ * Capabilities' job (plan/55 build order, slice 4).
+ */
+export class Command {
+    "id": string;
+    "title": string;
+    "summary": string;
+    "description": string;
+    "effects": string;
+    "returns": string;
+
+    /** Creates a new Command instance. */
+    constructor($$source: Partial<Command> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+        if (!("summary" in $$source)) {
+            this["summary"] = "";
+        }
+        if (!("description" in $$source)) {
+            this["description"] = "";
+        }
+        if (!("effects" in $$source)) {
+            this["effects"] = "";
+        }
+        if (!("returns" in $$source)) {
+            this["returns"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Command instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Command {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Command($$parsedSource as Partial<Command>);
+    }
+}
+
+/**
  * Deployment is what is actually RUNNING, artefact by artefact, and whether the
  * artefacts agree with each other.
  * 
@@ -176,6 +222,20 @@ export class Program {
      */
     "paneUrl": string;
 
+    /**
+     * What the program card shows (plan/55, requirement 42), all of it from
+     * the same rig.programs answer, so the card costs no new verb. Load is
+     * "resident", "on call" or empty for a program that never said. AtRest,
+     * Down and Stale are section 54's three reasons the listing is a kept
+     * declaration rather than a live one.
+     */
+    "load": string;
+    "atRest": boolean;
+    "down": boolean;
+    "stale": boolean;
+    "events": string[];
+    "commandList": Command[];
+
     /** Creates a new Program instance. */
     constructor($$source: Partial<Program> = {}) {
         if (!("id" in $$source)) {
@@ -211,6 +271,24 @@ export class Program {
         if (!("paneUrl" in $$source)) {
             this["paneUrl"] = "";
         }
+        if (!("load" in $$source)) {
+            this["load"] = "";
+        }
+        if (!("atRest" in $$source)) {
+            this["atRest"] = false;
+        }
+        if (!("down" in $$source)) {
+            this["down"] = false;
+        }
+        if (!("stale" in $$source)) {
+            this["stale"] = false;
+        }
+        if (!("events" in $$source)) {
+            this["events"] = [];
+        }
+        if (!("commandList" in $$source)) {
+            this["commandList"] = [];
+        }
 
         Object.assign(this, $$source);
     }
@@ -220,9 +298,17 @@ export class Program {
      */
     static createFrom($$source: any = {}): Program {
         const $$createField7_0 = $$createType0;
+        const $$createField15_0 = $$createType0;
+        const $$createField16_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("services" in $$parsedSource) {
             $$parsedSource["services"] = $$createField7_0($$parsedSource["services"]);
+        }
+        if ("events" in $$parsedSource) {
+            $$parsedSource["events"] = $$createField15_0($$parsedSource["events"]);
+        }
+        if ("commandList" in $$parsedSource) {
+            $$parsedSource["commandList"] = $$createField16_0($$parsedSource["commandList"]);
         }
         return new Program($$parsedSource as Partial<Program>);
     }
@@ -292,3 +378,5 @@ export class Running {
 
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = Command.createFrom;
+const $$createType2 = $Create.Array($$createType1);
