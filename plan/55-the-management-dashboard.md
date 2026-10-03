@@ -330,6 +330,29 @@ exercised in the real window before the next starts.
 | **6** | **Registered GUIs** (10 to 13, 15, 21): `gui.register`, rig.css, the per-program wire | yes |
 | **7** | **Guidelines** (29): published, dated, and checked against each program | no |
 
+### Slice 1 as built (2026-10-03)
+
+| Part | In the real window |
+|---|---|
+| Main | head, a skew line when window and daemon differ, five figures that open their tab, inner tabs Needs you / Programs / Board; only the content under the tabs scrolls (37) |
+| Programs | a table from `Programs` and `Supervision`; the row or the name opens the card (42) |
+| Card | a centred, fixed-size `<dialog>` with Overview, Settings, Commands, Activity; Start, Stop and Restart call `rig.up`, `rig.stop`, `rig.restart` through `RigService.Supervise` |
+| GUI | the rail gives the GUI; the context bar's "Info and settings" opens the card over it (43, 44) |
+| Times | `lib/estate.ts` `stamp()`, 24-hour and ISO-ordered (41) |
+
+**Moved, not dropped: the control kit (40) and the fixed settings rows (39)
+go to slice 5.** `Settings.svelte` is the theme panel, with one mode choice
+and two sliders; rig's and the programs' settings do not reach the window
+until §47's verbs do, and a kit with nothing to edit cannot be exercised.
+
+**Honest gaps, said on screen:** the card's Settings tab waits for slice 5,
+its Activity tab and Main's Board wait for slice 3, and Needs you lists only
+programs parked on a question until slice 2 brings notifications.
+
+**Not exercised:** Start, Stop and Restart against a daemon. The estate on
+this machine is Boris's own, and stopping a program in it to test a button
+is not a seat's call; a scratch `rigd` is the way.
+
 ### ⛔ Two tensions with §11, for Boris, not for a seat
 
 - **§11 requirement 20** says the agents' GUI *"must not push, badge,
