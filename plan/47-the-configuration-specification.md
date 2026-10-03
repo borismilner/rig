@@ -353,3 +353,5 @@ live on a throwaway rigd with the real binaries, and row 6 by unit test.**
   preparation for that choice and nothing more.
 
 **Boris, 2026-10-03 (§55 requirements 19 and 20):** a settings panel shows every key rig exposes, and every program exposes its settings to rig, shown and changed in that program's GUI. This is the demand that fills the two program layers of requirement 1.
+
+**Boris, 2026-10-03 (§55 requirement 33):** a setting's control fits what it holds, and a file or folder is chosen through the operating system's own picker. So every key that holds a path says so in the schema (a folder, a list of folders, a file), and the settings UI generated from it uses the picker.

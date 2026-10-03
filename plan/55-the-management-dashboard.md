@@ -68,6 +68,14 @@ browser.
 | **27** | **The board has a tab with every source, as now, plus a tab per source**, to follow one (on his reading that the board carries programs' and agents' progress, which is right: §55 req 3) |
 | **28** | **A panel holds every capability of rig and of each registered program**, each with its description taken from the binary and controls to try it: *"kind of Swagger UI but for our needs"* |
 | **29** | **rig publishes full guidelines for programs and agents: what a program must be built to and support to be rig compatible. They are time-stamped**, so a program built before a change can be found and adjusted |
+| **30** | **"Needs you" is right as built** (his ruling on the mockup: *"spot on"*) |
+| **31** | **A notification opens from a click anywhere on it, and is highlighted under the pointer**, so he knows which one will open |
+| **32** | **A notification's full details open as a pop-up card in the exact centre of the screen**, fully interactive, then closed; not a side panel |
+| **33** | **A setting's input fits what it holds: a file or a folder is chosen through the operating system's own picker**, not typed as free text |
+| **34** | **Program settings are in tabs, one per program**, not all on one page |
+| **35** | **A list he scrolls never jumps back to the top** (it did, in Capabilities, on every redraw) |
+| **36** | **The settings icon looks like settings**, not a sun |
+| **37** | **On Main, the content scrolls and the page does not**: the dashboard's details at the top and the notifications on the right stay in view while a long board scrolls |
 
 Requirements 6 to 8, Boris to the rig lead, 2026-10-03, verbatim: *"The
 main tab which is the default should show all the most important
@@ -168,6 +176,32 @@ it is absolutely clear how the programs must be built and what they must
 support in order to be `rig` comapatible; these instructions should be
 time-stamped so that we can know when a program may need to be
 adjusted."*
+
+Requirements 30 to 37, the same session, verbatim, his spelling kept:
+*"The "Needs you" tab is spot on. Clicking notification should work on
+any place of the notification, not just the title, so that it is
+comfortable. And when hovering over a notification it should be
+highlighted so I know which one is going to open. I think the opened panel
+with the full details should be a popup card on the absolute center of the
+screen that I can interact with in all the relevant ways and then close it
+(and not from the side as it is today). In the settings, the relevant
+inputs should be more helpful, for example when needs to select a file or
+a folder then I should be able to click and then an OS allows me to do it
+visually instead of having free-text. Under the settings, the
+program-specific settings should be in tabs one for each program and not
+all in one. In capabilities, when I scroll the different capabilities it
+keeps jumping back up which is annoying. The icon for settings should be
+more appropriate, not a sun like it's now, maybe for the settings too. In
+the main panel/tab what scrolled should be the content and not the whole
+page, so for example now that the board is long, scrolling it should not
+get the notifications on the right out of view and same about the details
+on the top of the dashboard, they should not be scrolled out of the
+view."*
+
+**Requirement 33 binds the config schema too:** a key must say what it
+holds (a folder, a list of folders, a file) for the window to choose the
+control, so §47's schema gains that annotation. The window is a native
+one, so the picker can return a real path, which a browser cannot.
 
 **Reach beyond the dashboard.** Requirements 20, 25 and 29 bind rig itself,
 not only its window: 20 fills §47's program layers, 25 is the tray (§12's
