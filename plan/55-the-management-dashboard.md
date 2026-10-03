@@ -31,9 +31,8 @@ management dashboard visually before we do much work on it - maybe with
 stubs and mocks."* **So no dashboard code is built before he has tried a
 mockup**, driven by simulated programs and agents.
 
-**Status: requirements recorded; the design is not yet put to him.** The
-next step is the visual mockup he asked for, which he tests in his own
-browser.
+**Status: the mockup is built to requirement 44, and he has asked for
+implementation to start (2026-10-03).** The build order is below.
 
 ### ⛔ What he ruled
 
@@ -313,6 +312,23 @@ scrolls, and the board's filters stay above its cards.
   - From Main, a program with a GUI offers "Open its GUI".
   - The settings drawer and the program page reached from Main are gone.
     A program's own tab now appears only when it asks for one.
+
+### Build order (the lead's proposal, 2026-10-03; his ruling is only "start implementation")
+
+Boris, 2026-10-03, after trying the mockup through requirement 44:
+*"Write the handoff and start implementation."* The mockup in
+`design/dashboard/` is the reference for every slice. Each slice is
+exercised in the real window before the next starts.
+
+| Slice | What | Needs a new verb? |
+|---|---|---|
+| **1** | **The window's shell to the mockup.** Main with its head, figures and inner tabs; Programs from `Programs` and `Health`; the program card (42); the rail gives a GUI and the card opens over it (43, 44); 24-hour times (41); the control kit (40) and the fixed settings rows (39) in `Settings.svelte` | no |
+| **2** | **Notifications and Needs you** (7 to 9, 23 to 26): the panel reads the notifications rig already files in the record; deciding answers through `toast.answer`; eviction by age; the tray's count | maybe a record query by kind and age |
+| **3** | **The board in rig** (2, 3, 27): `panel.put` writes, the store keeps, the bus wakes; beacon moves onto it | yes |
+| **4** | **Capabilities** (28): every verb from `describe`, with Try it | no |
+| **5** | **Program settings** (20, 34): §47's program layers, and the schema's control annotation (33) | yes |
+| **6** | **Registered GUIs** (10 to 13, 15, 21): `gui.register`, rig.css, the per-program wire | yes |
+| **7** | **Guidelines** (29): published, dated, and checked against each program | no |
 
 ### ⛔ Two tensions with §11, for Boris, not for a seat
 
