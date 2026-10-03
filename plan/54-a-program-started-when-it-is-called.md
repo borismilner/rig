@@ -228,11 +228,22 @@ Where the build differs from the text above:
 | config | `programs.scan`, colon-separated, default `~/.local/lib/rig/apps`, applied at restart |
 | the idle helper | `client.Idle(d)` and `client.Hold()`, added to the client's surface |
 
-**Two gaps, known:**
+**Two gaps, known** when the above was built, and closed below:
 
-- **A resident program is listed only while it runs.** Its declaration is
-  kept and it is started from it at rigd start with no scan, but a
-  resident that is down is not listed, because a call to it could not
-  start it.
+- **A resident program is listed only while it runs.**
 - **A resident's changed binary is read at its next start**, not by the
-  scan: the scan does not restart a running program to read it.
+  scan.
+
+### ⛔ Requirement, 2026-10-03: close both gaps
+
+Boris, 2026-10-03, on being asked whether to close the two gaps above:
+*"Close all gaps"*. Decided here as follows, since each gap could be
+closed more than one way:
+
+| Case | Behaviour |
+|---|---|
+| any supervised program, resident or on call | its declaration is kept on disk, `programs.json` rows included, not only scanned ones |
+| a resident that is down | **listed**, from what was kept, with `down` set. A call to it is refused `UNAVAILABLE` naming its state and the fix: `rig up` when stopped, `rig restart` when quarantined, `rig health` while it restarts. **A call never starts a resident**: one a human stopped stays stopped |
+| a running resident whose binary changed | **rig restarts it** on the new binary, recorded with rig as the actor and "its binary changed" as the trigger, and its new hello is kept |
+| a stopped resident whose binary changed | a declare run: started, its hello kept, stopped again |
+| a quarantined resident whose binary changed | **left alone**, since only a human takes a program out of quarantine (section 18). Listed with `stale` set: what is listed was read from the binary before |
