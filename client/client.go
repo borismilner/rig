@@ -89,6 +89,9 @@ type Client struct {
 
 	closeOnce sync.Once
 	closed    chan struct{}
+
+	// busy counts requests being answered and holds taken (idle.go).
+	busy busy
 }
 
 // outbound is how many calls may be waiting for rig to come back at once.
@@ -263,6 +266,7 @@ func (c *Client) answer(cn *conn, f *rigv1.Frame) {
 		})
 		return
 	}
+	defer c.busy.add(1)()
 	msg, err := c.handler(f.GetMethod(), f.GetPayload())
 	if err != nil {
 		_ = cn.w.WriteFrame(&rigv1.Frame{

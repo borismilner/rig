@@ -66,6 +66,8 @@ var Surface = []string{
 	"Client.Err() error",
 	"Client.Handle(Handler)",
 	"Client.Hello(context.Context, *rigv1.Declaration) (*rigv1.HelloResponse, error)",
+	"Client.Hold() func()",
+	"Client.Idle(time.Duration) <-chan struct{}",
 	"Connect() (*Client, error)",
 	"Dial(string) (*Client, error)",
 	"Handler func(string, []byte) (proto.Message, error)",
