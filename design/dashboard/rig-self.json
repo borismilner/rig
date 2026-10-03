@@ -1,0 +1,1760 @@
+[
+ {
+  "ID": "ping",
+  "Title": "Ping",
+  "Summary": "Round-trip a nonce",
+  "Description": "Echoes the nonce it was given, and probes a named program.",
+  "Returns": "The nonce, the program id and its version.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "nonce": {
+     "contentEncoding": "base64",
+     "type": "string"
+    },
+    "program": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "estate",
+  "Title": "Estate",
+  "Summary": "Say which estate this is",
+  "Description": "Answers the estate's name and role, this daemon's build, the wire major and rig's own semantic generation. The one rig method whose answer does not depend on who is asking.",
+  "Returns": "The estate name and role, the daemon build, the wire major and rig's own semantic generation.",
+  "Effects": "read-only",
+  "Args": null
+ },
+ {
+  "ID": "programs",
+  "Title": "Programs",
+  "Summary": "List what this principal may reach",
+  "Description": "Reads the registry through the calling principal's own view.",
+  "Returns": "Every program this principal may see.",
+  "Effects": "read-only",
+  "Args": null
+ },
+ {
+  "ID": "describe",
+  "Title": "Describe",
+  "Summary": "One program or command in full, as the MCP tool answers it",
+  "Description": "Answers the object the MCP describe tool returns for the same program and command, rendered by the daemon so the CLI's --json and the MCP tool cannot disagree. Reads through the calling principal's own view.",
+  "Returns": "The MCP describe tool's JSON object, as bytes.",
+  "Effects": "read-only",
+  "Args": null
+ },
+ {
+  "ID": "announce",
+  "Title": "Announce",
+  "Summary": "Say what this session is for, and see who else is here",
+  "Description": "Records this connection's purpose and activity on the estate's roster, optionally taking a named SEAT, and returns the crew as it stands. A seat is a role that outlives its occupants; each occupancy gets a generation, so a peer can tell whether the session it is addressing is still the one it meant. Refused if the seat is held by a live peer.",
+  "Returns": "This peer's own row including its generation, the whole crew, and whether the roster is known to be incomplete.",
+  "Effects": "read-only",
+  "Args": null
+ },
+ {
+  "ID": "activity",
+  "Title": "Activity",
+  "Summary": "Say what this session is doing right now",
+  "Description": "Replaces this connection's activity line, and optionally moves its seat to HANDING_OFF. Cheap and non-blocking. Requires an earlier announce: an activity with no purpose above it is the unsupervisable row the seat mechanism exists to prevent.",
+  "Returns": "This peer's updated row.",
+  "Effects": "read-only",
+  "Args": null
+ },
+ {
+  "ID": "peers",
+  "Title": "Peers",
+  "Summary": "Read the estate's roster",
+  "Description": "Who is here, what each is for, what each is doing, which seat each holds and at which generation. Presence is connection state, so a peer that is listed is a peer whose connection is open.",
+  "Returns": "The crew, and whether the roster is known to be incomplete.",
+  "Effects": "read-only",
+  "Args": null
+ },
+ {
+  "ID": "session",
+  "Title": "Session",
+  "Summary": "Say which session this connection carries",
+  "Description": "Answers this connection's session token, or resumes a session named by one. Section 5f says every connection carries a token that survives reconnect; a terminal, an agent and a script never handshake, so this is the message on which they receive it.",
+  "Returns": "The session token, and whether a resume was honoured.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "resume": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "record.get",
+  "Title": "Record get",
+  "Summary": "Read one record, at head or at a version",
+  "Description": "Answers one record. Version 0 means HEAD rather than version zero, which no record has - the first write is version 1.",
+  "Returns": "The record at the version asked for.",
+  "Effects": "read-only",
+  "Args": null
+ },
+ {
+  "ID": "record.query",
+  "Title": "Record query",
+  "Summary": "Find records by kind in a project",
+  "Description": "Answers the HEAD of every record of a kind in a project. This is section 39's \"indexed\".",
+  "Returns": "Every matching record at its current version.",
+  "Effects": "read-only",
+  "Args": null
+ },
+ {
+  "ID": "record.history",
+  "Title": "Record history",
+  "Summary": "Read every version of one record",
+  "Description": "Answers every version of one record, oldest first, each with the provenance of the write that made it.",
+  "Returns": "One record's versions, oldest first.",
+  "Effects": "read-only",
+  "Args": null
+ },
+ {
+  "ID": "record.refs",
+  "Title": "Record refs",
+  "Summary": "What points AT this record",
+  "Description": "Walks the reverse edges and answers what cites, blocks or is part of this record - section 39's \"correlated\", and the direction files cannot go. The walk is bounded by depth and says which depth it ANSWERED, flags a partial answer rather than returning a short list that looks complete, and reports any cycle it crossed by name without resolving it. It stays inside the record's own project unless asked to cross, which is a performance property rather than a preference.",
+  "Returns": "What points at the record, each edge naming its kind, title and the record it arrived through.",
+  "Effects": "read-only",
+  "Args": null
+ },
+ {
+  "ID": "project.brief",
+  "Title": "Project brief",
+  "Summary": "Moved to the docket program; this arm refuses and says where",
+  "Description": "Answers a refusal rather than a brief. The derivation moved to the docket program, which reaches this store over the socket like every other program here; rig keeps the record store and the record verbs the brief is derived on top of. The arm stays on this wire version because rig serves every version it has ever shipped, so a caller that asks is told where the answer went rather than being told there is no such method.",
+  "Returns": "A refusal naming the program that derives the brief, with the command to ask it instead.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "project": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "record.put",
+  "Title": "Record put",
+  "Summary": "Create a record, or supersede one",
+  "Description": "Writes a record and returns the version written. The caller may name the version it believes is current, and a losing compare-and-swap is refused as a conflict rather than overwriting. Provenance - who wrote it, from which seat, at which epoch - is the daemon's and is never read off the request.",
+  "Returns": "The record as written, at its new version.",
+  "Effects": "writes-files",
+  "Args": null
+ },
+ {
+  "ID": "backup.create",
+  "Title": "Backup create",
+  "Summary": "Archive this estate's own persistent state",
+  "Description": "Takes a transactional snapshot of the record store and writes one .tar.gz under the user's state directory, carrying a manifest and the snapshot. The caller names no path: the daemon chooses it from the estate name and the clock, and answers with where it landed. A copy of record.db taken with cp is NOT a backup, because the store runs in WAL mode and a committed write lives in record.db-wal until a checkpoint folds it in.",
+  "Returns": "Where the archive landed, its size and SHA-256, and the schema version, record count and head count of the snapshot inside it.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {},
+   "type": "object"
+  }
+ },
+ {
+  "ID": "progress.step",
+  "Title": "Progress step",
+  "Summary": "Append one step to a work item's stream",
+  "Description": "Records that a work item was started, blocked or finished, written at a boundary DURING the work rather than at the end. An absent stream reads as UNKNOWN, never as nothing happened.",
+  "Returns": "The step as written.",
+  "Effects": "writes-files",
+  "Args": null
+ },
+ {
+  "ID": "record.link",
+  "Title": "Record link",
+  "Summary": "Write a typed edge between two records",
+  "Description": "Asserts a typed, directed edge. The type set is closed at section 39's eight names and an unknown one is refused by name with the value quoted back.",
+  "Returns": "Nothing. The edge either exists afterwards or the call was refused.",
+  "Effects": "writes-files",
+  "Args": null
+ },
+ {
+  "ID": "record.unlink",
+  "Title": "Record unlink",
+  "Summary": "Remove a typed edge between two records",
+  "Description": "Removes an edge. Removing one that is not there leaves the same state behind, which is why this is idempotent.",
+  "Returns": "Nothing. The edge is absent afterwards either way.",
+  "Effects": "writes-files",
+  "Args": null
+ },
+ {
+  "ID": "record.retract",
+  "Title": "Record retract",
+  "Summary": "Withdraw a record, keeping its id and its history",
+  "Description": "Marks a record withdrawn. It leaves every brief and every query; its id and every version of it survive, and record.get still answers, saying that it was retracted and why. Not a delete: nothing is destroyed. Anyone may retract any record.",
+  "Returns": "The withdrawal - reason, provenance, and whether the record was already withdrawn by somebody else.",
+  "Effects": "writes-files",
+  "Args": null
+ },
+ {
+  "ID": "record.delete",
+  "Title": "Record delete",
+  "Summary": "Remove a record, its versions and every edge touching it",
+  "Description": "Destroys a record and its whole history, and drops every edge at either end of it - ruled by Boris over refusing while anything cites it. The answer names every edge dropped and counts the versions removed, and a dry run shows the same account without writing. Anyone may delete any record.",
+  "Returns": "What it took: the version count and every dropped edge, named.",
+  "Effects": "destructive",
+  "Args": null
+ },
+ {
+  "ID": "record.replace",
+  "Title": "Record replace",
+  "Summary": "Put a different record in the place of an existing one",
+  "Description": "The duplicate case: two ids hold one fact. Every edge pointing at the loser is moved onto the survivor, the loser is withdrawn pointing at it, and record.get on the old id still says where the fact went. A supersede cannot express this, because a supersede keeps the id.",
+  "Returns": "Every inbound edge in one of three buckets - moved, merged into an edge the survivor already had, or dropped as a would-be self-edge - and the withdrawal.",
+  "Effects": "writes-files",
+  "Args": null
+ },
+ {
+  "ID": "knowledge.search",
+  "Title": "Knowledge search",
+  "Summary": "Find what other sessions already put in the knowledge base",
+  "Description": "Searches the estate's knowledge base by the words given and answers, best first, a title, a one-line summary and a snippet per hit - never a body, so consulting costs a few hundred bytes. No query syntax is interpreted. Consult it before a deep dive: another session may have done the research.",
+  "Returns": "Up to 20 hits, best first, each with an id to fetch.",
+  "Effects": "read-only",
+  "Args": null
+ },
+ {
+  "ID": "knowledge.get",
+  "Title": "Knowledge get",
+  "Summary": "Read one knowledge base entry whole",
+  "Description": "Answers one entry by id, body and provenance included. Fetch only the hit that fits.",
+  "Returns": "The entry.",
+  "Effects": "read-only",
+  "Args": null
+ },
+ {
+  "ID": "knowledge.add",
+  "Title": "Knowledge add",
+  "Summary": "Write a knowledge base entry once, for every agent and person on this estate",
+  "Description": "Writes an entry: a title, a one-line summary that searches show, a body with the detail, and one-word tags. For knowledge of great importance to many users, not for every note. Attributed to the caller's seat.",
+  "Returns": "The entry as written, with its id.",
+  "Effects": "writes-files",
+  "Args": null
+ },
+ {
+  "ID": "worknote.write",
+  "Title": "Work note write",
+  "Summary": "Write down what you are thinking, so it survives this session",
+  "Description": "Appends one working note: prose, any tags you like, and an association to anything in the record - a work item, a project, a task. A target id that holds no record is reported back rather than losing your prose. Attributed to the caller's seat, never to one named in the request.",
+  "Returns": "The note as written, with its id, and an account of which associations took and which ids held no record.",
+  "Effects": "writes-files",
+  "Args": null
+ },
+ {
+  "ID": "worknote.mine",
+  "Title": "Work note mine",
+  "Summary": "Get your own working notes back after the session that wrote them died",
+  "Description": "Answers the working notes THIS SEAT wrote, newest first. The seat comes from your row, so this can only ever answer your own notes. Start here on resume: a session dies with its process and the seat does not.",
+  "Returns": "Your notes, newest first, bounded, with the unbounded total beside them so you know what was left out.",
+  "Effects": "read-only",
+  "Args": null
+ },
+ {
+  "ID": "worknote.about",
+  "Title": "Work note about",
+  "Summary": "Every seat's working notes on one record",
+  "Description": "Answers the working notes attached to one record, by ANY seat, newest first. This is the handover read: `mine` is your own memory, this is what the estate knows about the thing you are picking up.",
+  "Returns": "The notes on that record, newest first, bounded, with the unbounded total beside them.",
+  "Effects": "read-only",
+  "Args": null
+ },
+ {
+  "ID": "lease.list",
+  "Title": "Lease list",
+  "Summary": "Every lease in the estate, with its owner's liveness",
+  "Description": "Answers every lease this estate knows about, evaluated now: held, orphaned or free, who holds or last held it, how it is witnessed, whether the witness was observed dead, and whether it needs a recorded break. Expiry is derived on read, never swept.",
+  "Returns": "Every lease, by name.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {},
+   "type": "object"
+  }
+ },
+ {
+  "ID": "notify",
+  "Title": "Notify",
+  "Summary": "Show a toast, and file it in the record",
+  "Description": "Sends a notification at one of five severities - info, success, warning, error, urgent - with a title and a body. The daemon writes it into the record as kind notification with the sender as provenance, so nothing is only a toast, and the tray draws it as a speech bubble at the tray's corner of the screen.",
+  "Returns": "The toast as filed, with its record id.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "body": {
+     "type": "string"
+    },
+    "replies": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "replyText": {
+     "type": "boolean"
+    },
+    "severity": {
+     "enum": [
+      "SEVERITY_UNSPECIFIED",
+      "SEVERITY_INFO",
+      "SEVERITY_SUCCESS",
+      "SEVERITY_WARNING",
+      "SEVERITY_ERROR",
+      "SEVERITY_URGENT"
+     ],
+     "type": "string"
+    },
+    "speak": {
+     "type": "string"
+    },
+    "title": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "toast.wait",
+  "Title": "Toast wait",
+  "Summary": "Wait for the next toasts",
+  "Description": "Answers the toasts after a cursor as soon as there are any, or nothing once the timeout (at most 60 seconds) passes. The tray holds this so waiting costs nothing.",
+  "Returns": "The new toasts and the latest cursor.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "after": {
+     "type": "integer"
+    },
+    "timeoutMs": {
+     "type": "integer"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "toast.dnd",
+  "Title": "Do Not Disturb",
+  "Summary": "Turn Do Not Disturb on or off, or ask",
+  "Description": "While it is on, a notification is filed in the record and not drawn; an urgent one is always drawn. It lives in the daemon's memory, so a restart turns it off rather than bringing a daemon back silent.",
+  "Returns": "Whether it is on, and how many were held back since it went on.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "change": {
+     "enum": [
+      "DND_CHANGE_UNSPECIFIED",
+      "DND_CHANGE_QUERY",
+      "DND_CHANGE_ON",
+      "DND_CHANGE_OFF"
+     ],
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "toast.retract",
+  "Title": "Toast retract",
+  "Summary": "Take back a toast you sent, before anybody deals with it",
+  "Description": "Withdraws one toast by its record id, or with none every toast of yours still on screen: the bubble says it was withdrawn and leaves, the notification record is retracted with your reason, and an unanswered ask is answered withdrawn, so whoever waits on its reply is told and a late reply is refused. Only a toast's sender may take it back, named from the connection as notify names it. Posted as toast.retracted. Use it the moment something you said stops being true: a warning for a build since fixed is worse than none.",
+  "Returns": "The records retracted, or a note saying why none was.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "reason": {
+     "type": "string"
+    },
+    "recordId": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "toast.reply",
+  "Title": "Toast reply",
+  "Summary": "Answer a toast that asked for a reply",
+  "Description": "Files the answer to a toast whose sender offered reply buttons or free text: exactly one of a button's label, free text, or dismissed when it was closed unanswered. The first reply wins and a second is refused. The replier is the calling connection, and the answer is filed in the record as kind notification-reply.",
+  "Returns": "The answer as filed.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "dismissed": {
+     "type": "boolean"
+    },
+    "recordId": {
+     "type": "string"
+    },
+    "reply": {
+     "type": "string"
+    },
+    "text": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "sound",
+  "Title": "Sound",
+  "Summary": "Mute sounds, choose the toast sound and how much of a toast is read aloud, or ask",
+  "Description": "A drawn toast plays a sound (the hail or the badge chirp, or the file rigd was started with) and is then read aloud: not at all, its title, or its title and body. One mute silences the sound and all speech, and stops what is playing. The settings survive a restart. A field left unspecified changes nothing, so an empty request only asks.",
+  "Returns": "The settings, the player and speech engine found, and why anything is silent.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "mute": {
+     "enum": [
+      "SOUND_MUTE_UNSPECIFIED",
+      "SOUND_MUTE_ON",
+      "SOUND_MUTE_OFF"
+     ],
+     "type": "string"
+    },
+    "readAloud": {
+     "enum": [
+      "READ_ALOUD_UNSPECIFIED",
+      "READ_ALOUD_OFF",
+      "READ_ALOUD_TITLE",
+      "READ_ALOUD_TITLE_AND_BODY"
+     ],
+     "type": "string"
+    },
+    "toastSound": {
+     "enum": [
+      "TOAST_SOUND_UNSPECIFIED",
+      "TOAST_SOUND_HAIL",
+      "TOAST_SOUND_BADGE",
+      "TOAST_SOUND_FILE"
+     ],
+     "type": "string"
+    },
+    "volume": {
+     "type": "integer"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "say",
+  "Title": "Say",
+  "Summary": "Read text aloud",
+  "Description": "Reads arbitrary text aloud through the installed speech engine at its best quality (Kokoro, else piper), in the same queue as the toast sounds so nothing talks over anything else. Refused while sounds are muted. With wait, answers once the text has been heard, for at most two minutes.",
+  "Returns": "With wait, whether it was heard before the bound.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "text": {
+     "type": "string"
+    },
+    "wait": {
+     "type": "boolean"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "toast.answer",
+  "Title": "Toast answer",
+  "Summary": "Wait for the reply to a toast you sent",
+  "Description": "Answers the reply to a toast that asked for one, waiting up to the timeout (at most 60 seconds) if nobody has replied yet; zero asks without waiting. A toast that asks never closes on its own, so the reply may come much later: ask again.",
+  "Returns": "The answer, or answered false while nobody has replied.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "recordId": {
+     "type": "string"
+    },
+    "timeoutMs": {
+     "type": "integer"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "events.publish",
+  "Title": "Events publish",
+  "Summary": "Say that something happened, for every seat or program waiting on it",
+  "Description": "A seat (announce first) publishes a signal, signal.\u003cwords\u003e like signal.tests.green, to wake peers waiting on it; to_seat makes it that one seat's alone. A registered program publishes one of the kinds it declared under events, named \u003cits id\u003e.\u003cwhat happened\u003e. The payload is JSON of at most 16 KiB. An event says what happened, never what to do. Everyone waiting on a matching kind is woken. Signals are kept 7 days, so a peer that is not waiting now picks one up later from its cursor. For a message that must be acknowledged, use message_send.",
+  "Returns": "The event, with its seq, and delivered: how many waits in progress it reached.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "kind": {
+     "type": "string"
+    },
+    "payloadJson": {
+     "type": "string"
+    },
+    "toSeat": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "events.wait",
+  "Title": "Events wait",
+  "Summary": "Wait for events of the kinds you name",
+  "Description": "Answers every event after the cursor whose kind matches one of the patterns (a kind like hand.changed, or a prefix like hand.*), oldest first, as soon as there is one, or nothing once the timeout (at most 60 seconds) passes. Carry latest and epoch into the next call. gap means events were lost, past the ring or across a restart: re-read the state rather than assume nothing happened. Signals (signal.*) are kept for 7 days, up to 1000 per kind, so a cursor from before a restart still gets every signal after it, with no gap; a first call with after 0 gets only this run's. rig's own kinds are open to every caller: signal.* (seats' signals), lease.* (lease.changed when a lease is acquired, released, broken, queued, orphaned, fenced or expired), roster.* (roster.changed when a seat announces or leaves), shared.* (shared.\u003ckey\u003e when a shared key is set, deleted or its owner is gone, so shared.claims.* is one family), hand.*, toast.*, system.*, timer.*, config.*. A program may also wait on its own.",
+  "Returns": "The matching events, the latest seq, the epoch, and whether any were lost.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "after": {
+     "type": "integer"
+    },
+    "epoch": {
+     "type": "integer"
+    },
+    "kinds": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "timeoutMs": {
+     "type": "integer"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "config.get",
+  "Title": "Config get",
+  "Summary": "Every setting under a key or prefix, with the layer that set it",
+  "Description": "Answers each of rig's settings under the prefix (empty is all): the value in effect, the layer and file that set it, every layer that set it and lost, lowest first, and whether a change applies live. Also the orphans (values set for a key nothing declares, usually a misspelling), the problems (a file or value that took no part, and why), and where the resolved snapshot is written.",
+  "Returns": "The settings with their provenance, the orphans, the problems and the snapshot path.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "prefix": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "config.set",
+  "Title": "Config set",
+  "Summary": "Change settings until rigd restarts",
+  "Description": "Sets keys in the runtime layer, the highest, which a restart clears; a lasting change is an edit to ~/.config/rig/rig.toml. Values are JSON text, and a JSON string is read as the key's type. The set is validated whole: one bad value applies nothing and names the key and why. Each key answers applied or needs-restart; a key whose value moved is published as config.changed.",
+  "Returns": "Per key, applied or needs-restart, and the snapshot path.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "valuesJson": {
+     "type": "object"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "logs.query",
+  "Title": "Logs query",
+  "Summary": "Read the estate's logs, merged across rigd and every program",
+  "Description": "Answers the log records of rigd and every program, time-ordered by each record's own clock, filtered by time (unix nanos, 0 is open), clients, least level (slog's integers: -4 debug, 0 info, 4 warn, 8 error) and an RE2 grep over the message and its attrs. The newest records are kept up to the limit (default 1000, at most 10000) and truncated says some were left out. gaps lists every stretch the store knows it does not hold whole, such as an unclean close, so a view never reads as complete when it is not. With timeout_ms, the call waits up to 60 s for a record after the cursor: carry latest into after to follow. A program reads its own records; a terminal or an agent, everyone's.",
+  "Returns": "The matching records oldest first, the gaps over the range, the latest seq, and whether the answer was truncated.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "after": {
+     "type": "integer"
+    },
+    "clients": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "grep": {
+     "type": "string"
+    },
+    "limit": {
+     "type": "integer"
+    },
+    "minLevel": {
+     "type": "integer"
+    },
+    "sinceUnixNanos": {
+     "type": "integer"
+    },
+    "timeoutMs": {
+     "type": "integer"
+    },
+    "untilUnixNanos": {
+     "type": "integer"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "logs.ingest",
+  "Title": "Logs ingest",
+  "Summary": "Send a batch of your own log records to the estate's log store",
+  "Description": "Files up to 1000 records under the caller's own name: a registered program's id, else the caller's seat; the seq and client a record carries are ignored. unix_nanos 0 is the time rig received it. Each client has a rate ceiling, 1000 records a second past a burst of 5000; records past it are sampled out, the answer counts them, and the coverage log carries a sampled band with retained/total so counts stay correct. dropped_before reports records your own buffer dropped, and becomes a band too. Read them back with logs.query.",
+  "Returns": "How many records were accepted, and how many the rate ceiling sampled out.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "droppedBefore": {
+     "type": "integer"
+    },
+    "records": {
+     "items": {
+      "additionalProperties": false,
+      "properties": {
+       "attrs": {
+        "type": "object"
+       },
+       "client": {
+        "type": "string"
+       },
+       "level": {
+        "type": "integer"
+       },
+       "message": {
+        "type": "string"
+       },
+       "seq": {
+        "type": "integer"
+       },
+       "unixNanos": {
+        "type": "integer"
+       }
+      },
+      "type": "object"
+     },
+     "type": "array"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "logs.coverage",
+  "Title": "Logs coverage",
+  "Summary": "Say what the estate's log store holds and what it has lost",
+  "Description": "Answers every gap over the range (unix nanos, 0 is open) that the caller may read: an unclean close, a ring overwrite, a failed write, a sampled band from the rate ceiling, records a program dropped itself, and every segment unlinked by age or size. Also every segment, oldest first, with its id, size, last write, and whether it is compressed (once, when it rotates), archived (at 30 days, still read), pinned or open, and the total size. A program sees only its own gaps.",
+  "Returns": "The gaps, the segments and their total size.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "sinceUnixNanos": {
+     "type": "integer"
+    },
+    "untilUnixNanos": {
+     "type": "integer"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "logs.pin",
+  "Title": "Logs pin",
+  "Summary": "Keep one log segment past the age and size ceilings, or release it",
+  "Description": "Pins the segment with that id, as rig.logs.coverage lists it, so it is never unlinked by age (90 days) or by the size ceiling; unpin releases it to both. Only a caller that may read every client's records may pin, since a segment holds them all.",
+  "Returns": "Whether the pin changed anything.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "segment": {
+     "type": "integer"
+    },
+    "unpin": {
+     "type": "boolean"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "timer.arm",
+  "Title": "Timer arm",
+  "Summary": "Arm a named timer; rig publishes timer.fired to you when it comes due",
+  "Description": "A registered program arms a timer under its own name with a schedule: every 15m (a minute at least), at 09:00, a five-field cron line, or @hourly, @daily, @weekly, @monthly, in local time. rig keeps the clock, so a fire due while the machine slept comes once at resume with missed counting the rest. Arming the same name and schedule again changes nothing, so arm your timers each time you start; another schedule replaces it. Timers live in memory and end when rigd restarts.",
+  "Returns": "The timer with its next fire, and whether an earlier schedule was replaced.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "name": {
+     "type": "string"
+    },
+    "schedule": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "timer.disarm",
+  "Title": "Timer disarm",
+  "Summary": "Disarm one of your timers",
+  "Description": "Removes the caller's timer of that name. Disarming one that is not armed changes nothing.",
+  "Returns": "Whether a timer was disarmed.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "name": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "timer.list",
+  "Title": "Timer list",
+  "Summary": "Your armed timers",
+  "Description": "Answers the caller's timers, by name, each with its schedule and next fire.",
+  "Returns": "The timers.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {},
+   "type": "object"
+  }
+ },
+ {
+  "ID": "hand.request",
+  "Title": "Hand request",
+  "Summary": "Ask for the desktop's pointer and keyboard, through his countdown",
+  "Description": "Starts the HANDS OFF countdown (20 seconds unless asked for 10 to 120) and blocks through it. Silence is consent; he can let it start now, decline it, or hold it, and a held countdown never starts by itself. Refused while another run has the desktop. The run is tied to the asking connection and ends when it closes.",
+  "Returns": "The state once the run drives; refused when he declined or held it too long.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "countdownMs": {
+     "type": "integer"
+    },
+    "reason": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "hand.step",
+  "Title": "Hand step",
+  "Summary": "The gate before each step of a run",
+  "Description": "Answers at once while the run drives, and names what it is doing on the strip (an op and a step number, never typed text). Blocks while he has taken the desktop back, for at most ten minutes, and is refused once he stopped the run.",
+  "Returns": "The state; refused once the run is over, with why.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "activity": {
+     "type": "string"
+    },
+    "hasPoint": {
+     "type": "boolean"
+    },
+    "note": {
+     "type": "string"
+    },
+    "x": {
+     "type": "integer"
+    },
+    "y": {
+     "type": "integer"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "hand.release",
+  "Title": "Hand release",
+  "Summary": "Give the desktop back",
+  "Description": "Ends the calling connection's run as finished and takes the strip down. Releasing a run that is already over changes nothing.",
+  "Returns": "The state after it.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {},
+   "type": "object"
+  }
+ },
+ {
+  "ID": "hand.wait",
+  "Title": "Hand wait",
+  "Summary": "Wait for the desktop's state to change",
+  "Description": "Answers the HANDS OFF state once it changed past a cursor, or as it stands once the timeout (at most 60 seconds) passes; zero answers now. The tray holds this to raise and lower the strip.",
+  "Returns": "The state, with its cursor.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "after": {
+     "type": "integer"
+    },
+    "timeoutMs": {
+     "type": "integer"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "hand.answer",
+  "Title": "Hand answer",
+  "Summary": "Allow, decline, hold, pause, resume or stop a run",
+  "Description": "His answer to the countdown or the run: allow starts it now, decline ends it, hold freezes the countdown, resume lets a held countdown run on or a paused run drive again, pause takes the desktop back, stop ends the run. Refused to a program and to an agent: only the person at the desktop answers.",
+  "Returns": "The state after it.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "action": {
+     "enum": [
+      "HAND_ACTION_UNSPECIFIED",
+      "HAND_ACTION_ALLOW",
+      "HAND_ACTION_DECLINE",
+      "HAND_ACTION_HOLD",
+      "HAND_ACTION_PAUSE",
+      "HAND_ACTION_RESUME",
+      "HAND_ACTION_STOP"
+     ],
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "hand.strip",
+  "Title": "Hand strip",
+  "Summary": "Where the HANDS OFF strip is",
+  "Description": "The strip reports its window on the root, so a step whose point is under it waits for it to move away. Kept for as long as the reporting connection is open. Refused to a program and to an agent: only the strip says where it is.",
+  "Returns": "The state after it.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "height": {
+     "type": "integer"
+    },
+    "width": {
+     "type": "integer"
+    },
+    "x": {
+     "type": "integer"
+    },
+    "y": {
+     "type": "integer"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "lease.check",
+  "Title": "Lease check",
+  "Summary": "Whether a fencing token is still the current one",
+  "Description": "Answers whether the token is the lease's current fencing token: the lease carries it and is held or orphaned, so nobody has been granted it since. A resource asks this before accepting a write, and refuses a stale token. Tokens are monotonic per lease, so a token that stops being current never becomes current again.",
+  "Returns": "Whether the token is current, and the lease as it stands.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "name": {
+     "type": "string"
+    },
+    "token": {
+     "type": "integer"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "lease.acquire",
+  "Title": "Lease acquire",
+  "Summary": "Take a named lease for a TTL, queueing for it if you ask to",
+  "Description": "Takes the lease for the caller's seat, witnessed by the pid the socket reports for the caller, or declared unwitnessed. Take one before anything shared - deploy:\u003cproject\u003e, repo:\u003cproject\u003e, vm:\u003cname\u003e - and release it as soon as the work is done; never hold one across a question to the human. With wait_ms (at most 25 minutes) a held lease is QUEUED for, first come first served: a lease that frees goes to the queue's head, never to a newcomer, and rig hands over one that expires because its holder died. A wait that would deadlock is refused at once, naming the chain. Without wait_ms, a held or orphaned lease is refused with who holds it, what for, what they are doing and for how long. Re-acquiring your own is the reconnect path and issues a new token. Every change is posted as lease.changed (acquired, released, broken, queued, orphaned, fenced, expired), so watching a resource is one events_wait.",
+  "Returns": "The handle and granted_because (free, released, broken, expired). A wait that ran out is a RESULT, not an error: timed_out with the incumbent's full picture, and your place given up.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "name": {
+     "type": "string"
+    },
+    "ttlMs": {
+     "type": "integer"
+    },
+    "unwitnessed": {
+     "type": "boolean"
+    },
+    "waitMs": {
+     "type": "integer"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "lease.renew",
+  "Title": "Lease renew",
+  "Summary": "Extend a lease you hold",
+  "Description": "Extends the lease against its token and epoch. An orphaned lease is renewable by its own holder, which is why orphaned is not free. A handle from before a daemon restart is fenced by its epoch.",
+  "Returns": "The handle with its new deadline.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "epoch": {
+     "type": "integer"
+    },
+    "name": {
+     "type": "string"
+    },
+    "token": {
+     "type": "integer"
+    },
+    "ttlMs": {
+     "type": "integer"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "lease.fence",
+  "Title": "Lease fence",
+  "Summary": "Name the process group a wrapped run started under your lease",
+  "Description": "What `rig peers run --lease` calls once its command has started: rig then kills that group before the lease can pass to anybody else, so a stalled holder's work stops rather than racing the next holder. Only the process the lease witnessed may fence it, with a group it started as its own user.",
+  "Returns": "Nothing. The lease is fenced afterwards or the call was refused.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "epoch": {
+     "type": "integer"
+    },
+    "name": {
+     "type": "string"
+    },
+    "pid": {
+     "type": "integer"
+    },
+    "token": {
+     "type": "integer"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "lease.release",
+  "Title": "Lease release",
+  "Summary": "Give a lease back",
+  "Description": "Frees the lease against its token and epoch. The token stays monotonic per lease, so an old handle can never match again.",
+  "Returns": "Nothing. The lease is free afterwards or the call was refused.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "epoch": {
+     "type": "integer"
+    },
+    "name": {
+     "type": "string"
+    },
+    "token": {
+     "type": "integer"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "lease.break",
+  "Title": "Lease break",
+  "Summary": "Free an orphaned lease by a recorded human action",
+  "Description": "The only way an unwitnessed orphan ever becomes free. Records the caller's seat as who broke it and requires a reason. Refused for a lease still inside its deadline.",
+  "Returns": "Nothing. The lease is free afterwards, naming who broke it and why.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "name": {
+     "type": "string"
+    },
+    "reason": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "shared.get",
+  "Title": "Shared get",
+  "Summary": "Read the shared table: one key, or a family",
+  "Description": "Reads small state every seat on the estate can see. A key is dotted lower-case words (claims.chunk-3); claims.* reads the family, * every key, at most 200 an answer. Each value carries its version, who wrote it, its owner, and owner_gone when the owner left the roster and its process is observed dead - work started and abandoned. A key that does not exist answers version 0, which is the expected_version that claims it. Reads need no seat.",
+  "Returns": "The value, or the family in key order, with a note on what to do next.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "key": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "shared.set",
+  "Title": "Shared set",
+  "Summary": "Write the shared table under compare-and-swap: claim an item, or update what you read",
+  "Description": "To split work, one key per item and claim it with expected_version 0: it lands only if nobody has the key, so ten seats over ten keys never double-claim. To update, pass the version you read. Losing is a RESULT, not an error: applied false, stale true, the current value and a note. own records your seat and process as the owner, so a dead owner's claim reads owner_gone and is taken over by setting it at its version. Versions are never reused, even after a delete. Values are JSON, at most 16 KiB; at most 1000 keys. Every change posts the event shared.\u003ckey\u003e (set, deleted, owner_gone), so waiting for a claim, a result or abandoned work is one events_wait on shared.claims.*. For a queue of tasks, queue_push and queue_claim already do this with leases.",
+  "Returns": "applied, stale, the key as it now stands, and a note when it did not land.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "expectedVersion": {
+     "type": "integer"
+    },
+    "key": {
+     "type": "string"
+    },
+    "own": {
+     "type": "boolean"
+    },
+    "value": {
+     "description": "any JSON value: an object, array, string, number, boolean or null"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "shared.delete",
+  "Title": "Shared delete",
+  "Summary": "Remove a shared key at the version you read",
+  "Description": "Removes the key only if it is still at expected_version, which is required: an unconditional delete would erase a takeover made since you read it. Delete a claim when its work is done.",
+  "Returns": "applied, stale, and the key as it was.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "expectedVersion": {
+     "type": "integer"
+    },
+    "key": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "queue.list",
+  "Title": "Queue list",
+  "Summary": "A queue's unfinished tasks, or every queue's name",
+  "Description": "Answers a queue's tasks not yet done, oldest first, each ready, claimed or orphaned with its claim lease evaluated now, and how many are done. With no queue it names every queue.",
+  "Returns": "The tasks and the done count, or the queue names.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "queue": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "queue.push",
+  "Title": "Queue push",
+  "Summary": "Add a task to a queue, under a mandatory idempotency key",
+  "Description": "Adds a task with an idempotency key and a payload. The same key again answers the existing task, done or not, and never queues it twice; the same key over a different payload is refused. Delivery is at-least-once, so the key is what makes a replay harmless.",
+  "Returns": "The task, and whether it was a duplicate.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "idempotencyKey": {
+     "type": "string"
+    },
+    "payload": {
+     "contentEncoding": "base64",
+     "type": "string"
+    },
+    "queue": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "queue.claim",
+  "Title": "Queue claim",
+  "Summary": "Take the oldest ready task under a lease, witnessed by the caller's process",
+  "Description": "Claims the oldest ready task for the caller's seat as a lease named queue/\u003cqueue\u003e/\u003cid\u003e. Heartbeat it with lease.renew; release it unfinished with lease.release. Past its deadline it is orphaned while the worker lives and ready again once the worker is observed dead.",
+  "Returns": "The task and the claim's handle.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "queue": {
+     "type": "string"
+    },
+    "ttlMs": {
+     "type": "integer"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "queue.complete",
+  "Title": "Queue complete",
+  "Summary": "Finish a claimed task",
+  "Description": "Marks the task done against its claim's token and epoch, and releases the claim. A worker whose claim moved on is refused, and its work is the duplicate the idempotency key is for.",
+  "Returns": "The finished task.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "epoch": {
+     "type": "integer"
+    },
+    "name": {
+     "type": "string"
+    },
+    "token": {
+     "type": "integer"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "store.get",
+  "Title": "Store get",
+  "Summary": "Read documents from a program's store by id, many at once",
+  "Description": "Answers the documents with these ids from one collection, in the order asked; an id that does not exist is left out. A registered program reads its own store; a terminal or an agent names the program.",
+  "Returns": "Each document found, with its version.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "collection": {
+     "type": "string"
+    },
+    "ids": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "program": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "store.query",
+  "Title": "Store query",
+  "Summary": "Ask one collection of a program's store",
+  "Description": "Filters by conditions joined by AND (field, op eq/ne/lt/le/gt/ge, JSON scalar value), orders by fields then id, projects fields, and pages by limit and offset. count_only answers the count alone.",
+  "Returns": "The matching documents, the total, and whether a later page exists.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "collection": {
+     "type": "string"
+    },
+    "countOnly": {
+     "type": "boolean"
+    },
+    "fields": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "limit": {
+     "type": "integer"
+    },
+    "offset": {
+     "type": "integer"
+    },
+    "order": {
+     "items": {
+      "additionalProperties": false,
+      "properties": {
+       "desc": {
+        "type": "boolean"
+       },
+       "field": {
+        "type": "string"
+       }
+      },
+      "type": "object"
+     },
+     "type": "array"
+    },
+    "program": {
+     "type": "string"
+    },
+    "where": {
+     "items": {
+      "additionalProperties": false,
+      "properties": {
+       "field": {
+        "type": "string"
+       },
+       "op": {
+        "type": "string"
+       },
+       "value": {
+        "type": "string"
+       }
+      },
+      "type": "object"
+     },
+     "type": "array"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "store.collections",
+  "Title": "Store collections",
+  "Summary": "List the collections in a program's store",
+  "Description": "Names each collection with its document count and bytes.",
+  "Returns": "The program and its collections.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "program": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "store.list",
+  "Title": "Store list",
+  "Summary": "List every database this estate keeps",
+  "Description": "Names the record store, coord and each program's store, with its file, bytes, schema version and whether it is ephemeral. A registered program is refused: it sees only its own store.",
+  "Returns": "Each namespace on this estate.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {},
+   "type": "object"
+  }
+ },
+ {
+  "ID": "store.export",
+  "Title": "Store export",
+  "Summary": "Export a program's store as text files, committed to git",
+  "Description": "Writes each collection, or the named ones, to \u003ccollection\u003e.jsonl under the exports area: one line per document, sorted by id, with its version and write time. rig commits the export to the exports repository. A whole export removes the files of collections the store no longer has. A registered program exports its own store; a terminal or an agent names the program.",
+  "Returns": "The directory, each collection's documents and bytes, the files removed, and the commit (empty when nothing changed).",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "collections": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "program": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "store.import",
+  "Title": "Store import",
+  "Summary": "Replace a program's collections with its export",
+  "Description": "Reads the program's export back: every line of every file is checked first and one bad line refuses the whole import. Then rig snapshots the store and replaces each named collection, or every collection the export holds, whole, in one transaction, with the exported versions. Collections not named are left alone.",
+  "Returns": "Each collection's documents now and before, the snapshot that undoes the import, and the collections left alone.",
+  "Effects": "destructive",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "collections": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "program": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "files.root",
+  "Title": "Files root",
+  "Summary": "Where to write free files: a program's own directory, or the shared area",
+  "Description": "Answers an absolute directory the caller reads and writes directly, not through rig. rig commits the text files under it to git on an interval; binary files are never committed. shared answers the area every program shares; otherwise a registered program gets its own directory, and a terminal or an agent names the program.",
+  "Returns": "The directory, the program, and how often rig commits.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "program": {
+     "type": "string"
+    },
+    "shared": {
+     "type": "boolean"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "files.index",
+  "Title": "Files index",
+  "Summary": "Index a file you wrote under the free files, so others find it",
+  "Description": "Indexes one file by its path under the free-files root, with a title, a one-line summary that searches show, and one-word tags; rig indexes the file's text beside them. Index everything you write there. A path that climbs out of the root or goes through a symlink is refused; a path whose file is gone has its entry dropped. Attributed to the caller.",
+  "Returns": "What was indexed: searchable text bytes, whether the file is binary or was truncated, or that its entry was dropped.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "path": {
+     "type": "string"
+    },
+    "summary": {
+     "type": "string"
+    },
+    "tags": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "title": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "files.search",
+  "Title": "Files search",
+  "Summary": "Find files under the free files by the words in them",
+  "Description": "Searches the index over the free files and answers, best first, a path, a title, a one-line summary and a snippet per hit - never a body. No query syntax is interpreted. under narrows it to one directory.",
+  "Returns": "Up to 20 hits, best first, each with a path to open.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "limit": {
+     "type": "integer"
+    },
+    "query": {
+     "type": "string"
+    },
+    "under": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "files.unindexed",
+  "Title": "Files unindexed",
+  "Summary": "List files under the free files the index does not describe as they are",
+  "Description": "Answers files with no entry (new), files changed since their entry (stale), and entries whose file is gone. under narrows it to one directory.",
+  "Returns": "The files, sorted by path, and how many there are in all.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "limit": {
+     "type": "integer"
+    },
+    "under": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "files.place",
+  "Title": "Files place",
+  "Summary": "Ask where a file of a kind goes before you write it",
+  "Description": "Answers the path a file goes to under the layout in force: the kind (docs, resources, lessons, programs, or whatever the layout names), the subject, type or program its place takes, and the file name. A kind the layout does not name is refused with the list of kinds. rig makes nothing; write there directly, then index it.",
+  "Returns": "The absolute path, the path relative to the free-files root, and the kind's place.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "kind": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "program": {
+     "type": "string"
+    },
+    "subject": {
+     "type": "string"
+    },
+    "type": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "files.layout",
+  "Title": "Files layout",
+  "Summary": "Read the layout of the free files: every kind and where it goes",
+  "Description": "Answers the layout in force, the file that is edited to change it, and whether that file holds an edit not yet applied.",
+  "Returns": "The kinds and their places, the layout file, and whether an edit is pending.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {},
+   "type": "object"
+  }
+ },
+ {
+  "ID": "files.relayout",
+  "Title": "Files relayout",
+  "Summary": "Apply an edited layout: move the files already written to match it",
+  "Description": "Moves every file whose kind's place changed to where the edited layout puts it, and rewrites their index entries so searches still find them. Refused whole, with nothing moved, if a file would be stranded or overwritten. dry_run answers the moves without making them. Paths callers were told before move.",
+  "Returns": "The kinds that changed, the moves, how many index entries were rewritten, and whether the layout was applied.",
+  "Effects": "destructive",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "dryRun": {
+     "type": "boolean"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "store.put",
+  "Title": "Store put",
+  "Summary": "Create or replace one JSON document, compare-and-swap",
+  "Description": "Writes a JSON object under a collection and id. expected_version 0 creates and is refused if the id exists; otherwise it must be the version read, and a stale one is refused as a conflict rather than overwriting.",
+  "Returns": "The version written.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "collection": {
+     "type": "string"
+    },
+    "document": {
+     "type": "string"
+    },
+    "expectedVersion": {
+     "type": "integer"
+    },
+    "id": {
+     "type": "string"
+    },
+    "program": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "store.delete",
+  "Title": "Store delete",
+  "Summary": "Delete one document at the version read",
+  "Description": "Removes one document if it is still at the version the caller read; a stale version is refused as a conflict.",
+  "Returns": "Nothing, once deleted.",
+  "Effects": "destructive",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "collection": {
+     "type": "string"
+    },
+    "expectedVersion": {
+     "type": "integer"
+    },
+    "id": {
+     "type": "string"
+    },
+    "program": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "store.transact",
+  "Title": "Store transact",
+  "Summary": "Apply several puts and deletes, all or none",
+  "Description": "Applies every step in one transaction, each compare-and-swap. One failing step writes nothing, and the refusal names which step failed.",
+  "Returns": "Each step's new version, 0 for a delete.",
+  "Effects": "destructive",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "ops": {
+     "items": {
+      "additionalProperties": false,
+      "properties": {
+       "collection": {
+        "type": "string"
+       },
+       "delete": {
+        "type": "boolean"
+       },
+       "document": {
+        "type": "string"
+       },
+       "expectedVersion": {
+        "type": "integer"
+       },
+       "id": {
+        "type": "string"
+       }
+      },
+      "type": "object"
+     },
+     "type": "array"
+    },
+    "program": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "message.list",
+  "Title": "Message list",
+  "Summary": "Every directed message this estate holds, promoting nothing",
+  "Description": "Answers the estate's messages oldest first, or one seat's with a seat. It is the SENDER's surface: acted-on is the only state a sender may plan against, and a sender is never sitting in the recipient's seat. It promotes nothing, so reading it can never be mistaken for the recipient having read anything.",
+  "Returns": "Every message, with its state, its pin and whether a tenancy it was not addressed to read it.",
+  "Effects": "read-only",
+  "Args": null
+ },
+ {
+  "ID": "message.send",
+  "Title": "Message send",
+  "Summary": "Send a directed message to a SEAT, optionally pinned to its generation",
+  "Description": "Queues a message for a seat. The sender is this connection's own seat and is never read off the request. Pin it to a generation AND an epoch to address one tenancy: a pin that no longer matches is refused, naming the generation actually in the seat. A seat that is handing off has the message HELD for its successor rather than delivered into a closing session, and the answer says so. A seat nobody holds is refused, and so is a name nobody has ever used, in different words.",
+  "Returns": "The message as stored, the recipient seat's state, and how many parked readers it was handed to.",
+  "Effects": "writes-files",
+  "Args": null
+ },
+ {
+  "ID": "message.inbox",
+  "Title": "Message inbox",
+  "Summary": "Read YOUR OWN seat's mail after a cursor",
+  "Description": "Answers your seat's messages after a cursor, oldest first, and promotes them to READ. The seat is this connection's and is never named in the request. A cursor older than retention comes back with gap set, which means the batch CANNOT be complete: treat what you were tracking as unknown. Anything addressed to a different tenancy of your seat is named in misaddressed - somebody is talking to a session that has gone.",
+  "Returns": "The messages, the cursor to resume from, whether there is a gap, and which of them were addressed to somebody else's tenancy of your seat.",
+  "Effects": "writes-files",
+  "Args": null
+ },
+ {
+  "ID": "message.await",
+  "Title": "Message await",
+  "Summary": "Wait for mail on your own seat, up to 60 seconds",
+  "Description": "rig.message.inbox parked: it answers as soon as there is anything after the cursor, or empty with timed_out once the wait passes. Waiting costs nothing while nothing happens. Everything since the cursor arrives in ONE batch, so three messages that landed while you were busy are one wake-up rather than two missed ones.",
+  "Returns": "The same answer as the inbox, plus whether the wait ended with nothing.",
+  "Effects": "writes-files",
+  "Args": null
+ },
+ {
+  "ID": "message.ack",
+  "Title": "Message acknowledge",
+  "Summary": "Say you understood one of your messages, or what you did about it",
+  "Description": "Promotes one of YOUR OWN messages to ACKNOWLEDGED, or to ACTED_ON with an outcome. Neither is ever inferred from delivery: a sender treating 'delivered' as agreement is the failure this ladder exists to prevent. Promotion never runs backwards, so acknowledging twice cannot lose the stronger fact.",
+  "Returns": "The message in its new state, with the outcome you gave.",
+  "Effects": "writes-files",
+  "Args": null
+ },
+ {
+  "ID": "health",
+  "Title": "Health",
+  "Summary": "Every declared program's state, as evidence of progress",
+  "Description": "Answers each declared program's section 18 state, the ones that need a human first: pid, failures, restarts, its last marker, what it says it is waiting on, the question it is parked on, how the last child ended, when a backoff elapses, and the history. A program rig is not running has no state, the table's dash.",
+  "Returns": "One row per declared program.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "programs": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "health.report",
+  "Title": "Health report",
+  "Summary": "A supervised program's own progress: a marker, waiting, parked",
+  "Description": "Called BY a supervised program. The program is the connection's own, and only the process rig started for it may report; the request names nobody. An advancing marker is progress; a still marker with waiting set is not a failure; parked is a question nobody has seen.",
+  "Returns": "Nothing.",
+  "Effects": "read-only",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "marker": {
+     "type": "integer"
+    },
+    "parked": {
+     "type": "string"
+    },
+    "waiting": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "up",
+  "Title": "Up",
+  "Summary": "Start declared programs, or every one",
+  "Description": "Starts each named program from programs.json, or every declared program with none named. A program already running is answered as it stands and never started twice.",
+  "Returns": "Each program's state after the call.",
+  "Effects": "writes-files",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "programs": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "stop",
+  "Title": "Stop",
+  "Summary": "Stop one supervised program",
+  "Description": "Sends the program SIGTERM, then SIGKILL after its grace, and takes it off the table: it has no state until rig up starts it again. Its history is kept. Programs rig did not start are never touched.",
+  "Returns": "The program's state after the call.",
+  "Effects": "destructive",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "program": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "restart",
+  "Title": "Restart",
+  "Summary": "Restart one supervised program; the way out of QUARANTINED",
+  "Description": "Out of QUARANTINED this is the human row, and it clears the restart budget. In any other state it is a stop and a launch, both recorded with a human as the actor.",
+  "Returns": "The program's state after the call.",
+  "Effects": "destructive",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {
+    "program": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ {
+  "ID": "down",
+  "Title": "Down",
+  "Summary": "Stop the daemon",
+  "Description": "Stops this rigd, the one serving the socket in this XDG_RUNTIME_DIR. It is scoped by that directory and needs no estate name.",
+  "Returns": "The pid and version of the daemon that agreed to stop.",
+  "Effects": "destructive",
+  "Args": {
+   "additionalProperties": false,
+   "properties": {},
+   "type": "object"
+  }
+ }
+]

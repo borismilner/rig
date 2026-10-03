@@ -175,7 +175,7 @@ select.sel{background:var(--bg-2);color:var(--fg);border:1px solid var(--border)
 .legend span{display:inline-flex;gap:6px;align-items:center}
 .legend i{width:10px;height:10px;border-radius:3px;background:var(--c)}
 /* Main: everything about rig and its programs, notifications on the right */
-.maingrid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px;align-items:start}
+.maingrid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px;align-items:start;height:100%;grid-template-rows:minmax(0,1fr)}
 .rigstrip{display:flex;flex-wrap:wrap;gap:6px 22px;margin:-6px 0 14px;font-size:var(--fs--1)}
 .rigstrip b{font-weight:600}
 .progs{width:100%;border-collapse:collapse;font-size:var(--fs--1)}
@@ -195,7 +195,7 @@ select.sel{background:var(--bg-2);color:var(--fg);border:1px solid var(--border)
 .hint{color:var(--h-amber);margin:10px 0 0}
 .cmds{list-style:none;margin:0;padding:0;display:grid;gap:6px}
 .cmds li{display:grid;gap:0}
-.notepanel{position:sticky;top:0;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);display:flex;flex-direction:column;max-height:calc(100vh - 110px)}
+.notepanel{position:sticky;top:0;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);display:flex;flex-direction:column;max-height:100%}
 .notepanel>header{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)}
 .notepanel>header h2{margin:0;font-size:var(--fs-1)}
 .notepanel .sp{flex:1}
@@ -235,6 +235,77 @@ button.fig:hover{border-color:var(--fg-faint)}
 /* the GUI frame takes the keyboard, so it shows it has it */
 .guihost{padding:2px}
 .guihost:focus-within{background:var(--h-steel)}
+/* requirement 17: everything clickable shows a hand, never a text cursor */
+button,select,[role="tab"],[role="button"],.tab,.tab *{cursor:pointer}
+button:disabled{cursor:default}
+/* requirement 22: side and bottom panels slide, both ways */
+.drawer{transition:transform .26s cubic-bezier(.2,.8,.2,1),visibility 0s linear 0s}
+.drawer[hidden]{display:flex !important;transform:translateX(104%);visibility:hidden;transition:transform .2s ease-in,visibility 0s linear .2s}
+.wire{transition:max-height .26s cubic-bezier(.2,.8,.2,1),visibility 0s linear 0s;overflow:hidden}
+.wire[hidden]{display:flex !important;max-height:0;visibility:hidden;border-top-color:transparent;transition:max-height .2s ease-in,visibility 0s linear .2s}
+.wscope{display:flex;align-items:center;gap:8px}
+.wsearch input{width:200px}
+/* requirements 23 to 26: what needs him */
+.subtabs button.hot .cnt{background:var(--h-amber);color:var(--on-hue);border-radius:9px;padding:0 7px}
+.needs{display:grid;gap:0}
+.need{display:grid;gap:6px;padding:12px 14px;border-bottom:1px solid var(--border);box-shadow:inset 3px 0 0 var(--sev)}
+.need:last-child{border-bottom:0}
+.need .who{display:flex;gap:10px;align-items:baseline;font-size:var(--fs--1)}
+.need .acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.act.primary{background:var(--h-amber);color:var(--on-hue);border-color:var(--h-amber)}
+.card.asks{box-shadow:inset 0 0 0 1px var(--h-amber)}
+.chosen{color:var(--h-sage);font-size:var(--fs--1)}
+.act.chosen-act{border-color:var(--h-sage);color:var(--h-sage)}
+.act:disabled{opacity:1;color:var(--fg-dim)}
+.notes li.asks{background:color-mix(in srgb,var(--h-amber) 8%,transparent)}
+.nopen{display:grid;gap:2px;text-align:left;width:100%;padding:0;color:inherit;font:inherit}
+.nopen .nt{display:flex;gap:8px;justify-content:space-between}
+.nmeta{display:flex;gap:10px;align-items:center;margin-top:4px}
+.decide{font-size:var(--fs--1);color:var(--h-amber);font-weight:600}
+.sevdot{width:10px;height:10px;border-radius:50%;background:var(--sev)}
+.tray{gap:8px}
+.trayic{position:relative;width:22px;height:22px;border-radius:6px;display:grid;place-items:center;background:var(--tint);font:700 var(--fs--1) var(--mono);color:var(--fg)}
+.trayic i{position:absolute;top:-6px;right:-8px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--h-amber);color:var(--on-hue);font:700 12px/18px var(--sans);font-style:normal;text-align:center}
+/* requirement 27: the board's sources */
+.srctabs{display:flex;gap:4px;flex-wrap:wrap;padding:8px 14px 0}
+.srctabs button{display:flex;gap:6px;align-items:center;padding:4px 10px;border-radius:999px;border:1px solid var(--border);color:var(--fg-dim);font-size:var(--fs--1)}
+.srctabs button[aria-selected="true"]{background:var(--panel-2,var(--tint));color:var(--fg);border-color:var(--fg-faint)}
+.srctabs .cnt{font-family:var(--mono)}
+/* settings, capabilities, guidelines (19, 20, 28, 29) */
+.inp{background:var(--bg);color:var(--fg);border:1px solid var(--border-2);border-radius:8px;padding:5px 8px;font:inherit;min-width:0}
+.inp.wide{width:280px}
+.inp[aria-invalid="true"]{border-color:var(--h-rust)}
+.small{font-size:var(--fs--1)}
+.err{color:var(--h-rust);font-size:var(--fs--1)}
+.err:empty{display:none}
+.sets td{vertical-align:top}
+.head .sp{flex:1}
+.subh .ic{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:7px;background:var(--tint);font:600 var(--fs--2) var(--mono);box-shadow:inset 0 -2px 0 var(--c)}
+.capgrid{display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px;align-items:start}
+.caplist{display:grid;gap:8px;max-height:calc(100vh - 170px);overflow:auto;padding-right:6px}
+.caplist h5{margin:8px 0 2px;font-size:var(--fs--1);color:var(--fg-dim);font-weight:600}
+.caplist button{display:grid;grid-template-columns:10px auto;grid-template-rows:auto auto;column-gap:8px;text-align:left;width:100%;padding:6px 8px;border-radius:8px}
+.caplist button i{grid-row:1 / 3;width:8px;height:8px;margin-top:6px;border-radius:50%;background:var(--c)}
+.caplist button .dim{grid-column:2;font-size:var(--fs--1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.caplist button:hover,.caplist button[aria-current="true"]{background:var(--tint)}
+.capdetail{position:sticky;top:0}
+.capdetail h2{font-size:var(--fs-1);margin:0}
+.capbody{padding:12px 16px 16px}
+.capbody h3{margin:16px 0 8px;font-size:var(--fs-0,1rem)}
+.eff{font-size:var(--fs--1);color:var(--c);border:1px solid var(--c);border-radius:6px;padding:0 6px}
+.args{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.arg{display:grid;gap:3px}
+.call{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font:var(--fs--1)/1.5 var(--mono);white-space:pre-wrap;overflow:auto;max-height:220px}
+.call.ok{border-color:var(--h-sage)} .call.bad{border-color:var(--h-rust)}
+.confirm{border:1px solid var(--h-amber);border-radius:8px;padding:10px 12px;display:grid;gap:8px}
+.gstat{font-size:var(--fs--1);color:var(--h-sage);padding:1px 8px;border:1px solid var(--border);border-radius:999px}
+.gstat.behind{color:var(--h-amber);border-color:var(--h-amber)}
+.warnt{color:var(--h-amber);border-color:var(--h-amber)}
+.rules{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.rules li{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px}
+.rules li.hit{border-color:var(--h-amber)}
+.rhead{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.rules p{margin:6px 0}
 [hidden]{display:none !important}
 @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
 </style>
@@ -247,13 +318,15 @@ button.fig:hover{border-color:var(--fg-faint)}
     <button title="Agents" aria-label="Agents"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><path d="M16 4a3 3 0 0 1 0 6M21 20c0-2-1-4-3-5"/></svg></button>
     <div id="railguis" class="railguis" aria-label="Registered GUIs"></div>
     <span class="gap"></span>
-    <button title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg></button>
+    <button id="rail-capabilities" title="Capabilities" aria-label="Capabilities"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 3v4M15 3v4M7 7h10v4a5 5 0 0 1-10 0z"/><path d="M12 16v5"/></svg></button>
+    <button id="rail-guidelines" title="Guidelines" aria-label="Guidelines"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h6a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4z"/><path d="M20 4h-6a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h7z"/></svg></button>
+    <button id="rail-settings" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg></button>
   </nav>
   <div class="main">
     <div class="tabs" role="tablist" aria-label="Dashboard tabs" id="tabs"></div>
     <div class="stage"><div class="view" id="view"></div><div class="guihost" id="guihost" hidden></div></div>
     <section class="wire" id="wire" hidden aria-label="The wire">
-      <header><b>The wire</b><span class="dim">what each push does: a verb writes, the store keeps, the bus wakes</span><span style="flex:1"></span><button class="iconbtn" id="wireClose" aria-label="Close the wire">✕</button></header>
+      <header><b>The wire</b><span class="dim">a verb writes, the store keeps, the bus wakes</span><span style="flex:1"></span><span id="wireScope" class="wscope"></span><label class="search wsearch"><input id="wq" type="search" placeholder="Search the wire" aria-label="Search the wire"></label><button class="iconbtn" id="wireClose" aria-label="Close the wire">✕</button></header>
       <ol id="wireLog"></ol>
     </section>
   </div>

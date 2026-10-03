@@ -6,6 +6,10 @@ import { DEFAULTS, tokens } from '../theme.js';
 import { rigCss, guiDoc } from './rig-kit.js';
 // Ledger's GUI page, ledger-gui.html, put in here by build.py.
 const LEDGER_GUI = __LEDGER_GUI__;
+// rig's own commands as it declares them (internal/daemon/self.go), dumped
+// by dump-self.sh; and its config schema (internal/config/schema.json).
+const RIG_SELF = __RIG_SELF__;
+const RIG_SCHEMA = __RIG_SCHEMA__;
 
 // ── theme ──────────────────────────────────────────────────────────────────
 function applyTheme() {
@@ -83,7 +87,7 @@ const estate = [
     coverage: 'partial', note: 'cards and the board; no config', commands: [['ask', 'ask the user a question on a card'], ['board.put', 'add or change a card'], ['notify', 'a one-line notice']],
     restarts: 0, calls: 14, lastExit: 'exit 0, idle', binary: '2049:1311742:9.8 MB:10:41', read: '10:41, kept', gui: false },
   { id: 'ledger', name: 'Ledger', version: '1.2.0', load: 'resident', state: 'healthy', since: '2 h', found: 'programs.json', path: '~/.local/bin/ledger',
-    coverage: 'full', note: 'everything but streams', commands: [['reconcile', 'match entries against the bank'], ['entries', 'list entries'], ['export', 'write a CSV']],
+    coverage: 'full', note: 'everything but streams', commands: [['reconcile', 'match entries against the bank'], ['match', 'match an entry to its bank line'], ['reject', 'mark an entry not a match'], ['entries', 'list entries'], ['export', 'write a CSV']],
     restarts: 0, binary: '2049:1310012:10.2 MB:08:39', read: '08:39, at its start', gui: true },
   { id: 'lantern', name: 'Lantern', version: '0.8.0', load: 'on call', state: 'running', since: '30 s', found: 'scan', path: '~/.local/lib/rig/apps/lantern',
     coverage: 'partial', note: 'search only', commands: [['search', 'full-text search'], ['index', 'reindex a folder']],
@@ -129,7 +133,10 @@ const S = {
   nq: '', nsrc: '',      // requirement 9: search, and one source
   evicted: 0,
   guis: {},              // requirement 10: program id -> its registered GUI
-  mainTab: 'programs',   // requirement 16: Main's own tabs, so it hardly scrolls
+  mainTab: 'needs',      // requirement 16: Main's own tabs; 24: Needs you first
+  wq: '', wireAll: false, // requirement 18: wire search; 21: one program's wire
+  bsrc: '',              // requirement 27: the board's one source
+  sq: '', cq: '', cap: 'notify', capArgs: {}, capOut: {}, capConfirm: null, // 19, 28
 };
 let seq = 0;
 const flash = new Set(); // cards changed since the last draw
@@ -145,9 +152,17 @@ function ago(ms) {
 }
 
 // ── the write path, simulated: a verb writes, the store keeps, the bus wakes
-function wire(kind, verb, text) {
-  S.wire.unshift({ at: clock(), kind, verb, text });
+// Requirement 21: every line names the program it concerns, so a program's
+// GUI can show only its own. rigd knows the caller; the mock reads the text.
+let wireQueued = false;
+const IDS = new Set([...Object.keys(WRITERS), ...estate.map((e) => e.id)]);
+function wire(kind, verb, text, who) {
+  if (!who) who = (String(text).match(/[a-z][a-z-]*/g) || []).find((w) => IDS.has(w)) || 'rig';
+  S.wire.unshift({ at: clock(), kind, verb, text, who });
   S.wire.length = Math.min(S.wire.length, 120);
+  // A line can land between draws (a GUI's frame answers late), so the open
+  // wire redraws itself once per frame rather than waiting for the next render.
+  if (S.showWire && !wireQueued) { wireQueued = true; requestAnimationFrame(() => { wireQueued = false; renderWire(); }); }
 }
 function put(from, fields, cardId) {
   if (fields.body && new TextEncoder().encode(fields.body).length > BODY_CAP) {
@@ -172,9 +187,9 @@ function put(from, fields, cardId) {
   const snap = { rev: c.rev, at: clock(), title: c.title, status: c.status, severity: c.severity, body: c.body, progress: c.progress, facts: c.facts, closed: c.closed };
   c.versions.push(snap);
   const changed = before.rev ? Object.keys(fields).filter((k) => JSON.stringify(before[k]) !== JSON.stringify(fields[k])).join(', ') : 'new card';
-  wire('put', 'rig.panel.put', `${from} -> ${c.id} rev ${c.rev} (${changed})`);
-  wire('store', 'store', `panel/${c.id}.${c.rev} kept whole`);
-  wire('bus', 'panel.changed', `-> window`);
+  wire('put', 'rig.panel.put', `${from} -> ${c.id} rev ${c.rev} (${changed})`, from);
+  wire('store', 'store', `panel/${c.id}.${c.rev} kept whole`, from);
+  wire('bus', 'panel.changed', `-> window`, from);
   S.dismissed.delete(c.from);
   if (S.minimised) S.unseen.push(c.severity || 'info');
   flash.add(c.id);
@@ -183,8 +198,8 @@ function put(from, fields, cardId) {
 function close(from, id, fields = {}) {
   put(from, { ...fields, closed: clock() }, id);
 }
-function notify(from, severity, title, body, at) {
-  S.notes.unshift({ id: ++seq, from, severity, title, body, at: at ?? clock(), unread: true });
+function notify(from, severity, title, body, at, more = {}) {
+  S.notes.unshift({ id: ++seq, from, severity, title, body, at: at ?? clock(), unread: true, ...more });
   S.notes.sort((a, b) => b.at - a.at);
   if (at === undefined) wire('bus', 'rig.notify', `${from}: ${title}`);
 }
@@ -214,14 +229,16 @@ function registerGui(from, entry) {
   Object.assign(t, { open: true, fresh: true });
   wire('tab', 'rig.gui.register', `${from} registers its GUI: ${entry}, styled by rig.css; its tab is added, Main stays in front`);
 }
+const INTERNAL = { capabilities: 'Capabilities', guidelines: 'Guidelines', settings: 'Settings' };
 // Requirement 14: picking a program opens its tab, from the rail or from
 // Main's list. A program with no GUI gets rig's own page about it.
 function openTab(id) {
   let t = S.tabs.find((x) => x.id === id);
   if (!t) {
-    const e = estate.find((x) => x.id === id);
-    if (!e) return;
-    t = { id, title: id, kind: 'program' }; S.tabs.push(t);
+    if (INTERNAL[id]) t = { id, title: INTERNAL[id], kind: 'rig' };
+    else if (estate.find((x) => x.id === id)) t = { id, title: id, kind: 'program' };
+    else return;
+    S.tabs.push(t);
   }
   if (!t.open) t.picked = clock();
   Object.assign(t, { open: true, fresh: false });
@@ -276,10 +293,10 @@ function ledgerReconcile(jobId) {
   wire('tab', 'queue.claim', `ledger claims ${jobId}`);
   const step = () => {
     ledger.running = Math.min(1, ledger.running + 0.25);
-    wire('tab', 'progress.step', `${jobId} ${Math.round(ledger.running * 100)}%`);
+    wire('tab', 'progress.step', `${jobId} ${Math.round(ledger.running * 100)}%`, 'ledger');
     if (ledger.running >= 1) {
       ledger.running = null; ledger.lastRun = hhmm(Date.now());
-      wire('tab', 'queue.complete', `${jobId} done`);
+      wire('tab', 'queue.complete', `${jobId} done`, 'ledger');
       notify('ledger', 'success', 'Reconciliation finished', `${ledger.matched} matched, ${ledger.open.length} need you`);
       render();
     }
@@ -310,7 +327,7 @@ function rigAnswers(verb, args, reply) {
     if (!LEDGER_JOBS.has(args?.job)) return refuse('not a job ledger takes');
     if (ledger.running !== null) return refuse('a reconcile is already running');
     const id = `job-${++jobs}`;
-    wire('acted', 'queue.push', `${args.job} as ${id}`);
+    wire('acted', 'queue.push', `${args.job} as ${id}`, 'ledger');
     reply(true, { job: id });
     setTimeout(() => ledgerReconcile(id), 300);
     return;
@@ -319,7 +336,7 @@ function rigAnswers(verb, args, reply) {
     const acts = Array.isArray(args?.actions) ? args.actions.filter((a) => typeof a === 'string').slice(0, 3) : [];
     if (typeof args?.title !== 'string' || !acts.length) return refuse('a toast needs a title and actions');
     wire('tab', 'toast', `from ledger: "${args.title.slice(0, 80)}"`);
-    askToast('ledger', args.title.slice(0, 200), String(args.body || '').slice(0, 400), acts, (choice) => { wire('tab', 'toast.answer', `"${choice}"`); reply(true, choice); });
+    askToast('ledger', args.title.slice(0, 200), String(args.body || '').slice(0, 400), acts, (choice) => { wire('tab', 'toast.answer', `"${choice}"`, 'ledger'); reply(true, choice); });
     return;
   }
   refuse(`rig carries no verb "${String(verb).slice(0, 40)}"`);
@@ -349,6 +366,35 @@ function askToast(from, title, body, actions, answer) {
   box.querySelector('button').focus();
 }
 
+// Requirements 23 to 26: what needs him. A notification linked to a card is
+// one item, so deciding it on either surface decides both.
+function needsYou() {
+  const items = [], linked = new Set();
+  for (const n of S.notes) if (n.actions && !n.decided) {
+    items.push({ kind: 'note', n, from: n.from, title: n.title, body: n.body, actions: n.actions, at: n.at, sev: n.severity });
+    if (n.card) linked.add(n.card);
+  }
+  for (const c of S.cards.values()) if (!c.closed && c.actions && !c.decided && (c.status === 'waiting' || c.status === 'failed') && !linked.has(c.id))
+    items.push({ kind: 'card', c, from: c.from, title: c.title, body: c.body, actions: c.actions, at: c.updated, sev: c.severity });
+  return items.sort((a, b) => b.at - a.at);
+}
+function decideCard(c, choice) {
+  if (!c || c.decided) return;
+  c.decided = { choice, at: clock() };
+  acted(c, choice.toLowerCase());
+}
+function decideNote(n, choice) {
+  if (n.decided) return;
+  n.decided = { choice, at: clock() }; n.unread = false;
+  wire('acted', 'toast.answer', `-> ${n.from} "${choice}" for "${n.title}"`, n.from);
+  if (n.card) decideCard(S.cards.get(n.card), choice);
+}
+function decide(item, choice) {
+  if (item.kind === 'note') decideNote(item.n, choice); else decideCard(item.c, choice);
+  render();
+}
+function noteFor(card) { return S.notes.find((n) => n.card === card.id); }
+
 function acted(card, action) {
   wire('acted', 'panel.acted', `-> ${card.from} {card: ${card.id}, action: ${action}}`);
   toast(`Sent "${action}" to ${card.from}. It answers by updating the card.`);
@@ -367,7 +413,7 @@ const SCRIPT = [
   () => { ids.ci = put('rig-lead', { title: 'make ci', status: 'failed', severity: 'error', body: 'wire golden: Program gained two fields. Re-record with -update.', actions: ['Retry', 'Open log'] }); notify('rig-lead', 'error', 'make ci failed', 'wire golden: Program gained two fields'); },
   () => { put('storeworker', { progress: 0.88 }, ids.sw); },
   () => { put('rig-lead', { status: 'done', severity: 'success', body: 'Re-recorded the golden; all gates green.' }, ids.ci); },
-  () => { put('beacon', { title: 'Card drawn: deploy now?', status: 'waiting', severity: 'warning', body: 'Asked by rig-lead. Options: yes, later.', actions: ['Yes', 'Later'] }); requestTab('beacon', 'a question for you'); notify('beacon', 'warning', 'A question for you', 'deploy now?'); },
+  () => { ids.deploy = put('beacon', { title: 'Card drawn: deploy now?', status: 'waiting', severity: 'warning', body: 'Asked by rig-lead. Options: yes, later.', actions: ['Yes', 'Later'] }); requestTab('beacon', 'a question for you'); notify('beacon', 'warning', 'A question for you', 'deploy now?', undefined, { actions: ['Yes', 'Later'], card: ids.deploy, details: 'rig-lead drew this card through beacon: deploy v0.54 now, or later today. beacon waits for your answer and tells rig-lead.', facts: [['asked by', 'rig-lead'], ['through', 'beacon ask']] }); },
   () => { put('storeworker', { status: 'done', severity: 'success', progress: 1, body: '1,204 items reindexed in 38 s.' }, ids.sw); },
   () => { put('rig-lead', { status: 'done', severity: 'success', progress: 1, body: 'Both gaps closed and demonstrated live.' }, ids.plan); },
   () => { put('beacon-seat', { title: 'Too long a body', body: 'x'.repeat(BODY_CAP + 1) }); },
@@ -397,13 +443,16 @@ function tick() {
   ledger.lastRun = hhmm(S.now);
   registerGui('ledger', 'gui/index.html');
   requestTab('storeworker', 'run 417 needs a retry decision');
-  put('storeworker', { title: 'Run 417 failed: disk full', status: 'failed', severity: 'error', body: 'Freed 2 GB since. Retry?', actions: ['Retry'] });
+  ids.r417 = put('storeworker', { title: 'Run 417 failed: disk full', status: 'failed', severity: 'error', body: 'Freed 2 GB since. Retry?', actions: ['Retry', 'Leave it'] });
   S.tabs.find((x) => x.id === 'storeworker').open = false;
   const day = 86400e3, now = Date.now();
   notify('rig', 'info', 'rig started', 'production, epoch 108', now - 2.2 * 3600e3);
   notify('rig', 'warning', 'abacus quarantined', 'exit 2, five times in 4 minutes', now - 3600e3);
   notify('rig', 'info', 'keeper stopped', 'by a human, from rig stop', now - 20 * 60e3);
-  notify('storeworker', 'error', 'Run 417 failed', 'disk full', now - 3 * 3600e3);
+  notify('storeworker', 'error', 'Run 417 failed', 'disk full', now - 3 * 3600e3, { actions: ['Retry', 'Leave it'], card: ids.r417,
+    details: 'The backup run stopped when the disk filled at 182 MB written. 2 GB has been freed since, so a retry should finish.', facts: [['run', '417'], ['queue', 'storeworker.backup'], ['exit', 'ENOSPC']] });
+  notify('rig', 'warning', 'Restart abacus?', 'quarantined after five exits', now - 55 * 60e3, { actions: ['Restart', 'Leave it'], decided: { choice: 'Leave it', at: now - 50 * 60e3 },
+    details: 'abacus exited with code 2 five times in four minutes, so rig quarantined it. Its binary has changed since.', facts: [['restarts', '5'], ['last exit', 'exit 2']] });
   notify('rig', 'info', 'lantern found by the scan', '~/.local/lib/rig/apps/lantern, on call', now - 26 * 3600e3);
   notify('rig', 'success', 'Backup written', '~/rig-backups/production-2026-09-30.tar', now - 3 * day);
   notify('beacon-seat', 'info', 'beacon 0.3.0 installed', 'read by the scan, kept', now - 6 * day);
@@ -427,6 +476,7 @@ function worst(list) {
   return list.reduce((w, s) => (RANK[s] || 0) > (RANK[w] || 0) ? s : w, 'info');
 }
 function visible(c) {
+  if (S.bsrc && c.from !== S.bsrc) return false;
   if (S.sev.size && !S.sev.has(c.severity)) return false;
   if (S.status.size && !S.status.has(c.status)) return false;
   if (S.since === '1h' && clock() - c.updated > 3600e3) return false;
@@ -445,14 +495,19 @@ function renderTabs() {
     const tab = h('div', { class: 'tab' + (t.fresh ? ' fresh' : ''), role: 'tab', 'aria-selected': String(S.current === t.id), tabindex: '0',
       onclick: () => { S.current = t.id; t.fresh = false; render(); },
       onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); S.current = t.id; render(); } } },
-      t.kind === 'main' ? null : h('span', { class: 'dot', style: { '--sev': SEV[worst(own.map((c) => c.severity))] } }),
+      t.kind === 'main' || t.kind === 'rig' ? null : h('span', { class: 'dot', style: { '--sev': SEV[worst(own.map((c) => c.severity))] } }),
       h('span', { class: 'who' }, t.title),
       t.kind === 'main' ? null : h('span', { class: 'kind' }, t.kind),
       t.kind === 'main' ? null : h('button', { class: 'x', 'aria-label': `Close ${t.title}'s tab`, onclick: (e) => { e.stopPropagation(); t.open = false; t.closedAt = clock(); if (S.current === t.id) S.current = 'main'; render(); } }, svg(ICON.x)));
     bar.append(tab);
   }
   const closed = S.tabs.filter((x) => !x.open);
+  const need = needsYou().length;
   bar.append(h('span', { class: 'spacer' }),
+    h('button', { class: 'tool tray' + (need ? ' alert' : ''), id: 'tray', title: need ? `${need} need you: open them` : 'Nothing needs you',
+      'aria-label': need ? `rig's tray icon: ${need} need you. Open them` : 'rig\'s tray icon: nothing needs you',
+      onclick: () => { S.current = 'main'; S.mainTab = 'needs'; render(); document.querySelector('.subtabs [aria-selected="true"]')?.focus(); } },
+      h('span', { class: 'trayic' }, 'r', need ? h('i', {}, String(need)) : null), 'tray (simulated)'),
     h('button', { class: 'tool', id: 'reopenBtn', 'aria-haspopup': 'menu', onclick: (e) => openMenu(e) }, svg(ICON.reopen), 'Tabs ', h('b', {}, String(closed.length))),
     h('button', { class: 'tool', 'aria-label': S.playing ? 'Pause the simulation' : 'Play the simulation', onclick: () => { S.playing = !S.playing; render(); } }, svg(S.playing ? ICON.pause : ICON.play), S.playing ? 'Live' : 'Paused'),
     h('button', { class: 'tool', 'aria-label': 'One step of the simulation', onclick: tick }, svg(ICON.step), 'Step'),
@@ -476,7 +531,8 @@ function openMenu() {
 
 function cardNode(c) {
   const st = STATUS[c.status] || { tone: 'var(--fg-dim)' };
-  const node = h('button', { class: 'card' + (c.closed ? ' closed' : '') + (flash.has(c.id) ? ' flash' : ''), style: { '--sev': SEV[c.severity] || 'var(--border)' },
+  const asks = c.actions && !c.closed && !c.decided && (c.status === 'waiting' || c.status === 'failed');
+  const node = h('button', { class: 'card' + (c.closed ? ' closed' : '') + (asks ? ' asks' : '') + (flash.has(c.id) ? ' flash' : ''), style: { '--sev': SEV[c.severity] || 'var(--border)' },
     'aria-label': `${c.title}, ${c.status || ''}, ${c.severity || ''}. Open its history`, onclick: () => openHistory(c.id) },
     h('div', { class: 'top' },
       h('span', { class: 't' }, c.title),
@@ -488,9 +544,11 @@ function cardNode(c) {
         h('i', { style: typeof c.progress === 'number' ? { width: (c.progress * 100).toFixed(0) + '%' } : {} })),
       typeof c.progress === 'number' ? h('b', {}, Math.round(c.progress * 100) + '%') : null) : null,
     c.facts && c.facts.length ? h('dl', { class: 'facts' }, c.facts.flatMap((f) => [h('dt', {}, f.label), h('dd', {}, f.value)])) : null,
-    c.actions && !c.closed && c.status !== 'done' ? h('div', { class: 'acts' }, c.actions.map((a) => h('span', { class: 'act', role: 'button', tabindex: '0',
-      onclick: (e) => { e.stopPropagation(); acted(c, a.toLowerCase()); render(); },
-      onkeydown: (e) => { if (e.key === 'Enter') { e.stopPropagation(); e.preventDefault(); acted(c, a.toLowerCase()); render(); } } }, a))) : null,
+    c.decided ? h('div', { class: 'chosen' }, `You chose "${c.decided.choice}" at ${hhmm(c.decided.at)}`) : null,
+    c.actions && !c.closed && !c.decided && c.status !== 'done' ? h('div', { class: 'acts' }, c.actions.map((a) => {
+      const go = (e) => { e.stopPropagation(); const n = noteFor(c); if (n) decideNote(n, a); else decideCard(c, a); render(); };
+      return h('span', { class: 'act', role: 'button', tabindex: '0', onclick: go,
+        onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); go(e); } } }, a); })) : null,
     h('div', { class: 'foot' },
       h('span', {}, 'created ' + hhmm(c.created)),
       h('span', {}, c.closed ? `closed ${hhmm(c.closed)}` : c.rev > 1 ? `${c.rev - 1} change${c.rev === 2 ? '' : 's'}` : 'new'),
@@ -528,6 +586,11 @@ function renderBoard(container) {
     container.append(panel);
     return;
   }
+  const srcs = [...new Set(all.map((c) => c.from))].sort();
+  const openOf = (src) => all.filter((c) => !c.closed && (!src || c.from === src)).length;
+  panel.append(h('div', { class: 'srctabs', role: 'tablist', 'aria-label': 'Board sources' },
+    ['', ...srcs].map((src) => h('button', { role: 'tab', 'aria-selected': String(S.bsrc === src), onclick: () => { S.bsrc = src; render(); } },
+      src || 'Every source', h('span', { class: 'cnt' }, String(openOf(src)))))));
   const search = h('input', { id: 'q', type: 'search', placeholder: 'Search past work: titles, bodies, facts, every version', value: S.q, 'aria-label': 'Search the board',
     oninput: (e) => { S.q = e.target.value; renderView(); $('q')?.focus(); const q = $('q'); if (q) q.setSelectionRange(q.value.length, q.value.length); } });
   const chip = (set, key, label, color) => h('button', { class: 'chip', 'aria-pressed': String(set.has(key)), style: color ? { '--chipc': color } : {},
@@ -542,9 +605,10 @@ function renderBoard(container) {
       ...[['all', 'all'], ['1h', 'last hour']].map(([v, l]) => h('option', { value: v, selected: S.since === v }, l))))));
   const board = h('div', { class: 'board' });
   if (!groups.size) board.append(h('div', { class: 'empty' }, S.q || S.sev.size || S.status.size ? 'Nothing matches. Clear a filter to see more.' : 'No cards yet. Programs and agents put them here.'));
-  const sorted = [...groups.entries()].sort((a, b) => Math.max(...b[1].map((c) => c.updated)) - Math.max(...a[1].map((c) => c.updated)));
+  const askN = (list) => list.filter((c) => c.actions && !c.closed && !c.decided && (c.status === 'waiting' || c.status === 'failed')).length;
+  const sorted = [...groups.entries()].sort((a, b) => (askN(b[1]) > 0) - (askN(a[1]) > 0) || Math.max(...b[1].map((c) => c.updated)) - Math.max(...a[1].map((c) => c.updated)));
   for (const [k, list] of sorted) {
-    list.sort((a, b) => b.order - a.order);
+    list.sort((a, b) => (askN([b]) - askN([a])) || b.order - a.order);
     const live = list.filter((c) => !c.closed);
     const done = list.filter((c) => c.closed);
     const w = WRITERS[k];
@@ -570,18 +634,35 @@ function renderBoard(container) {
   container.append(panel);
 }
 
+// Requirement 24: everything waiting on him, in one place, newest first,
+// each with its options right there.
+function renderNeeds(container) {
+  const items = needsYou();
+  const panel = h('section', { class: 'panel needs', 'aria-label': 'Needs you' });
+  if (!items.length) panel.append(h('div', { class: 'empty' }, 'Nothing needs you. When a program or an agent asks, it lands here, and rig\'s tray icon shows it.'));
+  for (const it of items) {
+    panel.append(h('article', { class: 'need', style: { '--sev': SEV[it.sev] || 'var(--h-amber)' } },
+      h('div', { class: 'who' }, h('span', { class: 'src' }, it.from), h('time', { class: 'dim' }, ago(it.at)), h('span', { class: 'dim' }, it.kind === 'note' ? 'a notification' : 'a card on the board')),
+      h('b', {}, it.title),
+      it.body ? h('div', { class: 'dim' }, it.body) : null,
+      h('div', { class: 'acts' }, it.actions.map((a, i) => h('button', { class: 'act' + (i === 0 ? ' primary' : ''), onclick: () => decide(it, a) }, a)),
+        it.kind === 'note' ? h('button', { class: 'linkish', onclick: () => openNote(it.n) }, 'Details') : h('button', { class: 'linkish', onclick: () => openHistory(it.c.id) }, 'History'))));
+  }
+  container.append(panel);
+}
+
 function renderSummary(container) {
   const all = [...S.cards.values()].filter((c) => !c.closed || clock() - c.closed < 3600e3);
   const n = (st) => all.filter((c) => c.status === st).length;
   // A figure is a button to the inner tab that explains it.
-  const fig = (cls, num, label, to) => h('button', { class: 'fig ' + cls, title: `Show ${to === 'board' ? 'the board' : 'the programs'}`,
+  const fig = (cls, num, label, to) => h('button', { class: 'fig ' + cls, title: `Show ${{ board: 'the board', programs: 'the programs', needs: 'what needs you' }[to]}`,
     onclick: () => { S.mainTab = to; render(); } }, h('div', { class: 'n' }, String(num)), h('div', { class: 'l' }, label));
   container.append(h('div', { class: 'figs' },
     fig('', estate.length, 'programs', 'programs'),
     fig('good', estate.filter((e) => e.state === 'healthy' || e.state === 'running').length, 'up', 'programs'),
     fig('', estate.filter((e) => e.state === 'at rest').length, 'at rest, on call', 'programs'),
     fig(estate.some((e) => e.state === 'down' || e.state === 'quarantined') ? 'bad' : '', estate.filter((e) => e.state === 'down' || e.state === 'quarantined').length, 'down or quarantined', 'programs'),
-    fig('warn', n('waiting'), 'waiting on you', 'board'),
+    fig('warn', needsYou().length, 'need you', 'needs'),
     fig('run', n('running'), 'agents working', 'board')));
 }
 
@@ -591,7 +672,7 @@ function renderPrograms(container) {
   const panel = h('section', { class: 'panel', 'aria-label': 'Programs' },
     h('header', {}, h('h2', {}, 'Programs'), h('span', { class: 'dim' }, `${estate.length}, scanned in ${RIG.scan} and declared in programs.json`)));
   const table = h('table', { class: 'progs' },
-    h('thead', {}, h('tr', {}, ...['Program', 'Version', 'Load', 'State', 'Commands', 'Restarts', 'Found by'].map((x) => h('th', { scope: 'col' }, x)))));
+    h('thead', {}, h('tr', {}, ...['Program', 'Version', 'Load', 'State', 'Commands', 'Restarts', 'Guidelines', 'Found by'].map((x) => h('th', { scope: 'col' }, x)))));
   const body = h('tbody');
   for (const e of estate) {
     const open = S.tabs.some((x) => x.id === e.id && x.open);
@@ -605,6 +686,7 @@ function renderPrograms(container) {
         e.stale ? h('span', { class: 'stale' }, 'stale') : null),
       h('td', { class: 'num' }, String(e.commands.length)),
       h('td', { class: 'num' + (e.restarts >= 5 ? ' bad' : '') }, String(e.restarts)),
+      h('td', {}, guideCell(e)),
       h('td', { class: 'dim' }, e.found)));
   }
   table.append(body);
@@ -645,19 +727,24 @@ function renderNotes(container) {
     ...[[1, '1 day'], [3, '3 days'], [7, '1 week'], [30, '30 days']].map(([v, l]) => h('option', { value: String(v), selected: S.keepDays === v }, l)));
   const sources = [...new Set(S.notes.map((n) => n.from))].sort();
   const q = S.nq.toLowerCase();
+  const asks = (n) => Boolean(n.actions && !n.decided);
   const shown = S.notes.filter((n) => (!S.nsrc || n.from === S.nsrc) &&
-    (!q || [n.title, n.body, n.from].join(' ').toLowerCase().includes(q)));
+    (!q || [n.title, n.body, n.from, n.details || ''].join(' ').toLowerCase().includes(q)))
+    .sort((a, b) => asks(b) - asks(a) || b.at - a.at);
   const search = h('input', { id: 'nq', type: 'search', placeholder: 'Search notifications', value: S.nq, 'aria-label': 'Search notifications',
     oninput: (e) => { S.nq = e.target.value; render(); const f = $('nq'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); } });
   const src = h('select', { class: 'sel', 'aria-label': 'Only from', onchange: (e) => { S.nsrc = e.target.value; render(); } },
     h('option', { value: '' }, `every source (${S.notes.length})`),
     ...sources.map((x) => h('option', { value: x, selected: S.nsrc === x }, `${x} (${S.notes.filter((n) => n.from === x).length})`)));
-  const list = h('ol', { class: 'notes' }, shown.length ? [] : h('li', { class: 'none' }, 'Nothing matches.'), shown.map((n) => h('li', { class: n.unread ? 'unread' : '', style: { '--sev': SEV[n.severity] } },
+  const list = h('ol', { class: 'notes' }, shown.length ? [] : h('li', { class: 'none' }, 'Nothing matches.'), shown.map((n) => h('li', { class: (n.unread ? 'unread' : '') + (asks(n) ? ' asks' : ''), style: { '--sev': SEV[n.severity] } },
     h('span', { class: 'bullet' }),
     h('div', {},
-      h('div', { class: 'nt' }, h('b', {}, n.title), h('time', { class: 'dim', title: new Date(n.at).toLocaleString() }, ago(n.at))),
-      h('div', { class: 'dim' }, n.body),
-      h('button', { class: 'src', title: `Only ${n.from}`, onclick: () => { S.nsrc = n.from; render(); } }, n.from)))));
+      h('button', { class: 'nopen', 'aria-label': `${n.title}: open its details`, onclick: () => openNote(n) },
+        h('span', { class: 'nt' }, h('b', {}, n.title), h('time', { class: 'dim', title: new Date(n.at).toLocaleString() }, ago(n.at))),
+        h('span', { class: 'dim' }, n.body)),
+      h('div', { class: 'nmeta' },
+        h('button', { class: 'src', title: `Only ${n.from}`, onclick: () => { S.nsrc = n.from; render(); } }, n.from),
+        asks(n) ? h('span', { class: 'decide' }, 'needs your decision') : n.decided ? h('span', { class: 'dim' }, `you chose "${n.decided.choice}"`) : null)))));
   container.append(h('aside', { class: 'notepanel', 'aria-label': 'Notifications' },
     h('header', {}, h('h2', {}, 'Notifications'), unread ? h('span', { class: 'badge', style: { '--sev': 'var(--h-steel)' } }, `${unread} new`) : null,
       h('span', { class: 'sp' }), unread ? h('button', { class: 'linkish', onclick: () => { S.notes.forEach((n) => { n.unread = false; }); render(); } }, 'Mark read') : null),
@@ -679,16 +766,18 @@ function renderMain(view) {
   renderSummary(left);
   // Requirement 16: Main's parts are tabs inside it, not one long page.
   const open = [...S.cards.values()].filter((c) => !c.closed);
-  const waiting = open.filter((c) => c.status === 'waiting').length;
+  const need = needsYou().length;
   const inner = [
+    ['needs', 'Needs you', String(need), null],
     ['programs', 'Programs', String(estate.length), null],
-    ['board', 'Board', `${open.length} open`, waiting ? `${waiting} waiting` : null],
+    ['board', 'Board', `${open.length} open`, null],
   ];
   left.append(h('div', { class: 'subtabs', role: 'tablist', 'aria-label': 'Main' }, inner.map(([id, label, count, warn]) =>
     h('button', { role: 'tab', 'aria-selected': String(S.mainTab === id), onclick: () => { S.mainTab = id; render(); },
-      onkeydown: (e) => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); S.mainTab = S.mainTab === 'board' ? 'programs' : 'board'; render(); document.querySelector('.subtabs [aria-selected="true"]')?.focus(); } } },
+      class: id === 'needs' && need ? 'hot' : null,
+      onkeydown: (e) => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); const ids = inner.map((x) => x[0]); const i = ids.indexOf(S.mainTab); S.mainTab = ids[(i + (e.key === 'ArrowRight' ? 1 : ids.length - 1)) % ids.length]; render(); document.querySelector('.subtabs [aria-selected="true"]')?.focus(); } } },
       label, h('span', { class: 'cnt' }, count), warn ? h('span', { class: 'warn' }, warn) : null))));
-  if (S.mainTab === 'board') renderBoard(left); else renderPrograms(left);
+  if (S.mainTab === 'board') renderBoard(left); else if (S.mainTab === 'programs') renderPrograms(left); else renderNeeds(left);
   grid.append(left);
   renderNotes(grid);
   view.append(grid);
@@ -704,6 +793,8 @@ function renderTab(view, t) {
         : h('div', {}, h('b', {}, `You picked ${e ? e.name : t.title} at ${hhmm(t.picked || clock())}.`), ' It has no GUI of its own, so this is rig\'s page about it.'),
       t.released ? h('div', { class: 'frozen' }, `It no longer needs it (since ${hhmm(t.released)}). What you see is its last state. Close the tab and it moves to Reopen.`) : h('div', { class: 'dim' }, 'Close it any time; it moves to Reopen with its last state.')),
     e ? h('section', { class: 'panel', 'aria-label': 'What rig knows' }, inspector(e)) : null,
+    e ? h('h2', { class: 'subh' }, 'Its settings') : null,
+    e ? settingsTable(e.id, PSET[e.id] || []) : null,
     h('h2', { class: 'subh' }, 'What it pushed'),
     own.length ? h('div', { class: 'items' }, own.map(cardNode)) : h('div', { class: 'empty' }, 'Nothing pushed yet.')));
 }
@@ -714,11 +805,14 @@ function renderView() {
   const t = S.tabs.find((x) => x.id === S.current && x.open) || S.tabs[0];
   S.current = t.id;
   const host = $('guihost');
-  const gui = t.kind !== 'main' && S.guis[t.id];
+  const gui = t.kind === 'program' && S.guis[t.id];
   view.classList.toggle('strip', Boolean(gui));
   host.hidden = !gui;
   for (const f of host.querySelectorAll('iframe')) f.hidden = f.dataset.gui !== t.id;
   if (t.kind === 'main') renderMain(view);
+  else if (t.id === 'settings') renderSettings(view);
+  else if (t.id === 'capabilities') renderCaps(view);
+  else if (t.id === 'guidelines') renderGuide(view);
   else if (gui) renderGuiTab(view, host, t);
   else renderTab(view, t);
 }
@@ -733,6 +827,7 @@ function renderGuiTab(view, host, t) {
     h('h1', {}, e ? e.name : t.title), e ? h('span', { class: 'mono dim' }, e.version) : null,
     h('span', { class: 'kit' }, 'its own GUI: styled by rig.css, acting through rig'),
     h('span', { class: 'dim' }, t.asked ? `${t.title} asked at ${hhmm(t.asked)}: "${t.reason}"` : `registered ${hhmm(g.at)}`),
+    e ? h('button', { class: 'act', onclick: () => openProgSettings(e.id) }, `Settings (${(PSET[e.id] || []).length})`) : null,
     e ? h('button', { class: 'act', onclick: () => openAbout(e) }, 'What rig knows') : null));
   if (!host.querySelector(`iframe[data-gui="${t.id}"]`)) {
     const mode = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
@@ -752,11 +847,218 @@ function renderRail() {
       'aria-current': String(S.current === id), style: { '--c': progColour(id) }, onclick: () => openTab(id) }, id.slice(0, 2));
   }));
   $('railMain').setAttribute('aria-current', String(S.current === 'main'));
+  for (const id of Object.keys(INTERNAL)) $('rail-' + id).setAttribute('aria-current', String(S.current === id));
 }
 
+
+// ── settings (requirements 19 and 20) ─────────────────────────────────────
+// rig's keys come from its real schema; a program's are what it declares
+// (§47 requirement 1's program layers). A change is config.set: a runtime
+// override until restart for rig's own, as `rig config set` does today.
+function schemaKeys(node, prefix = '') {
+  return Object.entries(node.properties || {}).flatMap(([k, v]) => v.type === 'object' && v.properties ? schemaKeys(v, prefix + k + '.')
+    : [{ key: prefix + k, type: v.type, enum: v.enum, min: v.minimum, def: v.default ?? '', desc: v.description || '' }]);
+}
+const RSET = [...schemaKeys(RIG_SCHEMA),
+  { key: 'dashboard.notifications.keep.days', type: 'integer', min: 1, def: 7, desc: 'notifications older than this leave the dashboard\'s panel (plan/55 requirement 8)', proposed: true }]
+  .map((x) => ({ ...x, value: x.def, origin: 'built-in default' }));
+const PSET = Object.fromEntries(Object.entries({
+  ledger: [['statement.dir', 'string', '~/finance/statements', 'where it reads bank statements from'], ['match.tolerance.cents', 'integer', 0, 'how far apart two amounts may be and still match'],
+    ['reconcile.on.import', 'boolean', true, 'reconcile as soon as a statement is imported'], ['currency', 'string', 'ILS', 'the books\' currency', ['ILS', 'EUR', 'USD']]],
+  storeworker: [['runs.parallel', 'integer', 2, 'queued runs it works on at once'], ['retry.max', 'integer', 3, 'retries before a run is reported failed']],
+  beacon: [['cards.keep.days', 'integer', 7, 'how long an answered card stays on its board'], ['board.font', 'string', 'Inter', 'the board\'s font', ['Inter', 'IBM Plex Sans']]],
+  lantern: [['index.dirs', 'string', '~/me', 'folders it indexes, colon-separated']],
+  righand: [['countdown.seconds', 'integer', 5, 'the HANDS OFF countdown before a script runs']],
+}).map(([id, list]) => [id, list.map(([key, type, def, desc, en]) => ({ key, type, def, desc, enum: en, min: type === 'integer' ? 0 : undefined, value: def, origin: 'its declared default' }))]));
+function settingsTable(owner, list) {
+  if (!list.length) return h('div', { class: 'empty' }, `${owner} declares no settings.`);
+  const q = S.sq.toLowerCase();
+  const rows = list.filter((x) => !q || (x.key + ' ' + x.desc).toLowerCase().includes(q));
+  if (!rows.length) return h('div', { class: 'empty' }, 'Nothing matches.');
+  return h('table', { class: 'progs sets' },
+    h('thead', {}, h('tr', {}, ...['Key', 'Value', 'Where it comes from', ''].map((x) => h('th', { scope: 'col' }, x)))),
+    h('tbody', {}, rows.map((x) => settingRow(owner, x))));
+}
+function settingRow(owner, x) {
+  const origin = h('td', { class: 'dim' }, x.origin);
+  const err = h('div', { class: 'err', role: 'alert' });
+  const reset = h('button', { class: 'linkish', hidden: x.value === x.def, onclick: () => set(x.def) }, 'Reset');
+  const label = `${owner} ${x.key}`;
+  function set(v) {
+    if (x.type === 'integer' && (!Number.isInteger(v) || (x.min !== undefined && v < x.min))) {
+      err.textContent = `Refused: ${x.key} takes a whole number${x.min !== undefined ? ` of at least ${x.min}` : ''}. Nothing changed.`;
+      wire('refused', 'config.set', `${label} = ${String(v).slice(0, 40)}: not a valid ${x.type}`, owner); renderWire(); return;
+    }
+    err.textContent = '';
+    x.value = v;
+    x.origin = v === x.def ? (owner === 'rig' ? 'built-in default' : 'its declared default') : owner === 'rig' ? 'runtime override, until restart' : `~/.config/rig/apps/${owner}.toml`;
+    origin.textContent = x.origin; reset.hidden = v === x.def;
+    if (ctl.type === 'checkbox') ctl.checked = v; else ctl.value = String(v);
+    wire('acted', 'config.set', `${label} = ${JSON.stringify(v)}${owner === 'rig' ? '' : `, written to apps/${owner}.toml; ${owner} reads it on its next config.get`}`, owner);
+    if (x.key === 'dashboard.notifications.keep.days') { S.keepDays = v; }
+    renderWire();
+  }
+  let ctl;
+  if (x.type === 'boolean') ctl = h('input', { type: 'checkbox', 'aria-label': label, onchange: (e) => set(e.target.checked) });
+  else if (x.enum) ctl = h('select', { class: 'sel', 'aria-label': label, onchange: (e) => set(e.target.value) }, x.enum.map((o) => h('option', { value: o, selected: o === x.value }, o)));
+  else ctl = h('input', { class: 'inp', type: x.type === 'integer' ? 'number' : 'text', 'aria-label': label, value: String(x.value),
+    onchange: (e) => set(x.type === 'integer' ? Number(e.target.value) : e.target.value) });
+  if (x.type === 'boolean') ctl.checked = Boolean(x.value);
+  return h('tr', {},
+    h('td', {}, h('div', { class: 'mono' }, x.key, x.proposed ? h('span', { class: 'gtag' }, 'proposed') : null), h('div', { class: 'dim small' }, x.desc), err),
+    h('td', {}, ctl), origin, h('td', {}, reset));
+}
+function renderSettings(view) {
+  const search = h('input', { id: 'sq', type: 'search', class: 'inp wide', placeholder: 'Search every setting', value: S.sq, 'aria-label': 'Search settings',
+    oninput: (e) => { S.sq = e.target.value; renderView(); const f = $('sq'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); } });
+  view.append(h('div', { class: 'ptab' },
+    h('div', { class: 'head' }, h('h1', {}, 'Settings'), h('span', { class: 'dim' }, `rig's ${RSET.length} keys, from its schema, and what each program declares`), h('span', { class: 'sp' }), search),
+    h('h2', { class: 'subh' }, 'rig'), settingsTable('rig', RSET),
+    ...estate.flatMap((e) => [h('h2', { class: 'subh' }, h('span', { class: 'ic', style: { '--c': progColour(e.id) } }, e.id.slice(0, 2)), ' ', e.name,
+      S.guis[e.id] ? h('span', { class: 'dim' }, ' also in its GUI, under Settings') : null), settingsTable(e.id, PSET[e.id] || [])])));
+}
+function openProgSettings(id) {
+  const d = $('drawer');
+  S.history = null;
+  d.replaceChildren(
+    h('header', {}, h('h3', {}, `${id}'s settings`), h('button', { class: 'iconbtn', 'aria-label': 'Close', onclick: () => { d.hidden = true; } }, svg(ICON.x))),
+    h('div', { class: 'body' }, h('p', { class: 'dim' }, `What ${id} declares to rig. rig draws them and keeps them, so they look the same here and under Settings.`),
+      settingsTable(id, PSET[id] || [])));
+  d.hidden = false;
+  d.querySelector('.body input, .body select')?.focus();
+}
+
+// ── capabilities (requirement 28): every verb, its words from the binary ──
+const PARGS = {
+  'ledger match': { type: 'object', required: ['entry'], properties: { entry: { type: 'integer', description: 'the entry id' } } },
+  'ledger reject': { type: 'object', required: ['entry'], properties: { entry: { type: 'integer', description: 'the entry id' } } },
+  'ledger export': { type: 'object', properties: { month: { type: 'string', description: 'YYYY-MM' } } },
+  'lantern search': { type: 'object', required: ['q'], properties: { q: { type: 'string' }, limit: { type: 'integer' } } },
+  'abacus rate': { type: 'object', required: ['from', 'to'], properties: { from: { type: 'string', enum: ['ILS', 'EUR', 'USD'] }, to: { type: 'string', enum: ['ILS', 'EUR', 'USD'] }, amount: { type: 'number' } } },
+};
+const CAPS = [
+  ...RIG_SELF.map((c) => ({ owner: 'rig', key: c.ID, id: c.ID, title: c.Title, summary: c.Summary, desc: c.Description, returns: c.Returns, effects: c.Effects, args: c.Args, real: true })),
+  ...estate.flatMap((e) => e.commands.map(([c, d]) => ({ owner: e.id, key: `${e.id} ${c}`, id: c, title: c, summary: d, desc: `${d}. (Mock: in rig this text is ${e.name}'s own declaration, read from its binary.)`,
+    returns: '', effects: /^(list|entries|search|status|where|windows|sum|rate)$/.test(c) ? 'read-only' : 'writes-files', args: PARGS[`${e.id} ${c}`] || null }))),
+];
+const EFFECT_TONE = { 'read-only': 'var(--h-sage)', 'writes-files': 'var(--h-amber)', destructive: 'var(--h-rust)' };
+function capGroup(c) { return c.owner === 'rig' ? 'rig ' + (c.id.includes('.') ? c.id.split('.')[0] : 'core') : c.owner; }
+function argField(cap, name, sch, required) {
+  const vals = S.capArgs[cap.key] = S.capArgs[cap.key] || {};
+  const label = name + (required ? ' *' : '');
+  const store = (v) => { if (v === '' || v === undefined) delete vals[name]; else vals[name] = v; renderCapPreview(cap); };
+  let ctl;
+  if (sch.type === 'boolean') { ctl = h('input', { type: 'checkbox', onchange: (e) => store(e.target.checked || undefined) }); ctl.checked = Boolean(vals[name]); }
+  else if (sch.enum) ctl = h('select', { class: 'sel', onchange: (e) => store(e.target.value) }, h('option', { value: '' }, '(none)'), sch.enum.map((o) => h('option', { value: o, selected: vals[name] === o }, o)));
+  else if (sch.type === 'integer' || sch.type === 'number') ctl = h('input', { class: 'inp', type: 'number', value: vals[name] ?? '', oninput: (e) => store(e.target.value === '' ? '' : Number(e.target.value)) });
+  else if (sch.type === 'array') ctl = h('input', { class: 'inp', type: 'text', placeholder: 'comma, separated', value: (vals[name] || []).join(', '), oninput: (e) => store(e.target.value ? e.target.value.split(',').map((x) => x.trim()).filter(Boolean) : '') });
+  else if (sch.type === 'object') ctl = h('textarea', { class: 'inp', rows: '3', placeholder: '{ JSON }', oninput: (e) => { try { store(e.target.value ? JSON.parse(e.target.value) : ''); e.target.removeAttribute('aria-invalid'); } catch { e.target.setAttribute('aria-invalid', 'true'); } } }, vals[name] ? JSON.stringify(vals[name]) : '');
+  else ctl = h('input', { class: 'inp', type: 'text', value: vals[name] ?? '', oninput: (e) => store(e.target.value) });
+  ctl.setAttribute('aria-label', `${cap.id} ${name}`);
+  return h('label', { class: 'arg' }, h('span', { class: 'mono' }, label), h('span', { class: 'dim small' }, [sch.type || 'any', sch.description].filter(Boolean).join(': ')), ctl);
+}
+function capCall(cap) {
+  const args = S.capArgs[cap.key] || {};
+  return cap.owner === 'rig' ? { verb: cap.id, args } : { verb: 'invoke', args: { program: cap.owner, command: cap.id, args } };
+}
+function renderCapPreview(cap) {
+  const pre = $('capcall');
+  if (pre) pre.textContent = JSON.stringify(capCall(cap), null, 2);
+}
+function tryCap(cap) {
+  const args = S.capArgs[cap.key] || {};
+  const missing = (cap.args?.required || []).filter((r) => args[r] === undefined);
+  if (missing.length) { S.capOut[cap.key] = { ok: false, text: `Refused before sending: ${missing.join(', ')} ${missing.length > 1 ? 'are' : 'is'} required.` }; renderView(); return; }
+  if (cap.effects !== 'read-only' && S.capConfirm !== cap.key) { S.capConfirm = cap.key; renderView(); return; }
+  S.capConfirm = null;
+  wire('acted', cap.owner === 'rig' ? cap.id : 'invoke', `from Capabilities: ${cap.owner === 'rig' ? '' : cap.owner + ' '}${cap.id} ${JSON.stringify(args)}`, cap.owner === 'rig' ? 'rig' : cap.owner);
+  S.capOut[cap.key] = { ok: true, text: JSON.stringify({ mockup: 'nothing reached rigd', verb: capCall(cap).verb, would_return: cap.returns || 'what the program answers' }, null, 2) };
+  renderView(); renderWire();
+}
+function renderCaps(view) {
+  const q = S.cq.toLowerCase();
+  const list = CAPS.filter((c) => !q || [c.key, c.title, c.summary, c.desc].join(' ').toLowerCase().includes(q));
+  const groups = new Map();
+  for (const c of list) { const g = capGroup(c); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(c); }
+  const cap = CAPS.find((c) => c.key === S.cap) || CAPS[0];
+  const search = h('input', { id: 'cq', type: 'search', class: 'inp', placeholder: `Search ${CAPS.length} capabilities`, value: S.cq, 'aria-label': 'Search capabilities',
+    oninput: (e) => { S.cq = e.target.value; renderView(); const f = $('cq'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); } });
+  const left = h('nav', { class: 'caplist', 'aria-label': 'Capabilities' }, search,
+    list.length ? [...groups.entries()].map(([g, cs]) => h('div', {}, h('h5', {}, g, h('span', { class: 'dim' }, ` ${cs.length}`)),
+      cs.map((c) => h('button', { 'aria-current': String(c.key === cap.key), onclick: () => { S.cap = c.key; renderView(); $('capdetail')?.focus(); } },
+        h('i', { style: { '--c': EFFECT_TONE[c.effects] || 'var(--fg-faint)' }, title: c.effects }), h('span', { class: 'mono' }, c.id), h('span', { class: 'dim' }, c.summary))))) : h('div', { class: 'empty' }, 'Nothing matches.'));
+  const props = Object.entries(cap.args?.properties || {});
+  const out = S.capOut[cap.key];
+  const right = h('section', { class: 'capdetail panel', id: 'capdetail', tabindex: '-1', 'aria-label': cap.key },
+    h('header', {}, h('h2', { class: 'mono' }, cap.owner === 'rig' ? cap.id : `${cap.owner} ${cap.id}`), h('span', { class: 'eff', style: { '--c': EFFECT_TONE[cap.effects] || 'var(--fg-faint)' } }, cap.effects),
+      h('span', { class: 'sp' }), h('span', { class: 'dim small' }, cap.real ? 'words from rig\'s own declaration' : 'mock words; rig reads them from the program')),
+    h('div', { class: 'capbody' },
+      h('p', {}, h('b', {}, cap.summary)), h('p', {}, cap.desc), cap.returns ? h('p', { class: 'dim' }, h('b', {}, 'Returns: '), cap.returns) : null,
+      h('h3', {}, 'Try it'),
+      props.length ? h('div', { class: 'args' }, props.map(([n, sch]) => argField(cap, n, sch, (cap.args.required || []).includes(n)))) : h('p', { class: 'dim' }, 'It takes no arguments.'),
+      h('h4', { class: 'dim small' }, 'What goes on the wire'),
+      h('pre', { class: 'call', id: 'capcall' }, JSON.stringify(capCall(cap), null, 2)),
+      S.capConfirm === cap.key ? h('div', { class: 'confirm', role: 'alert' }, h('b', {}, `This one ${cap.effects === 'destructive' ? 'destroys' : 'changes'} state (${cap.effects}).`), ' Run it?',
+        h('div', { class: 'acts' }, h('button', { class: 'act primary', onclick: () => tryCap(cap) }, 'Run it'), h('button', { class: 'act', onclick: () => { S.capConfirm = null; renderView(); } }, 'Cancel')))
+        : h('div', { class: 'acts' }, h('button', { class: 'act primary', onclick: () => tryCap(cap) }, 'Send')),
+      out ? h('pre', { class: 'call ' + (out.ok ? 'ok' : 'bad') }, out.text) : null));
+  view.append(h('div', { class: 'ptab caps' },
+    h('div', { class: 'head' }, h('h1', {}, 'Capabilities'), h('span', { class: 'dim' }, `${CAPS.filter((c) => c.real).length} of rig's own, and every registered program's commands`)),
+    h('div', { class: 'capgrid' }, left, right)));
+}
+
+// ── guidelines (requirement 29): what a program must be, each rule dated ──
+// Dates are when the rule entered rig's code (git), or the day he ruled it
+// where nothing is built yet.
+const GUIDE = [
+  { id: 'G1', date: '2026-09-10', who: 'programs', state: 'in force', title: 'Declare every command in full', body: 'Each command states its effects, idempotence, sensitive fields, interactivity, streaming, display need, duration and confirmation. A registration missing any of them is refused.', cite: 'internal/kernel/declaration.go' },
+  { id: 'G2', date: '2026-09-11', who: 'programs', state: 'in force', title: 'Name the kit elements your page uses', body: 'The element list is part of the registration. Config may take elements away, never add one.', cite: 'plan/05 §5h R3' },
+  { id: 'A1', date: '2026-09-16', who: 'agents', state: 'in force', title: 'Announce a seat and say what you are for', body: 'Take a seat with announce before anything else, and keep set_activity current.', cite: 'internal/mcpserver' },
+  { id: 'A2', date: '2026-09-25', who: 'agents', state: 'in force', title: 'Keep your notes in rig', body: 'Working notes go through worknote, so a successor finds them after a restart.', cite: 'internal/mcpserver' },
+  { id: 'G3', date: '2026-10-01', who: 'programs', state: 'in force', title: 'Declare the events you publish', body: 'A program publishes only kinds it declared, under its own id (ledger.changed). Bare kinds are rig\'s.', cite: 'plan/52 E3' },
+  { id: 'G4', date: '2026-10-03', who: 'programs', state: 'in force', title: 'Declare how you load', body: 'Resident, or on call. An on-call program tells rig when it is idle (client.Idle) and when it must not be stopped (client.Hold).', cite: 'plan/54, decision 0265' },
+  { id: 'G5', date: '2026-10-03', who: 'programs', state: 'ruled, not built', title: 'A GUI wears rig.css and acts through rig', body: 'A program\'s GUI carries no stylesheet of its own and reaches its program only through rig\'s verbs: invoke, the store, the bus, the queue, toasts.', cite: 'plan/55 requirements 12 and 13' },
+  { id: 'G6', date: '2026-10-03', who: 'programs', state: 'ruled, not built', title: 'Declare your settings as a schema', body: 'rig shows them under Settings and in your GUI, changes them, and keeps where each value came from.', cite: 'plan/55 requirement 20, plan/47' },
+];
+const GUIDE_REV = GUIDE.map((g) => g.date).sort().at(-1);
+const BUILT_TO = { beacon: '2026-10-01', ledger: '2026-10-03', lantern: '2026-10-02', righand: '2026-09-27', storeworker: '2026-10-03', keeper: '2026-10-01', abacus: '2026-09-20' };
+function newerFor(id) { return GUIDE.filter((g) => g.who === 'programs' && g.date > (BUILT_TO[id] || '0')); }
+function guideCell(e) {
+  const n = newerFor(e.id).length;
+  return h('button', { class: 'gstat' + (n ? ' behind' : ''), title: n ? `${n} rule${n > 1 ? 's' : ''} newer than what ${e.name} was built to` : `built to the current guidelines, ${GUIDE_REV}`,
+    onclick: () => { S.gfocus = e.id; openTab('guidelines'); } }, n ? `${n} newer` : 'current');
+}
+function renderGuide(view) {
+  const f = S.gfocus;
+  view.append(h('div', { class: 'ptab' },
+    h('div', { class: 'head' }, h('h1', {}, 'Guidelines'), h('span', { class: 'mono dim' }, `revision ${GUIDE_REV}`),
+      h('span', { class: 'dim' }, 'What a program or an agent must be to work with rig. Every rule carries the day it took effect.')),
+    h('section', { class: 'panel' }, h('header', {}, h('h2', {}, 'Programs against the guidelines'), h('span', { class: 'dim' }, 'mock: the revision each was built to')),
+      h('table', { class: 'progs' }, h('thead', {}, h('tr', {}, ...['Program', 'Built to', 'Rules since then'].map((x) => h('th', { scope: 'col' }, x)))),
+        h('tbody', {}, estate.map((e) => { const nw = newerFor(e.id); return h('tr', { class: f === e.id ? 'open' : '' },
+          h('td', {}, e.name), h('td', { class: 'mono' }, BUILT_TO[e.id] || 'unknown'),
+          h('td', {}, nw.length ? nw.map((g) => h('span', { class: 'gtag warnt' }, g.id)) : h('span', { class: 'dim' }, 'none: current'))); })))),
+    h('h2', { class: 'subh' }, 'The rules, newest first'),
+    h('ol', { class: 'rules' }, [...GUIDE].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)).map((g) => {
+      const behind = g.who === 'programs' ? estate.filter((e) => g.date > (BUILT_TO[e.id] || '0')).map((e) => e.name) : [];
+      return h('li', { class: f && behind.includes(estate.find((e) => e.id === f)?.name) ? 'hit' : '' },
+        h('div', { class: 'rhead' }, h('span', { class: 'mono' }, g.id), h('time', { class: 'mono' }, g.date), h('b', {}, g.title),
+          h('span', { class: 'gtag' }, g.who), h('span', { class: 'gtag' + (g.state === 'in force' ? '' : ' warnt') }, g.state)),
+        h('p', {}, g.body), h('div', { class: 'dim small' }, g.cite, behind.length ? ` · built before it: ${behind.join(', ')}` : '')); }))));
+}
+
+function wireScope() {
+  const t = S.tabs.find((x) => x.id === S.current && x.open);
+  return t && t.kind === 'program' ? t.id : null;
+}
 function renderWire() {
   $('wire').hidden = !S.showWire;
-  $('wireLog').replaceChildren(...S.wire.map((w) => h('li', {}, h('span', { class: 'faint' }, hhmm(w.at)), h('span', { class: 'k-' + w.kind }, w.verb), h('span', {}, w.text))));
+  const prog = wireScope(), only = prog && !S.wireAll, q = S.wq.toLowerCase();
+  const rows = S.wire.filter((w) => (!only || w.who === prog) && (!q || [w.verb, w.text, w.who].join(' ').toLowerCase().includes(q)));
+  $('wireScope').replaceChildren(
+    prog ? h('button', { class: 'chip', 'aria-pressed': String(only), title: only ? 'Show every program\'s lines' : `Show only ${prog}'s lines`, onclick: () => { S.wireAll = !S.wireAll; renderWire(); } }, only ? `only ${prog}` : 'every program') : h('span', { class: 'dim' }, 'every program'),
+    h('span', { class: 'dim' }, `${rows.length} of ${S.wire.length}`));
+  $('wireLog').replaceChildren(...(rows.length ? rows.map((w) => h('li', {}, h('span', { class: 'faint' }, hhmm(w.at)), h('span', { class: 'k-' + w.kind }, w.verb), h('span', {}, w.text))) : [h('li', { class: 'dim' }, 'Nothing matches.')]));
 }
 
 function openHistory(id) {
@@ -788,6 +1090,34 @@ function renderHistory() {
   d.querySelector('[aria-current="true"]')?.focus();
 }
 
+function openNote(n) {
+  const d = $('drawer');
+  S.history = null; S.noteOpen = n.id;
+  n.unread = false;
+  const opts = n.actions ? h('div', { class: 'acts' }, n.actions.map((a, i) => {
+    const chosen = n.decided && n.decided.choice === a;
+    return h('button', { class: 'act' + (chosen ? ' chosen-act' : '') + (!n.decided && i === 0 ? ' primary' : ''), disabled: Boolean(n.decided), 'aria-pressed': n.decided ? String(chosen) : null,
+      onclick: () => { decideNote(n, a); render(); openNote(n); } }, chosen ? `✓ ${a}` : a); })) : null;
+  d.replaceChildren(
+    h('header', {}, h('span', { class: 'sevdot', style: { '--sev': SEV[n.severity] } }), h('h3', {}, n.title),
+      h('button', { class: 'iconbtn', 'aria-label': 'Close', onclick: () => { S.noteOpen = null; d.hidden = true; } }, svg(ICON.x))),
+    h('div', { class: 'body' },
+      h('dl', { class: 'facts' },
+        h('dt', {}, 'from'), h('dd', {}, n.from),
+        h('dt', {}, 'severity'), h('dd', {}, n.severity),
+        h('dt', {}, 'at'), h('dd', {}, new Date(n.at).toLocaleString()),
+        ...(n.facts || []).flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)])),
+      h('p', {}, n.body),
+      n.details ? h('p', { class: 'dim' }, n.details) : null,
+      h('h4', { class: 'subh' }, n.actions ? (n.decided ? 'Decided' : 'Your decision') : 'Nothing to decide'),
+      n.decided ? h('p', { class: 'chosen' }, `You chose "${n.decided.choice}" at ${new Date(n.decided.at).toLocaleTimeString()}. ${n.from} was told.`) : null,
+      n.actions ? opts : h('p', { class: 'dim' }, 'This notification only informs.'),
+      h('div', { class: 'acts', style: { marginTop: '18px' } },
+        h('button', { class: 'act', onclick: () => { S.nsrc = n.from; render(); } }, `Only ${n.from}'s notifications`))));
+  d.hidden = false;
+  d.querySelector('.body button:not([disabled])')?.focus();
+}
+
 function openAbout(e) {
   const d = $('drawer');
   S.history = null;
@@ -802,7 +1132,7 @@ function openAbout(e) {
 // the page rather than described (plan/55, after requirement 15).
 const QUESTIONS = [
   { q: 'Is the board in the right place?',
-    body: 'Main now has two inner tabs, Programs and Board. The board of agents\' cards is the second one. Click Board to see it. Is that its place?',
+    body: 'Main has three inner tabs: Needs you, Programs and Board. The board of agents\' cards is the third, with a tab per source inside it. Is that its place?',
     show: ['Show me the board tab', () => { S.current = 'main'; S.mainTab = 'board'; }] },
   { q: 'Do Ledger\'s buttons use the right rig capability?',
     body: 'Open Ledger, turn on the Wire, and press Match, Not a match and Reconcile again. Each line on the Wire names the rig capability that carried it: invoke, toast, queue, store, the bus.',
@@ -846,7 +1176,7 @@ function render() {
 
 // ── keyboard ───────────────────────────────────────────────────────────────
 document.addEventListener('keydown', (e) => {
-  const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement;
+  const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement;
   if (e.key === '/' && !typing) { e.preventDefault(); $('q')?.focus(); return; }
   if (e.key === 'Escape') {
     if (!$('menu').hidden) { $('menu').hidden = true; $('reopenBtn')?.focus(); return; }
@@ -864,12 +1194,15 @@ document.addEventListener('click', (e) => {
   if (!m.hidden && !m.contains(e.target) && e.target.closest('#reopenBtn') === null) m.hidden = true;
 });
 $('wireClose').addEventListener('click', () => { S.showWire = false; render(); });
+$('wq').addEventListener('input', (e) => { S.wq = e.target.value; renderWire(); });
 $('railMain').addEventListener('click', () => { S.current = 'main'; render(); });
+for (const id of Object.keys(INTERNAL)) $('rail-' + id).addEventListener('click', () => openTab(id));
 
 render();
 // While a field has the keyboard, the page is not redrawn under it.
 setInterval(() => {
-  const busy = document.activeElement instanceof HTMLInputElement;
+  const a = document.activeElement;
+  const busy = a instanceof HTMLInputElement || a instanceof HTMLSelectElement || a instanceof HTMLTextAreaElement;
   if (S.playing && !busy) tick();
 }, 2200);
 window.__mock = { S, tick, render };

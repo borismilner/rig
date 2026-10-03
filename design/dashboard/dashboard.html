@@ -175,7 +175,7 @@ select.sel{background:var(--bg-2);color:var(--fg);border:1px solid var(--border)
 .legend span{display:inline-flex;gap:6px;align-items:center}
 .legend i{width:10px;height:10px;border-radius:3px;background:var(--c)}
 /* Main: everything about rig and its programs, notifications on the right */
-.maingrid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px;align-items:start}
+.maingrid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px;align-items:start;height:100%;grid-template-rows:minmax(0,1fr)}
 .rigstrip{display:flex;flex-wrap:wrap;gap:6px 22px;margin:-6px 0 14px;font-size:var(--fs--1)}
 .rigstrip b{font-weight:600}
 .progs{width:100%;border-collapse:collapse;font-size:var(--fs--1)}
@@ -195,7 +195,7 @@ select.sel{background:var(--bg-2);color:var(--fg);border:1px solid var(--border)
 .hint{color:var(--h-amber);margin:10px 0 0}
 .cmds{list-style:none;margin:0;padding:0;display:grid;gap:6px}
 .cmds li{display:grid;gap:0}
-.notepanel{position:sticky;top:0;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);display:flex;flex-direction:column;max-height:calc(100vh - 110px)}
+.notepanel{position:sticky;top:0;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);display:flex;flex-direction:column;max-height:100%}
 .notepanel>header{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border)}
 .notepanel>header h2{margin:0;font-size:var(--fs-1)}
 .notepanel .sp{flex:1}
@@ -235,6 +235,77 @@ button.fig:hover{border-color:var(--fg-faint)}
 /* the GUI frame takes the keyboard, so it shows it has it */
 .guihost{padding:2px}
 .guihost:focus-within{background:var(--h-steel)}
+/* requirement 17: everything clickable shows a hand, never a text cursor */
+button,select,[role="tab"],[role="button"],.tab,.tab *{cursor:pointer}
+button:disabled{cursor:default}
+/* requirement 22: side and bottom panels slide, both ways */
+.drawer{transition:transform .26s cubic-bezier(.2,.8,.2,1),visibility 0s linear 0s}
+.drawer[hidden]{display:flex !important;transform:translateX(104%);visibility:hidden;transition:transform .2s ease-in,visibility 0s linear .2s}
+.wire{transition:max-height .26s cubic-bezier(.2,.8,.2,1),visibility 0s linear 0s;overflow:hidden}
+.wire[hidden]{display:flex !important;max-height:0;visibility:hidden;border-top-color:transparent;transition:max-height .2s ease-in,visibility 0s linear .2s}
+.wscope{display:flex;align-items:center;gap:8px}
+.wsearch input{width:200px}
+/* requirements 23 to 26: what needs him */
+.subtabs button.hot .cnt{background:var(--h-amber);color:var(--on-hue);border-radius:9px;padding:0 7px}
+.needs{display:grid;gap:0}
+.need{display:grid;gap:6px;padding:12px 14px;border-bottom:1px solid var(--border);box-shadow:inset 3px 0 0 var(--sev)}
+.need:last-child{border-bottom:0}
+.need .who{display:flex;gap:10px;align-items:baseline;font-size:var(--fs--1)}
+.need .acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.act.primary{background:var(--h-amber);color:var(--on-hue);border-color:var(--h-amber)}
+.card.asks{box-shadow:inset 0 0 0 1px var(--h-amber)}
+.chosen{color:var(--h-sage);font-size:var(--fs--1)}
+.act.chosen-act{border-color:var(--h-sage);color:var(--h-sage)}
+.act:disabled{opacity:1;color:var(--fg-dim)}
+.notes li.asks{background:color-mix(in srgb,var(--h-amber) 8%,transparent)}
+.nopen{display:grid;gap:2px;text-align:left;width:100%;padding:0;color:inherit;font:inherit}
+.nopen .nt{display:flex;gap:8px;justify-content:space-between}
+.nmeta{display:flex;gap:10px;align-items:center;margin-top:4px}
+.decide{font-size:var(--fs--1);color:var(--h-amber);font-weight:600}
+.sevdot{width:10px;height:10px;border-radius:50%;background:var(--sev)}
+.tray{gap:8px}
+.trayic{position:relative;width:22px;height:22px;border-radius:6px;display:grid;place-items:center;background:var(--tint);font:700 var(--fs--1) var(--mono);color:var(--fg)}
+.trayic i{position:absolute;top:-6px;right:-8px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--h-amber);color:var(--on-hue);font:700 12px/18px var(--sans);font-style:normal;text-align:center}
+/* requirement 27: the board's sources */
+.srctabs{display:flex;gap:4px;flex-wrap:wrap;padding:8px 14px 0}
+.srctabs button{display:flex;gap:6px;align-items:center;padding:4px 10px;border-radius:999px;border:1px solid var(--border);color:var(--fg-dim);font-size:var(--fs--1)}
+.srctabs button[aria-selected="true"]{background:var(--panel-2,var(--tint));color:var(--fg);border-color:var(--fg-faint)}
+.srctabs .cnt{font-family:var(--mono)}
+/* settings, capabilities, guidelines (19, 20, 28, 29) */
+.inp{background:var(--bg);color:var(--fg);border:1px solid var(--border-2);border-radius:8px;padding:5px 8px;font:inherit;min-width:0}
+.inp.wide{width:280px}
+.inp[aria-invalid="true"]{border-color:var(--h-rust)}
+.small{font-size:var(--fs--1)}
+.err{color:var(--h-rust);font-size:var(--fs--1)}
+.err:empty{display:none}
+.sets td{vertical-align:top}
+.head .sp{flex:1}
+.subh .ic{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:7px;background:var(--tint);font:600 var(--fs--2) var(--mono);box-shadow:inset 0 -2px 0 var(--c)}
+.capgrid{display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px;align-items:start}
+.caplist{display:grid;gap:8px;max-height:calc(100vh - 170px);overflow:auto;padding-right:6px}
+.caplist h5{margin:8px 0 2px;font-size:var(--fs--1);color:var(--fg-dim);font-weight:600}
+.caplist button{display:grid;grid-template-columns:10px auto;grid-template-rows:auto auto;column-gap:8px;text-align:left;width:100%;padding:6px 8px;border-radius:8px}
+.caplist button i{grid-row:1 / 3;width:8px;height:8px;margin-top:6px;border-radius:50%;background:var(--c)}
+.caplist button .dim{grid-column:2;font-size:var(--fs--1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.caplist button:hover,.caplist button[aria-current="true"]{background:var(--tint)}
+.capdetail{position:sticky;top:0}
+.capdetail h2{font-size:var(--fs-1);margin:0}
+.capbody{padding:12px 16px 16px}
+.capbody h3{margin:16px 0 8px;font-size:var(--fs-0,1rem)}
+.eff{font-size:var(--fs--1);color:var(--c);border:1px solid var(--c);border-radius:6px;padding:0 6px}
+.args{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.arg{display:grid;gap:3px}
+.call{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font:var(--fs--1)/1.5 var(--mono);white-space:pre-wrap;overflow:auto;max-height:220px}
+.call.ok{border-color:var(--h-sage)} .call.bad{border-color:var(--h-rust)}
+.confirm{border:1px solid var(--h-amber);border-radius:8px;padding:10px 12px;display:grid;gap:8px}
+.gstat{font-size:var(--fs--1);color:var(--h-sage);padding:1px 8px;border:1px solid var(--border);border-radius:999px}
+.gstat.behind{color:var(--h-amber);border-color:var(--h-amber)}
+.warnt{color:var(--h-amber);border-color:var(--h-amber)}
+.rules{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.rules li{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px}
+.rules li.hit{border-color:var(--h-amber)}
+.rhead{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.rules p{margin:6px 0}
 [hidden]{display:none !important}
 @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
 </style>
@@ -247,13 +318,15 @@ button.fig:hover{border-color:var(--fg-faint)}
     <button title="Agents" aria-label="Agents"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><path d="M16 4a3 3 0 0 1 0 6M21 20c0-2-1-4-3-5"/></svg></button>
     <div id="railguis" class="railguis" aria-label="Registered GUIs"></div>
     <span class="gap"></span>
-    <button title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg></button>
+    <button id="rail-capabilities" title="Capabilities" aria-label="Capabilities"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 3v4M15 3v4M7 7h10v4a5 5 0 0 1-10 0z"/><path d="M12 16v5"/></svg></button>
+    <button id="rail-guidelines" title="Guidelines" aria-label="Guidelines"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h6a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4z"/><path d="M20 4h-6a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h7z"/></svg></button>
+    <button id="rail-settings" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg></button>
   </nav>
   <div class="main">
     <div class="tabs" role="tablist" aria-label="Dashboard tabs" id="tabs"></div>
     <div class="stage"><div class="view" id="view"></div><div class="guihost" id="guihost" hidden></div></div>
     <section class="wire" id="wire" hidden aria-label="The wire">
-      <header><b>The wire</b><span class="dim">what each push does: a verb writes, the store keeps, the bus wakes</span><span style="flex:1"></span><button class="iconbtn" id="wireClose" aria-label="Close the wire">✕</button></header>
+      <header><b>The wire</b><span class="dim">a verb writes, the store keeps, the bus wakes</span><span style="flex:1"></span><span id="wireScope" class="wscope"></span><label class="search wsearch"><input id="wq" type="search" placeholder="Search the wire" aria-label="Search the wire"></label><button class="iconbtn" id="wireClose" aria-label="Close the wire">✕</button></header>
       <ol id="wireLog"></ol>
     </section>
   </div>
@@ -829,6 +902,10 @@ function guiDoc(css, body, theme, seed) {
 
 // Ledger's GUI page, ledger-gui.html, put in here by build.py.
 const LEDGER_GUI = "<!-- Ledger's own GUI, as the program would ship it (plan/55, requirement\n     12): the content is Ledger's, the look is rig.css. No stylesheet of its\n     own, only rig's classes. It acts on Ledger only through rig's verbs:\n     invoke, the store, the bus, the queue and toasts (requirement 13). -->\n<main class=\"rig-page\">\n  <header class=\"rig-row rig-between\">\n    <div>\n      <h1 class=\"rig-h1\">Reconciliation</h1>\n      <p class=\"rig-dim\" id=\"sub\">September statement</p>\n    </div>\n    <div class=\"rig-row\">\n      <div class=\"rig-progress\" id=\"bar\" hidden><i id=\"barFill\"></i></div>\n      <button class=\"rig-btn rig-primary\" id=\"rerun\">Reconcile again</button>\n    </div>\n  </header>\n  <section class=\"rig-figures\" id=\"figs\" aria-label=\"Figures\"></section>\n  <section class=\"rig-card\" aria-label=\"Needs you\">\n    <h2 class=\"rig-h2\">Needs you</h2>\n    <table class=\"rig-table\">\n      <thead><tr><th scope=\"col\">Entry</th><th scope=\"col\">Date</th><th scope=\"col\">Payee</th><th scope=\"col\" class=\"rig-num\">Amount</th><th scope=\"col\">Bank line</th><th scope=\"col\">Why</th><th scope=\"col\"></th></tr></thead>\n      <tbody id=\"open\"></tbody>\n    </table>\n  </section>\n  <section class=\"rig-card\" aria-label=\"Decided here\">\n    <h2 class=\"rig-h2\">Decided here</h2>\n    <ol class=\"rig-list\" id=\"done\"></ol>\n  </section>\n</main>\n<script>\n(function () {\n  var pending = {};\n  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }\n  function btn(label, primary, onclick) { var b = el('button', 'rig-btn' + (primary ? ' rig-primary' : ''), label); b.onclick = onclick; return b; }\n\n  function draw(s) {\n    document.getElementById('sub').textContent = s.statement;\n    var figs = document.getElementById('figs');\n    figs.replaceChildren();\n    [['matched', s.matched], ['need you', s.open.length], ['entries', s.entries], ['last run', s.lastRun]].forEach(function (f) {\n      var d = el('div', 'rig-fig'); d.append(el('b', '', String(f[1])), el('span', '', f[0])); figs.append(d);\n    });\n    var body = document.getElementById('open');\n    body.replaceChildren();\n    if (!s.open.length) { var tr = el('tr'); var td = el('td', 'rig-empty', 'Nothing needs you.'); td.colSpan = 7; tr.append(td); body.append(tr); }\n    s.open.forEach(function (e) {\n      var tr = el('tr');\n      var why = el('span', 'rig-badge', e.why); why.dataset.sev = e.sev;\n      var acts = el('td'); var row = el('div', 'rig-row');\n      var busy = pending[e.id];\n      var a = btn('Match', true, function () { act(s, e.id, 'match'); });\n      var b = btn('Not a match', false, function () {\n        rig.toast({ title: 'Mark entry ' + e.id + ' as not a match?', body: e.payee + ' ' + e.amount + ' stays open in the books.', actions: ['Mark it', 'Cancel'] })\n          .then(function (choice) { if (choice === 'Mark it') act(s, e.id, 'reject'); });\n      });\n      a.disabled = b.disabled = !!busy || !e.bank;\n      if (!e.bank) a.title = 'no bank line to match';\n      b.disabled = !!busy;\n      row.append(a, b); acts.append(row);\n      var cells = [el('td', 'rig-mono', String(e.id)), el('td', 'rig-mono', e.date), el('td', '', e.payee), el('td', 'rig-num rig-mono', e.amount), el('td', 'rig-mono', e.bank || 'none found')];\n      tr.append.apply(tr, cells.concat([el('td'), acts]));\n      tr.children[5].append(why);\n      body.append(tr);\n    });\n    var done = document.getElementById('done');\n    done.replaceChildren();\n    if (!s.done.length) done.append(el('li', 'rig-empty', 'Nothing decided here yet.'));\n    s.done.forEach(function (d) {\n      var li = el('li'); var t = el('span', 'rig-badge', d.what); t.dataset.sev = d.sev;\n      li.append(el('span', 'rig-mono rig-dim', d.at), el('span', 'rig-mono', String(d.id)), t); done.append(li);\n    });\n    var run = document.getElementById('rerun'), bar = document.getElementById('bar');\n    run.disabled = s.running !== null;\n    run.textContent = s.running !== null ? 'Reconciling' : 'Reconcile again';\n    bar.hidden = s.running === null;\n    document.getElementById('barFill').style.width = Math.round((s.running || 0) * 100) + '%';\n  }\n\n  function act(s, id, command) {\n    pending[id] = true; draw(s);\n    rig.invoke(command, { entry: id }).catch(function () { delete pending[id]; draw(s); });\n  }\n  function load() { return rig.store.get('ledger/reconcile').then(function (s) { pending = {}; draw(s); }); }\n  document.getElementById('rerun').onclick = function () { rig.queue.push('ledger.reconcile', {}); };\n  rig.events.on('ledger.changed', load);\n  if (window.RIG_SEED) draw(window.RIG_SEED);\n  load().catch(function () {});\n})();\n<\/script>\n";
+// rig's own commands as it declares them (internal/daemon/self.go), dumped
+// by dump-self.sh; and its config schema (internal/config/schema.json).
+const RIG_SELF = [{"ID": "ping", "Title": "Ping", "Summary": "Round-trip a nonce", "Description": "Echoes the nonce it was given, and probes a named program.", "Returns": "The nonce, the program id and its version.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {"nonce": {"contentEncoding": "base64", "type": "string"}, "program": {"type": "string"}}, "type": "object"}}, {"ID": "estate", "Title": "Estate", "Summary": "Say which estate this is", "Description": "Answers the estate's name and role, this daemon's build, the wire major and rig's own semantic generation. The one rig method whose answer does not depend on who is asking.", "Returns": "The estate name and role, the daemon build, the wire major and rig's own semantic generation.", "Effects": "read-only", "Args": null}, {"ID": "programs", "Title": "Programs", "Summary": "List what this principal may reach", "Description": "Reads the registry through the calling principal's own view.", "Returns": "Every program this principal may see.", "Effects": "read-only", "Args": null}, {"ID": "describe", "Title": "Describe", "Summary": "One program or command in full, as the MCP tool answers it", "Description": "Answers the object the MCP describe tool returns for the same program and command, rendered by the daemon so the CLI's --json and the MCP tool cannot disagree. Reads through the calling principal's own view.", "Returns": "The MCP describe tool's JSON object, as bytes.", "Effects": "read-only", "Args": null}, {"ID": "announce", "Title": "Announce", "Summary": "Say what this session is for, and see who else is here", "Description": "Records this connection's purpose and activity on the estate's roster, optionally taking a named SEAT, and returns the crew as it stands. A seat is a role that outlives its occupants; each occupancy gets a generation, so a peer can tell whether the session it is addressing is still the one it meant. Refused if the seat is held by a live peer.", "Returns": "This peer's own row including its generation, the whole crew, and whether the roster is known to be incomplete.", "Effects": "read-only", "Args": null}, {"ID": "activity", "Title": "Activity", "Summary": "Say what this session is doing right now", "Description": "Replaces this connection's activity line, and optionally moves its seat to HANDING_OFF. Cheap and non-blocking. Requires an earlier announce: an activity with no purpose above it is the unsupervisable row the seat mechanism exists to prevent.", "Returns": "This peer's updated row.", "Effects": "read-only", "Args": null}, {"ID": "peers", "Title": "Peers", "Summary": "Read the estate's roster", "Description": "Who is here, what each is for, what each is doing, which seat each holds and at which generation. Presence is connection state, so a peer that is listed is a peer whose connection is open.", "Returns": "The crew, and whether the roster is known to be incomplete.", "Effects": "read-only", "Args": null}, {"ID": "session", "Title": "Session", "Summary": "Say which session this connection carries", "Description": "Answers this connection's session token, or resumes a session named by one. Section 5f says every connection carries a token that survives reconnect; a terminal, an agent and a script never handshake, so this is the message on which they receive it.", "Returns": "The session token, and whether a resume was honoured.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {"resume": {"type": "string"}}, "type": "object"}}, {"ID": "record.get", "Title": "Record get", "Summary": "Read one record, at head or at a version", "Description": "Answers one record. Version 0 means HEAD rather than version zero, which no record has - the first write is version 1.", "Returns": "The record at the version asked for.", "Effects": "read-only", "Args": null}, {"ID": "record.query", "Title": "Record query", "Summary": "Find records by kind in a project", "Description": "Answers the HEAD of every record of a kind in a project. This is section 39's \"indexed\".", "Returns": "Every matching record at its current version.", "Effects": "read-only", "Args": null}, {"ID": "record.history", "Title": "Record history", "Summary": "Read every version of one record", "Description": "Answers every version of one record, oldest first, each with the provenance of the write that made it.", "Returns": "One record's versions, oldest first.", "Effects": "read-only", "Args": null}, {"ID": "record.refs", "Title": "Record refs", "Summary": "What points AT this record", "Description": "Walks the reverse edges and answers what cites, blocks or is part of this record - section 39's \"correlated\", and the direction files cannot go. The walk is bounded by depth and says which depth it ANSWERED, flags a partial answer rather than returning a short list that looks complete, and reports any cycle it crossed by name without resolving it. It stays inside the record's own project unless asked to cross, which is a performance property rather than a preference.", "Returns": "What points at the record, each edge naming its kind, title and the record it arrived through.", "Effects": "read-only", "Args": null}, {"ID": "project.brief", "Title": "Project brief", "Summary": "Moved to the docket program; this arm refuses and says where", "Description": "Answers a refusal rather than a brief. The derivation moved to the docket program, which reaches this store over the socket like every other program here; rig keeps the record store and the record verbs the brief is derived on top of. The arm stays on this wire version because rig serves every version it has ever shipped, so a caller that asks is told where the answer went rather than being told there is no such method.", "Returns": "A refusal naming the program that derives the brief, with the command to ask it instead.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {"project": {"type": "string"}}, "type": "object"}}, {"ID": "record.put", "Title": "Record put", "Summary": "Create a record, or supersede one", "Description": "Writes a record and returns the version written. The caller may name the version it believes is current, and a losing compare-and-swap is refused as a conflict rather than overwriting. Provenance - who wrote it, from which seat, at which epoch - is the daemon's and is never read off the request.", "Returns": "The record as written, at its new version.", "Effects": "writes-files", "Args": null}, {"ID": "backup.create", "Title": "Backup create", "Summary": "Archive this estate's own persistent state", "Description": "Takes a transactional snapshot of the record store and writes one .tar.gz under the user's state directory, carrying a manifest and the snapshot. The caller names no path: the daemon chooses it from the estate name and the clock, and answers with where it landed. A copy of record.db taken with cp is NOT a backup, because the store runs in WAL mode and a committed write lives in record.db-wal until a checkpoint folds it in.", "Returns": "Where the archive landed, its size and SHA-256, and the schema version, record count and head count of the snapshot inside it.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {}, "type": "object"}}, {"ID": "progress.step", "Title": "Progress step", "Summary": "Append one step to a work item's stream", "Description": "Records that a work item was started, blocked or finished, written at a boundary DURING the work rather than at the end. An absent stream reads as UNKNOWN, never as nothing happened.", "Returns": "The step as written.", "Effects": "writes-files", "Args": null}, {"ID": "record.link", "Title": "Record link", "Summary": "Write a typed edge between two records", "Description": "Asserts a typed, directed edge. The type set is closed at section 39's eight names and an unknown one is refused by name with the value quoted back.", "Returns": "Nothing. The edge either exists afterwards or the call was refused.", "Effects": "writes-files", "Args": null}, {"ID": "record.unlink", "Title": "Record unlink", "Summary": "Remove a typed edge between two records", "Description": "Removes an edge. Removing one that is not there leaves the same state behind, which is why this is idempotent.", "Returns": "Nothing. The edge is absent afterwards either way.", "Effects": "writes-files", "Args": null}, {"ID": "record.retract", "Title": "Record retract", "Summary": "Withdraw a record, keeping its id and its history", "Description": "Marks a record withdrawn. It leaves every brief and every query; its id and every version of it survive, and record.get still answers, saying that it was retracted and why. Not a delete: nothing is destroyed. Anyone may retract any record.", "Returns": "The withdrawal - reason, provenance, and whether the record was already withdrawn by somebody else.", "Effects": "writes-files", "Args": null}, {"ID": "record.delete", "Title": "Record delete", "Summary": "Remove a record, its versions and every edge touching it", "Description": "Destroys a record and its whole history, and drops every edge at either end of it - ruled by Boris over refusing while anything cites it. The answer names every edge dropped and counts the versions removed, and a dry run shows the same account without writing. Anyone may delete any record.", "Returns": "What it took: the version count and every dropped edge, named.", "Effects": "destructive", "Args": null}, {"ID": "record.replace", "Title": "Record replace", "Summary": "Put a different record in the place of an existing one", "Description": "The duplicate case: two ids hold one fact. Every edge pointing at the loser is moved onto the survivor, the loser is withdrawn pointing at it, and record.get on the old id still says where the fact went. A supersede cannot express this, because a supersede keeps the id.", "Returns": "Every inbound edge in one of three buckets - moved, merged into an edge the survivor already had, or dropped as a would-be self-edge - and the withdrawal.", "Effects": "writes-files", "Args": null}, {"ID": "knowledge.search", "Title": "Knowledge search", "Summary": "Find what other sessions already put in the knowledge base", "Description": "Searches the estate's knowledge base by the words given and answers, best first, a title, a one-line summary and a snippet per hit - never a body, so consulting costs a few hundred bytes. No query syntax is interpreted. Consult it before a deep dive: another session may have done the research.", "Returns": "Up to 20 hits, best first, each with an id to fetch.", "Effects": "read-only", "Args": null}, {"ID": "knowledge.get", "Title": "Knowledge get", "Summary": "Read one knowledge base entry whole", "Description": "Answers one entry by id, body and provenance included. Fetch only the hit that fits.", "Returns": "The entry.", "Effects": "read-only", "Args": null}, {"ID": "knowledge.add", "Title": "Knowledge add", "Summary": "Write a knowledge base entry once, for every agent and person on this estate", "Description": "Writes an entry: a title, a one-line summary that searches show, a body with the detail, and one-word tags. For knowledge of great importance to many users, not for every note. Attributed to the caller's seat.", "Returns": "The entry as written, with its id.", "Effects": "writes-files", "Args": null}, {"ID": "worknote.write", "Title": "Work note write", "Summary": "Write down what you are thinking, so it survives this session", "Description": "Appends one working note: prose, any tags you like, and an association to anything in the record - a work item, a project, a task. A target id that holds no record is reported back rather than losing your prose. Attributed to the caller's seat, never to one named in the request.", "Returns": "The note as written, with its id, and an account of which associations took and which ids held no record.", "Effects": "writes-files", "Args": null}, {"ID": "worknote.mine", "Title": "Work note mine", "Summary": "Get your own working notes back after the session that wrote them died", "Description": "Answers the working notes THIS SEAT wrote, newest first. The seat comes from your row, so this can only ever answer your own notes. Start here on resume: a session dies with its process and the seat does not.", "Returns": "Your notes, newest first, bounded, with the unbounded total beside them so you know what was left out.", "Effects": "read-only", "Args": null}, {"ID": "worknote.about", "Title": "Work note about", "Summary": "Every seat's working notes on one record", "Description": "Answers the working notes attached to one record, by ANY seat, newest first. This is the handover read: `mine` is your own memory, this is what the estate knows about the thing you are picking up.", "Returns": "The notes on that record, newest first, bounded, with the unbounded total beside them.", "Effects": "read-only", "Args": null}, {"ID": "lease.list", "Title": "Lease list", "Summary": "Every lease in the estate, with its owner's liveness", "Description": "Answers every lease this estate knows about, evaluated now: held, orphaned or free, who holds or last held it, how it is witnessed, whether the witness was observed dead, and whether it needs a recorded break. Expiry is derived on read, never swept.", "Returns": "Every lease, by name.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {}, "type": "object"}}, {"ID": "notify", "Title": "Notify", "Summary": "Show a toast, and file it in the record", "Description": "Sends a notification at one of five severities - info, success, warning, error, urgent - with a title and a body. The daemon writes it into the record as kind notification with the sender as provenance, so nothing is only a toast, and the tray draws it as a speech bubble at the tray's corner of the screen.", "Returns": "The toast as filed, with its record id.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"body": {"type": "string"}, "replies": {"items": {"type": "string"}, "type": "array"}, "replyText": {"type": "boolean"}, "severity": {"enum": ["SEVERITY_UNSPECIFIED", "SEVERITY_INFO", "SEVERITY_SUCCESS", "SEVERITY_WARNING", "SEVERITY_ERROR", "SEVERITY_URGENT"], "type": "string"}, "speak": {"type": "string"}, "title": {"type": "string"}}, "type": "object"}}, {"ID": "toast.wait", "Title": "Toast wait", "Summary": "Wait for the next toasts", "Description": "Answers the toasts after a cursor as soon as there are any, or nothing once the timeout (at most 60 seconds) passes. The tray holds this so waiting costs nothing.", "Returns": "The new toasts and the latest cursor.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {"after": {"type": "integer"}, "timeoutMs": {"type": "integer"}}, "type": "object"}}, {"ID": "toast.dnd", "Title": "Do Not Disturb", "Summary": "Turn Do Not Disturb on or off, or ask", "Description": "While it is on, a notification is filed in the record and not drawn; an urgent one is always drawn. It lives in the daemon's memory, so a restart turns it off rather than bringing a daemon back silent.", "Returns": "Whether it is on, and how many were held back since it went on.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"change": {"enum": ["DND_CHANGE_UNSPECIFIED", "DND_CHANGE_QUERY", "DND_CHANGE_ON", "DND_CHANGE_OFF"], "type": "string"}}, "type": "object"}}, {"ID": "toast.retract", "Title": "Toast retract", "Summary": "Take back a toast you sent, before anybody deals with it", "Description": "Withdraws one toast by its record id, or with none every toast of yours still on screen: the bubble says it was withdrawn and leaves, the notification record is retracted with your reason, and an unanswered ask is answered withdrawn, so whoever waits on its reply is told and a late reply is refused. Only a toast's sender may take it back, named from the connection as notify names it. Posted as toast.retracted. Use it the moment something you said stops being true: a warning for a build since fixed is worse than none.", "Returns": "The records retracted, or a note saying why none was.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"reason": {"type": "string"}, "recordId": {"type": "string"}}, "type": "object"}}, {"ID": "toast.reply", "Title": "Toast reply", "Summary": "Answer a toast that asked for a reply", "Description": "Files the answer to a toast whose sender offered reply buttons or free text: exactly one of a button's label, free text, or dismissed when it was closed unanswered. The first reply wins and a second is refused. The replier is the calling connection, and the answer is filed in the record as kind notification-reply.", "Returns": "The answer as filed.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"dismissed": {"type": "boolean"}, "recordId": {"type": "string"}, "reply": {"type": "string"}, "text": {"type": "string"}}, "type": "object"}}, {"ID": "sound", "Title": "Sound", "Summary": "Mute sounds, choose the toast sound and how much of a toast is read aloud, or ask", "Description": "A drawn toast plays a sound (the hail or the badge chirp, or the file rigd was started with) and is then read aloud: not at all, its title, or its title and body. One mute silences the sound and all speech, and stops what is playing. The settings survive a restart. A field left unspecified changes nothing, so an empty request only asks.", "Returns": "The settings, the player and speech engine found, and why anything is silent.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"mute": {"enum": ["SOUND_MUTE_UNSPECIFIED", "SOUND_MUTE_ON", "SOUND_MUTE_OFF"], "type": "string"}, "readAloud": {"enum": ["READ_ALOUD_UNSPECIFIED", "READ_ALOUD_OFF", "READ_ALOUD_TITLE", "READ_ALOUD_TITLE_AND_BODY"], "type": "string"}, "toastSound": {"enum": ["TOAST_SOUND_UNSPECIFIED", "TOAST_SOUND_HAIL", "TOAST_SOUND_BADGE", "TOAST_SOUND_FILE"], "type": "string"}, "volume": {"type": "integer"}}, "type": "object"}}, {"ID": "say", "Title": "Say", "Summary": "Read text aloud", "Description": "Reads arbitrary text aloud through the installed speech engine at its best quality (Kokoro, else piper), in the same queue as the toast sounds so nothing talks over anything else. Refused while sounds are muted. With wait, answers once the text has been heard, for at most two minutes.", "Returns": "With wait, whether it was heard before the bound.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {"text": {"type": "string"}, "wait": {"type": "boolean"}}, "type": "object"}}, {"ID": "toast.answer", "Title": "Toast answer", "Summary": "Wait for the reply to a toast you sent", "Description": "Answers the reply to a toast that asked for one, waiting up to the timeout (at most 60 seconds) if nobody has replied yet; zero asks without waiting. A toast that asks never closes on its own, so the reply may come much later: ask again.", "Returns": "The answer, or answered false while nobody has replied.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {"recordId": {"type": "string"}, "timeoutMs": {"type": "integer"}}, "type": "object"}}, {"ID": "events.publish", "Title": "Events publish", "Summary": "Say that something happened, for every seat or program waiting on it", "Description": "A seat (announce first) publishes a signal, signal.<words> like signal.tests.green, to wake peers waiting on it; to_seat makes it that one seat's alone. A registered program publishes one of the kinds it declared under events, named <its id>.<what happened>. The payload is JSON of at most 16 KiB. An event says what happened, never what to do. Everyone waiting on a matching kind is woken. Signals are kept 7 days, so a peer that is not waiting now picks one up later from its cursor. For a message that must be acknowledged, use message_send.", "Returns": "The event, with its seq, and delivered: how many waits in progress it reached.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"kind": {"type": "string"}, "payloadJson": {"type": "string"}, "toSeat": {"type": "string"}}, "type": "object"}}, {"ID": "events.wait", "Title": "Events wait", "Summary": "Wait for events of the kinds you name", "Description": "Answers every event after the cursor whose kind matches one of the patterns (a kind like hand.changed, or a prefix like hand.*), oldest first, as soon as there is one, or nothing once the timeout (at most 60 seconds) passes. Carry latest and epoch into the next call. gap means events were lost, past the ring or across a restart: re-read the state rather than assume nothing happened. Signals (signal.*) are kept for 7 days, up to 1000 per kind, so a cursor from before a restart still gets every signal after it, with no gap; a first call with after 0 gets only this run's. rig's own kinds are open to every caller: signal.* (seats' signals), lease.* (lease.changed when a lease is acquired, released, broken, queued, orphaned, fenced or expired), roster.* (roster.changed when a seat announces or leaves), shared.* (shared.<key> when a shared key is set, deleted or its owner is gone, so shared.claims.* is one family), hand.*, toast.*, system.*, timer.*, config.*. A program may also wait on its own.", "Returns": "The matching events, the latest seq, the epoch, and whether any were lost.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {"after": {"type": "integer"}, "epoch": {"type": "integer"}, "kinds": {"items": {"type": "string"}, "type": "array"}, "timeoutMs": {"type": "integer"}}, "type": "object"}}, {"ID": "config.get", "Title": "Config get", "Summary": "Every setting under a key or prefix, with the layer that set it", "Description": "Answers each of rig's settings under the prefix (empty is all): the value in effect, the layer and file that set it, every layer that set it and lost, lowest first, and whether a change applies live. Also the orphans (values set for a key nothing declares, usually a misspelling), the problems (a file or value that took no part, and why), and where the resolved snapshot is written.", "Returns": "The settings with their provenance, the orphans, the problems and the snapshot path.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {"prefix": {"type": "string"}}, "type": "object"}}, {"ID": "config.set", "Title": "Config set", "Summary": "Change settings until rigd restarts", "Description": "Sets keys in the runtime layer, the highest, which a restart clears; a lasting change is an edit to ~/.config/rig/rig.toml. Values are JSON text, and a JSON string is read as the key's type. The set is validated whole: one bad value applies nothing and names the key and why. Each key answers applied or needs-restart; a key whose value moved is published as config.changed.", "Returns": "Per key, applied or needs-restart, and the snapshot path.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"valuesJson": {"type": "object"}}, "type": "object"}}, {"ID": "logs.query", "Title": "Logs query", "Summary": "Read the estate's logs, merged across rigd and every program", "Description": "Answers the log records of rigd and every program, time-ordered by each record's own clock, filtered by time (unix nanos, 0 is open), clients, least level (slog's integers: -4 debug, 0 info, 4 warn, 8 error) and an RE2 grep over the message and its attrs. The newest records are kept up to the limit (default 1000, at most 10000) and truncated says some were left out. gaps lists every stretch the store knows it does not hold whole, such as an unclean close, so a view never reads as complete when it is not. With timeout_ms, the call waits up to 60 s for a record after the cursor: carry latest into after to follow. A program reads its own records; a terminal or an agent, everyone's.", "Returns": "The matching records oldest first, the gaps over the range, the latest seq, and whether the answer was truncated.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {"after": {"type": "integer"}, "clients": {"items": {"type": "string"}, "type": "array"}, "grep": {"type": "string"}, "limit": {"type": "integer"}, "minLevel": {"type": "integer"}, "sinceUnixNanos": {"type": "integer"}, "timeoutMs": {"type": "integer"}, "untilUnixNanos": {"type": "integer"}}, "type": "object"}}, {"ID": "logs.ingest", "Title": "Logs ingest", "Summary": "Send a batch of your own log records to the estate's log store", "Description": "Files up to 1000 records under the caller's own name: a registered program's id, else the caller's seat; the seq and client a record carries are ignored. unix_nanos 0 is the time rig received it. Each client has a rate ceiling, 1000 records a second past a burst of 5000; records past it are sampled out, the answer counts them, and the coverage log carries a sampled band with retained/total so counts stay correct. dropped_before reports records your own buffer dropped, and becomes a band too. Read them back with logs.query.", "Returns": "How many records were accepted, and how many the rate ceiling sampled out.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"droppedBefore": {"type": "integer"}, "records": {"items": {"additionalProperties": false, "properties": {"attrs": {"type": "object"}, "client": {"type": "string"}, "level": {"type": "integer"}, "message": {"type": "string"}, "seq": {"type": "integer"}, "unixNanos": {"type": "integer"}}, "type": "object"}, "type": "array"}}, "type": "object"}}, {"ID": "logs.coverage", "Title": "Logs coverage", "Summary": "Say what the estate's log store holds and what it has lost", "Description": "Answers every gap over the range (unix nanos, 0 is open) that the caller may read: an unclean close, a ring overwrite, a failed write, a sampled band from the rate ceiling, records a program dropped itself, and every segment unlinked by age or size. Also every segment, oldest first, with its id, size, last write, and whether it is compressed (once, when it rotates), archived (at 30 days, still read), pinned or open, and the total size. A program sees only its own gaps.", "Returns": "The gaps, the segments and their total size.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {"sinceUnixNanos": {"type": "integer"}, "untilUnixNanos": {"type": "integer"}}, "type": "object"}}, {"ID": "logs.pin", "Title": "Logs pin", "Summary": "Keep one log segment past the age and size ceilings, or release it", "Description": "Pins the segment with that id, as rig.logs.coverage lists it, so it is never unlinked by age (90 days) or by the size ceiling; unpin releases it to both. Only a caller that may read every client's records may pin, since a segment holds them all.", "Returns": "Whether the pin changed anything.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"segment": {"type": "integer"}, "unpin": {"type": "boolean"}}, "type": "object"}}, {"ID": "timer.arm", "Title": "Timer arm", "Summary": "Arm a named timer; rig publishes timer.fired to you when it comes due", "Description": "A registered program arms a timer under its own name with a schedule: every 15m (a minute at least), at 09:00, a five-field cron line, or @hourly, @daily, @weekly, @monthly, in local time. rig keeps the clock, so a fire due while the machine slept comes once at resume with missed counting the rest. Arming the same name and schedule again changes nothing, so arm your timers each time you start; another schedule replaces it. Timers live in memory and end when rigd restarts.", "Returns": "The timer with its next fire, and whether an earlier schedule was replaced.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"name": {"type": "string"}, "schedule": {"type": "string"}}, "type": "object"}}, {"ID": "timer.disarm", "Title": "Timer disarm", "Summary": "Disarm one of your timers", "Description": "Removes the caller's timer of that name. Disarming one that is not armed changes nothing.", "Returns": "Whether a timer was disarmed.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"name": {"type": "string"}}, "type": "object"}}, {"ID": "timer.list", "Title": "Timer list", "Summary": "Your armed timers", "Description": "Answers the caller's timers, by name, each with its schedule and next fire.", "Returns": "The timers.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {}, "type": "object"}}, {"ID": "hand.request", "Title": "Hand request", "Summary": "Ask for the desktop's pointer and keyboard, through his countdown", "Description": "Starts the HANDS OFF countdown (20 seconds unless asked for 10 to 120) and blocks through it. Silence is consent; he can let it start now, decline it, or hold it, and a held countdown never starts by itself. Refused while another run has the desktop. The run is tied to the asking connection and ends when it closes.", "Returns": "The state once the run drives; refused when he declined or held it too long.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"countdownMs": {"type": "integer"}, "reason": {"type": "string"}}, "type": "object"}}, {"ID": "hand.step", "Title": "Hand step", "Summary": "The gate before each step of a run", "Description": "Answers at once while the run drives, and names what it is doing on the strip (an op and a step number, never typed text). Blocks while he has taken the desktop back, for at most ten minutes, and is refused once he stopped the run.", "Returns": "The state; refused once the run is over, with why.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"activity": {"type": "string"}, "hasPoint": {"type": "boolean"}, "note": {"type": "string"}, "x": {"type": "integer"}, "y": {"type": "integer"}}, "type": "object"}}, {"ID": "hand.release", "Title": "Hand release", "Summary": "Give the desktop back", "Description": "Ends the calling connection's run as finished and takes the strip down. Releasing a run that is already over changes nothing.", "Returns": "The state after it.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {}, "type": "object"}}, {"ID": "hand.wait", "Title": "Hand wait", "Summary": "Wait for the desktop's state to change", "Description": "Answers the HANDS OFF state once it changed past a cursor, or as it stands once the timeout (at most 60 seconds) passes; zero answers now. The tray holds this to raise and lower the strip.", "Returns": "The state, with its cursor.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {"after": {"type": "integer"}, "timeoutMs": {"type": "integer"}}, "type": "object"}}, {"ID": "hand.answer", "Title": "Hand answer", "Summary": "Allow, decline, hold, pause, resume or stop a run", "Description": "His answer to the countdown or the run: allow starts it now, decline ends it, hold freezes the countdown, resume lets a held countdown run on or a paused run drive again, pause takes the desktop back, stop ends the run. Refused to a program and to an agent: only the person at the desktop answers.", "Returns": "The state after it.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"action": {"enum": ["HAND_ACTION_UNSPECIFIED", "HAND_ACTION_ALLOW", "HAND_ACTION_DECLINE", "HAND_ACTION_HOLD", "HAND_ACTION_PAUSE", "HAND_ACTION_RESUME", "HAND_ACTION_STOP"], "type": "string"}}, "type": "object"}}, {"ID": "hand.strip", "Title": "Hand strip", "Summary": "Where the HANDS OFF strip is", "Description": "The strip reports its window on the root, so a step whose point is under it waits for it to move away. Kept for as long as the reporting connection is open. Refused to a program and to an agent: only the strip says where it is.", "Returns": "The state after it.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"height": {"type": "integer"}, "width": {"type": "integer"}, "x": {"type": "integer"}, "y": {"type": "integer"}}, "type": "object"}}, {"ID": "lease.check", "Title": "Lease check", "Summary": "Whether a fencing token is still the current one", "Description": "Answers whether the token is the lease's current fencing token: the lease carries it and is held or orphaned, so nobody has been granted it since. A resource asks this before accepting a write, and refuses a stale token. Tokens are monotonic per lease, so a token that stops being current never becomes current again.", "Returns": "Whether the token is current, and the lease as it stands.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {"name": {"type": "string"}, "token": {"type": "integer"}}, "type": "object"}}, {"ID": "lease.acquire", "Title": "Lease acquire", "Summary": "Take a named lease for a TTL, queueing for it if you ask to", "Description": "Takes the lease for the caller's seat, witnessed by the pid the socket reports for the caller, or declared unwitnessed. Take one before anything shared - deploy:<project>, repo:<project>, vm:<name> - and release it as soon as the work is done; never hold one across a question to the human. With wait_ms (at most 25 minutes) a held lease is QUEUED for, first come first served: a lease that frees goes to the queue's head, never to a newcomer, and rig hands over one that expires because its holder died. A wait that would deadlock is refused at once, naming the chain. Without wait_ms, a held or orphaned lease is refused with who holds it, what for, what they are doing and for how long. Re-acquiring your own is the reconnect path and issues a new token. Every change is posted as lease.changed (acquired, released, broken, queued, orphaned, fenced, expired), so watching a resource is one events_wait.", "Returns": "The handle and granted_because (free, released, broken, expired). A wait that ran out is a RESULT, not an error: timed_out with the incumbent's full picture, and your place given up.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"name": {"type": "string"}, "ttlMs": {"type": "integer"}, "unwitnessed": {"type": "boolean"}, "waitMs": {"type": "integer"}}, "type": "object"}}, {"ID": "lease.renew", "Title": "Lease renew", "Summary": "Extend a lease you hold", "Description": "Extends the lease against its token and epoch. An orphaned lease is renewable by its own holder, which is why orphaned is not free. A handle from before a daemon restart is fenced by its epoch.", "Returns": "The handle with its new deadline.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"epoch": {"type": "integer"}, "name": {"type": "string"}, "token": {"type": "integer"}, "ttlMs": {"type": "integer"}}, "type": "object"}}, {"ID": "lease.fence", "Title": "Lease fence", "Summary": "Name the process group a wrapped run started under your lease", "Description": "What `rig peers run --lease` calls once its command has started: rig then kills that group before the lease can pass to anybody else, so a stalled holder's work stops rather than racing the next holder. Only the process the lease witnessed may fence it, with a group it started as its own user.", "Returns": "Nothing. The lease is fenced afterwards or the call was refused.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"epoch": {"type": "integer"}, "name": {"type": "string"}, "pid": {"type": "integer"}, "token": {"type": "integer"}}, "type": "object"}}, {"ID": "lease.release", "Title": "Lease release", "Summary": "Give a lease back", "Description": "Frees the lease against its token and epoch. The token stays monotonic per lease, so an old handle can never match again.", "Returns": "Nothing. The lease is free afterwards or the call was refused.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"epoch": {"type": "integer"}, "name": {"type": "string"}, "token": {"type": "integer"}}, "type": "object"}}, {"ID": "lease.break", "Title": "Lease break", "Summary": "Free an orphaned lease by a recorded human action", "Description": "The only way an unwitnessed orphan ever becomes free. Records the caller's seat as who broke it and requires a reason. Refused for a lease still inside its deadline.", "Returns": "Nothing. The lease is free afterwards, naming who broke it and why.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"name": {"type": "string"}, "reason": {"type": "string"}}, "type": "object"}}, {"ID": "shared.get", "Title": "Shared get", "Summary": "Read the shared table: one key, or a family", "Description": "Reads small state every seat on the estate can see. A key is dotted lower-case words (claims.chunk-3); claims.* reads the family, * every key, at most 200 an answer. Each value carries its version, who wrote it, its owner, and owner_gone when the owner left the roster and its process is observed dead - work started and abandoned. A key that does not exist answers version 0, which is the expected_version that claims it. Reads need no seat.", "Returns": "The value, or the family in key order, with a note on what to do next.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {"key": {"type": "string"}}, "type": "object"}}, {"ID": "shared.set", "Title": "Shared set", "Summary": "Write the shared table under compare-and-swap: claim an item, or update what you read", "Description": "To split work, one key per item and claim it with expected_version 0: it lands only if nobody has the key, so ten seats over ten keys never double-claim. To update, pass the version you read. Losing is a RESULT, not an error: applied false, stale true, the current value and a note. own records your seat and process as the owner, so a dead owner's claim reads owner_gone and is taken over by setting it at its version. Versions are never reused, even after a delete. Values are JSON, at most 16 KiB; at most 1000 keys. Every change posts the event shared.<key> (set, deleted, owner_gone), so waiting for a claim, a result or abandoned work is one events_wait on shared.claims.*. For a queue of tasks, queue_push and queue_claim already do this with leases.", "Returns": "applied, stale, the key as it now stands, and a note when it did not land.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"expectedVersion": {"type": "integer"}, "key": {"type": "string"}, "own": {"type": "boolean"}, "value": {"description": "any JSON value: an object, array, string, number, boolean or null"}}, "type": "object"}}, {"ID": "shared.delete", "Title": "Shared delete", "Summary": "Remove a shared key at the version you read", "Description": "Removes the key only if it is still at expected_version, which is required: an unconditional delete would erase a takeover made since you read it. Delete a claim when its work is done.", "Returns": "applied, stale, and the key as it was.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"expectedVersion": {"type": "integer"}, "key": {"type": "string"}}, "type": "object"}}, {"ID": "queue.list", "Title": "Queue list", "Summary": "A queue's unfinished tasks, or every queue's name", "Description": "Answers a queue's tasks not yet done, oldest first, each ready, claimed or orphaned with its claim lease evaluated now, and how many are done. With no queue it names every queue.", "Returns": "The tasks and the done count, or the queue names.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {"queue": {"type": "string"}}, "type": "object"}}, {"ID": "queue.push", "Title": "Queue push", "Summary": "Add a task to a queue, under a mandatory idempotency key", "Description": "Adds a task with an idempotency key and a payload. The same key again answers the existing task, done or not, and never queues it twice; the same key over a different payload is refused. Delivery is at-least-once, so the key is what makes a replay harmless.", "Returns": "The task, and whether it was a duplicate.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"idempotencyKey": {"type": "string"}, "payload": {"contentEncoding": "base64", "type": "string"}, "queue": {"type": "string"}}, "type": "object"}}, {"ID": "queue.claim", "Title": "Queue claim", "Summary": "Take the oldest ready task under a lease, witnessed by the caller's process", "Description": "Claims the oldest ready task for the caller's seat as a lease named queue/<queue>/<id>. Heartbeat it with lease.renew; release it unfinished with lease.release. Past its deadline it is orphaned while the worker lives and ready again once the worker is observed dead.", "Returns": "The task and the claim's handle.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"queue": {"type": "string"}, "ttlMs": {"type": "integer"}}, "type": "object"}}, {"ID": "queue.complete", "Title": "Queue complete", "Summary": "Finish a claimed task", "Description": "Marks the task done against its claim's token and epoch, and releases the claim. A worker whose claim moved on is refused, and its work is the duplicate the idempotency key is for.", "Returns": "The finished task.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"epoch": {"type": "integer"}, "name": {"type": "string"}, "token": {"type": "integer"}}, "type": "object"}}, {"ID": "store.get", "Title": "Store get", "Summary": "Read documents from a program's store by id, many at once", "Description": "Answers the documents with these ids from one collection, in the order asked; an id that does not exist is left out. A registered program reads its own store; a terminal or an agent names the program.", "Returns": "Each document found, with its version.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {"collection": {"type": "string"}, "ids": {"items": {"type": "string"}, "type": "array"}, "program": {"type": "string"}}, "type": "object"}}, {"ID": "store.query", "Title": "Store query", "Summary": "Ask one collection of a program's store", "Description": "Filters by conditions joined by AND (field, op eq/ne/lt/le/gt/ge, JSON scalar value), orders by fields then id, projects fields, and pages by limit and offset. count_only answers the count alone.", "Returns": "The matching documents, the total, and whether a later page exists.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {"collection": {"type": "string"}, "countOnly": {"type": "boolean"}, "fields": {"items": {"type": "string"}, "type": "array"}, "limit": {"type": "integer"}, "offset": {"type": "integer"}, "order": {"items": {"additionalProperties": false, "properties": {"desc": {"type": "boolean"}, "field": {"type": "string"}}, "type": "object"}, "type": "array"}, "program": {"type": "string"}, "where": {"items": {"additionalProperties": false, "properties": {"field": {"type": "string"}, "op": {"type": "string"}, "value": {"type": "string"}}, "type": "object"}, "type": "array"}}, "type": "object"}}, {"ID": "store.collections", "Title": "Store collections", "Summary": "List the collections in a program's store", "Description": "Names each collection with its document count and bytes.", "Returns": "The program and its collections.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {"program": {"type": "string"}}, "type": "object"}}, {"ID": "store.list", "Title": "Store list", "Summary": "List every database this estate keeps", "Description": "Names the record store, coord and each program's store, with its file, bytes, schema version and whether it is ephemeral. A registered program is refused: it sees only its own store.", "Returns": "Each namespace on this estate.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {}, "type": "object"}}, {"ID": "store.export", "Title": "Store export", "Summary": "Export a program's store as text files, committed to git", "Description": "Writes each collection, or the named ones, to <collection>.jsonl under the exports area: one line per document, sorted by id, with its version and write time. rig commits the export to the exports repository. A whole export removes the files of collections the store no longer has. A registered program exports its own store; a terminal or an agent names the program.", "Returns": "The directory, each collection's documents and bytes, the files removed, and the commit (empty when nothing changed).", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"collections": {"items": {"type": "string"}, "type": "array"}, "program": {"type": "string"}}, "type": "object"}}, {"ID": "store.import", "Title": "Store import", "Summary": "Replace a program's collections with its export", "Description": "Reads the program's export back: every line of every file is checked first and one bad line refuses the whole import. Then rig snapshots the store and replaces each named collection, or every collection the export holds, whole, in one transaction, with the exported versions. Collections not named are left alone.", "Returns": "Each collection's documents now and before, the snapshot that undoes the import, and the collections left alone.", "Effects": "destructive", "Args": {"additionalProperties": false, "properties": {"collections": {"items": {"type": "string"}, "type": "array"}, "program": {"type": "string"}}, "type": "object"}}, {"ID": "files.root", "Title": "Files root", "Summary": "Where to write free files: a program's own directory, or the shared area", "Description": "Answers an absolute directory the caller reads and writes directly, not through rig. rig commits the text files under it to git on an interval; binary files are never committed. shared answers the area every program shares; otherwise a registered program gets its own directory, and a terminal or an agent names the program.", "Returns": "The directory, the program, and how often rig commits.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"program": {"type": "string"}, "shared": {"type": "boolean"}}, "type": "object"}}, {"ID": "files.index", "Title": "Files index", "Summary": "Index a file you wrote under the free files, so others find it", "Description": "Indexes one file by its path under the free-files root, with a title, a one-line summary that searches show, and one-word tags; rig indexes the file's text beside them. Index everything you write there. A path that climbs out of the root or goes through a symlink is refused; a path whose file is gone has its entry dropped. Attributed to the caller.", "Returns": "What was indexed: searchable text bytes, whether the file is binary or was truncated, or that its entry was dropped.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"path": {"type": "string"}, "summary": {"type": "string"}, "tags": {"items": {"type": "string"}, "type": "array"}, "title": {"type": "string"}}, "type": "object"}}, {"ID": "files.search", "Title": "Files search", "Summary": "Find files under the free files by the words in them", "Description": "Searches the index over the free files and answers, best first, a path, a title, a one-line summary and a snippet per hit - never a body. No query syntax is interpreted. under narrows it to one directory.", "Returns": "Up to 20 hits, best first, each with a path to open.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {"limit": {"type": "integer"}, "query": {"type": "string"}, "under": {"type": "string"}}, "type": "object"}}, {"ID": "files.unindexed", "Title": "Files unindexed", "Summary": "List files under the free files the index does not describe as they are", "Description": "Answers files with no entry (new), files changed since their entry (stale), and entries whose file is gone. under narrows it to one directory.", "Returns": "The files, sorted by path, and how many there are in all.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {"limit": {"type": "integer"}, "under": {"type": "string"}}, "type": "object"}}, {"ID": "files.place", "Title": "Files place", "Summary": "Ask where a file of a kind goes before you write it", "Description": "Answers the path a file goes to under the layout in force: the kind (docs, resources, lessons, programs, or whatever the layout names), the subject, type or program its place takes, and the file name. A kind the layout does not name is refused with the list of kinds. rig makes nothing; write there directly, then index it.", "Returns": "The absolute path, the path relative to the free-files root, and the kind's place.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {"kind": {"type": "string"}, "name": {"type": "string"}, "program": {"type": "string"}, "subject": {"type": "string"}, "type": {"type": "string"}}, "type": "object"}}, {"ID": "files.layout", "Title": "Files layout", "Summary": "Read the layout of the free files: every kind and where it goes", "Description": "Answers the layout in force, the file that is edited to change it, and whether that file holds an edit not yet applied.", "Returns": "The kinds and their places, the layout file, and whether an edit is pending.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {}, "type": "object"}}, {"ID": "files.relayout", "Title": "Files relayout", "Summary": "Apply an edited layout: move the files already written to match it", "Description": "Moves every file whose kind's place changed to where the edited layout puts it, and rewrites their index entries so searches still find them. Refused whole, with nothing moved, if a file would be stranded or overwritten. dry_run answers the moves without making them. Paths callers were told before move.", "Returns": "The kinds that changed, the moves, how many index entries were rewritten, and whether the layout was applied.", "Effects": "destructive", "Args": {"additionalProperties": false, "properties": {"dryRun": {"type": "boolean"}}, "type": "object"}}, {"ID": "store.put", "Title": "Store put", "Summary": "Create or replace one JSON document, compare-and-swap", "Description": "Writes a JSON object under a collection and id. expected_version 0 creates and is refused if the id exists; otherwise it must be the version read, and a stale one is refused as a conflict rather than overwriting.", "Returns": "The version written.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"collection": {"type": "string"}, "document": {"type": "string"}, "expectedVersion": {"type": "integer"}, "id": {"type": "string"}, "program": {"type": "string"}}, "type": "object"}}, {"ID": "store.delete", "Title": "Store delete", "Summary": "Delete one document at the version read", "Description": "Removes one document if it is still at the version the caller read; a stale version is refused as a conflict.", "Returns": "Nothing, once deleted.", "Effects": "destructive", "Args": {"additionalProperties": false, "properties": {"collection": {"type": "string"}, "expectedVersion": {"type": "integer"}, "id": {"type": "string"}, "program": {"type": "string"}}, "type": "object"}}, {"ID": "store.transact", "Title": "Store transact", "Summary": "Apply several puts and deletes, all or none", "Description": "Applies every step in one transaction, each compare-and-swap. One failing step writes nothing, and the refusal names which step failed.", "Returns": "Each step's new version, 0 for a delete.", "Effects": "destructive", "Args": {"additionalProperties": false, "properties": {"ops": {"items": {"additionalProperties": false, "properties": {"collection": {"type": "string"}, "delete": {"type": "boolean"}, "document": {"type": "string"}, "expectedVersion": {"type": "integer"}, "id": {"type": "string"}}, "type": "object"}, "type": "array"}, "program": {"type": "string"}}, "type": "object"}}, {"ID": "message.list", "Title": "Message list", "Summary": "Every directed message this estate holds, promoting nothing", "Description": "Answers the estate's messages oldest first, or one seat's with a seat. It is the SENDER's surface: acted-on is the only state a sender may plan against, and a sender is never sitting in the recipient's seat. It promotes nothing, so reading it can never be mistaken for the recipient having read anything.", "Returns": "Every message, with its state, its pin and whether a tenancy it was not addressed to read it.", "Effects": "read-only", "Args": null}, {"ID": "message.send", "Title": "Message send", "Summary": "Send a directed message to a SEAT, optionally pinned to its generation", "Description": "Queues a message for a seat. The sender is this connection's own seat and is never read off the request. Pin it to a generation AND an epoch to address one tenancy: a pin that no longer matches is refused, naming the generation actually in the seat. A seat that is handing off has the message HELD for its successor rather than delivered into a closing session, and the answer says so. A seat nobody holds is refused, and so is a name nobody has ever used, in different words.", "Returns": "The message as stored, the recipient seat's state, and how many parked readers it was handed to.", "Effects": "writes-files", "Args": null}, {"ID": "message.inbox", "Title": "Message inbox", "Summary": "Read YOUR OWN seat's mail after a cursor", "Description": "Answers your seat's messages after a cursor, oldest first, and promotes them to READ. The seat is this connection's and is never named in the request. A cursor older than retention comes back with gap set, which means the batch CANNOT be complete: treat what you were tracking as unknown. Anything addressed to a different tenancy of your seat is named in misaddressed - somebody is talking to a session that has gone.", "Returns": "The messages, the cursor to resume from, whether there is a gap, and which of them were addressed to somebody else's tenancy of your seat.", "Effects": "writes-files", "Args": null}, {"ID": "message.await", "Title": "Message await", "Summary": "Wait for mail on your own seat, up to 60 seconds", "Description": "rig.message.inbox parked: it answers as soon as there is anything after the cursor, or empty with timed_out once the wait passes. Waiting costs nothing while nothing happens. Everything since the cursor arrives in ONE batch, so three messages that landed while you were busy are one wake-up rather than two missed ones.", "Returns": "The same answer as the inbox, plus whether the wait ended with nothing.", "Effects": "writes-files", "Args": null}, {"ID": "message.ack", "Title": "Message acknowledge", "Summary": "Say you understood one of your messages, or what you did about it", "Description": "Promotes one of YOUR OWN messages to ACKNOWLEDGED, or to ACTED_ON with an outcome. Neither is ever inferred from delivery: a sender treating 'delivered' as agreement is the failure this ladder exists to prevent. Promotion never runs backwards, so acknowledging twice cannot lose the stronger fact.", "Returns": "The message in its new state, with the outcome you gave.", "Effects": "writes-files", "Args": null}, {"ID": "health", "Title": "Health", "Summary": "Every declared program's state, as evidence of progress", "Description": "Answers each declared program's section 18 state, the ones that need a human first: pid, failures, restarts, its last marker, what it says it is waiting on, the question it is parked on, how the last child ended, when a backoff elapses, and the history. A program rig is not running has no state, the table's dash.", "Returns": "One row per declared program.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {"programs": {"items": {"type": "string"}, "type": "array"}}, "type": "object"}}, {"ID": "health.report", "Title": "Health report", "Summary": "A supervised program's own progress: a marker, waiting, parked", "Description": "Called BY a supervised program. The program is the connection's own, and only the process rig started for it may report; the request names nobody. An advancing marker is progress; a still marker with waiting set is not a failure; parked is a question nobody has seen.", "Returns": "Nothing.", "Effects": "read-only", "Args": {"additionalProperties": false, "properties": {"marker": {"type": "integer"}, "parked": {"type": "string"}, "waiting": {"type": "string"}}, "type": "object"}}, {"ID": "up", "Title": "Up", "Summary": "Start declared programs, or every one", "Description": "Starts each named program from programs.json, or every declared program with none named. A program already running is answered as it stands and never started twice.", "Returns": "Each program's state after the call.", "Effects": "writes-files", "Args": {"additionalProperties": false, "properties": {"programs": {"items": {"type": "string"}, "type": "array"}}, "type": "object"}}, {"ID": "stop", "Title": "Stop", "Summary": "Stop one supervised program", "Description": "Sends the program SIGTERM, then SIGKILL after its grace, and takes it off the table: it has no state until rig up starts it again. Its history is kept. Programs rig did not start are never touched.", "Returns": "The program's state after the call.", "Effects": "destructive", "Args": {"additionalProperties": false, "properties": {"program": {"type": "string"}}, "type": "object"}}, {"ID": "restart", "Title": "Restart", "Summary": "Restart one supervised program; the way out of QUARANTINED", "Description": "Out of QUARANTINED this is the human row, and it clears the restart budget. In any other state it is a stop and a launch, both recorded with a human as the actor.", "Returns": "The program's state after the call.", "Effects": "destructive", "Args": {"additionalProperties": false, "properties": {"program": {"type": "string"}}, "type": "object"}}, {"ID": "down", "Title": "Down", "Summary": "Stop the daemon", "Description": "Stops this rigd, the one serving the socket in this XDG_RUNTIME_DIR. It is scoped by that directory and needs no estate name.", "Returns": "The pid and version of the daemon that agreed to stop.", "Effects": "destructive", "Args": {"additionalProperties": false, "properties": {}, "type": "object"}}];
+const RIG_SCHEMA = {"$id": "rig://schema/rig", "type": "object", "additionalProperties": false, "properties": {"log": {"type": "object", "additionalProperties": false, "properties": {"level": {"type": "string", "enum": ["debug", "info", "warn", "error"], "default": "info", "x-rig-apply": "live", "description": "the daemon's log floor; read on every line"}}}, "logs": {"type": "object", "additionalProperties": false, "properties": {"archive": {"type": "object", "additionalProperties": false, "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 3650, "default": 30, "x-rig-apply": "restart", "description": "a closed log segment moves to archive/ after this many days since its last record; it is still read (plan/49 decision 11)"}}}, "buffer": {"type": "object", "additionalProperties": false, "properties": {"bytes": {"type": "integer", "minimum": 65536, "maximum": 67108864, "default": 2097152, "x-rig-apply": "restart", "description": "the log store's ring in memory, for every client together (plan/49 decision 5)"}}}, "call": {"type": "object", "additionalProperties": false, "properties": {"payload": {"type": "object", "additionalProperties": false, "properties": {"cap": {"type": "integer", "minimum": 256, "maximum": 65536, "default": 4096, "x-rig-apply": "restart", "description": "a call record holds a payload inline up to this many bytes, else in the blob area; its full size is always recorded (plan/49 decision 7)"}}}}}, "retention": {"type": "object", "additionalProperties": false, "properties": {"bytes": {"type": "integer", "minimum": 1048576, "maximum": 1099511627776, "default": 524288000, "x-rig-apply": "restart", "description": "the log store's size ceiling on disk, segments and blobs together; past it the oldest unpinned segment is unlinked, after the rate ceiling and before age"}}}, "rate": {"type": "object", "additionalProperties": false, "properties": {"records": {"type": "integer", "minimum": 10, "maximum": 1000000, "default": 1000, "x-rig-apply": "restart", "description": "each client's rate ceiling in records a second, past its burst; records over it are sampled out and a band says how many (plan/49 decision 11)"}, "burst": {"type": "integer", "minimum": 10, "maximum": 10000000, "default": 5000, "x-rig-apply": "restart", "description": "how many records a client may send at once before its rate ceiling applies"}}}, "delete": {"type": "object", "additionalProperties": false, "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 3650, "default": 90, "x-rig-apply": "restart", "description": "a log segment is unlinked after this many days since its last record, unless pinned; the coverage log says so"}}}, "flush": {"type": "object", "additionalProperties": false, "properties": {"ms": {"type": "integer", "minimum": 10, "maximum": 10000, "default": 250, "x-rig-apply": "restart", "description": "how long after the first unwritten record the log store writes; a crash loses at most this much"}, "bytes": {"type": "integer", "minimum": 4096, "maximum": 4194304, "default": 262144, "x-rig-apply": "restart", "description": "the log store writes sooner once this much is waiting"}}}}}, "programs": {"type": "object", "additionalProperties": false, "properties": {"scan": {"type": "string", "maxLength": 4096, "default": "~/.local/lib/rig/apps", "x-rig-apply": "restart", "description": "directories rig scans for programs, colon-separated; everything in one is a program and declares how it is loaded (plan/54, decision 0265)"}}}, "display": {"type": "object", "additionalProperties": false, "properties": {"name": {"type": "string", "maxLength": 64, "default": "", "x-rig-apply": "live", "description": "shown in place of this user's own seat on provenance surfaces; empty falls back to the seat name"}}}}};
 
 // ── theme ──────────────────────────────────────────────────────────────────
 function applyTheme() {
@@ -906,7 +983,7 @@ const estate = [
     coverage: 'partial', note: 'cards and the board; no config', commands: [['ask', 'ask the user a question on a card'], ['board.put', 'add or change a card'], ['notify', 'a one-line notice']],
     restarts: 0, calls: 14, lastExit: 'exit 0, idle', binary: '2049:1311742:9.8 MB:10:41', read: '10:41, kept', gui: false },
   { id: 'ledger', name: 'Ledger', version: '1.2.0', load: 'resident', state: 'healthy', since: '2 h', found: 'programs.json', path: '~/.local/bin/ledger',
-    coverage: 'full', note: 'everything but streams', commands: [['reconcile', 'match entries against the bank'], ['entries', 'list entries'], ['export', 'write a CSV']],
+    coverage: 'full', note: 'everything but streams', commands: [['reconcile', 'match entries against the bank'], ['match', 'match an entry to its bank line'], ['reject', 'mark an entry not a match'], ['entries', 'list entries'], ['export', 'write a CSV']],
     restarts: 0, binary: '2049:1310012:10.2 MB:08:39', read: '08:39, at its start', gui: true },
   { id: 'lantern', name: 'Lantern', version: '0.8.0', load: 'on call', state: 'running', since: '30 s', found: 'scan', path: '~/.local/lib/rig/apps/lantern',
     coverage: 'partial', note: 'search only', commands: [['search', 'full-text search'], ['index', 'reindex a folder']],
@@ -952,7 +1029,10 @@ const S = {
   nq: '', nsrc: '',      // requirement 9: search, and one source
   evicted: 0,
   guis: {},              // requirement 10: program id -> its registered GUI
-  mainTab: 'programs',   // requirement 16: Main's own tabs, so it hardly scrolls
+  mainTab: 'needs',      // requirement 16: Main's own tabs; 24: Needs you first
+  wq: '', wireAll: false, // requirement 18: wire search; 21: one program's wire
+  bsrc: '',              // requirement 27: the board's one source
+  sq: '', cq: '', cap: 'notify', capArgs: {}, capOut: {}, capConfirm: null, // 19, 28
 };
 let seq = 0;
 const flash = new Set(); // cards changed since the last draw
@@ -968,9 +1048,17 @@ function ago(ms) {
 }
 
 // ── the write path, simulated: a verb writes, the store keeps, the bus wakes
-function wire(kind, verb, text) {
-  S.wire.unshift({ at: clock(), kind, verb, text });
+// Requirement 21: every line names the program it concerns, so a program's
+// GUI can show only its own. rigd knows the caller; the mock reads the text.
+let wireQueued = false;
+const IDS = new Set([...Object.keys(WRITERS), ...estate.map((e) => e.id)]);
+function wire(kind, verb, text, who) {
+  if (!who) who = (String(text).match(/[a-z][a-z-]*/g) || []).find((w) => IDS.has(w)) || 'rig';
+  S.wire.unshift({ at: clock(), kind, verb, text, who });
   S.wire.length = Math.min(S.wire.length, 120);
+  // A line can land between draws (a GUI's frame answers late), so the open
+  // wire redraws itself once per frame rather than waiting for the next render.
+  if (S.showWire && !wireQueued) { wireQueued = true; requestAnimationFrame(() => { wireQueued = false; renderWire(); }); }
 }
 function put(from, fields, cardId) {
   if (fields.body && new TextEncoder().encode(fields.body).length > BODY_CAP) {
@@ -995,9 +1083,9 @@ function put(from, fields, cardId) {
   const snap = { rev: c.rev, at: clock(), title: c.title, status: c.status, severity: c.severity, body: c.body, progress: c.progress, facts: c.facts, closed: c.closed };
   c.versions.push(snap);
   const changed = before.rev ? Object.keys(fields).filter((k) => JSON.stringify(before[k]) !== JSON.stringify(fields[k])).join(', ') : 'new card';
-  wire('put', 'rig.panel.put', `${from} -> ${c.id} rev ${c.rev} (${changed})`);
-  wire('store', 'store', `panel/${c.id}.${c.rev} kept whole`);
-  wire('bus', 'panel.changed', `-> window`);
+  wire('put', 'rig.panel.put', `${from} -> ${c.id} rev ${c.rev} (${changed})`, from);
+  wire('store', 'store', `panel/${c.id}.${c.rev} kept whole`, from);
+  wire('bus', 'panel.changed', `-> window`, from);
   S.dismissed.delete(c.from);
   if (S.minimised) S.unseen.push(c.severity || 'info');
   flash.add(c.id);
@@ -1006,8 +1094,8 @@ function put(from, fields, cardId) {
 function close(from, id, fields = {}) {
   put(from, { ...fields, closed: clock() }, id);
 }
-function notify(from, severity, title, body, at) {
-  S.notes.unshift({ id: ++seq, from, severity, title, body, at: at ?? clock(), unread: true });
+function notify(from, severity, title, body, at, more = {}) {
+  S.notes.unshift({ id: ++seq, from, severity, title, body, at: at ?? clock(), unread: true, ...more });
   S.notes.sort((a, b) => b.at - a.at);
   if (at === undefined) wire('bus', 'rig.notify', `${from}: ${title}`);
 }
@@ -1037,14 +1125,16 @@ function registerGui(from, entry) {
   Object.assign(t, { open: true, fresh: true });
   wire('tab', 'rig.gui.register', `${from} registers its GUI: ${entry}, styled by rig.css; its tab is added, Main stays in front`);
 }
+const INTERNAL = { capabilities: 'Capabilities', guidelines: 'Guidelines', settings: 'Settings' };
 // Requirement 14: picking a program opens its tab, from the rail or from
 // Main's list. A program with no GUI gets rig's own page about it.
 function openTab(id) {
   let t = S.tabs.find((x) => x.id === id);
   if (!t) {
-    const e = estate.find((x) => x.id === id);
-    if (!e) return;
-    t = { id, title: id, kind: 'program' }; S.tabs.push(t);
+    if (INTERNAL[id]) t = { id, title: INTERNAL[id], kind: 'rig' };
+    else if (estate.find((x) => x.id === id)) t = { id, title: id, kind: 'program' };
+    else return;
+    S.tabs.push(t);
   }
   if (!t.open) t.picked = clock();
   Object.assign(t, { open: true, fresh: false });
@@ -1099,10 +1189,10 @@ function ledgerReconcile(jobId) {
   wire('tab', 'queue.claim', `ledger claims ${jobId}`);
   const step = () => {
     ledger.running = Math.min(1, ledger.running + 0.25);
-    wire('tab', 'progress.step', `${jobId} ${Math.round(ledger.running * 100)}%`);
+    wire('tab', 'progress.step', `${jobId} ${Math.round(ledger.running * 100)}%`, 'ledger');
     if (ledger.running >= 1) {
       ledger.running = null; ledger.lastRun = hhmm(Date.now());
-      wire('tab', 'queue.complete', `${jobId} done`);
+      wire('tab', 'queue.complete', `${jobId} done`, 'ledger');
       notify('ledger', 'success', 'Reconciliation finished', `${ledger.matched} matched, ${ledger.open.length} need you`);
       render();
     }
@@ -1133,7 +1223,7 @@ function rigAnswers(verb, args, reply) {
     if (!LEDGER_JOBS.has(args?.job)) return refuse('not a job ledger takes');
     if (ledger.running !== null) return refuse('a reconcile is already running');
     const id = `job-${++jobs}`;
-    wire('acted', 'queue.push', `${args.job} as ${id}`);
+    wire('acted', 'queue.push', `${args.job} as ${id}`, 'ledger');
     reply(true, { job: id });
     setTimeout(() => ledgerReconcile(id), 300);
     return;
@@ -1142,7 +1232,7 @@ function rigAnswers(verb, args, reply) {
     const acts = Array.isArray(args?.actions) ? args.actions.filter((a) => typeof a === 'string').slice(0, 3) : [];
     if (typeof args?.title !== 'string' || !acts.length) return refuse('a toast needs a title and actions');
     wire('tab', 'toast', `from ledger: "${args.title.slice(0, 80)}"`);
-    askToast('ledger', args.title.slice(0, 200), String(args.body || '').slice(0, 400), acts, (choice) => { wire('tab', 'toast.answer', `"${choice}"`); reply(true, choice); });
+    askToast('ledger', args.title.slice(0, 200), String(args.body || '').slice(0, 400), acts, (choice) => { wire('tab', 'toast.answer', `"${choice}"`, 'ledger'); reply(true, choice); });
     return;
   }
   refuse(`rig carries no verb "${String(verb).slice(0, 40)}"`);
@@ -1172,6 +1262,35 @@ function askToast(from, title, body, actions, answer) {
   box.querySelector('button').focus();
 }
 
+// Requirements 23 to 26: what needs him. A notification linked to a card is
+// one item, so deciding it on either surface decides both.
+function needsYou() {
+  const items = [], linked = new Set();
+  for (const n of S.notes) if (n.actions && !n.decided) {
+    items.push({ kind: 'note', n, from: n.from, title: n.title, body: n.body, actions: n.actions, at: n.at, sev: n.severity });
+    if (n.card) linked.add(n.card);
+  }
+  for (const c of S.cards.values()) if (!c.closed && c.actions && !c.decided && (c.status === 'waiting' || c.status === 'failed') && !linked.has(c.id))
+    items.push({ kind: 'card', c, from: c.from, title: c.title, body: c.body, actions: c.actions, at: c.updated, sev: c.severity });
+  return items.sort((a, b) => b.at - a.at);
+}
+function decideCard(c, choice) {
+  if (!c || c.decided) return;
+  c.decided = { choice, at: clock() };
+  acted(c, choice.toLowerCase());
+}
+function decideNote(n, choice) {
+  if (n.decided) return;
+  n.decided = { choice, at: clock() }; n.unread = false;
+  wire('acted', 'toast.answer', `-> ${n.from} "${choice}" for "${n.title}"`, n.from);
+  if (n.card) decideCard(S.cards.get(n.card), choice);
+}
+function decide(item, choice) {
+  if (item.kind === 'note') decideNote(item.n, choice); else decideCard(item.c, choice);
+  render();
+}
+function noteFor(card) { return S.notes.find((n) => n.card === card.id); }
+
 function acted(card, action) {
   wire('acted', 'panel.acted', `-> ${card.from} {card: ${card.id}, action: ${action}}`);
   toast(`Sent "${action}" to ${card.from}. It answers by updating the card.`);
@@ -1190,7 +1309,7 @@ const SCRIPT = [
   () => { ids.ci = put('rig-lead', { title: 'make ci', status: 'failed', severity: 'error', body: 'wire golden: Program gained two fields. Re-record with -update.', actions: ['Retry', 'Open log'] }); notify('rig-lead', 'error', 'make ci failed', 'wire golden: Program gained two fields'); },
   () => { put('storeworker', { progress: 0.88 }, ids.sw); },
   () => { put('rig-lead', { status: 'done', severity: 'success', body: 'Re-recorded the golden; all gates green.' }, ids.ci); },
-  () => { put('beacon', { title: 'Card drawn: deploy now?', status: 'waiting', severity: 'warning', body: 'Asked by rig-lead. Options: yes, later.', actions: ['Yes', 'Later'] }); requestTab('beacon', 'a question for you'); notify('beacon', 'warning', 'A question for you', 'deploy now?'); },
+  () => { ids.deploy = put('beacon', { title: 'Card drawn: deploy now?', status: 'waiting', severity: 'warning', body: 'Asked by rig-lead. Options: yes, later.', actions: ['Yes', 'Later'] }); requestTab('beacon', 'a question for you'); notify('beacon', 'warning', 'A question for you', 'deploy now?', undefined, { actions: ['Yes', 'Later'], card: ids.deploy, details: 'rig-lead drew this card through beacon: deploy v0.54 now, or later today. beacon waits for your answer and tells rig-lead.', facts: [['asked by', 'rig-lead'], ['through', 'beacon ask']] }); },
   () => { put('storeworker', { status: 'done', severity: 'success', progress: 1, body: '1,204 items reindexed in 38 s.' }, ids.sw); },
   () => { put('rig-lead', { status: 'done', severity: 'success', progress: 1, body: 'Both gaps closed and demonstrated live.' }, ids.plan); },
   () => { put('beacon-seat', { title: 'Too long a body', body: 'x'.repeat(BODY_CAP + 1) }); },
@@ -1220,13 +1339,16 @@ function tick() {
   ledger.lastRun = hhmm(S.now);
   registerGui('ledger', 'gui/index.html');
   requestTab('storeworker', 'run 417 needs a retry decision');
-  put('storeworker', { title: 'Run 417 failed: disk full', status: 'failed', severity: 'error', body: 'Freed 2 GB since. Retry?', actions: ['Retry'] });
+  ids.r417 = put('storeworker', { title: 'Run 417 failed: disk full', status: 'failed', severity: 'error', body: 'Freed 2 GB since. Retry?', actions: ['Retry', 'Leave it'] });
   S.tabs.find((x) => x.id === 'storeworker').open = false;
   const day = 86400e3, now = Date.now();
   notify('rig', 'info', 'rig started', 'production, epoch 108', now - 2.2 * 3600e3);
   notify('rig', 'warning', 'abacus quarantined', 'exit 2, five times in 4 minutes', now - 3600e3);
   notify('rig', 'info', 'keeper stopped', 'by a human, from rig stop', now - 20 * 60e3);
-  notify('storeworker', 'error', 'Run 417 failed', 'disk full', now - 3 * 3600e3);
+  notify('storeworker', 'error', 'Run 417 failed', 'disk full', now - 3 * 3600e3, { actions: ['Retry', 'Leave it'], card: ids.r417,
+    details: 'The backup run stopped when the disk filled at 182 MB written. 2 GB has been freed since, so a retry should finish.', facts: [['run', '417'], ['queue', 'storeworker.backup'], ['exit', 'ENOSPC']] });
+  notify('rig', 'warning', 'Restart abacus?', 'quarantined after five exits', now - 55 * 60e3, { actions: ['Restart', 'Leave it'], decided: { choice: 'Leave it', at: now - 50 * 60e3 },
+    details: 'abacus exited with code 2 five times in four minutes, so rig quarantined it. Its binary has changed since.', facts: [['restarts', '5'], ['last exit', 'exit 2']] });
   notify('rig', 'info', 'lantern found by the scan', '~/.local/lib/rig/apps/lantern, on call', now - 26 * 3600e3);
   notify('rig', 'success', 'Backup written', '~/rig-backups/production-2026-09-30.tar', now - 3 * day);
   notify('beacon-seat', 'info', 'beacon 0.3.0 installed', 'read by the scan, kept', now - 6 * day);
@@ -1250,6 +1372,7 @@ function worst(list) {
   return list.reduce((w, s) => (RANK[s] || 0) > (RANK[w] || 0) ? s : w, 'info');
 }
 function visible(c) {
+  if (S.bsrc && c.from !== S.bsrc) return false;
   if (S.sev.size && !S.sev.has(c.severity)) return false;
   if (S.status.size && !S.status.has(c.status)) return false;
   if (S.since === '1h' && clock() - c.updated > 3600e3) return false;
@@ -1268,14 +1391,19 @@ function renderTabs() {
     const tab = h('div', { class: 'tab' + (t.fresh ? ' fresh' : ''), role: 'tab', 'aria-selected': String(S.current === t.id), tabindex: '0',
       onclick: () => { S.current = t.id; t.fresh = false; render(); },
       onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); S.current = t.id; render(); } } },
-      t.kind === 'main' ? null : h('span', { class: 'dot', style: { '--sev': SEV[worst(own.map((c) => c.severity))] } }),
+      t.kind === 'main' || t.kind === 'rig' ? null : h('span', { class: 'dot', style: { '--sev': SEV[worst(own.map((c) => c.severity))] } }),
       h('span', { class: 'who' }, t.title),
       t.kind === 'main' ? null : h('span', { class: 'kind' }, t.kind),
       t.kind === 'main' ? null : h('button', { class: 'x', 'aria-label': `Close ${t.title}'s tab`, onclick: (e) => { e.stopPropagation(); t.open = false; t.closedAt = clock(); if (S.current === t.id) S.current = 'main'; render(); } }, svg(ICON.x)));
     bar.append(tab);
   }
   const closed = S.tabs.filter((x) => !x.open);
+  const need = needsYou().length;
   bar.append(h('span', { class: 'spacer' }),
+    h('button', { class: 'tool tray' + (need ? ' alert' : ''), id: 'tray', title: need ? `${need} need you: open them` : 'Nothing needs you',
+      'aria-label': need ? `rig's tray icon: ${need} need you. Open them` : 'rig\'s tray icon: nothing needs you',
+      onclick: () => { S.current = 'main'; S.mainTab = 'needs'; render(); document.querySelector('.subtabs [aria-selected="true"]')?.focus(); } },
+      h('span', { class: 'trayic' }, 'r', need ? h('i', {}, String(need)) : null), 'tray (simulated)'),
     h('button', { class: 'tool', id: 'reopenBtn', 'aria-haspopup': 'menu', onclick: (e) => openMenu(e) }, svg(ICON.reopen), 'Tabs ', h('b', {}, String(closed.length))),
     h('button', { class: 'tool', 'aria-label': S.playing ? 'Pause the simulation' : 'Play the simulation', onclick: () => { S.playing = !S.playing; render(); } }, svg(S.playing ? ICON.pause : ICON.play), S.playing ? 'Live' : 'Paused'),
     h('button', { class: 'tool', 'aria-label': 'One step of the simulation', onclick: tick }, svg(ICON.step), 'Step'),
@@ -1299,7 +1427,8 @@ function openMenu() {
 
 function cardNode(c) {
   const st = STATUS[c.status] || { tone: 'var(--fg-dim)' };
-  const node = h('button', { class: 'card' + (c.closed ? ' closed' : '') + (flash.has(c.id) ? ' flash' : ''), style: { '--sev': SEV[c.severity] || 'var(--border)' },
+  const asks = c.actions && !c.closed && !c.decided && (c.status === 'waiting' || c.status === 'failed');
+  const node = h('button', { class: 'card' + (c.closed ? ' closed' : '') + (asks ? ' asks' : '') + (flash.has(c.id) ? ' flash' : ''), style: { '--sev': SEV[c.severity] || 'var(--border)' },
     'aria-label': `${c.title}, ${c.status || ''}, ${c.severity || ''}. Open its history`, onclick: () => openHistory(c.id) },
     h('div', { class: 'top' },
       h('span', { class: 't' }, c.title),
@@ -1311,9 +1440,11 @@ function cardNode(c) {
         h('i', { style: typeof c.progress === 'number' ? { width: (c.progress * 100).toFixed(0) + '%' } : {} })),
       typeof c.progress === 'number' ? h('b', {}, Math.round(c.progress * 100) + '%') : null) : null,
     c.facts && c.facts.length ? h('dl', { class: 'facts' }, c.facts.flatMap((f) => [h('dt', {}, f.label), h('dd', {}, f.value)])) : null,
-    c.actions && !c.closed && c.status !== 'done' ? h('div', { class: 'acts' }, c.actions.map((a) => h('span', { class: 'act', role: 'button', tabindex: '0',
-      onclick: (e) => { e.stopPropagation(); acted(c, a.toLowerCase()); render(); },
-      onkeydown: (e) => { if (e.key === 'Enter') { e.stopPropagation(); e.preventDefault(); acted(c, a.toLowerCase()); render(); } } }, a))) : null,
+    c.decided ? h('div', { class: 'chosen' }, `You chose "${c.decided.choice}" at ${hhmm(c.decided.at)}`) : null,
+    c.actions && !c.closed && !c.decided && c.status !== 'done' ? h('div', { class: 'acts' }, c.actions.map((a) => {
+      const go = (e) => { e.stopPropagation(); const n = noteFor(c); if (n) decideNote(n, a); else decideCard(c, a); render(); };
+      return h('span', { class: 'act', role: 'button', tabindex: '0', onclick: go,
+        onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); go(e); } } }, a); })) : null,
     h('div', { class: 'foot' },
       h('span', {}, 'created ' + hhmm(c.created)),
       h('span', {}, c.closed ? `closed ${hhmm(c.closed)}` : c.rev > 1 ? `${c.rev - 1} change${c.rev === 2 ? '' : 's'}` : 'new'),
@@ -1351,6 +1482,11 @@ function renderBoard(container) {
     container.append(panel);
     return;
   }
+  const srcs = [...new Set(all.map((c) => c.from))].sort();
+  const openOf = (src) => all.filter((c) => !c.closed && (!src || c.from === src)).length;
+  panel.append(h('div', { class: 'srctabs', role: 'tablist', 'aria-label': 'Board sources' },
+    ['', ...srcs].map((src) => h('button', { role: 'tab', 'aria-selected': String(S.bsrc === src), onclick: () => { S.bsrc = src; render(); } },
+      src || 'Every source', h('span', { class: 'cnt' }, String(openOf(src)))))));
   const search = h('input', { id: 'q', type: 'search', placeholder: 'Search past work: titles, bodies, facts, every version', value: S.q, 'aria-label': 'Search the board',
     oninput: (e) => { S.q = e.target.value; renderView(); $('q')?.focus(); const q = $('q'); if (q) q.setSelectionRange(q.value.length, q.value.length); } });
   const chip = (set, key, label, color) => h('button', { class: 'chip', 'aria-pressed': String(set.has(key)), style: color ? { '--chipc': color } : {},
@@ -1365,9 +1501,10 @@ function renderBoard(container) {
       ...[['all', 'all'], ['1h', 'last hour']].map(([v, l]) => h('option', { value: v, selected: S.since === v }, l))))));
   const board = h('div', { class: 'board' });
   if (!groups.size) board.append(h('div', { class: 'empty' }, S.q || S.sev.size || S.status.size ? 'Nothing matches. Clear a filter to see more.' : 'No cards yet. Programs and agents put them here.'));
-  const sorted = [...groups.entries()].sort((a, b) => Math.max(...b[1].map((c) => c.updated)) - Math.max(...a[1].map((c) => c.updated)));
+  const askN = (list) => list.filter((c) => c.actions && !c.closed && !c.decided && (c.status === 'waiting' || c.status === 'failed')).length;
+  const sorted = [...groups.entries()].sort((a, b) => (askN(b[1]) > 0) - (askN(a[1]) > 0) || Math.max(...b[1].map((c) => c.updated)) - Math.max(...a[1].map((c) => c.updated)));
   for (const [k, list] of sorted) {
-    list.sort((a, b) => b.order - a.order);
+    list.sort((a, b) => (askN([b]) - askN([a])) || b.order - a.order);
     const live = list.filter((c) => !c.closed);
     const done = list.filter((c) => c.closed);
     const w = WRITERS[k];
@@ -1393,18 +1530,35 @@ function renderBoard(container) {
   container.append(panel);
 }
 
+// Requirement 24: everything waiting on him, in one place, newest first,
+// each with its options right there.
+function renderNeeds(container) {
+  const items = needsYou();
+  const panel = h('section', { class: 'panel needs', 'aria-label': 'Needs you' });
+  if (!items.length) panel.append(h('div', { class: 'empty' }, 'Nothing needs you. When a program or an agent asks, it lands here, and rig\'s tray icon shows it.'));
+  for (const it of items) {
+    panel.append(h('article', { class: 'need', style: { '--sev': SEV[it.sev] || 'var(--h-amber)' } },
+      h('div', { class: 'who' }, h('span', { class: 'src' }, it.from), h('time', { class: 'dim' }, ago(it.at)), h('span', { class: 'dim' }, it.kind === 'note' ? 'a notification' : 'a card on the board')),
+      h('b', {}, it.title),
+      it.body ? h('div', { class: 'dim' }, it.body) : null,
+      h('div', { class: 'acts' }, it.actions.map((a, i) => h('button', { class: 'act' + (i === 0 ? ' primary' : ''), onclick: () => decide(it, a) }, a)),
+        it.kind === 'note' ? h('button', { class: 'linkish', onclick: () => openNote(it.n) }, 'Details') : h('button', { class: 'linkish', onclick: () => openHistory(it.c.id) }, 'History'))));
+  }
+  container.append(panel);
+}
+
 function renderSummary(container) {
   const all = [...S.cards.values()].filter((c) => !c.closed || clock() - c.closed < 3600e3);
   const n = (st) => all.filter((c) => c.status === st).length;
   // A figure is a button to the inner tab that explains it.
-  const fig = (cls, num, label, to) => h('button', { class: 'fig ' + cls, title: `Show ${to === 'board' ? 'the board' : 'the programs'}`,
+  const fig = (cls, num, label, to) => h('button', { class: 'fig ' + cls, title: `Show ${{ board: 'the board', programs: 'the programs', needs: 'what needs you' }[to]}`,
     onclick: () => { S.mainTab = to; render(); } }, h('div', { class: 'n' }, String(num)), h('div', { class: 'l' }, label));
   container.append(h('div', { class: 'figs' },
     fig('', estate.length, 'programs', 'programs'),
     fig('good', estate.filter((e) => e.state === 'healthy' || e.state === 'running').length, 'up', 'programs'),
     fig('', estate.filter((e) => e.state === 'at rest').length, 'at rest, on call', 'programs'),
     fig(estate.some((e) => e.state === 'down' || e.state === 'quarantined') ? 'bad' : '', estate.filter((e) => e.state === 'down' || e.state === 'quarantined').length, 'down or quarantined', 'programs'),
-    fig('warn', n('waiting'), 'waiting on you', 'board'),
+    fig('warn', needsYou().length, 'need you', 'needs'),
     fig('run', n('running'), 'agents working', 'board')));
 }
 
@@ -1414,7 +1568,7 @@ function renderPrograms(container) {
   const panel = h('section', { class: 'panel', 'aria-label': 'Programs' },
     h('header', {}, h('h2', {}, 'Programs'), h('span', { class: 'dim' }, `${estate.length}, scanned in ${RIG.scan} and declared in programs.json`)));
   const table = h('table', { class: 'progs' },
-    h('thead', {}, h('tr', {}, ...['Program', 'Version', 'Load', 'State', 'Commands', 'Restarts', 'Found by'].map((x) => h('th', { scope: 'col' }, x)))));
+    h('thead', {}, h('tr', {}, ...['Program', 'Version', 'Load', 'State', 'Commands', 'Restarts', 'Guidelines', 'Found by'].map((x) => h('th', { scope: 'col' }, x)))));
   const body = h('tbody');
   for (const e of estate) {
     const open = S.tabs.some((x) => x.id === e.id && x.open);
@@ -1428,6 +1582,7 @@ function renderPrograms(container) {
         e.stale ? h('span', { class: 'stale' }, 'stale') : null),
       h('td', { class: 'num' }, String(e.commands.length)),
       h('td', { class: 'num' + (e.restarts >= 5 ? ' bad' : '') }, String(e.restarts)),
+      h('td', {}, guideCell(e)),
       h('td', { class: 'dim' }, e.found)));
   }
   table.append(body);
@@ -1468,19 +1623,24 @@ function renderNotes(container) {
     ...[[1, '1 day'], [3, '3 days'], [7, '1 week'], [30, '30 days']].map(([v, l]) => h('option', { value: String(v), selected: S.keepDays === v }, l)));
   const sources = [...new Set(S.notes.map((n) => n.from))].sort();
   const q = S.nq.toLowerCase();
+  const asks = (n) => Boolean(n.actions && !n.decided);
   const shown = S.notes.filter((n) => (!S.nsrc || n.from === S.nsrc) &&
-    (!q || [n.title, n.body, n.from].join(' ').toLowerCase().includes(q)));
+    (!q || [n.title, n.body, n.from, n.details || ''].join(' ').toLowerCase().includes(q)))
+    .sort((a, b) => asks(b) - asks(a) || b.at - a.at);
   const search = h('input', { id: 'nq', type: 'search', placeholder: 'Search notifications', value: S.nq, 'aria-label': 'Search notifications',
     oninput: (e) => { S.nq = e.target.value; render(); const f = $('nq'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); } });
   const src = h('select', { class: 'sel', 'aria-label': 'Only from', onchange: (e) => { S.nsrc = e.target.value; render(); } },
     h('option', { value: '' }, `every source (${S.notes.length})`),
     ...sources.map((x) => h('option', { value: x, selected: S.nsrc === x }, `${x} (${S.notes.filter((n) => n.from === x).length})`)));
-  const list = h('ol', { class: 'notes' }, shown.length ? [] : h('li', { class: 'none' }, 'Nothing matches.'), shown.map((n) => h('li', { class: n.unread ? 'unread' : '', style: { '--sev': SEV[n.severity] } },
+  const list = h('ol', { class: 'notes' }, shown.length ? [] : h('li', { class: 'none' }, 'Nothing matches.'), shown.map((n) => h('li', { class: (n.unread ? 'unread' : '') + (asks(n) ? ' asks' : ''), style: { '--sev': SEV[n.severity] } },
     h('span', { class: 'bullet' }),
     h('div', {},
-      h('div', { class: 'nt' }, h('b', {}, n.title), h('time', { class: 'dim', title: new Date(n.at).toLocaleString() }, ago(n.at))),
-      h('div', { class: 'dim' }, n.body),
-      h('button', { class: 'src', title: `Only ${n.from}`, onclick: () => { S.nsrc = n.from; render(); } }, n.from)))));
+      h('button', { class: 'nopen', 'aria-label': `${n.title}: open its details`, onclick: () => openNote(n) },
+        h('span', { class: 'nt' }, h('b', {}, n.title), h('time', { class: 'dim', title: new Date(n.at).toLocaleString() }, ago(n.at))),
+        h('span', { class: 'dim' }, n.body)),
+      h('div', { class: 'nmeta' },
+        h('button', { class: 'src', title: `Only ${n.from}`, onclick: () => { S.nsrc = n.from; render(); } }, n.from),
+        asks(n) ? h('span', { class: 'decide' }, 'needs your decision') : n.decided ? h('span', { class: 'dim' }, `you chose "${n.decided.choice}"`) : null)))));
   container.append(h('aside', { class: 'notepanel', 'aria-label': 'Notifications' },
     h('header', {}, h('h2', {}, 'Notifications'), unread ? h('span', { class: 'badge', style: { '--sev': 'var(--h-steel)' } }, `${unread} new`) : null,
       h('span', { class: 'sp' }), unread ? h('button', { class: 'linkish', onclick: () => { S.notes.forEach((n) => { n.unread = false; }); render(); } }, 'Mark read') : null),
@@ -1502,16 +1662,18 @@ function renderMain(view) {
   renderSummary(left);
   // Requirement 16: Main's parts are tabs inside it, not one long page.
   const open = [...S.cards.values()].filter((c) => !c.closed);
-  const waiting = open.filter((c) => c.status === 'waiting').length;
+  const need = needsYou().length;
   const inner = [
+    ['needs', 'Needs you', String(need), null],
     ['programs', 'Programs', String(estate.length), null],
-    ['board', 'Board', `${open.length} open`, waiting ? `${waiting} waiting` : null],
+    ['board', 'Board', `${open.length} open`, null],
   ];
   left.append(h('div', { class: 'subtabs', role: 'tablist', 'aria-label': 'Main' }, inner.map(([id, label, count, warn]) =>
     h('button', { role: 'tab', 'aria-selected': String(S.mainTab === id), onclick: () => { S.mainTab = id; render(); },
-      onkeydown: (e) => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); S.mainTab = S.mainTab === 'board' ? 'programs' : 'board'; render(); document.querySelector('.subtabs [aria-selected="true"]')?.focus(); } } },
+      class: id === 'needs' && need ? 'hot' : null,
+      onkeydown: (e) => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); const ids = inner.map((x) => x[0]); const i = ids.indexOf(S.mainTab); S.mainTab = ids[(i + (e.key === 'ArrowRight' ? 1 : ids.length - 1)) % ids.length]; render(); document.querySelector('.subtabs [aria-selected="true"]')?.focus(); } } },
       label, h('span', { class: 'cnt' }, count), warn ? h('span', { class: 'warn' }, warn) : null))));
-  if (S.mainTab === 'board') renderBoard(left); else renderPrograms(left);
+  if (S.mainTab === 'board') renderBoard(left); else if (S.mainTab === 'programs') renderPrograms(left); else renderNeeds(left);
   grid.append(left);
   renderNotes(grid);
   view.append(grid);
@@ -1527,6 +1689,8 @@ function renderTab(view, t) {
         : h('div', {}, h('b', {}, `You picked ${e ? e.name : t.title} at ${hhmm(t.picked || clock())}.`), ' It has no GUI of its own, so this is rig\'s page about it.'),
       t.released ? h('div', { class: 'frozen' }, `It no longer needs it (since ${hhmm(t.released)}). What you see is its last state. Close the tab and it moves to Reopen.`) : h('div', { class: 'dim' }, 'Close it any time; it moves to Reopen with its last state.')),
     e ? h('section', { class: 'panel', 'aria-label': 'What rig knows' }, inspector(e)) : null,
+    e ? h('h2', { class: 'subh' }, 'Its settings') : null,
+    e ? settingsTable(e.id, PSET[e.id] || []) : null,
     h('h2', { class: 'subh' }, 'What it pushed'),
     own.length ? h('div', { class: 'items' }, own.map(cardNode)) : h('div', { class: 'empty' }, 'Nothing pushed yet.')));
 }
@@ -1537,11 +1701,14 @@ function renderView() {
   const t = S.tabs.find((x) => x.id === S.current && x.open) || S.tabs[0];
   S.current = t.id;
   const host = $('guihost');
-  const gui = t.kind !== 'main' && S.guis[t.id];
+  const gui = t.kind === 'program' && S.guis[t.id];
   view.classList.toggle('strip', Boolean(gui));
   host.hidden = !gui;
   for (const f of host.querySelectorAll('iframe')) f.hidden = f.dataset.gui !== t.id;
   if (t.kind === 'main') renderMain(view);
+  else if (t.id === 'settings') renderSettings(view);
+  else if (t.id === 'capabilities') renderCaps(view);
+  else if (t.id === 'guidelines') renderGuide(view);
   else if (gui) renderGuiTab(view, host, t);
   else renderTab(view, t);
 }
@@ -1556,6 +1723,7 @@ function renderGuiTab(view, host, t) {
     h('h1', {}, e ? e.name : t.title), e ? h('span', { class: 'mono dim' }, e.version) : null,
     h('span', { class: 'kit' }, 'its own GUI: styled by rig.css, acting through rig'),
     h('span', { class: 'dim' }, t.asked ? `${t.title} asked at ${hhmm(t.asked)}: "${t.reason}"` : `registered ${hhmm(g.at)}`),
+    e ? h('button', { class: 'act', onclick: () => openProgSettings(e.id) }, `Settings (${(PSET[e.id] || []).length})`) : null,
     e ? h('button', { class: 'act', onclick: () => openAbout(e) }, 'What rig knows') : null));
   if (!host.querySelector(`iframe[data-gui="${t.id}"]`)) {
     const mode = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
@@ -1575,11 +1743,218 @@ function renderRail() {
       'aria-current': String(S.current === id), style: { '--c': progColour(id) }, onclick: () => openTab(id) }, id.slice(0, 2));
   }));
   $('railMain').setAttribute('aria-current', String(S.current === 'main'));
+  for (const id of Object.keys(INTERNAL)) $('rail-' + id).setAttribute('aria-current', String(S.current === id));
 }
 
+
+// ── settings (requirements 19 and 20) ─────────────────────────────────────
+// rig's keys come from its real schema; a program's are what it declares
+// (§47 requirement 1's program layers). A change is config.set: a runtime
+// override until restart for rig's own, as `rig config set` does today.
+function schemaKeys(node, prefix = '') {
+  return Object.entries(node.properties || {}).flatMap(([k, v]) => v.type === 'object' && v.properties ? schemaKeys(v, prefix + k + '.')
+    : [{ key: prefix + k, type: v.type, enum: v.enum, min: v.minimum, def: v.default ?? '', desc: v.description || '' }]);
+}
+const RSET = [...schemaKeys(RIG_SCHEMA),
+  { key: 'dashboard.notifications.keep.days', type: 'integer', min: 1, def: 7, desc: 'notifications older than this leave the dashboard\'s panel (plan/55 requirement 8)', proposed: true }]
+  .map((x) => ({ ...x, value: x.def, origin: 'built-in default' }));
+const PSET = Object.fromEntries(Object.entries({
+  ledger: [['statement.dir', 'string', '~/finance/statements', 'where it reads bank statements from'], ['match.tolerance.cents', 'integer', 0, 'how far apart two amounts may be and still match'],
+    ['reconcile.on.import', 'boolean', true, 'reconcile as soon as a statement is imported'], ['currency', 'string', 'ILS', 'the books\' currency', ['ILS', 'EUR', 'USD']]],
+  storeworker: [['runs.parallel', 'integer', 2, 'queued runs it works on at once'], ['retry.max', 'integer', 3, 'retries before a run is reported failed']],
+  beacon: [['cards.keep.days', 'integer', 7, 'how long an answered card stays on its board'], ['board.font', 'string', 'Inter', 'the board\'s font', ['Inter', 'IBM Plex Sans']]],
+  lantern: [['index.dirs', 'string', '~/me', 'folders it indexes, colon-separated']],
+  righand: [['countdown.seconds', 'integer', 5, 'the HANDS OFF countdown before a script runs']],
+}).map(([id, list]) => [id, list.map(([key, type, def, desc, en]) => ({ key, type, def, desc, enum: en, min: type === 'integer' ? 0 : undefined, value: def, origin: 'its declared default' }))]));
+function settingsTable(owner, list) {
+  if (!list.length) return h('div', { class: 'empty' }, `${owner} declares no settings.`);
+  const q = S.sq.toLowerCase();
+  const rows = list.filter((x) => !q || (x.key + ' ' + x.desc).toLowerCase().includes(q));
+  if (!rows.length) return h('div', { class: 'empty' }, 'Nothing matches.');
+  return h('table', { class: 'progs sets' },
+    h('thead', {}, h('tr', {}, ...['Key', 'Value', 'Where it comes from', ''].map((x) => h('th', { scope: 'col' }, x)))),
+    h('tbody', {}, rows.map((x) => settingRow(owner, x))));
+}
+function settingRow(owner, x) {
+  const origin = h('td', { class: 'dim' }, x.origin);
+  const err = h('div', { class: 'err', role: 'alert' });
+  const reset = h('button', { class: 'linkish', hidden: x.value === x.def, onclick: () => set(x.def) }, 'Reset');
+  const label = `${owner} ${x.key}`;
+  function set(v) {
+    if (x.type === 'integer' && (!Number.isInteger(v) || (x.min !== undefined && v < x.min))) {
+      err.textContent = `Refused: ${x.key} takes a whole number${x.min !== undefined ? ` of at least ${x.min}` : ''}. Nothing changed.`;
+      wire('refused', 'config.set', `${label} = ${String(v).slice(0, 40)}: not a valid ${x.type}`, owner); renderWire(); return;
+    }
+    err.textContent = '';
+    x.value = v;
+    x.origin = v === x.def ? (owner === 'rig' ? 'built-in default' : 'its declared default') : owner === 'rig' ? 'runtime override, until restart' : `~/.config/rig/apps/${owner}.toml`;
+    origin.textContent = x.origin; reset.hidden = v === x.def;
+    if (ctl.type === 'checkbox') ctl.checked = v; else ctl.value = String(v);
+    wire('acted', 'config.set', `${label} = ${JSON.stringify(v)}${owner === 'rig' ? '' : `, written to apps/${owner}.toml; ${owner} reads it on its next config.get`}`, owner);
+    if (x.key === 'dashboard.notifications.keep.days') { S.keepDays = v; }
+    renderWire();
+  }
+  let ctl;
+  if (x.type === 'boolean') ctl = h('input', { type: 'checkbox', 'aria-label': label, onchange: (e) => set(e.target.checked) });
+  else if (x.enum) ctl = h('select', { class: 'sel', 'aria-label': label, onchange: (e) => set(e.target.value) }, x.enum.map((o) => h('option', { value: o, selected: o === x.value }, o)));
+  else ctl = h('input', { class: 'inp', type: x.type === 'integer' ? 'number' : 'text', 'aria-label': label, value: String(x.value),
+    onchange: (e) => set(x.type === 'integer' ? Number(e.target.value) : e.target.value) });
+  if (x.type === 'boolean') ctl.checked = Boolean(x.value);
+  return h('tr', {},
+    h('td', {}, h('div', { class: 'mono' }, x.key, x.proposed ? h('span', { class: 'gtag' }, 'proposed') : null), h('div', { class: 'dim small' }, x.desc), err),
+    h('td', {}, ctl), origin, h('td', {}, reset));
+}
+function renderSettings(view) {
+  const search = h('input', { id: 'sq', type: 'search', class: 'inp wide', placeholder: 'Search every setting', value: S.sq, 'aria-label': 'Search settings',
+    oninput: (e) => { S.sq = e.target.value; renderView(); const f = $('sq'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); } });
+  view.append(h('div', { class: 'ptab' },
+    h('div', { class: 'head' }, h('h1', {}, 'Settings'), h('span', { class: 'dim' }, `rig's ${RSET.length} keys, from its schema, and what each program declares`), h('span', { class: 'sp' }), search),
+    h('h2', { class: 'subh' }, 'rig'), settingsTable('rig', RSET),
+    ...estate.flatMap((e) => [h('h2', { class: 'subh' }, h('span', { class: 'ic', style: { '--c': progColour(e.id) } }, e.id.slice(0, 2)), ' ', e.name,
+      S.guis[e.id] ? h('span', { class: 'dim' }, ' also in its GUI, under Settings') : null), settingsTable(e.id, PSET[e.id] || [])])));
+}
+function openProgSettings(id) {
+  const d = $('drawer');
+  S.history = null;
+  d.replaceChildren(
+    h('header', {}, h('h3', {}, `${id}'s settings`), h('button', { class: 'iconbtn', 'aria-label': 'Close', onclick: () => { d.hidden = true; } }, svg(ICON.x))),
+    h('div', { class: 'body' }, h('p', { class: 'dim' }, `What ${id} declares to rig. rig draws them and keeps them, so they look the same here and under Settings.`),
+      settingsTable(id, PSET[id] || [])));
+  d.hidden = false;
+  d.querySelector('.body input, .body select')?.focus();
+}
+
+// ── capabilities (requirement 28): every verb, its words from the binary ──
+const PARGS = {
+  'ledger match': { type: 'object', required: ['entry'], properties: { entry: { type: 'integer', description: 'the entry id' } } },
+  'ledger reject': { type: 'object', required: ['entry'], properties: { entry: { type: 'integer', description: 'the entry id' } } },
+  'ledger export': { type: 'object', properties: { month: { type: 'string', description: 'YYYY-MM' } } },
+  'lantern search': { type: 'object', required: ['q'], properties: { q: { type: 'string' }, limit: { type: 'integer' } } },
+  'abacus rate': { type: 'object', required: ['from', 'to'], properties: { from: { type: 'string', enum: ['ILS', 'EUR', 'USD'] }, to: { type: 'string', enum: ['ILS', 'EUR', 'USD'] }, amount: { type: 'number' } } },
+};
+const CAPS = [
+  ...RIG_SELF.map((c) => ({ owner: 'rig', key: c.ID, id: c.ID, title: c.Title, summary: c.Summary, desc: c.Description, returns: c.Returns, effects: c.Effects, args: c.Args, real: true })),
+  ...estate.flatMap((e) => e.commands.map(([c, d]) => ({ owner: e.id, key: `${e.id} ${c}`, id: c, title: c, summary: d, desc: `${d}. (Mock: in rig this text is ${e.name}'s own declaration, read from its binary.)`,
+    returns: '', effects: /^(list|entries|search|status|where|windows|sum|rate)$/.test(c) ? 'read-only' : 'writes-files', args: PARGS[`${e.id} ${c}`] || null }))),
+];
+const EFFECT_TONE = { 'read-only': 'var(--h-sage)', 'writes-files': 'var(--h-amber)', destructive: 'var(--h-rust)' };
+function capGroup(c) { return c.owner === 'rig' ? 'rig ' + (c.id.includes('.') ? c.id.split('.')[0] : 'core') : c.owner; }
+function argField(cap, name, sch, required) {
+  const vals = S.capArgs[cap.key] = S.capArgs[cap.key] || {};
+  const label = name + (required ? ' *' : '');
+  const store = (v) => { if (v === '' || v === undefined) delete vals[name]; else vals[name] = v; renderCapPreview(cap); };
+  let ctl;
+  if (sch.type === 'boolean') { ctl = h('input', { type: 'checkbox', onchange: (e) => store(e.target.checked || undefined) }); ctl.checked = Boolean(vals[name]); }
+  else if (sch.enum) ctl = h('select', { class: 'sel', onchange: (e) => store(e.target.value) }, h('option', { value: '' }, '(none)'), sch.enum.map((o) => h('option', { value: o, selected: vals[name] === o }, o)));
+  else if (sch.type === 'integer' || sch.type === 'number') ctl = h('input', { class: 'inp', type: 'number', value: vals[name] ?? '', oninput: (e) => store(e.target.value === '' ? '' : Number(e.target.value)) });
+  else if (sch.type === 'array') ctl = h('input', { class: 'inp', type: 'text', placeholder: 'comma, separated', value: (vals[name] || []).join(', '), oninput: (e) => store(e.target.value ? e.target.value.split(',').map((x) => x.trim()).filter(Boolean) : '') });
+  else if (sch.type === 'object') ctl = h('textarea', { class: 'inp', rows: '3', placeholder: '{ JSON }', oninput: (e) => { try { store(e.target.value ? JSON.parse(e.target.value) : ''); e.target.removeAttribute('aria-invalid'); } catch { e.target.setAttribute('aria-invalid', 'true'); } } }, vals[name] ? JSON.stringify(vals[name]) : '');
+  else ctl = h('input', { class: 'inp', type: 'text', value: vals[name] ?? '', oninput: (e) => store(e.target.value) });
+  ctl.setAttribute('aria-label', `${cap.id} ${name}`);
+  return h('label', { class: 'arg' }, h('span', { class: 'mono' }, label), h('span', { class: 'dim small' }, [sch.type || 'any', sch.description].filter(Boolean).join(': ')), ctl);
+}
+function capCall(cap) {
+  const args = S.capArgs[cap.key] || {};
+  return cap.owner === 'rig' ? { verb: cap.id, args } : { verb: 'invoke', args: { program: cap.owner, command: cap.id, args } };
+}
+function renderCapPreview(cap) {
+  const pre = $('capcall');
+  if (pre) pre.textContent = JSON.stringify(capCall(cap), null, 2);
+}
+function tryCap(cap) {
+  const args = S.capArgs[cap.key] || {};
+  const missing = (cap.args?.required || []).filter((r) => args[r] === undefined);
+  if (missing.length) { S.capOut[cap.key] = { ok: false, text: `Refused before sending: ${missing.join(', ')} ${missing.length > 1 ? 'are' : 'is'} required.` }; renderView(); return; }
+  if (cap.effects !== 'read-only' && S.capConfirm !== cap.key) { S.capConfirm = cap.key; renderView(); return; }
+  S.capConfirm = null;
+  wire('acted', cap.owner === 'rig' ? cap.id : 'invoke', `from Capabilities: ${cap.owner === 'rig' ? '' : cap.owner + ' '}${cap.id} ${JSON.stringify(args)}`, cap.owner === 'rig' ? 'rig' : cap.owner);
+  S.capOut[cap.key] = { ok: true, text: JSON.stringify({ mockup: 'nothing reached rigd', verb: capCall(cap).verb, would_return: cap.returns || 'what the program answers' }, null, 2) };
+  renderView(); renderWire();
+}
+function renderCaps(view) {
+  const q = S.cq.toLowerCase();
+  const list = CAPS.filter((c) => !q || [c.key, c.title, c.summary, c.desc].join(' ').toLowerCase().includes(q));
+  const groups = new Map();
+  for (const c of list) { const g = capGroup(c); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(c); }
+  const cap = CAPS.find((c) => c.key === S.cap) || CAPS[0];
+  const search = h('input', { id: 'cq', type: 'search', class: 'inp', placeholder: `Search ${CAPS.length} capabilities`, value: S.cq, 'aria-label': 'Search capabilities',
+    oninput: (e) => { S.cq = e.target.value; renderView(); const f = $('cq'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); } });
+  const left = h('nav', { class: 'caplist', 'aria-label': 'Capabilities' }, search,
+    list.length ? [...groups.entries()].map(([g, cs]) => h('div', {}, h('h5', {}, g, h('span', { class: 'dim' }, ` ${cs.length}`)),
+      cs.map((c) => h('button', { 'aria-current': String(c.key === cap.key), onclick: () => { S.cap = c.key; renderView(); $('capdetail')?.focus(); } },
+        h('i', { style: { '--c': EFFECT_TONE[c.effects] || 'var(--fg-faint)' }, title: c.effects }), h('span', { class: 'mono' }, c.id), h('span', { class: 'dim' }, c.summary))))) : h('div', { class: 'empty' }, 'Nothing matches.'));
+  const props = Object.entries(cap.args?.properties || {});
+  const out = S.capOut[cap.key];
+  const right = h('section', { class: 'capdetail panel', id: 'capdetail', tabindex: '-1', 'aria-label': cap.key },
+    h('header', {}, h('h2', { class: 'mono' }, cap.owner === 'rig' ? cap.id : `${cap.owner} ${cap.id}`), h('span', { class: 'eff', style: { '--c': EFFECT_TONE[cap.effects] || 'var(--fg-faint)' } }, cap.effects),
+      h('span', { class: 'sp' }), h('span', { class: 'dim small' }, cap.real ? 'words from rig\'s own declaration' : 'mock words; rig reads them from the program')),
+    h('div', { class: 'capbody' },
+      h('p', {}, h('b', {}, cap.summary)), h('p', {}, cap.desc), cap.returns ? h('p', { class: 'dim' }, h('b', {}, 'Returns: '), cap.returns) : null,
+      h('h3', {}, 'Try it'),
+      props.length ? h('div', { class: 'args' }, props.map(([n, sch]) => argField(cap, n, sch, (cap.args.required || []).includes(n)))) : h('p', { class: 'dim' }, 'It takes no arguments.'),
+      h('h4', { class: 'dim small' }, 'What goes on the wire'),
+      h('pre', { class: 'call', id: 'capcall' }, JSON.stringify(capCall(cap), null, 2)),
+      S.capConfirm === cap.key ? h('div', { class: 'confirm', role: 'alert' }, h('b', {}, `This one ${cap.effects === 'destructive' ? 'destroys' : 'changes'} state (${cap.effects}).`), ' Run it?',
+        h('div', { class: 'acts' }, h('button', { class: 'act primary', onclick: () => tryCap(cap) }, 'Run it'), h('button', { class: 'act', onclick: () => { S.capConfirm = null; renderView(); } }, 'Cancel')))
+        : h('div', { class: 'acts' }, h('button', { class: 'act primary', onclick: () => tryCap(cap) }, 'Send')),
+      out ? h('pre', { class: 'call ' + (out.ok ? 'ok' : 'bad') }, out.text) : null));
+  view.append(h('div', { class: 'ptab caps' },
+    h('div', { class: 'head' }, h('h1', {}, 'Capabilities'), h('span', { class: 'dim' }, `${CAPS.filter((c) => c.real).length} of rig's own, and every registered program's commands`)),
+    h('div', { class: 'capgrid' }, left, right)));
+}
+
+// ── guidelines (requirement 29): what a program must be, each rule dated ──
+// Dates are when the rule entered rig's code (git), or the day he ruled it
+// where nothing is built yet.
+const GUIDE = [
+  { id: 'G1', date: '2026-09-10', who: 'programs', state: 'in force', title: 'Declare every command in full', body: 'Each command states its effects, idempotence, sensitive fields, interactivity, streaming, display need, duration and confirmation. A registration missing any of them is refused.', cite: 'internal/kernel/declaration.go' },
+  { id: 'G2', date: '2026-09-11', who: 'programs', state: 'in force', title: 'Name the kit elements your page uses', body: 'The element list is part of the registration. Config may take elements away, never add one.', cite: 'plan/05 §5h R3' },
+  { id: 'A1', date: '2026-09-16', who: 'agents', state: 'in force', title: 'Announce a seat and say what you are for', body: 'Take a seat with announce before anything else, and keep set_activity current.', cite: 'internal/mcpserver' },
+  { id: 'A2', date: '2026-09-25', who: 'agents', state: 'in force', title: 'Keep your notes in rig', body: 'Working notes go through worknote, so a successor finds them after a restart.', cite: 'internal/mcpserver' },
+  { id: 'G3', date: '2026-10-01', who: 'programs', state: 'in force', title: 'Declare the events you publish', body: 'A program publishes only kinds it declared, under its own id (ledger.changed). Bare kinds are rig\'s.', cite: 'plan/52 E3' },
+  { id: 'G4', date: '2026-10-03', who: 'programs', state: 'in force', title: 'Declare how you load', body: 'Resident, or on call. An on-call program tells rig when it is idle (client.Idle) and when it must not be stopped (client.Hold).', cite: 'plan/54, decision 0265' },
+  { id: 'G5', date: '2026-10-03', who: 'programs', state: 'ruled, not built', title: 'A GUI wears rig.css and acts through rig', body: 'A program\'s GUI carries no stylesheet of its own and reaches its program only through rig\'s verbs: invoke, the store, the bus, the queue, toasts.', cite: 'plan/55 requirements 12 and 13' },
+  { id: 'G6', date: '2026-10-03', who: 'programs', state: 'ruled, not built', title: 'Declare your settings as a schema', body: 'rig shows them under Settings and in your GUI, changes them, and keeps where each value came from.', cite: 'plan/55 requirement 20, plan/47' },
+];
+const GUIDE_REV = GUIDE.map((g) => g.date).sort().at(-1);
+const BUILT_TO = { beacon: '2026-10-01', ledger: '2026-10-03', lantern: '2026-10-02', righand: '2026-09-27', storeworker: '2026-10-03', keeper: '2026-10-01', abacus: '2026-09-20' };
+function newerFor(id) { return GUIDE.filter((g) => g.who === 'programs' && g.date > (BUILT_TO[id] || '0')); }
+function guideCell(e) {
+  const n = newerFor(e.id).length;
+  return h('button', { class: 'gstat' + (n ? ' behind' : ''), title: n ? `${n} rule${n > 1 ? 's' : ''} newer than what ${e.name} was built to` : `built to the current guidelines, ${GUIDE_REV}`,
+    onclick: () => { S.gfocus = e.id; openTab('guidelines'); } }, n ? `${n} newer` : 'current');
+}
+function renderGuide(view) {
+  const f = S.gfocus;
+  view.append(h('div', { class: 'ptab' },
+    h('div', { class: 'head' }, h('h1', {}, 'Guidelines'), h('span', { class: 'mono dim' }, `revision ${GUIDE_REV}`),
+      h('span', { class: 'dim' }, 'What a program or an agent must be to work with rig. Every rule carries the day it took effect.')),
+    h('section', { class: 'panel' }, h('header', {}, h('h2', {}, 'Programs against the guidelines'), h('span', { class: 'dim' }, 'mock: the revision each was built to')),
+      h('table', { class: 'progs' }, h('thead', {}, h('tr', {}, ...['Program', 'Built to', 'Rules since then'].map((x) => h('th', { scope: 'col' }, x)))),
+        h('tbody', {}, estate.map((e) => { const nw = newerFor(e.id); return h('tr', { class: f === e.id ? 'open' : '' },
+          h('td', {}, e.name), h('td', { class: 'mono' }, BUILT_TO[e.id] || 'unknown'),
+          h('td', {}, nw.length ? nw.map((g) => h('span', { class: 'gtag warnt' }, g.id)) : h('span', { class: 'dim' }, 'none: current'))); })))),
+    h('h2', { class: 'subh' }, 'The rules, newest first'),
+    h('ol', { class: 'rules' }, [...GUIDE].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)).map((g) => {
+      const behind = g.who === 'programs' ? estate.filter((e) => g.date > (BUILT_TO[e.id] || '0')).map((e) => e.name) : [];
+      return h('li', { class: f && behind.includes(estate.find((e) => e.id === f)?.name) ? 'hit' : '' },
+        h('div', { class: 'rhead' }, h('span', { class: 'mono' }, g.id), h('time', { class: 'mono' }, g.date), h('b', {}, g.title),
+          h('span', { class: 'gtag' }, g.who), h('span', { class: 'gtag' + (g.state === 'in force' ? '' : ' warnt') }, g.state)),
+        h('p', {}, g.body), h('div', { class: 'dim small' }, g.cite, behind.length ? ` · built before it: ${behind.join(', ')}` : '')); }))));
+}
+
+function wireScope() {
+  const t = S.tabs.find((x) => x.id === S.current && x.open);
+  return t && t.kind === 'program' ? t.id : null;
+}
 function renderWire() {
   $('wire').hidden = !S.showWire;
-  $('wireLog').replaceChildren(...S.wire.map((w) => h('li', {}, h('span', { class: 'faint' }, hhmm(w.at)), h('span', { class: 'k-' + w.kind }, w.verb), h('span', {}, w.text))));
+  const prog = wireScope(), only = prog && !S.wireAll, q = S.wq.toLowerCase();
+  const rows = S.wire.filter((w) => (!only || w.who === prog) && (!q || [w.verb, w.text, w.who].join(' ').toLowerCase().includes(q)));
+  $('wireScope').replaceChildren(
+    prog ? h('button', { class: 'chip', 'aria-pressed': String(only), title: only ? 'Show every program\'s lines' : `Show only ${prog}'s lines`, onclick: () => { S.wireAll = !S.wireAll; renderWire(); } }, only ? `only ${prog}` : 'every program') : h('span', { class: 'dim' }, 'every program'),
+    h('span', { class: 'dim' }, `${rows.length} of ${S.wire.length}`));
+  $('wireLog').replaceChildren(...(rows.length ? rows.map((w) => h('li', {}, h('span', { class: 'faint' }, hhmm(w.at)), h('span', { class: 'k-' + w.kind }, w.verb), h('span', {}, w.text))) : [h('li', { class: 'dim' }, 'Nothing matches.')]));
 }
 
 function openHistory(id) {
@@ -1611,6 +1986,34 @@ function renderHistory() {
   d.querySelector('[aria-current="true"]')?.focus();
 }
 
+function openNote(n) {
+  const d = $('drawer');
+  S.history = null; S.noteOpen = n.id;
+  n.unread = false;
+  const opts = n.actions ? h('div', { class: 'acts' }, n.actions.map((a, i) => {
+    const chosen = n.decided && n.decided.choice === a;
+    return h('button', { class: 'act' + (chosen ? ' chosen-act' : '') + (!n.decided && i === 0 ? ' primary' : ''), disabled: Boolean(n.decided), 'aria-pressed': n.decided ? String(chosen) : null,
+      onclick: () => { decideNote(n, a); render(); openNote(n); } }, chosen ? `✓ ${a}` : a); })) : null;
+  d.replaceChildren(
+    h('header', {}, h('span', { class: 'sevdot', style: { '--sev': SEV[n.severity] } }), h('h3', {}, n.title),
+      h('button', { class: 'iconbtn', 'aria-label': 'Close', onclick: () => { S.noteOpen = null; d.hidden = true; } }, svg(ICON.x))),
+    h('div', { class: 'body' },
+      h('dl', { class: 'facts' },
+        h('dt', {}, 'from'), h('dd', {}, n.from),
+        h('dt', {}, 'severity'), h('dd', {}, n.severity),
+        h('dt', {}, 'at'), h('dd', {}, new Date(n.at).toLocaleString()),
+        ...(n.facts || []).flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)])),
+      h('p', {}, n.body),
+      n.details ? h('p', { class: 'dim' }, n.details) : null,
+      h('h4', { class: 'subh' }, n.actions ? (n.decided ? 'Decided' : 'Your decision') : 'Nothing to decide'),
+      n.decided ? h('p', { class: 'chosen' }, `You chose "${n.decided.choice}" at ${new Date(n.decided.at).toLocaleTimeString()}. ${n.from} was told.`) : null,
+      n.actions ? opts : h('p', { class: 'dim' }, 'This notification only informs.'),
+      h('div', { class: 'acts', style: { marginTop: '18px' } },
+        h('button', { class: 'act', onclick: () => { S.nsrc = n.from; render(); } }, `Only ${n.from}'s notifications`))));
+  d.hidden = false;
+  d.querySelector('.body button:not([disabled])')?.focus();
+}
+
 function openAbout(e) {
   const d = $('drawer');
   S.history = null;
@@ -1625,7 +2028,7 @@ function openAbout(e) {
 // the page rather than described (plan/55, after requirement 15).
 const QUESTIONS = [
   { q: 'Is the board in the right place?',
-    body: 'Main now has two inner tabs, Programs and Board. The board of agents\' cards is the second one. Click Board to see it. Is that its place?',
+    body: 'Main has three inner tabs: Needs you, Programs and Board. The board of agents\' cards is the third, with a tab per source inside it. Is that its place?',
     show: ['Show me the board tab', () => { S.current = 'main'; S.mainTab = 'board'; }] },
   { q: 'Do Ledger\'s buttons use the right rig capability?',
     body: 'Open Ledger, turn on the Wire, and press Match, Not a match and Reconcile again. Each line on the Wire names the rig capability that carried it: invoke, toast, queue, store, the bus.',
@@ -1669,7 +2072,7 @@ function render() {
 
 // ── keyboard ───────────────────────────────────────────────────────────────
 document.addEventListener('keydown', (e) => {
-  const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement;
+  const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement;
   if (e.key === '/' && !typing) { e.preventDefault(); $('q')?.focus(); return; }
   if (e.key === 'Escape') {
     if (!$('menu').hidden) { $('menu').hidden = true; $('reopenBtn')?.focus(); return; }
@@ -1687,12 +2090,15 @@ document.addEventListener('click', (e) => {
   if (!m.hidden && !m.contains(e.target) && e.target.closest('#reopenBtn') === null) m.hidden = true;
 });
 $('wireClose').addEventListener('click', () => { S.showWire = false; render(); });
+$('wq').addEventListener('input', (e) => { S.wq = e.target.value; renderWire(); });
 $('railMain').addEventListener('click', () => { S.current = 'main'; render(); });
+for (const id of Object.keys(INTERNAL)) $('rail-' + id).addEventListener('click', () => openTab(id));
 
 render();
 // While a field has the keyboard, the page is not redrawn under it.
 setInterval(() => {
-  const busy = document.activeElement instanceof HTMLInputElement;
+  const a = document.activeElement;
+  const busy = a instanceof HTMLInputElement || a instanceof HTMLSelectElement || a instanceof HTMLTextAreaElement;
   if (S.playing && !busy) tick();
 }, 2200);
 window.__mock = { S, tick, render };

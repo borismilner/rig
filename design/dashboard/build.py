@@ -23,6 +23,12 @@ kit = re.sub(r"^export\s+", "", kit, flags=re.M)
 mock, n = re.subn(r"^import\s+\{[^}]*\}\s+from\s+'\./rig-kit\.js';\s*$", "", mock, flags=re.M)
 if n != 1:
     sys.exit("build: mock.js does not import rig-kit.js exactly once (found %d)" % n)
+selfdecl = (HERE / "rig-self.json").read_text(encoding="utf-8")
+schema = (HERE.parent.parent / "internal" / "config" / "schema.json").read_text(encoding="utf-8")
+for token, body in (("__RIG_SELF__", selfdecl), ("__RIG_SCHEMA__", schema)):
+    mock, n = re.subn(token, lambda m: json.dumps(json.loads(body)), mock)
+    if n != 1:
+        sys.exit("build: %s not found exactly once (found %d)" % (token, n))
 mock, n = re.subn(r"__LEDGER_GUI__", lambda m: json.dumps(gui), mock)
 if n != 1:
     sys.exit("build: __LEDGER_GUI__ not found exactly once (found %d)" % n)
