@@ -686,12 +686,18 @@ func cmdApps(args []string) (err error) {
 		wVer = max(wVer, len(p.GetIdentity().GetVersion()))
 	}
 	for _, p := range resp.GetPrograms() {
-		fmt.Printf("%-*s  %-*s  %-8s  %ssemantics gen %d\n",
+		// plan/54: an on-call program with no process behind it is listed
+		// like any other, and says so, since a call will start it first.
+		rest := ""
+		if p.GetAtRest() {
+			rest = "  at rest"
+		}
+		fmt.Printf("%-*s  %-*s  %-8s  %ssemantics gen %d%s\n",
 			wID, p.GetIdentity().GetId(),
 			wVer, p.GetIdentity().GetVersion(),
 			coverageLabel(p),
 			commandCountCell(p, shown),
-			p.GetSemanticsGen())
+			p.GetSemanticsGen(), rest)
 		if !*verbose {
 			continue
 		}
@@ -918,6 +924,11 @@ func appsJSON(ps []*registryv1.Program, d registryv1.Depth) []map[string]any {
 			"coverage":      coverageLabel(p),
 			"coverage_note": p.GetCoverageNote(),
 			"semantics_gen": p.GetSemanticsGen(),
+		}
+		// Omitted when false: a resident program and a running on-call one
+		// are both simply up, and plan/54 adds no state to either.
+		if p.GetAtRest() {
+			row["at_rest"] = true
 		}
 		// At DEPTH_PROGRAMS the daemon sent no commands at all, so an empty
 		// list here would say the program declares none.

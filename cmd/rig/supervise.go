@@ -121,6 +121,13 @@ func programNote(h *verbsv1.ProgramHealth) string {
 	if n := h.GetNextAttemptUnixNano(); n != 0 {
 		notes = append(notes, "next attempt "+time.Unix(0, n).Format(time.TimeOnly))
 	}
+	// plan/54: rig never stops an on-call program for being idle, so how
+	// long it has gone uncalled is shown instead, and only while it runs.
+	if h.GetOnCall() && h.GetPid() != 0 {
+		if n := h.GetLastCallUnixNano(); n != 0 {
+			notes = append(notes, "no call for "+time.Since(time.Unix(0, n)).Round(time.Second).String())
+		}
+	}
 	return strings.Join(notes, "; ")
 }
 
@@ -149,6 +156,9 @@ type programOut struct {
 	Parked              string            `json:"parked"`
 	LastExit            string            `json:"last_exit"`
 	NextAttemptUnixNano int64             `json:"next_attempt_unix_nano"`
+	OnCall              bool              `json:"on_call"`
+	Calls               uint32            `json:"calls"`
+	LastCallUnixNano    int64             `json:"last_call_unix_nano"`
 	History             []programEventOut `json:"history"`
 }
 
@@ -168,7 +178,9 @@ func programJSON(h *verbsv1.ProgramHealth) programOut {
 		Restarts: h.GetRestarts(), Marker: h.GetMarker(), Waiting: h.GetWaiting(),
 		Parked: h.GetParked(), LastExit: h.GetLastExit(),
 		NextAttemptUnixNano: h.GetNextAttemptUnixNano(),
-		History:             make([]programEventOut, 0, len(h.GetHistory())),
+		OnCall:              h.GetOnCall(), Calls: h.GetCalls(),
+		LastCallUnixNano: h.GetLastCallUnixNano(),
+		History:          make([]programEventOut, 0, len(h.GetHistory())),
 	}
 	for _, e := range h.GetHistory() {
 		out.History = append(out.History, programEventOut{

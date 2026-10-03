@@ -625,6 +625,9 @@ const (
 	ProgramState_PROGRAM_STATE_RESTARTING ProgramState = 4
 	// Out of budget, or failed registration. Stays until a human acts.
 	ProgramState_PROGRAM_STATE_QUARANTINED ProgramState = 5
+	// Declared on call, not running, its declaration kept (section 54). Not
+	// a failure: the next call starts it.
+	ProgramState_PROGRAM_STATE_AT_REST ProgramState = 6
 )
 
 // Enum value maps for ProgramState.
@@ -636,6 +639,7 @@ var (
 		3: "PROGRAM_STATE_DEGRADED",
 		4: "PROGRAM_STATE_RESTARTING",
 		5: "PROGRAM_STATE_QUARANTINED",
+		6: "PROGRAM_STATE_AT_REST",
 	}
 	ProgramState_value = map[string]int32{
 		"PROGRAM_STATE_UNSPECIFIED": 0,
@@ -644,6 +648,7 @@ var (
 		"PROGRAM_STATE_DEGRADED":    3,
 		"PROGRAM_STATE_RESTARTING":  4,
 		"PROGRAM_STATE_QUARANTINED": 5,
+		"PROGRAM_STATE_AT_REST":     6,
 	}
 )
 
@@ -8929,8 +8934,13 @@ type ProgramHealth struct {
 	// When the backoff elapses; zero unless RESTARTING.
 	NextAttemptUnixNano int64           `protobuf:"varint,11,opt,name=next_attempt_unix_nano,json=nextAttemptUnixNano,proto3" json:"next_attempt_unix_nano,omitempty"`
 	History             []*ProgramEvent `protobuf:"bytes,12,rep,name=history,proto3" json:"history,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Section 54: started when called. calls is how many are in flight now,
+	// and last_call when the latest arrived, zero if none ever has.
+	OnCall           bool   `protobuf:"varint,13,opt,name=on_call,json=onCall,proto3" json:"on_call,omitempty"`
+	Calls            uint32 `protobuf:"varint,14,opt,name=calls,proto3" json:"calls,omitempty"`
+	LastCallUnixNano int64  `protobuf:"varint,15,opt,name=last_call_unix_nano,json=lastCallUnixNano,proto3" json:"last_call_unix_nano,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ProgramHealth) Reset() {
@@ -9045,6 +9055,27 @@ func (x *ProgramHealth) GetHistory() []*ProgramEvent {
 		return x.History
 	}
 	return nil
+}
+
+func (x *ProgramHealth) GetOnCall() bool {
+	if x != nil {
+		return x.OnCall
+	}
+	return false
+}
+
+func (x *ProgramHealth) GetCalls() uint32 {
+	if x != nil {
+		return x.Calls
+	}
+	return 0
+}
+
+func (x *ProgramHealth) GetLastCallUnixNano() int64 {
+	if x != nil {
+		return x.LastCallUnixNano
+	}
+	return 0
 }
 
 // UpRequest starts declared programs. No ids means every declared program.
@@ -12581,7 +12612,7 @@ const file_proto_rig_v1_verbs_proto_rawDesc = "" +
 	"\x02to\x18\x03 \x01(\x0e2\x14.rig.v1.ProgramStateR\x02to\x12\x18\n" +
 	"\atrigger\x18\x04 \x01(\tR\atrigger\x12\x14\n" +
 	"\x05actor\x18\x05 \x01(\tR\x05actor\x12\x12\n" +
-	"\x04note\x18\x06 \x01(\tR\x04note\"\x89\x03\n" +
+	"\x04note\x18\x06 \x01(\tR\x04note\"\xe7\x03\n" +
 	"\rProgramHealth\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12*\n" +
 	"\x05state\x18\x02 \x01(\x0e2\x14.rig.v1.ProgramStateR\x05state\x12\x10\n" +
@@ -12595,7 +12626,10 @@ const file_proto_rig_v1_verbs_proto_rawDesc = "" +
 	"\tlast_exit\x18\n" +
 	" \x01(\tR\blastExit\x123\n" +
 	"\x16next_attempt_unix_nano\x18\v \x01(\x03R\x13nextAttemptUnixNano\x12.\n" +
-	"\ahistory\x18\f \x03(\v2\x14.rig.v1.ProgramEventR\ahistory\"'\n" +
+	"\ahistory\x18\f \x03(\v2\x14.rig.v1.ProgramEventR\ahistory\x12\x17\n" +
+	"\aon_call\x18\r \x01(\bR\x06onCall\x12\x14\n" +
+	"\x05calls\x18\x0e \x01(\rR\x05calls\x12-\n" +
+	"\x13last_call_unix_nano\x18\x0f \x01(\x03R\x10lastCallUnixNano\"'\n" +
 	"\tUpRequest\x12\x1a\n" +
 	"\bprograms\x18\x01 \x03(\tR\bprograms\"?\n" +
 	"\n" +
@@ -12855,14 +12889,15 @@ const file_proto_rig_v1_verbs_proto_rawDesc = "" +
 	"\x17MESSAGE_STATE_DELIVERED\x10\x02\x12\x16\n" +
 	"\x12MESSAGE_STATE_READ\x10\x03\x12\x1e\n" +
 	"\x1aMESSAGE_STATE_ACKNOWLEDGED\x10\x04\x12\x1a\n" +
-	"\x16MESSAGE_STATE_ACTED_ON\x10\x05*\xbd\x01\n" +
+	"\x16MESSAGE_STATE_ACTED_ON\x10\x05*\xd8\x01\n" +
 	"\fProgramState\x12\x1d\n" +
 	"\x19PROGRAM_STATE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16PROGRAM_STATE_STARTING\x10\x01\x12\x19\n" +
 	"\x15PROGRAM_STATE_HEALTHY\x10\x02\x12\x1a\n" +
 	"\x16PROGRAM_STATE_DEGRADED\x10\x03\x12\x1c\n" +
 	"\x18PROGRAM_STATE_RESTARTING\x10\x04\x12\x1d\n" +
-	"\x19PROGRAM_STATE_QUARANTINED\x10\x05B9Z7github.com/borismilner/rig/proto/rig/v1/verbsv1;verbsv1b\x06proto3"
+	"\x19PROGRAM_STATE_QUARANTINED\x10\x05\x12\x19\n" +
+	"\x15PROGRAM_STATE_AT_REST\x10\x06B9Z7github.com/borismilner/rig/proto/rig/v1/verbsv1;verbsv1b\x06proto3"
 
 var (
 	file_proto_rig_v1_verbs_proto_rawDescOnce sync.Once

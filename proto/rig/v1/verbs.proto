@@ -2181,6 +2181,9 @@ enum ProgramState {
   PROGRAM_STATE_RESTARTING = 4;
   // Out of budget, or failed registration. Stays until a human acts.
   PROGRAM_STATE_QUARANTINED = 5;
+  // Declared on call, not running, its declaration kept (section 54). Not
+  // a failure: the next call starts it.
+  PROGRAM_STATE_AT_REST = 6;
 }
 
 // ProgramEvent is one row of a program's history, which section 18 requires
@@ -2214,6 +2217,12 @@ message ProgramHealth {
   // When the backoff elapses; zero unless RESTARTING.
   int64 next_attempt_unix_nano = 11;
   repeated ProgramEvent history = 12;
+
+  // Section 54: started when called. calls is how many are in flight now,
+  // and last_call when the latest arrived, zero if none ever has.
+  bool on_call = 13;
+  uint32 calls = 14;
+  int64 last_call_unix_nano = 15;
 }
 
 // UpRequest starts declared programs. No ids means every declared program.

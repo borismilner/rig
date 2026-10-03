@@ -220,11 +220,20 @@ func declaredFacts() []string {
 		case "commands":
 			out = append(out, prefixed("commands", (&rigv1.Command{}).ProtoReflect().Descriptor())...)
 		default:
+			if slices.Contains(daemonState, string(f.Name())) {
+				continue
+			}
 			out = append(out, string(f.Name()))
 		}
 	}
 	return out
 }
+
+// daemonState is what Program carries that no program declares: rig derives
+// it, so neither "the meta object must return it" nor the CLI's gap list is
+// about it. at_rest is plan/54's, and it lives outside kernel.Program on
+// purpose, since the capability digest would churn on every start and exit.
+var daemonState = []string{"at_rest"}
 
 func prefixed(prefix string, m protoreflect.MessageDescriptor) []string {
 	out := make([]string, 0, m.Fields().Len())
@@ -393,6 +402,7 @@ func wireFixture(t *testing.T) *registryv1.Program {
 		Hosted:       true,
 		PaneUrl:      "http://127.0.0.1:9/pane",
 		Preamble:     "read this first",
+		AtRest:       true,
 		Commands: []*rigv1.Command{{
 			Id: "reindex", Title: "Reindex",
 			Args:          []byte(`{"type":"object"}`),

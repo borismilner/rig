@@ -289,6 +289,7 @@ func run() error {
 		"socket", sockPath, "mcp", mcpSockPath, "pid", os.Getpid())
 
 	sup := supervisor(log)
+	kept := declarationsDir(log, *estate)
 
 	sounds, err := newAudio(log, *estate, pidPath, *soundFile)
 	if err != nil {
@@ -313,8 +314,9 @@ func run() error {
 		Lock:             lock,
 		Leases:           leases,
 
-		Supervisor: sup,
-		Audio:      sounds,
+		Supervisor:   sup,
+		Declarations: kept,
+		Audio:        sounds,
 	})
 	if err != nil {
 		return err
@@ -396,6 +398,23 @@ func closeLogs(logs *observe.Store) {
 	if err := logs.Close(); err != nil {
 		fmt.Fprintln(os.Stderr, "rigd: closing the log store: "+err.Error())
 	}
+}
+
+// declarationsDir is where on-call programs' declarations are kept (section
+// 54): the estate's state directory, or nowhere for an unnamed estate, which
+// keeps them in memory and reads them again at its next start. A state
+// directory that cannot be named degrades to the same, said in the log:
+// keeping them costs a declare run per rigd start, nothing more.
+func declarationsDir(log *slog.Logger, estate string) string {
+	if estate == "" {
+		return ""
+	}
+	d, err := paths.EstateStateDir(estate)
+	if err != nil {
+		log.Warn("on-call declarations are kept in memory only", "err", err)
+		return ""
+	}
+	return filepath.Join(d, "declarations")
 }
 
 // newAudio builds section 12's audio queue (plan/12, S1-S5). The settings

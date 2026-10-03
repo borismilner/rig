@@ -146,6 +146,11 @@ type Config struct {
 	// nothing, and the four verbs refuse naming that.
 	Supervisor *supervise.Supervisor
 
+	// Declarations is where an on-call program's declaration is kept while
+	// it is down (section 54). Empty keeps it in memory only, as an unnamed
+	// estate does.
+	Declarations string
+
 	// Audio sounds drawn toasts and speaks (section 12, S1-S5). rigd owns
 	// it and closes it; nil means this daemon is silent, and rig.sound and
 	// rig.say refuse naming that.
@@ -240,6 +245,9 @@ type Daemon struct {
 
 	// super is section 18's supervisor, nil when none was configured.
 	super *supervise.Supervisor
+	// keptDir and oncall hold on-call programs' declarations (oncall.go).
+	keptDir string
+	oncall  onCallState
 
 	// mail wakes rig.message.await calls parked on a seat. In memory, and
 	// losing it costs nothing: the queue behind it is durable, so a reader
@@ -416,6 +424,8 @@ func New(cfg Config) (*Daemon, error) {
 		leases:   cfg.Leases,
 		lq:       newLeaseQueue(),
 		super:    cfg.Supervisor,
+		keptDir:  cfg.Declarations,
+		oncall:   onCallState{kept: map[string]string{}, reading: map[string]string{}},
 		audio:    cfg.Audio,
 		hand:     newHandDesk(time.Now),
 
@@ -594,6 +604,9 @@ func (d *Daemon) Serve(ctx context.Context, l net.Listener) error {
 	d.startTimers(ctx)
 	d.startLeaseWatch(ctx)
 	d.serving.Store(&ctx)
+	// Section 54: on-call declarations are read in the background, so a
+	// listing is never empty for want of one and serving never waits on it.
+	go d.restOnCall()
 
 	go func() {
 		<-ctx.Done()
@@ -915,7 +928,6 @@ func (d *Daemon) serveHello(ctx context.Context, c *conn, f *rigv1.Frame) {
 	c.who.Store(who)
 	c.program.Store(req.GetProgram())
 	c.scoped.Store(true)
-	d.supervisedHello(c)
 	d.log.Info("program registered",
 		"program", decl.Identity.ID, "version", decl.Identity.Version,
 		"coverage", decl.Coverage.String(), "commands", len(decl.Commands),
@@ -936,6 +948,11 @@ func (d *Daemon) serveHello(ctx context.Context, c *conn, f *rigv1.Frame) {
 		// and this restores coordination state only.
 		Session: who.Token,
 	})
+	// After the reply: STARTING's end releases the calls waiting on an
+	// on-call start (section 54), and none may reach the program before its
+	// HelloResponse does.
+	d.supervisedHello(c)
+	d.keptHello(c, &req, decl)
 
 	// The program is registered, so any agent already connected gains its
 	// promoted tools without reconnecting. After the reply, not before: a
@@ -977,6 +994,10 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 		// The depth decides how much is said about each program and never
 		// which programs are named: the scope filter is inside See and runs
 		// first either way.
+		//
+		// An on-call program's binary is checked first, one stat each, so a
+		// rebuilt one is re-read (section 54).
+		d.restOnCall()
 		estate, err := d.kernel.See(c.principal()).Estate(depthIn(req.GetDepth()))
 		if err != nil {
 			c.failErr(f.GetStreamId(), rigv1.Code_CODE_INVALID, err)
@@ -984,7 +1005,9 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 		}
 		var resp registryv1.ProgramsResponse
 		for _, p := range estate {
-			resp.Programs = append(resp.Programs, programToWire(p))
+			w := programToWire(p)
+			w.AtRest = d.atRest(p.Identity.ID)
+			resp.Programs = append(resp.Programs, w)
 		}
 		c.reply(f.GetStreamId(), &resp)
 
@@ -1269,14 +1292,6 @@ func (d *Daemon) forward(
 			fmt.Sprintf("no program %q is connected", program))
 	}
 
-	d.mu.RLock()
-	to := d.programs[program]
-	d.mu.RUnlock()
-	if to == nil {
-		return nil, failure(rigv1.Code_CODE_NOT_FOUND,
-			fmt.Sprintf("no program %q is connected", program))
-	}
-
 	// The authorization floor, and it is here rather than on any surface so
 	// that no surface can forget it (section 13a).
 	//
@@ -1298,6 +1313,28 @@ func (d *Daemon) forward(
 	// schema it would have had to satisfy.
 	if err := d.validateArgs(from, program, command); err != nil {
 		return nil, failureErr(rigv1.Code_CODE_INVALID, err)
+	}
+
+	// The deadline starts here, so a start on call spends the call's own
+	// time and extends nothing (section 54).
+	deadline := CallDeadline(durationOut[d.kernel.DeclaredDuration(program, command)])
+	callCtx, cancel := context.WithTimeout(ctx, deadline)
+	defer cancel()
+
+	// An on-call program at rest is started now, after every refusal above,
+	// so a caller that would be refused never starts it.
+	done, bad := d.startOnCall(callCtx, program)
+	if bad != nil {
+		return nil, bad
+	}
+	defer done()
+
+	d.mu.RLock()
+	to := d.programs[program]
+	d.mu.RUnlock()
+	if to == nil {
+		return nil, failure(rigv1.Code_CODE_NOT_FOUND,
+			fmt.Sprintf("no program %q is connected", program))
 	}
 
 	// A new even stream on the program's connection, with a slot waiting for
@@ -1327,10 +1364,6 @@ func (d *Daemon) forward(
 		return nil, failure(rigv1.Code_CODE_UNAVAILABLE,
 			fmt.Sprintf("program %q: %v", program, err))
 	}
-
-	deadline := CallDeadline(durationOut[d.kernel.DeclaredDuration(program, command)])
-	callCtx, cancel := context.WithTimeout(ctx, deadline)
-	defer cancel()
 
 	select {
 	case reply := <-ch:

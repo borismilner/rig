@@ -53,6 +53,9 @@ message Program {
   string preamble = 10;
   // The event kinds it publishes (section 52 E3).
   repeated string events = 11;
+  // Declared on call and not running (section 54): what is listed is the
+  // declaration kept from its last run, and a call starts it.
+  bool at_rest = 12;
 }
 
 // Depth is how much of the estate a read wants (section 9).

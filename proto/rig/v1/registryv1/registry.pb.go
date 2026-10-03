@@ -601,7 +601,10 @@ type Program struct {
 	// exists to avoid - so it travels with describe and not with list.
 	Preamble string `protobuf:"bytes,10,opt,name=preamble,proto3" json:"preamble,omitempty"`
 	// The event kinds it publishes (section 52 E3).
-	Events        []string `protobuf:"bytes,11,rep,name=events,proto3" json:"events,omitempty"`
+	Events []string `protobuf:"bytes,11,rep,name=events,proto3" json:"events,omitempty"`
+	// Declared on call and not running (section 54): what is listed is the
+	// declaration kept from its last run, and a call starts it.
+	AtRest        bool `protobuf:"varint,12,opt,name=at_rest,json=atRest,proto3" json:"at_rest,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -711,6 +714,13 @@ func (x *Program) GetEvents() []string {
 		return x.Events
 	}
 	return nil
+}
+
+func (x *Program) GetAtRest() bool {
+	if x != nil {
+		return x.AtRest
+	}
+	return false
 }
 
 type ProgramsRequest struct {
@@ -4930,7 +4940,7 @@ var File_proto_rig_v1_registry_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\n" +
-	"\x1bproto/rig/v1/registry.proto\x12\x06rig.v1\x1a\x17proto/rig/v1/wire.proto\"\xfb\x02\n" +
+	"\x1bproto/rig/v1/registry.proto\x12\x06rig.v1\x1a\x17proto/rig/v1/wire.proto\"\x94\x03\n" +
 	"\aProgram\x12,\n" +
 	"\bidentity\x18\x01 \x01(\v2\x10.rig.v1.IdentityR\bidentity\x12,\n" +
 	"\bcoverage\x18\x02 \x01(\x0e2\x10.rig.v1.CoverageR\bcoverage\x12#\n" +
@@ -4943,7 +4953,8 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\belements\x18\t \x03(\tR\belements\x12\x1a\n" +
 	"\bpreamble\x18\n" +
 	" \x01(\tR\bpreamble\x12\x16\n" +
-	"\x06events\x18\v \x03(\tR\x06events\"6\n" +
+	"\x06events\x18\v \x03(\tR\x06events\x12\x17\n" +
+	"\aat_rest\x18\f \x01(\bR\x06atRest\"6\n" +
 	"\x0fProgramsRequest\x12#\n" +
 	"\x05depth\x18\x01 \x01(\x0e2\r.rig.v1.DepthR\x05depth\"?\n" +
 	"\x10ProgramsResponse\x12+\n" +

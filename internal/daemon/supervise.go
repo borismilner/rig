@@ -180,6 +180,7 @@ var programStateWire = map[supervise.State]verbsv1.ProgramState{
 	supervise.StateDegraded:    verbsv1.ProgramState_PROGRAM_STATE_DEGRADED,
 	supervise.StateRestarting:  verbsv1.ProgramState_PROGRAM_STATE_RESTARTING,
 	supervise.StateQuarantined: verbsv1.ProgramState_PROGRAM_STATE_QUARANTINED,
+	supervise.StateAtRest:      verbsv1.ProgramState_PROGRAM_STATE_AT_REST,
 }
 
 func healthToWire(in []supervise.Status) []*verbsv1.ProgramHealth {
@@ -189,6 +190,10 @@ func healthToWire(in []supervise.Status) []*verbsv1.ProgramHealth {
 			Id: s.ID, State: programStateWire[s.State], Pid: int32(s.PID), //nolint:gosec // a pid fits
 			Failures: clampU32(s.Failures), Restarts: clampU32(s.Restarts),
 			Marker: s.Marker, Waiting: s.Waiting, Parked: s.Parked,
+			OnCall: s.OnCall, Calls: clampU32(s.Calls),
+		}
+		if !s.LastCall.IsZero() {
+			h.LastCallUnixNano = s.LastCall.UnixNano()
 		}
 		if !s.Since.IsZero() {
 			h.SinceUnixNano = s.Since.UnixNano()
