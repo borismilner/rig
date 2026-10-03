@@ -35,6 +35,7 @@
   import * as RigService from "../bindings/github.com/borismilner/rig/cmd/rigwindow/rigservice.js";
   import type {
     Deployment,
+    Guidelines as GuidelinesData,
     Health,
     Program,
     Running,
@@ -58,8 +59,10 @@
     DEPLOYMENT,
     RUNNING,
     CAPABILITIES,
+    GUIDELINES,
   } from "./lib/fixtures";
   import Capabilities from "./lib/Capabilities.svelte";
+  import Guidelines from "./lib/Guidelines.svelte";
 
   /* ── the fixtures, and none of them is a mock of the product path ────────
    *
@@ -75,6 +78,7 @@
    *   ?settings=1       the settings panel over a seeded rail
    *   ?dash=1           the dashboard, which is the default destination
    *   ?caps=1           the Capabilities panel, seeded
+   *   ?guide=1          the Guidelines GUI, seeded, with shelf marked
    *   ?card=<id>        a program's card open over the dashboard, and
    *   &tab=<name>       which of its tabs
    *
@@ -89,10 +93,16 @@
   const settingsFixture = params.get("settings") === "1";
   const cardFixture = params.get("card");
   const capsFixture = params.get("caps") === "1";
+  const guideFixture = params.get("guide") === "1";
   const dashFixture = params.get("dash") === "1" || !!cardFixture;
   const railFixture = params.get("fixture") === "1";
   const fixture =
-    railFixture || paneFixture || settingsFixture || dashFixture || capsFixture;
+    railFixture ||
+    paneFixture ||
+    settingsFixture ||
+    dashFixture ||
+    capsFixture ||
+    guideFixture;
 
   let programs: Program[] = $state(fixture ? PROGRAMS : []);
   // What each supervised program is doing, from rig.health. Empty for an
@@ -117,17 +127,51 @@
   // WHERE YOU ARE, as two pieces rather than one. `atHome` is not
   // `selected === null`: the dashboard is a destination in its own right, and
   // leaving a GUI for it must not forget which GUI you were in.
-  let atHome = $state(!(paneFixture || railFixture || capsFixture));
+  let atHome = $state(
+    !(paneFixture || railFixture || capsFixture || guideFixture),
+  );
   let selected: string | null = $state(
     capsFixture
       ? "capabilities"
-      : paneFixture
-        ? "quarry"
-        : fixture
-          ? "graft"
-          : null,
+      : guideFixture
+        ? "guidelines"
+        : paneFixture
+          ? "quarry"
+          : fixture
+            ? "graft"
+            : null,
   );
   let lastRead = $state(fixture ? "09:53:41" : "");
+
+  // rig.guidelines (plan/55 requirement 29), shared by Main's Programs table
+  // and the Guidelines GUI. Read again only when the set of programs or a
+  // version changes, never on the poll: each read opens every program's
+  // binary for its build info, and section 17 budgets the daemon's work.
+  let guide: GuidelinesData | null = $state(fixture ? GUIDELINES : null);
+  let guideError = $state("");
+  let guideLoading = $state(false);
+  // The program Main's table sent you to the Guidelines GUI for.
+  let guideFocus: string | null = $state(guideFixture ? "graft" : null);
+  // null until the first read, so an estate with no programs still reads.
+  let guideKey: string | null = null;
+
+  async function loadGuide() {
+    guideLoading = true;
+    try {
+      guide = await RigService.Guidelines();
+      guideError = "";
+    } catch (e) {
+      guide = null;
+      guideError = String(e);
+    } finally {
+      guideLoading = false;
+    }
+  }
+
+  function openGuide(id: string | null) {
+    pick("guidelines");
+    guideFocus = id;
+  }
 
   // Held rather than only applied, because the pane has to push the token set
   // into a program's own page and a mode change has to reach it too. One
@@ -205,6 +249,8 @@
   function pick(id: string) {
     atHome = false;
     selected = id;
+    // A focus belongs to the trip from Main's table that set it.
+    guideFocus = null;
   }
 
   async function refresh() {
@@ -237,6 +283,8 @@
       // which that GUI reports for itself.
       programs = [];
       running = [];
+      // A daemon that comes back may be a new build with new rules.
+      guideKey = null;
       if (!internalGui(selected)) selected = null;
       lastRead = stamp();
       return;
@@ -249,6 +297,12 @@
       health = { ...h, connected: false, detail: String(e) };
     }
     running = (await RigService.Supervision()) ?? [];
+
+    const key = programs.map((p) => `${p.id}@${p.version}`).join(" ");
+    if (key !== guideKey) {
+      guideKey = key;
+      void loadGuide();
+    }
 
     // A selection survives a refresh unless the program it names has gone.
     // Falling back to the dashboard rather than to another program: picking
@@ -401,6 +455,8 @@
           {deployment}
           bind:tab={mainTab}
           onopen={(id) => (cardFor = id)}
+          {guide}
+          onguide={openGuide}
         />
       </div>
     {:else if gui?.id === "capabilities"}
@@ -410,6 +466,18 @@
         <Capabilities
           fixture={capsFixture ? CAPABILITIES : null}
           connected={health.connected}
+        />
+      </div>
+    {:else if gui?.id === "guidelines"}
+      <div class="pane bleed">
+        <Guidelines
+          {guide}
+          loadError={guideError}
+          loading={guideLoading}
+          connected={health.connected}
+          {programs}
+          focus={guideFocus}
+          onreload={fixture ? undefined : loadGuide}
         />
       </div>
     {:else}

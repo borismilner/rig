@@ -3,10 +3,12 @@ package main
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
+	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
 func TestSuperviseRefusesBeforeDialling(t *testing.T) {
@@ -76,5 +78,30 @@ func TestVerbCapability(t *testing.T) {
 		if c.Owner != "rig" || c.Summary != "Does a." {
 			t.Errorf("owner %q summary %q", c.Owner, c.Summary)
 		}
+	}
+}
+
+func TestGuidelinesFrom(t *testing.T) {
+	g := guidelinesFrom(&verbsv1.GuidelinesResponse{
+		Revision: "2026-10-03",
+		Rules:    []*verbsv1.Guideline{{Id: "G4", Date: "2026-10-03", Who: "programs", Built: true}},
+		Programs: []*verbsv1.ProgramBuild{
+			{Program: "shelf", CommitTime: "2026-10-01T22:30:00Z"},
+			{Program: "bad", CommitTime: "yesterday"},
+			{Program: "script", UnknownBecause: "its binary carries no Go build info"},
+		},
+	})
+	if len(g.Rules) != 1 || g.Rules[0].ID != "G4" {
+		t.Fatalf("rules: %+v", g.Rules)
+	}
+	want := time.Date(2026, 10, 1, 22, 30, 0, 0, time.UTC).Local().Format(time.DateOnly)
+	if g.Programs[0].Day != want {
+		t.Errorf("shelf day %q, want %q", g.Programs[0].Day, want)
+	}
+	if g.Programs[1].Day != "" || g.Programs[1].CommitTime != "" || g.Programs[1].UnknownBecause == "" {
+		t.Errorf("a malformed time must read unknown: %+v", g.Programs[1])
+	}
+	if g.Programs[2].Day != "" || g.Programs[2].UnknownBecause == "" {
+		t.Errorf("script: %+v", g.Programs[2])
 	}
 }

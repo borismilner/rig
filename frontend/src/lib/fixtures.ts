@@ -15,6 +15,7 @@
 
 import type {
   Capability,
+  Guidelines,
   Program,
   Running,
 } from "../../bindings/github.com/borismilner/rig/cmd/rigwindow/models.js";
@@ -280,3 +281,72 @@ export const CAPABILITIES: Capability[] = [
     args: '{"type":"object","required":["q"],"properties":{"q":{"type":"string"},"limit":{"type":"integer"}}}',
   },
 ];
+
+/* rig.guidelines, seeded so the gate measures every standing: current, newer
+ * with an uncommitted build, and unknown (plan/55 requirement 29). */
+const rule = (
+  id: string,
+  date: string,
+  who: string,
+  built: boolean,
+  title: string,
+) => ({
+  id,
+  date,
+  who,
+  built,
+  title,
+  body: `${title}, in full.`,
+  cite: "plan/55",
+});
+export const GUIDELINES: Guidelines = {
+  revision: "2026-10-03",
+  rules: [
+    rule(
+      "G6",
+      "2026-10-03",
+      "programs",
+      false,
+      "Declare your settings as a schema",
+    ),
+    rule("G4", "2026-10-03", "programs", true, "Declare how you load"),
+    rule(
+      "G3",
+      "2026-10-01",
+      "programs",
+      true,
+      "Declare the events you publish",
+    ),
+    rule("A2", "2026-09-24", "agents", true, "Keep your notes in rig"),
+  ],
+  programs: [
+    {
+      program: "shelf",
+      day: "2026-10-03",
+      commitTime: "2026-10-03T09:12:00Z",
+      modified: false,
+      unknownBecause: "",
+    },
+    {
+      program: "graft",
+      day: "2026-09-28",
+      commitTime: "2026-09-28T17:40:00Z",
+      modified: true,
+      unknownBecause: "",
+    },
+    {
+      program: "snapper",
+      day: "",
+      commitTime: "",
+      modified: false,
+      unknownBecause: "its binary carries no Go build info",
+    },
+    {
+      program: "quarry",
+      day: "2026-10-02",
+      commitTime: "2026-10-02T08:00:00Z",
+      modified: false,
+      unknownBecause: "",
+    },
+  ],
+};

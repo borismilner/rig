@@ -38,22 +38,17 @@ export type InternalGui = {
   icon: string;
 };
 
-/* ⛔ EMPTY, AND EMPTY IS A STATE RATHER THAN A GAP.
- *
- * It held PROJECT_CASE_GUI, the project and case GUI, wearing `indigo`. That
+/* It once held PROJECT_CASE_GUI, the project and case GUI, wearing `indigo`. That
  * GUI left this window at plan/50 move 7: the planner is a program now, it
  * serves its own pane, and rig draws it through the pane tier like any other
  * program's. Requirement 16's mechanism stays because requirement 16 is his
  * and the next internal capability goes straight in here.
  *
- * ⛔ WHOEVER ADDS THE NEXT ONE HAS TO PUT THE BRANCH BACK IN App.svelte.
- * While this list is empty `internalGui()` answers null for every id, so the
- * shell's `gui` is always null and the branch that drew an internal GUI's own
- * layout was removed with the GUI. A new entry here alone would put a rail
- * icon on screen that lands on the unserved pane.
+ * ⛔ EACH ENTRY NEEDS ITS OWN BRANCH IN App.svelte. An entry here alone puts
+ * a rail icon on screen that lands on the unserved pane.
  *
- * `indigo` and `lilac` are both free again; the other five carry a semantic
- * role and an identity hue must not be mistaken for a status.
+ * `indigo` and `lilac` are taken now; the other five carry a semantic role
+ * and an identity hue must not be mistaken for a status.
  */
 export const INTERNAL_GUIS: InternalGui[] = [
   /* plan/55 requirement 28, Boris 2026-10-03: every capability of rig and of
@@ -66,6 +61,16 @@ export const INTERNAL_GUIS: InternalGui[] = [
     note: "every command rig and its programs offer, in their own words, to try",
     hue: "indigo",
     icon: "M9.5 1 3 9h4.5L6.5 15 13 7H8.5z",
+  },
+  /* plan/55 requirement 29, decision 0266: rig's dated rules for programs
+   * and agents, and which programs were built before which. It takes the
+   * other free hue, lilac. */
+  {
+    id: "guidelines",
+    title: "Guidelines",
+    note: "what a program or an agent must be to work with rig, each rule dated",
+    hue: "lilac",
+    icon: "M1 3h4.5a2 2 0 0 1 2 2v9A1.5 1.5 0 0 0 6 12.5H1zM15 3h-4.5a2 2 0 0 0-2 2v9A1.5 1.5 0 0 1 10 12.5h5z",
   },
 ];
 

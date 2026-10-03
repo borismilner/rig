@@ -52,12 +52,21 @@ export function Deployment(): $CancellablePromise<$models.Deployment> {
 }
 
 /**
+ * Guidelines reads rig.guidelines.
+ */
+export function Guidelines(): $CancellablePromise<$models.Guidelines> {
+    return $Call.ByID(346564824).then(($result: any) => {
+        return $$createType4($result);
+    });
+}
+
+/**
  * Health never returns an error: not reaching rig is a state the strip draws,
  * not a failure the window has to handle.
  */
 export function Health(): $CancellablePromise<$models.Health> {
     return $Call.ByID(2625630141).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
@@ -68,7 +77,7 @@ export function Health(): $CancellablePromise<$models.Health> {
  */
 export function Programs(): $CancellablePromise<$models.Program[]> {
     return $Call.ByID(1823204778).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType7($result);
     });
 }
 
@@ -80,7 +89,7 @@ export function Programs(): $CancellablePromise<$models.Program[]> {
  */
 export function Supervise(action: string, program: string): $CancellablePromise<$models.Running> {
     return $Call.ByID(3916844919, action, program).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType8($result);
     });
 }
 
@@ -90,7 +99,7 @@ export function Supervise(action: string, program: string): $CancellablePromise<
  */
 export function Supervision(): $CancellablePromise<$models.Running[]> {
     return $Call.ByID(914839342).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType9($result);
     });
 }
 
@@ -101,7 +110,7 @@ export function Supervision(): $CancellablePromise<$models.Running[]> {
  */
 export function Try(owner: string, id: string, args: string): $CancellablePromise<$models.TryResult> {
     return $Call.ByID(99210380, owner, id, args).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType10($result);
     });
 }
 
@@ -110,9 +119,10 @@ const $$createType0 = $Create.Map($Create.Any, $Create.Any);
 const $$createType1 = $models.Capability.createFrom;
 const $$createType2 = $Create.Array($$createType1);
 const $$createType3 = $models.Deployment.createFrom;
-const $$createType4 = $models.Health.createFrom;
-const $$createType5 = $models.Program.createFrom;
-const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = $models.Running.createFrom;
-const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = $models.TryResult.createFrom;
+const $$createType4 = $models.Guidelines.createFrom;
+const $$createType5 = $models.Health.createFrom;
+const $$createType6 = $models.Program.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = $models.Running.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = $models.TryResult.createFrom;

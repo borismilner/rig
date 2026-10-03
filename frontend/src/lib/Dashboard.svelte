@@ -15,11 +15,13 @@
 <script lang="ts">
   import type {
     Deployment as DeploymentState,
+    Guidelines,
     Health,
     Program,
     Running,
   } from "../../bindings/github.com/borismilner/rig/cmd/rigwindow/models.js";
   import { forHow, stateOf } from "./estate";
+  import { standing } from "./guidelines";
   import { programGlyph, programIcon } from "./icons";
   import ProgramIcon from "./ProgramIcon.svelte";
   import Deployment from "./Deployment.svelte";
@@ -38,6 +40,10 @@
     tab: MainTab;
     /** Opens a program's card (requirement 42). */
     onopen: (id: string) => void;
+    /* rig.guidelines, or null before the first read (requirement 29). */
+    guide: Guidelines | null;
+    /** Opens the Guidelines GUI with this program's rules marked. */
+    onguide: (id: string) => void;
   }
 
   let {
@@ -49,6 +55,8 @@
     deployment,
     tab = $bindable(),
     onopen,
+    guide,
+    onguide,
   }: Props = $props();
 
   let byId = $derived(new Map(running.map((r) => [r.id, r])));
@@ -215,6 +223,7 @@
               <th scope="col">State</th>
               <th scope="col" class="num">Commands</th>
               <th scope="col" class="num">Restarts</th>
+              <th scope="col">Guidelines</th>
             </tr>
           </thead>
           <tbody>
@@ -250,6 +259,23 @@
                 <td class="num" class:bad={(run?.restarts ?? 0) >= 5}
                   >{run ? run.restarts : "–"}</td
                 >
+                <td>
+                  {#if guide}
+                    {@const g = standing(guide, p.id)}
+                    <button
+                      class="gstat"
+                      title={g.newer.length
+                        ? `${g.newer.length} rule${g.newer.length > 1 ? "s" : ""} newer than what ${p.name || p.id} was built from`
+                        : g.build?.day
+                          ? `built from a commit of ${g.build.day}, current`
+                          : (g.build?.unknownBecause ?? "rig did not say")}
+                      onclick={() => onguide(p.id)}
+                      ><span class="pst" data-tone={g.tone}
+                        ><i></i>{g.word}</span
+                      ></button
+                    >
+                  {:else}<span class="dim">–</span>{/if}
+                </td>
               </tr>
             {/each}
           </tbody>
@@ -451,6 +477,22 @@
   }
   .progs .tag {
     margin-inline-start: 0.5rem;
+  }
+  .gstat {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    padding: 0.1rem 0.2rem;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .gstat:hover .pst {
+    text-decoration: underline;
+  }
+  .gstat:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 var(--ring-w) var(--hue);
   }
 
   .pname {

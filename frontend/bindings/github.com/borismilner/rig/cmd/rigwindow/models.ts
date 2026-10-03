@@ -223,6 +223,94 @@ export class Deployment {
 }
 
 /**
+ * Guideline is one dated rule.
+ */
+export class Guideline {
+    "id": string;
+    "date": string;
+    "who": string;
+    "built": boolean;
+    "title": string;
+    "body": string;
+    "cite": string;
+
+    /** Creates a new Guideline instance. */
+    constructor($$source: Partial<Guideline> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("date" in $$source)) {
+            this["date"] = "";
+        }
+        if (!("who" in $$source)) {
+            this["who"] = "";
+        }
+        if (!("built" in $$source)) {
+            this["built"] = false;
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+        if (!("body" in $$source)) {
+            this["body"] = "";
+        }
+        if (!("cite" in $$source)) {
+            this["cite"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Guideline instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Guideline {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Guideline($$parsedSource as Partial<Guideline>);
+    }
+}
+
+/**
+ * Guidelines is the whole answer.
+ */
+export class Guidelines {
+    "revision": string;
+    "rules": Guideline[];
+    "programs": ProgramBuild[];
+
+    /** Creates a new Guidelines instance. */
+    constructor($$source: Partial<Guidelines> = {}) {
+        if (!("revision" in $$source)) {
+            this["revision"] = "";
+        }
+        if (!("rules" in $$source)) {
+            this["rules"] = [];
+        }
+        if (!("programs" in $$source)) {
+            this["programs"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Guidelines instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Guidelines {
+        const $$createField1_0 = $$createType1;
+        const $$createField2_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("rules" in $$parsedSource) {
+            $$parsedSource["rules"] = $$createField1_0($$parsedSource["rules"]);
+        }
+        if ("programs" in $$parsedSource) {
+            $$parsedSource["programs"] = $$createField2_0($$parsedSource["programs"]);
+        }
+        return new Guidelines($$parsedSource as Partial<Guidelines>);
+    }
+}
+
+/**
  * Health is what the status strip renders.
  * 
  * Detached is section 5g's fourth state: the window is up and the daemon is
@@ -369,9 +457,9 @@ export class Program {
      * Creates a new Program instance from a string or object.
      */
     static createFrom($$source: any = {}): Program {
-        const $$createField7_0 = $$createType0;
-        const $$createField15_0 = $$createType0;
-        const $$createField16_0 = $$createType2;
+        const $$createField7_0 = $$createType4;
+        const $$createField15_0 = $$createType4;
+        const $$createField16_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("services" in $$parsedSource) {
             $$parsedSource["services"] = $$createField7_0($$parsedSource["services"]);
@@ -383,6 +471,51 @@ export class Program {
             $$parsedSource["commandList"] = $$createField16_0($$parsedSource["commandList"]);
         }
         return new Program($$parsedSource as Partial<Program>);
+    }
+}
+
+/**
+ * ProgramBuild is when one program's binary was built.
+ */
+export class ProgramBuild {
+    "program": string;
+
+    /**
+     * Day is the commit's local date, YYYY-MM-DD, the unit a rule is dated
+     * in; "" when unknown.
+     */
+    "day": string;
+    "commitTime": string;
+    "modified": boolean;
+    "unknownBecause": string;
+
+    /** Creates a new ProgramBuild instance. */
+    constructor($$source: Partial<ProgramBuild> = {}) {
+        if (!("program" in $$source)) {
+            this["program"] = "";
+        }
+        if (!("day" in $$source)) {
+            this["day"] = "";
+        }
+        if (!("commitTime" in $$source)) {
+            this["commitTime"] = "";
+        }
+        if (!("modified" in $$source)) {
+            this["modified"] = false;
+        }
+        if (!("unknownBecause" in $$source)) {
+            this["unknownBecause"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProgramBuild instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ProgramBuild {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ProgramBuild($$parsedSource as Partial<ProgramBuild>);
     }
 }
 
@@ -486,6 +619,10 @@ export class TryResult {
 }
 
 // Private type creation functions
-const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = Command.createFrom;
-const $$createType2 = $Create.Array($$createType1);
+const $$createType0 = Guideline.createFrom;
+const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = ProgramBuild.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $Create.Array($Create.Any);
+const $$createType5 = Command.createFrom;
+const $$createType6 = $Create.Array($$createType5);

@@ -10,8 +10,11 @@ export {
     Capability,
     Command,
     Deployment,
+    Guideline,
+    Guidelines,
     Health,
     Program,
+    ProgramBuild,
     Running,
     TryResult
 } from "./models.js";
