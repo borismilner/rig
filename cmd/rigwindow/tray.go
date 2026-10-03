@@ -92,6 +92,9 @@ func runTraySupervisor(sup *supervisor) {
 		menuDetail.Hide()
 
 		systray.AddSeparator()
+		// Requirement 25: shown only while something waits on him.
+		menuNeeds = systray.AddMenuItem(needsTitle(0), "Open the window on Needs you")
+		menuNeeds.Hide()
 		menuWindow = systray.AddMenuItem(windowTitle(false), "Open or close the Rig window")
 		menuDND = systray.AddMenuItemCheckbox("Do Not Disturb", "toasts go to the record only; urgent ones still show", false)
 		go func() {
@@ -131,7 +134,16 @@ func runTraySupervisor(sup *supervisor) {
 		// replacement: section 11 says the tray is an access point, and
 		// taking away the one-click toggle to add options would trade one
 		// for the other.
-		systray.SetOnTapped(sup.toggle)
+		//
+		// Requirement 25: while something waits, the click is "take me to
+		// it" instead, and never closes the window.
+		systray.SetOnTapped(func() {
+			if needsCount() > 0 {
+				sup.showNeeds()
+				return
+			}
+			sup.toggle()
+		})
 
 		// One receiver, because there is one clickable row. It stays a
 		// goroutine with a loop rather than collapsing to a single receive:
@@ -142,6 +154,16 @@ func runTraySupervisor(sup *supervisor) {
 				sup.toggle()
 			}
 		}()
+		go func() {
+			for range menuNeeds.ClickedCh {
+				sup.showNeeds()
+			}
+		}()
+
+		// The count's notifications half: the window's watcher, here
+		// recounting instead of telling a page.
+		setEmit(recountAsks)
+		go watchNotes()
 
 		go pollEstate(sup)
 		go watchToasts(&toastWatcher{
@@ -193,11 +215,15 @@ func pollEstate(sup *supervisor) {
 		est, connected := estateSnapshot()
 		switch {
 		case connected && est.GetRole() == registryv1.EstateRole_ESTATE_ROLE_PRODUCTION:
-			setTrayIcon("production.png", "Rig - production")
+			recountParked()
+			setTrayIcon(trayIconFor("production.png", needsCount()), "Rig - production")
 			setFacts(est)
+			paintNeedsRow(true)
 		case connected && est.GetRole() == registryv1.EstateRole_ESTATE_ROLE_DEVELOPMENT:
-			setTrayIcon("development.png", "Rig - development")
+			recountParked()
+			setTrayIcon(trayIconFor("development.png", needsCount()), "Rig - development")
 			setFacts(est)
+			paintNeedsRow(true)
 		case connected:
 			// Unnamed or unspecified. ⛔ THIS USED TO QUIT THE TRAY AND NOW
 			// LABELS IT, BECAUSE "ALWAYS AVAILABLE" OUTRANKS THE RULE IT WAS
@@ -230,13 +256,17 @@ func pollEstate(sup *supervisor) {
 			// the tray exists to carry.
 			setTrayIcon(downIcon(lastIcon), "Rig - no daemon answering")
 			setDetached()
+			paintNeedsRow(false)
 		}
 		retitleWindowItem(sup)
 		if connected {
 			showDND(toastDND(registryv1.DndChange_DND_CHANGE_QUERY))
 			menuSound.show(soundCall(&registryv1.SoundRequest{}))
 		}
-		time.Sleep(trayRefresh)
+		select {
+		case <-time.After(trayRefresh):
+		case <-needsKick:
+		}
 	}
 }
 
@@ -353,7 +383,7 @@ func setUnnamed() {
 }
 
 func setTrayIcon(icon, tooltip string) {
-	if !strings.HasSuffix(icon, "-down.png") {
+	if !strings.HasSuffix(icon, "-down.png") && !strings.HasSuffix(icon, "-ask.png") {
 		lastIcon = icon
 	}
 	if b := iconBytes(icon); b != nil {

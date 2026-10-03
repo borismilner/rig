@@ -40,6 +40,7 @@ func TestTrayIconsAreEmbedded(t *testing.T) {
 	for _, want := range []string{
 		"icons/development.png", "icons/production.png",
 		"icons/development-down.png", "icons/production-down.png",
+		"icons/development-ask.png", "icons/production-ask.png",
 	} {
 		if _, err := fs.Stat(trayIcons, want); err != nil {
 			t.Errorf("icons has been copied (%v) but %s is missing, so the "+

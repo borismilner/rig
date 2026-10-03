@@ -12,11 +12,14 @@ import (
 // fakeWindow is a window process the test ends by hand.
 type fakeWindow struct {
 	stops  int
+	asked  int
 	exited chan struct{}
 	once   sync.Once
 }
 
 func (f *fakeWindow) stop() { f.stops++ }
+
+func (f *fakeWindow) needs() { f.asked++ }
 
 // exit ends the fake window, once however often it is asked.
 func (f *fakeWindow) exit() { f.once.Do(func() { close(f.exited) }) }
@@ -142,5 +145,32 @@ func TestSelfExecutableSurvivesAnInstallUnderneathIt(t *testing.T) {
 	}
 	if exe == "" {
 		t.Fatal("empty executable path")
+	}
+}
+
+// Requirement 25: while something waits, the click takes him to Needs you,
+// so it starts a window when there is none and never closes one.
+func TestTheNeedsClickOpensOnNeedsYouAndNeverCloses(t *testing.T) {
+	f := newFakeSpawner(t, nil)
+	s := newSupervisor(f.spawn, func(string) { t.Fatal("no warning expected") })
+
+	s.showNeeds()
+	if len(f.started) != 1 || f.started[0].asked != 1 {
+		t.Fatalf("with no window: %d started, asked %d", len(f.started), f.started[0].asked)
+	}
+	s.showNeeds()
+	w := f.started[0]
+	if len(f.started) != 1 || w.asked != 2 || w.stops != 0 {
+		t.Fatalf("with a window open: %d started, asked %d, stopped %d", len(f.started), w.asked, w.stops)
+	}
+}
+
+func TestTheNeedsClickOnAWindowThatWillNotStartOnlyWarns(t *testing.T) {
+	f := newFakeSpawner(t, errors.New("no display"))
+	var warned string
+	s := newSupervisor(f.spawn, func(m string) { warned = m })
+	s.showNeeds()
+	if s.open() || !strings.Contains(warned, "no display") {
+		t.Fatalf("open=%v warned=%q", s.open(), warned)
 	}
 }

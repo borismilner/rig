@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -43,6 +44,8 @@ const stopGrace = 3 * time.Second
 // is ask it to go. How it went comes back on the spawn's exit channel.
 type windowProcess interface {
 	stop()
+	// needs asks the window to show Needs you (plan/55 requirement 25).
+	needs()
 }
 
 // spawnFunc starts one window process. exited closes when that process has
@@ -82,13 +85,35 @@ func (s *supervisor) toggle() {
 		p.stop()
 		return
 	}
+	s.startLocked()
+}
+
+// showNeeds is the gesture while something waits on him (plan/55
+// requirement 25): it never closes. An open window is asked to show Needs
+// you; with none, one is started and asked the same as its first act.
+func (s *supervisor) showNeeds() {
+	s.mu.Lock()
+	p := s.proc
+	if p == nil {
+		p = s.startLocked()
+	} else {
+		s.mu.Unlock()
+	}
+	if p != nil {
+		p.needs()
+	}
+}
+
+// startLocked spawns the window with s.mu held, and releases it. It
+// returns the new process, or nil when the window would not start.
+func (s *supervisor) startLocked() windowProcess {
 	proc, exited, err := s.spawn()
 	if err != nil {
 		s.mu.Unlock()
 		// The tray stays. A window that will not start is a fact for the
 		// journal, not a reason to lose the icon (section 11 requirement 1).
 		s.warn("the window would not start: " + err.Error())
-		return
+		return nil
 	}
 	s.proc = proc
 	s.mu.Unlock()
@@ -102,6 +127,7 @@ func (s *supervisor) toggle() {
 		s.onChange()
 	}()
 	s.onChange()
+	return proc
 }
 
 // spawnWindow runs this same binary again with --window. Same binary on
@@ -115,6 +141,13 @@ func spawnWindow() (windowProcess, <-chan struct{}, error) {
 	//rig:allow nocontextfree: the window child lives until the user closes it, so its end is the exit channel rather than a deadline
 	cmd := exec.CommandContext(context.Background(), exe, "--window")
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	// The tray's one line to the window: "needs" (requirement 25). A pipe
+	// the window reads, so asking it to show a tab needs no protocol of
+	// its own and dies with the child.
+	in, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, nil, err
+	}
 	// The mechanism is internal/supervise's, shared with rigd: SIGTERM, then
 	// SIGKILL after the grace, the reap and the exit. The command, and so the
 	// environment, stay the tray's - StartCommand says why.
@@ -131,13 +164,21 @@ func spawnWindow() (windowProcess, <-chan struct{}, error) {
 		}
 		close(exited)
 	}()
-	return windowChild{proc}, exited, nil
+	return windowChild{proc, in}, exited, nil
 }
 
 // windowChild is the shared Process behind the tray's one verb.
-type windowChild struct{ supervise.Process }
+type windowChild struct {
+	supervise.Process
+	in io.Writer
+}
 
 func (w windowChild) stop() { w.Stop(stopGrace) }
+
+// needs writes the tray's one line. A window that already left makes the
+// write fail, and the tray has nothing to do about that: its watcher is
+// about to retitle the menu.
+func (w windowChild) needs() { _, _ = io.WriteString(w.in, needsLine+"\n") }
 
 // selfExecutable is the path this process runs from, made usable after an
 // install replaced the file underneath it. /proc/self/exe then reads

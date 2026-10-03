@@ -222,6 +222,17 @@
     }
   }
 
+  // Requirement 25: the tray was clicked while something waits. Whatever
+  // is open gives way, because he came for Needs you.
+  async function takeNeeds() {
+    if (!(await RigService.TakeNeeds())) return;
+    settingsOpen = false;
+    cardFor = null;
+    noteFor = null;
+    atHome = true;
+    mainTab = "needs";
+  }
+
   async function answerNote(
     id: string,
     reply: string,
@@ -485,6 +496,8 @@
     void refresh();
     void loadNotes();
     const unnotes = Events.On("rig:notifications", () => void loadNotes());
+    void takeNeeds();
+    const unneeds = Events.On("rig:needs", () => void takeNeeds());
     RigService.Build()
       .then((b) => (build = b as Record<string, string>))
       .catch(() => (build = null));
@@ -497,6 +510,7 @@
       stopPolling();
       unwatch();
       unnotes();
+      unneeds();
       document.removeEventListener("visibilitychange", onvisibility);
     };
   });

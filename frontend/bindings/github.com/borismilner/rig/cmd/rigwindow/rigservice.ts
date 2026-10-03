@@ -124,6 +124,14 @@ export function Supervision(): $CancellablePromise<$models.Running[]> {
 }
 
 /**
+ * TakeNeeds reports whether the tray asked for Needs you since the page
+ * last looked, and forgets the ask.
+ */
+export function TakeNeeds(): $CancellablePromise<boolean> {
+    return $Call.ByID(3997971277);
+}
+
+/**
  * Try calls one capability. args is the JSON object the panel's form built.
  * A refusal from rig is an answer, not an error: it comes back with OK false
  * and rig's own words, so the panel shows it where the result goes.

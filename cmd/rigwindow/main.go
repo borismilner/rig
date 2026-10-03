@@ -162,6 +162,15 @@ func runWindow() error {
 	setEmit(func() { app.Event.Emit(notesEvent) })
 	go watchNotes()
 
+	// Requirement 25: the tray says "needs" on stdin when he clicks while
+	// something waits; the window comes forward and the page takes the ask.
+	go readTray(os.Stdin, func() {
+		win.UnMinimise()
+		win.Show()
+		win.Focus()
+		app.Event.Emit(needsEvent)
+	})
+
 	// No WindowClosing hook. The old one cancelled the close and hid the
 	// window so the tray in this process would survive; the tray is now the
 	// parent process, so the default listener - destroy, and quit on the last

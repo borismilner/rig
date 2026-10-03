@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Draw the DOWN variant of each tray icon: the estate's own glyph, badged.
+"""Draw the DOWN and ASK variants of each tray icon: the estate's own
+glyph, badged.
 
     python3 design/tray/make-down-icons.py
 
@@ -31,6 +32,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # seven pixels across: darker reds go muddy at tray size and lighter
 # ones read as orange.
 RED = (211, 47, 47, 255)
+
+# The ASK badge (plan/55 requirement 25): something waits on him. Amber,
+# the dashboard's "need you" colour, and TOP-right, so it differs from the
+# down badge by place as well as by hue - two dots told apart by colour
+# alone at seven pixels are one dot to a colour-blind eye.
+AMBER = (240, 160, 20, 255)
 RING_INNER = (255, 255, 255, 255)
 RING_OUTER = (26, 26, 26, 255)
 
@@ -58,7 +65,7 @@ def contrast(a, b):
     return (hi + 0.05) / (lo + 0.05)
 
 
-def badge(src, dst):
+def badge(src, dst, fill=RED, top=False):
     im = Image.open(src).convert("RGBA")
     w, h = im.size
     d = ImageDraw.Draw(im)
@@ -66,7 +73,7 @@ def badge(src, dst):
     size = w * BADGE
     outer = size
     x1 = w - w * MARGIN
-    y1 = h - h * MARGIN
+    y1 = h * MARGIN + outer if top else h - h * MARGIN
     x0, y0 = x1 - outer, y1 - outer
 
     # Outermost first, each inset by its own ring width, so the rings
@@ -75,7 +82,7 @@ def badge(src, dst):
     o = w * OUTER_RING
     d.ellipse([x0 + o, y0 + o, x1 - o, y1 - o], fill=RING_INNER)
     i = o + w * INNER_RING
-    d.ellipse([x0 + i, y0 + i, x1 - i, y1 - i], fill=RED)
+    d.ellipse([x0 + i, y0 + i, x1 - i, y1 - i], fill=fill)
 
     im.save(dst)
     return im
@@ -89,11 +96,13 @@ def main():
             print("missing source: " + src, file=sys.stderr)
             return 1
         dst = os.path.join(HERE, name + "-down.png")
-        im = badge(src, dst)
-        made.append((dst, im))
+        made.append((dst, badge(src, dst)))
+        dst = os.path.join(HERE, name + "-ask.png")
+        made.append((dst, badge(src, dst, AMBER, top=True)))
 
     print("contrast of the badge, measured rather than assumed:")
     for label, colour in (("red on white ring", (RED, RING_INNER)),
+                          ("amber on dark outline", (AMBER, RING_OUTER)),
                           ("white ring on dark outline", (RING_INNER, RING_OUTER)),
                           ("dark outline on a white tray", (RING_OUTER, (255, 255, 255))),
                           ("dark outline on a black tray", (RING_OUTER, (0, 0, 0))),
