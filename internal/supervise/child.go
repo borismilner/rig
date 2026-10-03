@@ -55,6 +55,13 @@ type Spec struct {
 	// OnCall says it holds nothing at rest: a call to one of its commands
 	// starts it, and it exits on its own when it has nothing left (plan/54).
 	OnCall bool
+
+	// Scanned says a scan directory found it, and FromBinary that its load
+	// mode is the binary's to declare, because programs.json set none
+	// (decision 0265). Until its declaration is read it is held on call, so
+	// that reading it is a declare run and nothing is kept resident blind.
+	Scanned    bool
+	FromBinary bool
 }
 
 // Validate refuses a spec that could not be launched safely, before anything

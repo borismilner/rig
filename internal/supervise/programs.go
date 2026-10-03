@@ -159,7 +159,13 @@ func (d declaredProgram) spec() (Spec, error) {
 		ID: d.ID, Path: d.Path, Args: d.Args, Dir: d.Dir, Env: d.Env,
 		Health: h, Budget: b, Autostart: d.Autostart, OnCall: d.OnCall,
 	}
-	if err := spec.Validate(); err != nil {
+	// A row with no path overrides a scanned program (decision 0265), so
+	// it is validated with the scan's path, in Merge's caller.
+	check := spec
+	if check.Path == "" {
+		check.Path = "/override"
+	}
+	if err := check.Validate(); err != nil {
 		return Spec{}, err
 	}
 	return spec, nil

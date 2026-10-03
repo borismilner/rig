@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -458,6 +459,38 @@ func (s *Supervisor) Rest(id string) error {
 	default:
 	}
 	return nil
+}
+
+// SetLoad gives a program whose binary declares its load mode that mode
+// (decision 0265). Resident means started with rigd and supervised for
+// crashes, so a declare run that finds one leaves it running as its first
+// run; on call is plan/54's. Nothing else about the program changes: one
+// at rest that turns resident is launched by Up, from AT_REST.
+func (s *Supervisor) SetLoad(id string, onCall bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	p, ok := s.programs[id]
+	if !ok {
+		return fmt.Errorf("%w: %q", ErrNoSuchProgram, id)
+	}
+	p.spec.OnCall, p.spec.Autostart = onCall, !onCall
+	return nil
+}
+
+// Forget takes a program off the declared set: its binary is gone from the
+// scan directories (plan/54, "a deleted binary's program is removed"). A
+// running child is stopped and calls waiting on its start are failed.
+func (s *Supervisor) Forget(id string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	p, ok := s.programs[id]
+	if !ok {
+		return
+	}
+	s.stopChild(p)
+	p.release(&StartError{Program: id, Reason: "its binary was removed"})
+	delete(s.programs, id)
+	s.order = slices.DeleteFunc(s.order, func(o string) bool { return o == id })
 }
 
 // release answers every call waiting for this program's start.
