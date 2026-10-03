@@ -247,6 +247,8 @@ func TestTheBinary(t *testing.T) {
 		{name: "message-needs-a-subcommand", argv: []string{"message"}},
 		{name: "queue-needs-a-subcommand", argv: []string{"queue"}},
 		{name: "events-needs-a-kind", argv: []string{"events", "wait"}},
+		{name: "panel-needs-a-subcommand", argv: []string{"panel"}},
+		{name: "panel-refuses-a-bad-fact", argv: []string{"panel", "put", "--title", "t", "--fact", "nolabel"}},
 		{name: "config-needs-a-subcommand", argv: []string{"config"}},
 		{name: "logs-takes-no-argument", argv: []string{"logs", "rigd"}},
 		{name: "logs-pin-needs-a-number", argv: []string{"logs", "pin", "seven"}},

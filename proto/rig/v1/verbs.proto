@@ -2646,3 +2646,107 @@ message GuidelinesResponse {
   // Every program the caller may see, by id.
   repeated ProgramBuild programs = 3;
 }
+
+// ── THE BOARD (plan/55 requirements 1 to 3, 27) ─────────────────────────
+//
+// Programs and agents put cards on rig's board; the window shows them live.
+// Ruled 2026-10-03: a verb writes, the store keeps every version, the bus
+// wakes (panel.changed), and a click on a card goes back to its owner as
+// panel.acted.
+
+// PanelFact is one labelled value a card shows, such as "files: 1,204".
+message PanelFact {
+  string label = 1;
+  string value = 2;
+}
+
+// PanelFacts is a card's facts as one value, so a change can say "leave
+// them" (absent) apart from "clear them" (present and empty).
+message PanelFacts {
+  repeated PanelFact facts = 1;
+}
+
+// PanelActions is a card's buttons, absent apart from empty as PanelFacts.
+message PanelActions {
+  repeated string labels = 1;
+}
+
+// PanelCard is one card as the board draws it.
+message PanelCard {
+  // The record id, and the version this is.
+  string id = 1;
+  uint64 version = 2;
+  // Who put it: the connection's program id or seat, never the request's.
+  string from = 3;
+  // The sender's own grouping, such as a repository; may be empty.
+  string project = 4;
+  string title = 5;
+  // A short word on where the work is, such as "indexing".
+  string status = 6;
+  // info, success, warning or error.
+  string severity = 7;
+  string body = 8;
+  // 0 to 1, meaningful only while has_progress.
+  double progress = 9;
+  bool has_progress = 10;
+  // Working with no measurable progress.
+  bool busy = 11;
+  repeated PanelFact facts = 12;
+  // Up to three buttons; a click is published to the owner as panel.acted.
+  repeated string actions = 13;
+  // A closed card stays on the board, drawn as finished, and takes no change.
+  bool closed = 14;
+  int64 created_unix_nano = 15;
+  int64 updated_unix_nano = 16;
+}
+
+// PanelPutRequest adds a card (no card id) or changes one of the caller's
+// own. A field left absent keeps its value; title is required for a new card.
+message PanelPutRequest {
+  string card = 1;
+  optional string project = 2;
+  optional string title = 3;
+  optional string status = 4;
+  optional string severity = 5;
+  optional string body = 6;
+  // Set progress to a value from 0 to 1; clear_progress removes it.
+  optional double progress = 7;
+  bool clear_progress = 8;
+  optional bool busy = 9;
+  PanelFacts facts = 10;
+  PanelActions actions = 11;
+  // Close the card. Its last change: a closed card is refused another.
+  bool close = 12;
+}
+
+message PanelPutResponse {
+  PanelCard card = 1;
+}
+
+// PanelListRequest reads the board: every open card, and the cards closed
+// in the last day, newest change first.
+message PanelListRequest {
+  // Only this sender's cards; empty for every sender.
+  string from = 1;
+}
+
+message PanelListResponse {
+  repeated PanelCard cards = 1;
+  // How many cards matched past the answer's bound and were left out.
+  uint32 omitted = 2;
+}
+
+// PanelActRequest is a click on one of a card's buttons.
+message PanelActRequest {
+  string card = 1;
+  string action = 2;
+}
+
+message PanelActResponse {
+  string card = 1;
+  string action = 2;
+  // Who clicked: the calling connection.
+  string by = 3;
+  // The card's owner, who is told on the bus as panel.acted.
+  string to = 4;
+}

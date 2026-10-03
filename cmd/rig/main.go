@@ -115,6 +115,10 @@ var valuedFlags = map[string]bool{
 	"generation": true, "epoch": true,
 	// rig events wait's cursor (section 52), and publish's seat (plan/53).
 	"after": true, "to": true,
+	// rig panel (plan/55's board). --title, --project and --body are
+	// declared with knowledge's and the record verbs' flags.
+	"card": true, "status": true, "severity": true, "progress": true,
+	"fact": true, "action": true, "from": true,
 	"depth": true,
 	// rig logbook (plan/51): the folder the documents are in.
 	"dir": true,
@@ -223,6 +227,8 @@ func usage() {
                    signal.*, lease.*, roster.*; --follow keeps printing
   events publish signal.<words>  tell the seats something happened;
                    --to SEAT for one, --payload JSON; kept past a restart
+  panel <cmd>      the board's cards: put (new, or --card ID to change
+                   yours), list, act <card> <action> presses a button
   config <cmd>     rig's settings and where each came from: get, origin,
                    set (until restart), export, diff
   logs             the estate's log, rigd and every program merged by
@@ -286,6 +292,7 @@ var plainVerbs = map[string]func([]string) error{
 	"config":    cmdConfig,
 	"logs":      cmdLogs,
 	"logbook":   cmdLogbook,
+	"panel":     cmdPanel,
 }
 
 // verbAt is the index of the command word, so rig's own flags may come BEFORE
@@ -367,7 +374,7 @@ func run(args []string) error {
 		// capability with two halves, and this is its single seam into run.
 		return cmdBackupOrRestore(args[0], with(args[1:], lead))
 	case "peers", "knowledge", "worknote", "message", "queue", "store", "files", "notify", "dnd",
-		"sound", "say", "up", "stop", "restart", "health", "hand", "events", "logbook", "config", "logs":
+		"sound", "say", "up", "stop", "restart", "health", "hand", "events", "logbook", "config", "logs", "panel":
 		return plainVerbs[args[0]](with(args[1:], lead))
 	case "record":
 		return cmdRecord(with(args[1:], lead))

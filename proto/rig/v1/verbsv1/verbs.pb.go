@@ -12325,6 +12325,727 @@ func (x *GuidelinesResponse) GetPrograms() []*ProgramBuild {
 	return nil
 }
 
+// PanelFact is one labelled value a card shows, such as "files: 1,204".
+type PanelFact struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Label         string                 `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
+	Value         string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PanelFact) Reset() {
+	*x = PanelFact{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[173]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PanelFact) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PanelFact) ProtoMessage() {}
+
+func (x *PanelFact) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[173]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PanelFact.ProtoReflect.Descriptor instead.
+func (*PanelFact) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{173}
+}
+
+func (x *PanelFact) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *PanelFact) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+// PanelFacts is a card's facts as one value, so a change can say "leave
+// them" (absent) apart from "clear them" (present and empty).
+type PanelFacts struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Facts         []*PanelFact           `protobuf:"bytes,1,rep,name=facts,proto3" json:"facts,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PanelFacts) Reset() {
+	*x = PanelFacts{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[174]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PanelFacts) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PanelFacts) ProtoMessage() {}
+
+func (x *PanelFacts) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[174]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PanelFacts.ProtoReflect.Descriptor instead.
+func (*PanelFacts) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{174}
+}
+
+func (x *PanelFacts) GetFacts() []*PanelFact {
+	if x != nil {
+		return x.Facts
+	}
+	return nil
+}
+
+// PanelActions is a card's buttons, absent apart from empty as PanelFacts.
+type PanelActions struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Labels        []string               `protobuf:"bytes,1,rep,name=labels,proto3" json:"labels,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PanelActions) Reset() {
+	*x = PanelActions{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[175]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PanelActions) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PanelActions) ProtoMessage() {}
+
+func (x *PanelActions) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[175]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PanelActions.ProtoReflect.Descriptor instead.
+func (*PanelActions) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{175}
+}
+
+func (x *PanelActions) GetLabels() []string {
+	if x != nil {
+		return x.Labels
+	}
+	return nil
+}
+
+// PanelCard is one card as the board draws it.
+type PanelCard struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The record id, and the version this is.
+	Id      string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Version uint64 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	// Who put it: the connection's program id or seat, never the request's.
+	From string `protobuf:"bytes,3,opt,name=from,proto3" json:"from,omitempty"`
+	// The sender's own grouping, such as a repository; may be empty.
+	Project string `protobuf:"bytes,4,opt,name=project,proto3" json:"project,omitempty"`
+	Title   string `protobuf:"bytes,5,opt,name=title,proto3" json:"title,omitempty"`
+	// A short word on where the work is, such as "indexing".
+	Status string `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
+	// info, success, warning or error.
+	Severity string `protobuf:"bytes,7,opt,name=severity,proto3" json:"severity,omitempty"`
+	Body     string `protobuf:"bytes,8,opt,name=body,proto3" json:"body,omitempty"`
+	// 0 to 1, meaningful only while has_progress.
+	Progress    float64 `protobuf:"fixed64,9,opt,name=progress,proto3" json:"progress,omitempty"`
+	HasProgress bool    `protobuf:"varint,10,opt,name=has_progress,json=hasProgress,proto3" json:"has_progress,omitempty"`
+	// Working with no measurable progress.
+	Busy  bool         `protobuf:"varint,11,opt,name=busy,proto3" json:"busy,omitempty"`
+	Facts []*PanelFact `protobuf:"bytes,12,rep,name=facts,proto3" json:"facts,omitempty"`
+	// Up to three buttons; a click is published to the owner as panel.acted.
+	Actions []string `protobuf:"bytes,13,rep,name=actions,proto3" json:"actions,omitempty"`
+	// A closed card stays on the board, drawn as finished, and takes no change.
+	Closed          bool  `protobuf:"varint,14,opt,name=closed,proto3" json:"closed,omitempty"`
+	CreatedUnixNano int64 `protobuf:"varint,15,opt,name=created_unix_nano,json=createdUnixNano,proto3" json:"created_unix_nano,omitempty"`
+	UpdatedUnixNano int64 `protobuf:"varint,16,opt,name=updated_unix_nano,json=updatedUnixNano,proto3" json:"updated_unix_nano,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *PanelCard) Reset() {
+	*x = PanelCard{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[176]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PanelCard) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PanelCard) ProtoMessage() {}
+
+func (x *PanelCard) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[176]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PanelCard.ProtoReflect.Descriptor instead.
+func (*PanelCard) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{176}
+}
+
+func (x *PanelCard) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *PanelCard) GetVersion() uint64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *PanelCard) GetFrom() string {
+	if x != nil {
+		return x.From
+	}
+	return ""
+}
+
+func (x *PanelCard) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *PanelCard) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *PanelCard) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *PanelCard) GetSeverity() string {
+	if x != nil {
+		return x.Severity
+	}
+	return ""
+}
+
+func (x *PanelCard) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *PanelCard) GetProgress() float64 {
+	if x != nil {
+		return x.Progress
+	}
+	return 0
+}
+
+func (x *PanelCard) GetHasProgress() bool {
+	if x != nil {
+		return x.HasProgress
+	}
+	return false
+}
+
+func (x *PanelCard) GetBusy() bool {
+	if x != nil {
+		return x.Busy
+	}
+	return false
+}
+
+func (x *PanelCard) GetFacts() []*PanelFact {
+	if x != nil {
+		return x.Facts
+	}
+	return nil
+}
+
+func (x *PanelCard) GetActions() []string {
+	if x != nil {
+		return x.Actions
+	}
+	return nil
+}
+
+func (x *PanelCard) GetClosed() bool {
+	if x != nil {
+		return x.Closed
+	}
+	return false
+}
+
+func (x *PanelCard) GetCreatedUnixNano() int64 {
+	if x != nil {
+		return x.CreatedUnixNano
+	}
+	return 0
+}
+
+func (x *PanelCard) GetUpdatedUnixNano() int64 {
+	if x != nil {
+		return x.UpdatedUnixNano
+	}
+	return 0
+}
+
+// PanelPutRequest adds a card (no card id) or changes one of the caller's
+// own. A field left absent keeps its value; title is required for a new card.
+type PanelPutRequest struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Card     string                 `protobuf:"bytes,1,opt,name=card,proto3" json:"card,omitempty"`
+	Project  *string                `protobuf:"bytes,2,opt,name=project,proto3,oneof" json:"project,omitempty"`
+	Title    *string                `protobuf:"bytes,3,opt,name=title,proto3,oneof" json:"title,omitempty"`
+	Status   *string                `protobuf:"bytes,4,opt,name=status,proto3,oneof" json:"status,omitempty"`
+	Severity *string                `protobuf:"bytes,5,opt,name=severity,proto3,oneof" json:"severity,omitempty"`
+	Body     *string                `protobuf:"bytes,6,opt,name=body,proto3,oneof" json:"body,omitempty"`
+	// Set progress to a value from 0 to 1; clear_progress removes it.
+	Progress      *float64      `protobuf:"fixed64,7,opt,name=progress,proto3,oneof" json:"progress,omitempty"`
+	ClearProgress bool          `protobuf:"varint,8,opt,name=clear_progress,json=clearProgress,proto3" json:"clear_progress,omitempty"`
+	Busy          *bool         `protobuf:"varint,9,opt,name=busy,proto3,oneof" json:"busy,omitempty"`
+	Facts         *PanelFacts   `protobuf:"bytes,10,opt,name=facts,proto3" json:"facts,omitempty"`
+	Actions       *PanelActions `protobuf:"bytes,11,opt,name=actions,proto3" json:"actions,omitempty"`
+	// Close the card. Its last change: a closed card is refused another.
+	Close         bool `protobuf:"varint,12,opt,name=close,proto3" json:"close,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PanelPutRequest) Reset() {
+	*x = PanelPutRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[177]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PanelPutRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PanelPutRequest) ProtoMessage() {}
+
+func (x *PanelPutRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[177]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PanelPutRequest.ProtoReflect.Descriptor instead.
+func (*PanelPutRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{177}
+}
+
+func (x *PanelPutRequest) GetCard() string {
+	if x != nil {
+		return x.Card
+	}
+	return ""
+}
+
+func (x *PanelPutRequest) GetProject() string {
+	if x != nil && x.Project != nil {
+		return *x.Project
+	}
+	return ""
+}
+
+func (x *PanelPutRequest) GetTitle() string {
+	if x != nil && x.Title != nil {
+		return *x.Title
+	}
+	return ""
+}
+
+func (x *PanelPutRequest) GetStatus() string {
+	if x != nil && x.Status != nil {
+		return *x.Status
+	}
+	return ""
+}
+
+func (x *PanelPutRequest) GetSeverity() string {
+	if x != nil && x.Severity != nil {
+		return *x.Severity
+	}
+	return ""
+}
+
+func (x *PanelPutRequest) GetBody() string {
+	if x != nil && x.Body != nil {
+		return *x.Body
+	}
+	return ""
+}
+
+func (x *PanelPutRequest) GetProgress() float64 {
+	if x != nil && x.Progress != nil {
+		return *x.Progress
+	}
+	return 0
+}
+
+func (x *PanelPutRequest) GetClearProgress() bool {
+	if x != nil {
+		return x.ClearProgress
+	}
+	return false
+}
+
+func (x *PanelPutRequest) GetBusy() bool {
+	if x != nil && x.Busy != nil {
+		return *x.Busy
+	}
+	return false
+}
+
+func (x *PanelPutRequest) GetFacts() *PanelFacts {
+	if x != nil {
+		return x.Facts
+	}
+	return nil
+}
+
+func (x *PanelPutRequest) GetActions() *PanelActions {
+	if x != nil {
+		return x.Actions
+	}
+	return nil
+}
+
+func (x *PanelPutRequest) GetClose() bool {
+	if x != nil {
+		return x.Close
+	}
+	return false
+}
+
+type PanelPutResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Card          *PanelCard             `protobuf:"bytes,1,opt,name=card,proto3" json:"card,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PanelPutResponse) Reset() {
+	*x = PanelPutResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[178]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PanelPutResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PanelPutResponse) ProtoMessage() {}
+
+func (x *PanelPutResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[178]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PanelPutResponse.ProtoReflect.Descriptor instead.
+func (*PanelPutResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{178}
+}
+
+func (x *PanelPutResponse) GetCard() *PanelCard {
+	if x != nil {
+		return x.Card
+	}
+	return nil
+}
+
+// PanelListRequest reads the board: every open card, and the cards closed
+// in the last day, newest change first.
+type PanelListRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Only this sender's cards; empty for every sender.
+	From          string `protobuf:"bytes,1,opt,name=from,proto3" json:"from,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PanelListRequest) Reset() {
+	*x = PanelListRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[179]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PanelListRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PanelListRequest) ProtoMessage() {}
+
+func (x *PanelListRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[179]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PanelListRequest.ProtoReflect.Descriptor instead.
+func (*PanelListRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{179}
+}
+
+func (x *PanelListRequest) GetFrom() string {
+	if x != nil {
+		return x.From
+	}
+	return ""
+}
+
+type PanelListResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Cards []*PanelCard           `protobuf:"bytes,1,rep,name=cards,proto3" json:"cards,omitempty"`
+	// How many cards matched past the answer's bound and were left out.
+	Omitted       uint32 `protobuf:"varint,2,opt,name=omitted,proto3" json:"omitted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PanelListResponse) Reset() {
+	*x = PanelListResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[180]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PanelListResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PanelListResponse) ProtoMessage() {}
+
+func (x *PanelListResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[180]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PanelListResponse.ProtoReflect.Descriptor instead.
+func (*PanelListResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{180}
+}
+
+func (x *PanelListResponse) GetCards() []*PanelCard {
+	if x != nil {
+		return x.Cards
+	}
+	return nil
+}
+
+func (x *PanelListResponse) GetOmitted() uint32 {
+	if x != nil {
+		return x.Omitted
+	}
+	return 0
+}
+
+// PanelActRequest is a click on one of a card's buttons.
+type PanelActRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Card          string                 `protobuf:"bytes,1,opt,name=card,proto3" json:"card,omitempty"`
+	Action        string                 `protobuf:"bytes,2,opt,name=action,proto3" json:"action,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PanelActRequest) Reset() {
+	*x = PanelActRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[181]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PanelActRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PanelActRequest) ProtoMessage() {}
+
+func (x *PanelActRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[181]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PanelActRequest.ProtoReflect.Descriptor instead.
+func (*PanelActRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{181}
+}
+
+func (x *PanelActRequest) GetCard() string {
+	if x != nil {
+		return x.Card
+	}
+	return ""
+}
+
+func (x *PanelActRequest) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+type PanelActResponse struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Card   string                 `protobuf:"bytes,1,opt,name=card,proto3" json:"card,omitempty"`
+	Action string                 `protobuf:"bytes,2,opt,name=action,proto3" json:"action,omitempty"`
+	// Who clicked: the calling connection.
+	By string `protobuf:"bytes,3,opt,name=by,proto3" json:"by,omitempty"`
+	// The card's owner, who is told on the bus as panel.acted.
+	To            string `protobuf:"bytes,4,opt,name=to,proto3" json:"to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PanelActResponse) Reset() {
+	*x = PanelActResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[182]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PanelActResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PanelActResponse) ProtoMessage() {}
+
+func (x *PanelActResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[182]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PanelActResponse.ProtoReflect.Descriptor instead.
+func (*PanelActResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{182}
+}
+
+func (x *PanelActResponse) GetCard() string {
+	if x != nil {
+		return x.Card
+	}
+	return ""
+}
+
+func (x *PanelActResponse) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *PanelActResponse) GetBy() string {
+	if x != nil {
+		return x.By
+	}
+	return ""
+}
+
+func (x *PanelActResponse) GetTo() string {
+	if x != nil {
+		return x.To
+	}
+	return ""
+}
+
 var File_proto_rig_v1_verbs_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_verbs_proto_rawDesc = "" +
@@ -13123,7 +13844,70 @@ const file_proto_rig_v1_verbs_proto_rawDesc = "" +
 	"\x12GuidelinesResponse\x12\x1a\n" +
 	"\brevision\x18\x01 \x01(\tR\brevision\x12'\n" +
 	"\x05rules\x18\x02 \x03(\v2\x11.rig.v1.GuidelineR\x05rules\x120\n" +
-	"\bprograms\x18\x03 \x03(\v2\x14.rig.v1.ProgramBuildR\bprograms*Z\n" +
+	"\bprograms\x18\x03 \x03(\v2\x14.rig.v1.ProgramBuildR\bprograms\"7\n" +
+	"\tPanelFact\x12\x14\n" +
+	"\x05label\x18\x01 \x01(\tR\x05label\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\"5\n" +
+	"\n" +
+	"PanelFacts\x12'\n" +
+	"\x05facts\x18\x01 \x03(\v2\x11.rig.v1.PanelFactR\x05facts\"&\n" +
+	"\fPanelActions\x12\x16\n" +
+	"\x06labels\x18\x01 \x03(\tR\x06labels\"\xc7\x03\n" +
+	"\tPanelCard\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\x04R\aversion\x12\x12\n" +
+	"\x04from\x18\x03 \x01(\tR\x04from\x12\x18\n" +
+	"\aproject\x18\x04 \x01(\tR\aproject\x12\x14\n" +
+	"\x05title\x18\x05 \x01(\tR\x05title\x12\x16\n" +
+	"\x06status\x18\x06 \x01(\tR\x06status\x12\x1a\n" +
+	"\bseverity\x18\a \x01(\tR\bseverity\x12\x12\n" +
+	"\x04body\x18\b \x01(\tR\x04body\x12\x1a\n" +
+	"\bprogress\x18\t \x01(\x01R\bprogress\x12!\n" +
+	"\fhas_progress\x18\n" +
+	" \x01(\bR\vhasProgress\x12\x12\n" +
+	"\x04busy\x18\v \x01(\bR\x04busy\x12'\n" +
+	"\x05facts\x18\f \x03(\v2\x11.rig.v1.PanelFactR\x05facts\x12\x18\n" +
+	"\aactions\x18\r \x03(\tR\aactions\x12\x16\n" +
+	"\x06closed\x18\x0e \x01(\bR\x06closed\x12*\n" +
+	"\x11created_unix_nano\x18\x0f \x01(\x03R\x0fcreatedUnixNano\x12*\n" +
+	"\x11updated_unix_nano\x18\x10 \x01(\x03R\x0fupdatedUnixNano\"\xd4\x03\n" +
+	"\x0fPanelPutRequest\x12\x12\n" +
+	"\x04card\x18\x01 \x01(\tR\x04card\x12\x1d\n" +
+	"\aproject\x18\x02 \x01(\tH\x00R\aproject\x88\x01\x01\x12\x19\n" +
+	"\x05title\x18\x03 \x01(\tH\x01R\x05title\x88\x01\x01\x12\x1b\n" +
+	"\x06status\x18\x04 \x01(\tH\x02R\x06status\x88\x01\x01\x12\x1f\n" +
+	"\bseverity\x18\x05 \x01(\tH\x03R\bseverity\x88\x01\x01\x12\x17\n" +
+	"\x04body\x18\x06 \x01(\tH\x04R\x04body\x88\x01\x01\x12\x1f\n" +
+	"\bprogress\x18\a \x01(\x01H\x05R\bprogress\x88\x01\x01\x12%\n" +
+	"\x0eclear_progress\x18\b \x01(\bR\rclearProgress\x12\x17\n" +
+	"\x04busy\x18\t \x01(\bH\x06R\x04busy\x88\x01\x01\x12(\n" +
+	"\x05facts\x18\n" +
+	" \x01(\v2\x12.rig.v1.PanelFactsR\x05facts\x12.\n" +
+	"\aactions\x18\v \x01(\v2\x14.rig.v1.PanelActionsR\aactions\x12\x14\n" +
+	"\x05close\x18\f \x01(\bR\x05closeB\n" +
+	"\n" +
+	"\b_projectB\b\n" +
+	"\x06_titleB\t\n" +
+	"\a_statusB\v\n" +
+	"\t_severityB\a\n" +
+	"\x05_bodyB\v\n" +
+	"\t_progressB\a\n" +
+	"\x05_busy\"9\n" +
+	"\x10PanelPutResponse\x12%\n" +
+	"\x04card\x18\x01 \x01(\v2\x11.rig.v1.PanelCardR\x04card\"&\n" +
+	"\x10PanelListRequest\x12\x12\n" +
+	"\x04from\x18\x01 \x01(\tR\x04from\"V\n" +
+	"\x11PanelListResponse\x12'\n" +
+	"\x05cards\x18\x01 \x03(\v2\x11.rig.v1.PanelCardR\x05cards\x12\x18\n" +
+	"\aomitted\x18\x02 \x01(\rR\aomitted\"=\n" +
+	"\x0fPanelActRequest\x12\x12\n" +
+	"\x04card\x18\x01 \x01(\tR\x04card\x12\x16\n" +
+	"\x06action\x18\x02 \x01(\tR\x06action\"^\n" +
+	"\x10PanelActResponse\x12\x12\n" +
+	"\x04card\x18\x01 \x01(\tR\x04card\x12\x16\n" +
+	"\x06action\x18\x02 \x01(\tR\x06action\x12\x0e\n" +
+	"\x02by\x18\x03 \x01(\tR\x02by\x12\x0e\n" +
+	"\x02to\x18\x04 \x01(\tR\x02to*Z\n" +
 	"\tSeatState\x12\x1a\n" +
 	"\x16SEAT_STATE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11SEAT_STATE_ACTIVE\x10\x01\x12\x1a\n" +
@@ -13204,7 +13988,7 @@ func file_proto_rig_v1_verbs_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_verbs_proto_enumTypes = make([]protoimpl.EnumInfo, 10)
-var file_proto_rig_v1_verbs_proto_msgTypes = make([]protoimpl.MessageInfo, 177)
+var file_proto_rig_v1_verbs_proto_msgTypes = make([]protoimpl.MessageInfo, 187)
 var file_proto_rig_v1_verbs_proto_goTypes = []any{
 	(SeatState)(0),                   // 0: rig.v1.SeatState
 	(LeaseState)(0),                  // 1: rig.v1.LeaseState
@@ -13389,11 +14173,21 @@ var file_proto_rig_v1_verbs_proto_goTypes = []any{
 	(*Guideline)(nil),                // 180: rig.v1.Guideline
 	(*ProgramBuild)(nil),             // 181: rig.v1.ProgramBuild
 	(*GuidelinesResponse)(nil),       // 182: rig.v1.GuidelinesResponse
-	nil,                              // 183: rig.v1.Record.FieldsEntry
-	nil,                              // 184: rig.v1.RecordPutRequest.FieldsEntry
-	nil,                              // 185: rig.v1.WorkNote.FieldsEntry
-	nil,                              // 186: rig.v1.WorkNoteWriteRequest.FieldsEntry
-	(v1.Tristate)(0),                 // 187: rig.v1.Tristate
+	(*PanelFact)(nil),                // 183: rig.v1.PanelFact
+	(*PanelFacts)(nil),               // 184: rig.v1.PanelFacts
+	(*PanelActions)(nil),             // 185: rig.v1.PanelActions
+	(*PanelCard)(nil),                // 186: rig.v1.PanelCard
+	(*PanelPutRequest)(nil),          // 187: rig.v1.PanelPutRequest
+	(*PanelPutResponse)(nil),         // 188: rig.v1.PanelPutResponse
+	(*PanelListRequest)(nil),         // 189: rig.v1.PanelListRequest
+	(*PanelListResponse)(nil),        // 190: rig.v1.PanelListResponse
+	(*PanelActRequest)(nil),          // 191: rig.v1.PanelActRequest
+	(*PanelActResponse)(nil),         // 192: rig.v1.PanelActResponse
+	nil,                              // 193: rig.v1.Record.FieldsEntry
+	nil,                              // 194: rig.v1.RecordPutRequest.FieldsEntry
+	nil,                              // 195: rig.v1.WorkNote.FieldsEntry
+	nil,                              // 196: rig.v1.WorkNoteWriteRequest.FieldsEntry
+	(v1.Tristate)(0),                 // 197: rig.v1.Tristate
 }
 var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	0,   // 0: rig.v1.Seat.state:type_name -> rig.v1.SeatState
@@ -13408,11 +14202,11 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	23,  // 9: rig.v1.LeaseAcquireResponse.incumbent:type_name -> rig.v1.Lease
 	24,  // 10: rig.v1.LeaseRenewResponse.handle:type_name -> rig.v1.LeaseHandle
 	23,  // 11: rig.v1.LeaseListResponse.leases:type_name -> rig.v1.Lease
-	183, // 12: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
+	193, // 12: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
 	37,  // 13: rig.v1.Record.prov:type_name -> rig.v1.Provenance
 	39,  // 14: rig.v1.Record.retraction:type_name -> rig.v1.Retraction
 	37,  // 15: rig.v1.Retraction.prov:type_name -> rig.v1.Provenance
-	184, // 16: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
+	194, // 16: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
 	38,  // 17: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
 	38,  // 18: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
 	38,  // 19: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
@@ -13447,7 +14241,7 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	69,  // 48: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
 	75,  // 49: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
 	76,  // 50: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
-	187, // 51: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
+	197, // 51: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
 	77,  // 52: rig.v1.ProjectBriefResponse.closed:type_name -> rig.v1.ClosedItem
 	78,  // 53: rig.v1.ProjectBriefResponse.closed_counts:type_name -> rig.v1.WordCount
 	37,  // 54: rig.v1.Lesson.prov:type_name -> rig.v1.Provenance
@@ -13466,9 +14260,9 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	101, // 67: rig.v1.SharedGetResponse.values:type_name -> rig.v1.SharedValue
 	101, // 68: rig.v1.SharedSetResponse.value:type_name -> rig.v1.SharedValue
 	101, // 69: rig.v1.SharedDeleteResponse.value:type_name -> rig.v1.SharedValue
-	185, // 70: rig.v1.WorkNote.fields:type_name -> rig.v1.WorkNote.FieldsEntry
+	195, // 70: rig.v1.WorkNote.fields:type_name -> rig.v1.WorkNote.FieldsEntry
 	37,  // 71: rig.v1.WorkNote.prov:type_name -> rig.v1.Provenance
-	186, // 72: rig.v1.WorkNoteWriteRequest.fields:type_name -> rig.v1.WorkNoteWriteRequest.FieldsEntry
+	196, // 72: rig.v1.WorkNoteWriteRequest.fields:type_name -> rig.v1.WorkNoteWriteRequest.FieldsEntry
 	108, // 73: rig.v1.WorkNoteWriteResponse.note:type_name -> rig.v1.WorkNote
 	108, // 74: rig.v1.WorkNoteMineResponse.notes:type_name -> rig.v1.WorkNote
 	108, // 75: rig.v1.WorkNoteAboutResponse.notes:type_name -> rig.v1.WorkNote
@@ -13503,11 +14297,17 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	177, // 104: rig.v1.FilesRelayoutResponse.moves:type_name -> rig.v1.FilesMove
 	180, // 105: rig.v1.GuidelinesResponse.rules:type_name -> rig.v1.Guideline
 	181, // 106: rig.v1.GuidelinesResponse.programs:type_name -> rig.v1.ProgramBuild
-	107, // [107:107] is the sub-list for method output_type
-	107, // [107:107] is the sub-list for method input_type
-	107, // [107:107] is the sub-list for extension type_name
-	107, // [107:107] is the sub-list for extension extendee
-	0,   // [0:107] is the sub-list for field type_name
+	183, // 107: rig.v1.PanelFacts.facts:type_name -> rig.v1.PanelFact
+	183, // 108: rig.v1.PanelCard.facts:type_name -> rig.v1.PanelFact
+	184, // 109: rig.v1.PanelPutRequest.facts:type_name -> rig.v1.PanelFacts
+	185, // 110: rig.v1.PanelPutRequest.actions:type_name -> rig.v1.PanelActions
+	186, // 111: rig.v1.PanelPutResponse.card:type_name -> rig.v1.PanelCard
+	186, // 112: rig.v1.PanelListResponse.cards:type_name -> rig.v1.PanelCard
+	113, // [113:113] is the sub-list for method output_type
+	113, // [113:113] is the sub-list for method input_type
+	113, // [113:113] is the sub-list for extension type_name
+	113, // [113:113] is the sub-list for extension extendee
+	0,   // [0:113] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_verbs_proto_init() }
@@ -13515,13 +14315,14 @@ func file_proto_rig_v1_verbs_proto_init() {
 	if File_proto_rig_v1_verbs_proto != nil {
 		return
 	}
+	file_proto_rig_v1_verbs_proto_msgTypes[177].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_verbs_proto_rawDesc), len(file_proto_rig_v1_verbs_proto_rawDesc)),
 			NumEnums:      10,
-			NumMessages:   177,
+			NumMessages:   187,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

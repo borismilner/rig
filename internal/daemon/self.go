@@ -435,6 +435,20 @@ func selfDeclaration() kernel.Declaration {
 				"Answer a toast that asked for a reply",
 				"Files the answer to a toast whose sender offered reply buttons or free text: exactly one of a button's label, free text, or dismissed when it was closed unanswered. The first reply wins and a second is refused. The replier is the calling connection, and the answer is filed in the record as kind notification-reply.",
 				"The answer as filed."),
+			// plan/55's BOARD. panel.go has the ruling: a verb writes, the
+			// store keeps, the bus wakes.
+			leaseWriter("panel.put", "Panel put", kernel.No,
+				"Put a card on the board, or change one of yours",
+				"Puts a status card on rig's board, the dashboard's Board tab: a title, a status line, a severity of info, success, warning or error, optional progress from 0 to 1 or busy, up to 6 facts and up to 3 action buttons. With no card id it puts a new card; with one it changes only the fields it carries. Only a card's owner, named from the connection, may change it, and a closed card is never changed again. Every version is kept in the record (project board, kind card) and posted as panel.changed. At most 40 open cards per sender: past that the oldest is closed.",
+				"The card as filed, with its id and version."),
+			readOnly("panel.list", "Panel list",
+				"The board: every open card, and those closed in the last day",
+				"Answers the board's cards newest change first, at most 200 with a count of the rest, optionally only one sender's.",
+				"The cards, and how many were left out."),
+			leaseWriter("panel.act", "Panel act", kernel.No,
+				"Press one of a card's action buttons",
+				"Sends the press to the card's owner as a panel.acted event addressed to it, and files it in the record as kind card-act. The action must be one the open card offers. The presser is the calling connection.",
+				"The press as sent: card, action, who pressed and to whom."),
 			// SECTION 12's SOUNDS AND SPEECH (plan/12, S1-S5). rig.sound
 			// writes a settings file; rig.say changes nothing but the air.
 			leaseWriter("sound", "Sound", kernel.Yes,
@@ -458,7 +472,7 @@ func selfDeclaration() kernel.Declaration {
 				"The event, with its seq, and delivered: how many waits in progress it reached."),
 			readOnly("events.wait", "Events wait",
 				"Wait for events of the kinds you name",
-				"Answers every event after the cursor whose kind matches one of the patterns (a kind like hand.changed, or a prefix like hand.*), oldest first, as soon as there is one, or nothing once the timeout (at most 60 seconds) passes. Carry latest and epoch into the next call. gap means events were lost, past the ring or across a restart: re-read the state rather than assume nothing happened. Signals (signal.*) are kept for 7 days, up to 1000 per kind, so a cursor from before a restart still gets every signal after it, with no gap; a first call with after 0 gets only this run's. rig's own kinds are open to every caller: signal.* (seats' signals), lease.* (lease.changed when a lease is acquired, released, broken, queued, orphaned, fenced or expired), roster.* (roster.changed when a seat announces or leaves), shared.* (shared.<key> when a shared key is set, deleted or its owner is gone, so shared.claims.* is one family), hand.*, toast.*, system.*, timer.*, config.*. A program may also wait on its own.",
+				"Answers every event after the cursor whose kind matches one of the patterns (a kind like hand.changed, or a prefix like hand.*), oldest first, as soon as there is one, or nothing once the timeout (at most 60 seconds) passes. Carry latest and epoch into the next call. gap means events were lost, past the ring or across a restart: re-read the state rather than assume nothing happened. Signals (signal.*) are kept for 7 days, up to 1000 per kind, so a cursor from before a restart still gets every signal after it, with no gap; a first call with after 0 gets only this run's. rig's own kinds are open to every caller: signal.* (seats' signals), lease.* (lease.changed when a lease is acquired, released, broken, queued, orphaned, fenced or expired), roster.* (roster.changed when a seat announces or leaves), shared.* (shared.<key> when a shared key is set, deleted or its owner is gone, so shared.claims.* is one family), panel.* (panel.changed when a board card is put, changed or closed; panel.acted, addressed to the card's owner only, when one of its buttons is pressed), hand.*, toast.*, system.*, timer.*, config.*. A program may also wait on its own.",
 				"The matching events, the latest seq, the epoch, and whether any were lost."),
 			// SECTION 6's SETTINGS, as plan/47 builds them.
 			readOnly("config.get", "Config get",

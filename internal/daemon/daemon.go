@@ -1120,6 +1120,10 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 		"hand.request", "hand.step", "hand.release", "hand.wait", "hand.answer", "hand.strip":
 		d.serveToast(ctx, c, f, command)
 
+	// plan/55's BOARD. panel.go has the ruling and the caps.
+	case "panel.put", "panel.list", "panel.act":
+		d.servePanel(ctx, c, f, command)
+
 	// plan/53's SHARED TABLE rides the same arm: it lives in coord.db beside
 	// the leases, and shared.go has why its writer and an owner's witness
 	// come off the connection, as a holder's do.

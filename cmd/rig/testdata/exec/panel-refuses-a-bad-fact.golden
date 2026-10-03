@@ -1,0 +1,5 @@
+$ rig panel put --title t --fact nolabel
+exit 1
+--- stdout (0 bytes)
+--- stderr (42 bytes)
+rig: --fact is LABEL=VALUE, not "nolabel"

@@ -1,0 +1,9 @@
+$ rig panel
+exit 1
+--- stdout (0 bytes)
+--- stderr (343 bytes)
+rig: usage: rig panel put [--card ID] --title T [--status S] [--severity info|success|warning|error]
+                     [--progress 0..1 | --no-progress] [--busy|--idle] [--fact LABEL=VALUE]... [--action A]...
+                     [--project P] [--body B] [--close]
+       rig panel list [--from SENDER]
+       rig panel act <card> <action>
