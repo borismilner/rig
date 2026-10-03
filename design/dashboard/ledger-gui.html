@@ -1,6 +1,7 @@
 <!-- Ledger's own GUI, as the program would ship it (plan/55, requirement
      12): the content is Ledger's, the look is rig.css. No stylesheet of its
-     own, only rig's classes. It talks to Ledger through rig's bridge. -->
+     own, only rig's classes. It acts on Ledger only through rig's verbs:
+     invoke, the store, the bus, the queue and toasts (requirement 13). -->
 <main class="rig-page">
   <header class="rig-row rig-between">
     <div>
@@ -46,8 +47,11 @@
       var why = el('span', 'rig-badge', e.why); why.dataset.sev = e.sev;
       var acts = el('td'); var row = el('div', 'rig-row');
       var busy = pending[e.id];
-      var a = btn('Match', true, function () { pending[e.id] = true; rig.send('match', { entry: e.id }); draw(s); });
-      var b = btn('Not a match', false, function () { pending[e.id] = true; rig.send('reject', { entry: e.id }); draw(s); });
+      var a = btn('Match', true, function () { act(s, e.id, 'match'); });
+      var b = btn('Not a match', false, function () {
+        rig.toast({ title: 'Mark entry ' + e.id + ' as not a match?', body: e.payee + ' ' + e.amount + ' stays open in the books.', actions: ['Mark it', 'Cancel'] })
+          .then(function (choice) { if (choice === 'Mark it') act(s, e.id, 'reject'); });
+      });
       a.disabled = b.disabled = !!busy || !e.bank;
       if (!e.bank) a.title = 'no bank line to match';
       b.disabled = !!busy;
@@ -71,8 +75,14 @@
     document.getElementById('barFill').style.width = Math.round((s.running || 0) * 100) + '%';
   }
 
-  document.getElementById('rerun').onclick = function () { rig.send('reconcile', {}); };
-  rig.on('state', function (s) { pending = {}; draw(s); });
+  function act(s, id, command) {
+    pending[id] = true; draw(s);
+    rig.invoke(command, { entry: id }).catch(function () { delete pending[id]; draw(s); });
+  }
+  function load() { return rig.store.get('ledger/reconcile').then(function (s) { pending = {}; draw(s); }); }
+  document.getElementById('rerun').onclick = function () { rig.queue.push('ledger.reconcile', {}); };
+  rig.events.on('ledger.changed', load);
   if (window.RIG_SEED) draw(window.RIG_SEED);
+  load().catch(function () {});
 })();
 </script>

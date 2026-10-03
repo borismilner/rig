@@ -3,10 +3,7 @@
 // the content; the look is rig's, so every tab feels like one application.
 //
 // The GUI runs in a sandboxed frame with no access to the dashboard. It
-// talks to rig only through the bridge, by message:
-//
-//   rig.send(type, data)  the GUI to its program, carried by rig
-//   rig.on(type, fn)      the program to its GUI, carried by rig
+// talks to rig only through the bridge below.
 //
 // The theme follows the dashboard: rig sets data-theme on the GUI's root,
 // and both token sets are already in the stylesheet.
@@ -58,19 +55,41 @@ button{font:inherit;color:inherit;cursor:pointer}
 `;
 }
 
-// The bridge, as the GUI sees it. Outside rig (opened alone) it answers
-// nothing, and the GUI shows whatever state it was seeded with.
+// The bridge, as the GUI sees it (plan/55 requirement 13): the GUI acts on
+// its program only through what rig already carries. Each call is a rig
+// verb, answered by rig, and rig checks it before the program sees it.
+//
+//   rig.invoke(command, args)  a command the program declares
+//   rig.store.get(key)         the program's own collection
+//   rig.events.on(topic, fn)   a bus event the program publishes
+//   rig.queue.push(job, args)  long work, with rig's progress
+//   rig.toast({title, body, actions})  ask the user; resolves to the choice
+//
+// Outside rig (opened alone) every call rejects and the GUI shows whatever
+// state it was seeded with.
 export const BRIDGE = `(function(){
-  var handlers = {};
+  var seq = 0, waiting = {}, subs = {};
   var inRig = window.parent !== window;
+  function call(verb, args) {
+    return new Promise(function (ok, no) {
+      if (!inRig) { no(new Error('not inside rig')); return; }
+      var id = ++seq; waiting[id] = { ok: ok, no: no };
+      window.parent.postMessage({ rig: 'call', id: id, verb: verb, args: args }, '*');
+    });
+  }
   window.rig = {
-    send: function (type, data) { if (inRig) window.parent.postMessage({ rig: 'gui', type: type, data: data }, '*'); },
-    on: function (type, fn) { (handlers[type] = handlers[type] || []).push(fn); },
+    invoke: function (command, args) { return call('invoke', { command: command, args: args || {} }); },
+    store: { get: function (key) { return call('store.get', { key: key }); } },
+    events: { on: function (topic, fn) { (subs[topic] = subs[topic] || []).push(fn); if (inRig) window.parent.postMessage({ rig: 'sub', topic: topic }, '*'); } },
+    queue: { push: function (job, args) { return call('queue.push', { job: job, args: args || {} }); } },
+    toast: function (t) { return call('toast', t); },
   };
   window.addEventListener('message', function (e) {
-    if (e.source !== window.parent || !e.data || typeof e.data.type !== 'string') return;
-    if (e.data.type === 'theme') { document.documentElement.setAttribute('data-theme', e.data.data === 'light' ? 'light' : 'dark'); return; }
-    (handlers[e.data.type] || []).forEach(function (fn) { fn(e.data.data); });
+    var m = e.data;
+    if (e.source !== window.parent || !m || typeof m.type !== 'string') return;
+    if (m.type === 'theme') { document.documentElement.setAttribute('data-theme', m.data === 'light' ? 'light' : 'dark'); return; }
+    if (m.type === 'reply' && waiting[m.id]) { var w = waiting[m.id]; delete waiting[m.id]; if (m.ok) w.ok(m.result); else w.no(new Error(m.error)); return; }
+    if (m.type === 'event') (subs[m.topic] || []).forEach(function (fn) { fn(m.data); });
   });
 })();`;
 

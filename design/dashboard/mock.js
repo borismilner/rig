@@ -219,7 +219,7 @@ function openTab(id) {
 // Ledger, the program behind the GUI: it holds its own state, answers what
 // the GUI sends, and pushes to it unasked. Both directions go through rig.
 const ledger = {
-  statement: 'September statement', entries: 418, matched: 412, lastRun: '', running: null,
+  rev: 1, statement: 'September statement', entries: 418, matched: 412, lastRun: '', running: null,
   open: [
     { id: 1182, date: '09-14', payee: 'Hetzner Online', amount: '-38.20', bank: 'HETZNER ONLINE GMBH 38.20', why: 'same amount twice', sev: 'warning' },
     { id: 1183, date: '09-14', payee: 'Hetzner Online', amount: '-38.20', bank: 'HETZNER ONLINE GMBH 38.20', why: 'same amount twice', sev: 'warning' },
@@ -228,47 +228,113 @@ const ledger = {
   done: [],
 };
 function ledgerFrame() { return document.querySelector('#guihost iframe[data-gui="ledger"]'); }
-function toLedgerGui() {
-  const f = ledgerFrame();
-  wire('put', 'gui.push', `ledger -> its GUI: state (${ledger.open.length} need you, ${ledger.matched} matched)`);
-  f?.contentWindow?.postMessage({ type: 'state', data: ledger }, '*');
+const post = (m) => ledgerFrame()?.contentWindow?.postMessage(m, '*');
+
+// Requirement 13: the GUI acts only through rig's verbs. What Ledger
+// declares is what rig lets its GUI invoke, and rig checks the arguments
+// against it before Ledger sees the call.
+const LEDGER_DECLARES = {
+  match: { entry: 'int', about: 'match an entry to its bank line' },
+  reject: { entry: 'int', about: 'mark an entry not a match' },
+};
+const LEDGER_JOBS = new Set(['ledger.reconcile']);
+const subscribed = new Set();
+
+// Ledger, the program: it keeps its state in its store collection and
+// publishes ledger.changed on the bus after each write.
+function ledgerWrite(why) {
+  wire('store', 'store.put', `ledger/reconcile rev ${++ledger.rev}: ${why}`);
+  wire('bus', 'events.publish', `ledger.changed {rev: ${ledger.rev}}`);
+  if (subscribed.has('ledger.changed')) post({ type: 'event', topic: 'ledger.changed', data: { rev: ledger.rev } });
 }
-const GUI_TYPES = new Set(['match', 'reject', 'reconcile']);
-function fromLedgerGui(type, data) {
-  wire('acted', 'gui.send', `ledger's GUI -> ledger: ${type}${data && data.entry ? ' ' + data.entry : ''}`);
-  setTimeout(() => {
-    if (type === 'reconcile') {
-      if (ledger.running !== null) return;
-      ledger.running = 0; toLedgerGui();
-      const step = () => {
-        ledger.running = Math.min(1, ledger.running + 0.25);
-        if (ledger.running >= 1) { ledger.running = null; ledger.lastRun = hhmm(Date.now()); notify('ledger', 'success', 'Reconciliation finished', `${ledger.matched} matched, ${ledger.open.length} need you`); render(); }
-        toLedgerGui();
-        if (ledger.running !== null) setTimeout(step, 500);
-      };
-      setTimeout(step, 500);
-      return;
+function ledgerHandles(command, args) {
+  const i = ledger.open.findIndex((x) => x.id === args.entry);
+  if (i < 0) return { ok: false, error: `entry ${args.entry} is not open` };
+  if (command === 'match' && !ledger.open[i].bank) return { ok: false, error: `entry ${args.entry} has no bank line` };
+  const [e] = ledger.open.splice(i, 1);
+  if (command === 'match') { ledger.matched++; ledger.done.unshift({ id: e.id, at: hhmm(Date.now()), what: 'matched', sev: 'success' }); }
+  else ledger.done.unshift({ id: e.id, at: hhmm(Date.now()), what: 'not a match, kept open in the books', sev: 'info' });
+  ledgerWrite(`${e.id} ${command === 'match' ? 'matched' : 'not a match'}`);
+  notify('ledger', 'info', `Entry ${e.id} ${command === 'match' ? 'matched' : 'marked not a match'}`, 'from its GUI');
+  return { ok: true, result: { entry: e.id } };
+}
+function ledgerReconcile(jobId) {
+  ledger.running = 0; ledgerWrite(`job ${jobId} claimed`);
+  wire('tab', 'queue.claim', `ledger claims ${jobId}`);
+  const step = () => {
+    ledger.running = Math.min(1, ledger.running + 0.25);
+    wire('tab', 'progress.step', `${jobId} ${Math.round(ledger.running * 100)}%`);
+    if (ledger.running >= 1) {
+      ledger.running = null; ledger.lastRun = hhmm(Date.now());
+      wire('tab', 'queue.complete', `${jobId} done`);
+      notify('ledger', 'success', 'Reconciliation finished', `${ledger.matched} matched, ${ledger.open.length} need you`);
+      render();
     }
-    const i = ledger.open.findIndex((x) => x.id === data.entry);
-    if (i < 0) return; // already decided, or never open: nothing changes
-    const [e] = ledger.open.splice(i, 1);
-    if (type === 'match') { ledger.matched++; ledger.done.unshift({ id: e.id, at: hhmm(Date.now()), what: 'matched', sev: 'success' }); }
-    else ledger.done.unshift({ id: e.id, at: hhmm(Date.now()), what: 'not a match, kept open in the books', sev: 'info' });
-    notify('ledger', 'info', `Entry ${e.id} ${type === 'match' ? 'matched' : 'marked not a match'}`, 'from its GUI');
-    toLedgerGui();
-    render();
-  }, 450);
+    ledgerWrite(ledger.running === null ? 'run finished' : 'progress');
+    if (ledger.running !== null) setTimeout(step, 500);
+  };
+  setTimeout(step, 500);
 }
-// What a GUI sends is checked before it reaches its program: the frame it
-// came from, a known type, and an entry that is a number.
+
+// rig's side of the bridge. Every call is answered, refusals included.
+let jobs = 0;
+function rigAnswers(verb, args, reply) {
+  const refuse = (why) => { wire('refused', verb, `ledger's GUI: ${why}; nothing reached ledger`); reply(false, why); };
+  if (verb === 'invoke') {
+    const decl = LEDGER_DECLARES[args?.command];
+    if (!decl) return refuse(`ledger declares no command "${String(args?.command).slice(0, 40)}"`);
+    if (!Number.isInteger(args.args?.entry)) return refuse('entry must be an integer, as ledger declares');
+    wire('acted', 'invoke', `ledger ${args.command} {entry: ${args.args.entry}}, checked against its declaration`);
+    setTimeout(() => { const r = ledgerHandles(args.command, { entry: args.args.entry }); if (!r.ok) wire('refused', 'invoke', `ledger answered: ${r.error}`); reply(r.ok, r.ok ? r.result : r.error); render(); }, 400);
+    return;
+  }
+  if (verb === 'store.get') {
+    if (args?.key !== 'ledger/reconcile') return refuse('the store key is outside ledger\'s collection');
+    wire('store', 'store.get', `ledger/reconcile rev ${ledger.rev}`);
+    return reply(true, JSON.parse(JSON.stringify(ledger)));
+  }
+  if (verb === 'queue.push') {
+    if (!LEDGER_JOBS.has(args?.job)) return refuse('not a job ledger takes');
+    if (ledger.running !== null) return refuse('a reconcile is already running');
+    const id = `job-${++jobs}`;
+    wire('acted', 'queue.push', `${args.job} as ${id}`);
+    reply(true, { job: id });
+    setTimeout(() => ledgerReconcile(id), 300);
+    return;
+  }
+  if (verb === 'toast') {
+    const acts = Array.isArray(args?.actions) ? args.actions.filter((a) => typeof a === 'string').slice(0, 3) : [];
+    if (typeof args?.title !== 'string' || !acts.length) return refuse('a toast needs a title and actions');
+    wire('tab', 'toast', `from ledger: "${args.title.slice(0, 80)}"`);
+    askToast('ledger', args.title.slice(0, 200), String(args.body || '').slice(0, 400), acts, (choice) => { wire('tab', 'toast.answer', `"${choice}"`); reply(true, choice); });
+    return;
+  }
+  refuse(`rig carries no verb "${String(verb).slice(0, 40)}"`);
+}
 window.addEventListener('message', (e) => {
   const f = ledgerFrame();
   if (!f || e.source !== f.contentWindow) return;
   const m = e.data;
-  if (!m || m.rig !== 'gui' || !GUI_TYPES.has(m.type)) { wire('refused', 'gui.send', 'ledger\'s GUI sent something rig does not carry; dropped'); return; }
-  if (m.type !== 'reconcile' && !Number.isInteger(m.data?.entry)) { wire('refused', 'gui.send', 'ledger\'s GUI: entry is not a number; dropped'); return; }
-  fromLedgerGui(m.type, m.type === 'reconcile' ? {} : { entry: m.data.entry });
+  if (m && m.rig === 'sub' && typeof m.topic === 'string') {
+    if (m.topic !== 'ledger.changed') { wire('refused', 'events.wait', 'ledger\'s GUI: a topic ledger does not publish'); return; }
+    if (!subscribed.has(m.topic)) { subscribed.add(m.topic); wire('bus', 'events.wait', `ledger's GUI listens for ${m.topic}`); }
+    return;
+  }
+  if (!m || m.rig !== 'call' || !Number.isInteger(m.id) || typeof m.verb !== 'string') { wire('refused', 'bridge', 'ledger\'s GUI sent something rig does not carry; dropped'); return; }
+  rigAnswers(m.verb, m.args, (ok, v) => post(ok ? { type: 'reply', id: m.id, ok: true, result: v } : { type: 'reply', id: m.id, ok: false, error: String(v) }));
 });
+
+// A rig toast: rig asks the user on the program's behalf.
+function askToast(from, title, body, actions, answer) {
+  const box = $('asktoast');
+  const done = (c) => { box.hidden = true; box.replaceChildren(); document.removeEventListener('keydown', esc, true); answer(c); };
+  const esc = (e) => { if (e.key === 'Escape') { e.stopPropagation(); done(actions[actions.length - 1]); } };
+  box.replaceChildren(h('div', { class: 'from' }, `${from} asks`), h('b', {}, title), body ? h('div', { class: 'dim' }, body) : null,
+    h('div', { class: 'acts' }, actions.map((a, i) => h('button', { class: 'act' + (i === 0 ? ' primary' : ''), onclick: () => done(a) }, a))));
+  box.hidden = false;
+  document.addEventListener('keydown', esc, true);
+  box.querySelector('button').focus();
+}
 
 function acted(card, action) {
   wire('acted', 'panel.acted', `-> ${card.from} {card: ${card.id}, action: ${action}}`);
@@ -283,7 +349,7 @@ const SCRIPT = [
   () => { ids.ask = put('beacon-seat', { title: 'Which board font?', status: 'waiting', severity: 'warning', body: 'Two options drawn in the pane. Pick one so I can carry on.', actions: ['Reply', 'Open pane'] }); },
   () => { put('storeworker', { progress: 0.35 }, ids.sw); },
   () => { put('rig-lead', { status: 'running', progress: 0.5, busy: false, body: 'Supervisor half done; 1 of 2 tests red as expected.' }, ids.plan); },
-  () => { ids.led = put('ledger', { title: 'Reconciliation finished', status: 'done', severity: 'success', body: '412 entries matched, 3 need a look.', facts: [{ label: 'matched', value: '412' }, { label: 'open', value: '3' }], actions: ['Review'] }); ledger.lastRun = hhmm(Date.now()); toLedgerGui(); requestTab('ledger', '3 entries need you'); notify('ledger', 'success', 'Reconciliation finished', '3 entries need you'); },
+  () => { ids.led = put('ledger', { title: 'Reconciliation finished', status: 'done', severity: 'success', body: '412 entries matched, 3 need a look.', facts: [{ label: 'matched', value: '412' }, { label: 'open', value: '3' }], actions: ['Review'] }); ledger.lastRun = hhmm(Date.now()); ledgerWrite('reconcile finished'); requestTab('ledger', '3 entries need you'); notify('ledger', 'success', 'Reconciliation finished', '3 entries need you'); },
   () => { put('storeworker', { progress: 0.62 }, ids.sw); },
   () => { ids.ci = put('rig-lead', { title: 'make ci', status: 'failed', severity: 'error', body: 'wire golden: Program gained two fields. Re-record with -update.', actions: ['Retry', 'Open log'] }); notify('rig-lead', 'error', 'make ci failed', 'wire golden: Program gained two fields'); },
   () => { put('storeworker', { progress: 0.88 }, ids.sw); },
@@ -641,7 +707,7 @@ function renderGuiTab(view, host, t) {
   const e = estate.find((x) => x.id === t.id);
   view.append(h('div', { class: 'guihead' },
     h('h1', {}, e ? e.name : t.title), e ? h('span', { class: 'mono dim' }, e.version) : null,
-    h('span', { class: 'kit' }, `its own GUI, styled by rig.css`),
+    h('span', { class: 'kit' }, 'its own GUI: styled by rig.css, acting through rig'),
     h('span', { class: 'dim' }, t.asked ? `${t.title} asked at ${hhmm(t.asked)}: "${t.reason}"` : `registered ${hhmm(g.at)}, opened by you`)));
   if (!host.querySelector(`iframe[data-gui="${t.id}"]`)) {
     const mode = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
@@ -695,7 +761,7 @@ function openQuestions() {
     h('div', { class: 'body' }, h('ol', { class: 'q' },
       h('li', {}, h('b', {}, 'Tabs and the rail: one place or two?'), 'Programs you pick live in the rail (section 11). This mockup puts tabs a program ASKS for in a strip above the page. Should picking a program in the rail open its tab too, or do the two stay separate?'),
       h('li', {}, h('b', {}, 'Does registering a GUI open its tab?'), 'Here it does not: registering makes the tab available under Tabs, and it opens when the program asks or when you open it. Ledger works this way.'),
-      h('li', {}, h('b', {}, 'How does a GUI talk to its program?'), 'Here by message through rig (gui.send and gui.push on the wire), not through the board\'s cards. Is a channel of its own right?'),
+      h('li', {}, h('b', {}, 'Is this the right capability for each interaction?'), 'Requirement 13: Ledger\'s GUI acts only through rig. Match is invoke of a command Ledger declares; what it shows is read from the store; it hears changes on the bus; Reconcile again is a queued job with progress; Not a match asks through a rig toast; outcomes land in Notifications. Watch them on the Wire.'),
       h('li', {}, h('b', {}, 'Is the board allowed on the dashboard?'), 'Section 11 rule 20 keeps agent chatter off the dashboard. I read that as the stream of all agent calls, and the board as cards agents write to you on purpose, so both hold. Is that right?'),
       h('li', {}, h('b', {}, 'Where does the board sit?'), 'Here it is on Main, under the programs, with notifications on the right. Is that its place, or should it be a tab of its own?'))));
   d.hidden = false;

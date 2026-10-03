@@ -213,6 +213,11 @@ select.sel{background:var(--bg-2);color:var(--fg);border:1px solid var(--border)
 .notes .nt{display:flex;gap:8px;justify-content:space-between}
 .notes .src{font-size:var(--fs--2);color:var(--fg-dim);text-decoration:underline;margin-top:2px}
 .notepanel footer{padding:10px 14px;border-top:1px solid var(--border);display:grid;gap:4px;font-size:var(--fs--1)}
+/* a rig toast asked on a program's behalf */
+.asktoast{position:fixed;right:20px;bottom:20px;z-index:40;width:360px;max-width:92vw;background:var(--panel);border:1px solid var(--border-2);border-left:4px solid var(--h-amber);border-radius:var(--radius);padding:12px 14px;display:grid;gap:6px;box-shadow:0 12px 40px rgb(0 0 0 / .35)}
+.asktoast .from{font-size:var(--fs--1);color:var(--fg-dim)}
+.asktoast .acts{display:flex;gap:8px;margin-top:4px}
+.asktoast .act.primary{background:var(--h-amber);color:var(--on-hue);border-color:var(--h-amber)}
 [hidden]{display:none !important}
 @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
 </style>
@@ -238,6 +243,7 @@ select.sel{background:var(--bg-2);color:var(--fg);border:1px solid var(--border)
 <div id="menu" class="menu" hidden></div>
 <aside id="drawer" class="drawer" hidden aria-label="Card history"></aside>
 <div id="toast" class="toast" hidden role="status"></div>
+<div id="asktoast" class="asktoast" hidden role="alertdialog" aria-label="A program asks"></div>
 <script type="module" src="./mock.js"></script>
 </body>
 </html>
