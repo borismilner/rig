@@ -2604,3 +2604,45 @@ message FilesRelayoutResponse {
   uint32 reindexed = 4;
   bool applied = 5;
 }
+
+// GuidelinesRequest asks for what a program or an agent must be to work with
+// rig (plan/55 requirement 29, decision 0266). Empty: the rules are the
+// daemon's, never the caller's.
+message GuidelinesRequest {}
+
+// Guideline is one dated rule.
+message Guideline {
+  string id = 1;
+  // The day it took effect, YYYY-MM-DD: when it entered rig's code where it
+  // is built, the day it was ruled where it is not.
+  string date = 2;
+  // "programs" or "agents".
+  string who = 3;
+  // False for a rule that is ruled and not built yet.
+  bool built = 4;
+  string title = 5;
+  string body = 6;
+  // Where the rule is stated or enforced.
+  string cite = 7;
+}
+
+// ProgramBuild is when one program's binary was built from source, as its
+// Go build info says, so it can be compared with each rule's date.
+message ProgramBuild {
+  string program = 1;
+  // The commit time, RFC 3339; empty when unknown.
+  string commit_time = 2;
+  // True when the binary was built from a tree with uncommitted changes.
+  bool modified = 3;
+  // Why commit_time is empty, in a sentence; empty when it is not.
+  string unknown_because = 4;
+}
+
+message GuidelinesResponse {
+  // The newest rule's date: the revision a program is current against.
+  string revision = 1;
+  // Newest first.
+  repeated Guideline rules = 2;
+  // Every program the caller may see, by id.
+  repeated ProgramBuild programs = 3;
+}

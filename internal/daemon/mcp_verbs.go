@@ -65,6 +65,7 @@ var bridged = map[string]struct {
 	"stop":           {func() proto.Message { return &verbsv1.StopRequest{} }, func() proto.Message { return &verbsv1.StopResponse{} }},
 	verbRestart:      {func() proto.Message { return &verbsv1.RestartRequest{} }, func() proto.Message { return &verbsv1.RestartResponse{} }},
 	"health":         {func() proto.Message { return &verbsv1.HealthRequest{} }, func() proto.Message { return &verbsv1.HealthResponse{} }},
+	"guidelines":     {func() proto.Message { return &verbsv1.GuidelinesRequest{} }, func() proto.Message { return &verbsv1.GuidelinesResponse{} }},
 	"backup.create":  {func() proto.Message { return &verbsv1.BackupCreateRequest{} }, func() proto.Message { return &verbsv1.BackupCreateResponse{} }},
 	"health.report":  {func() proto.Message { return &rigv1.HealthReportRequest{} }, func() proto.Message { return &rigv1.HealthReportResponse{} }},
 	// The HANDS OFF strip. hand.answer and hand.strip are carried and refused

@@ -1,0 +1,74 @@
+[
+  {
+    "id": "G1",
+    "date": "2026-09-10",
+    "who": "programs",
+    "built": true,
+    "title": "Declare every command in full",
+    "body": "Each command states its effects, idempotence, sensitive fields, interactivity, streaming, display need, duration, confirmation and shape, with a summary, a description and what it returns. A registration missing any of them is refused.",
+    "cite": "internal/kernel/declaration.go"
+  },
+  {
+    "id": "G2",
+    "date": "2026-09-11",
+    "who": "programs",
+    "built": true,
+    "title": "Name the kit elements your page uses",
+    "body": "The element list is part of the registration. Config may take elements away, never add one.",
+    "cite": "plan/05 section 5h R3"
+  },
+  {
+    "id": "A1",
+    "date": "2026-09-16",
+    "who": "agents",
+    "built": true,
+    "title": "Announce a seat and say what you are for",
+    "body": "Take a seat with announce before anything else, and keep set_activity current.",
+    "cite": "internal/mcpserver"
+  },
+  {
+    "id": "A2",
+    "date": "2026-09-24",
+    "who": "agents",
+    "built": true,
+    "title": "Keep your notes in rig",
+    "body": "Working notes go through worknote_write, so a successor finds them with worknote_mine after a restart.",
+    "cite": "internal/mcpserver"
+  },
+  {
+    "id": "G3",
+    "date": "2026-10-01",
+    "who": "programs",
+    "built": true,
+    "title": "Declare the events you publish",
+    "body": "A program publishes only kinds it declared, under its own id (ledger.changed). Bare kinds are rig's.",
+    "cite": "plan/52 E3"
+  },
+  {
+    "id": "G4",
+    "date": "2026-10-03",
+    "who": "programs",
+    "built": true,
+    "title": "Declare how you load",
+    "body": "Resident, or on call. An on-call program tells rig when it is idle (client.Idle) and when it must not be stopped (client.Hold).",
+    "cite": "plan/54, decision 0265"
+  },
+  {
+    "id": "G5",
+    "date": "2026-10-03",
+    "who": "programs",
+    "built": false,
+    "title": "A GUI wears rig.css and acts through rig",
+    "body": "A program's GUI carries no stylesheet of its own and reaches its program only through rig's verbs: invoke, the store, the bus, the queue, toasts.",
+    "cite": "plan/55 requirements 12 and 13"
+  },
+  {
+    "id": "G6",
+    "date": "2026-10-03",
+    "who": "programs",
+    "built": false,
+    "title": "Declare your settings as a schema",
+    "body": "rig shows them under Settings and in your GUI, changes them, and keeps where each value came from.",
+    "cite": "plan/55 requirement 20, plan/47"
+  }
+]

@@ -63,6 +63,10 @@ func selfDeclaration() kernel.Declaration {
 				"One program or command in full, as the MCP tool answers it",
 				"Answers the object the MCP describe tool returns for the same program and command, rendered by the daemon so the CLI's --json and the MCP tool cannot disagree. Reads through the calling principal's own view.",
 				"The MCP describe tool's JSON object, as bytes."),
+			readOnly("guidelines", "Guidelines",
+				"What a program or an agent must be to work with rig, each rule dated",
+				"Answers rig's guidelines newest first, each with the day it took effect, and for every program the caller may see the commit time read from its binary's Go build info, so a program built before a rule can be found. A program with no build info reads unknown, with the reason. Reads the binaries and never runs them (decision 0266).",
+				"The revision, the rules, and each program's build time or why it is unknown."),
 
 			// READ-ONLY, AND THE WORD IS DOING WORK RATHER THAN BEING
 			// GENEROUS. The effects ladder is about what a call does OUTSIDE

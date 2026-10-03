@@ -750,6 +750,42 @@ func (d *Daemon) dispatch(ctx context.Context, c *conn, f *rigv1.Frame) {
 	d.route(ctx, c, f, program, command)
 }
 
+// servePrograms answers rig.programs.
+func (d *Daemon) servePrograms(c *conn, f *rigv1.Frame) {
+	// The read side of the registry, through the calling principal's own
+	// view. There is no unscoped read to offer: See takes a principal and
+	// the filter is inside it.
+	//
+	// A malformed payload is NOT refused here, deliberately: this method
+	// took an empty request before it took a depth, so a caller that
+	// sends nothing at all is an old caller rather than a broken one, and
+	// depthIn turns its zero into the estate it used to get.
+	var req registryv1.ProgramsRequest
+	_ = proto.Unmarshal(f.GetPayload(), &req)
+
+	// The depth decides how much is said about each program and never
+	// which programs are named: the scope filter is inside See and runs
+	// first either way.
+	//
+	// A listing asks for a background scan, so a rebuilt, new or
+	// deleted binary is seen; it never waits for one (section 54).
+	d.rescan()
+	estate, err := d.kernel.See(c.principal()).Estate(depthIn(req.GetDepth()))
+	if err != nil {
+		c.failErr(f.GetStreamId(), rigv1.Code_CODE_INVALID, err)
+		return
+	}
+	var resp registryv1.ProgramsResponse
+	for _, p := range estate {
+		w := programToWire(p)
+		w.AtRest = d.atRest(p.Identity.ID)
+		w.Down = d.down(p.Identity.ID)
+		w.Stale = d.stale(p.Identity.ID)
+		resp.Programs = append(resp.Programs, w)
+	}
+	c.reply(f.GetStreamId(), &resp)
+}
+
 // serveSession answers rig.session.
 //
 // IT IS ITS OWN METHOD BECAUSE serveSelf CROSSED gocyclo's CEILING WHEN THIS
@@ -997,38 +1033,12 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 		d.serveHello(ctx, c, f)
 
 	case "programs":
-		// The read side of the registry, through the calling principal's own
-		// view. There is no unscoped read to offer: See takes a principal and
-		// the filter is inside it.
-		//
-		// A malformed payload is NOT refused here, deliberately: this method
-		// took an empty request before it took a depth, so a caller that
-		// sends nothing at all is an old caller rather than a broken one, and
-		// depthIn turns its zero into the estate it used to get.
-		var req registryv1.ProgramsRequest
-		_ = proto.Unmarshal(f.GetPayload(), &req)
+		// Its own function since rig.guidelines took serveSelf past gocyclo's
+		// ceiling, serveSession's precedent.
+		d.servePrograms(c, f)
 
-		// The depth decides how much is said about each program and never
-		// which programs are named: the scope filter is inside See and runs
-		// first either way.
-		//
-		// A listing asks for a background scan, so a rebuilt, new or
-		// deleted binary is seen; it never waits for one (section 54).
-		d.rescan()
-		estate, err := d.kernel.See(c.principal()).Estate(depthIn(req.GetDepth()))
-		if err != nil {
-			c.failErr(f.GetStreamId(), rigv1.Code_CODE_INVALID, err)
-			return
-		}
-		var resp registryv1.ProgramsResponse
-		for _, p := range estate {
-			w := programToWire(p)
-			w.AtRest = d.atRest(p.Identity.ID)
-			w.Down = d.down(p.Identity.ID)
-			w.Stale = d.stale(p.Identity.ID)
-			resp.Programs = append(resp.Programs, w)
-		}
-		c.reply(f.GetStreamId(), &resp)
+	case "guidelines":
+		d.serveGuidelines(c, f)
 
 	case "ping":
 		// Its own function since the supervision arm took serveSelf past

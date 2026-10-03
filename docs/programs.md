@@ -138,6 +138,14 @@ reported as `INTERNAL`, so return a refusal whenever the caller can fix the
 problem. `examples/greeter` refuses an empty name this way. In another
 language, send an `ERROR` frame with the Status yourself.
 
+## Guidelines
+
+What a program must be to work with rig is published as dated rules:
+`rig.guidelines` on the wire, the `guidelines` MCP tool, and the window's
+Guidelines GUI. The source is `internal/guidelines/guidelines.json`. rig reads
+the commit time from each program binary's Go build info and names the rules
+dated after it, so a program built before a rule can be found and adjusted.
+
 ## Versioning and compatibility
 
 - The wire is versioned by major: `rig.v1` is the package in the proto files

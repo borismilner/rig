@@ -12052,6 +12052,279 @@ func (x *FilesRelayoutResponse) GetApplied() bool {
 	return false
 }
 
+// GuidelinesRequest asks for what a program or an agent must be to work with
+// rig (plan/55 requirement 29, decision 0266). Empty: the rules are the
+// daemon's, never the caller's.
+type GuidelinesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GuidelinesRequest) Reset() {
+	*x = GuidelinesRequest{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[169]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GuidelinesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GuidelinesRequest) ProtoMessage() {}
+
+func (x *GuidelinesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[169]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GuidelinesRequest.ProtoReflect.Descriptor instead.
+func (*GuidelinesRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{169}
+}
+
+// Guideline is one dated rule.
+type Guideline struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// The day it took effect, YYYY-MM-DD: when it entered rig's code where it
+	// is built, the day it was ruled where it is not.
+	Date string `protobuf:"bytes,2,opt,name=date,proto3" json:"date,omitempty"`
+	// "programs" or "agents".
+	Who string `protobuf:"bytes,3,opt,name=who,proto3" json:"who,omitempty"`
+	// False for a rule that is ruled and not built yet.
+	Built bool   `protobuf:"varint,4,opt,name=built,proto3" json:"built,omitempty"`
+	Title string `protobuf:"bytes,5,opt,name=title,proto3" json:"title,omitempty"`
+	Body  string `protobuf:"bytes,6,opt,name=body,proto3" json:"body,omitempty"`
+	// Where the rule is stated or enforced.
+	Cite          string `protobuf:"bytes,7,opt,name=cite,proto3" json:"cite,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Guideline) Reset() {
+	*x = Guideline{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[170]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Guideline) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Guideline) ProtoMessage() {}
+
+func (x *Guideline) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[170]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Guideline.ProtoReflect.Descriptor instead.
+func (*Guideline) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{170}
+}
+
+func (x *Guideline) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Guideline) GetDate() string {
+	if x != nil {
+		return x.Date
+	}
+	return ""
+}
+
+func (x *Guideline) GetWho() string {
+	if x != nil {
+		return x.Who
+	}
+	return ""
+}
+
+func (x *Guideline) GetBuilt() bool {
+	if x != nil {
+		return x.Built
+	}
+	return false
+}
+
+func (x *Guideline) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *Guideline) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *Guideline) GetCite() string {
+	if x != nil {
+		return x.Cite
+	}
+	return ""
+}
+
+// ProgramBuild is when one program's binary was built from source, as its
+// Go build info says, so it can be compared with each rule's date.
+type ProgramBuild struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Program string                 `protobuf:"bytes,1,opt,name=program,proto3" json:"program,omitempty"`
+	// The commit time, RFC 3339; empty when unknown.
+	CommitTime string `protobuf:"bytes,2,opt,name=commit_time,json=commitTime,proto3" json:"commit_time,omitempty"`
+	// True when the binary was built from a tree with uncommitted changes.
+	Modified bool `protobuf:"varint,3,opt,name=modified,proto3" json:"modified,omitempty"`
+	// Why commit_time is empty, in a sentence; empty when it is not.
+	UnknownBecause string `protobuf:"bytes,4,opt,name=unknown_because,json=unknownBecause,proto3" json:"unknown_because,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ProgramBuild) Reset() {
+	*x = ProgramBuild{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[171]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProgramBuild) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProgramBuild) ProtoMessage() {}
+
+func (x *ProgramBuild) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[171]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProgramBuild.ProtoReflect.Descriptor instead.
+func (*ProgramBuild) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{171}
+}
+
+func (x *ProgramBuild) GetProgram() string {
+	if x != nil {
+		return x.Program
+	}
+	return ""
+}
+
+func (x *ProgramBuild) GetCommitTime() string {
+	if x != nil {
+		return x.CommitTime
+	}
+	return ""
+}
+
+func (x *ProgramBuild) GetModified() bool {
+	if x != nil {
+		return x.Modified
+	}
+	return false
+}
+
+func (x *ProgramBuild) GetUnknownBecause() string {
+	if x != nil {
+		return x.UnknownBecause
+	}
+	return ""
+}
+
+type GuidelinesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The newest rule's date: the revision a program is current against.
+	Revision string `protobuf:"bytes,1,opt,name=revision,proto3" json:"revision,omitempty"`
+	// Newest first.
+	Rules []*Guideline `protobuf:"bytes,2,rep,name=rules,proto3" json:"rules,omitempty"`
+	// Every program the caller may see, by id.
+	Programs      []*ProgramBuild `protobuf:"bytes,3,rep,name=programs,proto3" json:"programs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GuidelinesResponse) Reset() {
+	*x = GuidelinesResponse{}
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[172]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GuidelinesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GuidelinesResponse) ProtoMessage() {}
+
+func (x *GuidelinesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_verbs_proto_msgTypes[172]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GuidelinesResponse.ProtoReflect.Descriptor instead.
+func (*GuidelinesResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_verbs_proto_rawDescGZIP(), []int{172}
+}
+
+func (x *GuidelinesResponse) GetRevision() string {
+	if x != nil {
+		return x.Revision
+	}
+	return ""
+}
+
+func (x *GuidelinesResponse) GetRules() []*Guideline {
+	if x != nil {
+		return x.Rules
+	}
+	return nil
+}
+
+func (x *GuidelinesResponse) GetPrograms() []*ProgramBuild {
+	if x != nil {
+		return x.Programs
+	}
+	return nil
+}
+
 var File_proto_rig_v1_verbs_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_verbs_proto_rawDesc = "" +
@@ -12831,7 +13104,26 @@ const file_proto_rig_v1_verbs_proto_rawDesc = "" +
 	"\vmoves_total\x18\x03 \x01(\rR\n" +
 	"movesTotal\x12\x1c\n" +
 	"\treindexed\x18\x04 \x01(\rR\treindexed\x12\x18\n" +
-	"\aapplied\x18\x05 \x01(\bR\aapplied*Z\n" +
+	"\aapplied\x18\x05 \x01(\bR\aapplied\"\x13\n" +
+	"\x11GuidelinesRequest\"\x95\x01\n" +
+	"\tGuideline\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04date\x18\x02 \x01(\tR\x04date\x12\x10\n" +
+	"\x03who\x18\x03 \x01(\tR\x03who\x12\x14\n" +
+	"\x05built\x18\x04 \x01(\bR\x05built\x12\x14\n" +
+	"\x05title\x18\x05 \x01(\tR\x05title\x12\x12\n" +
+	"\x04body\x18\x06 \x01(\tR\x04body\x12\x12\n" +
+	"\x04cite\x18\a \x01(\tR\x04cite\"\x8e\x01\n" +
+	"\fProgramBuild\x12\x18\n" +
+	"\aprogram\x18\x01 \x01(\tR\aprogram\x12\x1f\n" +
+	"\vcommit_time\x18\x02 \x01(\tR\n" +
+	"commitTime\x12\x1a\n" +
+	"\bmodified\x18\x03 \x01(\bR\bmodified\x12'\n" +
+	"\x0funknown_because\x18\x04 \x01(\tR\x0eunknownBecause\"\x8b\x01\n" +
+	"\x12GuidelinesResponse\x12\x1a\n" +
+	"\brevision\x18\x01 \x01(\tR\brevision\x12'\n" +
+	"\x05rules\x18\x02 \x03(\v2\x11.rig.v1.GuidelineR\x05rules\x120\n" +
+	"\bprograms\x18\x03 \x03(\v2\x14.rig.v1.ProgramBuildR\bprograms*Z\n" +
 	"\tSeatState\x12\x1a\n" +
 	"\x16SEAT_STATE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11SEAT_STATE_ACTIVE\x10\x01\x12\x1a\n" +
@@ -12912,7 +13204,7 @@ func file_proto_rig_v1_verbs_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_verbs_proto_enumTypes = make([]protoimpl.EnumInfo, 10)
-var file_proto_rig_v1_verbs_proto_msgTypes = make([]protoimpl.MessageInfo, 173)
+var file_proto_rig_v1_verbs_proto_msgTypes = make([]protoimpl.MessageInfo, 177)
 var file_proto_rig_v1_verbs_proto_goTypes = []any{
 	(SeatState)(0),                   // 0: rig.v1.SeatState
 	(LeaseState)(0),                  // 1: rig.v1.LeaseState
@@ -13093,11 +13385,15 @@ var file_proto_rig_v1_verbs_proto_goTypes = []any{
 	(*FilesRelayoutRequest)(nil),     // 176: rig.v1.FilesRelayoutRequest
 	(*FilesMove)(nil),                // 177: rig.v1.FilesMove
 	(*FilesRelayoutResponse)(nil),    // 178: rig.v1.FilesRelayoutResponse
-	nil,                              // 179: rig.v1.Record.FieldsEntry
-	nil,                              // 180: rig.v1.RecordPutRequest.FieldsEntry
-	nil,                              // 181: rig.v1.WorkNote.FieldsEntry
-	nil,                              // 182: rig.v1.WorkNoteWriteRequest.FieldsEntry
-	(v1.Tristate)(0),                 // 183: rig.v1.Tristate
+	(*GuidelinesRequest)(nil),        // 179: rig.v1.GuidelinesRequest
+	(*Guideline)(nil),                // 180: rig.v1.Guideline
+	(*ProgramBuild)(nil),             // 181: rig.v1.ProgramBuild
+	(*GuidelinesResponse)(nil),       // 182: rig.v1.GuidelinesResponse
+	nil,                              // 183: rig.v1.Record.FieldsEntry
+	nil,                              // 184: rig.v1.RecordPutRequest.FieldsEntry
+	nil,                              // 185: rig.v1.WorkNote.FieldsEntry
+	nil,                              // 186: rig.v1.WorkNoteWriteRequest.FieldsEntry
+	(v1.Tristate)(0),                 // 187: rig.v1.Tristate
 }
 var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	0,   // 0: rig.v1.Seat.state:type_name -> rig.v1.SeatState
@@ -13112,11 +13408,11 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	23,  // 9: rig.v1.LeaseAcquireResponse.incumbent:type_name -> rig.v1.Lease
 	24,  // 10: rig.v1.LeaseRenewResponse.handle:type_name -> rig.v1.LeaseHandle
 	23,  // 11: rig.v1.LeaseListResponse.leases:type_name -> rig.v1.Lease
-	179, // 12: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
+	183, // 12: rig.v1.Record.fields:type_name -> rig.v1.Record.FieldsEntry
 	37,  // 13: rig.v1.Record.prov:type_name -> rig.v1.Provenance
 	39,  // 14: rig.v1.Record.retraction:type_name -> rig.v1.Retraction
 	37,  // 15: rig.v1.Retraction.prov:type_name -> rig.v1.Provenance
-	180, // 16: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
+	184, // 16: rig.v1.RecordPutRequest.fields:type_name -> rig.v1.RecordPutRequest.FieldsEntry
 	38,  // 17: rig.v1.RecordPutResponse.record:type_name -> rig.v1.Record
 	38,  // 18: rig.v1.RecordGetResponse.record:type_name -> rig.v1.Record
 	38,  // 19: rig.v1.RecordQueryResponse.records:type_name -> rig.v1.Record
@@ -13151,7 +13447,7 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	69,  // 48: rig.v1.ProjectBriefResponse.sections:type_name -> rig.v1.BriefSectionStatus
 	75,  // 49: rig.v1.ProjectBriefResponse.governing:type_name -> rig.v1.GoverningRecord
 	76,  // 50: rig.v1.ProjectBriefResponse.governing_counts:type_name -> rig.v1.KindCount
-	183, // 51: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
+	187, // 51: rig.v1.ProjectBriefResponse.container_found:type_name -> rig.v1.Tristate
 	77,  // 52: rig.v1.ProjectBriefResponse.closed:type_name -> rig.v1.ClosedItem
 	78,  // 53: rig.v1.ProjectBriefResponse.closed_counts:type_name -> rig.v1.WordCount
 	37,  // 54: rig.v1.Lesson.prov:type_name -> rig.v1.Provenance
@@ -13170,9 +13466,9 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	101, // 67: rig.v1.SharedGetResponse.values:type_name -> rig.v1.SharedValue
 	101, // 68: rig.v1.SharedSetResponse.value:type_name -> rig.v1.SharedValue
 	101, // 69: rig.v1.SharedDeleteResponse.value:type_name -> rig.v1.SharedValue
-	181, // 70: rig.v1.WorkNote.fields:type_name -> rig.v1.WorkNote.FieldsEntry
+	185, // 70: rig.v1.WorkNote.fields:type_name -> rig.v1.WorkNote.FieldsEntry
 	37,  // 71: rig.v1.WorkNote.prov:type_name -> rig.v1.Provenance
-	182, // 72: rig.v1.WorkNoteWriteRequest.fields:type_name -> rig.v1.WorkNoteWriteRequest.FieldsEntry
+	186, // 72: rig.v1.WorkNoteWriteRequest.fields:type_name -> rig.v1.WorkNoteWriteRequest.FieldsEntry
 	108, // 73: rig.v1.WorkNoteWriteResponse.note:type_name -> rig.v1.WorkNote
 	108, // 74: rig.v1.WorkNoteMineResponse.notes:type_name -> rig.v1.WorkNote
 	108, // 75: rig.v1.WorkNoteAboutResponse.notes:type_name -> rig.v1.WorkNote
@@ -13205,11 +13501,13 @@ var file_proto_rig_v1_verbs_proto_depIdxs = []int32{
 	169, // 102: rig.v1.FilesUnindexedResponse.files:type_name -> rig.v1.FilesPending
 	174, // 103: rig.v1.FilesLayoutResponse.kinds:type_name -> rig.v1.FilesKind
 	177, // 104: rig.v1.FilesRelayoutResponse.moves:type_name -> rig.v1.FilesMove
-	105, // [105:105] is the sub-list for method output_type
-	105, // [105:105] is the sub-list for method input_type
-	105, // [105:105] is the sub-list for extension type_name
-	105, // [105:105] is the sub-list for extension extendee
-	0,   // [0:105] is the sub-list for field type_name
+	180, // 105: rig.v1.GuidelinesResponse.rules:type_name -> rig.v1.Guideline
+	181, // 106: rig.v1.GuidelinesResponse.programs:type_name -> rig.v1.ProgramBuild
+	107, // [107:107] is the sub-list for method output_type
+	107, // [107:107] is the sub-list for method input_type
+	107, // [107:107] is the sub-list for extension type_name
+	107, // [107:107] is the sub-list for extension extendee
+	0,   // [0:107] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_verbs_proto_init() }
@@ -13223,7 +13521,7 @@ func file_proto_rig_v1_verbs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_verbs_proto_rawDesc), len(file_proto_rig_v1_verbs_proto_rawDesc)),
 			NumEnums:      10,
-			NumMessages:   173,
+			NumMessages:   177,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
