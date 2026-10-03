@@ -356,6 +356,27 @@ NOT_FOUND. The empty state after a stop is drawn as "stopped" with a Start
 button (af18fc4). **Not exercised:** the same calls through the Wails
 bridge in the running window, which needs a window on a live desktop.
 
+### Slice 4 as built (2026-10-03)
+
+| Part | In the real window |
+|---|---|
+| Source | rig's verbs from the running daemon's MCP `tools/list`, not `describe` as the table above says: `describe` reaches programs only, and no wire verb lists rig's own. Program commands from `Programs` |
+| List | search, grouped by owner, an effects dot per entry; arrow keys move between entries |
+| Detail | the verb's own words, its returns, a form from its argument schema, and "What goes on the wire" showing exactly what Try sends |
+| Try | `RigService.Try`; a program's command goes through `invoke`. Anything not read-only is confirmed first; a refusal shows in rig's own words |
+
+**The window grew 1.82 MB for the MCP client** (15.22 to 17.04 MB).
+Boris accepted it on 2026-10-03 over a hand-written JSON-RPC client
+(ac37379).
+
+**Exercised against a scratch `rigd`:** a read (`health`), a program
+command (`greeter greet`), a refused write, bad arguments refused by rig's
+schema check, and an unknown tool. Against production, read-only: 91 verbs
+and 8 program commands listed, 29 verbs with no declared effects (drawn as "effects
+not declared" and confirmed like a write). **Not exercised:** the Wails
+bridge in the running window, and a successful write (an unnamed estate
+refuses them).
+
 ### ⛔ Two tensions with §11, for Boris, not for a seat
 
 - **§11 requirement 20** says the agents' GUI *"must not push, badge,
