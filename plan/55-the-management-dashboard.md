@@ -90,6 +90,23 @@ commands (invoke), the store, the bus, notifications, toasts, progress and
 the queue. Which capability serves which interaction is the next design
 step, and it goes to him in the mockup.
 
+**The lead's proposed mapping for requirement 13** (put to him 2026-10-03;
+he answered "make the mockup as up to date as possible", so the mockup is
+being rebuilt on it, not yet ruled):
+
+| The GUI's interaction | rig capability |
+|---|---|
+| Act on an entry (match, reject) | `invoke ledger <command>`: a command the program declares, checked by rig against its declaration |
+| Read what to show | the store, the program's own collection |
+| Hear a change, live | a bus event the program publishes (`ledger.changed`) |
+| Start long work (reconcile again) | the queue, with rig's progress |
+| Tell the user it finished or failed | `notify`, which lands in the notifications panel |
+| Confirm before acting | a rig toast with buttons |
+
+The GUI's bridge exposes these, and only these: `rig.invoke`,
+`rig.store.get`, `rig.events.on`, `rig.queue.push`, `rig.toast`. Nothing
+is carried that rig does not already carry.
+
 **What the mockup proposes for these (the lead's, not yet his):** Ledger
 registers a GUI (`rig.gui.register`), which makes its tab available under
 Tabs without opening it. Its page runs in a sandboxed frame with rig.css
