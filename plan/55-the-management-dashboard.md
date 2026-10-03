@@ -422,7 +422,12 @@ a change and a new card appeared without a reload; Deploy clicked in
 the window reached a `rig events wait panel.acted` and was filed.
 Headless on `?board=1`: 10 checks, both themes. Contrast: clean, lowest
 text 5.63; now in `make contrast-window`. **Not exercised:** a program
-(not a terminal) owning a card; beacon moving onto it (rigged repo).
+(not a terminal) owning a card.
+**beacon's board removed (rigged a17dbe2), so requirement 3 is met.**
+Its `board`, `board-close` and `board-history` commands, its column and
+its store collection are gone; `rig describe beacon` lists eight card
+commands and a call to `board` is refused by name. Exercised on a
+scratch rigd: an ask card drew, a click answered it, beacon exited.
 **Known limit:** each list reads every card head ever put; the closed
 ones are filtered in memory.
 
