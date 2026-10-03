@@ -51,6 +51,7 @@ browser.
 | **10** | **Every external program can register a GUI in rig, to interact with it both ways** |
 | **11** | **Each registered GUI is a separate tab on the dashboard** |
 | **12** | **A GUI's content is wholly the program's, but it looks and feels like one rig application: its CSS is chosen from rig's when the program is written** |
+| **13** | **A program's GUI uses rig's capabilities as much as possible to interact with its program, instead of rig being just a container** |
 
 Requirements 6 to 8, Boris to the rig lead, 2026-10-03, verbatim: *"The
 main tab which is the default should show all the most important
@@ -79,6 +80,15 @@ request; requirement 10 has a program register a GUI. Whether
 registering opens the tab, or only lets it be opened, is not yet ruled.
 How the GUI and rig talk both ways (the board's `rig.panel.put` and
 `panel.acted`, or a channel of its own) is also open.
+
+Requirement 13, the same day, verbatim: *"The GUI of each program should
+use `rig` capabilities as much as possible to interact with the program
+instead of just being a container."* **This overrides the private
+channel below** (`gui.send` and `gui.push`): a GUI acts on its program
+through what rig already carries, such as the program's declared
+commands (invoke), the store, the bus, notifications, toasts, progress and
+the queue. Which capability serves which interaction is the next design
+step, and it goes to him in the mockup.
 
 **What the mockup proposes for these (the lead's, not yet his):** Ledger
 registers a GUI (`rig.gui.register`), which makes its tab available under
