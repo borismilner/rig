@@ -78,6 +78,7 @@ type harness struct {
 	starts  map[string]int
 	refuse  map[string]error
 	handles []map[string]string
+	events  []Event // every transition OnEvent was told
 }
 
 func newHarness(t *testing.T, specs ...Spec) *harness {
@@ -89,6 +90,7 @@ func newHarness(t *testing.T, specs ...Spec) *harness {
 	h.sup = New(Options{
 		Now:     h.clk.now,
 		Handles: map[string]string{"RIG_SOCKET": "/run/rig.sock"},
+		OnEvent: func(_ string, e Event) { h.mu.Lock(); h.events = append(h.events, e); h.mu.Unlock() },
 		Start: func(spec Spec, handles map[string]string) (Process, <-chan Exit, error) {
 			h.mu.Lock()
 			defer h.mu.Unlock()
@@ -396,6 +398,53 @@ func TestThreeStallsDegradeAndFiveRestart(t *testing.T) {
 	h.mustState("app", StateRestarting)
 	if !hasEdge(h.status("app"), StateHealthy, StateDegraded, ActorHealthCheck) {
 		t.Error("the degrade was not recorded as the health check")
+	}
+}
+
+// A stall says when the program never reported at all, the usual cause, and
+// every transition reaches OnEvent with that note, so the estate log can say
+// why a program went (found 2026-10-04: the log said only "program gone").
+func TestAStallSaysTheProgramNeverReported(t *testing.T) {
+	h := newHarness(t)
+	defer h.sup.StopAll()
+	h.up("app")
+	h.clk.advance(3 * time.Second)
+	for range 3 {
+		h.sup.Tick()
+		h.clk.advance(time.Second)
+	}
+	h.mustState("app", StateDegraded)
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var degraded *Event
+	for i := range h.events {
+		if h.events[i].To == StateDegraded {
+			degraded = &h.events[i]
+		}
+	}
+	if degraded == nil || !strings.Contains(degraded.Note, "no rig.health.report") {
+		t.Fatalf("OnEvent was not told the degrade with its cause: %+v", h.events)
+	}
+}
+
+// A program that reports, and still stalls, is not told it never reported.
+func TestAStallAfterAReportIsPlainStalled(t *testing.T) {
+	h := newHarness(t)
+	defer h.sup.StopAll()
+	h.up("app")
+	if err := h.sup.Observe("app", Report{Marker: 1}); err != nil {
+		t.Fatal(err)
+	}
+	h.clk.advance(time.Hour)
+	for range 3 {
+		h.sup.Tick()
+		h.clk.advance(time.Second)
+	}
+	h.mustState("app", StateDegraded)
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if last := h.events[len(h.events)-1]; last.Note != "stalled" {
+		t.Fatalf("note %q, want plain stalled", last.Note)
 	}
 }
 

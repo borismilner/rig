@@ -27,6 +27,7 @@ type Supervisor struct {
 	now     func() time.Time
 	handles map[string]string
 	grace   time.Duration
+	onEvent func(program string, e Event)
 
 	mu       sync.Mutex
 	programs map[string]*program
@@ -67,6 +68,11 @@ type Options struct {
 	// the clock in hand a whole budget - five restarts, doubling, exhaustion,
 	// quarantine - runs in microseconds and asserts every step.
 	Now func() time.Time
+
+	// OnEvent is told every transition as it is recorded, so the estate log
+	// says why a program went, not only that it did. It is called with the
+	// supervisor locked and must not call back into it. Nil tells nobody.
+	OnEvent func(program string, e Event)
 }
 
 // New builds a supervisor with no programs declared.
@@ -76,6 +82,7 @@ func New(opts Options) *Supervisor {
 		now:      opts.Now,
 		handles:  opts.Handles,
 		grace:    opts.StopGrace,
+		onEvent:  opts.OnEvent,
 		programs: map[string]*program{},
 		wake:     make(chan struct{}, 1),
 	}
@@ -107,6 +114,13 @@ type program struct {
 	// report, not progress.
 	report   Report
 	advanced time.Time
+	// heard is whether this life of the child has reported at all, so a
+	// stall can say when the cause is that it never did.
+	heard bool
+
+	// onEvent is the supervisor's OnEvent, kept here because record is the
+	// one place every transition passes.
+	onEvent func(program string, e Event)
 
 	// checked is when health was last judged, so Tick may be called as often
 	// as a caller likes and health still happens on the interval.
@@ -282,7 +296,7 @@ func (s *Supervisor) Declare(specs []Spec) error {
 			p.spec = spec
 			continue
 		}
-		s.programs[spec.ID] = &program{spec: spec}
+		s.programs[spec.ID] = &program{spec: spec, onEvent: s.onEvent}
 		s.order = append(s.order, spec.ID)
 	}
 	return nil
@@ -719,7 +733,7 @@ func (s *Supervisor) Observe(id string, r Report) error {
 	if r.Marker > p.report.Marker {
 		p.advanced = now
 	}
-	p.report = r
+	p.report, p.heard = r, true
 	return nil
 }
 
@@ -779,6 +793,9 @@ func (s *Supervisor) move(p *program, t Trigger, now time.Time, note string) {
 }
 
 func (p *program) record(e Event) {
+	if p.onEvent != nil {
+		p.onEvent(p.spec.ID, e)
+	}
 	p.history = append(p.history, e)
 	if len(p.history) > historyCap {
 		p.history = append(p.history[:0], p.history[len(p.history)-historyCap:]...)
@@ -896,7 +913,13 @@ func (s *Supervisor) checkHealth(p *program, now time.Time) {
 	}
 	p.checked = now
 	obs := judge(p, now)
-	s.observed(p, obs, now, obs.String())
+	note := obs.String()
+	if obs == ObservedStalled && !p.heard {
+		// The usual cause by far, and invisible from the program's side: a
+		// resident that only waits never moves a marker unless it says so.
+		note += ": it has sent no rig.health.report since it started, so nothing says what it waits on"
+	}
+	s.observed(p, obs, now, note)
 }
 
 // judge is section 18's health definition and nothing else, kept apart from
@@ -1107,7 +1130,7 @@ func (s *Supervisor) spawn(p *program, now time.Time) {
 		s.move(p, TriggerRegistrationFailed, now, "the child would not start: "+err.Error())
 		return
 	}
-	p.proc, p.checked, p.advanced, p.report, p.stderr = proc, now, now, Report{}, ""
+	p.proc, p.checked, p.advanced, p.report, p.heard, p.stderr = proc, now, now, Report{}, false, ""
 	id := p.spec.ID
 	go func() {
 		e, ok := <-exited

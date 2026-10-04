@@ -314,6 +314,7 @@ func run() error {
 		Leases:           leases,
 
 		Supervisor:   sup,
+		Redeclare:    func() error { return redeclare(sup) },
 		Declarations: found.kept,
 		Scan:         found.scan,
 		Overrides:    found.overrides,
@@ -451,7 +452,17 @@ func newAudio(log *slog.Logger, estate, pidPath, soundFile string) (*audio.Audio
 // the file's error is in the log and rig health answers with nothing
 // declared, which is visibly wrong rather than silently so.
 func supervisor(log *slog.Logger, settings *config.Resolver, estate, root string) (*supervise.Supervisor, discovery) {
-	sup := supervise.New(supervise.Options{})
+	sup := supervise.New(supervise.Options{OnEvent: func(id string, e supervise.Event) {
+		// Every transition, with why: "program gone" alone left a stall
+		// restart looking like a crash (found 2026-10-04).
+		lv := slog.LevelInfo
+		switch e.To {
+		case supervise.StateDegraded, supervise.StateRestarting, supervise.StateQuarantined:
+			lv = slog.LevelWarn
+		}
+		log.Log(context.Background(), lv, "program "+e.To.String(), "program", id, "from", e.From.String(),
+			"trigger", e.Trigger.String(), "actor", e.Actor.String(), "note", e.Note)
+	}})
 	found := discovery{kept: declarationsDir(log, estate, root)}
 	home, _ := os.UserHomeDir()
 	dirs, err := supervise.ScanDirs(settings.String("programs.scan"), home)
@@ -480,6 +491,23 @@ func supervisor(log *slog.Logger, settings *config.Resolver, estate, root string
 		log.Info("programs declared", "count", len(explicit), "ids", sup.Declared())
 	}
 	return sup, found
+}
+
+// redeclare reads programs.json again for rig up. Only rows that name a path
+// are declared, as at start; the override rows (no path) stay as rigd read
+// them, since they are the scan's business.
+func redeclare(sup *supervise.Supervisor) error {
+	specs, err := supervise.LoadDefault()
+	if err != nil {
+		return err
+	}
+	var explicit []supervise.Spec
+	for _, s := range specs {
+		if s.Path != "" {
+			explicit = append(explicit, s)
+		}
+	}
+	return sup.Declare(explicit)
 }
 
 // discovery is what the daemon needs to find programs by itself (plan/54,

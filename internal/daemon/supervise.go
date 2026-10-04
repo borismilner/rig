@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"errors"
+	"fmt"
 
 	"google.golang.org/protobuf/proto"
 
@@ -39,8 +40,20 @@ func (d *Daemon) serveSupervise(c *conn, f *rigv1.Frame, command string) {
 		if !unmarshalOr(c, f, command, &req) {
 			return
 		}
+		// The file is read again so a program added to it since rigd started
+		// can be started now. A file that no longer parses keeps what was
+		// declared: it fails only the up that needed what it would add.
+		var reread error
+		if d.redeclare != nil {
+			if reread = d.redeclare(); reread != nil {
+				d.log.Warn("rig up: programs.json was not re-read", "err", reread)
+			}
+		}
 		st, err := d.super.Up(req.GetPrograms()...)
 		if err != nil {
+			if reread != nil {
+				err = fmt.Errorf("%w (programs.json was not re-read: %w)", err, reread)
+			}
 			c.failErr(f.GetStreamId(), superviseCode(err), err)
 			return
 		}

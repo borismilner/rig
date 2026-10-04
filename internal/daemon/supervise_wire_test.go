@@ -2,9 +2,11 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -32,6 +34,13 @@ func (p *pidProc) Stop(time.Duration) {
 }
 
 func upSupervised(t *testing.T, pids map[string]int) string {
+	t.Helper()
+	return upSupervisedWith(t, pids, nil)
+}
+
+// upSupervisedWith also gives the daemon a Redeclare, built over its
+// supervisor, as rigd gives it one over programs.json.
+func upSupervisedWith(t *testing.T, pids map[string]int, redeclare func(*supervise.Supervisor) error) string {
 	t.Helper()
 	dir, err := os.MkdirTemp("", "rigsv")
 	if err != nil {
@@ -61,7 +70,11 @@ func upSupervised(t *testing.T, pids map[string]int) string {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = lock.Close() })
-	d, err := New(Config{Version: "test", Wire: "v1", Lock: lock, Supervisor: sup})
+	cfg := Config{Version: "test", Wire: "v1", Lock: lock, Supervisor: sup}
+	if redeclare != nil {
+		cfg.Redeclare = func() error { return redeclare(sup) }
+	}
+	d, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,5 +163,45 @@ func TestADeclaredProgramIsSupervisedOverTheWire(t *testing.T) {
 	p := stopped.GetProgram()
 	if p.GetState() != verbsv1.ProgramState_PROGRAM_STATE_UNSPECIFIED || p.GetPid() != 0 || len(p.GetHistory()) < 3 {
 		t.Fatalf("a stopped program should be off the table with its history kept: %+v", p)
+	}
+}
+
+// A program added to programs.json after rigd started is started by rig up,
+// which reads the file again; no daemon restart is needed. A file that no
+// longer reads leaves the declared programs as they were, and says why when
+// it is what an up needed.
+func TestRigUpStartsAProgramDeclaredSinceRigdStarted(t *testing.T) {
+	ctx := ctx5(t)
+	var file []supervise.Spec
+	var broken error
+	sock := upSupervisedWith(t, map[string]int{"worker": 1, "late": 1}, func(sup *supervise.Supervisor) error {
+		if broken != nil {
+			return broken
+		}
+		return sup.Declare(file)
+	})
+	cli := dial(t, sock)
+	var up verbsv1.UpResponse
+	if err := cli.Call(ctx, "rig.up", &verbsv1.UpRequest{Programs: []string{"worker"}}, &up); err != nil {
+		t.Fatalf("rig up worker: %v", err)
+	}
+	wantCode(t, cli.Call(ctx, "rig.up", &verbsv1.UpRequest{Programs: []string{"added"}}, &up),
+		rigv1.Code_CODE_NOT_FOUND, "rig up of a program not yet in the file")
+
+	file = []supervise.Spec{{ID: "added", Path: "/bin/true"}}
+	if err := cli.Call(ctx, "rig.up", &verbsv1.UpRequest{Programs: []string{"added"}}, &up); err != nil {
+		t.Fatalf("rig up of a program added to the file: %v", err)
+	}
+	if h := healthOf(ctx, t, sock, "added"); h.GetState() != verbsv1.ProgramState_PROGRAM_STATE_STARTING {
+		t.Fatalf("the added program is %s, want STARTING", h.GetState())
+	}
+
+	broken = errors.New("programs.json: invalid character")
+	err := cli.Call(ctx, "rig.up", &verbsv1.UpRequest{Programs: []string{"ghost"}}, &up)
+	if err == nil || !strings.Contains(err.Error(), "invalid character") {
+		t.Fatalf("an up the broken file failed did not say why: %v", err)
+	}
+	if err := cli.Call(ctx, "rig.up", &verbsv1.UpRequest{Programs: []string{"worker"}}, &up); err != nil {
+		t.Fatalf("a broken file refused an up of a program already declared: %v", err)
 	}
 }

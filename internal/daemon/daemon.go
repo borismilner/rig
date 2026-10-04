@@ -146,6 +146,11 @@ type Config struct {
 	// nothing, and the four verbs refuse naming that.
 	Supervisor *supervise.Supervisor
 
+	// Redeclare re-reads programs.json into Supervisor. rig up calls it
+	// first, so a program added to the file starts without restarting rigd.
+	// Nil, as in a test, leaves the declared set as it was built.
+	Redeclare func() error
+
 	// Declarations is where an on-call program's declaration is kept while
 	// it is down (section 54). Empty keeps it in memory only, as an unnamed
 	// estate does.
@@ -250,7 +255,8 @@ type Daemon struct {
 	serving atomic.Pointer[context.Context]
 
 	// super is section 18's supervisor, nil when none was configured.
-	super *supervise.Supervisor
+	super     *supervise.Supervisor
+	redeclare func() error
 	// keptDir and oncall hold on-call programs' declarations (oncall.go).
 	keptDir   string
 	oncall    onCallState
@@ -435,6 +441,7 @@ func New(cfg Config) (*Daemon, error) {
 		leases:    cfg.Leases,
 		lq:        newLeaseQueue(),
 		super:     cfg.Supervisor,
+		redeclare: cfg.Redeclare,
 		keptDir:   cfg.Declarations,
 		scanDirs:  cfg.Scan,
 		overrides: cfg.Overrides,
