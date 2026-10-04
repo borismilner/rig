@@ -356,6 +356,7 @@ type toastFeed struct {
 	seen map[string]bool
 
 	copyText func(string)                               // puts text on the clipboard; nil refuses
+	focus    func()                                     // gives the window the keyboard, for a reply field; nil refuses
 	reply    func(*registryv1.ToastReplyRequest) error  // files a reply; nil refuses
 	watch    func(id string, answered func(answerJSON)) // follows a toast's answer; nil does nothing
 }
@@ -481,6 +482,13 @@ func (f *toastFeed) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
+	case "/toast/focus":
+		if r.Method != http.MethodPost || f.focus == nil {
+			http.Error(w, "focus is POST, and only in the renderer", http.StatusMethodNotAllowed)
+			return
+		}
+		f.focus()
+		w.WriteHeader(http.StatusNoContent)
 	case "/toast/copy":
 		if r.Method != http.MethodPost || f.copyText == nil {
 			http.Error(w, "copy is POST, and only in the renderer", http.StatusMethodNotAllowed)
@@ -505,6 +513,12 @@ func runToasts(after uint64) error {
 	//rig:allow nocontextfree: the renderer lives until its last bubble leaves, so its end is app.Quit rather than a deadline
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	// XWayland, so the window can refuse focus: under native Wayland every
+	// toast took the keyboard from whatever Boris was typing in (seen live,
+	// 2026-10-04: focused on map, for five seconds). As the strip does.
+	if os.Getenv("GDK_BACKEND") == "" {
+		_ = os.Setenv("GDK_BACKEND", "x11")
+	}
 	feed := &toastFeed{
 		reply: replyToast,
 		watch: func(id string, answered func(answerJSON)) { watchAnswer(ctx, id, answered) },
@@ -527,6 +541,7 @@ func runToasts(after uint64) error {
 		URL:            "/toast.html",
 	})
 	feed.copyText = func(s string) { application.InvokeSync(func() { app.Clipboard.SetText(s) }) }
+	feed.focus = func() { application.InvokeSync(func() { takeKeyboard(win) }) }
 
 	go func() {
 		cursor := after
@@ -588,10 +603,13 @@ func placeToasts(app *application.App, win *application.WebviewWindow, feed *toa
 	feed.mu.Lock()
 	feed.edge, feed.maxH = edge, h
 	feed.mu.Unlock()
+	if !application.InvokeSyncWithResult(func() bool { return stripNoFocus(win, x, y) }) {
+		fmt.Fprintln(os.Stderr, "rigwindow: the toasts are not an X11 window, so they take the keyboard when they appear")
+	}
 	win.Show()
 	// After Show as well as before it: GTK drops a move asked of a window
 	// that is not yet mapped, which put the stack top-left under Xvfb.
-	win.SetPosition(x, y)
+	application.InvokeSync(func() { stripMove(win, x, y) })
 	return true
 }
 

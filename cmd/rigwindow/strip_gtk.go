@@ -54,6 +54,19 @@ static void rig_strip_move(void *win, int x, int y) {
 #endif
 }
 
+// rig_take_keyboard gives an override-redirect window the keyboard, which
+// no window manager will: the toasts ask for it when Boris clicks a reply
+// field, and only then.
+static void rig_take_keyboard(void *win) {
+#ifdef GDK_WINDOWING_X11
+	GdkSurface *s = gtk_native_get_surface(GTK_NATIVE(win));
+	if (s == NULL || !GDK_IS_X11_SURFACE(s)) return;
+	Display *d = gdk_x11_display_get_xdisplay(gdk_surface_get_display(s));
+	XSetInputFocus(d, gdk_x11_surface_get_xid(s), RevertToPointerRoot, CurrentTime);
+	XFlush(d);
+#endif
+}
+
 G_GNUC_END_IGNORE_DEPRECATIONS
 */
 import "C"
@@ -73,5 +86,13 @@ func stripNoFocus(win *application.WebviewWindow, x, y int) bool {
 func stripMove(win *application.WebviewWindow, x, y int) {
 	if p := win.NativeWindow(); p != nil {
 		C.rig_strip_move(p, C.int(x), C.int(y))
+	}
+}
+
+// takeKeyboard gives a window made by stripNoFocus the keyboard, for a
+// click that asked for it. Must run on the GTK thread.
+func takeKeyboard(win *application.WebviewWindow) {
+	if p := win.NativeWindow(); p != nil {
+		C.rig_take_keyboard(p)
 	}
 }

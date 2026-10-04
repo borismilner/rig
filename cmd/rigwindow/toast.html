@@ -274,6 +274,8 @@ function askRow(slot, t) {
     const send = el("button", "reply", "Send"); send.type = "submit";
     form.append(input, send);
     form.addEventListener("click", (e) => e.stopPropagation());
+    // The window never takes the keyboard on its own; it asks when clicked here.
+    input.addEventListener("pointerdown", () => { fetch("/toast/focus", { method: "POST" }).catch(() => {}); });
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const text = input.value.trim();
