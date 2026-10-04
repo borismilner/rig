@@ -154,7 +154,7 @@ func (r *toastRing) suppress(sev registryv1.Severity) bool {
 // took rigd to 20 GB. Called with mu held.
 func (r *toastRing) start() {
 	if r.seq == 0 {
-		r.seq = uint64(time.Now().UnixMicro()) //nolint:gosec // after 1970
+		r.seq = uint64(time.Now().UnixMicro())
 	}
 }
 
