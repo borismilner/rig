@@ -477,11 +477,11 @@ func selfDeclaration() kernel.Declaration {
 			// SECTION 6's SETTINGS, as plan/47 builds them.
 			readOnly("config.get", "Config get",
 				"Every setting under a key or prefix, with the layer that set it",
-				"Answers each of rig's settings under the prefix (empty is all): the value in effect, the layer and file that set it, every layer that set it and lost, lowest first, and whether a change applies live. Also the orphans (values set for a key nothing declares, usually a misspelling), the problems (a file or value that took no part, and why), and where the resolved snapshot is written.",
+				"Answers each of rig's settings under the prefix (empty is all): the value in effect, the layer and file that set it, every layer that set it and lost, lowest first, and whether a change applies live. Also the orphans (values set for a key nothing declares, usually a misspelling), the problems (a file or value that took no part, and why), and where the resolved snapshot is written. With program set, that program's declared settings instead, over its defaults and ~/.config/rig/apps/<id>.toml.",
 				"The settings with their provenance, the orphans, the problems and the snapshot path."),
 			leaseWriter("config.set", "Config set", kernel.Yes,
 				"Change settings until rigd restarts",
-				"Sets keys in the runtime layer, the highest, which a restart clears; a lasting change is an edit to ~/.config/rig/rig.toml. Values are JSON text, and a JSON string is read as the key's type. The set is validated whole: one bad value applies nothing and names the key and why. Each key answers applied or needs-restart; a key whose value moved is published as config.changed.",
+				"Sets keys in the runtime layer, the highest, which a restart clears; a lasting change is an edit to ~/.config/rig/rig.toml. Values are JSON text, and a JSON string is read as the key's type. The set is validated whole: one bad value applies nothing and names the key and why. Each key answers applied or needs-restart; a key whose value moved is published as config.changed. With program set, the change is to that program's declared settings and LASTS: it is written to ~/.config/rig/apps/<id>.toml, and config.changed names the program, which waits on it rather than polling.",
 				"Per key, applied or needs-restart, and the snapshot path."),
 			// SECTION 49's LOGS, the read side.
 			readOnly("logs.query", "Logs query",

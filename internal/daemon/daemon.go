@@ -119,6 +119,9 @@ type Config struct {
 	Settings     *config.Resolver
 	LogLevel     *slog.LevelVar
 	SnapshotPath string
+	// AppsDir holds each program's lasting settings, <id>.toml
+	// (~/.config/rig/apps); empty keeps a program's changes in memory.
+	AppsDir string
 
 	// Logs is section 49's log store, which rig.logs.query reads; nil
 	// answers that this daemon keeps none. rigd opens it, not New.
@@ -182,6 +185,10 @@ type Daemon struct {
 	settings     *config.Resolver
 	logLevel     *slog.LevelVar
 	snapshotPath string
+	// appSettings is each program's declared settings, by id, kept past
+	// its disconnect so they can still be read and changed (appsettings.go).
+	appsDir     string
+	appSettings sync.Map // id -> *config.Resolver
 
 	// logs is section 49's store (observe.go), and logsRead the audit
 	// entries it has written this minute, so each is written once.
@@ -455,6 +462,7 @@ func New(cfg Config) (*Daemon, error) {
 		settings:     cfg.Settings,
 		logLevel:     cfg.LogLevel,
 		snapshotPath: cfg.SnapshotPath,
+		appsDir:      cfg.AppsDir,
 		logs:         cfg.Logs,
 	}
 	if d.settings == nil {
@@ -961,6 +969,11 @@ func (d *Daemon) serveHello(ctx context.Context, c *conn, f *rigv1.Frame) {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, err.Error())
 		return
 	}
+	settings, err := d.programSettings(decl.Identity.ID, req.GetDeclaration().GetSettingsSchema())
+	if err != nil {
+		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, err.Error())
+		return
+	}
 
 	d.awaitRelease(decl.Identity.ID, c)
 	who, err := d.kernel.Register(asProgram(c.principal(), decl.Identity.ID), decl)
@@ -990,6 +1003,9 @@ func (d *Daemon) serveHello(ctx context.Context, c *conn, f *rigv1.Frame) {
 	d.programs[req.GetProgram()] = c
 	d.mu.Unlock()
 
+	if settings != nil {
+		d.appSettings.Store(decl.Identity.ID, settings)
+	}
 	c.who.Store(who)
 	c.program.Store(req.GetProgram())
 	c.scoped.Store(true)

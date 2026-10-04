@@ -432,6 +432,14 @@ message Declaration {
   // every program was before the field existed; it carries no safety
   // meaning, so section 5e's refusal of an unsaid default does not apply.
   Load load = 13;
+
+  // The program's settings (section 6, plan/47 decision 1, plan/55
+  // requirement 20) as a JSON Schema in rig's own dialect: nested
+  // properties, every leaf with a default and x-rig-apply. rig resolves
+  // them over the two program layers, its defaults and
+  // ~/.config/rig/apps/<id>.toml, and serves them through config.get and
+  // config.set with program set. Empty declares none.
+  string settings_schema = 14;
 }
 
 // ---- Invoking a declared command (PLAN.md section 5e, M1 slice 5) ----------

@@ -232,6 +232,9 @@
         "type": "string"
       },
       "type": "array"
+    },
+    "settingsSchema": {
+      "type": "string"
     }
   },
   "required": [

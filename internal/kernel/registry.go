@@ -371,6 +371,8 @@ type Program struct {
 	Hosted       bool
 	PaneURL      string
 	Load         Load
+	// SettingsSchema rides at DepthFull only, as the preamble does.
+	SettingsSchema string
 
 	// Preamble is the one document an agent reads before touching this
 	// program (section 9). It is carried at DepthFull only: it is prose, it
@@ -531,18 +533,19 @@ func (v View) canSeeScope(id, scope string) bool {
 
 func program(e entry) Program {
 	return Program{
-		Identity:     e.decl.Identity,
-		Coverage:     e.decl.Coverage,
-		CoverageNote: e.decl.CoverageNote,
-		SemanticsGen: e.decl.SemanticsGen,
-		Services:     slices.Clone(e.decl.Services),
-		Elements:     slices.Clone(e.decl.Elements),
-		Events:       slices.Clone(e.decl.Events),
-		Hosted:       e.decl.Hosted,
-		PaneURL:      e.decl.PaneURL,
-		Load:         e.decl.Load,
-		Preamble:     e.decl.Preamble,
-		Commands:     cloneCommands(e.decl.Commands),
+		Identity:       e.decl.Identity,
+		Coverage:       e.decl.Coverage,
+		CoverageNote:   e.decl.CoverageNote,
+		SemanticsGen:   e.decl.SemanticsGen,
+		Services:       slices.Clone(e.decl.Services),
+		Elements:       slices.Clone(e.decl.Elements),
+		Events:         slices.Clone(e.decl.Events),
+		Hosted:         e.decl.Hosted,
+		PaneURL:        e.decl.PaneURL,
+		Load:           e.decl.Load,
+		Preamble:       e.decl.Preamble,
+		Commands:       cloneCommands(e.decl.Commands),
+		SettingsSchema: e.decl.SettingsSchema,
 	}
 }
 

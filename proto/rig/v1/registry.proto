@@ -64,6 +64,10 @@ message Program {
   // Its binary changed since what is listed was read, and rig has not read
   // it again: a quarantined program waits for a human (section 54).
   bool stale = 15;
+  // The program's declared settings_schema, at DEPTH_FULL only, so a
+  // settings UI is generated from it (plan/55 requirement 20); its values
+  // are config.get with program set.
+  string settings_schema = 16;
 }
 
 // Depth is how much of the estate a read wants (section 9).
@@ -722,6 +726,8 @@ message TimerFired {
 message ConfigGetRequest {
   // A key, a dotted prefix of keys, or "" for every key.
   string prefix = 1;
+  // A program's settings rather than rig's: its id, as it said hello.
+  string program = 2;
 }
 
 // ConfigLayerValue is one layer's value for a key.
@@ -755,6 +761,9 @@ message ConfigGetResponse {
 message ConfigSetRequest {
   // key -> value as JSON text. Validated whole: one refusal applies nothing.
   map<string, string> values_json = 1;
+  // A program's settings rather than rig's. A program's change lasts: it is
+  // written to ~/.config/rig/apps/<id>.toml, the program-file layer.
+  string program = 2;
 }
 
 message ConfigSetResponse {
@@ -767,6 +776,8 @@ message ConfigSetResponse {
 // moved. Read them again with config.get.
 message ConfigChanged {
   repeated string keys = 1;
+  // The program whose settings moved; "" for rig's own.
+  string program = 2;
 }
 
 // ---- Section 49's logs: one store per estate, read back merged -------------

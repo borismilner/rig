@@ -1442,9 +1442,16 @@ type Declaration struct {
 	// it, and programs.json may override it. Unspecified is resident, what
 	// every program was before the field existed; it carries no safety
 	// meaning, so section 5e's refusal of an unsaid default does not apply.
-	Load          Load `protobuf:"varint,13,opt,name=load,proto3,enum=rig.v1.Load" json:"load,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Load Load `protobuf:"varint,13,opt,name=load,proto3,enum=rig.v1.Load" json:"load,omitempty"`
+	// The program's settings (section 6, plan/47 decision 1, plan/55
+	// requirement 20) as a JSON Schema in rig's own dialect: nested
+	// properties, every leaf with a default and x-rig-apply. rig resolves
+	// them over the two program layers, its defaults and
+	// ~/.config/rig/apps/<id>.toml, and serves them through config.get and
+	// config.set with program set. Empty declares none.
+	SettingsSchema string `protobuf:"bytes,14,opt,name=settings_schema,json=settingsSchema,proto3" json:"settings_schema,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Declaration) Reset() {
@@ -1566,6 +1573,13 @@ func (x *Declaration) GetLoad() Load {
 		return x.Load
 	}
 	return Load_LOAD_UNSPECIFIED
+}
+
+func (x *Declaration) GetSettingsSchema() string {
+	if x != nil {
+		return x.SettingsSchema
+	}
+	return ""
 }
 
 type CallRequest struct {
@@ -1916,7 +1930,7 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	"\adry_run\x18\x11 \x01(\bR\x06dryRun\x12\x12\n" +
 	"\x04cost\x18\x12 \x01(\tR\x04cost\x12$\n" +
 	"\rpreconditions\x18\x13 \x03(\tR\rpreconditions\x12\x18\n" +
-	"\apromote\x18\x14 \x01(\bR\apromote\"\xb7\x03\n" +
+	"\apromote\x18\x14 \x01(\bR\apromote\"\xe0\x03\n" +
 	"\vDeclaration\x12,\n" +
 	"\bidentity\x18\x01 \x01(\v2\x10.rig.v1.IdentityR\bidentity\x12,\n" +
 	"\bcoverage\x18\x02 \x01(\x0e2\x10.rig.v1.CoverageR\bcoverage\x12#\n" +
@@ -1931,7 +1945,8 @@ const file_proto_rig_v1_wire_proto_rawDesc = "" +
 	" \x01(\tR\apaneUrl\x12\x1a\n" +
 	"\belements\x18\v \x03(\tR\belements\x12\x16\n" +
 	"\x06events\x18\f \x03(\tR\x06events\x12 \n" +
-	"\x04load\x18\r \x01(\x0e2\f.rig.v1.LoadR\x04load\"I\n" +
+	"\x04load\x18\r \x01(\x0e2\f.rig.v1.LoadR\x04load\x12'\n" +
+	"\x0fsettings_schema\x18\x0e \x01(\tR\x0esettingsSchema\"I\n" +
 	"\vCallRequest\x12\x12\n" +
 	"\x04args\x18\x01 \x01(\fR\x04args\x12&\n" +
 	"\x06caller\x18\x02 \x01(\v2\x0e.rig.v1.CallerR\x06caller\"\\\n" +

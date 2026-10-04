@@ -38,6 +38,10 @@ type Declaration struct {
 	// of check at registration, because a refusal at render happens in front
 	// of the user.
 	PaneURL string
+
+	// SettingsSchema is the program's settings as a JSON Schema (plan/47);
+	// rigd compiles it at hello, so the kernel only carries it.
+	SettingsSchema string
 }
 
 // Identity is who the program is.

@@ -355,3 +355,21 @@ live on a throwaway rigd with the real binaries, and row 6 by unit test.**
 **Boris, 2026-10-03 (§55 requirements 19 and 20):** a settings panel shows every key rig exposes, and every program exposes its settings to rig, shown and changed in that program's GUI. This is the demand that fills the two program layers of requirement 1.
 
 **Boris, 2026-10-03 (§55 requirement 33):** a setting's control fits what it holds, and a file or folder is chosen through the operating system's own picker. So every key that holds a path says so in the schema (a folder, a list of folders, a file), and the settings UI generated from it uses the picker.
+
+### The program layers, filled (2026-10-04)
+
+Gap 5 of rigged's buddies (*"close all the gaps"*, Boris, 2026-10-04),
+and the backend half of plan/55 slice 5 (requirement 20). The window's
+Settings rows and the control annotation (33) are not built here.
+
+- **A program declares `settings_schema` in its hello**: a JSON Schema in
+  rig's dialect (every leaf has a default and `x-rig-apply`). One rig
+  cannot compile refuses the hello.
+- **rig resolves it over the two program layers**: the schema's defaults,
+  then `~/.config/rig/apps/<id>.toml`. Environment and flags are rig's
+  spellings and take no part.
+- **`config.get` and `config.set` take `program`**; so does `rig config
+  --program <id>`. An unknown program is NOT_FOUND.
+- **A program's change lasts, unlike rig's runtime layer**: `config.set`
+  rewrites `apps/<id>.toml` (a comment in it does not survive) and posts
+  `config.changed {keys, program}`.

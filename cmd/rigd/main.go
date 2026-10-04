@@ -308,6 +308,7 @@ func run() error {
 		Settings:         settings,
 		LogLevel:         lv,
 		SnapshotPath:     snapshot,
+		AppsDir:          appsDir(),
 		Logs:             logs,
 		Log:              log,
 		Lock:             lock,
@@ -586,6 +587,16 @@ func loadSettings(schema *config.Schema, estate string, flags map[string]string)
 		SystemFile: paths.SystemConfigFile, UserFile: user,
 		Environ: os.Environ(), Flags: flags,
 	}), snapshot, nil
+}
+
+// appsDir is where each program's lasting settings are kept; "" when the
+// config directory cannot be named, which keeps changes in memory.
+func appsDir() string {
+	d, err := paths.ConfigDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(d, "apps")
 }
 
 // logSettings says, once at start, what in the settings took no part.

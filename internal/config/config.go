@@ -223,6 +223,12 @@ type Resolver struct {
 	layers   [8]map[string]entry
 	orphans  []string
 	problems []string
+
+	// appFile is a program's ~/.config/rig/apps/<id>.toml when this
+	// resolves a program's settings (LoadProgram): Set writes there, so a
+	// change lasts, rather than to the runtime layer a restart clears.
+	program bool
+	appFile string
 }
 
 // Load reads every layer. It does not fail: a file that cannot be read or
@@ -257,6 +263,23 @@ func Load(s *Schema, src Sources) *Resolver {
 			r.put(layerFlag, k, typed(k, val), "")
 		}
 	}
+	slices.Sort(r.orphans)
+	return r
+}
+
+// LoadProgram resolves a program's declared settings over the two program
+// layers (plan/47 decision 1): the schema's defaults, then file, the
+// program's apps/<id>.toml, which Set also writes. Environment and flags are
+// rig's spellings and take no part. An empty file keeps changes in memory.
+func LoadProgram(s *Schema, file string) *Resolver {
+	r := &Resolver{schema: s, program: true, appFile: file}
+	for i := range r.layers {
+		r.layers[i] = map[string]entry{}
+	}
+	for _, k := range s.keys {
+		r.layers[layerProgramDefault][k.Name] = entry{value: k.Default}
+	}
+	r.loadFile(layerProgramFile, file)
 	slices.Sort(r.orphans)
 	return r
 }
@@ -330,6 +353,11 @@ func normal(v any) (any, error) {
 
 // validate checks flat key -> value pairs as one nested document.
 func (s *Schema) validate(flat map[string]any) error {
+	return s.compiled.Validate(nest(flat))
+}
+
+// nest turns dotted keys into the nested document they name.
+func nest(flat map[string]any) map[string]any {
 	doc := map[string]any{}
 	for name, v := range flat {
 		parts := strings.Split(name, ".")
@@ -344,7 +372,7 @@ func (s *Schema) validate(flat map[string]any) error {
 		}
 		node[parts[len(parts)-1]] = v
 	}
-	return s.compiled.Validate(doc)
+	return doc
 }
 
 // RefusalError is a change set refused whole: the key, the layer and the reason.
@@ -382,27 +410,34 @@ func leafKey(err error) string {
 // not a string is read as the key's own type, as an environment variable
 // is. It answers each key's outcome, applied or needs-restart, and the keys
 // whose resolved value moved.
+//
+// A program's resolver writes its file layer instead, and the file itself,
+// so the change outlives rigd; a file that cannot be written applies nothing.
 func (r *Resolver) Set(changes map[string]string) (outcome map[string]string, moved []string, err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	layer := layerRuntime
+	if r.program {
+		layer = layerProgramFile
+	}
 	if len(changes) == 0 {
-		return nil, nil, &RefusalError{Layer: runtimeLayer, Reason: "a change set names at least one key"}
+		return nil, nil, &RefusalError{Layer: Layers[layer], Reason: "a change set names at least one key"}
 	}
 	candidate := map[string]any{}
 	for name, text := range changes {
 		k, ok := r.schema.byName[name]
 		if !ok {
-			return nil, nil, &RefusalError{Key: name, Layer: runtimeLayer, Reason: "not a key rig declares; `rig config get` lists them"}
+			return nil, nil, &RefusalError{Key: name, Layer: Layers[layer], Reason: "not a declared key; `rig config get` lists them"}
 		}
 		var v any
 		if err := json.Unmarshal([]byte(text), &v); err != nil {
-			return nil, nil, &RefusalError{Key: name, Layer: runtimeLayer, Reason: "the value is not JSON: " + err.Error()}
+			return nil, nil, &RefusalError{Key: name, Layer: Layers[layer], Reason: "the value is not JSON: " + err.Error()}
 		}
 		if s, isText := v.(string); isText && k.Type != "string" {
 			v = typed(k, s)
 		}
 		if v, err = normal(v); err != nil {
-			return nil, nil, &RefusalError{Key: name, Layer: runtimeLayer, Reason: err.Error()}
+			return nil, nil, &RefusalError{Key: name, Layer: Layers[layer], Reason: err.Error()}
 		}
 		candidate[name] = v
 	}
@@ -415,12 +450,17 @@ func (r *Resolver) Set(changes map[string]string) (outcome map[string]string, mo
 	}
 	if err := r.schema.validate(whole); err != nil {
 		key := leafKey(err)
-		return nil, nil, &RefusalError{Key: key, Layer: runtimeLayer, Reason: reason(err) + ", got " + JSON(whole[key])}
+		return nil, nil, &RefusalError{Key: key, Layer: Layers[layer], Reason: reason(err) + ", got " + JSON(whole[key])}
+	}
+	if r.program && r.appFile != "" {
+		if err := r.writeAppFile(candidate); err != nil {
+			return nil, nil, &RefusalError{Layer: Layers[layer], Reason: "not written to " + r.appFile + ": " + err.Error()}
+		}
 	}
 	outcome = map[string]string{}
 	for name, v := range candidate {
 		before := r.winnerLocked(name).Value
-		r.layers[layerRuntime][name] = entry{value: v}
+		r.layers[layer][name] = entry{value: v, file: r.appFile}
 		if !equal(before, v) {
 			moved = append(moved, name)
 		}
@@ -428,6 +468,67 @@ func (r *Resolver) Set(changes map[string]string) (outcome map[string]string, mo
 	}
 	slices.Sort(moved)
 	return outcome, moved, nil
+}
+
+// writeAppFile writes the program's file layer with candidate over it,
+// through a temporary file and a rename. The file is rig's to write: a
+// comment in it does not survive a change made through config.set.
+func (r *Resolver) writeAppFile(candidate map[string]any) error {
+	flat := map[string]any{}
+	for name, e := range r.layers[layerProgramFile] {
+		flat[name] = e.value
+	}
+	maps.Copy(flat, candidate)
+	for name, v := range flat {
+		flat[name] = plain(v)
+	}
+	body, err := toml.Marshal(nest(flat))
+	if err != nil {
+		return err
+	}
+	dir := filepath.Dir(r.appFile)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	f, err := os.CreateTemp(dir, ".app-*.toml")
+	if err != nil {
+		return err
+	}
+	defer func() { _ = os.Remove(f.Name()) }()
+	if _, err := f.Write(append([]byte("# written by rigd: config.set with program set\n"), body...)); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	return os.Rename(f.Name(), r.appFile)
+}
+
+// plain undoes normal for a TOML writer, which would quote a json.Number:
+// a whole number becomes an int64, any other a float64.
+func plain(v any) any {
+	switch x := v.(type) {
+	case json.Number:
+		if n, err := x.Int64(); err == nil {
+			return n
+		}
+		f, _ := x.Float64()
+		return f
+	case []any:
+		out := make([]any, len(x))
+		for i, e := range x {
+			out[i] = plain(e)
+		}
+		return out
+	case map[string]any:
+		out := map[string]any{}
+		for k, e := range x {
+			out[k] = plain(e)
+		}
+		return out
+	}
+	return v
 }
 
 func equal(a, b any) bool {

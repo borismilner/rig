@@ -1,5 +1,5 @@
 $ rig config
 exit 1
 --- stdout (0 bytes)
---- stderr (99 bytes)
-rig: usage: rig config get [<prefix>] | origin <key> | set <key>=<value>... | export | diff <file>
+--- stderr (116 bytes)
+rig: usage: rig config [--program <id>] get [<prefix>] | origin <key> | set <key>=<value>... | export | diff <file>

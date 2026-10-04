@@ -3,6 +3,7 @@ package daemon
 import (
 	"errors"
 	"log/slog"
+	"path/filepath"
 
 	"github.com/borismilner/rig/internal/config"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
@@ -22,7 +23,11 @@ func (d *Daemon) serveConfig(c *conn, f *rigv1.Frame, command string) {
 		if !unmarshalOr(c, f, command, &req) {
 			return
 		}
-		values := d.settings.Get(req.GetPrefix())
+		settings, snapshot, ok := d.settingsFor(c, id, command, req.GetProgram())
+		if !ok {
+			return
+		}
+		values := settings.Get(req.GetPrefix())
 		if len(values) == 0 && req.GetPrefix() != "" {
 			c.failStatus(id, &rigv1.Status{
 				Code:    rigv1.Code_CODE_NOT_FOUND,
@@ -32,7 +37,7 @@ func (d *Daemon) serveConfig(c *conn, f *rigv1.Frame, command string) {
 			return
 		}
 		resp := &registryv1.ConfigGetResponse{
-			Orphans: d.settings.Orphans(), Problems: d.settings.Problems(), SnapshotPath: d.snapshotPath,
+			Orphans: settings.Orphans(), Problems: settings.Problems(), SnapshotPath: snapshot,
 		}
 		for _, v := range values {
 			out := &registryv1.ConfigValue{Key: v.Key, Apply: v.Apply, Winner: layerOut(v.Winner)}
@@ -47,7 +52,11 @@ func (d *Daemon) serveConfig(c *conn, f *rigv1.Frame, command string) {
 		if !unmarshalOr(c, f, command, &req) {
 			return
 		}
-		outcome, moved, err := d.settings.Set(req.GetValuesJson())
+		settings, snapshot, ok := d.settingsFor(c, id, command, req.GetProgram())
+		if !ok {
+			return
+		}
+		outcome, moved, err := settings.Set(req.GetValuesJson())
 		if err != nil {
 			st := &rigv1.Status{Code: rigv1.Code_CODE_INVALID, Message: "rig.config.set: " + err.Error()}
 			if ref, ok := errors.AsType[*config.RefusalError](err); ok {
@@ -59,9 +68,37 @@ func (d *Daemon) serveConfig(c *conn, f *rigv1.Frame, command string) {
 			c.failStatus(id, st)
 			return
 		}
-		d.settingsMoved(moved)
-		c.reply(id, &registryv1.ConfigSetResponse{Outcome: outcome, SnapshotPath: d.snapshotPath})
+		if req.GetProgram() != "" {
+			if len(moved) > 0 {
+				d.events.publishRig("config.changed", &registryv1.ConfigChanged{Keys: moved, Program: req.GetProgram()})
+			}
+		} else {
+			d.settingsMoved(moved)
+		}
+		c.reply(id, &registryv1.ConfigSetResponse{Outcome: outcome, SnapshotPath: snapshot})
 	}
+}
+
+// settingsFor is rig's resolver, or the named program's with the file its
+// changes last in, answering NOT_FOUND for a program that declared none.
+func (d *Daemon) settingsFor(c *conn, id uint32, command, program string) (*config.Resolver, string, bool) {
+	if program == "" {
+		return d.settings, d.snapshotPath, true
+	}
+	r := d.appResolver(program)
+	if r == nil {
+		c.failStatus(id, &rigv1.Status{
+			Code:    rigv1.Code_CODE_NOT_FOUND,
+			Message: "rig." + command + ": " + program + " declared no settings since rigd started",
+			Fix:     "a program declares settings_schema in its hello, and its settings are served from then on",
+		})
+		return nil, "", false
+	}
+	var file string
+	if d.appsDir != "" {
+		file = filepath.Join(d.appsDir, program+".toml")
+	}
+	return r, file, true
 }
 
 // settingsMoved applies what is live in the daemon, rewrites the snapshot

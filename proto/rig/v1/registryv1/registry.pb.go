@@ -612,9 +612,13 @@ type Program struct {
 	Down bool `protobuf:"varint,14,opt,name=down,proto3" json:"down,omitempty"`
 	// Its binary changed since what is listed was read, and rig has not read
 	// it again: a quarantined program waits for a human (section 54).
-	Stale         bool `protobuf:"varint,15,opt,name=stale,proto3" json:"stale,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Stale bool `protobuf:"varint,15,opt,name=stale,proto3" json:"stale,omitempty"`
+	// The program's declared settings_schema, at DEPTH_FULL only, so a
+	// settings UI is generated from it (plan/55 requirement 20); its values
+	// are config.get with program set.
+	SettingsSchema string `protobuf:"bytes,16,opt,name=settings_schema,json=settingsSchema,proto3" json:"settings_schema,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Program) Reset() {
@@ -750,6 +754,13 @@ func (x *Program) GetStale() bool {
 		return x.Stale
 	}
 	return false
+}
+
+func (x *Program) GetSettingsSchema() string {
+	if x != nil {
+		return x.SettingsSchema
+	}
+	return ""
 }
 
 type ProgramsRequest struct {
@@ -3790,7 +3801,9 @@ func (x *TimerFired) GetMissed() uint32 {
 type ConfigGetRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// A key, a dotted prefix of keys, or "" for every key.
-	Prefix        string `protobuf:"bytes,1,opt,name=prefix,proto3" json:"prefix,omitempty"`
+	Prefix string `protobuf:"bytes,1,opt,name=prefix,proto3" json:"prefix,omitempty"`
+	// A program's settings rather than rig's: its id, as it said hello.
+	Program       string `protobuf:"bytes,2,opt,name=program,proto3" json:"program,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3828,6 +3841,13 @@ func (*ConfigGetRequest) Descriptor() ([]byte, []int) {
 func (x *ConfigGetRequest) GetPrefix() string {
 	if x != nil {
 		return x.Prefix
+	}
+	return ""
+}
+
+func (x *ConfigGetRequest) GetProgram() string {
+	if x != nil {
+		return x.Program
 	}
 	return ""
 }
@@ -4039,7 +4059,10 @@ func (x *ConfigGetResponse) GetProblems() []string {
 type ConfigSetRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// key -> value as JSON text. Validated whole: one refusal applies nothing.
-	ValuesJson    map[string]string `protobuf:"bytes,1,rep,name=values_json,json=valuesJson,proto3" json:"values_json,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	ValuesJson map[string]string `protobuf:"bytes,1,rep,name=values_json,json=valuesJson,proto3" json:"values_json,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// A program's settings rather than rig's. A program's change lasts: it is
+	// written to ~/.config/rig/apps/<id>.toml, the program-file layer.
+	Program       string `protobuf:"bytes,2,opt,name=program,proto3" json:"program,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4079,6 +4102,13 @@ func (x *ConfigSetRequest) GetValuesJson() map[string]string {
 		return x.ValuesJson
 	}
 	return nil
+}
+
+func (x *ConfigSetRequest) GetProgram() string {
+	if x != nil {
+		return x.Program
+	}
+	return ""
 }
 
 type ConfigSetResponse struct {
@@ -4137,8 +4167,10 @@ func (x *ConfigSetResponse) GetSnapshotPath() string {
 // ConfigChanged is config.changed's payload: the keys whose resolved value
 // moved. Read them again with config.get.
 type ConfigChanged struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Keys          []string               `protobuf:"bytes,1,rep,name=keys,proto3" json:"keys,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Keys  []string               `protobuf:"bytes,1,rep,name=keys,proto3" json:"keys,omitempty"`
+	// The program whose settings moved; "" for rig's own.
+	Program       string `protobuf:"bytes,2,opt,name=program,proto3" json:"program,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4178,6 +4210,13 @@ func (x *ConfigChanged) GetKeys() []string {
 		return x.Keys
 	}
 	return nil
+}
+
+func (x *ConfigChanged) GetProgram() string {
+	if x != nil {
+		return x.Program
+	}
+	return ""
 }
 
 // LogRecord is one record in the estate's log store.
@@ -4969,7 +5008,7 @@ var File_proto_rig_v1_registry_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\n" +
-	"\x1bproto/rig/v1/registry.proto\x12\x06rig.v1\x1a\x17proto/rig/v1/wire.proto\"\xe0\x03\n" +
+	"\x1bproto/rig/v1/registry.proto\x12\x06rig.v1\x1a\x17proto/rig/v1/wire.proto\"\x89\x04\n" +
 	"\aProgram\x12,\n" +
 	"\bidentity\x18\x01 \x01(\v2\x10.rig.v1.IdentityR\bidentity\x12,\n" +
 	"\bcoverage\x18\x02 \x01(\x0e2\x10.rig.v1.CoverageR\bcoverage\x12#\n" +
@@ -4986,7 +5025,8 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\aat_rest\x18\f \x01(\bR\x06atRest\x12 \n" +
 	"\x04load\x18\r \x01(\x0e2\f.rig.v1.LoadR\x04load\x12\x12\n" +
 	"\x04down\x18\x0e \x01(\bR\x04down\x12\x14\n" +
-	"\x05stale\x18\x0f \x01(\bR\x05stale\"6\n" +
+	"\x05stale\x18\x0f \x01(\bR\x05stale\x12'\n" +
+	"\x0fsettings_schema\x18\x10 \x01(\tR\x0esettingsSchema\"6\n" +
 	"\x0fProgramsRequest\x12#\n" +
 	"\x05depth\x18\x01 \x01(\x0e2\r.rig.v1.DepthR\x05depth\"?\n" +
 	"\x10ProgramsResponse\x12+\n" +
@@ -5193,9 +5233,10 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"TimerFired\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\"\n" +
 	"\rdue_unix_nano\x18\x02 \x01(\x03R\vdueUnixNano\x12\x16\n" +
-	"\x06missed\x18\x03 \x01(\rR\x06missed\"*\n" +
+	"\x06missed\x18\x03 \x01(\rR\x06missed\"D\n" +
 	"\x10ConfigGetRequest\x12\x16\n" +
-	"\x06prefix\x18\x01 \x01(\tR\x06prefix\"[\n" +
+	"\x06prefix\x18\x01 \x01(\tR\x06prefix\x12\x18\n" +
+	"\aprogram\x18\x02 \x01(\tR\aprogram\"[\n" +
 	"\x10ConfigLayerValue\x12\x14\n" +
 	"\x05layer\x18\x01 \x01(\tR\x05layer\x12\x12\n" +
 	"\x04file\x18\x02 \x01(\tR\x04file\x12\x1d\n" +
@@ -5210,10 +5251,11 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\x06values\x18\x01 \x03(\v2\x13.rig.v1.ConfigValueR\x06values\x12\x18\n" +
 	"\aorphans\x18\x02 \x03(\tR\aorphans\x12#\n" +
 	"\rsnapshot_path\x18\x03 \x01(\tR\fsnapshotPath\x12\x1a\n" +
-	"\bproblems\x18\x04 \x03(\tR\bproblems\"\x9c\x01\n" +
+	"\bproblems\x18\x04 \x03(\tR\bproblems\"\xb6\x01\n" +
 	"\x10ConfigSetRequest\x12I\n" +
 	"\vvalues_json\x18\x01 \x03(\v2(.rig.v1.ConfigSetRequest.ValuesJsonEntryR\n" +
-	"valuesJson\x1a=\n" +
+	"valuesJson\x12\x18\n" +
+	"\aprogram\x18\x02 \x01(\tR\aprogram\x1a=\n" +
 	"\x0fValuesJsonEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb6\x01\n" +
@@ -5222,9 +5264,10 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\rsnapshot_path\x18\x02 \x01(\tR\fsnapshotPath\x1a:\n" +
 	"\fOutcomeEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"#\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"=\n" +
 	"\rConfigChanged\x12\x12\n" +
-	"\x04keys\x18\x01 \x03(\tR\x04keys\"\xf2\x01\n" +
+	"\x04keys\x18\x01 \x03(\tR\x04keys\x12\x18\n" +
+	"\aprogram\x18\x02 \x01(\tR\aprogram\"\xf2\x01\n" +
 	"\tLogRecord\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x04R\x03seq\x12\x1d\n" +
 	"\n" +

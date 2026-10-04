@@ -117,6 +117,7 @@ func atDepth(p Program, d Depth) Program {
 	// one list is the context cost this whole mechanism exists to avoid. It
 	// belongs to describe.
 	p.Preamble = ""
+	p.SettingsSchema = ""
 	if d == DepthPrograms {
 		p.Commands = nil
 		return p

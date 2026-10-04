@@ -253,18 +253,19 @@ type identityJSON struct {
 }
 
 type programJSON struct {
-	Identity     identityJSON  `json:"identity"`
-	Coverage     string        `json:"coverage"`
-	CoverageNote string        `json:"coverageNote,omitempty"`
-	SemanticsGen int32         `json:"semanticsGen,omitempty"`
-	Services     []string      `json:"services,omitempty"`
-	Elements     []string      `json:"elements,omitempty"`
-	Events       []string      `json:"events,omitempty"`
-	Hosted       bool          `json:"hosted,omitempty"`
-	PaneURL      string        `json:"paneUrl,omitempty"`
-	Load         string        `json:"load,omitempty"`
-	Preamble     string        `json:"preamble,omitempty"`
-	Commands     []commandJSON `json:"commands,omitempty"`
+	Identity       identityJSON  `json:"identity"`
+	Coverage       string        `json:"coverage"`
+	CoverageNote   string        `json:"coverageNote,omitempty"`
+	SemanticsGen   int32         `json:"semanticsGen,omitempty"`
+	Services       []string      `json:"services,omitempty"`
+	Elements       []string      `json:"elements,omitempty"`
+	Events         []string      `json:"events,omitempty"`
+	Hosted         bool          `json:"hosted,omitempty"`
+	PaneURL        string        `json:"paneUrl,omitempty"`
+	SettingsSchema string        `json:"settingsSchema,omitempty"`
+	Load           string        `json:"load,omitempty"`
+	Preamble       string        `json:"preamble,omitempty"`
+	Commands       []commandJSON `json:"commands,omitempty"`
 }
 
 type commandJSON struct {
@@ -342,16 +343,17 @@ func oneProgramJSON(p kernel.Program) programJSON {
 			Icon:        p.Identity.Icon,
 			Description: p.Identity.Description,
 		},
-		Coverage:     p.Coverage.String(),
-		CoverageNote: p.CoverageNote,
-		SemanticsGen: p.SemanticsGen,
-		Services:     p.Services,
-		Elements:     p.Elements,
-		Events:       p.Events,
-		Hosted:       p.Hosted,
-		PaneURL:      p.PaneURL,
-		Load:         p.Load.String(),
-		Preamble:     p.Preamble,
+		Coverage:       p.Coverage.String(),
+		CoverageNote:   p.CoverageNote,
+		SemanticsGen:   p.SemanticsGen,
+		Services:       p.Services,
+		Elements:       p.Elements,
+		Events:         p.Events,
+		Hosted:         p.Hosted,
+		PaneURL:        p.PaneURL,
+		SettingsSchema: p.SettingsSchema,
+		Load:           p.Load.String(),
+		Preamble:       p.Preamble,
 	}
 	for _, c := range p.Commands {
 		out.Commands = append(out.Commands, oneCommandJSON(c))

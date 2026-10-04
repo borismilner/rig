@@ -229,3 +229,40 @@ func TestIntReadsAnIntegerKeyFromEveryLayer(t *testing.T) {
 		t.Fatalf("a string key read as an int = %d", got)
 	}
 }
+
+// ⛔ A PROGRAM'S SETTINGS LAST: its defaults, then its apps/<id>.toml, and a
+// change through Set is written to that file, so a fresh resolver reads it
+// back with the file named as the winning layer. rig's environment and
+// flags take no part.
+func TestAProgramsChangeIsWrittenToItsOwnFileAndReadBack(t *testing.T) {
+	s, err := NewSchema([]byte(`{"type":"object","additionalProperties":false,"properties":{
+		"cap":{"type":"integer","minimum":1,"default":3,"x-rig-apply":"live","description":"contacts a day"},
+		"tone":{"type":"object","additionalProperties":false,"properties":{
+			"mode":{"type":"string","enum":["warm","dry"],"default":"warm","x-rig-apply":"live","description":"how it speaks"}}}}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(t.TempDir(), "apps", "buddies.toml")
+	r := LoadProgram(s, file)
+	if got := r.Get("cap")[0].Winner; got.Layer != "program-default" || JSON(got.Value) != "3" {
+		t.Fatalf("before any change cap is %+v", got)
+	}
+	if _, _, err := r.Set(map[string]string{"cap": "0"}); err == nil {
+		t.Fatal("cap 0 was taken, under its minimum")
+	}
+	outcome, moved, err := r.Set(map[string]string{"cap": "5", "tone.mode": `"dry"`})
+	if err != nil || outcome["cap"] != "applied" || len(moved) != 2 {
+		t.Fatalf("set: %v %v %v", outcome, moved, err)
+	}
+
+	again := LoadProgram(s, file)
+	for key, want := range map[string]string{"cap": "5", "tone.mode": `"dry"`} {
+		got := again.Get(key)[0]
+		if got.Winner.Layer != "program-file" || got.Winner.File != file || JSON(got.Winner.Value) != want {
+			t.Fatalf("%s read back as %+v, want %s from %s", key, got.Winner, want, file)
+		}
+	}
+	if p := again.Problems(); len(p) != 0 {
+		t.Fatalf("the written file has problems: %v", p)
+	}
+}

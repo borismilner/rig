@@ -22,7 +22,7 @@ import (
 // handed for `diff`, which is rigd's own document: one `key = <JSON>` line
 // per key, so reading it needs encoding/json and nothing else.
 
-const configUsage = "usage: rig config get [<prefix>] | origin <key> | set <key>=<value>... | export | diff <file>"
+const configUsage = "usage: rig config [--program <id>] get [<prefix>] | origin <key> | set <key>=<value>... | export | diff <file>"
 
 // exitCodeError carries a status other than 1 out to main: `config diff` answers
 // 0 same, 1 differs, 2 unreadable.
@@ -37,6 +37,7 @@ func (e *exitCodeError) Unwrap() error { return e.err }
 func cmdConfig(args []string) (err error) {
 	fs := flag.NewFlagSet("config", flag.ContinueOnError)
 	asJSON := fs.Bool("json", false, "emit JSON")
+	program := fs.String("program", "", "a program's settings rather than rig's")
 	flags, pos := partition(args)
 	if err := fs.Parse(flags); err != nil {
 		return err
@@ -52,7 +53,7 @@ func cmdConfig(args []string) (err error) {
 		if len(rest) == 1 {
 			prefix = rest[0]
 		}
-		resp, err := configGet(prefix)
+		resp, err := configGet(*program, prefix)
 		if err != nil {
 			return err
 		}
@@ -61,20 +62,20 @@ func cmdConfig(args []string) (err error) {
 		}
 		return printConfig(resp, *asJSON, false)
 	case sub == "origin" && len(rest) == 1:
-		resp, err := configGet(rest[0])
+		resp, err := configGet(*program, rest[0])
 		if err != nil {
 			return err
 		}
 		return printConfig(resp, *asJSON, true)
 	case sub == "set" && len(rest) > 0:
-		return configSet(rest, *asJSON)
+		return configSet(*program, rest, *asJSON)
 	case sub == "diff" && len(rest) == 1:
 		return configDiff(rest[0], *asJSON)
 	}
 	return badArgumentf(configUsage)
 }
 
-func configGet(prefix string) (*registryv1.ConfigGetResponse, error) {
+func configGet(program, prefix string) (*registryv1.ConfigGetResponse, error) {
 	c, err := connect()
 	if err != nil {
 		return nil, noDaemon(err)
@@ -83,7 +84,7 @@ func configGet(prefix string) (*registryv1.ConfigGetResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCallTimeout)
 	defer cancel()
 	var resp registryv1.ConfigGetResponse
-	if err := call(ctx, c, "rig.config.get", &registryv1.ConfigGetRequest{Prefix: prefix}, &resp); err != nil {
+	if err := call(ctx, c, "rig.config.get", &registryv1.ConfigGetRequest{Prefix: prefix, Program: program}, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
@@ -144,7 +145,7 @@ func printConfig(resp *registryv1.ConfigGetResponse, asJSON, losers bool) error 
 	return nil
 }
 
-func configSet(pairs []string, asJSON bool) error {
+func configSet(program string, pairs []string, asJSON bool) error {
 	values := map[string]string{}
 	for _, p := range pairs {
 		k, v, ok := strings.Cut(p, "=")
@@ -163,7 +164,7 @@ func configSet(pairs []string, asJSON bool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCallTimeout)
 	defer cancel()
 	var resp registryv1.ConfigSetResponse
-	if err := call(ctx, c, "rig.config.set", &registryv1.ConfigSetRequest{ValuesJson: values}, &resp); err != nil {
+	if err := call(ctx, c, "rig.config.set", &registryv1.ConfigSetRequest{ValuesJson: values, Program: program}, &resp); err != nil {
 		return err
 	}
 	if asJSON {
@@ -235,7 +236,7 @@ func configDiff(path string, asJSON bool) error {
 	if err != nil {
 		return &exitCodeError{2, err}
 	}
-	resp, err := configGet("")
+	resp, err := configGet("", "")
 	if err != nil {
 		return &exitCodeError{2, err}
 	}
@@ -289,7 +290,7 @@ func orNone(s string) string {
 // every machine without the setting takes. A var so a test can say what
 // the daemon would answer.
 var displayName = sync.OnceValue(func() string {
-	resp, err := configGet("display.name")
+	resp, err := configGet("", "display.name")
 	if err != nil || len(resp.GetValues()) == 0 {
 		return ""
 	}
