@@ -288,6 +288,18 @@ func TestAToastAskingForAReplyOutlivesARestart(t *testing.T) {
 		!got[0].GetReplyText() || got[0].GetSeverity() != registryv1.Severity_SEVERITY_WARNING {
 		t.Fatalf("a waiter on the last run's cursor was shown %+v, want the open question alone", got)
 	}
+	// The tray keeps the larger of its cursor and the latest. Were the
+	// count to start again from zero, that cursor stays ahead of it, and
+	// every wait is answered at once: rigd spun to 20 GB that way.
+	again := max(cursor, waited.GetLatest())
+	began := time.Now()
+	var idle registryv1.ToastWaitResponse
+	if err := person.Call(ctx, "rig.toast.wait", &registryv1.ToastWaitRequest{After: again, TimeoutMs: 300}, &idle); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(idle.GetToasts()); n != 0 || time.Since(began) < 250*time.Millisecond {
+		t.Fatalf("a waiter keeping its own cursor got %d toasts after %v, want none after the wait", n, time.Since(began))
+	}
 
 	var was registryv1.ToastAnswerResponse
 	if err := sender.Call(ctx, "rig.toast.answer", &registryv1.ToastAnswerRequest{RecordId: done}, &was); err != nil {

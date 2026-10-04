@@ -146,9 +146,22 @@ func (r *toastRing) suppress(sev registryv1.Severity) bool {
 	return true
 }
 
+// start begins this run's count from the clock, in microseconds, so a
+// cursor from an earlier run is always behind it. Counting from zero again
+// put a waiter that outlived the restart (the tray does) ahead of the count:
+// it was shown nothing, and reading such a cursor as zero instead answered
+// it at once, every time, since it kept its own cursor - a busy loop that
+// took rigd to 20 GB. Called with mu held.
+func (r *toastRing) start() {
+	if r.seq == 0 {
+		r.seq = uint64(time.Now().UnixMicro()) //nolint:gosec // after 1970
+	}
+}
+
 func (r *toastRing) add(t *registryv1.Toast) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	r.start()
 	r.seq++
 	t.Seq = r.seq
 	r.items = append(r.items, t)
@@ -163,17 +176,10 @@ func (r *toastRing) add(t *registryv1.Toast) {
 
 // after answers the toasts newer than seq, the latest seq, and a channel that
 // closes when the next toast arrives.
-//
-// A cursor past the latest seq was issued by an earlier daemon: seq starts
-// again from zero on every run, and a waiter that outlived the restart (the
-// tray does) would be shown nothing until this run caught up with the last.
-// It is read as zero, so the waiter gets every toast of this run.
 func (r *toastRing) after(seq uint64) ([]*registryv1.Toast, uint64, <-chan struct{}) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if seq > r.seq {
-		seq = 0
-	}
+	r.start()
 	var out []*registryv1.Toast
 	for _, t := range r.items {
 		if t.GetSeq() > seq {
