@@ -6,11 +6,11 @@ import (
 	"errors"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/borismilner/rig/client"
+	"github.com/borismilner/rig/internal/replyfield"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
@@ -232,13 +232,7 @@ func assemble(notes, replies []*verbsv1.Record, since time.Time) NoteList {
 			Sender: f["sender"], At: stampOf(at), Suppressed: f["suppressed"] != "",
 			ReplyText: f["reply_text"] == "yes", Replies: []string{}, Answer: answers[r.GetId()],
 		}
-		if s := f["replies"]; s != "" {
-			for _, x := range strings.Split(s, " | ") {
-				if x = strings.TrimSpace(x); x != "" {
-					n.Replies = append(n.Replies, x)
-				}
-			}
-		}
+		n.Replies = append(n.Replies, replyfield.Decode(f["replies"])...)
 		_, asked := f["replies"]
 		n.Asks = asked || n.ReplyText
 		list.Notes = append(list.Notes, n)

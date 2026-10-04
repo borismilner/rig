@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/borismilner/rig/internal/record"
+	"github.com/borismilner/rig/internal/replyfield"
 	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
@@ -55,12 +56,7 @@ func (d *Daemon) restoreAsks(ctx context.Context) {
 	asking = asking[max(0, len(asking)-maxToastAsks):]
 	open := 0
 	for _, n := range asking {
-		// The record keeps the buttons joined; a label is at most 40 bytes
-		// and " | " is what notify joined them with.
-		var buttons []string
-		if s := n.Fields["replies"]; s != "" {
-			buttons = strings.Split(s, " | ")
-		}
+		buttons := replyfield.Decode(n.Fields["replies"])
 		d.toasts.ask(n.ID, buttons, n.Fields["reply_text"] == fieldYes)
 		if a := answers[n.ID]; a != nil {
 			d.toasts.answer(n.ID, a)

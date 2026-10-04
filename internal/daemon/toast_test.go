@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -255,7 +256,7 @@ func TestAToastAskingForAReplyOutlivesARestart(t *testing.T) {
 		var sent registryv1.NotifyResponse
 		if err := sender.Call(ctx, "rig.notify", &registryv1.NotifyRequest{
 			Severity: registryv1.Severity_SEVERITY_WARNING, Title: title,
-			Replies: []string{"Now", "In an hour"}, ReplyText: true,
+			Replies: []string{"Now", "Today | 18:00"}, ReplyText: true,
 		}, &sent); err != nil {
 			t.Fatalf("rig.notify: %v", err)
 		}
@@ -284,7 +285,10 @@ func TestAToastAskingForAReplyOutlivesARestart(t *testing.T) {
 	if err := person.Call(ctx, "rig.toast.wait", &registryv1.ToastWaitRequest{After: cursor, TimeoutMs: 1000}, &waited); err != nil {
 		t.Fatal(err)
 	}
-	if got := waited.GetToasts(); len(got) != 1 || got[0].GetRecordId() != open || len(got[0].GetReplies()) != 2 ||
+	// A label holding " | " came back as three buttons when the record
+	// kept them joined with it.
+	if got := waited.GetToasts(); len(got) != 1 || got[0].GetRecordId() != open ||
+		!slices.Equal(got[0].GetReplies(), []string{"Now", "Today | 18:00"}) ||
 		!got[0].GetReplyText() || got[0].GetSeverity() != registryv1.Severity_SEVERITY_WARNING {
 		t.Fatalf("a waiter on the last run's cursor was shown %+v, want the open question alone", got)
 	}

@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/borismilner/rig/internal/record"
+	"github.com/borismilner/rig/internal/replyfield"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
@@ -289,7 +290,7 @@ func (d *Daemon) serveNotify(ctx context.Context, c *conn, f *rigv1.Frame) {
 	}
 	asks := len(req.GetReplies()) > 0 || req.GetReplyText()
 	if asks {
-		fields["replies"] = strings.Join(req.GetReplies(), " | ")
+		fields["replies"] = replyfield.Encode(req.GetReplies())
 		if req.GetReplyText() {
 			fields["reply_text"] = fieldYes
 		}
