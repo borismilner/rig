@@ -125,6 +125,23 @@ func TestARunningResidentsRebuiltBinaryRestartsIt(t *testing.T) {
 	}
 }
 
+// rig health is how a rebuild is checked, so it asks for the same scan a
+// listing does and the rebuilt resident is restarted with nothing listed.
+// The red control is health asked before the rebuild, which restarts nothing.
+func TestHealthRestartsARunningResidentsRebuiltBinary(t *testing.T) {
+	r := upOnCall(t, false)
+	r.settle(t, verbsv1.ProgramState_PROGRAM_STATE_HEALTHY)
+	healthOf(ctx5(t), t, r.sock, "stub")
+	time.Sleep(100 * time.Millisecond)
+	if n := r.starts.Load(); n != 1 {
+		t.Fatalf("asking an unchanged resident's health restarted it: %d launches", n)
+	}
+
+	r.rebuild(t)
+	healthOf(ctx5(t), t, r.sock, "stub")
+	r.waitStarts(t, 2)
+}
+
 // A stopped resident whose binary changed is run once to read it, and is
 // stopped again: a human's stop stands.
 func TestAStoppedResidentsRebuiltBinaryIsReadAndStaysStopped(t *testing.T) {

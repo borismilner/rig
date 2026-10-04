@@ -94,6 +94,10 @@ func (d *Daemon) serveSupervise(c *conn, f *rigv1.Frame, command string) {
 		if !unmarshalOr(c, f, command, &req) {
 			return
 		}
+		// Asking how a program is doing is how a rebuild is checked, so it
+		// asks for a background scan as a listing does: a rebuilt binary is
+		// restarted on, without the health answer waiting for it.
+		d.rescan()
 		st, err := d.super.Health(req.GetPrograms()...)
 		if err != nil {
 			c.failErr(f.GetStreamId(), superviseCode(err), err)
