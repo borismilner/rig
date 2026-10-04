@@ -178,6 +178,10 @@ func configSet(program string, pairs []string, asJSON bool) error {
 	for _, k := range keys {
 		fmt.Printf("%s: %s\n", k, resp.GetOutcome()[k])
 	}
+	if program != "" {
+		fmt.Println("kept in " + resp.GetSnapshotPath())
+		return nil
+	}
 	fmt.Println("until rigd restarts; to keep it, put it in ~/.config/rig/rig.toml")
 	return nil
 }
