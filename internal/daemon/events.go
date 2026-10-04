@@ -86,16 +86,22 @@ func (b *eventBus) reached(kind, to string) uint32 {
 // it, and a stored signal is found by it.
 func seqBase(epoch uint64) uint64 { return epoch << 32 }
 
-// isDurable says which kinds are kept past a restart: a seat's signals, and
-// a press on a board card, which its owner must get even if it was down when
-// Boris pressed it.
-func isDurable(kind string) bool { return strings.HasPrefix(kind, "signal.") || kind == panelActedKind }
+// isDurable says which kinds are kept past a restart: a seat's signals, a
+// press on a board card and the answer to a toast, which their owner must
+// get even if it was down when Boris gave them.
+func isDurable(kind string) bool {
+	return strings.HasPrefix(kind, "signal.") || kind == panelActedKind || kind == toastAnsweredKind
+}
 
-// panelActedKind is the event a press on a card sends its owner.
-const panelActedKind = "panel.acted"
+const (
+	// panelActedKind is the event a press on a card sends its owner.
+	panelActedKind = "panel.acted"
+	// toastAnsweredKind is the event an answer sends a toast's sender.
+	toastAnsweredKind = "toast.answered"
+)
 
 // readsStored says a wait pattern can match a durable kind, so the store is
-// read: signal.*, panel.acted itself, and panel.* which covers it.
+// read: signal.*, panel.acted and toast.answered, and a prefix covering one.
 func readsStored(pattern string) bool {
 	pre, ok := strings.CutSuffix(pattern, "*")
 	if !ok {
@@ -103,7 +109,7 @@ func readsStored(pattern string) bool {
 	}
 	// Either the pattern is inside the signal family, or it is wide
 	// enough to take in a durable root.
-	for _, root := range []string{"signal.", panelActedKind} {
+	for _, root := range []string{"signal.", panelActedKind, toastAnsweredKind} {
 		if strings.HasPrefix(root, pre) {
 			return true
 		}

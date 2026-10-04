@@ -57,7 +57,7 @@ func (d *Daemon) restoreAsks(ctx context.Context) {
 	open := 0
 	for _, n := range asking {
 		buttons := replyfield.Decode(n.Fields["replies"])
-		d.toasts.ask(n.ID, buttons, n.Fields["reply_text"] == fieldYes)
+		d.toasts.ask(n.ID, buttons, n.Fields["reply_text"] == fieldYes, n.Fields["to"])
 		if a := answers[n.ID]; a != nil {
 			d.toasts.answer(n.ID, a)
 			continue

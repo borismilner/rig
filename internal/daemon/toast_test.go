@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -328,5 +329,53 @@ func TestAToastAskingForAReplyOutlivesARestart(t *testing.T) {
 	}
 	if a := <-woke; !a.GetAnswered() || a.GetText() != "tomorrow at 9" {
 		t.Fatalf("the sender learned %+v", a)
+	}
+}
+
+// An answer wakes the toast's sender on the bus, addressed to it alone and
+// kept past a restart, so a sender needs no poll open per question.
+func TestAnAnswerReachesItsSenderAsAnEvent(t *testing.T) {
+	r := newRestartable(t)
+	ctx := recordCtx(t)
+	sender := seated(t, r.sock, "buddies")
+	other := seated(t, r.sock, "backend-2")
+	person := seated(t, r.sock, "boris")
+
+	var sent registryv1.NotifyResponse
+	if err := sender.Call(ctx, "rig.notify", &registryv1.NotifyRequest{
+		Severity: registryv1.Severity_SEVERITY_INFO, Title: "now?", Replies: []string{"Now"},
+	}, &sent); err != nil {
+		t.Fatal(err)
+	}
+	var mark registryv1.EventsWaitResponse
+	if err := sender.Call(ctx, "rig.events.wait", &registryv1.EventsWaitRequest{Kinds: []string{"toast.answered"}, TimeoutMs: 1}, &mark); err != nil {
+		t.Fatal(err)
+	}
+	if err := person.Call(ctx, "rig.toast.reply", &registryv1.ToastReplyRequest{RecordId: sent.GetToast().GetRecordId(), Reply: "Now"},
+		&registryv1.ToastReplyResponse{}); err != nil {
+		t.Fatal(err)
+	}
+	var theirs registryv1.EventsWaitResponse
+	if err := other.Call(ctx, "rig.events.wait", &registryv1.EventsWaitRequest{Kinds: []string{"toast.*"}, After: mark.GetLatest(), TimeoutMs: 200}, &theirs); err != nil {
+		t.Fatal(err)
+	}
+	for _, ev := range theirs.GetEvents() {
+		if ev.GetKind() == "toast.answered" {
+			t.Fatalf("another seat saw the answer: %v", ev)
+		}
+	}
+
+	r.down()
+	r.start(t)
+	sender = seated(t, r.sock, "buddies")
+	var got registryv1.EventsWaitResponse
+	if err := sender.Call(ctx, "rig.events.wait", &registryv1.EventsWaitRequest{
+		Kinds: []string{"toast.answered"}, After: mark.GetLatest(), Epoch: mark.GetEpoch(), TimeoutMs: 500,
+	}, &got); err != nil {
+		t.Fatal(err)
+	}
+	if len(got.GetEvents()) != 1 || got.GetGap() || !strings.Contains(got.GetEvents()[0].GetPayloadJson(), sent.GetToast().GetRecordId()) ||
+		!strings.Contains(got.GetEvents()[0].GetPayloadJson(), `"Now"`) {
+		t.Fatalf("the sender waited across a restart and got %v, want the answer", &got)
 	}
 }

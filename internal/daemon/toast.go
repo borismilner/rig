@@ -9,6 +9,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/borismilner/rig/internal/record"
@@ -74,18 +75,19 @@ type toastRing struct {
 type toastAsk struct {
 	replies []string
 	text    bool
+	to      string                  // who toast.answered is addressed to, as the bus names it
 	answer  *registryv1.ToastAnswer // nil until answered
 	wake    chan struct{}           // closed when answered
 }
 
 // ask registers a toast that waits for a reply.
-func (r *toastRing) ask(id string, replies []string, text bool) {
+func (r *toastRing) ask(id string, replies []string, text bool, to string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.asks == nil {
 		r.asks = map[string]*toastAsk{}
 	}
-	r.asks[id] = &toastAsk{replies: replies, text: text, wake: make(chan struct{})}
+	r.asks[id] = &toastAsk{replies: replies, text: text, to: to, wake: make(chan struct{})}
 	r.order = append(r.order, id)
 	if len(r.order) > maxToastAsks {
 		delete(r.asks, r.order[0])
@@ -291,6 +293,12 @@ func (d *Daemon) serveNotify(ctx context.Context, c *conn, f *rigv1.Frame) {
 	asks := len(req.GetReplies()) > 0 || req.GetReplyText()
 	if asks {
 		fields["replies"] = replyfield.Encode(req.GetReplies())
+		// The answer goes back to the sender alone: a program by its
+		// name, a seat as the bus names one.
+		fields["to"] = sender
+		if c.name() == "" {
+			fields["to"] = seatSource(sender)
+		}
 		if req.GetReplyText() {
 			fields["reply_text"] = fieldYes
 		}
@@ -310,7 +318,7 @@ func (d *Daemon) serveNotify(ctx context.Context, c *conn, f *rigv1.Frame) {
 		Replies: req.GetReplies(), ReplyText: req.GetReplyText(),
 	}
 	if asks {
-		d.toasts.ask(rec.ID, req.GetReplies(), req.GetReplyText())
+		d.toasts.ask(rec.ID, req.GetReplies(), req.GetReplyText(), fields["to"])
 	}
 	if !suppressed {
 		d.toasts.add(t)
@@ -450,6 +458,15 @@ func (d *Daemon) serveToastReply(ctx context.Context, c *conn, f *rigv1.Frame) {
 	if !d.toasts.answer(req.GetRecordId(), ans) {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_CONFLICT, "rig.toast.reply: the toast was answered meanwhile")
 		return
+	}
+	// The sender learns of it on the bus rather than holding a poll open
+	// per question. The answer is filed already, so an event that could not
+	// be kept costs only the wake-up: rig.toast.answer still has it.
+	if q.to != "" {
+		payload, _ := protojson.Marshal(ans)
+		if _, _, err := d.events.publishTo(toastAnsweredKind, eventSourceRig, string(payload), q.to); err != nil {
+			d.log.Warn("toast.answered not kept", "toast", req.GetRecordId(), "err", err)
+		}
 	}
 	c.reply(f.GetStreamId(), &registryv1.ToastReplyResponse{Answer: ans})
 }
