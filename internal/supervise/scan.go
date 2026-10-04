@@ -68,6 +68,13 @@ func Scan(dirs []string) (found map[string]string, problems []error) {
 			}
 			path := filepath.Join(dir, name)
 			fi, err := os.Stat(path)
+			if err != nil && !errors.Is(err, fs.ErrNotExist) {
+				// Not read is not deleted: a directory made unreadable
+				// between the listing and this stat would otherwise have
+				// every program in it forgotten.
+				problems = append(problems, fmt.Errorf("%w: %s: %w", ErrScanUnreadable, path, err))
+				continue
+			}
 			if err != nil || !fi.Mode().IsRegular() || fi.Mode().Perm()&0o111 == 0 {
 				continue
 			}

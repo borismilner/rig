@@ -176,14 +176,15 @@ func (r *onCallRig) settle(t *testing.T, want verbsv1.ProgramState) {
 		var resp verbsv1.HealthResponse
 		err := dial(t, r.sock).Call(ctx5(t), "rig.health", &verbsv1.HealthRequest{Programs: []string{"stub"}}, &resp)
 		var got verbsv1.ProgramState
+		var history []*verbsv1.ProgramEvent
 		if err == nil && len(resp.GetPrograms()) == 1 {
-			got = resp.GetPrograms()[0].GetState()
+			got, history = resp.GetPrograms()[0].GetState(), resp.GetPrograms()[0].GetHistory()
 			if got == want {
 				return
 			}
 		}
 		if time.Now().After(deadline) {
-			t.Fatalf("stub is %s (%v), want %s", got, err, want)
+			t.Fatalf("stub is %s (%v), want %s; history %v", got, err, want, history)
 		}
 		time.Sleep(10 * time.Millisecond)
 	}

@@ -1,6 +1,7 @@
 package supervise
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -88,5 +89,34 @@ func TestSetLoadAndForget(t *testing.T) {
 	h.sup.Forget("beacon")
 	if _, ok := h.sup.Spec("beacon"); ok || len(h.sup.Declared()) != 0 {
 		t.Fatalf("Forget left beacon declared: %v", h.sup.Declared())
+	}
+}
+
+// A directory listed but not entered is unread, not empty: its programs are
+// a problem marked unreadable, never missing. The race this pins is a scan
+// that listed a directory a moment before it lost its permissions. The red
+// control is the same directory readable, where the program is found.
+func TestABinaryThatCannotBeStatedIsUnreadableNotGone(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root enters a directory whatever its mode")
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "stub"), []byte("v1"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if found, _ := Scan([]string{dir}); found["stub"] == "" {
+		t.Fatal("a readable directory's program was not found")
+	}
+	if err := os.Chmod(dir, 0o444); err != nil { // listable, not enterable
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+	found, problems := Scan([]string{dir})
+	unread := false
+	for _, p := range problems {
+		unread = unread || errors.Is(p, ErrScanUnreadable)
+	}
+	if found["stub"] != "" || !unread {
+		t.Fatalf("found %v with problems %v, want nothing found and the directory unreadable", found, problems)
 	}
 }

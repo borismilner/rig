@@ -961,6 +961,7 @@ func (d *Daemon) serveHello(ctx context.Context, c *conn, f *rigv1.Frame) {
 		return
 	}
 
+	d.awaitRelease(decl.Identity.ID, c)
 	who, err := d.kernel.Register(asProgram(c.principal(), decl.Identity.ID), decl)
 	if err != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_DENIED, err.Error())
@@ -1526,4 +1527,28 @@ func splitMethod(m string) (program, command string, ok bool) {
 		return "", "", false
 	}
 	return m[:i], m[i+1:], true
+}
+
+// releaseWait is how long a hello waits for an earlier connection to give
+// up the program's name.
+const releaseWait = 2 * time.Second
+
+// awaitRelease waits, up to releaseWait, for another connection holding
+// the program's name to let it go. A supervised program restarted on a
+// rebuild says hello as soon as it starts, which can be before rigd has read
+// the old child's connection closing; refused as a duplicate, the new child
+// exited and the program was quarantined (TestARunningResidentsRebuilt
+// BinaryRestartsIt, 3 runs in 10 on one core). A live duplicate still holds
+// the name after the wait and is refused as before.
+func (d *Daemon) awaitRelease(id string, c *conn) {
+	deadline := time.Now().Add(releaseWait)
+	for {
+		d.mu.Lock()
+		existing, taken := d.programs[id]
+		d.mu.Unlock()
+		if !taken || existing == c || time.Now().After(deadline) {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 }
