@@ -97,7 +97,7 @@ func cmdStore(args []string) (err error) {
 		return err
 	}
 	defer func() { err = inMode(err, *s.asJSON) }()
-	if len(positional) == 1 && positional[0] == "list" {
+	if len(positional) == 1 && positional[0] == subList {
 		return storeList(*s.timeout, *s.asJSON)
 	}
 	if len(positional) == 0 || !storeArity(positional[0], len(positional)-1) {

@@ -277,7 +277,7 @@ func (d *Daemon) serveNotify(ctx context.Context, c *conn, f *rigv1.Frame) {
 	if asks {
 		fields["replies"] = strings.Join(req.GetReplies(), " | ")
 		if req.GetReplyText() {
-			fields["reply_text"] = "yes"
+			fields["reply_text"] = fieldYes
 		}
 	}
 	rec, err := st.Put(ctx, record.PutRequest{
@@ -417,7 +417,7 @@ func (d *Daemon) serveToastReply(ctx context.Context, c *conn, f *rigv1.Frame) {
 	fields := map[string]string{"notification": req.GetRecordId(), "by": by}
 	switch {
 	case req.GetDismissed():
-		fields["dismissed"] = "yes"
+		fields["dismissed"] = fieldYes
 	case req.GetReply() != "":
 		fields["reply"] = req.GetReply()
 	}

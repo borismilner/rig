@@ -29,6 +29,9 @@ import (
 	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
 
+// subList is the list subcommand that several verbs share.
+const subList = "list"
+
 var (
 	version = "dev"
 	wire    = "v1"
@@ -632,7 +635,7 @@ func cmdApps(args []string) (err error) {
 		return err
 	}
 	defer func() { err = inMode(err, *asJSON) }()
-	if len(positional) == 0 || positional[0] != "list" {
+	if len(positional) == 0 || positional[0] != subList {
 		return badArgumentf("usage: rig apps list [--commands] [--depth %s] "+
 			"[--json]", strings.Join(depthSpellings(), "|"))
 	}

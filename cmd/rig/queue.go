@@ -52,7 +52,7 @@ func cmdQueue(args []string) (err error) {
 	sub, rest := positional[0], positional[1:]
 	switch {
 	case sub == "push" && len(rest) == 2:
-	case sub == "list" && len(rest) <= 1:
+	case sub == subList && len(rest) <= 1:
 	default:
 		return badArgumentf("%s", usage)
 	}

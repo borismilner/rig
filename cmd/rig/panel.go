@@ -71,7 +71,7 @@ func cmdPanel(args []string) (err error) {
 			return err
 		}
 		req, resp = put, &verbsv1.PanelPutResponse{}
-	case positional[0] == "list" && len(positional) == 1:
+	case positional[0] == subList && len(positional) == 1:
 		req, resp = &verbsv1.PanelListRequest{From: *p.from}, &verbsv1.PanelListResponse{}
 	case positional[0] == "act" && len(positional) == 3:
 		req, resp = &verbsv1.PanelActRequest{Card: positional[1], Action: positional[2]}, &verbsv1.PanelActResponse{}

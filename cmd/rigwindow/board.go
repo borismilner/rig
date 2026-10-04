@@ -144,7 +144,7 @@ func boardWait(after, epoch uint64) (*registryv1.EventsWaitResponse, error) {
 	defer cancel()
 	var resp registryv1.EventsWaitResponse
 	err = c.Call(ctx, "rig.events.wait", &registryv1.EventsWaitRequest{
-		After: after, Epoch: epoch, Kinds: []string{"panel.changed"}, TimeoutMs: uint32(park.Milliseconds()),
+		After: after, Epoch: epoch, Kinds: []string{"panel.changed"}, TimeoutMs: uint32(park.Milliseconds()), //nolint:gosec // a 50 s constant
 	}, &resp)
 	return &resp, err
 }

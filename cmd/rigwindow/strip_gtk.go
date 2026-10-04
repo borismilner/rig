@@ -20,7 +20,7 @@ package main
 // calls replaced.
 G_GNUC_BEGIN_IGNORE_DEPRECATIONS
 
-// rig_strip_nofocus realizes the window and makes it override-redirect at
+// rig_strip_nofocus realises the window and makes it override-redirect at
 // x, y, and answers 1; or 0 where the window is not an X11 one. An
 // override-redirect window is outside the window manager, which is what
 // focuses windows on map and on click, so it never gets the keyboard. The

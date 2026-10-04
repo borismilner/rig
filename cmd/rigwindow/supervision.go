@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -73,7 +74,7 @@ const actDeadline = 20 * time.Second
 // through, so the page cannot name a verb this method was not written for.
 func (RigService) Supervise(action, program string) (Running, error) {
 	if program == "" {
-		return Running{}, fmt.Errorf("no program named")
+		return Running{}, errors.New("no program named")
 	}
 	if action != "start" && action != "stop" && action != "restart" {
 		return Running{}, fmt.Errorf("unknown action %q: want start, stop or restart", action)

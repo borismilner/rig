@@ -212,6 +212,12 @@ linters:
       - linters:
           - goconst
         path: (.+)_test\.go
+      # The cgo preambles call GTK and CSS by their own American names
+      # (gtk_widget_realize, background-color), and a nolint directive
+      # there is read by the C compiler.
+      - linters:
+          - misspell
+        path: _gtk\.go$
     paths:
       - .*\.pb\.go$
       - .*\.gen\.go$

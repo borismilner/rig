@@ -103,7 +103,7 @@ func candidates(argv []string) []string {
 	case 1:
 		switch argv[0] {
 		case "apps":
-			return []string{"list"}
+			return []string{subList}
 		case "ping", "describe":
 			return programIDs()
 		case "completion":

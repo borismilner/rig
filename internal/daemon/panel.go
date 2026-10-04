@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"maps"
+	"math"
 	"slices"
 	"strconv"
 	"time"
@@ -31,6 +32,8 @@ const (
 	panelProject = "board"
 	panelKind    = "card"
 	panelActKind = "card-act"
+	// fieldYes is a record field's true, as a card and a toast store it.
+	fieldYes = "yes"
 
 	maxPanelTitle   = 200
 	maxPanelStatus  = 80
@@ -132,7 +135,7 @@ func (d *Daemon) servePanelPut(ctx context.Context, c *conn, f *rigv1.Frame) {
 			c.fail(f.GetStreamId(), rigv1.Code_CODE_DENIED,
 				"rig.panel.put: card "+id+" is "+rec.Fields["from"]+"'s; a card is changed only by whoever put it")
 			return
-		case rec.Fields["closed"] == "yes":
+		case rec.Fields["closed"] == fieldYes:
 			c.fail(f.GetStreamId(), rigv1.Code_CODE_CONFLICT,
 				"rig.panel.put: card "+id+" is closed; put a new card instead")
 			return
@@ -179,7 +182,7 @@ func (d *Daemon) makeRoomOnBoard(ctx context.Context, st *record.Store, who pane
 	}
 	var open []record.Record
 	for _, r := range mine {
-		if r.Fields["closed"] != "yes" {
+		if r.Fields["closed"] != fieldYes {
 			open = append(open, r)
 		}
 	}
@@ -189,7 +192,7 @@ func (d *Daemon) makeRoomOnBoard(ctx context.Context, st *record.Store, who pane
 	slices.SortFunc(open, func(a, b record.Record) int { return cmpInt(a.Fields["updated"], b.Fields["updated"]) })
 	for _, r := range open[:len(open)-maxOpenPanelCards+1] {
 		fields := maps.Clone(r.Fields)
-		fields["closed"] = "yes"
+		fields["closed"] = fieldYes
 		fields["updated"] = strconv.FormatInt(now.UnixNano(), 10)
 		rec, err := st.Put(ctx, record.PutRequest{
 			ID: r.ID, IfVersion: r.Version,
@@ -208,34 +211,39 @@ func (d *Daemon) makeRoomOnBoard(ctx context.Context, st *record.Store, who pane
 
 // checkPanelPut is the caps, before anything is read or written.
 func checkPanelPut(r *verbsv1.PanelPutRequest) string {
-	text := func(s *string, lo, hi int, what string) string {
-		if s == nil {
+	text := func(present bool, s string, lo, hi int, what string) string {
+		if !present {
 			return ""
 		}
-		if len(*s) < lo || len(*s) > hi || !utf8.ValidString(*s) {
+		if len(s) < lo || len(s) > hi || !utf8.ValidString(s) {
 			return what + " is " + strconv.Itoa(lo) + " to " + strconv.Itoa(hi) + " bytes of UTF-8"
 		}
 		return ""
 	}
 	for _, msg := range []string{
-		text(r.Title, 1, maxPanelTitle, "a title"),
-		text(r.Status, 0, maxPanelStatus, "a status"),
-		text(r.Body, 0, maxPanelBody, "a body"),
-		text(r.Project, 0, maxPanelProject, "a project"),
+		text(r.Title != nil, r.GetTitle(), 1, maxPanelTitle, "a title"),
+		text(r.Status != nil, r.GetStatus(), 0, maxPanelStatus, "a status"),
+		text(r.Body != nil, r.GetBody(), 0, maxPanelBody, "a body"),
+		text(r.Project != nil, r.GetProject(), 0, maxPanelProject, "a project"),
 	} {
 		if msg != "" {
 			return msg
 		}
 	}
-	if r.Severity != nil && *r.Severity != "" && !slices.Contains(panelSeverities, *r.Severity) {
-		return "severity " + strconv.Quote(*r.Severity) + " is not one of info, success, warning, error"
+	if sev := r.GetSeverity(); sev != "" && !slices.Contains(panelSeverities, sev) {
+		return "severity " + strconv.Quote(sev) + " is not one of info, success, warning, error"
 	}
-	if r.Progress != nil && !(*r.Progress >= 0 && *r.Progress <= 1) {
+	if p := r.GetProgress(); r.Progress != nil && !(p >= 0 && p <= 1) {
 		return "progress is from 0 to 1"
 	}
 	if r.Progress != nil && r.GetClearProgress() {
 		return "progress and clear_progress together say two things"
 	}
+	return checkPanelLists(r)
+}
+
+// checkPanelLists is the caps on a card's facts and actions.
+func checkPanelLists(r *verbsv1.PanelPutRequest) string {
 	if fs := r.GetFacts(); fs != nil {
 		if len(fs.GetFacts()) > maxPanelFacts {
 			return "a card shows at most 6 facts"
@@ -273,26 +281,26 @@ func applyPanelPut(prev *record.Record, r *verbsv1.PanelPutRequest, who panelCal
 		fields = maps.Clone(prev.Fields)
 	}
 	fields["updated"] = stamp
-	set := func(key string, v *string) {
-		if v != nil {
-			fields[key] = *v
+	set := func(present bool, key, v string) {
+		if present {
+			fields[key] = v
 		}
 	}
-	set("project", r.Project)
-	set("title", r.Title)
-	set("status", r.Status)
-	set("severity", r.Severity)
+	set(r.Project != nil, "project", r.GetProject())
+	set(r.Title != nil, "title", r.GetTitle())
+	set(r.Status != nil, "status", r.GetStatus())
+	set(r.Severity != nil, "severity", r.GetSeverity())
 	if r.Body != nil {
-		body = *r.Body
+		body = r.GetBody()
 	}
 	if r.Progress != nil {
-		fields["progress"] = strconv.FormatFloat(*r.Progress, 'f', -1, 64)
+		fields["progress"] = strconv.FormatFloat(r.GetProgress(), 'f', -1, 64)
 	}
 	if r.GetClearProgress() {
 		delete(fields, "progress")
 	}
 	if r.Busy != nil {
-		fields["busy"] = map[bool]string{true: "yes", false: "no"}[*r.Busy]
+		fields["busy"] = map[bool]string{true: fieldYes, false: "no"}[r.GetBusy()]
 	}
 	if fs := r.GetFacts(); fs != nil {
 		fields["facts"] = jsonOf(fs.GetFacts())
@@ -301,7 +309,7 @@ func applyPanelPut(prev *record.Record, r *verbsv1.PanelPutRequest, who panelCal
 		fields["actions"] = jsonOf(as.GetLabels())
 	}
 	if r.GetClose() {
-		fields["closed"] = "yes"
+		fields["closed"] = fieldYes
 	}
 	return body, fields
 }
@@ -311,7 +319,7 @@ func panelCardOf(r record.Record) *verbsv1.PanelCard {
 	card := &verbsv1.PanelCard{
 		Id: r.ID, Version: r.Version, From: fl["from"], Project: fl["project"],
 		Title: fl["title"], Status: fl["status"], Severity: fl["severity"], Body: r.Body,
-		Busy: fl["busy"] == "yes", Closed: fl["closed"] == "yes",
+		Busy: fl["busy"] == fieldYes, Closed: fl["closed"] == fieldYes,
 	}
 	if p, err := strconv.ParseFloat(fl["progress"], 64); err == nil {
 		card.Progress, card.HasProgress = p, true
@@ -355,11 +363,13 @@ func (d *Daemon) servePanelList(ctx context.Context, c *conn, f *rigv1.Frame) {
 		c.failErr(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err)
 		return
 	}
-	resp := &verbsv1.PanelListResponse{Cards: boardOf(recs, time.Now())}
-	if n := len(resp.Cards); n > maxPanelList {
-		resp.Omitted = uint32(n - maxPanelList)
-		resp.Cards = resp.Cards[:maxPanelList]
+	cards := boardOf(recs, time.Now())
+	resp := &verbsv1.PanelListResponse{}
+	if n := len(cards); n > maxPanelList {
+		resp.Omitted = uint32(min(n-maxPanelList, math.MaxUint32))
+		cards = cards[:maxPanelList]
 	}
+	resp.Cards = cards
 	c.reply(f.GetStreamId(), resp)
 }
 

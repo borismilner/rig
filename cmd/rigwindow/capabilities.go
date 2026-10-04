@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"sort"
@@ -156,7 +157,7 @@ func firstSentence(s string) string {
 // and rig's own words, so the panel shows it where the result goes.
 func (RigService) Try(owner, id, args string) (TryResult, error) {
 	if owner == "" || id == "" {
-		return TryResult{}, fmt.Errorf("no capability named")
+		return TryResult{}, errors.New("no capability named")
 	}
 	var a map[string]any
 	if strings.TrimSpace(args) != "" {

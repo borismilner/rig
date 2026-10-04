@@ -226,7 +226,7 @@ func toastWait(after uint64, wait bool) (*registryv1.ToastWaitResponse, error) {
 	defer cancel()
 	resp := &registryv1.ToastWaitResponse{}
 	err = c.Call(ctx, "rig.toast.wait", &registryv1.ToastWaitRequest{
-		After: after, TimeoutMs: uint32(timeout.Milliseconds()),
+		After: after, TimeoutMs: uint32(timeout.Milliseconds()), //nolint:gosec // zero or toastPoll
 	}, resp)
 	return resp, err
 }
