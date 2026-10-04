@@ -58,7 +58,7 @@ func addSignals(ctx context.Context, tx *sql.Tx) error {
 
 // PutSignal stores sig and trims its kind, by count and by age.
 func (s *Store) PutSignal(sig Signal) error {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return ErrClosed
 	}
 	return s.update(func(ctx context.Context, tx *sql.Tx) error {
@@ -99,7 +99,7 @@ ON CONFLICT (kind) DO UPDATE SET through = max(through, excluded.through)`, kind
 // TrimSignalsBefore ages out every kind at once, for the kinds nobody posts
 // to any more. rigd calls it at start.
 func (s *Store) TrimSignalsBefore(cutoff int64) error {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return ErrClosed
 	}
 	return s.update(func(ctx context.Context, tx *sql.Tx) error {
@@ -119,7 +119,7 @@ func (s *Store) TrimSignalsBefore(cutoff int64) error {
 // SignalsAfter answers the stored signals after seq that keep accepts, oldest
 // first, at most limit of them, and whether there were more.
 func (s *Store) SignalsAfter(after uint64, limit int, keep func(*Signal) bool) ([]Signal, bool, error) {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return nil, false, ErrClosed
 	}
 	var out []Signal
@@ -152,7 +152,7 @@ func (s *Store) SignalsAfter(after uint64, limit int, keep func(*Signal) bool) (
 
 // SignalsTrimmed answers, per kind, the highest seq retention has dropped.
 func (s *Store) SignalsTrimmed() (map[string]uint64, error) {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return nil, ErrClosed
 	}
 	out := map[string]uint64{}

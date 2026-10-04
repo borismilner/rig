@@ -40,6 +40,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"time"
 
 	"github.com/borismilner/rig/internal/paths"
@@ -96,7 +97,10 @@ func (e *UnnamedEstateError) Unwrap() error { return e.Err }
 
 // Store is one estate's coordination state.
 type Store struct {
-	db     *sql.DB
+	db *sql.DB
+	// closed is set by Close. db is never set back to nil, because a wait
+	// in flight reads it unlocked while the daemon shuts down.
+	closed atomic.Bool
 	estate string
 	path   string
 	epoch  uint64
@@ -320,16 +324,18 @@ func (s *Store) Rebooted() bool { return s.rebooted }
 
 // Close closes the store. The epoch is already durable.
 func (s *Store) Close() error {
-	if s == nil || s.db == nil {
+	if s.isClosed() || !s.closed.CompareAndSwap(false, true) {
 		return nil
 	}
 	err := s.db.Close()
-	s.db = nil
 	if err != nil {
 		return fmt.Errorf("coord: closing %s: %w", s.path, err)
 	}
 	return nil
 }
+
+// isClosed says the store cannot be used: nil, never opened, or closed.
+func (s *Store) isClosed() bool { return s == nil || s.db == nil || s.closed.Load() }
 
 // ErrClosed is returned by a call on a closed store.
 var ErrClosed = errors.New("coord: the store is closed")

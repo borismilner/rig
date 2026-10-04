@@ -285,7 +285,7 @@ ON CONFLICT (name) DO UPDATE SET rec = excluded.rec`, r.Name, string(raw)); err 
 // issues a NEW token, so a stalled goroutine inside that same holder is still
 // fenced by the token even though the holder as a whole was readmitted.
 func (s *Store) Acquire(name, holder string, w Witness, ttl time.Duration) (Handle, error) {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return Handle{}, ErrClosed
 	}
 	if name == "" || holder == "" {
@@ -363,7 +363,7 @@ func (r *record) heldByAnother(w Witness, live Liveness) bool {
 // exactly who the middle state was kept for: nobody else can have taken it, so
 // handing it back is safe and losing the work is not.
 func (s *Store) Renew(h Handle, ttl time.Duration) (Handle, error) {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return Handle{}, ErrClosed
 	}
 	if ttl <= 0 {
@@ -409,7 +409,7 @@ func (s *Store) Renew(h Handle, ttl time.Duration) (Handle, error) {
 // can stop it before the lease passes to anybody else (plan/53 slice 6). The
 // caller checks the group is its own; this checks the handle still holds.
 func (s *Store) Fence(h Handle, group Witness) error {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return ErrClosed
 	}
 	if h.Epoch != s.epoch {
@@ -441,7 +441,7 @@ func (s *Store) Fence(h Handle, group Witness) error {
 // an ancient handle match again. Section 16 says the same of claims - "values
 // are NEVER trimmed" - for the same reason.
 func (s *Store) Release(h Handle) error {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return ErrClosed
 	}
 	if h.Epoch != s.epoch {
@@ -476,7 +476,7 @@ func (s *Store) Release(h Handle) error {
 // not a recovery, it is taking a resource from a working holder, and if that is
 // wanted the holder should be stopped.
 func (s *Store) Break(name, by, reason string) error {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return ErrClosed
 	}
 	if by == "" || reason == "" {
@@ -509,7 +509,7 @@ func (s *Store) Break(name, by, reason string) error {
 
 // Inspect reports a lease's state and its OWNER'S LIVENESS.
 func (s *Store) Inspect(name string) (Status, error) {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return Status{}, ErrClosed
 	}
 	at, err := now()
@@ -538,7 +538,7 @@ func (s *Store) Inspect(name string) (Status, error) {
 // It reads /proc once per witness, which is what makes this the call a status
 // surface makes rather than a loop over Inspect.
 func (s *Store) Leases() ([]Status, error) {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return nil, ErrClosed
 	}
 	at, err := now()

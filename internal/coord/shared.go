@@ -76,7 +76,7 @@ func addShared(ctx context.Context, tx *sql.Tx) error {
 // other number is the version the caller read. applied false is a lost race,
 // answered with the key as it stands (Version 0 when it does not exist).
 func (s *Store) SharedSet(key string, value json.RawMessage, expected uint64, owner string, w Witness, by string) (Shared, bool, error) {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return Shared{}, false, ErrClosed
 	}
 	var out Shared
@@ -128,7 +128,7 @@ ON CONFLICT (key) DO UPDATE SET version = excluded.version, rec = excluded.rec`,
 // version the caller read. It answers the key as it was: what went, or what
 // refused.
 func (s *Store) SharedDelete(key string, expected uint64) (Shared, bool, error) {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return Shared{}, false, ErrClosed
 	}
 	if expected == 0 {
@@ -156,7 +156,7 @@ func (s *Store) SharedDelete(key string, expected uint64) (Shared, bool, error) 
 
 // SharedGet reads one key. Not found answers the key at version 0.
 func (s *Store) SharedGet(key string) (Shared, bool, error) {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return Shared{}, false, ErrClosed
 	}
 	var out Shared
@@ -186,7 +186,7 @@ func (s *Store) SharedOwnedBy(owner string) ([]Shared, error) {
 // sharedRows runs query, whose last parameter is the row limit, and answers
 // at most limit rows and whether there were more.
 func (s *Store) sharedRows(query string, limit int, args ...any) ([]Shared, bool, error) {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return nil, false, ErrClosed
 	}
 	var out []Shared

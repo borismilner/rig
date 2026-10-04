@@ -214,7 +214,7 @@ func boolInt(b bool) int {
 // Push adds a task, or answers the existing one when the idempotency key was
 // pushed before. duplicate reports which.
 func (s *Store) Push(queue, key string, payload []byte) (task Task, duplicate bool, err error) {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return Task{}, false, ErrClosed
 	}
 	if err := checkQueueName(queue); err != nil {
@@ -301,7 +301,7 @@ func (s *Store) taskOf(ctx context.Context, tx *sql.Tx, at Instant, queue string
 // holder's claim from THIS epoch is never handed to it again, because two
 // goroutines behind one seat would otherwise fence each other.
 func (s *Store) Claim(queue, holder string, w Witness, ttl time.Duration) (Task, Handle, error) {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return Task{}, Handle{}, ErrClosed
 	}
 	if err := checkQueueName(queue); err != nil {
@@ -371,7 +371,7 @@ func (s *Store) Claim(queue, holder string, w Witness, ttl time.Duration) (Task,
 // to a requeue and woke up is refused here, and its work is the duplicate the
 // idempotency key exists for.
 func (s *Store) Complete(h Handle) (Task, error) {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return Task{}, ErrClosed
 	}
 	queue, seq, ok := parseClaim(h.Name)
@@ -429,7 +429,7 @@ func (s *Store) Complete(h Handle) (Task, error) {
 // Tasks reports a queue's tasks not yet done, oldest first, evaluated now, and
 // how many are done.
 func (s *Store) Tasks(queue string) ([]Task, int, error) {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return nil, 0, ErrClosed
 	}
 	if err := checkQueueName(queue); err != nil {
@@ -462,7 +462,7 @@ func (s *Store) Tasks(queue string) ([]Task, int, error) {
 
 // Queues names every queue that has been pushed to.
 func (s *Store) Queues() ([]string, error) {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return nil, ErrClosed
 	}
 	var out []string

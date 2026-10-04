@@ -230,7 +230,7 @@ type Batch struct {
 // witness: deciding who the sender is requires the roster, and the roster is
 // connection state that this package deliberately cannot see.
 func (s *Store) Send(m Message, atUnixNano int64) (Message, error) {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return Message{}, ErrClosed
 	}
 	if m.To == "" || m.From == "" {
@@ -273,7 +273,7 @@ func (s *Store) Send(m Message, atUnixNano int64) (Message, error) {
 // three missed ones. `limit` bounds the batch, and a bounded batch leaves the
 // cursor where it stopped rather than pretending it saw the rest.
 func (s *Store) Inbox(seat string, after uint64, limit int) (Batch, error) {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return Batch{}, ErrClosed
 	}
 	out := Batch{Cursor: after}
@@ -321,7 +321,7 @@ func (s *Store) Inbox(seat string, after uint64, limit int) (Batch, error) {
 // IT NEVER MOVES A MESSAGE BACKWARDS. A recipient that reads its inbox again
 // after acknowledging keeps the acknowledgement: promotion is by rank.
 func (s *Store) MarkRead(seat string, ids []uint64, generation, epoch uint64, atUnixNano int64) error {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return ErrClosed
 	}
 	if len(ids) == 0 {
@@ -361,7 +361,7 @@ func (s *Store) MarkRead(seat string, ids []uint64, generation, epoch uint64, at
 // nobody was parked, not that anything was lost, and that distinction is only
 // available if the two transitions are recorded by the two different owners.
 func (s *Store) MarkDelivered(seat string, ids []uint64, atUnixNano int64) error {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return ErrClosed
 	}
 	if len(ids) == 0 {
@@ -392,7 +392,7 @@ func (s *Store) MarkDelivered(seat string, ids []uint64, atUnixNano int64) error
 // unambiguous that neither state may be inferred from delivery, which is why
 // this is a verb a recipient calls rather than something a read does for it.
 func (s *Store) Ack(seat string, id uint64, state MessageState, outcome string, generation, epoch uint64, atUnixNano int64) (Message, error) {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return Message{}, ErrClosed
 	}
 	if state != Acknowledged && state != ActedOn {
@@ -441,7 +441,7 @@ func (s *Store) Ack(seat string, id uint64, state MessageState, outcome string, 
 // only state a sender may plan against", and a state a sender cannot observe
 // is not one it can plan against.
 func (s *Store) Messages() ([]Message, error) {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return nil, ErrClosed
 	}
 	var out []Message
@@ -463,7 +463,7 @@ func (s *Store) Messages() ([]Message, error) {
 // when the newest message is trimmed. A cursor that moved backwards would
 // re-deliver mail a seat had already read.
 func (s *Store) Highest() (uint64, error) {
-	if s == nil || s.db == nil {
+	if s.isClosed() {
 		return 0, ErrClosed
 	}
 	var out uint64
