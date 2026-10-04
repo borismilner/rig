@@ -626,6 +626,9 @@ func (d *Daemon) Serve(ctx context.Context, l net.Listener) error {
 	d.startResumeWatch(ctx)
 	d.startTimers(ctx)
 	d.startLeaseWatch(ctx)
+	// Before the first connection, so no toast.answer is told NOT_FOUND
+	// about a question the last run asked (toastrestore.go).
+	d.restoreAsks(ctx)
 	d.serving.Store(&ctx)
 	// Section 54: what was kept is served at once, and the scan that
 	// updates it runs in the background, so serving never waits on it.

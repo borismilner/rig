@@ -309,3 +309,18 @@ func TestAWithdrawalTakesDownWhatTheDesktopShows(t *testing.T) {
 		t.Fatalf("the desktop was shown %v; c was taken back before it fell back", shown)
 	}
 }
+
+// A question a restarted daemon replays is not drawn twice by a renderer that
+// already has it; a new toast still is.
+func TestAReplayedQuestionIsNotDrawnTwice(t *testing.T) {
+	f := &toastFeed{}
+	q := &registryv1.Toast{Seq: 1, RecordId: "r-1", Severity: registryv1.Severity_SEVERITY_INFO, Title: "now?", Replies: []string{"Now"}}
+	f.add([]*registryv1.Toast{q})
+	if got := f.poll(0, inputRegion{}, time.Now()); len(got.Toasts) != 1 {
+		t.Fatalf("the page was handed %v", got)
+	}
+	f.add([]*registryv1.Toast{{Seq: 1, RecordId: "r-1", Title: "now?", Replies: []string{"Now"}}, {Seq: 2, RecordId: "r-2", Title: "new"}})
+	if got := f.poll(1, inputRegion{}, time.Now()); len(got.Toasts) != 1 || got.Toasts[0].RecordID != "r-2" {
+		t.Fatalf("after the replay the page was handed %v, want the new toast alone", got)
+	}
+}

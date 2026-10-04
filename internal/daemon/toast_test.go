@@ -240,3 +240,77 @@ func TestAFreeTextReplyAndTheBoundsOnReplies(t *testing.T) {
 	err := c.Call(ctx, "rig.toast.reply", &registryv1.ToastReplyRequest{RecordId: "no-such-toast", Dismissed: true}, &registryv1.ToastReplyResponse{})
 	wantCode(t, err, rigv1.Code_CODE_NOT_FOUND, "a reply to a toast that never asked")
 }
+
+// A toast asking for a reply outlives a daemon restart: its sender can still
+// wait for the answer, the person can still give it, an answered one keeps
+// its answer, and a waiter holding the last run's cursor is shown the open
+// one again. The red control is the answered one, which is not shown again.
+func TestAToastAskingForAReplyOutlivesARestart(t *testing.T) {
+	r := newRestartable(t)
+	ctx := recordCtx(t)
+	sender := seated(t, r.sock, "buddies")
+	person := seated(t, r.sock, "boris")
+
+	ask := func(title string) string {
+		var sent registryv1.NotifyResponse
+		if err := sender.Call(ctx, "rig.notify", &registryv1.NotifyRequest{
+			Severity: registryv1.Severity_SEVERITY_WARNING, Title: title,
+			Replies: []string{"Now", "In an hour"}, ReplyText: true,
+		}, &sent); err != nil {
+			t.Fatalf("rig.notify: %v", err)
+		}
+		return sent.GetToast().GetRecordId()
+	}
+	open, done := ask("log in to the bank?"), ask("already answered")
+	if err := person.Call(ctx, "rig.toast.reply", &registryv1.ToastReplyRequest{RecordId: done, Reply: "Now"},
+		&registryv1.ToastReplyResponse{}); err != nil {
+		t.Fatal(err)
+	}
+	var before registryv1.ToastWaitResponse
+	if err := person.Call(ctx, "rig.toast.wait", &registryv1.ToastWaitRequest{}, &before); err != nil {
+		t.Fatal(err)
+	}
+	cursor := before.GetLatest()
+	if cursor < 2 {
+		t.Fatalf("the cursor before the restart is %d", cursor)
+	}
+
+	r.down()
+	r.start(t)
+	sender = seated(t, r.sock, "buddies")
+	person = seated(t, r.sock, "boris")
+
+	var waited registryv1.ToastWaitResponse
+	if err := person.Call(ctx, "rig.toast.wait", &registryv1.ToastWaitRequest{After: cursor, TimeoutMs: 1000}, &waited); err != nil {
+		t.Fatal(err)
+	}
+	if got := waited.GetToasts(); len(got) != 1 || got[0].GetRecordId() != open || len(got[0].GetReplies()) != 2 ||
+		!got[0].GetReplyText() || got[0].GetSeverity() != registryv1.Severity_SEVERITY_WARNING {
+		t.Fatalf("a waiter on the last run's cursor was shown %+v, want the open question alone", got)
+	}
+
+	var was registryv1.ToastAnswerResponse
+	if err := sender.Call(ctx, "rig.toast.answer", &registryv1.ToastAnswerRequest{RecordId: done}, &was); err != nil {
+		t.Fatalf("the answered question was lost: %v", err)
+	}
+	if a := was.GetAnswer(); !a.GetAnswered() || a.GetReply() != "Now" || a.GetBy() != "boris" {
+		t.Fatalf("the answered question came back as %+v", a)
+	}
+
+	woke := make(chan *registryv1.ToastAnswer, 1)
+	go func() {
+		var resp registryv1.ToastAnswerResponse
+		if err := sender.Call(ctx, "rig.toast.answer", &registryv1.ToastAnswerRequest{RecordId: open, TimeoutMs: 4000}, &resp); err != nil {
+			t.Errorf("the open question was lost: %v", err)
+		}
+		woke <- resp.GetAnswer()
+	}()
+	time.Sleep(50 * time.Millisecond)
+	if err := person.Call(ctx, "rig.toast.reply", &registryv1.ToastReplyRequest{RecordId: open, Text: "tomorrow at 9"},
+		&registryv1.ToastReplyResponse{}); err != nil {
+		t.Fatalf("the open question could not be answered after the restart: %v", err)
+	}
+	if a := <-woke; !a.GetAnswered() || a.GetText() != "tomorrow at 9" {
+		t.Fatalf("the sender learned %+v", a)
+	}
+}

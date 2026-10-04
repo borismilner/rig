@@ -163,9 +163,17 @@ func (r *toastRing) add(t *registryv1.Toast) {
 
 // after answers the toasts newer than seq, the latest seq, and a channel that
 // closes when the next toast arrives.
+//
+// A cursor past the latest seq was issued by an earlier daemon: seq starts
+// again from zero on every run, and a waiter that outlived the restart (the
+// tray does) would be shown nothing until this run caught up with the last.
+// It is read as zero, so the waiter gets every toast of this run.
 func (r *toastRing) after(seq uint64) ([]*registryv1.Toast, uint64, <-chan struct{}) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if seq > r.seq {
+		seq = 0
+	}
 	var out []*registryv1.Toast
 	for _, t := range r.items {
 		if t.GetSeq() > seq {

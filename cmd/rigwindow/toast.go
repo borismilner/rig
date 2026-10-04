@@ -350,6 +350,10 @@ type toastFeed struct {
 	edge    string      // the panel's edge, once the window is placed
 	maxH    int         // the window's height, once placed
 	started bool        // a bubble has been handed to the page
+	// seen is every toast this renderer was given. A daemon restart replays
+	// the questions still open (toastrestore.go), and one already on the
+	// page is not drawn twice.
+	seen map[string]bool
 
 	copyText func(string)                               // puts text on the clipboard; nil refuses
 	reply    func(*registryv1.ToastReplyRequest) error  // files a reply; nil refuses
@@ -367,6 +371,15 @@ func (f *toastFeed) add(ts []*registryv1.Toast) {
 		if t.GetRetracted() {
 			f.withdraw(t)
 			continue
+		}
+		if id := t.GetRecordId(); id != "" {
+			if f.seen[id] {
+				continue
+			}
+			if f.seen == nil {
+				f.seen = map[string]bool{}
+			}
+			f.seen[id] = true
 		}
 		f.pending = append(f.pending, toastJSON{
 			Seq: t.GetSeq(), RecordID: t.GetRecordId(), Severity: severityWord(t.GetSeverity()),
