@@ -468,3 +468,19 @@ that"*. So:
   `agentbox notify --action` CLI keeps them, and the warm-handoff skill's
   one-click trust prompt now uses that CLI. **Ruled to stay that way**
   (Boris, 2026-10-02, decision 0261): *"Leave actions with AgentBox"*.
+
+### rig.desk: where Boris is, as a shared key (2026-10-04)
+
+Gap 3 of rigged's buddies (*"close all the gaps"*, Boris, 2026-10-04):
+a program asking Boris something had no way to pick a moment.
+
+- **rigd keeps `rig.desk`**, `{"state":"active|idle|locked","since"}`,
+  and posts `shared.rig.desk` on each change, never on a repeat.
+  Absent means rig cannot tell (no session bus, not GNOME).
+- **No polling.** It reads GNOME's screen lock (`ActiveChanged`) and
+  Mutter's idle monitor: an idle watch at 5 minutes of quiet input,
+  then a one-shot user-active watch for the next touch.
+- **`rig.*` keys are rig's own**: `shared.set` and `shared.delete`
+  refuse them to every seat with DENIED, so a reader can trust them.
+- Daemon tests run with `DBUS_SESSION_BUS_ADDRESS=disabled:`, so no
+  test reports or depends on the real desk.

@@ -624,6 +624,7 @@ func (d *Daemon) Serve(ctx context.Context, l net.Listener) error {
 
 	// Section 52's system.resumed, for as long as serving lasts (resume.go).
 	d.startResumeWatch(ctx)
+	d.startDeskWatch(ctx)
 	d.startTimers(ctx)
 	d.startLeaseWatch(ctx)
 	// Before the first connection, so no toast.answer is told NOT_FOUND

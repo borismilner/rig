@@ -62,6 +62,13 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
+	// Nor Boris's desktop: rigd follows the screen lock on the session bus,
+	// and a test daemon must not report his desk, or depend on it.
+	if err := os.Setenv("DBUS_SESSION_BUS_ADDRESS", "disabled:"); err != nil {
+		fmt.Fprintf(os.Stderr, "daemon tests: DBUS_SESSION_BUS_ADDRESS: %v\n", err)
+		os.Exit(1)
+	}
+
 	code := m.Run()
 	// A goroutine still running after every test has returned is a leak in
 	// the daemon or in a test, and rigd is long-lived, so either accumulates.

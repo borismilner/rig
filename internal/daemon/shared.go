@@ -88,6 +88,16 @@ func sharedKeyOK(c *conn, f *rigv1.Frame, verb, key string) bool {
 	return false
 }
 
+// sharedKeyWritable refuses a write to one of rig's own keys (rig.*), which
+// only rig keeps, so a program can trust what it reads there.
+func sharedKeyWritable(c *conn, f *rigv1.Frame, verb, key string) bool {
+	if !rigOwnKey(key) {
+		return true
+	}
+	c.fail(f.GetStreamId(), rigv1.Code_CODE_DENIED, "rig."+verb+": "+key+" is rig's own key; rig.* keys are read-only to everyone else")
+	return false
+}
+
 // sharedWriter is the seat a write is made as, refusing a connection with none.
 func (d *Daemon) sharedWriter(c *conn, f *rigv1.Frame, verb string) (string, bool) {
 	_, seat, _, ok := d.provenance(c)
@@ -168,7 +178,7 @@ func (d *Daemon) serveSharedSet(c *conn, f *rigv1.Frame) {
 		return
 	}
 	key, value := req.GetKey(), req.GetValueJson()
-	if !sharedKeyOK(c, f, "shared.set", key) {
+	if !sharedKeyOK(c, f, "shared.set", key) || !sharedKeyWritable(c, f, "shared.set", key) {
 		return
 	}
 	switch {
@@ -240,7 +250,7 @@ func (d *Daemon) serveSharedDelete(c *conn, f *rigv1.Frame) {
 		return
 	}
 	key, expected := req.GetKey(), req.GetExpectedVersion()
-	if !sharedKeyOK(c, f, "shared.delete", key) {
+	if !sharedKeyOK(c, f, "shared.delete", key) || !sharedKeyWritable(c, f, "shared.delete", key) {
 		return
 	}
 	if expected == 0 {

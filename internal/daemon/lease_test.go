@@ -29,6 +29,14 @@ import (
 // epoch.
 func upLeaseDaemon(t testing.TB) (string, *coord.Store) {
 	t.Helper()
+	sock, st, _ := upLeaseDaemonD(t)
+	return sock, st
+}
+
+// upLeaseDaemonD is upLeaseDaemon handing back the daemon too, for a test
+// that drives rig's own side of the table.
+func upLeaseDaemonD(t testing.TB) (string, *coord.Store, *Daemon) {
+	t.Helper()
 	const estate = "leasewire"
 	dir, err := os.MkdirTemp("", "rigl")
 	if err != nil {
@@ -71,7 +79,7 @@ func upLeaseDaemon(t testing.TB) (string, *coord.Store) {
 	done := make(chan struct{})
 	go func() { defer close(done); _ = d.Serve(ctx, l) }()
 	t.Cleanup(func() { cancel(); <-done })
-	return sock, st
+	return sock, st, d
 }
 
 func leaseList(ctx context.Context, t *testing.T, c *client.Client) map[string]*verbsv1.Lease {
