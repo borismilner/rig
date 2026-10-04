@@ -97,8 +97,8 @@ func (d *Daemon) startDeskWatch(ctx context.Context) {
 		return
 	}
 	for _, m := range [][]dbus.MatchOption{
-		{dbus.WithMatchObjectPath(idleMonitorPath), dbus.WithMatchInterface(idleMonitorDest), dbus.WithMatchMember("WatchFired")},
-		{dbus.WithMatchObjectPath(screenSaverPath), dbus.WithMatchInterface(screenSaverDest), dbus.WithMatchMember("ActiveChanged")},
+		{dbus.WithMatchSender(idleMonitorDest), dbus.WithMatchObjectPath(idleMonitorPath), dbus.WithMatchInterface(idleMonitorDest), dbus.WithMatchMember("WatchFired")},
+		{dbus.WithMatchSender(screenSaverDest), dbus.WithMatchObjectPath(screenSaverPath), dbus.WithMatchInterface(screenSaverDest), dbus.WithMatchMember("ActiveChanged")},
 	} {
 		if err := bus.AddMatchSignal(m...); err != nil {
 			d.log.Warn("rig.desk is off: the bus refused a match", "err", err)
@@ -106,6 +106,8 @@ func (d *Daemon) startDeskWatch(ctx context.Context) {
 			return
 		}
 	}
+	// The bus names the sender on each match, so a client that emits its
+	// own ActiveChanged is not heard as the screen lock.
 	signals := make(chan *dbus.Signal, 16)
 	bus.Signal(signals)
 
