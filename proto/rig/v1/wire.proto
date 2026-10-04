@@ -451,6 +451,23 @@ message CallRequest {
   // A JSON object. Empty means no arguments, and is distinct from `{}` only
   // in that both validate the same way against the declared schema.
   bytes args = 1;
+  // Who is calling, as rig knows it. rig sets this on every routed call and
+  // overwrites whatever a client sent, so a program may rely on it to decide
+  // what a caller may read.
+  Caller caller = 2;
+}
+
+// Caller is the connection a routed call came from.
+message Caller {
+  // The client's kind: "agent", "terminal", "window", "program" and so on.
+  string kind = 1;
+  // The calling program's id, when a program calls another.
+  string program = 2;
+  // The caller's seat, when it has one.
+  string seat = 3;
+  // The process on the other end of the caller's socket, from its
+  // credentials; 0 when it could not be read.
+  int32 pid = 4;
 }
 
 message CallResponse {

@@ -54,6 +54,11 @@ type caller struct {
 	// already done. What M6 owes is the CLIENT half: an id actually set by the
 	// surfaces.
 	requestID string
+
+	// program and seat say who is calling, beside who: the calling
+	// program's id and the caller's seat, either or neither. Stamped on
+	// the call a program receives (CallRequest.caller).
+	program, seat string
 }
 
 // Question is a gating ask, carrying everything section 14 says a prompt must

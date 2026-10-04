@@ -1279,6 +1279,30 @@ func failureErr(code rigv1.Code, err error) *callFailure {
 	return &callFailure{status: st, err: err}
 }
 
+// stampCaller is the payload a program receives: the caller's arguments,
+// and who is calling as rig knows it, never as the client said. A payload
+// that does not decode goes as it came; validateArgs has passed it already.
+// The liveness probe carries a PingRequest, not a CallRequest, and goes as
+// it came.
+func stampCaller(from caller, command string) []byte {
+	if command == ProbeCommand {
+		return from.args
+	}
+	var req rigv1.CallRequest
+	if err := proto.Unmarshal(from.args, &req); err != nil {
+		return from.args
+	}
+	req.Caller = &rigv1.Caller{
+		Kind: from.who.Kind.String(), Program: from.program, Seat: from.seat,
+		Pid: int32(from.who.PID), //nolint:gosec // a linux pid is at most 2^22
+	}
+	out, err := proto.Marshal(&req)
+	if err != nil {
+		return from.args
+	}
+	return out
+}
+
 // callerOf reads the floor's inputs off a connection and the frame it sent.
 func callerOf(c *conn, f *rigv1.Frame) caller {
 	return caller{
@@ -1401,7 +1425,7 @@ func (d *Daemon) forward(
 		Kind:      rigv1.FrameKind_FRAME_KIND_REQUEST,
 		Method:    from.method,
 		RequestId: from.requestID,
-		Payload:   from.args,
+		Payload:   stampCaller(from, command),
 	}
 	if err := to.w.WriteFrame(out); err != nil {
 		cleanup()
@@ -1438,7 +1462,12 @@ func (d *Daemon) forward(
 // wire cannot drift from the in-process path because there is nothing left
 // here to drift.
 func (d *Daemon) route(ctx context.Context, from *conn, f *rigv1.Frame, program, command string) {
-	reply, bad := d.call(ctx, callerOf(from, f), program, command)
+	who := callerOf(from, f)
+	who.program = from.name()
+	if _, seat, _, ok := d.provenance(from); ok {
+		who.seat = seat
+	}
+	reply, bad := d.call(ctx, who, program, command)
 	if bad != nil {
 		from.failStatus(f.GetStreamId(), bad.status)
 		return
