@@ -227,3 +227,47 @@ func TestTheBoardShowsAClosedCardForADay(t *testing.T) {
 		t.Fatalf("the board is %v", ids)
 	}
 }
+
+// A press outlives a restart: an owner that had not read it yet gets it
+// from its cursor after rigd comes back, with no gap. Kept in memory only,
+// as every rig event once was, the press was lost.
+func TestAPressOutlivesARestartForAnOwnerThatWasAway(t *testing.T) {
+	r := newRestartable(t)
+	ctx := recordCtx(t)
+	owner := seated(t, r.sock, "backend-1")
+	person := seated(t, r.sock, "boris")
+
+	var put verbsv1.PanelPutResponse
+	if err := owner.Call(ctx, "rig.panel.put", &verbsv1.PanelPutRequest{
+		Title: proto.String("deploy"), Actions: &verbsv1.PanelActions{Labels: []string{"Retry"}},
+	}, &put); err != nil {
+		t.Fatal(err)
+	}
+	var mark registryv1.EventsWaitResponse
+	if err := owner.Call(ctx, "rig.events.wait", &registryv1.EventsWaitRequest{Kinds: []string{"panel.acted"}, TimeoutMs: 1}, &mark); err != nil {
+		t.Fatal(err)
+	}
+	if err := person.Call(ctx, "rig.panel.act", &verbsv1.PanelActRequest{Card: put.GetCard().GetId(), Action: "Retry"},
+		&verbsv1.PanelActResponse{}); err != nil {
+		t.Fatal(err)
+	}
+
+	r.down()
+	r.start(t)
+	owner = seated(t, r.sock, "backend-1")
+
+	for _, kinds := range [][]string{{"panel.acted"}, {"panel.*"}} {
+		var got registryv1.EventsWaitResponse
+		if err := owner.Call(ctx, "rig.events.wait", &registryv1.EventsWaitRequest{
+			Kinds: kinds, After: mark.GetLatest(), Epoch: mark.GetEpoch(), TimeoutMs: 500,
+		}, &got); err != nil {
+			t.Fatal(err)
+		}
+		if len(got.GetEvents()) != 1 || !strings.Contains(got.GetEvents()[0].GetPayloadJson(), `"Retry"`) {
+			t.Fatalf("waiting on %v after the restart got %v, want the press", kinds, &got)
+		}
+		if kinds[0] == "panel.acted" && got.GetGap() {
+			t.Fatal("panel.acted is kept, so waiting on it alone across a restart is no gap")
+		}
+	}
+}

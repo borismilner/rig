@@ -86,8 +86,30 @@ func (b *eventBus) reached(kind, to string) uint32 {
 // it, and a stored signal is found by it.
 func seqBase(epoch uint64) uint64 { return epoch << 32 }
 
-// isDurable says which kinds are kept past a restart: a seat's signals.
-func isDurable(kind string) bool { return strings.HasPrefix(kind, "signal.") }
+// isDurable says which kinds are kept past a restart: a seat's signals, and
+// a press on a board card, which its owner must get even if it was down when
+// Boris pressed it.
+func isDurable(kind string) bool { return strings.HasPrefix(kind, "signal.") || kind == panelActedKind }
+
+// panelActedKind is the event a press on a card sends its owner.
+const panelActedKind = "panel.acted"
+
+// readsStored says a wait pattern can match a durable kind, so the store is
+// read: signal.*, panel.acted itself, and panel.* which covers it.
+func readsStored(pattern string) bool {
+	pre, ok := strings.CutSuffix(pattern, "*")
+	if !ok {
+		return isDurable(pattern)
+	}
+	// Either the pattern is inside the signal family, or it is wide
+	// enough to take in a durable root.
+	for _, root := range []string{"signal.", panelActedKind} {
+		if strings.HasPrefix(root, pre) {
+			return true
+		}
+	}
+	return isDurable(pre)
+}
 
 // busItem is an event and who may see it: empty is everyone, otherwise one
 // program's id, or "seat:<name>" for a signal addressed to one seat. A
@@ -330,7 +352,7 @@ func (d *Daemon) serveEventsWait(ctx context.Context, c *conn, f *rigv1.Frame) {
 		}
 	}
 	match := eventMatcher(kinds)
-	stored := slices.ContainsFunc(kinds, isDurable)
+	stored := slices.ContainsFunc(kinds, readsStored)
 	v := viewer{program: c.name()}
 	if _, seat, _, ok := d.provenance(c); ok {
 		v.seat = seat
@@ -379,7 +401,7 @@ const maxEventAnswer = 768 << 10
 // in seq order, bounded by count and by bytes. Where it stops early, Latest
 // is the last seq it carries, so the next call misses nothing.
 //
-// stored says the patterns name a signal kind, so the store is read at all.
+// stored says the patterns can match a durable kind, so the store is read at all.
 func (d *Daemon) eventsAfter(after uint64, match func(string) bool, stored bool, v viewer) (*registryv1.EventsWaitResponse, <-chan struct{}, error) {
 	// The ring first: it takes the wake channel, and a signal stored after
 	// that rings it, so the read below can never miss one and park.

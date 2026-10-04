@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
@@ -25,6 +26,8 @@ import (
 // panel.changed, and a click on a card goes back to its owner as
 // panel.acted. Bus-only was turned down: an event is a fact, not a command,
 // and the bus keeps events in memory, at most once (plan/52 E4, E7, E8).
+// panel.acted is the exception: it is stored as a signal is, so a press
+// reaches an owner that was down when it was made.
 //
 // beacon's board (rigged f7bbee9) is the model: its caps and its fields.
 
@@ -442,7 +445,13 @@ func (d *Daemon) servePanelAct(ctx context.Context, c *conn, f *rigv1.Frame) {
 		return
 	}
 	resp := &verbsv1.PanelActResponse{Card: id, Action: req.GetAction(), By: who.name, To: card.GetFrom()}
-	d.events.publishRigTo("panel.acted", resp, rec.Fields["to"])
+	// Kept past a restart, so an owner that was down gets the press from
+	// its cursor; a press that could not be kept is refused, not dropped.
+	payload, _ := protojson.Marshal(resp)
+	if _, _, err := d.events.publishTo(panelActedKind, eventSourceRig, string(payload), rec.Fields["to"]); err != nil {
+		c.failErr(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err)
+		return
+	}
 	c.reply(f.GetStreamId(), resp)
 }
 
