@@ -455,12 +455,12 @@ func supervisor(log *slog.Logger, settings *config.Resolver, estate, root string
 	sup := supervise.New(supervise.Options{OnEvent: func(id string, e supervise.Event) {
 		// Every transition, with why: "program gone" alone left a stall
 		// restart looking like a crash (found 2026-10-04).
-		lv := slog.LevelInfo
+		say := log.Info
 		switch e.To {
 		case supervise.StateDegraded, supervise.StateRestarting, supervise.StateQuarantined:
-			lv = slog.LevelWarn
+			say = log.Warn
 		}
-		log.Log(context.Background(), lv, "program "+e.To.String(), "program", id, "from", e.From.String(),
+		say("program "+e.To.String(), "program", id, "from", e.From.String(),
 			"trigger", e.Trigger.String(), "actor", e.Actor.String(), "note", e.Note)
 	}})
 	found := discovery{kept: declarationsDir(log, estate, root)}

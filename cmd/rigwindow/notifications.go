@@ -304,6 +304,7 @@ func followAnswer(id string) {
 	}
 	following[id] = true
 	go func() {
+		//rig:allow nocontextfree: the watch ends when the question is answered or the window process exits, so it has no deadline
 		watchAnswer(context.Background(), id, func(answerJSON) { emitNotes() })
 		followMu.Lock()
 		delete(following, id)
