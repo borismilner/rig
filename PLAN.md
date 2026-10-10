@@ -22,7 +22,7 @@ laptop, see section 4).
 
 ## Map - this file is the INDEX. The sections live in `plan/`.
 
-**The specification is 16680 lines across 56 files and nobody reads it
+**The specification is 16710 lines across 56 files and nobody reads it
 whole.** It is a reference to query, and it is queried with two questions:
 *"what is rig supposed to do"* and *"what did he already rule on this"*.
 **This index exists so a requirement cannot hide**, which is the failure this
@@ -116,7 +116,7 @@ the original byte for byte before writing anything.
 | 53 | Agent coordination taken from AgentBox | 487 | [`plan/53-agent-coordination-taken-from-agentbox.md`](plan/53-agent-coordination-taken-from-agentbox.md) |
 | 54 | A program started when it is called | 283 | [`plan/54-a-program-started-when-it-is-called.md`](plan/54-a-program-started-when-it-is-called.md) |
 | 55 | The management dashboard | 501 | [`plan/55-the-management-dashboard.md`](plan/55-the-management-dashboard.md) |
-| 56 | The cloud estate: rig on a free cloud host, Marvin on Telegram | 55 | [`plan/56-the-cloud-estate-rig-on-a-free-cloud.md`](plan/56-the-cloud-estate-rig-on-a-free-cloud.md) |
+| 56 | The cloud estate: rig on a free cloud host, Marvin on Telegram | 85 | [`plan/56-the-cloud-estate-rig-on-a-free-cloud.md`](plan/56-the-cloud-estate-rig-on-a-free-cloud.md) |
 
 ### The four questions a seat actually arrives with
 
@@ -127,7 +127,7 @@ the original byte for byte before writing anything.
 | **what do agents get, and when?** | §16 for the coordination primitives, **§39 for the continuity record**, §37 for the minimum set and the staged migration |
 | **has he already ruled on this?** | `logbook/projects/rig/DECISIONS.md` first, then §31-38. **Grep before proposing** - proposing what already exists is this project's named failure mode |
 
-**§31-38 ARE A CHANGELOG INSIDE A SPECIFICATION** - 10358 of 16680 lines,
+**§31-38 ARE A CHANGELOG INSIDE A SPECIFICATION** - 10388 of 16710 lines,
 62%. Splitting the file did not fix that; it made it visible and
 cheap to act on, since those eight sections are now eight files that can move to
 the logbook in one commit. `BACKLOG.md` B24. **Until they do, a reader after the
