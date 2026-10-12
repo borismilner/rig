@@ -11,7 +11,9 @@ import (
 	"github.com/borismilner/rig/internal/store"
 )
 
-const stateVersion = 1
+// Version 2 adds immutable pending deliveries to the group JSON. The SQL
+// layout is unchanged, but a version-1 reader would discard those deliveries.
+const stateVersion = 2
 
 // State is the watch namespace in an estate's existing SQLite state area.
 // Its owner holds the estate's single-instance lock; Close follows Run's exit.
@@ -30,13 +32,15 @@ func OpenState(ctx context.Context, estate string) (*State, error) {
 }
 
 func openState(ctx context.Context, path string) (*State, error) {
-	db, err := store.OpenDB(ctx, path, store.Schema{What: "watch state", Version: stateVersion, Create: func(ctx context.Context, tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `CREATE TABLE settings (id INTEGER PRIMARY KEY CHECK(id=1), body TEXT NOT NULL);
+	db, err := store.OpenDB(ctx, path, store.Schema{What: "watch state", Version: stateVersion,
+		Steps: map[uint32]store.Step{1: func(context.Context, *sql.Tx) error { return nil }},
+		Create: func(ctx context.Context, tx *sql.Tx) error {
+			_, err := tx.ExecContext(ctx, `CREATE TABLE settings (id INTEGER PRIMARY KEY CHECK(id=1), body TEXT NOT NULL);
 		CREATE TABLE watches (id TEXT PRIMARY KEY, body TEXT NOT NULL);
 		CREATE TABLE snapshots (watch_id TEXT NOT NULL, path TEXT NOT NULL, body TEXT NOT NULL,
 		PRIMARY KEY(watch_id,path)) WITHOUT ROWID;`)
-		return err
-	}})
+			return err
+		}})
 	if err != nil {
 		return nil, err
 	}
@@ -47,6 +51,7 @@ func (s *State) Close() error { return s.db.Close() }
 func (s *State) Path() string { return s.path }
 
 type pending struct {
+	ID      string `json:"id,omitempty"`
 	FirstNS int64  `json:"first_ns"`
 	LastNS  int64  `json:"last_ns"`
 	DueNS   int64  `json:"due_ns"`
@@ -58,6 +63,7 @@ type groupState struct {
 	Group    Group            `json:"group"`
 	Sequence uint64           `json:"sequence"`
 	Pending  *pending         `json:"pending,omitempty"`
+	Delivery *Event           `json:"delivery,omitempty"`
 	Entries  map[string]stamp `json:"-"`
 }
 

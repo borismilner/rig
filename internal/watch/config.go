@@ -3,6 +3,7 @@
 package watch
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -43,7 +44,18 @@ var groupID = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,63}$`)
 // ReadConfig decodes a JSON config file and rejects unknown fields or trailing
 // values. The daemon may instead resolve its own config and call Configure.
 func ReadConfig(r io.Reader) (Config, error) {
-	d := json.NewDecoder(io.LimitReader(r, 1<<20))
+	raw, err := io.ReadAll(io.LimitReader(r, (1<<20)+1))
+	if err != nil {
+		return Config{}, fmt.Errorf("watch config: %w", err)
+	}
+	if len(raw) > 1<<20 {
+		return Config{}, fmt.Errorf("watch config: exceeds 1 MiB")
+	}
+	raw = bytes.TrimSpace(raw)
+	if len(raw) == 0 || raw[0] != '{' {
+		return Config{}, fmt.Errorf("watch config: expected one JSON object")
+	}
+	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
 	var c Config
 	if err := d.Decode(&c); err != nil {

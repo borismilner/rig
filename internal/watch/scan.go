@@ -14,13 +14,6 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
-type backend interface {
-	Add(string) error
-	Remove(string) error
-	WatchList() []string
-	Close() error
-}
-
 // LimitError refuses a watch before asking the kernel for a descriptor.
 type LimitError struct {
 	Used, Ceiling int
@@ -131,7 +124,7 @@ func (w *Watcher) scan(ctx context.Context, c Config) (entries map[string]map[st
 			return nil
 		}
 		if !before[path] {
-			used := len(before) + len(added)
+			used := w.extraWatches + len(before) + len(added)
 			if used >= ceiling {
 				return &LimitError{Used: used, Ceiling: ceiling, Path: path}
 			}
