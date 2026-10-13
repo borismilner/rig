@@ -135,6 +135,9 @@ func (d *Daemon) serveToastRetract(ctx context.Context, c *conn, f *rigv1.Frame)
 	}
 	resp := &registryv1.ToastRetractResponse{}
 	for _, id := range targets {
+		if rec, err := st.Get(ctx, id); err == nil && rec.Fields["ask_marker"] == askMarker {
+			continue // unified questions use ask.withdraw, which keeps their idempotency key
+		}
 		if _, asks := d.toasts.question(id); asks && !d.toasts.answer(id, &registryv1.ToastAnswer{
 			RecordId: id, Answered: true, Withdrawn: true, By: sender, AtUnixNano: time.Now().UnixNano(),
 		}) {
@@ -182,6 +185,12 @@ func (d *Daemon) retractable(ctx context.Context, st *record.Store, id, sender s
 			Precondition: "the toast was sent by " + sender,
 			Actual:       "it was sent by " + rec.Fields["sender"],
 			Fix:          "ask its sender to take it back; closing it is the person's own call",
+		}
+	}
+	if rec.Fields["ask_marker"] == askMarker {
+		return &rigv1.Status{
+			Code:    rigv1.Code_CODE_CONFLICT,
+			Message: "rig.toast.retract: use rig.ask.withdraw for this question",
 		}
 	}
 	if q, ok := d.toasts.question(id); ok && q.answer != nil {

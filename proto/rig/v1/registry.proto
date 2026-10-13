@@ -331,6 +331,8 @@ message ToastAnswer {
   // The sender took the toast back before anybody answered it; answered is
   // true, since nothing will be.
   bool withdrawn = 8;
+  // The question's TTL elapsed before anyone answered.
+  bool expired = 9;
 }
 
 // ToastRetractRequest takes back toasts the caller sent: one by its record
@@ -362,6 +364,63 @@ message ToastAnswerResponse {
 message NotifyResponse {
   Toast toast = 1;
 }
+
+// A question is filed once, then answered or allowed to expire. The owner of
+// the question supplies references, never a secret value to release.
+message AskOpenRequest {
+  string key = 1;
+  string kind = 2;
+  string urgency = 3;
+  repeated string refs = 4;
+  repeated string options = 5;
+  uint32 ttl_seconds = 6;
+  string title = 7;
+  string body = 8;
+  bool accepts_text = 9;
+  // Empty means gating; disambiguating expires without an answer.
+  string failure_mode = 10;
+}
+
+message Ask {
+  string id = 1;
+  string key = 2;
+  string kind = 3;
+  string urgency = 4;
+  repeated string refs = 5;
+  repeated string options = 6;
+  string title = 7;
+  string body = 8;
+  bool accepts_text = 9;
+  string failure_mode = 10;
+  int64 expires_unix_nano = 11;
+  // open, answered, dismissed, denied, expired, or withdrawn.
+  string state = 12;
+  ToastAnswer answer = 13;
+  string sender = 14;
+  // The channel attempted and the reason it was or was not shown.
+  string channel = 15;
+  string delivery_note = 16;
+}
+
+message AskOpenResponse { Ask ask = 1; }
+message AskGetRequest { string id = 1; }
+message AskGetResponse { Ask ask = 1; }
+message AskListRequest {
+  // Empty lists every question, otherwise only this sender's or kind's.
+  string sender = 1;
+  string kind = 2;
+  bool open_only = 3;
+}
+message AskListResponse { repeated Ask asks = 1; }
+message AskAnswerRequest {
+  string id = 1;
+  string option = 2;
+  string text = 3;
+  bool dismissed = 4;
+}
+message AskAnswerResponse { Ask ask = 1; }
+message AskWithdrawRequest { string id = 1; }
+message AskWithdrawResponse { Ask ask = 1; }
 
 // ToastWaitRequest answers the toasts after `after` as soon as there are any,
 // or an empty list once `timeout_ms` (at most 60000) has passed.

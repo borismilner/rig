@@ -176,6 +176,9 @@ type Config struct {
 type Daemon struct {
 	// toasts wakes a renderer when rig.notify is called (toast.go).
 	toasts toastRing
+	// askMu guards idempotent opens and terminal question transitions.
+	askMu   sync.Mutex
+	askWake chan struct{}
 
 	// events is section 52's bus (events.go), and timers its clock
 	// (timers.go).
@@ -434,6 +437,7 @@ func New(cfg Config) (*Daemon, error) {
 	}
 
 	d := &Daemon{
+		askWake:   make(chan struct{}, 1),
 		files:     freeFiles,
 		stores:    progStores,
 		version:   cfg.Version,
@@ -654,6 +658,8 @@ func (d *Daemon) Serve(ctx context.Context, l net.Listener) (serveErr error) {
 	// Before the first connection, so no toast.answer is told NOT_FOUND
 	// about a question the last run asked (toastrestore.go).
 	d.restoreAsks(ctx)
+	waitAsks := d.startAskSweep(ctx)
+	defer func() { cancel(); waitAsks() }()
 	d.serving.Store(&ctx)
 	// Section 54: what was kept is served at once, and the scan that
 	// updates it runs in the background, so serving never waits on it.
@@ -1159,7 +1165,7 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	// publish and wait on what.
 	case "events.publish", "events.wait", "timer.arm", "timer.disarm", "timer.list",
 		"config.get", "config.set", "logs.query", "logs.ingest", "logs.coverage", "logs.pin", "notify", "toast.wait", "toast.dnd", "toast.reply", "toast.answer",
-		"toast.retract",
+		"toast.retract", "ask.open", "ask.get", "ask.list", "ask.answer", "ask.withdraw",
 		"sound", "say",
 		"hand.request", "hand.step", "hand.release", "hand.wait", "hand.answer", "hand.strip":
 		d.serveToast(ctx, c, f, command)

@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/borismilner/rig/internal/kernel"
 	"github.com/borismilner/rig/internal/record"
 	"github.com/borismilner/rig/internal/replyfield"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
@@ -211,6 +212,8 @@ func (d *Daemon) serveToast(ctx context.Context, c *conn, f *rigv1.Frame, comman
 		d.serveToastAnswer(ctx, c, f)
 	case "toast.retract":
 		d.serveToastRetract(ctx, c, f)
+	case "ask.open", "ask.get", "ask.list", "ask.answer", "ask.withdraw":
+		d.serveAsk(ctx, c, f, command)
 	case "sound", "say":
 		d.serveSound(ctx, c, f, command)
 	case "events.publish", "events.wait", "timer.arm", "timer.disarm", "timer.list":
@@ -401,29 +404,72 @@ func (d *Daemon) serveToastReply(ctx context.Context, c *conn, f *rigv1.Frame) {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "toast.reply: "+err.Error())
 		return
 	}
+	ans, ok := d.fileToastReply(ctx, c, f, &req)
+	if ok {
+		c.reply(f.GetStreamId(), &registryv1.ToastReplyResponse{Answer: ans})
+	}
+}
+
+func (d *Daemon) fileToastReply(ctx context.Context, c *conn, f *rigv1.Frame, req *registryv1.ToastReplyRequest) (*registryv1.ToastAnswer, bool) {
+	d.askMu.Lock()
+	defer d.askMu.Unlock()
 	q, ok := d.toasts.question(req.GetRecordId())
 	if !ok {
-		c.fail(f.GetStreamId(), rigv1.Code_CODE_NOT_FOUND,
-			"rig.toast.reply: no toast "+strconv.Quote(req.GetRecordId())+" is waiting for a reply")
-		return
+		st, ready := d.recordStore(c, f, "toast.reply")
+		if !ready {
+			return nil, false
+		}
+		rec, err := d.askRecord(ctx, st, req.GetRecordId())
+		if isNotFound(err) {
+			c.fail(f.GetStreamId(), rigv1.Code_CODE_NOT_FOUND,
+				"rig.toast.reply: no toast "+strconv.Quote(req.GetRecordId())+" is waiting for a reply")
+			return nil, false
+		}
+		if err != nil {
+			c.failErr(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err)
+			return nil, false
+		}
+		d.toasts.ask(rec.ID, replyfield.Decode(rec.Fields["replies"]), rec.Fields["reply_text"] == fieldYes, rec.Fields["to"])
+		q, _ = d.toasts.question(rec.ID)
 	}
 	if q.answer.GetWithdrawn() {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_CONFLICT,
 			"rig.toast.reply: its sender "+q.answer.GetBy()+" took the toast back")
-		return
+		return nil, false
 	}
 	if q.answer != nil {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_CONFLICT,
 			"rig.toast.reply: the toast was already answered by "+q.answer.GetBy())
-		return
+		return nil, false
 	}
-	if msg := checkReply(q, &req); msg != "" {
+	if msg := checkReply(q, req); msg != "" {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "rig.toast.reply: "+msg)
-		return
+		return nil, false
 	}
 	st, ok := d.recordStore(c, f, "toast.reply")
 	if !ok {
-		return
+		return nil, false
+	}
+	rec, err := st.Get(ctx, req.GetRecordId())
+	if err != nil {
+		c.failErr(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err)
+		return nil, false
+	}
+	if rec.Fields["ask_marker"] == askMarker {
+		kind := c.principal().Kind
+		if c.agentDoor || kind != kernel.KindTerminal && kind != kernel.KindWindow {
+			c.fail(f.GetStreamId(), rigv1.Code_CODE_DENIED, "rig.toast.reply: only an interactive owner channel may answer this question")
+			return nil, false
+		}
+		a, err := d.askFromRecord(ctx, st, rec, time.Now())
+		if err != nil {
+			c.failErr(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err)
+			return nil, false
+		}
+		if a.GetState() != "open" {
+			c.fail(f.GetStreamId(), rigv1.Code_CODE_CONFLICT, "rig.toast.reply: question is "+a.GetState())
+			return nil, false
+		}
 	}
 	by := c.name()
 	session, seat, epoch, _ := d.provenance(c)
@@ -432,7 +478,7 @@ func (d *Daemon) serveToastReply(ctx context.Context, c *conn, f *rigv1.Frame) {
 	}
 	if by == "" {
 		refuseUnseatedLease(c, f, "toast.reply")
-		return
+		return nil, false
 	}
 	if session == "" {
 		session = recordSession(c.principal())
@@ -449,7 +495,7 @@ func (d *Daemon) serveToastReply(ctx context.Context, c *conn, f *rigv1.Frame) {
 		Session: session, Seat: by, Epoch: max(epoch, d.epoch),
 	}); err != nil {
 		c.failErr(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err)
-		return
+		return nil, false
 	}
 	ans := &registryv1.ToastAnswer{
 		RecordId: req.GetRecordId(), Answered: true, Reply: req.GetReply(), Text: req.GetText(),
@@ -457,7 +503,7 @@ func (d *Daemon) serveToastReply(ctx context.Context, c *conn, f *rigv1.Frame) {
 	}
 	if !d.toasts.answer(req.GetRecordId(), ans) {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_CONFLICT, "rig.toast.reply: the toast was answered meanwhile")
-		return
+		return nil, false
 	}
 	// The sender learns of it on the bus rather than holding a poll open
 	// per question. The answer is filed already, so an event that could not
@@ -468,7 +514,7 @@ func (d *Daemon) serveToastReply(ctx context.Context, c *conn, f *rigv1.Frame) {
 			d.log.Warn("toast.answered not kept", "toast", req.GetRecordId(), "err", err)
 		}
 	}
-	c.reply(f.GetStreamId(), &registryv1.ToastReplyResponse{Answer: ans})
+	return ans, true
 }
 
 // checkReply answers what is wrong with a reply to the question q, or "".

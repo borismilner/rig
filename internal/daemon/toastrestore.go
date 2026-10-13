@@ -2,7 +2,9 @@ package daemon
 
 import (
 	"context"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/borismilner/rig/internal/record"
 	"github.com/borismilner/rig/internal/replyfield"
@@ -40,7 +42,8 @@ func (d *Daemon) restoreAsks(ctx context.Context) {
 		}
 		answers[id] = &registryv1.ToastAnswer{
 			RecordId: id, Answered: true, Reply: r.Fields["reply"], Text: r.Body,
-			Dismissed: r.Fields["dismissed"] == fieldYes, By: r.Fields["by"],
+			Dismissed: r.Fields["dismissed"] == fieldYes, Withdrawn: r.Fields["withdrawn"] == fieldYes,
+			Expired: r.Fields[askExpired] == fieldYes, By: r.Fields["by"],
 			AtUnixNano: r.Prov.CreatedAt.UnixNano(),
 		}
 	}
@@ -61,6 +64,18 @@ func (d *Daemon) restoreAsks(ctx context.Context) {
 		if a := answers[n.ID]; a != nil {
 			d.toasts.answer(n.ID, a)
 			continue
+		}
+		if n.Fields["ask_marker"] == askMarker {
+			if n.Fields["ask_policy_never"] == fieldYes {
+				d.toasts.answer(n.ID, &registryv1.ToastAnswer{
+					RecordId: n.ID, Answered: true, Dismissed: true, By: eventSourceRig,
+				})
+				continue
+			}
+			expires, err := strconv.ParseInt(n.Fields["ask_expires"], 10, 64)
+			if err != nil || time.Now().UnixNano() >= expires {
+				continue // the expiry sweep records the transition
+			}
 		}
 		open++
 		d.toasts.add(&registryv1.Toast{
