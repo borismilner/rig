@@ -143,7 +143,9 @@ func (w *Watcher) scan(ctx context.Context, c Config) (entries map[string]map[st
 	roots := map[string]bool{}
 	for _, g := range c.Groups {
 		for _, p := range g.Paths {
-			roots[scanRoot(p)] = true
+			if !ignoredBy(g, scanRoot(p)) {
+				roots[scanRoot(p)] = true
+			}
 		}
 	}
 	ordered := make([]string, 0, len(roots))
@@ -152,12 +154,12 @@ func (w *Watcher) scan(ctx context.Context, c Config) (entries map[string]map[st
 	}
 	slices.Sort(ordered)
 	visited := map[string]bool{}
-	count := 0
+	visit := w.scanVisitor(ctx, c, entries, visited, add)
 	for _, root := range ordered {
-		if err = ctx.Err(); err != nil {
+		if err := ctx.Err(); err != nil {
 			return nil, nil, err
 		}
-		if err = checkAncestors(root); err != nil {
+		if err := checkAncestors(root); err != nil {
 			return nil, nil, err
 		}
 		var sentinel string
@@ -165,56 +167,10 @@ func (w *Watcher) scan(ctx context.Context, c Config) (entries map[string]map[st
 		if err != nil {
 			return nil, nil, err
 		}
-		if err = add(sentinel); err != nil {
+		if err := add(sentinel); err != nil {
 			return nil, nil, err
 		}
-		err = filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
-			if e := ctx.Err(); e != nil {
-				return e
-			}
-			if errors.Is(walkErr, os.ErrNotExist) {
-				return nil
-			}
-			if walkErr != nil {
-				return walkErr
-			}
-			if visited[path] {
-				if d.IsDir() {
-					return fs.SkipDir
-				}
-				return nil
-			}
-			visited[path] = true
-			if w.ignored(path) {
-				return nil
-			}
-			if d.IsDir() {
-				if e := add(path); e != nil {
-					return e
-				}
-			}
-			info, e := d.Info()
-			if errors.Is(e, os.ErrNotExist) {
-				return nil
-			}
-			if e != nil {
-				return e
-			}
-			s, e := fileStamp(path, info)
-			if e != nil {
-				return e
-			}
-			for _, g := range c.Groups {
-				if matches(g, path) {
-					count++
-					if count > c.MaxEntries {
-						return fmt.Errorf("watch: snapshot exceeds max_entries %d", c.MaxEntries)
-					}
-					entries[g.ID][path] = s
-				}
-			}
-			return nil
-		})
+		err = filepath.WalkDir(root, visit)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -247,4 +203,58 @@ func diffEntries(old, next map[string]stamp) []delta {
 	}
 	slices.SortFunc(out, func(a, b delta) int { return strings.Compare(a.path, b.path) })
 	return out
+}
+
+func (w *Watcher) scanVisitor(ctx context.Context, c Config, entries map[string]map[string]stamp, visited map[string]bool, add func(string) error) fs.WalkDirFunc {
+	count := 0
+	return func(path string, d fs.DirEntry, walkErr error) error {
+		if e := ctx.Err(); e != nil {
+			return e
+		}
+		if errors.Is(walkErr, os.ErrNotExist) {
+			return nil
+		}
+		if walkErr != nil {
+			return walkErr
+		}
+		if visited[path] {
+			if d.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		visited[path] = true
+		if w.ignored(path) || !needed(c, path) {
+			if d.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if d.IsDir() {
+			if e := add(path); e != nil {
+				return e
+			}
+		}
+		info, e := d.Info()
+		if errors.Is(e, os.ErrNotExist) {
+			return nil
+		}
+		if e != nil {
+			return e
+		}
+		s, e := fileStamp(path, info)
+		if e != nil {
+			return e
+		}
+		for _, g := range c.Groups {
+			if accepts(g, path) {
+				count++
+				if count > c.MaxEntries {
+					return fmt.Errorf("watch: snapshot exceeds max_entries %d", c.MaxEntries)
+				}
+				entries[g.ID][path] = s
+			}
+		}
+		return nil
+	}
 }

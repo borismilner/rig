@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -11,9 +12,9 @@ import (
 	"github.com/borismilner/rig/internal/store"
 )
 
-// Version 2 adds immutable pending deliveries to the group JSON. The SQL
-// layout is unchanged, but a version-1 reader would discard those deliveries.
-const stateVersion = 2
+// Version 3 adds group ignores. Older readers would discard them (and a
+// version-1 reader also discards immutable deliveries). SQL is unchanged.
+const stateVersion = 3
 
 // State is the watch namespace in an estate's existing SQLite state area.
 // Its owner holds the estate's single-instance lock; Close follows Run's exit.
@@ -32,15 +33,20 @@ func OpenState(ctx context.Context, estate string) (*State, error) {
 }
 
 func openState(ctx context.Context, path string) (*State, error) {
-	db, err := store.OpenDB(ctx, path, store.Schema{What: "watch state", Version: stateVersion,
-		Steps: map[uint32]store.Step{1: func(context.Context, *sql.Tx) error { return nil }},
+	db, err := store.OpenDB(ctx, path, store.Schema{
+		What: "watch state", Version: stateVersion,
+		Steps: map[uint32]store.Step{
+			1: func(context.Context, *sql.Tx) error { return nil },
+			2: func(context.Context, *sql.Tx) error { return nil },
+		},
 		Create: func(ctx context.Context, tx *sql.Tx) error {
 			_, err := tx.ExecContext(ctx, `CREATE TABLE settings (id INTEGER PRIMARY KEY CHECK(id=1), body TEXT NOT NULL);
 		CREATE TABLE watches (id TEXT PRIMARY KEY, body TEXT NOT NULL);
 		CREATE TABLE snapshots (watch_id TEXT NOT NULL, path TEXT NOT NULL, body TEXT NOT NULL,
 		PRIMARY KEY(watch_id,path)) WITHOUT ROWID;`)
 			return err
-		}})
+		},
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -87,11 +93,11 @@ func (s *State) load(ctx context.Context) (Config, map[string]*groupState, error
 	c := Config{}
 	var raw string
 	err := s.db.QueryRowContext(ctx, `SELECT body FROM settings WHERE id=1`).Scan(&raw)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return c, nil, err
 	}
 	if err == nil {
-		if err = json.Unmarshal([]byte(raw), &c); err != nil {
+		if err := json.Unmarshal([]byte(raw), &c); err != nil {
 			return c, nil, err
 		}
 	}

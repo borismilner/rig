@@ -65,8 +65,8 @@ type Gap struct {
 }
 
 // Options connects the estate's bus and coverage log. Both callbacks are
-// required, must honor ctx, and must not call back into Watcher: operations
-// and callbacks are serialized. A publish succeeds only when the bus accepts
+// required, must honour ctx, and must not call back into Watcher: operations
+// and callbacks are serialised. A publish succeeds only when the bus accepts
 // it. Now and NewBackend are injection points for deterministic tests.
 type Options struct {
 	Publish    func(context.Context, Event) error
@@ -111,19 +111,21 @@ func New(ctx context.Context, state *State, options Options) (*Watcher, error) {
 	if err != nil {
 		return nil, fmt.Errorf("watch: load: %w", err)
 	}
-	c, err = normalize(c)
+	c, err = normalise(c)
 	if err != nil {
 		return nil, err
 	}
-	if err = validateState(c, groups); err != nil {
+	if err := validateState(c, groups); err != nil {
 		return nil, err
 	}
 	b, err := options.NewBackend()
 	if err != nil {
 		return nil, err
 	}
-	w := &Watcher{state: state, backend: b, kernelLimit: kernelWatchLimit(), options: options,
-		config: c, groups: groups, wake: make(chan struct{}, 1), done: make(chan struct{})}
+	w := &Watcher{
+		state: state, backend: b, kernelLimit: kernelWatchLimit(), options: options,
+		config: c, groups: groups, wake: make(chan struct{}, 1), done: make(chan struct{}),
+	}
 	if len(groups) > 0 {
 		err = w.gap(ctx, "restart", nil)
 	}
@@ -182,7 +184,7 @@ func (w *Watcher) configure(ctx context.Context, c Config) error {
 	if w.closed {
 		return errors.New("watch: closed")
 	}
-	next, err := normalize(c)
+	next, err := normalise(c)
 	if err != nil {
 		return err
 	}
@@ -250,7 +252,7 @@ func (w *Watcher) Declare(ctx context.Context, g Group) error {
 func (w *Watcher) Config() Config {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	c, _ := normalize(w.config)
+	c, _ := normalise(w.config)
 	return c
 }
 
@@ -386,7 +388,7 @@ func (w *Watcher) consume(ctx context.Context, b Backend, e fsnotify.Event, ok b
 	if !ok {
 		return errors.New("watch: backend event channel closed")
 	}
-	if w.ignored(e.Name) {
+	if w.ignored(e.Name) || !needed(w.config, e.Name) {
 		return nil
 	}
 	if e.Op&(fsnotify.Create|fsnotify.Remove|fsnotify.Rename) != 0 {
@@ -493,7 +495,7 @@ func (w *Watcher) prepare(c Config, entries map[string]map[string]stamp, raw *fs
 					events = append(events, w.mark(n, d.path, "rescan", overflow))
 				}
 			}
-			if raw != nil && matches(g, raw.Name) {
+			if raw != nil && accepts(g, raw.Name) {
 				events = append(events, w.mark(n, raw.Name, raw.Op.String(), false))
 			}
 			if overflow {
@@ -530,8 +532,10 @@ func (w *Watcher) mark(g *groupState, path, op string, gap bool) Event {
 
 func batchEvent(g *groupState, kind string) Event {
 	p := g.Pending
-	return Event{Kind: "rig.watch." + g.Group.ID + "." + kind, ID: p.ID, WatchID: g.Group.ID,
-		FirstNS: p.FirstNS, LastNS: p.LastNS, DueNS: p.DueNS, Count: p.Count, Gap: p.Gap}
+	return Event{
+		Kind: "rig.watch." + g.Group.ID + "." + kind, ID: p.ID, WatchID: g.Group.ID,
+		FirstNS: p.FirstNS, LastNS: p.LastNS, DueNS: p.DueNS, Count: p.Count, Gap: p.Gap,
+	}
 }
 
 func (w *Watcher) change(ctx context.Context, e fsnotify.Event) error {
@@ -551,7 +555,7 @@ func (w *Watcher) change(ctx context.Context, e fsnotify.Event) error {
 	var events []Event
 	for _, g := range w.config.Groups {
 		old := w.groups[g.ID]
-		if matches(g, e.Name) {
+		if accepts(g, e.Name) {
 			n := copyGroup(old)
 			events = append(events, w.mark(n, e.Name, e.Op.String(), false))
 			updates = append(updates, update{state: n, deltas: []delta{{path: e.Name, value: value}}})

@@ -22,6 +22,7 @@ tests; production should adapt the existing resolver into `Configure`.
     {
       "id": "buddy-notes",
       "paths": ["/srv/notes"],
+      "ignore": ["*.tmp", "generated"],
       "debounce_ms": 900000,
       "description": "Consolidation input"
     }
@@ -35,6 +36,21 @@ Paths are absolute files, directories, or `filepath.Match` globs (`*`,
 symlink ancestors are refused. A missing root is tracked through its
 nearest existing directory. Directories are subscribed before their
 children are enumerated, including populated directories moved in.
+
+Every group excludes `.git`, `node_modules`, `build`, `dist`, `out`,
+`target`, `.cache`, `__pycache__`, `.pytest_cache`, `.mypy_cache`,
+`.ruff_cache`, `.next`, `.nuxt`, `.parcel-cache`, and `.turbo`.
+The optional per-group `ignore` list adds basename globs using
+`filepath.Match` (`*`, `?`, `[class]`). Patterns match any component of
+the absolute path, including the root and its ancestors, and exclude the
+whole matching subtree. Slashes, escapes, `**`, empty patterns and invalid
+globs are refused. Omitted, null and empty lists all keep the defaults;
+there is no disable-defaults switch. Gitignore files and negation are not
+interpreted. Each group accepts at most 256 patterns of 255 bytes each.
+
+Excluded entries consume no snapshot budget or recursive subscriptions.
+Overlapping groups may still share subscriptions when one needs a path
+another excludes; notification and snapshot filtering stay per group.
 
 Each matching notification publishes `rig.watch.<id>.changed` after its
 snapshot and pending debounce are saved together. The quiet period
@@ -84,8 +100,9 @@ at least once per minute. Quiet periods are not replayed repeatedly after
 suspend or restart.
 
 State uses rig's SQLite opener and migrations in the named estate's
-`watch.db`. Schema 2 protects immutable deliveries from older readers;
-schema 1 upgrades without changing its SQL tables. Before production
+`watch.db`. Schema 3 protects ignore settings and immutable deliveries
+from older readers; schemas 1 and 2 upgrade without changing SQL tables.
+Before production
 use, the daemon integration must include this namespace in its state
 inventory and backups, register the watch event family, connect coverage
 and resume hooks, and expose settings through the existing resolver.

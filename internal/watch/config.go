@@ -5,6 +5,7 @@ package watch
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -26,6 +27,7 @@ const (
 type Group struct {
 	ID          string   `json:"id"`
 	Paths       []string `json:"paths"`
+	Ignore      []string `json:"ignore,omitempty"`
 	DebounceMS  int64    `json:"debounce_ms"`
 	Description string   `json:"description,omitempty"`
 }
@@ -49,11 +51,11 @@ func ReadConfig(r io.Reader) (Config, error) {
 		return Config{}, fmt.Errorf("watch config: %w", err)
 	}
 	if len(raw) > 1<<20 {
-		return Config{}, fmt.Errorf("watch config: exceeds 1 MiB")
+		return Config{}, errors.New("watch config: exceeds 1 MiB")
 	}
 	raw = bytes.TrimSpace(raw)
 	if len(raw) == 0 || raw[0] != '{' {
-		return Config{}, fmt.Errorf("watch config: expected one JSON object")
+		return Config{}, errors.New("watch config: expected one JSON object")
 	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
@@ -63,12 +65,12 @@ func ReadConfig(r io.Reader) (Config, error) {
 	}
 	var extra any
 	if err := d.Decode(&extra); err != io.EOF {
-		return c, fmt.Errorf("watch config: expected one JSON object")
+		return c, errors.New("watch config: expected one JSON object")
 	}
-	return normalize(c)
+	return normalise(c)
 }
 
-func normalize(c Config) (Config, error) {
+func normalise(c Config) (Config, error) {
 	if c.MaxWatches == 0 {
 		c.MaxWatches = DefaultMaxWatches
 	}
@@ -76,10 +78,10 @@ func normalize(c Config) (Config, error) {
 		c.MaxEntries = DefaultMaxEntries
 	}
 	if c.MaxWatches < 1 || c.MaxEntries < 1 {
-		return c, fmt.Errorf("watch: limits must be positive")
+		return c, errors.New("watch: limits must be positive")
 	}
 	if len(c.Groups) > 256 {
-		return c, fmt.Errorf("watch: at most 256 groups")
+		return c, errors.New("watch: at most 256 groups")
 	}
 	c.Groups = slices.Clone(c.Groups)
 	seen := map[string]bool{}
@@ -99,6 +101,11 @@ func normalize(c Config) (Config, error) {
 		}
 		if g.DebounceMS < 1 || g.DebounceMS > (365*24*time.Hour).Milliseconds() {
 			return c, fmt.Errorf("watch %s: debounce_ms must be between 1 and one year", g.ID)
+		}
+		var err error
+		g.Ignore, err = normaliseIgnores(g)
+		if err != nil {
+			return c, err
 		}
 		g.Paths = slices.Clone(g.Paths)
 		for j, p := range g.Paths {

@@ -471,6 +471,13 @@ coverage log rather than absent. Debouncing is the `idempotent` rule §18 alread
 missed schedule fire and it composes unchanged, which matters because one editor save is three
 to five inotify events.
 
+The platform brief (2026-10-12, Task B) requires watch groups to ignore
+`.git`, `node_modules`, build output and caches by default. A group's
+additional basename patterns are additive: an omitted or empty list
+cannot disable defaults. Excluded trees use neither snapshot entries nor
+recursive subscriptions. `internal/watch/README.md` defines the exact
+defaults, pattern syntax and overlapping-group behavior.
+
 ### Pressure is a source too, and this kernel will not wake us for it
 
 §33 banked a finding this answers: no disk budget, and ENOSPC missing from the coverage log's

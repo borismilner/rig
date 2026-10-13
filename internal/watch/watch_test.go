@@ -54,6 +54,7 @@ type fakeBackend struct {
 func fakeSource() *fakeBackend {
 	return &fakeBackend{paths: map[string]bool{}, events: make(chan fsnotify.Event, 32), errors: make(chan error, 4)}
 }
+
 func (b *fakeBackend) Add(path string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -63,12 +64,14 @@ func (b *fakeBackend) Add(path string) error {
 	b.paths[path] = true
 	return nil
 }
+
 func (b *fakeBackend) Remove(path string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	delete(b.paths, path)
 	return nil
 }
+
 func (b *fakeBackend) WatchList() []string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -104,7 +107,7 @@ type engineTest struct {
 func newEngineTest(t *testing.T) *engineTest {
 	t.Helper()
 	h := &engineTest{t: t, root: filepath.Join(t.TempDir(), "files")}
-	if err := os.Mkdir(h.root, 0700); err != nil {
+	if err := os.Mkdir(h.root, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	h.now.Store(time.Date(2026, 10, 12, 10, 0, 0, 0, time.UTC).UnixNano())
@@ -163,7 +166,7 @@ func (h *engineTest) configure(groups ...Group) {
 func (h *engineTest) write(name, body string) string {
 	h.t.Helper()
 	path := filepath.Join(h.root, name)
-	if err := os.WriteFile(path, []byte(body), 0600); err != nil {
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 		h.t.Fatal(err)
 	}
 	return path
@@ -195,6 +198,7 @@ func (h *engineTest) restart() {
 	}
 	h.open()
 }
+
 func (h *engineTest) fired() []Event {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -322,7 +326,7 @@ func TestOverflowDeclaresGapReconcilesAndInvalidatesUnchangedGroup(t *testing.T)
 	h := newEngineTest(t)
 	h.configure()
 	dir := filepath.Join(h.root, "new")
-	if err := os.Mkdir(dir, 0700); err != nil {
+	if err := os.Mkdir(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	h.write("new/child", "arrived before subscription")
@@ -378,7 +382,7 @@ func TestRootRecreationAndPopulatedDirectoryArrival(t *testing.T) {
 		t.Fatal(err)
 	}
 	h.consume(h.root, fsnotify.Remove)
-	if err := os.MkdirAll(filepath.Join(h.root, "nested"), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Join(h.root, "nested"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	path := h.write("nested/note", "ready before parent event")
@@ -416,10 +420,10 @@ func TestCallbackRunsAfterDurableChangeAndIsSerialized(t *testing.T) {
 	h := newEngineTest(t)
 	path := h.write("note", "a")
 	h.configure()
-	h.w.options.Publish = func(ctx context.Context, e Event) error {
+	h.w.options.Publish = func(ctx context.Context, _ Event) error {
 		if h.w.mu.TryLock() {
 			h.w.mu.Unlock()
-			return errors.New("callback not serialized")
+			return errors.New("callback not serialised")
 		}
 		_, states, err := h.state.load(ctx)
 		if err != nil {
@@ -509,7 +513,7 @@ func TestNativeEventsAtomicReplaceAndDebouncedFire(t *testing.T) {
 	defer cancel()
 	root := t.TempDir()
 	path := filepath.Join(root, "note")
-	if err := os.WriteFile(path, []byte("first"), 0600); err != nil {
+	if err := os.WriteFile(path, []byte("first"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	state, err := openState(ctx, filepath.Join(t.TempDir(), "watch.db"))
@@ -533,9 +537,9 @@ func TestNativeEventsAtomicReplaceAndDebouncedFire(t *testing.T) {
 			t.Error(err)
 		}
 	}()
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		tmp := filepath.Join(root, "replacement")
-		if err = os.WriteFile(tmp, []byte(fmt.Sprintf("version %d", i)), 0600); err != nil {
+		if err = os.WriteFile(tmp, []byte(fmt.Sprintf("version %d", i)), 0o600); err != nil {
 			t.Fatal(err)
 		}
 		if err = os.Rename(tmp, path); err != nil {
@@ -620,8 +624,8 @@ func TestDeclareRemoveAndReturnedConfigIsolation(t *testing.T) {
 	h := newEngineTest(t)
 	path := h.write("note", "a")
 	h.configure()
-	copy := h.w.Config()
-	copy.Groups[0].Paths[0] = "/changed-by-caller"
+	copied := h.w.Config()
+	copied.Groups[0].Paths[0] = "/changed-by-caller"
 	if h.w.Config().Groups[0].Paths[0] != h.root {
 		t.Fatal("Config exposed mutable paths")
 	}
@@ -663,7 +667,7 @@ func TestSymlinkBoundaryAndMissingRoot(t *testing.T) {
 	if err := h.w.Declare(context.Background(), Group{ID: "future", Paths: []string{missing}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(missing, 0700); err != nil {
+	if err := os.MkdirAll(missing, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	h.consume(filepath.Dir(missing), fsnotify.Create)
@@ -676,7 +680,7 @@ func TestFailedRescanRetainsBaselineAndSubscriptions(t *testing.T) {
 	h := newEngineTest(t)
 	h.configure()
 	before := h.w.Usage()
-	if err := os.Mkdir(filepath.Join(h.root, "new"), 0700); err != nil {
+	if err := os.Mkdir(filepath.Join(h.root, "new"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	h.w.backend.(*fakeBackend).failAdd = true
@@ -734,7 +738,7 @@ func TestStateRoundTripKeepsPendingAndSnapshotTogether(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = state.Close() })
 
-	config, err := normalize(Config{Groups: []Group{{ID: "inbox", Paths: []string{"/tmp/inbox"}}}})
+	config, err := normalise(Config{Groups: []Group{{ID: "inbox", Paths: []string{"/tmp/inbox"}}}})
 	if err != nil {
 		t.Fatal(err)
 	}
