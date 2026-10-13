@@ -69,10 +69,12 @@ type Gap struct {
 // and callbacks are serialised. A publish succeeds only when the bus accepts
 // it. Now and NewBackend are injection points for deterministic tests.
 type Options struct {
-	Publish    func(context.Context, Event) error
-	ReportGap  func(context.Context, Gap) error
-	NewBackend func() (Backend, error)
-	Now        func() time.Time
+	// InitialConfig applies resolved settings before scanning persisted paths.
+	InitialConfig *Config
+	Publish       func(context.Context, Event) error
+	ReportGap     func(context.Context, Gap) error
+	NewBackend    func() (Backend, error)
+	Now           func() time.Time
 }
 
 // Watcher owns subscriptions, not State. Close stops it; the caller waits for
@@ -129,11 +131,14 @@ func New(ctx context.Context, state *State, options Options) (*Watcher, error) {
 	if len(groups) > 0 {
 		err = w.gap(ctx, "restart", nil)
 	}
+	if err == nil && options.InitialConfig != nil {
+		err = w.configure(ctx, *options.InitialConfig)
+	}
 	if err == nil {
 		err = w.rescan(ctx, nil, false)
 	}
 	if err != nil {
-		_ = b.Close()
+		_ = w.backend.Close()
 		return nil, err
 	}
 	return w, nil

@@ -229,7 +229,7 @@ func selfDeclaration() kernel.Declaration {
 				Confirms:    kernel.No,
 				Shape:       kernel.ShapeUnary,
 				Summary:     "Archive this estate's own persistent state",
-				Description: "Takes a transactional snapshot of the record store and writes one .tar.gz under the user's state directory, carrying a manifest and the snapshot. The caller names no path: the daemon chooses it from the estate name and the clock, and answers with where it landed. A copy of record.db taken with cp is NOT a backup, because the store runs in WAL mode and a committed write lives in record.db-wal until a checkpoint folds it in.",
+				Description: "Takes transactional snapshots of the record store and filesystem watch state and writes one .tar.gz under the user's state directory, carrying a manifest and the snapshot. The caller names no path: the daemon chooses it from the estate name and the clock, and answers with where it landed. A copy of record.db taken with cp is NOT a backup, because the store runs in WAL mode and a committed write lives in record.db-wal until a checkpoint folds it in.",
 				Returns:     "Where the archive landed, its size and SHA-256, and the schema version, record count and head count of the snapshot inside it.",
 			},
 			{

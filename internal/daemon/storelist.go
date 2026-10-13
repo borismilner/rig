@@ -12,6 +12,7 @@ import (
 	"github.com/borismilner/rig/internal/coord"
 	"github.com/borismilner/rig/internal/record"
 	"github.com/borismilner/rig/internal/store"
+	"github.com/borismilner/rig/internal/watch"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 	"github.com/borismilner/rig/proto/rig/v1/verbsv1"
 )
@@ -42,6 +43,9 @@ func (d *Daemon) serveStoreList(ctx context.Context, c *conn, f *rigv1.Frame) {
 	var out []*verbsv1.StoreNamespace
 	if d.records != nil {
 		out = append(out, namespace("record", d.records.Path(), record.SchemaVersion, d.records.Ephemeral()))
+	}
+	if d.watchState != nil {
+		out = append(out, namespace("watch", d.watchState.Path(), watch.SchemaVersion, false))
 	}
 	if d.leases != nil {
 		out = append(out, namespace("coord", d.leases.Path(), coord.SchemaVersion, false))

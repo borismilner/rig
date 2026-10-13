@@ -67,11 +67,14 @@ const (
 	// equal. That is the same shape as cmd/rig reading daemon.CallTimeout in a
 	// test so two numbers cannot drift in silence.
 	RecordMember = "record.db"
+
+	// WatchMember holds durable filesystem snapshots and pending debounce.
+	WatchMember = "watch.db"
 )
 
 // known is every member name a reader accepts, after the manifest, IN ARCHIVE
 // ORDER.
-var known = []string{RecordMember}
+var known = []string{RecordMember, WatchMember}
 
 // maxManifestBytes bounds the first member.
 //

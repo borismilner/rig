@@ -36,6 +36,7 @@ import (
 	"github.com/borismilner/rig/internal/observe"
 	"github.com/borismilner/rig/internal/record"
 	"github.com/borismilner/rig/internal/supervise"
+	"github.com/borismilner/rig/internal/watch"
 	"github.com/borismilner/rig/internal/wire"
 	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 	"github.com/borismilner/rig/proto/rig/v1/registryv1"
@@ -299,6 +300,9 @@ type Daemon struct {
 	// daemon under test that is dispatched to directly is a real case
 	// (TestSliceFourDemo builds one), and "no listener is running" is a
 	// truthful answer to "stop the listener".
+	watcher    *watch.Watcher
+	watchState *watch.State
+
 	stopMu sync.Mutex
 	stop   context.CancelFunc
 }
@@ -488,6 +492,10 @@ func New(cfg Config) (*Daemon, error) {
 			log.Warn("old signals could not be aged out", "err", err)
 		}
 	}
+	if err := d.openWatch(); err != nil {
+		_ = d.Close()
+		return nil, err
+	}
 	return d, nil
 }
 
@@ -497,6 +505,12 @@ func New(cfg Config) (*Daemon, error) {
 // and rigd closes it. Safe to call on a daemon with no store.
 func (d *Daemon) Close() error {
 	var errs []error
+	if d.watcher != nil {
+		errs = append(errs, d.watcher.Close())
+	}
+	if d.watchState != nil {
+		errs = append(errs, d.watchState.Close())
+	}
 	if d.stores != nil {
 		errs = append(errs, d.stores.close())
 	}
@@ -612,7 +626,7 @@ func (c *conn) principal() kernel.Principal {
 }
 
 // Serve accepts until the listener closes or ctx ends.
-func (d *Daemon) Serve(ctx context.Context, l net.Listener) error {
+func (d *Daemon) Serve(ctx context.Context, l net.Listener) (serveErr error) {
 	// Derived so rig.down can end Serve the same way SIGTERM does, rather
 	// than through a second shutdown path that would have to be kept in step
 	// with this one. Cancelling the derived context runs exactly the sequence
@@ -624,6 +638,8 @@ func (d *Daemon) Serve(ctx context.Context, l net.Listener) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	d.setStop(cancel)
+	waitWatch := d.startWatch(ctx, cancel)
+	defer func() { cancel(); serveErr = errors.Join(serveErr, waitWatch()) }()
 
 	// The free files' committer lives exactly as long as serving does, and
 	// its last pass runs after the connections below have drained.

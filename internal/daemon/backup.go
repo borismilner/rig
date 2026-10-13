@@ -100,6 +100,7 @@ func (d *Daemon) createBackup(ctx context.Context, st *record.Store, at time.Tim
 			"%s: %w", dir, err)
 	}
 	member := filepath.Join(work, backup.RecordMember)
+	watchMember := filepath.Join(work, backup.WatchMember)
 	// ⛔ TWO NAMED REMOVES AND NOT os.RemoveAll. Both paths were built by this
 	// function moments ago and nothing else has ever seen them, so there is
 	// nothing here for a recursive delete to reach that a named one cannot -
@@ -107,12 +108,21 @@ func (d *Daemon) createBackup(ctx context.Context, st *record.Store, at time.Tim
 	// leftover .snapshot-* directory after a crash is named for what it is.
 	defer func() {
 		_ = os.Remove(member)
+		_ = os.Remove(watchMember)
 		_ = os.Remove(work)
 	}()
 
 	snap, err := st.Snapshot(ctx, member)
 	if err != nil {
 		return nil, fmt.Errorf("backup.create: %w", err)
+	}
+
+	sources := []backup.Source{{Name: backup.RecordMember, Path: member}}
+	if d.watchState != nil {
+		if err := d.watchState.Snapshot(ctx, watchMember); err != nil {
+			return nil, fmt.Errorf("backup.create: watch snapshot: %w", err)
+		}
+		sources = append(sources, backup.Source{Name: backup.WatchMember, Path: watchMember})
 	}
 
 	// EVERY NUMBER COMES OUT OF THE SNAPSHOT. Snapshot reads user_version and
@@ -128,7 +138,7 @@ func (d *Daemon) createBackup(ctx context.Context, st *record.Store, at time.Tim
 		RigVersion:      d.version,
 		SchemaVersion:   uint64(snap.SchemaVersion),
 		Wire:            d.wire,
-	}, []backup.Source{{Name: backup.RecordMember, Path: member}})
+	}, sources)
 	if err != nil {
 		return nil, fmt.Errorf("backup.create: %w", err)
 	}

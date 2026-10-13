@@ -223,7 +223,7 @@ func restoreRefusal(err error) error {
 		Precondition: "the archive is one this build can read whole",
 		Actual:       "it is not",
 		Fix: "nothing was restored and the estate was not touched. A rig " +
-			"archive carries manifest.json and record.db and nothing else",
+			"archive carries manifest.json, record.db and optional watch.db",
 		FixCommand: "tar tzf <archive>",
 	})
 }

@@ -106,6 +106,9 @@ func (d *Daemon) watchResume(ctx context.Context, wait func() error, read func()
 		if gone < resumeFloor {
 			continue // the wall clock was set; nobody slept
 		}
+		if d.watcher != nil {
+			d.watcher.Wake()
+		}
 		d.log.Info("the machine resumed", "slept", gone.Round(time.Second))
 		d.events.publishRig("system.resumed", &registryv1.SystemResumed{SleptMs: uint64(gone.Milliseconds())}) //nolint:gosec // at least resumeFloor
 	}

@@ -16,6 +16,12 @@ import (
 // version-1 reader also discards immutable deliveries). SQL is unchanged.
 const stateVersion = 3
 
+// DBName is the estate-local database included in backups.
+const DBName = "watch.db"
+
+// SchemaVersion is the version reported in the estate inventory.
+const SchemaVersion = stateVersion
+
 // State is the watch namespace in an estate's existing SQLite state area.
 // Its owner holds the estate's single-instance lock; Close follows Run's exit.
 type State struct {
@@ -29,7 +35,7 @@ func OpenState(ctx context.Context, estate string) (*State, error) {
 	if err != nil {
 		return nil, err
 	}
-	return openState(ctx, filepath.Join(dir, "watch.db"))
+	return openState(ctx, filepath.Join(dir, DBName))
 }
 
 func openState(ctx context.Context, path string) (*State, error) {
@@ -195,4 +201,13 @@ func (s *State) save(ctx context.Context, c *Config, updates []update, removed [
 		}
 	}
 	return tx.Commit()
+}
+
+// Snapshot copies committed WAL contents into a standalone database.
+func (s *State) Snapshot(ctx context.Context, dst string) error {
+	if !filepath.IsAbs(dst) {
+		return errors.New("watch: snapshot destination must be absolute")
+	}
+	_, err := s.db.ExecContext(ctx, "VACUUM INTO ?", dst)
+	return err
 }

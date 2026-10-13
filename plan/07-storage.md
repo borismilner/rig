@@ -143,6 +143,7 @@ centre - so for those the rule above is not merely unmet, it is unmeetable by re
 | ⛔ **The record store** | **nothing. It IS the record** - §39, and §7 exempts it from every retention rung for that reason | ⛔ **yes.** §39's claim is *"nothing is ever lost"*, and **a store with no backup does not have that property** |
 | **Audit log** | nothing. It is the record | **yes** |
 | **Notification centre** | nothing. §12 makes it the record of record | **yes** |
+| Filesystem watch state (`watch.db`) | snapshots can be rebuilt; pending debounce cannot | **yes**, transactional snapshot in `rig backup` |
 | Registry, peers WAL, resolved snapshots | live registration and re-resolution | no. Rebuilt at start |
 | A program's database | the program's own files, per the rule above | already covered, per program |
 

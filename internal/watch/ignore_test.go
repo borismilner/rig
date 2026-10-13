@@ -190,3 +190,37 @@ func TestIgnoreSchemaUpgradesAndRefusesOlderReaders(t *testing.T) {
 		})
 	}
 }
+
+func TestInitialConfigDropsUnavailableOldRootBeforeScanning(t *testing.T) {
+	h := newEngineTest(t)
+	root := filepath.Join(h.root, "nested")
+	if err := os.Mkdir(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	h.configure(Group{ID: "notes", Paths: []string{root}})
+	if err := h.w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(root); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(h.root); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(t.TempDir(), h.root); err != nil {
+		t.Fatal(err)
+	}
+	empty := Config{}
+	w, err := New(context.Background(), h.state, Options{
+		InitialConfig: &empty,
+		Publish:       func(context.Context, Event) error { return nil },
+		ReportGap:     func(context.Context, Gap) error { return nil },
+	})
+	if err != nil {
+		t.Fatalf("removed watch still scanned its obsolete symlink root: %v", err)
+	}
+	defer func() { _ = w.Close() }()
+	if len(w.Config().Groups) != 0 || w.Usage().Watches != 0 {
+		t.Fatal("removed watch retained its subscriptions")
+	}
+}

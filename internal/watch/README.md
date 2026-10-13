@@ -1,18 +1,19 @@
 # Filesystem watch engine
 
-`watch` is an estate-local event source. It does not register wire verbs,
-load production settings, or start itself inside rigd.
+`watch` is an estate-local event source. The daemon adapter starts it on
+named estates and publishes its events through the existing bus. Unnamed
+estates cannot enable durable watches.
 
 The owner holds the estate's single-instance lock, calls `OpenState`,
 constructs `New` with its event-bus and coverage-log callbacks, applies
-resolved settings with `Configure`, and calls `Run`. Cancel the context or
+resolved settings through `Options.InitialConfig`, and calls `Run`. Cancel the context or
 call `Close`, wait for `Run` to return, then close `State`. Errors require
 the owner to report the failure and restart with `New` after fixing it.
 
 `Declare` adds or replaces one group; `Configure` replaces all groups.
 Removing a group discards its pending batch and delivery. `Config` returns
-an independent copy. The JSON `ReadConfig` helper is for embedding and
-tests; production should adapt the existing resolver into `Configure`.
+an independent copy. The JSON `ReadConfig` helper is for embedding and tests. The daemon maps
+the existing resolver into `InitialConfig` before scanning old paths.
 
 ```json
 {
@@ -102,7 +103,29 @@ suspend or restart.
 State uses rig's SQLite opener and migrations in the named estate's
 `watch.db`. Schema 3 protects ignore settings and immutable deliveries
 from older readers; schemas 1 and 2 upgrade without changing SQL tables.
-Before production
-use, the daemon integration must include this namespace in its state
-inventory and backups, register the watch event family, connect coverage
-and resume hooks, and expose settings through the existing resolver.
+The daemon lists this namespace in `rig store list` and snapshots it into
+`rig backup`; `rig restore` accepts both older record-only archives and
+archives carrying `watch.db`. The archive preserves pending work, not the
+external settings file or watched files; restore those separately.
+
+Daemon settings are `watch.groups`, `watch.max_watches` and
+`watch.max_entries`, declared in the existing schema. They are startup
+settings (`needs-restart`), from the normal TOML, environment and flag
+layers. Runtime overrides are temporary as for other rig settings; edit
+the user settings file for changes that must survive a restart:
+
+```toml
+[watch]
+max_watches = 8192
+max_entries = 100000
+[[watch.groups]]
+id = "buddy-notes"
+paths = ["/srv/notes"]
+ignore = ["*.tmp"]
+debounce_ms = 900000
+```
+
+Startup logs report subscription usage and the kernel ceiling. Coverage
+gaps enter the existing log coverage store. Resume wakes pending deadlines;
+watch failure ends the daemon with an error for its supervisor to restart.
+Shutdown waits for the watch loop before closing its database.

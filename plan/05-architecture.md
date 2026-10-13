@@ -478,6 +478,14 @@ cannot disable defaults. Excluded trees use neither snapshot entries nor
 recursive subscriptions. `internal/watch/README.md` defines the exact
 defaults, pattern syntax and overlapping-group behavior.
 
+The filesystem watch adapter uses the existing resolved settings:
+`watch.groups`, `watch.max_watches`, and `watch.max_entries`. This initial
+file-driven integration applies them at startup (`needs-restart`), before
+scanning saved paths. It runs on named estates with a group (none: no
+`watch.db`), publishes `rig.watch.<id>.changed` and `.fired`, records
+gaps, wakes on resume, and drains before closing state. Watch failures
+stop rigd with an error. Runtime watch declarations remain future work.
+
 ### Pressure is a source too, and this kernel will not wake us for it
 
 §33 banked a finding this answers: no disk budget, and ENOSPC missing from the coverage log's

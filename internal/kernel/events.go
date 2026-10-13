@@ -21,6 +21,8 @@ var RigEventRoots = map[string]bool{
 	"shared": true,
 	// plan/55 slice 3: the board posts panel.changed and panel.acted.
 	"panel": true,
+	// Filesystem watches publish rig.watch.<id>.*.
+	"rig": true,
 }
 
 // MaxEventKind bounds a kind or a pattern, in bytes.
