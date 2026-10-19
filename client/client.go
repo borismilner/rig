@@ -255,6 +255,11 @@ func (c *Client) read(cn *conn) {
 }
 
 func (c *Client) answer(cn *conn, f *rigv1.Frame) {
+	if k := f.GetKind(); k == rigv1.FrameKind_FRAME_KIND_RESPONSE || k == rigv1.FrameKind_FRAME_KIND_ERROR {
+		// A reply nobody is waiting for. Answering it would make the daemon
+		// answer in turn, and the two would trade error frames without end.
+		return
+	}
 	if c.handler == nil || f.GetKind() != rigv1.FrameKind_FRAME_KIND_REQUEST {
 		_ = cn.w.WriteFrame(&rigv1.Frame{
 			StreamId: f.GetStreamId(),

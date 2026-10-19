@@ -752,6 +752,12 @@ func (d *Daemon) handle(ctx context.Context, nc net.Conn) {
 	}
 }
 
+// isReply reports whether f ends a call, so it is never itself answered.
+func isReply(f *rigv1.Frame) bool {
+	k := f.GetKind()
+	return k == rigv1.FrameKind_FRAME_KIND_RESPONSE || k == rigv1.FrameKind_FRAME_KIND_ERROR
+}
+
 // deliver hands a reply to whoever is waiting for that stream. It reports
 // whether the frame was a reply at all.
 func (c *conn) deliver(f *rigv1.Frame) bool {
@@ -769,6 +775,12 @@ func (c *conn) deliver(f *rigv1.Frame) bool {
 }
 
 func (d *Daemon) dispatch(ctx context.Context, c *conn, f *rigv1.Frame) {
+	if isReply(f) {
+		// A reply nobody is waiting for (its call timed out, say). Answering
+		// it would make the peer answer in turn, and two ends would trade
+		// error frames for as long as the connection lives.
+		return
+	}
 	if f.GetKind() != rigv1.FrameKind_FRAME_KIND_REQUEST {
 		// M0 speaks request/response only. Refusing rather than ignoring is
 		// what makes an unimplemented kind visible instead of a hang.
