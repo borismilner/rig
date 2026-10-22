@@ -1,1 +1,1 @@
-CLAUDE.md
+../logbook/projects/rig/AGENTS.md
