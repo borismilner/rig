@@ -37,8 +37,12 @@ square behind.
   stream. **Unverified**: whether each prompts, whether each can reach
   an unfocused or covered window, and whether any needs a Shell
   extension. A spike must answer this before a design is written.
-- Whether it is a rig capability or the existing `snapper` program
-  (plan section 25, row 5) registered with rig. Section 38: search for a
-  Go library before writing one.
-- Who may call it, and whether a capture is logged. Capturing the whole
-  system is a privacy surface; the access rule is for Boris to set.
+- Section 38: search for a Go library before writing one.
+
+### Ruled, Boris 2026-10-27
+
+- **It is part of rig.** Infrastructural, not a program. `snapper` may
+  one day be upgraded to use it; that is not now.
+- **Anybody can call it.** No caller allow-list.
+- **Every capture is logged** (caller seat, target, time, result), in
+  the section 15 usage log.
