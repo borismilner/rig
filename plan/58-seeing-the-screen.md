@@ -30,13 +30,8 @@ required capture, so the ban on the capability is lifted. **The ban on
 the failure mode stays:** no tool that falls back to X11 and leaves a
 square behind.
 
-### Not yet decided (open, to be ruled in a decision file)
+### Not yet decided
 
-- Mechanism on GNOME Wayland: the `xdg-desktop-portal` Screenshot and
-  ScreenCast interfaces, GNOME Shell's own interface, or a screencast
-  stream. **Unverified**: whether each prompts, whether each can reach
-  an unfocused or covered window, and whether any needs a Shell
-  extension. A spike must answer this before a design is written.
 - Section 38: search for a Go library before writing one.
 
 ### Ruled, Boris 2026-10-27
@@ -46,3 +41,35 @@ square behind.
 - **Anybody can call it.** No caller allow-list.
 - **Every capture is logged** (caller seat, target, time, result), in
   the section 15 usage log.
+
+### Mechanism chosen, and the spike that backs it (2026-10-27)
+
+**A rig-owned GNOME Shell extension that exports a D-Bus capture
+service.** Rejected: the portal Screenshot (full screen, prompts), the
+portal ScreenCast (a picker, and the dialog only for the focused app) and
+`org.gnome.Shell.Screenshot` (refuses non-GNOME callers on 50.1).
+
+**Spike result**, GNOME Shell 50.1, run in an isolated headless Shell
+(`tools/shellcapture-spike/`), three overlapping GTK windows of known
+colour. `window actor.paint_to_content(null)` then
+`Shell.Screenshot.composite_to_stream` (asynchronous: close the stream
+only after the promise resolves) produced PNGs whose centre pixel matched
+the window colour for:
+
+| Window state | Captured correctly |
+|---|---|
+| unfocused | yes |
+| covered by two other windows | yes |
+| on another workspace | yes |
+| minimized | yes |
+
+- The PNG is the actor's whole paint, shadow included (428x329 for a
+  400x300 frame); the corner is transparent. The frame rect is known, so
+  a crop is possible.
+- **Not yet tested:** the live session (the extension must be installed
+  and the Shell restarted by a log-out, since Wayland cannot reload it);
+  fractional scaling and multiple monitors; a window in a fullscreen app;
+  Xwayland windows; the cursor; video or screencast.
+- The extension is tied to the Shell major version (`shell-version`).
+- Section 38 search: no Go library does this, since the work is inside
+  the compositor. Reused: `godbus/dbus` on the daemon side.
