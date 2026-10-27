@@ -110,6 +110,8 @@ var valuedFlags = map[string]bool{
 	// rig capture shot (section 58). title is above.
 	"window": true, "app": true, "output": true, "area": true, "crop": true,
 	"format": true, "quality": true, "max-dim": true,
+	// rig hand grant (plan/05 section 5m, G1).
+	"why": true, "for": true, "scope": true,
 	// rig queue (section 16).
 	"payload": true,
 	// rig store (section 48).

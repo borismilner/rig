@@ -54,6 +54,12 @@ func TestPartitionAcceptsFlagsAnywhere(t *testing.T) {
 			[]string{"fakeapp"},
 		},
 		{
+			"hand grant's valued flags",
+			[]string{"grant", "--why", "three scripts", "--for", "30s", "--scope", "Editor"},
+			[]string{"--why", "three scripts", "--for", "30s", "--scope", "Editor"},
+			[]string{"grant"},
+		},
+		{
 			"valued flag with equals",
 			[]string{"fakeapp", "--timeout=9s"},
 			[]string{"--timeout=9s"},
