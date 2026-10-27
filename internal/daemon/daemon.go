@@ -28,6 +28,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/borismilner/rig/internal/audio"
+	"github.com/borismilner/rig/internal/capture"
 	"github.com/borismilner/rig/internal/config"
 	"github.com/borismilner/rig/internal/coord"
 	"github.com/borismilner/rig/internal/instance"
@@ -170,6 +171,10 @@ type Config struct {
 	// it and closes it; nil means this daemon is silent, and rig.sound and
 	// rig.say refuse naming that.
 	Audio *audio.Audio
+
+	// Capture sees the screen (section 58). rigd builds it; nil means this
+	// daemon is blind, and capture.list and capture.shot refuse naming that.
+	Capture *capture.Service
 }
 
 // Daemon serves one socket.
@@ -203,6 +208,8 @@ type Daemon struct {
 	hand *handDesk
 	// audio sounds and speaks; nil is a silent daemon (sound.go).
 	audio *audio.Audio
+	// capture sees the screen; nil is a blind daemon (capture.go).
+	capture *capture.Service
 
 	version string
 	wire    string
@@ -464,8 +471,9 @@ func New(cfg Config) (*Daemon, error) {
 			kept: map[string]string{}, reading: map[string]read{},
 			helloOf: map[string]*conn{}, stale: map[string]bool{},
 		},
-		audio: cfg.Audio,
-		hand:  newHandDesk(time.Now),
+		audio:   cfg.Audio,
+		capture: cfg.Capture,
+		hand:    newHandDesk(time.Now),
 
 		settings:     cfg.Settings,
 		logLevel:     cfg.LogLevel,
@@ -1178,6 +1186,7 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	case "events.publish", "events.wait", "timer.arm", "timer.disarm", "timer.list",
 		"config.get", "config.set", "logs.query", "logs.ingest", "logs.coverage", "logs.pin", "notify", "toast.wait", "toast.dnd", "toast.reply", "toast.answer",
 		"toast.retract", "ask.open", "ask.get", "ask.list", "ask.answer", "ask.withdraw",
+		"capture.list", "capture.shot",
 		"sound", "say",
 		"hand.request", "hand.step", "hand.release", "hand.wait", "hand.answer", "hand.strip":
 		d.serveToast(ctx, c, f, command)

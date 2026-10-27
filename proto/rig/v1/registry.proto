@@ -964,3 +964,116 @@ message LogsPinResponse {
   // False when it was already as asked.
   bool changed = 1;
 }
+
+// Section 58: seeing the screen. Anybody may call these and every capture is
+// logged. A picture is a file in rigd's private capture directory; the answer
+// carries its path and, when asked, the bytes.
+
+// CaptureWindow is one top-level window, whether or not it is visible.
+message CaptureWindow {
+  // The compositor's id; stable while the window lives.
+  uint64 id = 1;
+  string title = 2;
+  // The application class.
+  string app = 3;
+  uint32 pid = 4;
+  // Zero-based workspace; -1 for a window on all of them.
+  int32 workspace = 5;
+  bool minimized = 6;
+  bool focused = 7;
+  // False when the window is hidden: minimized, or on another workspace.
+  bool visible = 8;
+  bool fullscreen = 9;
+  bool modal = 10;
+  // The window's frame in desktop pixels.
+  int32 x = 11;
+  int32 y = 12;
+  uint32 w = 13;
+  uint32 h = 14;
+}
+
+// CaptureOutput is one monitor.
+message CaptureOutput {
+  uint32 index = 1;
+  string name = 2;
+  int32 x = 3;
+  int32 y = 4;
+  uint32 w = 5;
+  uint32 h = 6;
+  double scale = 7;
+  bool primary = 8;
+}
+
+// CaptureRect is a rectangle in pixels.
+message CaptureRect {
+  int32 x = 1;
+  int32 y = 2;
+  uint32 w = 3;
+  uint32 h = 4;
+}
+
+// CaptureListRequest lists what can be captured. A match keeps the windows
+// whose title or application contains it, ignoring case.
+message CaptureListRequest {
+  string match = 1;
+}
+
+message CaptureListResponse {
+  // Bottom of the stack first, so the last is the topmost.
+  repeated CaptureWindow windows = 1;
+  repeated CaptureOutput outputs = 2;
+  // The extension's contract number and the Shell version.
+  uint32 api = 3;
+  string shell = 4;
+}
+
+// CaptureShotRequest takes one picture. The target is "window", "output",
+// "screen" (every monitor as one picture) or "area"; when it is empty it is
+// a window if window, title or app is set, and an area if area is set.
+message CaptureShotRequest {
+  string target = 1;
+  // Window: its id from capture.list, or substrings of its title and
+  // application. A match naming several windows is refused with the
+  // candidates unless first is set (the focused one, else the topmost).
+  uint64 window = 2;
+  string title = 3;
+  string app = 4;
+  bool first = 5;
+  // Output: a monitor index from capture.list.
+  uint32 output = 6;
+  // Area: a rectangle of the desktop in pixels.
+  CaptureRect area = 7;
+  // The picture: "png" (the default) or "jpeg", its JPEG quality 1 to 100,
+  // the longest side to shrink to, and a rectangle of the picture to keep.
+  string format = 8;
+  uint32 quality = 9;
+  uint32 max_dim = 10;
+  CaptureRect crop = 11;
+  // A window is cropped to its frame unless this keeps its shadow.
+  bool keep_shadow = 12;
+  // Draw the pointer (not for a window).
+  bool cursor = 13;
+  // Return the bytes as well, if the picture is at most this many.
+  uint32 inline_max = 14;
+}
+
+message CaptureShotResponse {
+  // Where the picture is, readable by the caller's user.
+  string path = 1;
+  string format = 2;
+  uint64 bytes = 3;
+  uint32 width = 4;
+  uint32 height = 5;
+  string sha256 = 6;
+  // What was captured, in words.
+  string target = 7;
+  CaptureWindow window = 8;
+  CaptureOutput output = 9;
+  // RFC 3339, and how long the capture took.
+  string taken_at = 10;
+  uint32 took_ms = 11;
+  // The bytes, only when inline_max asked for them and they fit.
+  bytes data = 12;
+  // True when the picture still holds the window's shadow margin.
+  bool shadow = 13;
+}

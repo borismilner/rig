@@ -195,8 +195,8 @@ func Defaults() Limits {
 		Concurrent:  4,
 		MaxBytes:    96 << 20,
 		MaxPixels:   34_000_000, // 7680x4320 and a little over
-		KeepFiles:   200,
-		KeepBytes:   512 << 20,
+		KeepFiles:   100,
+		KeepBytes:   128 << 20,
 		KeepAge:     24 * time.Hour,
 		InlineBytes: 1 << 20,
 	}

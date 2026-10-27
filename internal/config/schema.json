@@ -46,6 +46,20 @@
         }
       }
     },
+    "capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "timeout_ms": {"type": "integer", "minimum": 1000, "maximum": 120000, "default": 15000, "x-rig-apply": "live", "description": "how long one capture may take before it is abandoned"},
+        "concurrent": {"type": "integer", "minimum": 1, "maximum": 16, "default": 4, "x-rig-apply": "live", "description": "captures in flight at once; more are refused as busy"},
+        "max_pixels": {"type": "integer", "minimum": 1000000, "maximum": 134217728, "default": 34000000, "x-rig-apply": "live", "description": "most pixels in one picture, width times height"},
+        "max_file_mb": {"type": "integer", "minimum": 1, "maximum": 1024, "default": 96, "x-rig-apply": "live", "description": "largest file the compositor may hand back"},
+        "keep_files": {"type": "integer", "minimum": 1, "maximum": 100000, "default": 100, "x-rig-apply": "live", "description": "pictures kept in the capture directory"},
+        "keep_mb": {"type": "integer", "minimum": 1, "maximum": 1048576, "default": 128, "x-rig-apply": "live", "description": "total size of the pictures kept"},
+        "keep_hours": {"type": "integer", "minimum": 1, "maximum": 87600, "default": 24, "x-rig-apply": "live", "description": "age after which a picture is deleted"},
+        "inline_kb": {"type": "integer", "minimum": 1, "maximum": 16384, "default": 1024, "x-rig-apply": "live", "description": "most bytes a capture may return inline"}
+      }
+    },
     "watch": {
       "type": "object",
       "additionalProperties": false,

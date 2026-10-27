@@ -59,6 +59,8 @@ var bridged = map[string]struct {
 	"ask.list":       {func() proto.Message { return &registryv1.AskListRequest{} }, func() proto.Message { return &registryv1.AskListResponse{} }},
 	"ask.answer":     {func() proto.Message { return &registryv1.AskAnswerRequest{} }, func() proto.Message { return &registryv1.AskAnswerResponse{} }},
 	"ask.withdraw":   {func() proto.Message { return &registryv1.AskWithdrawRequest{} }, func() proto.Message { return &registryv1.AskWithdrawResponse{} }},
+	"capture.list":   {func() proto.Message { return &registryv1.CaptureListRequest{} }, func() proto.Message { return &registryv1.CaptureListResponse{} }},
+	"capture.shot":   {func() proto.Message { return &registryv1.CaptureShotRequest{} }, func() proto.Message { return &registryv1.CaptureShotResponse{} }},
 	"panel.put":      {func() proto.Message { return &verbsv1.PanelPutRequest{} }, func() proto.Message { return &verbsv1.PanelPutResponse{} }},
 	"panel.list":     {func() proto.Message { return &verbsv1.PanelListRequest{} }, func() proto.Message { return &verbsv1.PanelListResponse{} }},
 	"panel.act":      {func() proto.Message { return &verbsv1.PanelActRequest{} }, func() proto.Message { return &verbsv1.PanelActResponse{} }},

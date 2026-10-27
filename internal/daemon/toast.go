@@ -214,6 +214,8 @@ func (d *Daemon) serveToast(ctx context.Context, c *conn, f *rigv1.Frame, comman
 		d.serveToastRetract(ctx, c, f)
 	case "ask.open", "ask.get", "ask.list", "ask.answer", "ask.withdraw":
 		d.serveAsk(ctx, c, f, command)
+	case "capture.list", "capture.shot":
+		d.serveCapture(ctx, c, f, command)
 	case "sound", "say":
 		d.serveSound(ctx, c, f, command)
 	case "events.publish", "events.wait", "timer.arm", "timer.disarm", "timer.list":

@@ -320,6 +320,7 @@ func run() error {
 		Scan:         found.scan,
 		Overrides:    found.overrides,
 		Audio:        sounds,
+		Capture:      newCapture(log, settings, *estate),
 	})
 	if err != nil {
 		return err

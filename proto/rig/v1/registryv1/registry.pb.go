@@ -5735,6 +5735,752 @@ func (x *LogsPinResponse) GetChanged() bool {
 	return false
 }
 
+// CaptureWindow is one top-level window, whether or not it is visible.
+type CaptureWindow struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The compositor's id; stable while the window lives.
+	Id    uint64 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	// The application class.
+	App string `protobuf:"bytes,3,opt,name=app,proto3" json:"app,omitempty"`
+	Pid uint32 `protobuf:"varint,4,opt,name=pid,proto3" json:"pid,omitempty"`
+	// Zero-based workspace; -1 for a window on all of them.
+	Workspace int32 `protobuf:"varint,5,opt,name=workspace,proto3" json:"workspace,omitempty"`
+	Minimized bool  `protobuf:"varint,6,opt,name=minimized,proto3" json:"minimized,omitempty"`
+	Focused   bool  `protobuf:"varint,7,opt,name=focused,proto3" json:"focused,omitempty"`
+	// False when the window is hidden: minimized, or on another workspace.
+	Visible    bool `protobuf:"varint,8,opt,name=visible,proto3" json:"visible,omitempty"`
+	Fullscreen bool `protobuf:"varint,9,opt,name=fullscreen,proto3" json:"fullscreen,omitempty"`
+	Modal      bool `protobuf:"varint,10,opt,name=modal,proto3" json:"modal,omitempty"`
+	// The window's frame in desktop pixels.
+	X             int32  `protobuf:"varint,11,opt,name=x,proto3" json:"x,omitempty"`
+	Y             int32  `protobuf:"varint,12,opt,name=y,proto3" json:"y,omitempty"`
+	W             uint32 `protobuf:"varint,13,opt,name=w,proto3" json:"w,omitempty"`
+	H             uint32 `protobuf:"varint,14,opt,name=h,proto3" json:"h,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CaptureWindow) Reset() {
+	*x = CaptureWindow{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[79]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CaptureWindow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CaptureWindow) ProtoMessage() {}
+
+func (x *CaptureWindow) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[79]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CaptureWindow.ProtoReflect.Descriptor instead.
+func (*CaptureWindow) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{79}
+}
+
+func (x *CaptureWindow) GetId() uint64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *CaptureWindow) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *CaptureWindow) GetApp() string {
+	if x != nil {
+		return x.App
+	}
+	return ""
+}
+
+func (x *CaptureWindow) GetPid() uint32 {
+	if x != nil {
+		return x.Pid
+	}
+	return 0
+}
+
+func (x *CaptureWindow) GetWorkspace() int32 {
+	if x != nil {
+		return x.Workspace
+	}
+	return 0
+}
+
+func (x *CaptureWindow) GetMinimized() bool {
+	if x != nil {
+		return x.Minimized
+	}
+	return false
+}
+
+func (x *CaptureWindow) GetFocused() bool {
+	if x != nil {
+		return x.Focused
+	}
+	return false
+}
+
+func (x *CaptureWindow) GetVisible() bool {
+	if x != nil {
+		return x.Visible
+	}
+	return false
+}
+
+func (x *CaptureWindow) GetFullscreen() bool {
+	if x != nil {
+		return x.Fullscreen
+	}
+	return false
+}
+
+func (x *CaptureWindow) GetModal() bool {
+	if x != nil {
+		return x.Modal
+	}
+	return false
+}
+
+func (x *CaptureWindow) GetX() int32 {
+	if x != nil {
+		return x.X
+	}
+	return 0
+}
+
+func (x *CaptureWindow) GetY() int32 {
+	if x != nil {
+		return x.Y
+	}
+	return 0
+}
+
+func (x *CaptureWindow) GetW() uint32 {
+	if x != nil {
+		return x.W
+	}
+	return 0
+}
+
+func (x *CaptureWindow) GetH() uint32 {
+	if x != nil {
+		return x.H
+	}
+	return 0
+}
+
+// CaptureOutput is one monitor.
+type CaptureOutput struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Index         uint32                 `protobuf:"varint,1,opt,name=index,proto3" json:"index,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	X             int32                  `protobuf:"varint,3,opt,name=x,proto3" json:"x,omitempty"`
+	Y             int32                  `protobuf:"varint,4,opt,name=y,proto3" json:"y,omitempty"`
+	W             uint32                 `protobuf:"varint,5,opt,name=w,proto3" json:"w,omitempty"`
+	H             uint32                 `protobuf:"varint,6,opt,name=h,proto3" json:"h,omitempty"`
+	Scale         float64                `protobuf:"fixed64,7,opt,name=scale,proto3" json:"scale,omitempty"`
+	Primary       bool                   `protobuf:"varint,8,opt,name=primary,proto3" json:"primary,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CaptureOutput) Reset() {
+	*x = CaptureOutput{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[80]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CaptureOutput) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CaptureOutput) ProtoMessage() {}
+
+func (x *CaptureOutput) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[80]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CaptureOutput.ProtoReflect.Descriptor instead.
+func (*CaptureOutput) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{80}
+}
+
+func (x *CaptureOutput) GetIndex() uint32 {
+	if x != nil {
+		return x.Index
+	}
+	return 0
+}
+
+func (x *CaptureOutput) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CaptureOutput) GetX() int32 {
+	if x != nil {
+		return x.X
+	}
+	return 0
+}
+
+func (x *CaptureOutput) GetY() int32 {
+	if x != nil {
+		return x.Y
+	}
+	return 0
+}
+
+func (x *CaptureOutput) GetW() uint32 {
+	if x != nil {
+		return x.W
+	}
+	return 0
+}
+
+func (x *CaptureOutput) GetH() uint32 {
+	if x != nil {
+		return x.H
+	}
+	return 0
+}
+
+func (x *CaptureOutput) GetScale() float64 {
+	if x != nil {
+		return x.Scale
+	}
+	return 0
+}
+
+func (x *CaptureOutput) GetPrimary() bool {
+	if x != nil {
+		return x.Primary
+	}
+	return false
+}
+
+// CaptureRect is a rectangle in pixels.
+type CaptureRect struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	X             int32                  `protobuf:"varint,1,opt,name=x,proto3" json:"x,omitempty"`
+	Y             int32                  `protobuf:"varint,2,opt,name=y,proto3" json:"y,omitempty"`
+	W             uint32                 `protobuf:"varint,3,opt,name=w,proto3" json:"w,omitempty"`
+	H             uint32                 `protobuf:"varint,4,opt,name=h,proto3" json:"h,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CaptureRect) Reset() {
+	*x = CaptureRect{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[81]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CaptureRect) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CaptureRect) ProtoMessage() {}
+
+func (x *CaptureRect) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[81]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CaptureRect.ProtoReflect.Descriptor instead.
+func (*CaptureRect) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{81}
+}
+
+func (x *CaptureRect) GetX() int32 {
+	if x != nil {
+		return x.X
+	}
+	return 0
+}
+
+func (x *CaptureRect) GetY() int32 {
+	if x != nil {
+		return x.Y
+	}
+	return 0
+}
+
+func (x *CaptureRect) GetW() uint32 {
+	if x != nil {
+		return x.W
+	}
+	return 0
+}
+
+func (x *CaptureRect) GetH() uint32 {
+	if x != nil {
+		return x.H
+	}
+	return 0
+}
+
+// CaptureListRequest lists what can be captured. A match keeps the windows
+// whose title or application contains it, ignoring case.
+type CaptureListRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Match         string                 `protobuf:"bytes,1,opt,name=match,proto3" json:"match,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CaptureListRequest) Reset() {
+	*x = CaptureListRequest{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[82]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CaptureListRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CaptureListRequest) ProtoMessage() {}
+
+func (x *CaptureListRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[82]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CaptureListRequest.ProtoReflect.Descriptor instead.
+func (*CaptureListRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{82}
+}
+
+func (x *CaptureListRequest) GetMatch() string {
+	if x != nil {
+		return x.Match
+	}
+	return ""
+}
+
+type CaptureListResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Bottom of the stack first, so the last is the topmost.
+	Windows []*CaptureWindow `protobuf:"bytes,1,rep,name=windows,proto3" json:"windows,omitempty"`
+	Outputs []*CaptureOutput `protobuf:"bytes,2,rep,name=outputs,proto3" json:"outputs,omitempty"`
+	// The extension's contract number and the Shell version.
+	Api           uint32 `protobuf:"varint,3,opt,name=api,proto3" json:"api,omitempty"`
+	Shell         string `protobuf:"bytes,4,opt,name=shell,proto3" json:"shell,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CaptureListResponse) Reset() {
+	*x = CaptureListResponse{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[83]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CaptureListResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CaptureListResponse) ProtoMessage() {}
+
+func (x *CaptureListResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[83]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CaptureListResponse.ProtoReflect.Descriptor instead.
+func (*CaptureListResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{83}
+}
+
+func (x *CaptureListResponse) GetWindows() []*CaptureWindow {
+	if x != nil {
+		return x.Windows
+	}
+	return nil
+}
+
+func (x *CaptureListResponse) GetOutputs() []*CaptureOutput {
+	if x != nil {
+		return x.Outputs
+	}
+	return nil
+}
+
+func (x *CaptureListResponse) GetApi() uint32 {
+	if x != nil {
+		return x.Api
+	}
+	return 0
+}
+
+func (x *CaptureListResponse) GetShell() string {
+	if x != nil {
+		return x.Shell
+	}
+	return ""
+}
+
+// CaptureShotRequest takes one picture. The target is "window", "output",
+// "screen" (every monitor as one picture) or "area"; when it is empty it is
+// a window if window, title or app is set, and an area if area is set.
+type CaptureShotRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Target string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	// Window: its id from capture.list, or substrings of its title and
+	// application. A match naming several windows is refused with the
+	// candidates unless first is set (the focused one, else the topmost).
+	Window uint64 `protobuf:"varint,2,opt,name=window,proto3" json:"window,omitempty"`
+	Title  string `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	App    string `protobuf:"bytes,4,opt,name=app,proto3" json:"app,omitempty"`
+	First  bool   `protobuf:"varint,5,opt,name=first,proto3" json:"first,omitempty"`
+	// Output: a monitor index from capture.list.
+	Output uint32 `protobuf:"varint,6,opt,name=output,proto3" json:"output,omitempty"`
+	// Area: a rectangle of the desktop in pixels.
+	Area *CaptureRect `protobuf:"bytes,7,opt,name=area,proto3" json:"area,omitempty"`
+	// The picture: "png" (the default) or "jpeg", its JPEG quality 1 to 100,
+	// the longest side to shrink to, and a rectangle of the picture to keep.
+	Format  string       `protobuf:"bytes,8,opt,name=format,proto3" json:"format,omitempty"`
+	Quality uint32       `protobuf:"varint,9,opt,name=quality,proto3" json:"quality,omitempty"`
+	MaxDim  uint32       `protobuf:"varint,10,opt,name=max_dim,json=maxDim,proto3" json:"max_dim,omitempty"`
+	Crop    *CaptureRect `protobuf:"bytes,11,opt,name=crop,proto3" json:"crop,omitempty"`
+	// A window is cropped to its frame unless this keeps its shadow.
+	KeepShadow bool `protobuf:"varint,12,opt,name=keep_shadow,json=keepShadow,proto3" json:"keep_shadow,omitempty"`
+	// Draw the pointer (not for a window).
+	Cursor bool `protobuf:"varint,13,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	// Return the bytes as well, if the picture is at most this many.
+	InlineMax     uint32 `protobuf:"varint,14,opt,name=inline_max,json=inlineMax,proto3" json:"inline_max,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CaptureShotRequest) Reset() {
+	*x = CaptureShotRequest{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[84]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CaptureShotRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CaptureShotRequest) ProtoMessage() {}
+
+func (x *CaptureShotRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[84]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CaptureShotRequest.ProtoReflect.Descriptor instead.
+func (*CaptureShotRequest) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{84}
+}
+
+func (x *CaptureShotRequest) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+func (x *CaptureShotRequest) GetWindow() uint64 {
+	if x != nil {
+		return x.Window
+	}
+	return 0
+}
+
+func (x *CaptureShotRequest) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *CaptureShotRequest) GetApp() string {
+	if x != nil {
+		return x.App
+	}
+	return ""
+}
+
+func (x *CaptureShotRequest) GetFirst() bool {
+	if x != nil {
+		return x.First
+	}
+	return false
+}
+
+func (x *CaptureShotRequest) GetOutput() uint32 {
+	if x != nil {
+		return x.Output
+	}
+	return 0
+}
+
+func (x *CaptureShotRequest) GetArea() *CaptureRect {
+	if x != nil {
+		return x.Area
+	}
+	return nil
+}
+
+func (x *CaptureShotRequest) GetFormat() string {
+	if x != nil {
+		return x.Format
+	}
+	return ""
+}
+
+func (x *CaptureShotRequest) GetQuality() uint32 {
+	if x != nil {
+		return x.Quality
+	}
+	return 0
+}
+
+func (x *CaptureShotRequest) GetMaxDim() uint32 {
+	if x != nil {
+		return x.MaxDim
+	}
+	return 0
+}
+
+func (x *CaptureShotRequest) GetCrop() *CaptureRect {
+	if x != nil {
+		return x.Crop
+	}
+	return nil
+}
+
+func (x *CaptureShotRequest) GetKeepShadow() bool {
+	if x != nil {
+		return x.KeepShadow
+	}
+	return false
+}
+
+func (x *CaptureShotRequest) GetCursor() bool {
+	if x != nil {
+		return x.Cursor
+	}
+	return false
+}
+
+func (x *CaptureShotRequest) GetInlineMax() uint32 {
+	if x != nil {
+		return x.InlineMax
+	}
+	return 0
+}
+
+type CaptureShotResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Where the picture is, readable by the caller's user.
+	Path   string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Format string `protobuf:"bytes,2,opt,name=format,proto3" json:"format,omitempty"`
+	Bytes  uint64 `protobuf:"varint,3,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	Width  uint32 `protobuf:"varint,4,opt,name=width,proto3" json:"width,omitempty"`
+	Height uint32 `protobuf:"varint,5,opt,name=height,proto3" json:"height,omitempty"`
+	Sha256 string `protobuf:"bytes,6,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	// What was captured, in words.
+	Target string         `protobuf:"bytes,7,opt,name=target,proto3" json:"target,omitempty"`
+	Window *CaptureWindow `protobuf:"bytes,8,opt,name=window,proto3" json:"window,omitempty"`
+	Output *CaptureOutput `protobuf:"bytes,9,opt,name=output,proto3" json:"output,omitempty"`
+	// RFC 3339, and how long the capture took.
+	TakenAt string `protobuf:"bytes,10,opt,name=taken_at,json=takenAt,proto3" json:"taken_at,omitempty"`
+	TookMs  uint32 `protobuf:"varint,11,opt,name=took_ms,json=tookMs,proto3" json:"took_ms,omitempty"`
+	// The bytes, only when inline_max asked for them and they fit.
+	Data []byte `protobuf:"bytes,12,opt,name=data,proto3" json:"data,omitempty"`
+	// True when the picture still holds the window's shadow margin.
+	Shadow        bool `protobuf:"varint,13,opt,name=shadow,proto3" json:"shadow,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CaptureShotResponse) Reset() {
+	*x = CaptureShotResponse{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[85]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CaptureShotResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CaptureShotResponse) ProtoMessage() {}
+
+func (x *CaptureShotResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[85]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CaptureShotResponse.ProtoReflect.Descriptor instead.
+func (*CaptureShotResponse) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{85}
+}
+
+func (x *CaptureShotResponse) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *CaptureShotResponse) GetFormat() string {
+	if x != nil {
+		return x.Format
+	}
+	return ""
+}
+
+func (x *CaptureShotResponse) GetBytes() uint64 {
+	if x != nil {
+		return x.Bytes
+	}
+	return 0
+}
+
+func (x *CaptureShotResponse) GetWidth() uint32 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *CaptureShotResponse) GetHeight() uint32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+func (x *CaptureShotResponse) GetSha256() string {
+	if x != nil {
+		return x.Sha256
+	}
+	return ""
+}
+
+func (x *CaptureShotResponse) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+func (x *CaptureShotResponse) GetWindow() *CaptureWindow {
+	if x != nil {
+		return x.Window
+	}
+	return nil
+}
+
+func (x *CaptureShotResponse) GetOutput() *CaptureOutput {
+	if x != nil {
+		return x.Output
+	}
+	return nil
+}
+
+func (x *CaptureShotResponse) GetTakenAt() string {
+	if x != nil {
+		return x.TakenAt
+	}
+	return ""
+}
+
+func (x *CaptureShotResponse) GetTookMs() uint32 {
+	if x != nil {
+		return x.TookMs
+	}
+	return 0
+}
+
+func (x *CaptureShotResponse) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *CaptureShotResponse) GetShadow() bool {
+	if x != nil {
+		return x.Shadow
+	}
+	return false
+}
+
 var File_proto_rig_v1_registry_proto protoreflect.FileDescriptor
 
 const file_proto_rig_v1_registry_proto_rawDesc = "" +
@@ -6116,7 +6862,79 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\asegment\x18\x01 \x01(\x04R\asegment\x12\x14\n" +
 	"\x05unpin\x18\x02 \x01(\bR\x05unpin\"+\n" +
 	"\x0fLogsPinResponse\x12\x18\n" +
-	"\achanged\x18\x01 \x01(\bR\achanged*V\n" +
+	"\achanged\x18\x01 \x01(\bR\achanged\"\xb7\x02\n" +
+	"\rCaptureWindow\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\x10\n" +
+	"\x03app\x18\x03 \x01(\tR\x03app\x12\x10\n" +
+	"\x03pid\x18\x04 \x01(\rR\x03pid\x12\x1c\n" +
+	"\tworkspace\x18\x05 \x01(\x05R\tworkspace\x12\x1c\n" +
+	"\tminimized\x18\x06 \x01(\bR\tminimized\x12\x18\n" +
+	"\afocused\x18\a \x01(\bR\afocused\x12\x18\n" +
+	"\avisible\x18\b \x01(\bR\avisible\x12\x1e\n" +
+	"\n" +
+	"fullscreen\x18\t \x01(\bR\n" +
+	"fullscreen\x12\x14\n" +
+	"\x05modal\x18\n" +
+	" \x01(\bR\x05modal\x12\f\n" +
+	"\x01x\x18\v \x01(\x05R\x01x\x12\f\n" +
+	"\x01y\x18\f \x01(\x05R\x01y\x12\f\n" +
+	"\x01w\x18\r \x01(\rR\x01w\x12\f\n" +
+	"\x01h\x18\x0e \x01(\rR\x01h\"\xa1\x01\n" +
+	"\rCaptureOutput\x12\x14\n" +
+	"\x05index\x18\x01 \x01(\rR\x05index\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\f\n" +
+	"\x01x\x18\x03 \x01(\x05R\x01x\x12\f\n" +
+	"\x01y\x18\x04 \x01(\x05R\x01y\x12\f\n" +
+	"\x01w\x18\x05 \x01(\rR\x01w\x12\f\n" +
+	"\x01h\x18\x06 \x01(\rR\x01h\x12\x14\n" +
+	"\x05scale\x18\a \x01(\x01R\x05scale\x12\x18\n" +
+	"\aprimary\x18\b \x01(\bR\aprimary\"E\n" +
+	"\vCaptureRect\x12\f\n" +
+	"\x01x\x18\x01 \x01(\x05R\x01x\x12\f\n" +
+	"\x01y\x18\x02 \x01(\x05R\x01y\x12\f\n" +
+	"\x01w\x18\x03 \x01(\rR\x01w\x12\f\n" +
+	"\x01h\x18\x04 \x01(\rR\x01h\"*\n" +
+	"\x12CaptureListRequest\x12\x14\n" +
+	"\x05match\x18\x01 \x01(\tR\x05match\"\x9f\x01\n" +
+	"\x13CaptureListResponse\x12/\n" +
+	"\awindows\x18\x01 \x03(\v2\x15.rig.v1.CaptureWindowR\awindows\x12/\n" +
+	"\aoutputs\x18\x02 \x03(\v2\x15.rig.v1.CaptureOutputR\aoutputs\x12\x10\n" +
+	"\x03api\x18\x03 \x01(\rR\x03api\x12\x14\n" +
+	"\x05shell\x18\x04 \x01(\tR\x05shell\"\x8f\x03\n" +
+	"\x12CaptureShotRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x16\n" +
+	"\x06window\x18\x02 \x01(\x04R\x06window\x12\x14\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\x12\x10\n" +
+	"\x03app\x18\x04 \x01(\tR\x03app\x12\x14\n" +
+	"\x05first\x18\x05 \x01(\bR\x05first\x12\x16\n" +
+	"\x06output\x18\x06 \x01(\rR\x06output\x12'\n" +
+	"\x04area\x18\a \x01(\v2\x13.rig.v1.CaptureRectR\x04area\x12\x16\n" +
+	"\x06format\x18\b \x01(\tR\x06format\x12\x18\n" +
+	"\aquality\x18\t \x01(\rR\aquality\x12\x17\n" +
+	"\amax_dim\x18\n" +
+	" \x01(\rR\x06maxDim\x12'\n" +
+	"\x04crop\x18\v \x01(\v2\x13.rig.v1.CaptureRectR\x04crop\x12\x1f\n" +
+	"\vkeep_shadow\x18\f \x01(\bR\n" +
+	"keepShadow\x12\x16\n" +
+	"\x06cursor\x18\r \x01(\bR\x06cursor\x12\x1d\n" +
+	"\n" +
+	"inline_max\x18\x0e \x01(\rR\tinlineMax\"\xf3\x02\n" +
+	"\x13CaptureShotResponse\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +
+	"\x06format\x18\x02 \x01(\tR\x06format\x12\x14\n" +
+	"\x05bytes\x18\x03 \x01(\x04R\x05bytes\x12\x14\n" +
+	"\x05width\x18\x04 \x01(\rR\x05width\x12\x16\n" +
+	"\x06height\x18\x05 \x01(\rR\x06height\x12\x16\n" +
+	"\x06sha256\x18\x06 \x01(\tR\x06sha256\x12\x16\n" +
+	"\x06target\x18\a \x01(\tR\x06target\x12-\n" +
+	"\x06window\x18\b \x01(\v2\x15.rig.v1.CaptureWindowR\x06window\x12-\n" +
+	"\x06output\x18\t \x01(\v2\x15.rig.v1.CaptureOutputR\x06output\x12\x19\n" +
+	"\btaken_at\x18\n" +
+	" \x01(\tR\atakenAt\x12\x17\n" +
+	"\atook_ms\x18\v \x01(\rR\x06tookMs\x12\x12\n" +
+	"\x04data\x18\f \x01(\fR\x04data\x12\x16\n" +
+	"\x06shadow\x18\r \x01(\bR\x06shadow*V\n" +
 	"\x05Depth\x12\x15\n" +
 	"\x11DEPTH_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eDEPTH_PROGRAMS\x10\x01\x12\x12\n" +
@@ -6186,7 +7004,7 @@ func file_proto_rig_v1_registry_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_registry_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
-var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 82)
+var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 89)
 var file_proto_rig_v1_registry_proto_goTypes = []any{
 	(Depth)(0),                    // 0: rig.v1.Depth
 	(EstateRole)(0),               // 1: rig.v1.EstateRole
@@ -6276,68 +7094,81 @@ var file_proto_rig_v1_registry_proto_goTypes = []any{
 	(*LogsCoverageResponse)(nil),  // 85: rig.v1.LogsCoverageResponse
 	(*LogsPinRequest)(nil),        // 86: rig.v1.LogsPinRequest
 	(*LogsPinResponse)(nil),       // 87: rig.v1.LogsPinResponse
-	nil,                           // 88: rig.v1.ConfigSetRequest.ValuesJsonEntry
-	nil,                           // 89: rig.v1.ConfigSetResponse.OutcomeEntry
-	nil,                           // 90: rig.v1.LogRecord.AttrsEntry
-	(*v1.Identity)(nil),           // 91: rig.v1.Identity
-	(v1.Coverage)(0),              // 92: rig.v1.Coverage
-	(*v1.Command)(nil),            // 93: rig.v1.Command
-	(v1.Load)(0),                  // 94: rig.v1.Load
+	(*CaptureWindow)(nil),         // 88: rig.v1.CaptureWindow
+	(*CaptureOutput)(nil),         // 89: rig.v1.CaptureOutput
+	(*CaptureRect)(nil),           // 90: rig.v1.CaptureRect
+	(*CaptureListRequest)(nil),    // 91: rig.v1.CaptureListRequest
+	(*CaptureListResponse)(nil),   // 92: rig.v1.CaptureListResponse
+	(*CaptureShotRequest)(nil),    // 93: rig.v1.CaptureShotRequest
+	(*CaptureShotResponse)(nil),   // 94: rig.v1.CaptureShotResponse
+	nil,                           // 95: rig.v1.ConfigSetRequest.ValuesJsonEntry
+	nil,                           // 96: rig.v1.ConfigSetResponse.OutcomeEntry
+	nil,                           // 97: rig.v1.LogRecord.AttrsEntry
+	(*v1.Identity)(nil),           // 98: rig.v1.Identity
+	(v1.Coverage)(0),              // 99: rig.v1.Coverage
+	(*v1.Command)(nil),            // 100: rig.v1.Command
+	(v1.Load)(0),                  // 101: rig.v1.Load
 }
 var file_proto_rig_v1_registry_proto_depIdxs = []int32{
-	91, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
-	92, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
-	93, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
-	94, // 3: rig.v1.Program.load:type_name -> rig.v1.Load
-	0,  // 4: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
-	9,  // 5: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
-	1,  // 6: rig.v1.EstateResponse.role:type_name -> rig.v1.EstateRole
-	2,  // 7: rig.v1.Toast.severity:type_name -> rig.v1.Severity
-	2,  // 8: rig.v1.NotifyRequest.severity:type_name -> rig.v1.Severity
-	18, // 9: rig.v1.ToastReplyResponse.answer:type_name -> rig.v1.ToastAnswer
-	18, // 10: rig.v1.ToastAnswerResponse.answer:type_name -> rig.v1.ToastAnswer
-	14, // 11: rig.v1.NotifyResponse.toast:type_name -> rig.v1.Toast
-	18, // 12: rig.v1.Ask.answer:type_name -> rig.v1.ToastAnswer
-	25, // 13: rig.v1.AskOpenResponse.ask:type_name -> rig.v1.Ask
-	25, // 14: rig.v1.AskGetResponse.ask:type_name -> rig.v1.Ask
-	25, // 15: rig.v1.AskListResponse.asks:type_name -> rig.v1.Ask
-	25, // 16: rig.v1.AskAnswerResponse.ask:type_name -> rig.v1.Ask
-	25, // 17: rig.v1.AskWithdrawResponse.ask:type_name -> rig.v1.Ask
-	14, // 18: rig.v1.ToastWaitResponse.toasts:type_name -> rig.v1.Toast
-	3,  // 19: rig.v1.ToastDndRequest.change:type_name -> rig.v1.DndChange
-	4,  // 20: rig.v1.SoundRequest.mute:type_name -> rig.v1.SoundMute
-	5,  // 21: rig.v1.SoundRequest.read_aloud:type_name -> rig.v1.ReadAloud
-	6,  // 22: rig.v1.SoundRequest.toast_sound:type_name -> rig.v1.ToastSound
-	5,  // 23: rig.v1.SoundResponse.read_aloud:type_name -> rig.v1.ReadAloud
-	6,  // 24: rig.v1.SoundResponse.toast_sound:type_name -> rig.v1.ToastSound
-	7,  // 25: rig.v1.HandState.phase:type_name -> rig.v1.HandPhase
-	43, // 26: rig.v1.HandRequestResponse.state:type_name -> rig.v1.HandState
-	43, // 27: rig.v1.HandStepResponse.state:type_name -> rig.v1.HandState
-	43, // 28: rig.v1.HandReleaseResponse.state:type_name -> rig.v1.HandState
-	43, // 29: rig.v1.HandWaitResponse.state:type_name -> rig.v1.HandState
-	43, // 30: rig.v1.HandStripResponse.state:type_name -> rig.v1.HandState
-	8,  // 31: rig.v1.HandAnswerRequest.action:type_name -> rig.v1.HandAction
-	43, // 32: rig.v1.HandAnswerResponse.state:type_name -> rig.v1.HandState
-	56, // 33: rig.v1.EventsPublishResponse.event:type_name -> rig.v1.Event
-	56, // 34: rig.v1.EventsWaitResponse.events:type_name -> rig.v1.Event
-	62, // 35: rig.v1.TimerArmResponse.timer:type_name -> rig.v1.Timer
-	62, // 36: rig.v1.TimerListResponse.timers:type_name -> rig.v1.Timer
-	71, // 37: rig.v1.ConfigValue.winner:type_name -> rig.v1.ConfigLayerValue
-	71, // 38: rig.v1.ConfigValue.losers:type_name -> rig.v1.ConfigLayerValue
-	72, // 39: rig.v1.ConfigGetResponse.values:type_name -> rig.v1.ConfigValue
-	88, // 40: rig.v1.ConfigSetRequest.values_json:type_name -> rig.v1.ConfigSetRequest.ValuesJsonEntry
-	89, // 41: rig.v1.ConfigSetResponse.outcome:type_name -> rig.v1.ConfigSetResponse.OutcomeEntry
-	90, // 42: rig.v1.LogRecord.attrs:type_name -> rig.v1.LogRecord.AttrsEntry
-	77, // 43: rig.v1.LogsQueryResponse.records:type_name -> rig.v1.LogRecord
-	78, // 44: rig.v1.LogsQueryResponse.gaps:type_name -> rig.v1.GapBand
-	77, // 45: rig.v1.LogsIngestRequest.records:type_name -> rig.v1.LogRecord
-	78, // 46: rig.v1.LogsCoverageResponse.gaps:type_name -> rig.v1.GapBand
-	83, // 47: rig.v1.LogsCoverageResponse.segments:type_name -> rig.v1.LogSegment
-	48, // [48:48] is the sub-list for method output_type
-	48, // [48:48] is the sub-list for method input_type
-	48, // [48:48] is the sub-list for extension type_name
-	48, // [48:48] is the sub-list for extension extendee
-	0,  // [0:48] is the sub-list for field type_name
+	98,  // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
+	99,  // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
+	100, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
+	101, // 3: rig.v1.Program.load:type_name -> rig.v1.Load
+	0,   // 4: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
+	9,   // 5: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
+	1,   // 6: rig.v1.EstateResponse.role:type_name -> rig.v1.EstateRole
+	2,   // 7: rig.v1.Toast.severity:type_name -> rig.v1.Severity
+	2,   // 8: rig.v1.NotifyRequest.severity:type_name -> rig.v1.Severity
+	18,  // 9: rig.v1.ToastReplyResponse.answer:type_name -> rig.v1.ToastAnswer
+	18,  // 10: rig.v1.ToastAnswerResponse.answer:type_name -> rig.v1.ToastAnswer
+	14,  // 11: rig.v1.NotifyResponse.toast:type_name -> rig.v1.Toast
+	18,  // 12: rig.v1.Ask.answer:type_name -> rig.v1.ToastAnswer
+	25,  // 13: rig.v1.AskOpenResponse.ask:type_name -> rig.v1.Ask
+	25,  // 14: rig.v1.AskGetResponse.ask:type_name -> rig.v1.Ask
+	25,  // 15: rig.v1.AskListResponse.asks:type_name -> rig.v1.Ask
+	25,  // 16: rig.v1.AskAnswerResponse.ask:type_name -> rig.v1.Ask
+	25,  // 17: rig.v1.AskWithdrawResponse.ask:type_name -> rig.v1.Ask
+	14,  // 18: rig.v1.ToastWaitResponse.toasts:type_name -> rig.v1.Toast
+	3,   // 19: rig.v1.ToastDndRequest.change:type_name -> rig.v1.DndChange
+	4,   // 20: rig.v1.SoundRequest.mute:type_name -> rig.v1.SoundMute
+	5,   // 21: rig.v1.SoundRequest.read_aloud:type_name -> rig.v1.ReadAloud
+	6,   // 22: rig.v1.SoundRequest.toast_sound:type_name -> rig.v1.ToastSound
+	5,   // 23: rig.v1.SoundResponse.read_aloud:type_name -> rig.v1.ReadAloud
+	6,   // 24: rig.v1.SoundResponse.toast_sound:type_name -> rig.v1.ToastSound
+	7,   // 25: rig.v1.HandState.phase:type_name -> rig.v1.HandPhase
+	43,  // 26: rig.v1.HandRequestResponse.state:type_name -> rig.v1.HandState
+	43,  // 27: rig.v1.HandStepResponse.state:type_name -> rig.v1.HandState
+	43,  // 28: rig.v1.HandReleaseResponse.state:type_name -> rig.v1.HandState
+	43,  // 29: rig.v1.HandWaitResponse.state:type_name -> rig.v1.HandState
+	43,  // 30: rig.v1.HandStripResponse.state:type_name -> rig.v1.HandState
+	8,   // 31: rig.v1.HandAnswerRequest.action:type_name -> rig.v1.HandAction
+	43,  // 32: rig.v1.HandAnswerResponse.state:type_name -> rig.v1.HandState
+	56,  // 33: rig.v1.EventsPublishResponse.event:type_name -> rig.v1.Event
+	56,  // 34: rig.v1.EventsWaitResponse.events:type_name -> rig.v1.Event
+	62,  // 35: rig.v1.TimerArmResponse.timer:type_name -> rig.v1.Timer
+	62,  // 36: rig.v1.TimerListResponse.timers:type_name -> rig.v1.Timer
+	71,  // 37: rig.v1.ConfigValue.winner:type_name -> rig.v1.ConfigLayerValue
+	71,  // 38: rig.v1.ConfigValue.losers:type_name -> rig.v1.ConfigLayerValue
+	72,  // 39: rig.v1.ConfigGetResponse.values:type_name -> rig.v1.ConfigValue
+	95,  // 40: rig.v1.ConfigSetRequest.values_json:type_name -> rig.v1.ConfigSetRequest.ValuesJsonEntry
+	96,  // 41: rig.v1.ConfigSetResponse.outcome:type_name -> rig.v1.ConfigSetResponse.OutcomeEntry
+	97,  // 42: rig.v1.LogRecord.attrs:type_name -> rig.v1.LogRecord.AttrsEntry
+	77,  // 43: rig.v1.LogsQueryResponse.records:type_name -> rig.v1.LogRecord
+	78,  // 44: rig.v1.LogsQueryResponse.gaps:type_name -> rig.v1.GapBand
+	77,  // 45: rig.v1.LogsIngestRequest.records:type_name -> rig.v1.LogRecord
+	78,  // 46: rig.v1.LogsCoverageResponse.gaps:type_name -> rig.v1.GapBand
+	83,  // 47: rig.v1.LogsCoverageResponse.segments:type_name -> rig.v1.LogSegment
+	88,  // 48: rig.v1.CaptureListResponse.windows:type_name -> rig.v1.CaptureWindow
+	89,  // 49: rig.v1.CaptureListResponse.outputs:type_name -> rig.v1.CaptureOutput
+	90,  // 50: rig.v1.CaptureShotRequest.area:type_name -> rig.v1.CaptureRect
+	90,  // 51: rig.v1.CaptureShotRequest.crop:type_name -> rig.v1.CaptureRect
+	88,  // 52: rig.v1.CaptureShotResponse.window:type_name -> rig.v1.CaptureWindow
+	89,  // 53: rig.v1.CaptureShotResponse.output:type_name -> rig.v1.CaptureOutput
+	54,  // [54:54] is the sub-list for method output_type
+	54,  // [54:54] is the sub-list for method input_type
+	54,  // [54:54] is the sub-list for extension type_name
+	54,  // [54:54] is the sub-list for extension extendee
+	0,   // [0:54] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_registry_proto_init() }
@@ -6351,7 +7182,7 @@ func file_proto_rig_v1_registry_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_registry_proto_rawDesc), len(file_proto_rig_v1_registry_proto_rawDesc)),
 			NumEnums:      9,
-			NumMessages:   82,
+			NumMessages:   89,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
