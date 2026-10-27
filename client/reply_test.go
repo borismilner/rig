@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 	"github.com/borismilner/rig/internal/wire"
+	rigv1 "github.com/borismilner/rig/proto/rig/v1"
 )
 
 // A reply nobody waits for is dropped, not answered: answering it made the
