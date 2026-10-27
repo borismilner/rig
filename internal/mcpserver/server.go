@@ -128,6 +128,13 @@ THE PROGRAMS, AND THE ROSTER.
                   REQUIRED, and set_activity and list_agents both need it.
   message_send    durable mail to a seat; _inbox, _await, _ack, _list read it.
 
+SEEING THE SCREEN.
+  capture_list    every window (id, title, app, state) and monitor.
+  capture_shot    a picture of one window, monitor, area or the screen,
+                  focused or not; returns a file path to Read. Use it, never
+                  gnome-screenshot, to check a UI. Prefer one window over
+                  the whole screen: the screen shows his other windows.
+
 THE CONTINUITY RECORD - this project's memory. Writes need a seat, so
 announce first; the seat comes from your row, never from the request.
   worknote_mine   YOUR notes, kept past a restart: START HERE ON RESUME.
