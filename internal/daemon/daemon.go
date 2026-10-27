@@ -491,6 +491,7 @@ func New(cfg Config) (*Daemon, error) {
 	d.applyLogLevel()
 	d.writeSnapshot()
 	d.hand.published = func(st *registryv1.HandState) { d.events.publishRig("hand.changed", st) }
+	d.hand.audit = d.auditHand
 	d.presence.changed = func(ch rosterChange) {
 		d.publishJSON("roster.changed", ch)
 		if ch.Change == "left" {
@@ -1188,7 +1189,8 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 		"toast.retract", "ask.open", "ask.get", "ask.list", "ask.answer", "ask.withdraw",
 		"capture.list", "capture.shot",
 		"sound", "say",
-		"hand.request", "hand.step", "hand.release", "hand.wait", "hand.answer", "hand.strip":
+		"hand.request", "hand.step", "hand.release", "hand.wait", "hand.answer", "hand.strip",
+		"hand.grant", "hand.ungrant":
 		d.serveToast(ctx, c, f, command)
 
 	// plan/55's BOARD. panel.go has the ruling and the caps.

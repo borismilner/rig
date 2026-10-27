@@ -97,6 +97,8 @@ var bridged = map[string]struct {
 	"hand.release":      {func() proto.Message { return &registryv1.HandReleaseRequest{} }, func() proto.Message { return &registryv1.HandReleaseResponse{} }},
 	"hand.wait":         {func() proto.Message { return &registryv1.HandWaitRequest{} }, func() proto.Message { return &registryv1.HandWaitResponse{} }},
 	"hand.answer":       {func() proto.Message { return &registryv1.HandAnswerRequest{} }, func() proto.Message { return &registryv1.HandAnswerResponse{} }},
+	"hand.grant":        {func() proto.Message { return &registryv1.HandGrantRequest{} }, func() proto.Message { return &registryv1.HandGrantResponse{} }},
+	"hand.ungrant":      {func() proto.Message { return &registryv1.HandUngrantRequest{} }, func() proto.Message { return &registryv1.HandUngrantResponse{} }},
 	"hand.strip":        {func() proto.Message { return &registryv1.HandStripRequest{} }, func() proto.Message { return &registryv1.HandStripResponse{} }},
 	"project.brief":     {func() proto.Message { return &verbsv1.ProjectBriefRequest{} }, func() proto.Message { return &verbsv1.ProjectBriefResponse{} }},
 	"down":              {func() proto.Message { return &verbsv1.DownRequest{} }, func() proto.Message { return &verbsv1.DownResponse{} }},

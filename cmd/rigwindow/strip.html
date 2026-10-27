@@ -30,7 +30,7 @@ body { font: 14px/1.3 var(--sans); color: var(--fg); -webkit-user-select: none; 
   transition: opacity .3s;
 }
 body[data-phase=held]    #bar { --hue: var(--fg-dim); }
-body[data-phase=driving] #bar { --hue: var(--sem-warn); }
+body[data-phase=driving] #bar, body[data-phase=grant_live] #bar { --hue: var(--sem-warn); }
 body[data-phase=paused]  #bar { --hue: var(--sem-good); }
 body[data-phase=idle]    #bar { opacity: .85; }
 
@@ -41,7 +41,7 @@ body[data-phase=idle]    #bar { opacity: .85; }
 #orb .track { fill: none; stroke: rgba(255,255,255,.10); stroke-width: 3.5; }
 #orb .arc   { fill: none; stroke: var(--hue); stroke-width: 3.5; stroke-linecap: round;
               transition: stroke-dashoffset .25s linear; }
-body[data-phase=driving] #orb svg.ring { animation: turn 1.4s linear infinite; }
+body[data-phase=driving] #orb svg.ring, body[data-phase=grant_live] #orb svg.ring { animation: turn 1.4s linear infinite; }
 @keyframes turn { from { transform: rotate(-90deg); } to { transform: rotate(270deg); } }
 #icon { position: absolute; inset: 13px; color: var(--hue); }
 #icon svg { width: 26px; height: 26px; display: block; }
@@ -50,7 +50,7 @@ body[data-phase=driving] #orb svg.ring { animation: turn 1.4s linear infinite; }
 #eyebrow { font-size: 11.5px; font-weight: 750; letter-spacing: .08em;
            color: var(--hue); display: flex; align-items: center; gap: 7px; }
 #eyebrow .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--hue); display: none; }
-body[data-phase=driving] #eyebrow .dot { display: block; animation: pulse 1.2s ease-in-out infinite; }
+body[data-phase=driving] #eyebrow .dot, body[data-phase=grant_live] #eyebrow .dot { display: block; animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .25; } }
 #title { font-size: 16.5px; font-weight: 640; margin-top: 3px;
          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -142,6 +142,21 @@ const PHASES = {
     meta: join(s.holder + (s.activity ? " stopped at " + s.activity : " stopped"), s.note),
     buttons: [["resume", "Resume", "primary"], ["stop", "Stop", "danger"]],
   }),
+  // A grant with no run in hand: asked for, or live between two scripts.
+  grant_asking: (s) => ({
+    ring: s.grant_window_ms ? s.grant_left_ms / s.grant_window_ms : 0, icon: "pointer",
+    phase: "ASKED · declines itself in " + dur(s.grant_left_ms),
+    title: s.grant_seat + " asks for the desktop for a while",
+    meta: join(s.grant_reason, s.grant_scope ? "only in a window titled " + s.grant_scope : "", "silence declines"),
+    buttons: [["allow30", "30 s", "primary"], ["allow60", "60 s", "primary"], ["allow5m", "5 min", "primary"], ["decline", "Decline", "danger"]],
+  }),
+  grant_live: (s) => ({
+    ring: s.grant_window_ms ? s.grant_left_ms / s.grant_window_ms : 0, icon: "pointer",
+    phase: "HANDS OFF · granted · " + dur(s.grant_left_ms) + " left",
+    title: s.grant_seat + " has the desktop for a while",
+    meta: join(s.grant_reason, s.grant_scope ? "only in a window titled " + s.grant_scope : ""),
+    buttons: [["pause", "Take back", "primary"], ["stop", "Stop", "danger"]],
+  }),
   idle: (s) => ({
     ring: 1, icon: "done",
     phase: "DONE",
@@ -159,7 +174,13 @@ async function answer(word) {
 }
 
 function draw(s) {
+  // A grant shows beside a run that drives under it, and alone while idle.
+  if (s.phase === "idle" && s.grant_phase) s.phase = "grant_" + s.grant_phase;
   const v = (PHASES[s.phase] || PHASES.idle)(s);
+  if (s.phase === "driving" && s.grant_phase === "live") {
+    v.phase += " · granted, " + dur(s.grant_left_ms) + " left";
+    v.ring = s.grant_window_ms ? s.grant_left_ms / s.grant_window_ms : v.ring;
+  }
   document.body.dataset.phase = s.phase;
   $("arc").style.strokeDasharray = RING;
   $("arc").style.strokeDashoffset = RING * (1 - Math.min(1, Math.max(0, v.ring)));

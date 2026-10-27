@@ -52,6 +52,7 @@ type Hand struct {
 
 	frame Rect
 	inWin string // the window the frame came from, for messages
+	scope string // a grant's window title; empty is any (scope.go)
 	// The window a script named, when it named one. Holding the id rather than
 	// only the rectangle is what lets every click and keystroke be checked
 	// against the window it was aimed at (target.go).
@@ -268,6 +269,9 @@ func (h *Hand) UseWindow(title string) (Rect, error) {
 	got, err := h.look(title)
 	if err != nil {
 		return Rect{}, err
+	}
+	if h.scope != "" && !inScope(got.Name, h.scope) {
+		return Rect{}, fmt.Errorf("the window %q is outside the grant's scope %q", got.Name, h.scope)
 	}
 	win := xproto.Window(got.Win)
 	h.frame, h.inWin, h.targetWin = got.Rect, got.Name, win

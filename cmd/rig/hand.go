@@ -12,10 +12,12 @@ import (
 	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
-// `rig hand status|allow|decline|hold|pause|resume|stop` - the HANDS OFF
-// strip's buttons from a terminal (plan/05 section 5m). status reads the one
-// run; every other word is his answer to it, which rigd refuses to a program
-// and to an agent's MCP door (H5).
+// `rig hand status|allow|decline|hold|pause|resume|stop|allow30|allow60|
+// allow5m` - the HANDS OFF strip's buttons from a terminal (plan/05 section
+// 5m). status reads the one run; every other word is his answer to it, which
+// rigd refuses to a program and to an agent's MCP door (H5). grant and
+// ungrant are the SEAT's side of a time-boxed grant (G1-G8): grant asks and
+// blocks until he answers; it is never an answering word.
 
 // handActions are the answers, by the word he types.
 var handActions = map[string]registryv1.HandAction{
@@ -25,14 +27,21 @@ var handActions = map[string]registryv1.HandAction{
 	"pause":   registryv1.HandAction_HAND_ACTION_PAUSE,
 	"resume":  registryv1.HandAction_HAND_ACTION_RESUME,
 	"stop":    registryv1.HandAction_HAND_ACTION_STOP,
+	// His answers to a grant's ask: the window he gives the seat.
+	"allow30": registryv1.HandAction_HAND_ACTION_GRANT_30S,
+	"allow60": registryv1.HandAction_HAND_ACTION_GRANT_60S,
+	"allow5m": registryv1.HandAction_HAND_ACTION_GRANT_5M,
 }
 
-const handUsage = "usage: rig hand status|allow|decline|hold|pause|resume|stop"
+const handUsage = "usage: rig hand status|allow|decline|hold|pause|resume|stop|allow30|allow60|allow5m | grant --why TEXT [--for 60s] [--scope TITLE] | ungrant"
 
 func cmdHand(args []string) (err error) {
 	fs := flag.NewFlagSet("hand", flag.ContinueOnError)
 	asJSON := fs.Bool("json", false, "emit JSON")
 	timeout := fs.Duration("timeout", defaultCallTimeout, "how long to wait")
+	why := fs.String("why", "", "grant: what the window is for, in his terms")
+	forHow := fs.Duration("for", time.Minute, "grant: how long to ask for (at most 5m; he picks 30s, 60s or 5m)")
+	scope := fs.String("scope", "", "grant: a window title every step must act in")
 	flags, positional := partition(args)
 	if err := fs.Parse(flags); err != nil {
 		return err
@@ -42,7 +51,8 @@ func cmdHand(args []string) (err error) {
 		return badArgumentf(handUsage)
 	}
 	action, isAction := handActions[positional[0]]
-	if !isAction && positional[0] != "status" {
+	seatVerb := positional[0] == "grant" || positional[0] == "ungrant"
+	if !isAction && !seatVerb && positional[0] != "status" {
 		return badArgumentf("%q is not a hand command; %s", positional[0], handUsage)
 	}
 	c, err := connect()
@@ -53,13 +63,34 @@ func cmdHand(args []string) (err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 	var st *registryv1.HandState
-	if isAction {
+	switch {
+	case positional[0] == "grant":
+		if strings.TrimSpace(*why) == "" {
+			return badArgumentf("grant needs --why: he reads it on the strip")
+		}
+		// The ask lasts a minute and the call blocks through it.
+		gctx, gcancel := context.WithTimeout(ctx, max(*timeout, 70*time.Second))
+		defer gcancel()
+		var resp registryv1.HandGrantResponse
+		if err := call(gctx, c, "rig.hand.grant", &registryv1.HandGrantRequest{
+			Reason: *why, DurationMs: uint32(forHow.Milliseconds()), Scope: *scope, //nolint:gosec // bounded by rigd
+		}, &resp); err != nil {
+			return err
+		}
+		st = resp.GetState()
+	case positional[0] == "ungrant":
+		var resp registryv1.HandUngrantResponse
+		if err := call(ctx, c, "rig.hand.ungrant", &registryv1.HandUngrantRequest{}, &resp); err != nil {
+			return err
+		}
+		st = resp.GetState()
+	case isAction:
 		var resp registryv1.HandAnswerResponse
 		if err := call(ctx, c, "rig.hand.answer", &registryv1.HandAnswerRequest{Action: action}, &resp); err != nil {
 			return err
 		}
 		st = resp.GetState()
-	} else {
+	default:
 		// after 0 with no wait answers at once: seq starts at 1.
 		var resp registryv1.HandWaitResponse
 		if err := call(ctx, c, "rig.hand.wait", &registryv1.HandWaitRequest{}, &resp); err != nil {
@@ -92,6 +123,11 @@ type handOut struct {
 	Ended           string  `json:"ended"`
 	DeadlineInMs    *int64  `json:"deadline_in_ms,omitempty"`
 	CountdownLeftMs *uint32 `json:"countdown_left_ms,omitempty"`
+	Grant           string  `json:"grant,omitempty"`
+	GrantSeat       string  `json:"grant_seat,omitempty"`
+	GrantReason     string  `json:"grant_reason,omitempty"`
+	GrantScope      string  `json:"grant_scope,omitempty"`
+	GrantInMs       *int64  `json:"grant_ends_in_ms,omitempty"`
 }
 
 func handJSON(st *registryv1.HandState, now time.Time) handOut {
@@ -107,11 +143,50 @@ func handJSON(st *registryv1.HandState, now time.Time) handOut {
 		left := st.GetLeftMs()
 		out.CountdownLeftMs = &left
 	}
+	if gp := st.GetGrantPhase(); gp == registryv1.HandGrantPhase_HAND_GRANT_PHASE_ASKING || gp == registryv1.HandGrantPhase_HAND_GRANT_PHASE_LIVE {
+		in := grantLeft(st, now).Milliseconds()
+		out.Grant, out.GrantSeat, out.GrantReason, out.GrantScope, out.GrantInMs =
+			enumLabel(gp.String(), "HAND_GRANT_PHASE_"), st.GetGrantSeat(), st.GetGrantReason(), st.GetGrantScope(), &in
+	}
 	return out
+}
+
+// grantLeft is how long until the grant's deadline, never negative.
+func grantLeft(st *registryv1.HandState, now time.Time) time.Duration {
+	return max(time.Duration(st.GetGrantDeadlineUnixNano()-now.UnixNano()), 0).Round(time.Second)
+}
+
+// grantLine says the grant beside whatever the run is doing, and the words
+// that answer or end it.
+func grantLine(st *registryv1.HandState, now time.Time) string {
+	scope := ""
+	if sc := st.GetGrantScope(); sc != "" {
+		scope = ", only in a window titled " + sc
+	}
+	switch st.GetGrantPhase() {
+	case registryv1.HandGrantPhase_HAND_GRANT_PHASE_ASKING:
+		return fmt.Sprintf("%s asks for the desktop for a while (%s)%s; no answer in %s declines it.\n"+
+			"rig hand allow30 | allow60 | allow5m | decline", st.GetGrantSeat(), st.GetGrantReason(), scope, grantLeft(st, now))
+	case registryv1.HandGrantPhase_HAND_GRANT_PHASE_LIVE:
+		return fmt.Sprintf("%s has the desktop granted (%s)%s for %s more; its scripts start without a countdown.\n"+
+			"rig hand pause | stop", st.GetGrantSeat(), st.GetGrantReason(), scope, grantLeft(st, now))
+	}
+	return ""
 }
 
 // handLine is the state in one line, with the words that answer it.
 func handLine(st *registryv1.HandState, now time.Time) string {
+	line := runLine(st, now)
+	if g := grantLine(st, now); g != "" {
+		if st.GetPhase() == registryv1.HandPhase_HAND_PHASE_IDLE {
+			return g
+		}
+		return line + "\n" + g
+	}
+	return line
+}
+
+func runLine(st *registryv1.HandState, now time.Time) string {
 	who, why := st.GetHolder(), ""
 	if st.GetReason() != "" {
 		why = " (" + st.GetReason() + ")"

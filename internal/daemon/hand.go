@@ -67,6 +67,12 @@ const (
 type handRun struct {
 	owner any
 	ended string
+	// seat is whom the script runs for. underGrant is a run that started
+	// inside its seat's live grant, without a countdown; cut is why such a
+	// run ends at its next step once the grant is over (G5).
+	seat       string
+	underGrant bool
+	cut        string
 }
 
 // handDesk is the state machine. Its zero value is not ready: newHandDesk.
@@ -92,6 +98,10 @@ type handDesk struct {
 	// expiry makes the transition a deadline owes when it comes, rather than
 	// when somebody next asks: a waiter on the bus asks nothing.
 	expiry *time.Timer
+	// grant is the one live or asked-for grant, lastGrant the one that ended
+	// last; handgrant.go has both. audit is the daemon's usage log.
+	grant, lastGrant *handGrant
+	audit            func(op string, attrs map[string]string)
 }
 
 // handRect is the strip's window on the root, shadow included: all of it
@@ -140,7 +150,14 @@ func (h *handDesk) changed() {
 		h.expiry.Stop()
 		h.expiry = nil
 	}
-	if dl := h.st.GetDeadlineUnixNano(); dl != 0 && h.run != nil {
+	dl := int64(0)
+	if h.run != nil {
+		dl = h.st.GetDeadlineUnixNano()
+	}
+	if g := h.grant; g != nil && (dl == 0 || g.deadline.UnixNano() < dl) {
+		dl = g.deadline.UnixNano()
+	}
+	if dl != 0 {
 		h.expiry = time.AfterFunc(time.Duration(dl-h.now().UnixNano()), func() {
 			h.mu.Lock()
 			defer h.mu.Unlock()
@@ -159,6 +176,7 @@ func (h *handDesk) waitChan() <-chan struct{} {
 
 func (h *handDesk) snapshot() *registryv1.HandState {
 	st, _ := proto.Clone(h.st).(*registryv1.HandState)
+	h.fillGrant(st)
 	return st
 }
 
@@ -168,6 +186,9 @@ func (h *handDesk) end(why string) {
 		return
 	}
 	h.run.ended = why
+	if h.run.underGrant {
+		h.auditf("run ended", map[string]string{"seat": h.run.seat, "how": why})
+	}
 	h.last, h.run = h.run, nil
 	h.st = &registryv1.HandState{
 		Seq: h.st.GetSeq(), Phase: registryv1.HandPhase_HAND_PHASE_IDLE,
@@ -185,18 +206,30 @@ func ms(d time.Duration) uint32 {
 }
 
 // ask starts the countdown, or refuses while somebody else has the desktop.
-func (h *handDesk) ask(owner any, holder, reason string, window time.Duration) (*handRun, error) {
+func (h *handDesk) ask(owner any, holder, seat, reason string, window time.Duration) (*handRun, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	h.expire()
+	if h.grant != nil && !h.grant.live {
+		return nil, handRefused(rigv1.Code_CODE_CONFLICT,
+			"rig.hand.request: a grant for "+h.grant.seat+" is waiting for his answer")
+	}
 	if h.run != nil {
 		return nil, handRefused(rigv1.Code_CODE_CONFLICT,
 			"rig.hand.request: the desktop is already asked for by "+h.st.GetHolder())
 	}
-	h.run = &handRun{owner: owner}
+	h.run = &handRun{owner: owner, seat: seat}
 	h.st = &registryv1.HandState{
 		Seq: h.st.GetSeq(), Phase: registryv1.HandPhase_HAND_PHASE_ASKING,
 		Holder: holder, Reason: reason, AskedUnixNano: h.now().UnixNano(),
 		DeadlineUnixNano: h.unixNano(window), WindowMs: ms(window), LeftMs: ms(window),
+	}
+	if h.grant.matches(seat) {
+		// G3: his window, his seat. No countdown, and the strip stays up.
+		h.run.underGrant = true
+		h.auditf("run started", map[string]string{"seat": seat, "reason": reason})
+		h.drive()
+		return h.run, nil
 	}
 	h.changed()
 	return h.run, nil
@@ -204,6 +237,7 @@ func (h *handDesk) ask(owner any, holder, reason string, window time.Duration) (
 
 // expire makes the transitions a deadline owes. Called with mu held.
 func (h *handDesk) expire() {
+	h.expireGrant()
 	if h.run == nil || h.now().UnixNano() < h.st.GetDeadlineUnixNano() {
 		return
 	}
@@ -297,6 +331,12 @@ func (h *handDesk) step(ctx context.Context, owner any, activity, note string, p
 				return nil, endedErr("rig.hand.step", h.last.ended)
 			}
 			return nil, handRefused(rigv1.Code_CODE_NOT_FOUND, "rig.hand.step: this connection holds no run; ask with rig.hand.request")
+		}
+		if h.run.cut != "" && h.st.GetPhase() == registryv1.HandPhase_HAND_PHASE_DRIVING {
+			// G5: the step in hand finished; this is the next one.
+			why := h.run.cut
+			h.end(why)
+			return nil, endedErr("rig.hand.step", why)
 		}
 		switch h.st.GetPhase() {
 		case registryv1.HandPhase_HAND_PHASE_DRIVING:
@@ -399,6 +439,7 @@ func (h *handDesk) answer(a registryv1.HandAction) (*registryv1.HandState, error
 	switch {
 	case a == registryv1.HandAction_HAND_ACTION_ALLOW && (asking || held):
 		h.drive()
+	case h.answerGrant(a):
 	case a == registryv1.HandAction_HAND_ACTION_DECLINE && (asking || held):
 		h.end(handDeclined)
 	case a == registryv1.HandAction_HAND_ACTION_HOLD && asking:
@@ -414,6 +455,9 @@ func (h *handDesk) answer(a registryv1.HandAction) (*registryv1.HandState, error
 		h.st.DeadlineUnixNano = h.unixNano(time.Duration(h.st.GetLeftMs()) * time.Millisecond)
 		h.changed()
 	case a == registryv1.HandAction_HAND_ACTION_PAUSE && ph == registryv1.HandPhase_HAND_PHASE_DRIVING:
+		// G4: pausing takes the window back as well as the run. A run he
+		// resumes carries on as an ordinary one.
+		h.endGrant(handGrantPaused, false)
 		h.st.Phase = registryv1.HandPhase_HAND_PHASE_PAUSED
 		h.st.DeadlineUnixNano = h.unixNano(h.pauseMax)
 		h.changed()
@@ -421,7 +465,8 @@ func (h *handDesk) answer(a registryv1.HandAction) (*registryv1.HandState, error
 		h.st.Phase = registryv1.HandPhase_HAND_PHASE_DRIVING
 		h.st.DeadlineUnixNano = 0
 		h.changed()
-	case a == registryv1.HandAction_HAND_ACTION_STOP && h.run != nil:
+	case a == registryv1.HandAction_HAND_ACTION_STOP && (h.run != nil || h.grant != nil):
+		h.endGrant(handGrantStopped, true)
 		h.end(handStopped)
 	default:
 		return nil, handRefused(rigv1.Code_CODE_CONFLICT,
@@ -458,7 +503,7 @@ func (h *handDesk) after(ctx context.Context, seq uint64, wait time.Duration) (*
 	}
 }
 
-// serveHand dispatches the six hand verbs through one arm of the daemon's
+// serveHand dispatches the hand verbs through one arm of the daemon's
 // switch.
 func (d *Daemon) serveHand(ctx context.Context, c *conn, f *rigv1.Frame, command string) {
 	var (
@@ -475,6 +520,8 @@ func (d *Daemon) serveHand(ctx context.Context, c *conn, f *rigv1.Frame, command
 		if err == nil {
 			c.reply(f.GetStreamId(), &registryv1.HandRequestResponse{State: st})
 		}
+	case "hand.grant", "hand.ungrant":
+		_, err = d.serveGrantVerb(ctx, c, f, command)
 	case "hand.step":
 		var req registryv1.HandStepRequest
 		if !unmarshalOr(c, f, command, &req) {
@@ -563,7 +610,14 @@ func (d *Daemon) serveHandRequest(ctx context.Context, c *conn, req *registryv1.
 	if holder == "" {
 		holder = "a terminal"
 	}
-	run, err := d.hand.ask(c, holder, clip(req.GetReason()), window)
+	// The seat a grant is matched on. righand runs the script, so it names
+	// the seat rigd stamped on the call it is serving; for anything else the
+	// seat is the connection's own, which a request cannot choose.
+	_, seat, _, _ := d.provenance(c)
+	if c.name() == "righand" && req.GetOnBehalfOf() != "" {
+		seat = req.GetOnBehalfOf()
+	}
+	run, err := d.hand.ask(c, holder, seat, clip(req.GetReason()), window)
 	if err != nil {
 		return nil, err
 	}

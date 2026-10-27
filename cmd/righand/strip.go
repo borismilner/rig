@@ -96,16 +96,30 @@ func (g *deskGate) follow(ctx context.Context) {
 	}
 }
 
-// askDesktop asks rigd for the desktop, blocking through his countdown. It
-// answers the gate to run under and the release to defer.
-func (p *program) askDesktop(why string, steps []hand.Step) (*deskGate, func(), error) {
+// askDesktop asks rigd for the desktop, blocking through his countdown unless
+// the caller's seat holds a live grant. It answers the gate to run under, the
+// release to defer, and the scope the grant limits the run to.
+func (p *program) askDesktop(why, seat string, steps []hand.Step) (*deskGate, func(), string, error) {
 	if strings.TrimSpace(why) == "" {
 		why = fmt.Sprintf("%d steps: %s", len(steps), ops(steps))
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), gateWait)
 	defer cancel()
-	if err := p.c.Call(ctx, "rig.hand.request", &registryv1.HandRequestRequest{Reason: why}, &registryv1.HandRequestResponse{}); err != nil {
-		return nil, nil, err
+	var resp registryv1.HandRequestResponse
+	if err := p.c.Call(ctx, "rig.hand.request", &registryv1.HandRequestRequest{Reason: why, OnBehalfOf: seat}, &resp); err != nil {
+		return nil, nil, "", err
+	}
+	// G6: a grant scoped to a window holds this script to it, before the
+	// first event. The run is released, not left to hold the desktop.
+	scope := ""
+	if st := resp.GetState(); st.GetGrantPhase() == registryv1.HandGrantPhase_HAND_GRANT_PHASE_LIVE && st.GetGrantSeat() == seat {
+		scope = st.GetGrantScope()
+	}
+	if err := hand.CheckScope(steps, scope); err != nil {
+		rctx, rcancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer rcancel()
+		_ = p.c.Call(rctx, "rig.hand.release", &registryv1.HandReleaseRequest{}, &registryv1.HandReleaseResponse{})
+		return nil, nil, "", &scopeError{err}
 	}
 	g := &deskGate{c: p.c}
 	//rig:allow nocontextfree: the watch lives exactly as long as the run, and release is what ends it
@@ -119,12 +133,19 @@ func (p *program) askDesktop(why string, steps []hand.Step) (*deskGate, func(), 
 		defer rcancel()
 		_ = p.c.Call(rctx, "rig.hand.release", &registryv1.HandReleaseRequest{}, &registryv1.HandReleaseResponse{})
 	}
-	return g, release, nil
+	return g, release, scope, nil
 }
+
+// scopeError is a script that leaves its grant's window; it reads as denied.
+type scopeError struct{ error }
 
 // codeOf passes rigd's refusal through to the caller, so a declined run reads
 // as denied and a held-too-long one as a deadline.
 func codeOf(err error) rigv1.Code {
+	var se *scopeError
+	if errors.As(err, &se) {
+		return rigv1.Code_CODE_DENIED
+	}
 	var ce *client.CallError
 	if errors.As(err, &ce) {
 		return ce.Code()

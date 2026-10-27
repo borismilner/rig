@@ -54,7 +54,7 @@ type stripWatcher struct {
 
 // seen is called with each state the tray's wait returns.
 func (w *stripWatcher) seen(st *registryv1.HandState) {
-	if st.GetPhase() == registryv1.HandPhase_HAND_PHASE_IDLE {
+	if !stripBusy(st) {
 		return
 	}
 	w.mu.Lock()
@@ -82,6 +82,15 @@ func (w *stripWatcher) seen(st *registryv1.HandState) {
 			_ = w.fallback(st)
 		}
 	}()
+}
+
+// stripBusy is true while the strip has something to show: a run, or a grant
+// asked for or live, which stays up between two scripts (G3).
+func stripBusy(st *registryv1.HandState) bool {
+	if g := st.GetGrantPhase(); g == registryv1.HandGrantPhase_HAND_GRANT_PHASE_ASKING || g == registryv1.HandGrantPhase_HAND_GRANT_PHASE_LIVE {
+		return true
+	}
+	return st.GetPhase() != registryv1.HandPhase_HAND_PHASE_IDLE
 }
 
 // watchHand is the tray's long poll on the desktop's run.
@@ -163,7 +172,16 @@ type stripJSON struct {
 	HeldMs int64 `json:"held_ms"`
 	// DRIVING and PAUSED: since the run started driving.
 	SinceMs int64 `json:"since_ms"`
-	Quit    bool  `json:"quit"`
+	// A grant (G1-G8), beside the run or alone: who, why, the window, and the
+	// seconds left, worked out here as the others are. GrantPhase is "asking"
+	// or "live", empty when there is none.
+	GrantPhase    string `json:"grant_phase"`
+	GrantSeat     string `json:"grant_seat"`
+	GrantReason   string `json:"grant_reason"`
+	GrantScope    string `json:"grant_scope"`
+	GrantLeftMs   int64  `json:"grant_left_ms"`
+	GrantWindowMs int64  `json:"grant_window_ms"`
+	Quit          bool   `json:"quit"`
 }
 
 // stripFeed is the strip's state between rigd and the page.
@@ -177,7 +195,7 @@ type stripFeed struct {
 func (f *stripFeed) set(st *registryv1.HandState, now time.Time) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	idle := st.GetPhase() == registryv1.HandPhase_HAND_PHASE_IDLE
+	idle := !stripBusy(st)
 	switch {
 	case !idle:
 		f.idleAt = time.Time{}
@@ -210,6 +228,17 @@ func (f *stripFeed) view(now time.Time) stripJSON {
 	if d := st.GetDrivingUnixNano(); d != 0 {
 		out.SinceMs = max(now.Sub(time.Unix(0, d)), 0).Milliseconds()
 	}
+	switch st.GetGrantPhase() {
+	case registryv1.HandGrantPhase_HAND_GRANT_PHASE_ASKING:
+		out.GrantPhase = "asking"
+	case registryv1.HandGrantPhase_HAND_GRANT_PHASE_LIVE:
+		out.GrantPhase = "live"
+	}
+	if out.GrantPhase != "" {
+		out.GrantSeat, out.GrantReason, out.GrantScope = st.GetGrantSeat(), st.GetGrantReason(), st.GetGrantScope()
+		out.GrantLeftMs = max(time.Duration(st.GetGrantDeadlineUnixNano()-now.UnixNano()), 0).Milliseconds()
+		out.GrantWindowMs = int64(st.GetGrantWindowMs())
+	}
 	return out
 }
 
@@ -218,6 +247,8 @@ var stripActions = map[string]registryv1.HandAction{
 	"allow": registryv1.HandAction_HAND_ACTION_ALLOW, "decline": registryv1.HandAction_HAND_ACTION_DECLINE,
 	"hold": registryv1.HandAction_HAND_ACTION_HOLD, "pause": registryv1.HandAction_HAND_ACTION_PAUSE,
 	"resume": registryv1.HandAction_HAND_ACTION_RESUME, "stop": registryv1.HandAction_HAND_ACTION_STOP,
+	"allow30": registryv1.HandAction_HAND_ACTION_GRANT_30S, "allow60": registryv1.HandAction_HAND_ACTION_GRANT_60S,
+	"allow5m": registryv1.HandAction_HAND_ACTION_GRANT_5M,
 }
 
 // ServeHTTP is the page's only door to Go.

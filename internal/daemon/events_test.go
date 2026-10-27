@@ -141,7 +141,7 @@ func TestAHandChangeWakesAWaiterOnTheBus(t *testing.T) {
 		done <- &got
 	}()
 	time.Sleep(50 * time.Millisecond)
-	if _, err := d.hand.ask("prog", "righand", "a test", 20*time.Second); err != nil {
+	if _, err := d.hand.ask("prog", "righand", "", "a test", 20*time.Second); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -222,7 +222,7 @@ func TestADeadlinePublishesWithNobodyAsking(t *testing.T) {
 	h := newHandDesk(time.Now)
 	seen := make(chan registryv1.HandPhase, 8)
 	h.published = func(st *registryv1.HandState) { seen <- st.GetPhase() }
-	if _, err := h.ask("prog", "righand", "a test", 50*time.Millisecond); err != nil {
+	if _, err := h.ask("prog", "righand", "", "a test", 50*time.Millisecond); err != nil {
 		t.Fatal(err)
 	}
 	deadline := time.After(2 * time.Second)

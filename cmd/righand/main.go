@@ -96,7 +96,7 @@ func (p *program) handle(method string, payload []byte) (proto.Message, error) {
 	)
 	switch command {
 	case "script":
-		out, err = p.script(method, req.GetArgs())
+		out, err = p.script(method, req.GetCaller().GetSeat(), req.GetArgs())
 	case "windows":
 		out, err = p.windows()
 	case "where":
@@ -129,7 +129,7 @@ type scriptArgs struct {
 	WPM    int     `json:"wpm"`
 }
 
-func (p *program) script(method string, raw []byte) (any, error) {
+func (p *program) script(method, seat string, raw []byte) (any, error) {
 	var a scriptArgs
 	if err := json.Unmarshal(raw, &a); err != nil {
 		return nil, refuse(method, rigv1.Code_CODE_INVALID, "righand: script: "+err.Error(), "")
@@ -181,7 +181,7 @@ func (p *program) script(method string, raw []byte) (any, error) {
 	// run never touches the desktop (plan/05 section 5m, H1-H2).
 	p.report("his answer to the HANDS OFF countdown")
 	defer p.report(idle)
-	gate, release, err := p.askDesktop(a.Why, steps)
+	gate, release, scope, err := p.askDesktop(a.Why, seat, steps)
 	if err != nil {
 		return nil, refuse(method, codeOf(err), "righand: "+err.Error(), "")
 	}
@@ -194,6 +194,7 @@ func (p *program) script(method string, raw []byte) (any, error) {
 	}
 	defer h.Close()
 	h.SetPark(gate)
+	h.SetScope(scope)
 	if a.Speed > 0 {
 		h.SetSpeed(a.Speed)
 	}

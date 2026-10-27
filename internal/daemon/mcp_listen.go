@@ -112,6 +112,8 @@ func (d *Daemon) serveMCPConn(ctx context.Context, nc net.Conn) {
 	// the same address - which is why occupancy carries a byte of padding.
 	occ := &occupancy{}
 	defer d.presence.leave(occ)
+	// G4: a grant lives no longer than the session that asked for it.
+	defer d.hand.dropGrant(occ)
 
 	caller := &mcpCaller{Daemon: d, occ: occ, who: who, rider: &riderCursor{}}
 	server := mcpserver.New(meta.New(d.kernel, caller), who, d.version)

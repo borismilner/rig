@@ -16,7 +16,7 @@ func handDesk4(t *testing.T, window time.Duration) (*handDesk, chan error) {
 	t.Helper()
 	h := newHandDesk(time.Now)
 	h.holdMax, h.pauseMax = 150*time.Millisecond, 150*time.Millisecond
-	run, err := h.ask("prog", "righand", "3 steps", window)
+	run, err := h.ask("prog", "righand", "", "3 steps", window)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -173,7 +173,7 @@ func TestAPausePastItsBoundStopsTheRun(t *testing.T) {
 
 func TestOneRunAtATimeAndItEndsWithItsConnection(t *testing.T) {
 	h, done := handDesk4(t, 5*time.Second)
-	if _, err := h.ask("other", "x", "y", time.Second); err == nil {
+	if _, err := h.ask("other", "x", "", "y", time.Second); err == nil {
 		t.Fatal("a second run was let in")
 	}
 	if _, err := h.step(context.Background(), "other", "x", "", nil); err == nil {
@@ -181,7 +181,7 @@ func TestOneRunAtATimeAndItEndsWithItsConnection(t *testing.T) {
 	}
 	h.drop("prog")
 	refusedWith(t, within(t, done, time.Second), rigv1.Code_CODE_UNAVAILABLE, handLeft)
-	if _, err := h.ask("other", "x", "y", time.Second); err != nil {
+	if _, err := h.ask("other", "x", "", "y", time.Second); err != nil {
 		t.Fatalf("the desktop stayed held after its program left: %v", err)
 	}
 }
@@ -204,7 +204,7 @@ func TestTheStripWakesOnAChangeAndOnADeadline(t *testing.T) {
 	got := make(chan uint64, 1)
 	go func() { s, _ := h.after(ctx, st.GetSeq(), 5*time.Second); got <- s.GetSeq() }()
 	time.Sleep(30 * time.Millisecond)
-	_, _ = h.ask("p", "x", "y", 100*time.Millisecond)
+	_, _ = h.ask("p", "x", "", "y", 100*time.Millisecond)
 	if s := <-got; s <= st.GetSeq() {
 		t.Fatal("did not wake on the ask")
 	}
