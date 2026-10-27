@@ -50,7 +50,7 @@ func paint(path string, w, h int) error {
 	return os.WriteFile(path, b.Bytes(), 0o600)
 }
 
-func (s screen) CaptureWindow(_ context.Context, id uint64, path string) (capture.Raw, error) {
+func (s screen) CaptureWindow(_ context.Context, _ uint64, path string) (capture.Raw, error) {
 	if s.err != nil {
 		return capture.Raw{}, s.err
 	}

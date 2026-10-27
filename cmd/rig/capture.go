@@ -170,6 +170,9 @@ func cmdCaptureShot(args []string) (err error) {
 	if *asJSON {
 		return printProtoJSON(&resp)
 	}
+	if *cursor && resp.GetCursor() == "hidden" {
+		fmt.Fprintln(os.Stderr, "rig: the pointer is hidden, so the picture has none; move the mouse and retry")
+	}
 	fmt.Println(resp.GetPath())
 	fmt.Fprintf(os.Stderr, "%s %dx%d, %d bytes, %s, %d ms\n", resp.GetFormat(), resp.GetWidth(), resp.GetHeight(),
 		resp.GetBytes(), resp.GetTarget(), resp.GetTookMs())

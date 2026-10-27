@@ -285,7 +285,7 @@ func shotWire(s *capture.Shot) *registryv1.CaptureShotResponse {
 		Path: s.Path, Format: s.Format, Bytes: uint64(s.Bytes), //nolint:gosec // a file size
 		Width: clampU32(s.Width), Height: clampU32(s.Height), Sha256: s.SHA256, Target: s.Target,
 		TakenAt: s.TakenAt.UTC().Format(time.RFC3339), TookMs: clampU32(int(s.Took.Milliseconds())),
-		Data: s.Data, Shadow: s.Shadowed,
+		Data: s.Data, Shadow: s.Shadowed, Cursor: s.Cursor,
 	}
 	if s.Window != nil {
 		r.Window = windowWire(s.Window)

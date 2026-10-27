@@ -126,11 +126,19 @@ func (s *Service) Outputs(ctx context.Context) ([]Output, error) {
 // Check validates a request without touching the compositor, so a bad
 // request is refused the same way whatever the backend is doing.
 func Check(t Target, o Options) error {
-	bad := func(format string, a ...any) error {
-		return fmt.Errorf("%w: "+format, append([]any{ErrInvalid}, a...)...)
+	if err := checkOptions(o); err != nil {
+		return err
 	}
+	return checkTarget(t, o)
+}
+
+func bad(format string, a ...any) error {
+	return fmt.Errorf("%w: "+format, append([]any{ErrInvalid}, a...)...)
+}
+
+func checkOptions(o Options) error {
 	switch o.Format {
-	case "", "png", "jpeg":
+	case "", "png", formatJPEG:
 	default:
 		return bad("format is png or jpeg; got %q", o.Format)
 	}
@@ -148,6 +156,10 @@ func Check(t Target, o Options) error {
 		(c.W == 0) != (c.H == 0) {
 		return bad("crop needs a non-negative x, y and a width and height of 1 to %d", maxAreaSide)
 	}
+	return nil
+}
+
+func checkTarget(t Target, o Options) error {
 	switch t.Kind {
 	case KindWindow:
 		if t.ID == 0 && t.Title == "" && t.App == "" {
@@ -241,9 +253,9 @@ func (s *Service) Capture(ctx context.Context, t Target, o Options) (Shot, error
 	if err != nil {
 		return Shot{}, err
 	}
-	shot.Path, shot.Format = final, "png"
-	if o.Format == "jpeg" {
-		shot.Format = "jpeg"
+	shot.Path, shot.Format, shot.Cursor = final, "png", raw.Cursor
+	if o.Format == formatJPEG {
+		shot.Format = formatJPEG
 	}
 	shot.Bytes, shot.Width, shot.Height, shot.SHA256, shot.Shadowed = d.bytes, d.width, d.height, d.sum, d.shadowed
 	shot.TakenAt, shot.Took = start, s.now().Sub(start)
@@ -336,7 +348,7 @@ func (s *Service) names(o Options) (tmp, final string, err error) {
 	}
 	id := hex.EncodeToString(b[:])
 	ext := "png"
-	if o.Format == "jpeg" {
+	if o.Format == formatJPEG {
 		ext = "jpg"
 	}
 	stamp := s.now().UTC().Format("20060102T150405Z")
@@ -399,7 +411,7 @@ func mapCtx(ctx context.Context, err error) error {
 		return nil
 	}
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) && !errors.Is(err, ErrTimeout) {
-		return fmt.Errorf("%w (%v)", ErrTimeout, err)
+		return fmt.Errorf("%w (%w)", ErrTimeout, err)
 	}
 	return err
 }

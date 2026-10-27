@@ -22,7 +22,7 @@ laptop, see section 4).
 
 ## Map - this file is the INDEX. The sections live in `plan/`.
 
-**The specification is 16897 lines across 58 files and nobody reads it
+**The specification is 16914 lines across 58 files and nobody reads it
 whole.** It is a reference to query, and it is queried with two questions:
 *"what is rig supposed to do"* and *"what did he already rule on this"*.
 **This index exists so a requirement cannot hide**, which is the failure this
@@ -118,7 +118,7 @@ the original byte for byte before writing anything.
 | 55 | The management dashboard | 501 | [`plan/55-the-management-dashboard.md`](plan/55-the-management-dashboard.md) |
 | 56 | The cloud estate: rig on a free cloud host, Marvin on Telegram | 85 | [`plan/56-the-cloud-estate-rig-on-a-free-cloud.md`](plan/56-the-cloud-estate-rig-on-a-free-cloud.md) |
 | 57 | One question to the owner | 59 | [`plan/57-one-question-to-the-owner.md`](plan/57-one-question-to-the-owner.md) |
-| 58 | Seeing the screen | 111 | [`plan/58-seeing-the-screen.md`](plan/58-seeing-the-screen.md) |
+| 58 | Seeing the screen | 128 | [`plan/58-seeing-the-screen.md`](plan/58-seeing-the-screen.md) |
 
 ### The four questions a seat actually arrives with
 
@@ -129,8 +129,8 @@ the original byte for byte before writing anything.
 | **what do agents get, and when?** | §16 for the coordination primitives, **§39 for the continuity record**, §37 for the minimum set and the staged migration |
 | **has he already ruled on this?** | `logbook/projects/rig/DECISIONS.md` first, then §31-38. **Grep before proposing** - proposing what already exists is this project's named failure mode |
 
-**§31-38 ARE A CHANGELOG INSIDE A SPECIFICATION** - 10558 of 16897 lines,
-62%. Splitting the file did not fix that; it made it visible and
+**§31-38 ARE A CHANGELOG INSIDE A SPECIFICATION** - 10575 of 16914 lines,
+63%. Splitting the file did not fix that; it made it visible and
 cheap to act on, since those eight sections are now eight files that can move to
 the logbook in one commit. `BACKLOG.md` B24. **Until they do, a reader after the
 current rule prefers the numbered section over the pass that changed it.**

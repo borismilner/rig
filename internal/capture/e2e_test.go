@@ -85,6 +85,36 @@ func TestRealShell(t *testing.T) {
 	if err != nil || area.Width != 100 || area.Height != 50 {
 		t.Errorf("area = %+v, %v", area, err)
 	}
+	// The pointer: hidden until a pointer exists, then drawn.
+	hid, err := svc.Capture(ctx, Target{Kind: KindArea, Area: Rect{X: 0, Y: 0, W: 300, H: 300}}, Options{Cursor: true})
+	if err != nil || hid.Cursor != "hidden" {
+		t.Errorf("before any pointer: %+v, %v", hid, err)
+	}
+	if conn, err := dbus.ConnectSessionBus(); err != nil {
+		t.Errorf("session bus: %v", err)
+	} else {
+		defer conn.Close()
+		rd := conn.Object("org.gnome.Mutter.RemoteDesktop", "/org/gnome/Mutter/RemoteDesktop")
+		var sp dbus.ObjectPath
+		if err := rd.Call("org.gnome.Mutter.RemoteDesktop.CreateSession", 0).Store(&sp); err != nil {
+			t.Errorf("remote desktop session: %v", err)
+		} else {
+			sess := conn.Object("org.gnome.Mutter.RemoteDesktop", sp)
+			if err := sess.Call("org.gnome.Mutter.RemoteDesktop.Session.Start", 0).Err; err != nil {
+				t.Errorf("start: %v", err)
+			}
+			sess.Call("org.gnome.Mutter.RemoteDesktop.Session.NotifyPointerMotionRelative", 0, 100.0, 100.0)
+			time.Sleep(time.Second)
+			drawn, err := svc.Capture(ctx, Target{Kind: KindArea, Area: Rect{X: 0, Y: 0, W: 300, H: 300}}, Options{Cursor: true})
+			if err != nil || drawn.Cursor != "drawn" {
+				t.Errorf("with a pointer: %+v, %v", drawn, err)
+			}
+			plain, err := svc.Capture(ctx, Target{Kind: KindArea, Area: Rect{X: 0, Y: 0, W: 300, H: 300}}, Options{})
+			if err != nil || plain.Cursor != "" || plain.SHA256 == drawn.SHA256 {
+				t.Errorf("without --cursor the picture must differ and say nothing: %+v, %v", plain, err)
+			}
+		}
+	}
 	if _, err := svc.Capture(ctx, Target{Kind: KindArea, Area: Rect{X: 90000, Y: 0, W: 10, H: 10}}, Options{}); err == nil {
 		t.Error("an area outside the desktop was accepted")
 	}

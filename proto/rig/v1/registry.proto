@@ -1076,4 +1076,7 @@ message CaptureShotResponse {
   bytes data = 12;
   // True when the picture still holds the window's shadow margin.
   bool shadow = 13;
+  // "drawn" or "hidden" when the pointer was asked for: the compositor
+  // draws none while it hides the pointer. Empty when not asked.
+  string cursor = 14;
 }

@@ -6355,7 +6355,10 @@ type CaptureShotResponse struct {
 	// The bytes, only when inline_max asked for them and they fit.
 	Data []byte `protobuf:"bytes,12,opt,name=data,proto3" json:"data,omitempty"`
 	// True when the picture still holds the window's shadow margin.
-	Shadow        bool `protobuf:"varint,13,opt,name=shadow,proto3" json:"shadow,omitempty"`
+	Shadow bool `protobuf:"varint,13,opt,name=shadow,proto3" json:"shadow,omitempty"`
+	// "drawn" or "hidden" when the pointer was asked for: the compositor
+	// draws none while it hides the pointer. Empty when not asked.
+	Cursor        string `protobuf:"bytes,14,opt,name=cursor,proto3" json:"cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6479,6 +6482,13 @@ func (x *CaptureShotResponse) GetShadow() bool {
 		return x.Shadow
 	}
 	return false
+}
+
+func (x *CaptureShotResponse) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
 }
 
 var File_proto_rig_v1_registry_proto protoreflect.FileDescriptor
@@ -6919,7 +6929,7 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"keepShadow\x12\x16\n" +
 	"\x06cursor\x18\r \x01(\bR\x06cursor\x12\x1d\n" +
 	"\n" +
-	"inline_max\x18\x0e \x01(\rR\tinlineMax\"\xf3\x02\n" +
+	"inline_max\x18\x0e \x01(\rR\tinlineMax\"\x8b\x03\n" +
 	"\x13CaptureShotResponse\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +
 	"\x06format\x18\x02 \x01(\tR\x06format\x12\x14\n" +
@@ -6934,7 +6944,8 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	" \x01(\tR\atakenAt\x12\x17\n" +
 	"\atook_ms\x18\v \x01(\rR\x06tookMs\x12\x12\n" +
 	"\x04data\x18\f \x01(\fR\x04data\x12\x16\n" +
-	"\x06shadow\x18\r \x01(\bR\x06shadow*V\n" +
+	"\x06shadow\x18\r \x01(\bR\x06shadow\x12\x16\n" +
+	"\x06cursor\x18\x0e \x01(\tR\x06cursor*V\n" +
 	"\x05Depth\x12\x15\n" +
 	"\x11DEPTH_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eDEPTH_PROGRAMS\x10\x01\x12\x12\n" +

@@ -218,6 +218,12 @@ linters:
       - linters:
           - misspell
         path: _gtk\.go$
+      # The capture code names the standard library's image/color and the
+      # compositor's and the wire's window state, minimized, as they are
+      # spelt there.
+      - linters:
+          - misspell
+        path: (internal/capture/|internal/daemon/(capture|self)|cmd/rig/capture)
     paths:
       - .*\.pb\.go$
       - .*\.gen\.go$

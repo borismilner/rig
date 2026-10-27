@@ -25,6 +25,8 @@ type fake struct {
 	outputs []Output
 	// shadow is the margin around a window's frame, in pixels.
 	shadow int
+	// cursor is what CaptureArea reports about the pointer.
+	cursor string
 	// write replaces the picture writer when set.
 	write func(path string) error
 	// block holds each capture until released.
@@ -35,8 +37,8 @@ type fake struct {
 
 func solid(w, h int, c color.Color) *image.NRGBA {
 	img := image.NewNRGBA(image.Rect(0, 0, w, h))
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
+	for y := range h {
+		for x := range w {
 			img.Set(x, y, c)
 		}
 	}
@@ -52,9 +54,11 @@ func writePNG(path string, img image.Image) error {
 }
 
 func (f *fake) Info(context.Context) (Info, error) { return Info{API: APIVersion, Shell: "50.1"}, nil }
+
 func (f *fake) Windows(context.Context) ([]Window, error) {
 	return append([]Window(nil), f.windows...), nil
 }
+
 func (f *fake) Outputs(context.Context) ([]Output, error) {
 	return append([]Output(nil), f.outputs...), nil
 }
@@ -88,15 +92,17 @@ func (f *fake) CaptureWindow(ctx context.Context, id uint64, path string) (Raw, 
 			s := f.shadow
 			img := solid(w.W+2*s, w.H+2*s, color.NRGBA{R: 255, A: 255})
 			// the shadow is transparent
-			for y := 0; y < img.Bounds().Dy(); y++ {
-				for x := 0; x < img.Bounds().Dx(); x++ {
+			for y := range img.Bounds().Dy() {
+				for x := range img.Bounds().Dx() {
 					if x < s || y < s || x >= s+w.W || y >= s+w.H {
 						img.SetNRGBA(x, y, color.NRGBA{})
 					}
 				}
 			}
-			return Raw{Width: img.Bounds().Dx(), Height: img.Bounds().Dy(),
-				Frame: Rect{X: s, Y: s, W: w.W, H: w.H}, Scale: 1}, writePNG(path, img)
+			return Raw{
+				Width: img.Bounds().Dx(), Height: img.Bounds().Dy(),
+				Frame: Rect{X: s, Y: s, W: w.W, H: w.H}, Scale: 1,
+			}, writePNG(path, img)
 		}
 	}
 	return Raw{}, ErrNoTarget
@@ -109,7 +115,7 @@ func (f *fake) CaptureArea(ctx context.Context, r Rect, _ bool, path string) (Ra
 	if f.write != nil {
 		return Raw{}, f.write(path)
 	}
-	return Raw{Width: r.W, Height: r.H, Scale: 1}, writePNG(path, solid(r.W, r.H, color.NRGBA{G: 255, A: 255}))
+	return Raw{Width: r.W, Height: r.H, Scale: 1, Cursor: f.cursor}, writePNG(path, solid(r.W, r.H, color.NRGBA{G: 255, A: 255}))
 }
 
 func newFake() *fake {
@@ -259,8 +265,13 @@ func TestScreenClearsWhatNoMonitorShows(t *testing.T) {
 		x, y   int
 		opaque bool
 	}{
-		{10, 10, true}, {1919, 1079, true}, {1920, 0, true}, {3199, 1023, true},
-		{1920, 1024, false}, {3199, 1079, false}, {2500, 1050, false},
+		{10, 10, true},
+		{1919, 1079, true},
+		{1920, 0, true},
+		{3199, 1023, true},
+		{1920, 1024, false},
+		{3199, 1079, false},
+		{2500, 1050, false},
 	} {
 		if _, _, _, a := img.At(c.x, c.y).RGBA(); (a != 0) != c.opaque {
 			t.Errorf("pixel %d,%d: opaque=%v, want %v", c.x, c.y, a != 0, c.opaque)
@@ -272,6 +283,38 @@ func TestScreenClearsWhatNoMonitorShows(t *testing.T) {
 	s = newSvc(t, g, Limits{})
 	if shot, err = s.Capture(context.Background(), Target{Kind: KindScreen}, Options{}); err != nil || shot.Width != 3200 {
 		t.Fatalf("gapless: %v", err)
+	}
+}
+
+func TestCursorOutcomeIsReported(t *testing.T) {
+	f := newFake()
+	f.cursor = "hidden"
+	s := newSvc(t, f, Limits{})
+	shot, err := s.Capture(context.Background(), Target{Kind: KindScreen}, Options{Cursor: true})
+	if err != nil || shot.Cursor != "hidden" {
+		t.Fatalf("a hidden pointer must be said so: %v %q", err, shot.Cursor)
+	}
+	r, err := parseRaw(`{"width":10,"height":5,"scale":1,"cursor":"drawn"}`)
+	if err != nil || r.Cursor != "drawn" {
+		t.Fatalf("parseRaw cursor: %v %+v", err, r)
+	}
+	if r, err = parseRaw(`{"width":10,"height":5,"scale":1}`); err != nil || r.Cursor != "" {
+		t.Fatalf("an older extension says nothing: %v %+v", err, r)
+	}
+}
+
+func TestBlankWindowIsRefusedButBlankAreaIsNot(t *testing.T) {
+	s := newSvc(t, newFake(), Limits{})
+	ctx := context.Background()
+	// A window the compositor painted as nothing (an unmapped X11 window) is
+	// not filed as a picture.
+	s.be.(*fake).write = func(path string) error { return writePNG(path, solid(40, 30, color.NRGBA{})) }
+	if _, err := s.Capture(ctx, Target{Kind: KindWindow, ID: 2}, Options{}); !errors.Is(err, ErrNoTarget) {
+		t.Fatalf("a blank window picture: %v", err)
+	}
+	// An area may legitimately be transparent (a gap between monitors).
+	if _, err := s.Capture(ctx, Target{Kind: KindArea, Area: Rect{W: 10, H: 10}}, Options{}); err != nil {
+		t.Fatalf("a blank area is allowed: %v", err)
 	}
 }
 
@@ -411,7 +454,7 @@ func TestBusyWhenTooManyInFlight(t *testing.T) {
 	f.entered = make(chan struct{}, 4)
 	s := newSvc(t, f, Limits{Concurrent: 2})
 	var wg sync.WaitGroup
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -553,7 +596,7 @@ func TestPrune(t *testing.T) {
 	old := time.Now().Add(-time.Hour)
 	_ = os.Chtimes(stale, old, old)
 	var last Shot
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		var err error
 		last, err = s.Capture(context.Background(), Target{Kind: KindWindow, ID: 3}, Options{})
 		if err != nil {
@@ -660,7 +703,7 @@ func TestLiveLimitsApplyToTheNextCapture(t *testing.T) {
 
 func FuzzCheck(f *testing.F) {
 	f.Add(1, uint64(0), "t", "a", 3, 0, 0, 100, 100, "png", 80, 800)
-	f.Fuzz(func(t *testing.T, kind int, id uint64, title, app string, out, ax, ay, aw, ah int, format string, q, dim int) {
+	f.Fuzz(func(_ *testing.T, kind int, id uint64, title, app string, out, ax, ay, aw, ah int, format string, q, dim int) {
 		_ = Check(Target{Kind: Kind(kind), ID: id, Title: title, App: app, Output: out, Area: Rect{ax, ay, aw, ah}},
 			Options{Format: format, Quality: q, MaxDim: dim})
 	})

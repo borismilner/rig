@@ -3,6 +3,7 @@ package capture
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"image/color"
 	"os/exec"
@@ -55,7 +56,7 @@ type ext struct {
 func (e *ext) Version() (uint32, string, *dbus.Error) { return e.api, "50.1", nil }
 func (e *ext) ListWindows() (string, *dbus.Error)     { e.calls.Add(1); return e.windows, nil }
 func (e *ext) ListOutputs() (string, *dbus.Error)     { return e.outputs, nil }
-func (e *ext) CaptureWindow(id uint64, path string) (string, *dbus.Error) {
+func (e *ext) CaptureWindow(_ uint64, path string) (string, *dbus.Error) {
 	time.Sleep(e.delay)
 	if e.err != nil {
 		return "", e.err
@@ -65,7 +66,8 @@ func (e *ext) CaptureWindow(id uint64, path string) (string, *dbus.Error) {
 	}
 	return e.raw, nil
 }
-func (e *ext) CaptureArea(x, y, w, h int32, cursor bool, path string) (string, *dbus.Error) {
+
+func (e *ext) CaptureArea(_, _, w, h int32, _ bool, path string) (string, *dbus.Error) {
 	if e.err != nil {
 		return "", e.err
 	}
@@ -90,12 +92,14 @@ func serve(t *testing.T, dial func() (*dbus.Conn, error), e *ext) {
 	}
 }
 
-const oneWindow = `[{"id":7,"title":"term","app":"gjs","pid":1,"workspace":1,"minimized":true,"focused":false,"visible":false,"x":1,"y":2,"w":30,"h":20}]`
+const oneWindow = `[{"id":7,"title":"term","app":"gjs","pid":1,"workspace":1,"minimized":false,"focused":false,"visible":true,"x":1,"y":2,"w":30,"h":20}]`
 
 func goodExt() *ext {
-	return &ext{api: APIVersion, windows: oneWindow,
+	return &ext{
+		api: APIVersion, windows: oneWindow,
 		outputs: `[{"index":0,"name":"DP-1","x":0,"y":0,"w":64,"h":48,"scale":1,"primary":true}]`,
-		raw:     `{"width":30,"height":20,"scale":1,"frame":{"X":0,"Y":0,"W":30,"H":20}}`}
+		raw:     `{"width":30,"height":20,"scale":1,"frame":{"X":0,"Y":0,"W":30,"H":20}}`,
+	}
 }
 
 func TestGNOMEEndToEnd(t *testing.T) {
@@ -113,7 +117,7 @@ func TestGNOMEEndToEnd(t *testing.T) {
 		t.Fatalf("info: %v %+v", err, in)
 	}
 	ws, err := s.Windows(ctx, "")
-	if err != nil || len(ws) != 1 || !ws[0].Minimized || ws[0].Workspace != 1 || ws[0].ID != 7 {
+	if err != nil || len(ws) != 1 || ws[0].Minimized || !ws[0].Visible || ws[0].Workspace != 1 || ws[0].ID != 7 {
 		t.Fatalf("windows: %v %+v", err, ws)
 	}
 	shot, err := s.Capture(ctx, Target{Kind: KindWindow, ID: 7}, Options{})
@@ -179,7 +183,7 @@ func TestGNOMEMapsExtensionErrors(t *testing.T) {
 			g := NewGNOME(dial)
 			defer g.Close()
 			_, err := g.CaptureWindow(context.Background(), 7, t.TempDir()+"/x.png")
-			if !errors.Is(err, want) || !strings.Contains(err.Error(), "because") && want != ErrNoTarget {
+			if !errors.Is(err, want) || !strings.Contains(err.Error(), "because") && !errors.Is(want, ErrNoTarget) {
 				t.Fatalf("want %v, got %v", want, err)
 			}
 		})
@@ -251,5 +255,13 @@ func TestGNOMERedialsAfterTheBusDrops(t *testing.T) {
 	g.mu.Unlock()
 	if _, err := g.Windows(context.Background()); err != nil {
 		t.Fatalf("a dead connection should be redialled: %v", err)
+	}
+}
+
+func TestMinimizedWindowIsParsed(t *testing.T) {
+	var ws []jsonWindow
+	if err := json.Unmarshal([]byte(`[{"id":7,"minimized":true,"visible":false}]`), &ws); err != nil ||
+		len(ws) != 1 || !ws[0].Minimized {
+		t.Fatalf("minimized flag lost: %v %+v", err, ws)
 	}
 }

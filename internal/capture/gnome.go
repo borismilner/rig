@@ -84,7 +84,7 @@ func unavailable(why string) error {
 // if the bus connection died between calls.
 func (g *GNOME) call(ctx context.Context, method string, args ...any) (string, error) {
 	var lastErr error
-	for attempt := 0; attempt < 2; attempt++ {
+	for range 2 {
 		c, err := g.bus()
 		if err != nil {
 			return "", err
@@ -93,7 +93,7 @@ func (g *GNOME) call(ctx context.Context, method string, args ...any) (string, e
 		if call.Err == nil {
 			var out string
 			if err := call.Store(&out); err != nil {
-				return "", fmt.Errorf("%w: %s answered with the wrong shape: %v", ErrBadImage, method, err)
+				return "", fmt.Errorf("%w: %s answered with the wrong shape: %w", ErrBadImage, method, err)
 			}
 			if len(out) > maxReply {
 				return "", fmt.Errorf("%w: %s answered with %d bytes", ErrTooLarge, method, len(out))
@@ -118,7 +118,7 @@ func (g *GNOME) call(ctx context.Context, method string, args ...any) (string, e
 // mapBusError turns a D-Bus failure into one of this package's refusals.
 func mapBusError(ctx context.Context, err error) error {
 	if ctx.Err() != nil {
-		return fmt.Errorf("%w (%v)", ErrTimeout, ctx.Err())
+		return fmt.Errorf("%w (%w)", ErrTimeout, ctx.Err())
 	}
 	var de dbus.Error
 	if !errors.As(err, &de) {
@@ -168,7 +168,7 @@ func (g *GNOME) Info(ctx context.Context) (Info, error) {
 	}
 	var in Info
 	if err := call.Store(&in.API, &in.Shell); err != nil {
-		return Info{}, fmt.Errorf("%w: Version answered with the wrong shape: %v", ErrBadImage, err)
+		return Info{}, fmt.Errorf("%w: Version answered with the wrong shape: %w", ErrBadImage, err)
 	}
 	if in.API != APIVersion {
 		return in, unavailable(fmt.Sprintf("the extension speaks API %d and this rig speaks %d; reinstall the extension", in.API, APIVersion))
@@ -204,7 +204,7 @@ func (g *GNOME) Windows(ctx context.Context) ([]Window, error) {
 	}
 	var in []jsonWindow
 	if err := json.Unmarshal([]byte(s), &in); err != nil {
-		return nil, fmt.Errorf("%w: ListWindows is not JSON: %v", ErrBadImage, err)
+		return nil, fmt.Errorf("%w: ListWindows is not JSON: %w", ErrBadImage, err)
 	}
 	out := make([]Window, 0, len(in))
 	for _, w := range in {
@@ -221,7 +221,7 @@ func (g *GNOME) Outputs(ctx context.Context) ([]Output, error) {
 	}
 	var out []Output
 	if err := json.Unmarshal([]byte(s), &out); err != nil {
-		return nil, fmt.Errorf("%w: ListOutputs is not JSON: %v", ErrBadImage, err)
+		return nil, fmt.Errorf("%w: ListOutputs is not JSON: %w", ErrBadImage, err)
 	}
 	return out, nil
 }
@@ -230,6 +230,7 @@ type jsonRaw struct {
 	Width  int     `json:"width"`
 	Height int     `json:"height"`
 	Scale  float64 `json:"scale"`
+	Cursor string  `json:"cursor"`
 	Frame  *struct {
 		X, Y, W, H int
 	} `json:"frame"`
@@ -238,9 +239,9 @@ type jsonRaw struct {
 func parseRaw(s string) (Raw, error) {
 	var j jsonRaw
 	if err := json.Unmarshal([]byte(s), &j); err != nil {
-		return Raw{}, fmt.Errorf("%w: the capture reply is not JSON: %v", ErrBadImage, err)
+		return Raw{}, fmt.Errorf("%w: the capture reply is not JSON: %w", ErrBadImage, err)
 	}
-	r := Raw{Width: j.Width, Height: j.Height, Scale: j.Scale}
+	r := Raw{Width: j.Width, Height: j.Height, Scale: j.Scale, Cursor: j.Cursor}
 	if j.Frame != nil {
 		r.Frame = Rect{X: j.Frame.X, Y: j.Frame.Y, W: j.Frame.W, H: j.Frame.H}
 	}
@@ -264,7 +265,7 @@ func (g *GNOME) CaptureArea(ctx context.Context, r Rect, cursor bool, path strin
 	if err := checkPath(path); err != nil {
 		return Raw{}, err
 	}
-	s, err := g.call(ctx, "CaptureArea", int32(r.X), int32(r.Y), int32(r.W), int32(r.H), cursor, path)
+	s, err := g.call(ctx, "CaptureArea", int32(r.X), int32(r.Y), int32(r.W), int32(r.H), cursor, path) //nolint:gosec // Check bounds an area to maxAreaSide, and outputs come from the compositor
 	if err != nil {
 		return Raw{}, err
 	}

@@ -231,6 +231,7 @@ export default class RigCapture extends Extension {
             try { out.close(null); } catch (_e) { /* already closed */ }
             throw e;
         }
-        return JSON.stringify({width: sw, height: sh, scale});
+        // Whether the pointer is in the picture: a hidden pointer is not an error.
+        return JSON.stringify({width: sw, height: sh, scale, cursor: ctex ? 'drawn' : (cursor ? 'hidden' : '')});
     }
 }

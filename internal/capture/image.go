@@ -34,39 +34,13 @@ type done struct {
 func finish(src string, raw Raw, kind Kind, o Options, lim Limits, monitors []Rect, dst string) (done, error) {
 	defer os.Remove(src)
 
-	f, err := os.OpenFile(src, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	decoded, cfg, err := readPicture(src, lim)
 	if err != nil {
-		return done{}, fmt.Errorf("%w: %v", ErrBadImage, err)
-	}
-	defer f.Close()
-	st, err := f.Stat()
-	if err != nil || !st.Mode().IsRegular() {
-		return done{}, fmt.Errorf("%w: the backend's file is not a regular file", ErrBadImage)
-	}
-	if st.Size() == 0 {
-		return done{}, fmt.Errorf("%w: the backend's file is empty", ErrBadImage)
-	}
-	if st.Size() > lim.MaxBytes {
-		return done{}, fmt.Errorf("%w: %d bytes against a limit of %d", ErrTooLarge, st.Size(), lim.MaxBytes)
-	}
-	cfg, err := png.DecodeConfig(f)
-	if err != nil {
-		return done{}, fmt.Errorf("%w: %v", ErrBadImage, err)
-	}
-	if cfg.Width <= 0 || cfg.Height <= 0 || int64(cfg.Width)*int64(cfg.Height) > lim.MaxPixels {
-		return done{}, fmt.Errorf("%w: %dx%d pixels against a limit of %d", ErrTooLarge, cfg.Width, cfg.Height, lim.MaxPixels)
+		return done{}, err
 	}
 
-	// The whole picture is decoded even when it will be kept as it is: the
-	// header alone says nothing about the pixel data, and a truncated or
-	// corrupt file must not be filed as a screenshot. The pixel limit above
-	// bounds what this costs.
-	if _, err := f.Seek(0, io.SeekStart); err != nil {
-		return done{}, fmt.Errorf("%w: %v", ErrBadImage, err)
-	}
-	decoded, err := png.Decode(bufio.NewReader(f))
-	if err != nil {
-		return done{}, fmt.Errorf("%w: %v", ErrBadImage, err)
+	if kind == KindWindow && blank(decoded) {
+		return done{}, fmt.Errorf("%w: the compositor painted nothing for this window (an X11 window that is minimized or unmapped has no picture to take)", ErrNoTarget)
 	}
 
 	frame := Rect{}
@@ -75,7 +49,7 @@ func finish(src string, raw Raw, kind Kind, o Options, lim Limits, monitors []Re
 	}
 	shrink := o.MaxDim > 0 && (cfg.Width > o.MaxDim || cfg.Height > o.MaxDim)
 	voids := len(monitors) > 0 && !covered(monitors, cfg.Width, cfg.Height)
-	if o.Format != "jpeg" && frame.Empty() && o.Crop.Empty() && !shrink && !voids {
+	if o.Format != formatJPEG && frame.Empty() && o.Crop.Empty() && !shrink && !voids {
 		return keepAsIs(src, dst, cfg.Width, cfg.Height, kind == KindWindow)
 	}
 	img := toRGBA(decoded)
@@ -101,6 +75,46 @@ func finish(src string, raw Raw, kind Kind, o Options, lim Limits, monitors []Re
 	return encode(dst, img, o, shadowed)
 }
 
+// readPicture opens the backend's file without following a link, enforces
+// the byte and pixel limits, and decodes it whole.
+func readPicture(src string, lim Limits) (image.Image, image.Config, error) {
+	f, err := os.OpenFile(src, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return nil, image.Config{}, fmt.Errorf("%w: %w", ErrBadImage, err)
+	}
+	defer f.Close()
+	st, err := f.Stat()
+	if err != nil || !st.Mode().IsRegular() {
+		return nil, image.Config{}, fmt.Errorf("%w: the backend's file is not a regular file", ErrBadImage)
+	}
+	if st.Size() == 0 {
+		return nil, image.Config{}, fmt.Errorf("%w: the backend's file is empty", ErrBadImage)
+	}
+	if st.Size() > lim.MaxBytes {
+		return nil, image.Config{}, fmt.Errorf("%w: %d bytes against a limit of %d", ErrTooLarge, st.Size(), lim.MaxBytes)
+	}
+	cfg, err := png.DecodeConfig(f)
+	if err != nil {
+		return nil, image.Config{}, fmt.Errorf("%w: %w", ErrBadImage, err)
+	}
+	if cfg.Width <= 0 || cfg.Height <= 0 || int64(cfg.Width)*int64(cfg.Height) > lim.MaxPixels {
+		return nil, image.Config{}, fmt.Errorf("%w: %dx%d pixels against a limit of %d", ErrTooLarge, cfg.Width, cfg.Height, lim.MaxPixels)
+	}
+
+	// The whole picture is decoded even when it will be kept as it is: the
+	// header alone says nothing about the pixel data, and a truncated or
+	// corrupt file must not be filed as a screenshot. The pixel limit above
+	// bounds what this costs.
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return nil, image.Config{}, fmt.Errorf("%w: %w", ErrBadImage, err)
+	}
+	decoded, err := png.Decode(bufio.NewReader(f))
+	if err != nil {
+		return nil, image.Config{}, fmt.Errorf("%w: %w", ErrBadImage, err)
+	}
+	return decoded, cfg, nil
+}
+
 // keepAsIs moves an already validated, untouched PNG into place.
 func keepAsIs(src, dst string, w, h int, shadowed bool) (done, error) {
 	if err := os.Rename(src, dst); err != nil {
@@ -120,7 +134,7 @@ func encode(dst string, img *image.RGBA, o Options, shadowed bool) (done, error)
 	}
 	w := bufio.NewWriter(out)
 	switch o.Format {
-	case "jpeg":
+	case formatJPEG:
 		q := o.Quality
 		if q < 1 || q > 100 {
 			q = 85
@@ -244,6 +258,19 @@ func clearOutside(img *image.RGBA, monitors []Rect) {
 	}
 }
 
+// blank reports a picture with no visible pixel at all.
+func blank(img image.Image) bool {
+	b := img.Bounds()
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			if _, _, _, a := img.At(x, y).RGBA(); a != 0 {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func crop(src *image.RGBA, r Rect) *image.RGBA {
 	dst := image.NewRGBA(image.Rect(0, 0, r.W, r.H))
 	draw.Draw(dst, dst.Bounds(), src, image.Pt(r.X, r.Y), draw.Src)
@@ -266,12 +293,12 @@ func fit(src *image.RGBA, limit int) *image.RGBA {
 	}
 	dw, dh = clampMin(dw), clampMin(dh)
 	dst := image.NewRGBA(image.Rect(0, 0, dw, dh))
-	for y := 0; y < dh; y++ {
+	for y := range dh {
 		y0, y1 := y*sh/dh, (y+1)*sh/dh
 		if y1 <= y0 {
 			y1 = y0 + 1
 		}
-		for x := 0; x < dw; x++ {
+		for x := range dw {
 			x0, x1 := x*sw/dw, (x+1)*sw/dw
 			if x1 <= x0 {
 				x1 = x0 + 1
@@ -289,7 +316,7 @@ func fit(src *image.RGBA, limit int) *image.RGBA {
 			}
 			o := dst.PixOffset(x, y)
 			dst.Pix[o], dst.Pix[o+1], dst.Pix[o+2], dst.Pix[o+3] =
-				uint8(r/n), uint8(g/n), uint8(b/n), uint8(a/n)
+				uint8(r/n), uint8(g/n), uint8(b/n), uint8(a/n) //nolint:gosec // a mean of bytes is a byte
 		}
 	}
 	return dst

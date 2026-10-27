@@ -2,6 +2,9 @@
 # Runs inside dbus-run-session: a headless Shell with the real extension and
 # three coloured windows, then the Go end-to-end test against it.
 S=$1; REPO=$2; cd "$S"
+# The private Shell starts an ibus-daemon that dies with its display; without
+# this the desktop's crash reporter raises a dialog on the real session.
+ulimit -c 0
 export XDG_DATA_HOME=$S/data XDG_CONFIG_HOME=$S/config XDG_CACHE_HOME=$S/cache GSETTINGS_BACKEND=keyfile
 mkdir -p "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME"
 XDG_DATA_HOME=$XDG_DATA_HOME "$REPO/shellext/install.sh" >/dev/null

@@ -81,6 +81,9 @@ type Raw struct {
 	// holds its shadow. Empty for outputs and areas.
 	Frame Rect
 	Scale float64
+	// Cursor is "drawn" or "hidden" when the pointer was asked for, and
+	// empty when it was not or the extension does not say.
+	Cursor string
 }
 
 // Info identifies the backend.
@@ -174,7 +177,12 @@ type Shot struct {
 	Took     time.Duration
 	Data     []byte
 	Shadowed bool
+	// Cursor says what became of a requested pointer: "drawn" or "hidden".
+	Cursor string
 }
+
+// formatJPEG is the one option beside the default png.
+const formatJPEG = "jpeg"
 
 // Limits bound everything. The zero value is replaced by Defaults.
 type Limits struct {

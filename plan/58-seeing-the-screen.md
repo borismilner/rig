@@ -108,3 +108,20 @@ the window colour for:
   against the real extension in a private headless Shell (3 windows
   exact-cropped to 400x300 with correct pixels, screen, area, refusals).
   Passed 2026-10-27; it never touches the live session.
+
+**Verified on the live Shell 50.1 (2026-10-27, two monitors, scale 1):**
+window (also unfocused, also Xwayland and shaped), output, area and
+screen shots are correct. Found and fixed the same day:
+
+- **`--screen` pixels outside every monitor** (the box around a layout
+  that is not a rectangle) held stage chrome; rig now clears them to
+  transparent from the monitor rectangles.
+- **`--cursor` said nothing when the Shell had no pointer sprite**; the
+  response now carries `cursor`: `drawn` or `hidden` (empty when not
+  asked, or when an older extension does not say) and the CLI warns.
+  The pointer is drawn when it exists (real-Shell test, virtual pointer).
+- **A window the compositor paints as nothing is refused** (`NOT_FOUND`)
+  instead of filed as a blank picture. This is what a minimised Xwayland
+  window gives. Minimised native Wayland windows capture correctly.
+- **Still untested:** fractional scale, a fullscreen window, the
+  pointer on the live Shell with a real mouse.
