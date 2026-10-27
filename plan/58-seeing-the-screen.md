@@ -73,3 +73,38 @@ the window colour for:
 - The extension is tied to the Shell major version (`shell-version`).
 - Section 38 search: no Go library does this, since the work is inside
   the compositor. Reused: `godbus/dbus` on the daemon side.
+
+## As built (2026-10-27)
+
+**Verbs** (both bridged to MCP as `capture_list`, `capture_shot`):
+
+| Verb | Class | Does |
+|---|---|---|
+| `capture.list` | read-only | windows (id, title, app, pid, workspace, state) and monitors |
+| `capture.shot` | lease writer | one picture of a window, output, the screen or an area |
+
+- **Anybody may call, every call is logged** (ruling 0269): the log
+  carries the caller, the target ids and the outcome, never a window title.
+- **Pictures** live in `$XDG_RUNTIME_DIR/rig/capture/<estate>`: a private
+  tmpfs directory (0700, owned by the user, not a link), files 0600,
+  pruned by count, bytes and age. A shot returns the path, the size, a
+  SHA-256 and optionally the bytes inline.
+- **Windows are cropped to their frame** (no shadow) unless `keep_shadow`.
+  A match naming several windows is refused with the candidates, unless
+  `first`.
+- **Backend output is never trusted**: opened with `O_NOFOLLOW`, size and
+  pixel limits checked, then fully decoded; a truncated PNG is refused.
+- **Settings** (`capture.*`): `timeout_ms`, `concurrent`, `max_pixels`,
+  `max_file_mb`, `keep_files`, `keep_mb`, `keep_hours`, `inline_kb`.
+- **CLI**: `rig capture list [MATCH]` and `rig capture shot` (`--window`,
+  `--title`, `--app`, `--first`, `--output`, `--screen`, `--area`,
+  `--crop`, `--format`, `--quality`, `--max-dim`, `--keep-shadow`,
+  `--cursor`); stdout is the picture path.
+- **Extension**: `shellext/rigcapture@rig`, D-Bus API 1 on
+  `org.rig.Capture`; `shellext/install.sh` installs it. Without it the
+  verbs answer UNAVAILABLE with the fix. A log-out and log-in is needed
+  once.
+- **Real-Shell check**: `tools/shellcapture-e2e/run.sh` runs the service
+  against the real extension in a private headless Shell (3 windows
+  exact-cropped to 400x300 with correct pixels, screen, area, refusals).
+  Passed 2026-10-27; it never touches the live session.
