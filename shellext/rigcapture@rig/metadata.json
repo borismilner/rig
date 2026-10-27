@@ -1,0 +1,7 @@
+{
+  "uuid": "rigcapture@rig",
+  "name": "rig capture",
+  "description": "Lets rigd take pictures of any window or monitor from inside the compositor (rig plan section 58).",
+  "shell-version": ["50"],
+  "version": 1
+}
