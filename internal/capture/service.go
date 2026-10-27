@@ -203,6 +203,7 @@ func (s *Service) Capture(ctx context.Context, t Target, o Options) (Shot, error
 	defer os.Remove(tmp)
 
 	var raw Raw
+	var monitors []Rect
 	switch t.Kind {
 	case KindWindow:
 		var w Window
@@ -222,6 +223,11 @@ func (s *Service) Capture(ctx context.Context, t Target, o Options) (Shot, error
 		if area, shot.Output, err = outputArea(outs, t); err != nil {
 			return Shot{}, err
 		}
+		if t.Kind == KindScreen {
+			for _, o := range outs {
+				monitors = append(monitors, Rect{X: o.X - area.X, Y: o.Y - area.Y, W: o.W, H: o.H})
+			}
+		}
 		if raw, err = s.be.CaptureArea(ctx, area, o.Cursor, tmp); err != nil {
 			return Shot{}, mapCtx(ctx, err)
 		}
@@ -231,7 +237,7 @@ func (s *Service) Capture(ctx context.Context, t Target, o Options) (Shot, error
 		}
 	}
 
-	d, err := finish(tmp, raw, t.Kind, o, lim, final)
+	d, err := finish(tmp, raw, t.Kind, o, lim, monitors, final)
 	if err != nil {
 		return Shot{}, err
 	}

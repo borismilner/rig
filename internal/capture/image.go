@@ -26,7 +26,12 @@ type done struct {
 // finish reads the PNG the backend wrote at src, enforces the limits on it,
 // applies the caller's options and leaves the result at dst. src is removed
 // either way. dst must not exist.
-func finish(src string, raw Raw, kind Kind, o Options, lim Limits, dst string) (done, error) {
+//
+// monitors, for a screen picture, holds each monitor's rectangle relative to
+// the picture's origin in desktop pixels. Whatever lies outside all of them
+// is not on any display, so it is cleared: the compositor leaves stage
+// chrome there that is not part of what the user sees.
+func finish(src string, raw Raw, kind Kind, o Options, lim Limits, monitors []Rect, dst string) (done, error) {
 	defer os.Remove(src)
 
 	f, err := os.OpenFile(src, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
@@ -69,10 +74,14 @@ func finish(src string, raw Raw, kind Kind, o Options, lim Limits, dst string) (
 		frame = clip(raw.Frame, cfg.Width, cfg.Height)
 	}
 	shrink := o.MaxDim > 0 && (cfg.Width > o.MaxDim || cfg.Height > o.MaxDim)
-	if o.Format != "jpeg" && frame.Empty() && o.Crop.Empty() && !shrink {
+	voids := len(monitors) > 0 && !covered(monitors, cfg.Width, cfg.Height)
+	if o.Format != "jpeg" && frame.Empty() && o.Crop.Empty() && !shrink && !voids {
 		return keepAsIs(src, dst, cfg.Width, cfg.Height, kind == KindWindow)
 	}
 	img := toRGBA(decoded)
+	if voids {
+		clearOutside(img, monitors)
+	}
 	shadowed := kind == KindWindow
 	if !frame.Empty() {
 		img = crop(img, frame)
@@ -176,6 +185,63 @@ func toRGBA(src image.Image) *image.RGBA {
 	dst := image.NewRGBA(image.Rect(0, 0, src.Bounds().Dx(), src.Bounds().Dy()))
 	draw.Draw(dst, dst.Bounds(), src, src.Bounds().Min, draw.Src)
 	return dst
+}
+
+// covered reports whether the monitors, scaled to a w by h picture, leave no
+// pixel of it uncovered. The picture is the union's bounding box, so its
+// size over the unscaled box gives the scale.
+func covered(monitors []Rect, w, h int) bool {
+	var area int64
+	bw, bh := 0, 0
+	for _, m := range monitors {
+		bw, bh = max(bw, m.X+m.W), max(bh, m.Y+m.H)
+	}
+	if bw <= 0 || bh <= 0 {
+		return true
+	}
+	sx, sy := float64(w)/float64(bw), float64(h)/float64(bh)
+	for _, m := range monitors {
+		area += int64(float64(m.W)*sx) * int64(float64(m.H)*sy)
+	}
+	// Monitors do not overlap, so their areas add up to the picture's when
+	// nothing is left over.
+	return area >= int64(w)*int64(h)
+}
+
+// clearOutside makes every pixel that is inside none of the monitors
+// transparent. The monitors are in desktop pixels and are scaled to the
+// picture the same way covered does.
+func clearOutside(img *image.RGBA, monitors []Rect) {
+	b := img.Bounds()
+	bw, bh := 0, 0
+	for _, m := range monitors {
+		bw, bh = max(bw, m.X+m.W), max(bh, m.Y+m.H)
+	}
+	if bw <= 0 || bh <= 0 {
+		return
+	}
+	sx, sy := float64(b.Dx())/float64(bw), float64(b.Dy())/float64(bh)
+	keep := make([]image.Rectangle, 0, len(monitors))
+	for _, m := range monitors {
+		keep = append(keep, image.Rect(
+			int(float64(m.X)*sx), int(float64(m.Y)*sy),
+			int(float64(m.X+m.W)*sx), int(float64(m.Y+m.H)*sy)))
+	}
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		row := img.Pix[(y-b.Min.Y)*img.Stride:]
+		for x := b.Min.X; x < b.Max.X; x++ {
+			in := false
+			for _, r := range keep {
+				if image.Pt(x, y).In(r) {
+					in = true
+					break
+				}
+			}
+			if !in {
+				copy(row[(x-b.Min.X)*4:(x-b.Min.X)*4+4], []byte{0, 0, 0, 0})
+			}
+		}
+	}
 }
 
 func crop(src *image.RGBA, r Rect) *image.RGBA {

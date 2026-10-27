@@ -240,6 +240,41 @@ func TestOutputScreenAndArea(t *testing.T) {
 	}
 }
 
+func TestScreenClearsWhatNoMonitorShows(t *testing.T) {
+	s := newSvc(t, newFake(), Limits{})
+	shot, err := s.Capture(context.Background(), Target{Kind: KindScreen}, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.Open(shot.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	img, err := png.Decode(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		x, y   int
+		opaque bool
+	}{
+		{10, 10, true}, {1919, 1079, true}, {1920, 0, true}, {3199, 1023, true},
+		{1920, 1024, false}, {3199, 1079, false}, {2500, 1050, false},
+	} {
+		if _, _, _, a := img.At(c.x, c.y).RGBA(); (a != 0) != c.opaque {
+			t.Errorf("pixel %d,%d: opaque=%v, want %v", c.x, c.y, a != 0, c.opaque)
+		}
+	}
+	// A gapless layout is filed untouched.
+	g := newFake()
+	g.outputs[1].H = 1080
+	s = newSvc(t, g, Limits{})
+	if shot, err = s.Capture(context.Background(), Target{Kind: KindScreen}, Options{}); err != nil || shot.Width != 3200 {
+		t.Fatalf("gapless: %v", err)
+	}
+}
+
 func TestScreenWithNoMonitors(t *testing.T) {
 	f := newFake()
 	f.outputs = nil
