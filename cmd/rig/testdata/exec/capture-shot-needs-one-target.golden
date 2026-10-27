@@ -1,0 +1,5 @@
+$ rig capture shot --screen --output 0
+exit 1
+--- stdout (0 bytes)
+--- stderr (91 bytes)
+rig: name exactly one target: --window/--title/--app, --output, --screen or --area (got 2)

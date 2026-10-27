@@ -1,0 +1,5 @@
+$ rig capture
+exit 1
+--- stdout (0 bytes)
+--- stderr (40 bytes)
+rig: usage: rig capture <list|shot> ...

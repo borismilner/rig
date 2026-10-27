@@ -107,6 +107,9 @@ var valuedFlags = map[string]bool{
 	// rig worknote (section 09). --body, --body-file and --project are
 	// already declared below with the record verbs' flags.
 	"part-of": true,
+	// rig capture shot (section 58). title is above.
+	"window": true, "app": true, "output": true, "area": true, "crop": true,
+	"format": true, "quality": true, "max-dim": true,
 	// rig queue (section 16).
 	"payload": true,
 	// rig store (section 48).
@@ -296,6 +299,7 @@ var plainVerbs = map[string]func([]string) error{
 	"logs":      cmdLogs,
 	"logbook":   cmdLogbook,
 	"panel":     cmdPanel,
+	"capture":   cmdCapture,
 }
 
 // verbAt is the index of the command word, so rig's own flags may come BEFORE
@@ -377,7 +381,7 @@ func run(args []string) error {
 		// capability with two halves, and this is its single seam into run.
 		return cmdBackupOrRestore(args[0], with(args[1:], lead))
 	case "peers", "knowledge", "worknote", "message", "queue", "store", "files", "notify", "dnd",
-		"sound", "say", "up", "stop", "restart", "health", "hand", "events", "logbook", "config", "logs", "panel":
+		"sound", "say", "up", "stop", "restart", "health", "hand", "events", "logbook", "config", "logs", "panel", "capture":
 		return plainVerbs[args[0]](with(args[1:], lead))
 	case "record":
 		return cmdRecord(with(args[1:], lead))

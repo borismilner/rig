@@ -1,0 +1,5 @@
+$ rig capture shot --area 10,20,0x5
+exit 1
+--- stdout (0 bytes)
+--- stderr (37 bytes)
+rig: --area: "10,20,0x5" has no area
