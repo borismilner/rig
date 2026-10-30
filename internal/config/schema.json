@@ -60,6 +60,21 @@
         "inline_kb": {"type": "integer", "minimum": 1, "maximum": 16384, "default": 1024, "x-rig-apply": "live", "description": "most bytes a capture may return inline"}
       }
     },
+    "debug_browser": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "default_profile": {"type": "string", "minLength": 1, "maxLength": 320, "default": "boris.milner@gmail.com", "x-rig-apply": "live", "description": "browser profile email or profile directory used when debug_browser.start omits profile"}
+      }
+    },
+    "debug_chrome": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "user_data_dir": {"type": "string", "minLength": 1, "maxLength": 4096, "default": "~/.config/google-chrome", "x-rig-apply": "live", "description": "source Chrome user data directory; rig copies the selected profile into its own debug data directory"},
+        "binary": {"type": "string", "maxLength": 4096, "default": "", "x-rig-apply": "live", "description": "Chrome executable for debug_browser.start; empty searches PATH for google-chrome"}
+      }
+    },
     "watch": {
       "type": "object",
       "additionalProperties": false,

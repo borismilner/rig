@@ -90,6 +90,24 @@ func (s *Service) Info(ctx context.Context) (Info, error) {
 	return in, mapCtx(ctx, err)
 }
 
+// SetDebugBrowserPID asks a backend which supports window markers to outline
+// the windows owned by pid. Capture remains usable when the backend is older;
+// in that case this operation reports ErrUnavailable.
+func (s *Service) SetDebugBrowserPID(ctx context.Context, pid int) error {
+	if pid < 0 || pid > int(^uint32(0)>>1) {
+		return fmt.Errorf("%w: browser pid must be a non-negative int32", ErrInvalid)
+	}
+	marker, ok := s.be.(interface {
+		SetDebugBrowserPID(context.Context, int) error
+	})
+	if !ok {
+		return unavailable("the compositor backend does not support debug browser outlines")
+	}
+	ctx, cancel := context.WithTimeout(ctx, s.limits().filled().Timeout)
+	defer cancel()
+	return mapCtx(ctx, marker.SetDebugBrowserPID(ctx, pid))
+}
+
 // Windows lists the windows whose title or application contains match
 // (case-insensitive); an empty match lists them all.
 func (s *Service) Windows(ctx context.Context, match string) ([]Window, error) {

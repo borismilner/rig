@@ -125,6 +125,47 @@ message SessionResponse {
   bool resumed = 2;
 }
 
+// ---- rig.debug_browser.start, a dedicated browser session for an agent ---
+//
+// The endpoint is loopback-only. It grants the caller full Chrome DevTools
+// Protocol authority over the dedicated profile clone named in the reply.
+message DebugBrowserStartRequest {
+  // Browser engine to start. This slice implements "chrome"; Firefox is the
+  // next engine and will return its WebDriver BiDi endpoint through this shape.
+  string browser = 1;
+
+  // Profile email or Chrome profile directory. Empty selects rig's configured
+  // default. Paths and executables are never supplied by the caller.
+  string profile = 2;
+}
+
+message DebugBrowserStartResponse {
+  // Browser engine actually started.
+  string browser = 1;
+
+  // Browser automation protocol, "cdp" for Chrome.
+  string protocol = 2;
+
+  // The requested account email or profile directory.
+  string profile = 3;
+
+  // The pid of the Chrome process running the dedicated profile.
+  int32 pid = 4;
+
+  // Loopback HTTP discovery URL, normally /json/version.
+  string devtools_url = 5;
+
+  // Browser-level CDP WebSocket endpoint. It can issue any CDP command.
+  string websocket_endpoint = 6;
+
+  // True when this call reused an already-running instance.
+  bool already_running = 7;
+
+  // Whether the desktop Shell accepted the PID for a red window outline.
+  // This is "available" or "unavailable"; browser control works either way.
+  string outline_status = 8;
+}
+
 // ---- rig.announce / rig.activity / rig.peers: presence and seats ----------
 //                        (PLAN.md section 16 "Presence", section 37 PART B row 1)
 //

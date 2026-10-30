@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"image/color"
+	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -44,18 +46,39 @@ func bus(t *testing.T) func() (*dbus.Conn, error) {
 
 // ext is a stand-in for the Shell extension.
 type ext struct {
-	api     uint32
-	windows string
-	outputs string
-	raw     string
-	err     *dbus.Error
-	calls   atomic.Int64
-	delay   time.Duration
+	api               uint32
+	windows           string
+	outputs           string
+	raw               string
+	err               *dbus.Error
+	outlinePID        int32
+	outlineStartTicks string
+	outlineErr        *dbus.Error
+	outlineMu         sync.Mutex
+	calls             atomic.Int64
+	delay             time.Duration
 }
+
+type legacyExt struct{}
+
+func (legacyExt) Version() (uint32, string, *dbus.Error) { return APIVersion, "50.1", nil }
 
 func (e *ext) Version() (uint32, string, *dbus.Error) { return e.api, "50.1", nil }
 func (e *ext) ListWindows() (string, *dbus.Error)     { e.calls.Add(1); return e.windows, nil }
 func (e *ext) ListOutputs() (string, *dbus.Error)     { return e.outputs, nil }
+func (e *ext) SetDebugBrowserPID(pid int32, startTicks string) *dbus.Error {
+	e.outlineMu.Lock()
+	defer e.outlineMu.Unlock()
+	e.outlinePID = pid
+	e.outlineStartTicks = startTicks
+	return e.outlineErr
+}
+
+func (e *ext) outlineRegistration() (int32, string) {
+	e.outlineMu.Lock()
+	defer e.outlineMu.Unlock()
+	return e.outlinePID, e.outlineStartTicks
+}
 func (e *ext) CaptureWindow(_ uint64, path string) (string, *dbus.Error) {
 	time.Sleep(e.delay)
 	if e.err != nil {
@@ -104,7 +127,8 @@ func goodExt() *ext {
 
 func TestGNOMEEndToEnd(t *testing.T) {
 	dial := bus(t)
-	serve(t, dial, goodExt())
+	e := goodExt()
+	serve(t, dial, e)
 	g := NewGNOME(dial)
 	defer g.Close()
 	s, err := New(g, t.TempDir()+"/c", nil)
@@ -127,6 +151,55 @@ func TestGNOMEEndToEnd(t *testing.T) {
 	shot, err = s.Capture(ctx, Target{Kind: KindScreen}, Options{})
 	if err != nil || shot.Width != 64 || shot.Height != 48 {
 		t.Fatalf("screen: %v %+v", err, shot)
+	}
+	pid := os.Getpid()
+	startTicks, err := processStartTicks(pid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetDebugBrowserPID(ctx, pid); err != nil {
+		t.Fatalf("register outline: %v", err)
+	}
+	registeredPID, registeredTicks := e.outlineRegistration()
+	if registeredPID != int32(pid) || registeredTicks != startTicks {
+		t.Fatalf("register outline: pid=%d ticks=%q", registeredPID, registeredTicks)
+	}
+	if err := s.SetDebugBrowserPID(ctx, 0); err != nil {
+		t.Fatalf("clear outline: %v", err)
+	}
+	registeredPID, registeredTicks = e.outlineRegistration()
+	if registeredPID != 0 || registeredTicks != "" {
+		t.Fatalf("clear outline: pid=%d ticks=%q", registeredPID, registeredTicks)
+	}
+}
+
+func TestGNOMEOutlineUnavailableOnOlderExtension(t *testing.T) {
+	dial := bus(t)
+	c, err := dial()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = c.Close() })
+	legacy := legacyExt{}
+	if err := c.Export(legacy, busPath, busIface); err != nil {
+		t.Fatal(err)
+	}
+	if rep, err := c.RequestName(busName, dbus.NameFlagDoNotQueue); err != nil || rep != dbus.RequestNameReplyPrimaryOwner {
+		t.Fatalf("name: %v %v", rep, err)
+	}
+	g := NewGNOME(dial)
+	defer g.Close()
+	if err := g.SetDebugBrowserPID(context.Background(), os.Getpid()); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("want unavailable on older extension, got %v", err)
+	}
+}
+
+func TestGNOMEOutlineRejectsInvalidPID(t *testing.T) {
+	g := NewGNOME(func() (*dbus.Conn, error) { return nil, errors.New("must not dial") })
+	for _, pid := range []int{-1, int(^uint32(0)>>1) + 1} {
+		if err := g.SetDebugBrowserPID(context.Background(), pid); !errors.Is(err, ErrInvalid) {
+			t.Errorf("pid %d: got %v", pid, err)
+		}
 	}
 }
 

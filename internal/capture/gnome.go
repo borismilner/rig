@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -128,6 +131,8 @@ func mapBusError(ctx context.Context, err error) error {
 	switch de.Name {
 	case "org.freedesktop.DBus.Error.ServiceUnknown", "org.freedesktop.DBus.Error.NameHasNoOwner":
 		return unavailable("the rig capture extension is not running in the GNOME Shell")
+	case "org.freedesktop.DBus.Error.UnknownMethod":
+		return unavailable("the rig capture extension does not support debug browser outlines")
 	case busIface + ".Error.NoSuchWindow":
 		return fmt.Errorf("%w: %s", ErrNoTarget, orElse(msg, "the window is gone"))
 	case busIface + ".Error.BadArgument":
@@ -224,6 +229,53 @@ func (g *GNOME) Outputs(ctx context.Context) ([]Output, error) {
 		return nil, fmt.Errorf("%w: ListOutputs is not JSON: %w", ErrBadImage, err)
 	}
 	return out, nil
+}
+
+// SetDebugBrowserPID asks Shell to outline windows owned by one dedicated
+// browser process. A zero pid clears the outline registration.
+func (g *GNOME) SetDebugBrowserPID(ctx context.Context, pid int) error {
+	if pid < 0 || pid > math.MaxInt32 {
+		return fmt.Errorf("%w: browser pid is outside the supported range", ErrInvalid)
+	}
+	startTicks := ""
+	if pid != 0 {
+		var err error
+		startTicks, err = processStartTicks(pid)
+		if err != nil {
+			return unavailable("the browser process is no longer available")
+		}
+	}
+	if _, err := g.Info(ctx); err != nil {
+		return err
+	}
+	c, err := g.bus()
+	if err != nil {
+		return err
+	}
+	call := c.Object(busName, busPath).CallWithContext(ctx, busIface+".SetDebugBrowserPID", 0, int32(pid), startTicks)
+	if call.Err != nil {
+		return mapBusError(ctx, call.Err)
+	}
+	return nil
+}
+
+func processStartTicks(pid int) (string, error) {
+	data, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/stat")
+	if err != nil {
+		return "", err
+	}
+	close := strings.LastIndexByte(string(data), ')')
+	if close < 0 || close+1 >= len(data) {
+		return "", errors.New("malformed process stat")
+	}
+	fields := strings.Fields(string(data[close+1:]))
+	if len(fields) <= 19 {
+		return "", errors.New("short process stat")
+	}
+	if _, err := strconv.ParseUint(fields[19], 10, 64); err != nil {
+		return "", errors.New("invalid process start time")
+	}
+	return fields[19], nil
 }
 
 type jsonRaw struct {

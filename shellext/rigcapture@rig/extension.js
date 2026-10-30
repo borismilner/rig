@@ -9,6 +9,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
+import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {PACKAGE_VERSION} from 'resource:///org/gnome/shell/misc/config.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
@@ -26,6 +27,7 @@ const XML = `<node><interface name="org.rig.Capture">
 <method name="ListOutputs"><arg type="s" direction="out" name="json"/></method>
 <method name="CaptureWindow"><arg type="t" direction="in" name="id"/><arg type="s" direction="in" name="path"/><arg type="s" direction="out" name="json"/></method>
 <method name="CaptureArea"><arg type="i" direction="in" name="x"/><arg type="i" direction="in" name="y"/><arg type="i" direction="in" name="w"/><arg type="i" direction="in" name="h"/><arg type="b" direction="in" name="cursor"/><arg type="s" direction="in" name="path"/><arg type="s" direction="out" name="json"/></method>
+<method name="SetDebugBrowserPID"><arg type="i" direction="in" name="pid"/><arg type="s" direction="in" name="start_ticks"/></method>
 </interface></node>`;
 
 const SHOWN_TYPES = new Set([
@@ -108,10 +110,20 @@ export default class RigCapture extends Extension {
     enable() {
         this._inflight = 0;
         this._timers = new Set();
+        this._debugBrowserPID = 0;
+        this._debugBrowserStartTicks = '';
+        this._debugOutlines = new Map();
+        this._windowCreated = global.display.connect('window-created', (_display, w) => this._watchDebugWindow(w));
+        this._workspaceChanged = global.workspace_manager.connect('active-workspace-changed', () => this._refreshDebugOutlines());
+        this._pidWatch = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
+            this._checkDebugBrowserPID();
+            return GLib.SOURCE_CONTINUE;
+        });
         this._impl = Gio.DBusExportedObject.wrapJSObject(XML, {
             Version: () => [API, PACKAGE_VERSION],
             ListWindows: () => JSON.stringify(windows().map(windowInfo)),
             ListOutputs: () => JSON.stringify(outputs()),
+            SetDebugBrowserPID: (pid, startTicks) => this._setDebugBrowserPID(pid, startTicks),
             CaptureWindowAsync: ([id, path], invocation) => this._run(invocation, () => this._window(id, path)),
             CaptureAreaAsync: ([x, y, w, h, cursor, path], invocation) =>
                 this._run(invocation, () => this._area(x, y, w, h, cursor, path)),
@@ -122,6 +134,18 @@ export default class RigCapture extends Extension {
     }
 
     disable() {
+        if (this._windowCreated)
+            global.display.disconnect(this._windowCreated);
+        this._windowCreated = 0;
+        if (this._workspaceChanged)
+            global.workspace_manager.disconnect(this._workspaceChanged);
+        this._workspaceChanged = 0;
+        if (this._pidWatch)
+            GLib.source_remove(this._pidWatch);
+        this._pidWatch = 0;
+        for (const w of this._debugOutlines.keys())
+            this._removeDebugOutline(w);
+        this._debugBrowserPID = 0;
         for (const id of this._timers)
             GLib.source_remove(id);
         this._timers = null;
@@ -130,6 +154,89 @@ export default class RigCapture extends Extension {
         if (this._own)
             Gio.bus_unown_name(this._own);
         this._own = 0;
+    }
+
+    _setDebugBrowserPID(pid, startTicks) {
+        if (!Number.isInteger(pid) || pid < 0 ||
+            (pid === 0 ? startTicks !== '' : !/^\d+$/.test(startTicks)))
+            throw new Refusal('BadArgument', 'the browser pid must be a non-negative integer');
+        for (const w of this._debugOutlines.keys())
+            this._removeDebugOutline(w);
+        this._debugBrowserPID = pid;
+        this._debugBrowserStartTicks = startTicks;
+        if (pid !== 0) {
+            for (const w of windows())
+                this._watchDebugWindow(w);
+        }
+    }
+
+    _checkDebugBrowserPID() {
+        if (!this._debugBrowserPID)
+            return;
+        let current = '';
+        try {
+            const [ok, data] = GLib.file_get_contents(`/proc/${this._debugBrowserPID}/stat`);
+            if (ok) {
+                const stat = new TextDecoder().decode(data);
+                const close = stat.lastIndexOf(')');
+                if (close >= 0) {
+                    const fields = stat.slice(close + 1).trim().split(/\s+/);
+                    current = fields[19] ?? '';
+                }
+            }
+        } catch (_e) { /* process exited or proc is unavailable */ }
+        if (current !== this._debugBrowserStartTicks)
+            this._setDebugBrowserPID(0, '');
+    }
+
+    _watchDebugWindow(w) {
+        if (!this._debugBrowserPID || !w || Number(w.get_pid() ?? 0) !== this._debugBrowserPID ||
+            !SHOWN_TYPES.has(w.get_window_type()) || this._debugOutlines.has(w))
+            return;
+
+        const actor = new St.Widget({
+            reactive: false,
+            can_focus: false,
+            style: 'background-color: transparent; border: 4px solid #ff0000; border-radius: 8px;',
+        });
+        Main.uiGroup.add_child(actor);
+        const ids = [
+            w.connect('position-changed', () => this._positionDebugOutline(w)),
+            w.connect('size-changed', () => this._positionDebugOutline(w)),
+            w.connect('workspace-changed', () => this._positionDebugOutline(w)),
+            w.connect('notify::minimized', () => this._positionDebugOutline(w)),
+            w.connect('unmanaged', () => this._removeDebugOutline(w)),
+        ];
+        this._debugOutlines.set(w, {actor, ids});
+        this._positionDebugOutline(w);
+    }
+
+    _positionDebugOutline(w) {
+        const entry = this._debugOutlines.get(w);
+        if (!entry || Number(w.get_pid() ?? 0) !== this._debugBrowserPID)
+            return;
+        const frame = w.get_frame_rect();
+        entry.actor.set_position(frame.x - 2, frame.y - 2);
+        entry.actor.set_size(frame.width + 4, frame.height + 4);
+        const active = global.workspace_manager.get_active_workspace();
+        entry.actor.visible = !w.minimized &&
+            (w.is_on_all_workspaces() || w.located_on_workspace(active));
+    }
+
+    _refreshDebugOutlines() {
+        for (const w of this._debugOutlines.keys())
+            this._positionDebugOutline(w);
+    }
+
+    _removeDebugOutline(w) {
+        const entry = this._debugOutlines.get(w);
+        if (!entry)
+            return;
+        for (const id of entry.ids) {
+            try { w.disconnect(id); } catch (_e) { /* window already unmanaged */ }
+        }
+        entry.actor.destroy();
+        this._debugOutlines.delete(w);
     }
 
     // _run answers the call exactly once: with the result, with the error the

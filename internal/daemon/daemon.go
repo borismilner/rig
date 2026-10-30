@@ -210,6 +210,8 @@ type Daemon struct {
 	audio *audio.Audio
 	// capture sees the screen; nil is a blind daemon (capture.go).
 	capture *capture.Service
+	// debugBrowser starts a dedicated browser profile for an agent.
+	debugBrowser *debugBrowser
 
 	version string
 	wire    string
@@ -488,6 +490,7 @@ func New(cfg Config) (*Daemon, error) {
 		}
 		d.settings = config.Load(schema, config.Sources{})
 	}
+	d.debugBrowser = &debugBrowser{settings: d.settings}
 	d.applyLogLevel()
 	d.writeSnapshot()
 	d.hand.published = func(st *registryv1.HandState) { d.events.publishRig("hand.changed", st) }
@@ -1155,6 +1158,9 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 
 	case "session":
 		d.serveSession(c, f)
+
+	case "debug_browser.start":
+		d.serveDebugBrowser(ctx, c, f)
 
 	// SECTION 39's RECORD VERBS, all eight through one arm.
 	//

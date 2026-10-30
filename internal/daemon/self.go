@@ -447,6 +447,14 @@ func selfDeclaration() kernel.Declaration {
 				"Take a picture of a window, a monitor, the screen or an area",
 				"Captures from inside the compositor, so the window need not be in front, visible or on the current workspace. Name a window by id (from capture.list) or by title and application substrings; or ask for an output, the whole screen or an area. Optionally crop, shrink to a longest side, choose png or jpeg, keep the window's shadow, draw the pointer, or return the bytes inline. The picture is a file in rigd's private capture directory, pruned by age, count and size. Use it to look at a window or a UI instead of gnome-screenshot, which fails on his desktop; read the returned path to see the picture. Prefer one window to the whole screen, which shows his other windows. A minimized X11 window has no picture (not found), and a hidden pointer comes back as cursor hidden. Anybody may call it, and every capture is logged with who took it and of what.",
 				"The picture's path, format, size, hash, what was captured and, when asked and small, its bytes."),
+			func() kernel.Command {
+				c := leaseWriter("debug_browser.start", "Debug browser start", kernel.Yes,
+					"Start a dedicated visible browser clone and return its full-control endpoint",
+					"Starts or reuses the requested browser and a dedicated clone of a configured signed-in profile. In this slice browser=chrome, whose CDP WebSocket endpoint gives the caller full control of pages and extensions, including password-manager UI. The cloned Chrome window frame is red, and the GNOME Shell draws a separate red outline around windows owned by the browser process. The listener is bound to loopback. No rig hand approval is used for browser actions; the selected profile's authority is delegated to this caller. rig preserves extension data, does not extract vault secrets or weaken a vault lock, and logs caller, browser and profile without page URLs or payloads. If the Shell outline service is unavailable, browser control still works and outline_status says unavailable.",
+					"The browser, protocol, profile, process id, outline status, loopback discovery URL and full-control WebSocket endpoint.")
+				c.Duration = kernel.DurationSeconds
+				return c
+			}(),
 			readOnly("toast.wait", "Toast wait",
 				"Wait for the next toasts",
 				"Answers the toasts after a cursor as soon as there are any, or nothing once the timeout (at most 60 seconds) passes. The tray holds this so waiting costs nothing.",
