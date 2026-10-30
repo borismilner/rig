@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -52,12 +53,14 @@ type debugBrowser struct {
 }
 
 type debugChromeInfo struct {
-	Profile          string `json:"profile"`
-	ProfileDirectory string `json:"profile_directory"`
-	PID              int    `json:"pid"`
-	StartedUnixNano  int64  `json:"started_unix_nano"`
-	ProfileKey       string `json:"profile_key"`
-	BrowserID        string `json:"browser_id"`
+	Profile           string `json:"profile"`
+	ProfileDirectory  string `json:"profile_directory"`
+	PID               int    `json:"pid"`
+	ProcessStartTicks string `json:"process_start_ticks"`
+	DevtoolsPort      int    `json:"devtools_port"`
+	StartedUnixNano   int64  `json:"started_unix_nano"`
+	ProfileKey        string `json:"profile_key"`
+	BrowserID         string `json:"browser_id"`
 }
 
 type chromeLocalState struct {
@@ -97,8 +100,15 @@ func (d *Daemon) serveDebugBrowser(ctx context.Context, c *conn, f *rigv1.Frame)
 			resp.OutlineStatus = "available"
 		}
 	}
-	d.auditDebugBrowser(c, start, req.GetBrowser(), req.GetProfile(), nil, resp.GetOutlineStatus())
+	d.auditDebugBrowser(c, start, req.GetBrowser(), debugBrowserAuditProfile(req.GetProfile(), resp), nil, resp.GetOutlineStatus())
 	c.reply(f.GetStreamId(), resp)
+}
+
+func debugBrowserAuditProfile(requested string, resp *verbsv1.DebugBrowserStartResponse) string {
+	if resp != nil && resp.GetProfile() != "" {
+		return resp.GetProfile()
+	}
+	return requested
 }
 
 func (s *debugBrowser) start(ctx context.Context, engine, requested string) (*verbsv1.DebugBrowserStartResponse, error) {
@@ -141,11 +151,48 @@ func (s *debugBrowser) start(ctx context.Context, engine, requested string) (*ve
 	}
 	defer unlockDebugChrome(lock)
 
-	if info, infoErr := readDebugChromeInfo(clone); infoErr == nil && info.ProfileKey == key && chromeProcessMatches(info.PID, clone) {
-		if ep, ok := probeDebugChromeEndpoint(clone); ok && info.BrowserID != "" && info.BrowserID == ep.browserID {
-			return debugBrowserResponse(browser, profile, "cdp", info.PID, ep, true), nil
+	info, infoErr := readDebugChromeInfo(clone)
+	if infoErr == nil && info.ProfileKey == key {
+		if ep, ok := probeDebugChromeInfoEndpoint(clone, info); ok {
+			if pid, ticks, found := findDebugChromeListener(ep.port, info.PID); found {
+				if info.ProcessStartTicks != "" && processStartTicksMatch(info.PID, info.ProcessStartTicks) &&
+					info.PID != pid && !processIsAncestorOfListener(info.PID, ep.port) {
+					return nil, fmt.Errorf("%w: the recorded Chrome process and its DevTools listener disagree", errDebugChromeUnavailable)
+				}
+				info.Profile = profile
+				info.ProfileDirectory = profileDir
+				info.PID = pid
+				info.ProcessStartTicks = ticks
+				info.DevtoolsPort = ep.port
+				info.BrowserID = ep.browserID
+				if err := writeDebugChromeInfo(clone, info); err != nil {
+					return nil, fmt.Errorf("recording the live Chrome process identity: %w", err)
+				}
+				return debugBrowserResponse(browser, profile, "cdp", pid, ep, true), nil
+			}
 		}
-		return nil, fmt.Errorf("%w: the recorded Chrome process still owns this profile but its DevTools endpoint does not match", errDebugChromeUnavailable)
+		if info.ProcessStartTicks != "" && processStartTicksMatch(info.PID, info.ProcessStartTicks) {
+			return nil, fmt.Errorf("%w: the recorded Chrome process is still alive but its DevTools endpoint cannot be verified", errDebugChromeUnavailable)
+		}
+	}
+	if ep, ok := probeDebugChromeEndpoint(clone); ok {
+		pid, ticks, found := findDebugChromeListener(ep.port, 0)
+		if !found {
+			return nil, fmt.Errorf("%w: a DevTools endpoint is live but its browser process cannot be identified", errDebugChromeUnavailable)
+		}
+		info = debugChromeInfo{
+			Profile: profile, ProfileDirectory: profileDir, PID: pid,
+			ProcessStartTicks: ticks, DevtoolsPort: ep.port,
+			StartedUnixNano: time.Now().UnixNano(), ProfileKey: key, BrowserID: ep.browserID,
+		}
+		if err := writeDebugChromeInfo(clone, info); err != nil {
+			return nil, fmt.Errorf("recording the recovered Chrome process identity: %w", err)
+		}
+		return debugBrowserResponse(browser, profile, "cdp", pid, ep, true), nil
+	}
+	if infoErr == nil && info.ProfileKey == key && info.PID > 0 && info.ProcessStartTicks == "" &&
+		(chromeProcessMatchesDataDir(info.PID, clone) || chromeProcessExecutable(info.PID)) {
+		return nil, fmt.Errorf("%w: the recorded Chrome process still owns this profile but its DevTools identity is missing", errDebugChromeUnavailable)
 	}
 	if pid, ok := findChromeProcessForDataDir(clone); ok {
 		return nil, fmt.Errorf("%w: Chrome process %d still owns this profile without matching rig endpoint metadata", errDebugChromeUnavailable, pid)
@@ -180,7 +227,7 @@ func (s *debugBrowser) start(ctx context.Context, engine, requested string) (*ve
 		_ = cmd.Wait()
 		close(finished)
 	}()
-	info := debugChromeInfo{
+	info = debugChromeInfo{
 		Profile: profile, ProfileDirectory: profileDir, PID: cmd.Process.Pid,
 		StartedUnixNano: time.Now().UnixNano(), ProfileKey: key,
 	}
@@ -193,24 +240,31 @@ func (s *debugBrowser) start(ctx context.Context, engine, requested string) (*ve
 	defer deadline.Stop()
 	tick := time.NewTicker(debugChromeProbeEvery)
 	defer tick.Stop()
+	finishedPoll := (<-chan struct{})(finished)
 	for {
 		if ep, ok := probeDebugChromeEndpoint(clone); ok {
-			if pid, found := findChromeProcessForDataDir(clone); found {
+			pid, ticks, found := findDebugChromeListener(ep.port, cmd.Process.Pid)
+			if found {
 				info.PID = pid
+				info.ProcessStartTicks = ticks
+				info.DevtoolsPort = ep.port
+				info.BrowserID = ep.browserID
+				if err := writeDebugChromeInfo(clone, info); err != nil {
+					stopDebugChrome(cmd.Process.Pid, finished)
+					return nil, fmt.Errorf("recording the debug Chrome process: %w", err)
+				}
+				return debugBrowserResponse(browser, profile, "cdp", info.PID, ep, false), nil
 			}
-			info.BrowserID = ep.browserID
-			if err := writeDebugChromeInfo(clone, info); err != nil {
-				stopDebugChrome(cmd.Process.Pid, finished)
-				return nil, fmt.Errorf("recording the debug Chrome process: %w", err)
-			}
-			return debugBrowserResponse(browser, profile, "cdp", info.PID, ep, false), nil
 		}
 		select {
 		case <-ctx.Done():
 			stopDebugChrome(cmd.Process.Pid, finished)
 			return nil, fmt.Errorf("%w: waiting for Chrome's DevTools endpoint: %v", errDebugChromeUnavailable, ctx.Err())
-		case <-finished:
-			return nil, fmt.Errorf("%w: Chrome exited before its DevTools endpoint became ready", errDebugChromeUnavailable)
+		case <-finishedPoll:
+			// Some Chrome launchers exit after handing the profile to their
+			// browser child. Keep probing for the listener owner rather than
+			// mistaking the launcher PID for the browser process.
+			finishedPoll = nil
 		case <-deadline.C:
 			stopDebugChrome(cmd.Process.Pid, finished)
 			return nil, fmt.Errorf("%w: Chrome did not publish a DevTools endpoint within %s", errDebugChromeUnavailable, debugChromeReadyFor)
@@ -613,32 +667,57 @@ func unlockDebugChrome(f *os.File) {
 }
 
 func probeDebugChromeEndpoint(root string) (debugChromeEndpoint, bool) {
+	port, browserID, ok := readChromeActivePort(root)
+	if !ok {
+		return debugChromeEndpoint{}, false
+	}
+	return probeDebugChromeEndpointAt(port, browserID)
+}
+
+func readChromeActivePort(root string) (int, string, bool) {
 	activePath := filepath.Join(root, "DevToolsActivePort")
 	info, err := os.Lstat(activePath)
 	if err != nil || !info.Mode().IsRegular() {
-		return debugChromeEndpoint{}, false
+		return 0, "", false
 	}
 	f, err := openNoFollow(activePath)
 	if err != nil {
-		return debugChromeEndpoint{}, false
+		return 0, "", false
 	}
 	body, err := io.ReadAll(io.LimitReader(f, 1024))
 	_ = f.Close()
 	if err != nil {
-		return debugChromeEndpoint{}, false
+		return 0, "", false
 	}
 	lines := strings.Split(strings.TrimSpace(string(body)), "\n")
 	if len(lines) < 2 {
-		return debugChromeEndpoint{}, false
+		return 0, "", false
 	}
-	activeBrowserID := strings.TrimPrefix(strings.TrimSpace(lines[1]), "/devtools/browser/")
-	if activeBrowserID == "" || strings.Contains(activeBrowserID, "/") {
-		return debugChromeEndpoint{}, false
+	browserID := strings.TrimPrefix(strings.TrimSpace(lines[1]), "/devtools/browser/")
+	if browserID == "" || strings.Contains(browserID, "/") {
+		return 0, "", false
 	}
 	port, err := strconv.Atoi(strings.TrimSpace(lines[0]))
 	if err != nil || port < 1 || port > 65535 {
-		return debugChromeEndpoint{}, false
+		return 0, "", false
 	}
+	return port, browserID, true
+}
+
+func probeDebugChromeInfoEndpoint(root string, info debugChromeInfo) (debugChromeEndpoint, bool) {
+	if info.DevtoolsPort <= 0 || info.BrowserID == "" {
+		return probeDebugChromeEndpoint(root)
+	}
+	if _, err := os.Lstat(filepath.Join(root, "DevToolsActivePort")); err == nil {
+		activePort, activeID, ok := readChromeActivePort(root)
+		if !ok || activePort != info.DevtoolsPort || activeID != info.BrowserID {
+			return debugChromeEndpoint{}, false
+		}
+	}
+	return probeDebugChromeEndpointAt(info.DevtoolsPort, info.BrowserID)
+}
+
+func probeDebugChromeEndpointAt(port int, expectedBrowserID string) (debugChromeEndpoint, bool) {
 	client := &http.Client{Timeout: time.Second}
 	resp, err := client.Get("http://127.0.0.1:" + strconv.Itoa(port) + "/json/version")
 	if err != nil {
@@ -661,7 +740,7 @@ func probeDebugChromeEndpoint(root string) (debugChromeEndpoint, bool) {
 	}
 	u.Host = net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
 	browserID := strings.TrimPrefix(u.Path, "/devtools/browser/")
-	if browserID == "" || strings.Contains(browserID, "/") || browserID != activeBrowserID {
+	if browserID == "" || strings.Contains(browserID, "/") || (expectedBrowserID != "" && browserID != expectedBrowserID) {
 		return debugChromeEndpoint{}, false
 	}
 	return debugChromeEndpoint{
@@ -670,7 +749,7 @@ func probeDebugChromeEndpoint(root string) (debugChromeEndpoint, bool) {
 	}, true
 }
 
-func chromeProcessMatches(pid int, userDataDir string) bool {
+func chromeProcessMatchesDataDir(pid int, userDataDir string) bool {
 	if pid <= 0 {
 		return false
 	}
@@ -694,6 +773,23 @@ func chromeProcessMatches(pid int, userDataDir string) bool {
 	return false
 }
 
+func chromeProcessExecutable(pid int) bool {
+	if pid <= 0 {
+		return false
+	}
+	exe, err := os.Readlink(filepath.Join("/proc", strconv.Itoa(pid), "exe"))
+	if err != nil {
+		return false
+	}
+	name := filepath.Base(strings.TrimSuffix(exe, " (deleted)"))
+	switch name {
+	case "chrome", "google-chrome", "chromium", "chromium-browser":
+		return true
+	default:
+		return false
+	}
+}
+
 func findChromeProcessForDataDir(userDataDir string) (int, bool) {
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
@@ -704,11 +800,181 @@ func findChromeProcessForDataDir(userDataDir string) (int, bool) {
 		if err != nil || pid <= 0 {
 			continue
 		}
-		if chromeProcessMatches(pid, userDataDir) {
+		if chromeProcessMatchesDataDir(pid, userDataDir) {
 			return pid, true
 		}
 	}
 	return 0, false
+}
+
+func readChromeProcessIdentity(pid int) (parent int, startTicks string, state byte, ok bool) {
+	if pid <= 0 {
+		return 0, "", 0, false
+	}
+	data, err := os.ReadFile(filepath.Join("/proc", strconv.Itoa(pid), "stat"))
+	if err != nil {
+		return 0, "", 0, false
+	}
+	close := strings.LastIndexByte(string(data), ')')
+	if close < 0 || close+1 >= len(data) {
+		return 0, "", 0, false
+	}
+	fields := strings.Fields(string(data[close+1:]))
+	if len(fields) <= 19 || len(fields[0]) != 1 {
+		return 0, "", 0, false
+	}
+	parent, err = strconv.Atoi(fields[1])
+	if err != nil {
+		return 0, "", 0, false
+	}
+	if _, err := strconv.ParseUint(fields[19], 10, 64); err != nil {
+		return 0, "", 0, false
+	}
+	return parent, fields[19], fields[0][0], true
+}
+
+func processStartTicksMatch(pid int, expected string) bool {
+	if expected == "" {
+		return false
+	}
+	_, actual, state, ok := readChromeProcessIdentity(pid)
+	return ok && state != 'Z' && actual == expected
+}
+
+func findDebugChromeListener(port, preferredPID int) (int, string, bool) {
+	owners := loopbackListenerOwners(port)
+	if len(owners) == 0 {
+		return 0, "", false
+	}
+	for _, owner := range owners {
+		if preferredPID > 0 && chromeProcessExecutable(preferredPID) &&
+			(owner == preferredPID || processIsAncestor(owner, preferredPID)) {
+			_, ticks, state, ok := readChromeProcessIdentity(preferredPID)
+			if ok && state != 'Z' {
+				return preferredPID, ticks, true
+			}
+		}
+	}
+	// Chromium can pass the listening socket to a child process. Track the
+	// highest live Chromium ancestor, which owns the browser window, while the
+	// listener owner remains the evidence tying that process tree to this port.
+	candidates := make(map[int]bool)
+	hasChromeAncestor := false
+	for _, owner := range owners {
+		pid := owner
+		for depth := 0; depth < 32; depth++ {
+			parent, _, _, ok := readChromeProcessIdentity(pid)
+			if !ok || parent <= 1 || !chromeProcessExecutable(parent) {
+				break
+			}
+			pid = parent
+			hasChromeAncestor = true
+		}
+		candidates[pid] = true
+	}
+	preferredOwnsListener := false
+	for _, owner := range owners {
+		if owner == preferredPID || processIsAncestor(owner, preferredPID) {
+			preferredOwnsListener = true
+			break
+		}
+	}
+	if !hasChromeAncestor && preferredPID > 0 && preferredOwnsListener {
+		_, ticks, state, ok := readChromeProcessIdentity(preferredPID)
+		if ok && state != 'Z' {
+			return preferredPID, ticks, true
+		}
+	}
+	owners = owners[:0]
+	for pid := range candidates {
+		owners = append(owners, pid)
+	}
+	sort.Slice(owners, func(i, j int) bool {
+		_, left, _, leftOK := readChromeProcessIdentity(owners[i])
+		_, right, _, rightOK := readChromeProcessIdentity(owners[j])
+		if leftOK && rightOK {
+			leftTicks, leftErr := strconv.ParseUint(left, 10, 64)
+			rightTicks, rightErr := strconv.ParseUint(right, 10, 64)
+			if leftErr == nil && rightErr == nil && leftTicks != rightTicks {
+				return leftTicks < rightTicks
+			}
+		}
+		return owners[i] < owners[j]
+	})
+	pid := owners[0]
+	_, ticks, _, ok := readChromeProcessIdentity(pid)
+	return pid, ticks, ok
+}
+
+func processIsAncestorOfListener(pid, port int) bool {
+	for _, owner := range loopbackListenerOwners(port) {
+		if pid == owner || processIsAncestor(owner, pid) {
+			return true
+		}
+	}
+	return false
+}
+
+func processIsAncestor(child, ancestor int) bool {
+	for depth := 0; child > 1 && depth < 64; depth++ {
+		parent, _, _, ok := readChromeProcessIdentity(child)
+		if !ok || parent <= 1 {
+			return false
+		}
+		if parent == ancestor {
+			return true
+		}
+		child = parent
+	}
+	return false
+}
+
+func loopbackListenerOwners(port int) []int {
+	if port < 1 || port > 65535 {
+		return nil
+	}
+	contents, err := os.ReadFile("/proc/net/tcp")
+	if err != nil {
+		return nil
+	}
+	portHex := fmt.Sprintf("%04X", port)
+	inodes := make(map[string]bool)
+	for _, line := range strings.Split(string(contents), "\n")[1:] {
+		fields := strings.Fields(line)
+		if len(fields) < 10 || fields[3] != "0A" || fields[1] != "0100007F:"+portHex {
+			continue
+		}
+		inodes[fields[9]] = true
+	}
+	if len(inodes) == 0 {
+		return nil
+	}
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return nil
+	}
+	var owners []int
+	for _, entry := range entries {
+		pid, err := strconv.Atoi(entry.Name())
+		if err != nil || pid <= 0 {
+			continue
+		}
+		fds, err := os.ReadDir(filepath.Join("/proc", entry.Name(), "fd"))
+		if err != nil {
+			continue
+		}
+		for _, fd := range fds {
+			target, err := os.Readlink(filepath.Join("/proc", entry.Name(), "fd", fd.Name()))
+			if err != nil || !strings.HasPrefix(target, "socket:[") || !strings.HasSuffix(target, "]") {
+				continue
+			}
+			if inodes[target[len("socket:["):len(target)-1]] {
+				owners = append(owners, pid)
+				break
+			}
+		}
+	}
+	return owners
 }
 
 func readDebugChromeInfo(root string) (debugChromeInfo, error) {

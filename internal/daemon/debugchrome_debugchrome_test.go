@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -33,6 +35,9 @@ func TestDebugChromeFakeServer(t *testing.T) {
 	port := listener.Addr().(*net.TCPAddr).Port
 	active := fmt.Sprintf("%d\n/devtools/browser/fake-browser\n", port)
 	if err := os.WriteFile(filepath.Join(data, "DevToolsActivePort"), []byte(active), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Unsetenv("RIG_DEBUG_CHROME_DATA"); err != nil {
 		t.Fatal(err)
 	}
 	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -70,6 +75,21 @@ func TestDebugBrowserStartsAndReusesChromeClone(t *testing.T) {
 	if !strings.HasPrefix(started.GetDevtoolsUrl(), "http://127.0.0.1:") || !strings.HasPrefix(started.GetWebsocketEndpoint(), "ws://127.0.0.1:") {
 		t.Fatalf("endpoints are not loopback-only: %+v", started)
 	}
+	clone := filepath.Join(state, "rig", "debug-chrome", debugChromeKey(debugChromeTestProfile, "Profile 2"))
+	info, err := readDebugChromeInfo(clone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.PID != int(started.GetPid()) || info.ProcessStartTicks == "" || info.DevtoolsPort < 1 || info.BrowserID == "" {
+		t.Fatalf("live Chrome process identity was not persisted: %+v", info)
+	}
+	cmdline, err := os.ReadFile(filepath.Join("/proc", strconv.Itoa(info.PID), "cmdline"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(cmdline, []byte("--user-data-dir=")) || bytes.Contains(cmdline, []byte("--remote-debugging-port=")) {
+		t.Fatal("fake Chrome retained its profile or DevTools launch arguments")
+	}
 	response, err := http.Get(started.GetDevtoolsUrl())
 	if err != nil {
 		t.Fatalf("DevTools discovery endpoint did not answer: %v", err)
@@ -79,7 +99,6 @@ func TestDebugBrowserStartsAndReusesChromeClone(t *testing.T) {
 		t.Fatalf("DevTools discovery status %d", response.StatusCode)
 	}
 
-	clone := filepath.Join(state, "rig", "debug-chrome", debugChromeKey(debugChromeTestProfile, "Profile 2"))
 	for _, rel := range []string{
 		"Profile 2/Extensions/fake-extension/manifest.json",
 		"Profile 2/Local Extension Settings/vault/state.json",
@@ -129,6 +148,9 @@ func TestDebugBrowserStartsAndReusesChromeClone(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(clone, "Profile 2", "Cache", "discard-me")); !os.IsNotExist(err) {
 		t.Errorf("profile clone kept a regenerable cache: %v", err)
 	}
+	if err := os.Remove(filepath.Join(clone, "DevToolsActivePort")); err != nil {
+		t.Fatal(err)
+	}
 
 	reused, err := manager.start(ctx, "chrome", debugChromeTestProfile)
 	if err != nil {
@@ -136,6 +158,14 @@ func TestDebugBrowserStartsAndReusesChromeClone(t *testing.T) {
 	}
 	if !reused.GetAlreadyRunning() || reused.GetWebsocketEndpoint() != started.GetWebsocketEndpoint() || reused.GetPid() != started.GetPid() {
 		t.Fatalf("second start did not reuse the live browser: first=%+v second=%+v", started, reused)
+	}
+	afterReuse, err := readDebugChromeInfo(clone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if afterReuse.PID != info.PID || afterReuse.ProcessStartTicks != info.ProcessStartTicks ||
+		afterReuse.DevtoolsPort != info.DevtoolsPort || afterReuse.BrowserID != info.BrowserID {
+		t.Fatalf("reuse changed the live process identity after ActivePort disappeared: before=%+v after=%+v", info, afterReuse)
 	}
 }
 
@@ -253,6 +283,13 @@ func TestDebugBrowserStartIsDeclaredAndBridged(t *testing.T) {
 	properties, _ := input["properties"].(map[string]any)
 	if properties["browser"] == nil || properties["profile"] == nil {
 		t.Fatalf("MCP input schema omitted browser or profile: %v", input)
+	}
+}
+
+func TestDebugBrowserAuditUsesResolvedDefaultProfile(t *testing.T) {
+	resp := &verbsv1.DebugBrowserStartResponse{Profile: debugChromeTestProfile}
+	if got := debugBrowserAuditProfile("", resp); got != debugChromeTestProfile {
+		t.Fatalf("audit profile = %q, want resolved default %q", got, debugChromeTestProfile)
 	}
 }
 
