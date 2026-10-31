@@ -5,8 +5,6 @@ import (
 	"strconv"
 	"time"
 
-	"google.golang.org/protobuf/encoding/protojson"
-
 	"github.com/borismilner/rig/internal/record"
 	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
@@ -72,15 +70,31 @@ func (d *Daemon) sweepAsks(ctx context.Context) (time.Duration, error) {
 			return 0, err
 		}
 		remaining := time.Until(time.Unix(0, nano))
+		proceed := false
+		if rec.Fields["ask_mode"] == askCountdown {
+			var sameBoot bool
+			remaining, sameBoot, err = d.countdownRemaining(rec)
+			if err != nil {
+				return 0, err
+			}
+			proceed = sameBoot && rec.Fields["countdown_presented"] == fieldYes
+			// The Go timer does not advance during suspend. One bounded
+			// recheck observes BOOTTIME after resume without a second loop.
+			next = min(next, time.Second)
+		}
 		if remaining > 0 {
 			if remaining < next {
 				next = remaining
 			}
 			continue
 		}
+		fields := map[string]string{"notification": rec.ID, askExpired: fieldYes, "by": eventSourceRig}
+		if proceed {
+			fields["proceeded"] = fieldYes
+		}
 		_, err = st.Put(ctx, record.PutRequest{
 			Kind: replyKind, Project: notificationProject,
-			Fields:  map[string]string{"notification": rec.ID, askExpired: fieldYes, "by": eventSourceRig},
+			Fields:  fields,
 			Session: "rigd", Seat: eventSourceRig, Epoch: d.epoch,
 		})
 		if err != nil {
@@ -90,16 +104,11 @@ func (d *Daemon) sweepAsks(ctx context.Context) (time.Duration, error) {
 			RecordId: rec.ID, Answered: true, Expired: true, By: eventSourceRig, AtUnixNano: now.UnixNano(),
 		}
 		d.toasts.answer(rec.ID, ans)
-		d.toasts.withdraw(rec.ID, rec.Fields["sender"])
+		d.toasts.finish(rec.ID, rec.Fields["sender"], true)
 		d.publishJSON("toast.retracted", toastRetraction{
 			RecordID: rec.ID, Sender: rec.Fields["sender"], Reason: askExpired,
 		})
-		if to := rec.Fields["to"]; to != "" {
-			payload, _ := protojson.Marshal(ans)
-			if _, _, err := d.events.publishTo(toastAnsweredKind, eventSourceRig, string(payload), to); err != nil {
-				d.log.Warn("expired question event not kept", "question", rec.ID, "err", err)
-			}
-		}
+		d.publishAskAnswer(rec, ans)
 	}
 	return next, nil
 }

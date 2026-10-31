@@ -22,7 +22,7 @@ laptop, see section 4).
 
 ## Map - this file is the INDEX. The sections live in `plan/`.
 
-**The specification is 17026 lines across 59 files and nobody reads it
+**The specification is 17081 lines across 59 files and nobody reads it
 whole.** It is a reference to query, and it is queried with two questions:
 *"what is rig supposed to do"* and *"what did he already rule on this"*.
 **This index exists so a requirement cannot hide**, which is the failure this
@@ -61,7 +61,7 @@ the original byte for byte before writing anything.
 | 13 | Capabilities and trust | 288 | [`plan/13-capabilities-and-trust.md`](plan/13-capabilities-and-trust.md) |
 | 14 | Isolation | 239 | [`plan/14-isolation.md`](plan/14-isolation.md) |
 | 15 | Who is using rig, and what they did | 178 | [`plan/15-who-is-using-rig-and-what-they-did.md`](plan/15-who-is-using-rig-and-what-they-did.md) |
-| 16 | The peers service | 487 | [`plan/16-the-peers-service.md`](plan/16-the-peers-service.md) |
+| 16 | The peers service | 538 | [`plan/16-the-peers-service.md`](plan/16-the-peers-service.md) |
 | 17 | Footprint | 107 | [`plan/17-footprint.md`](plan/17-footprint.md) |
 | 18 | Supervision and failure | 248 | [`plan/18-supervision-and-failure.md`](plan/18-supervision-and-failure.md) |
 | 19 | The conformance suite | 77 | [`plan/19-the-conformance-suite.md`](plan/19-the-conformance-suite.md) |
@@ -117,7 +117,7 @@ the original byte for byte before writing anything.
 | 54 | A program started when it is called | 283 | [`plan/54-a-program-started-when-it-is-called.md`](plan/54-a-program-started-when-it-is-called.md) |
 | 55 | The management dashboard | 501 | [`plan/55-the-management-dashboard.md`](plan/55-the-management-dashboard.md) |
 | 56 | The cloud estate: rig on a free cloud host, Marvin on Telegram | 85 | [`plan/56-the-cloud-estate-rig-on-a-free-cloud.md`](plan/56-the-cloud-estate-rig-on-a-free-cloud.md) |
-| 57 | One question to the owner | 59 | [`plan/57-one-question-to-the-owner.md`](plan/57-one-question-to-the-owner.md) |
+| 57 | One question to the owner | 63 | [`plan/57-one-question-to-the-owner.md`](plan/57-one-question-to-the-owner.md) |
 | 58 | Seeing the screen | 128 | [`plan/58-seeing-the-screen.md`](plan/58-seeing-the-screen.md) |
 | 59 | Starting a debug Chrome for an agent | 95 | [`plan/59-starting-a-debug-chrome-for-an-agent.md`](plan/59-starting-a-debug-chrome-for-an-agent.md) |
 
@@ -130,8 +130,8 @@ the original byte for byte before writing anything.
 | **what do agents get, and when?** | §16 for the coordination primitives, **§39 for the continuity record**, §37 for the minimum set and the staged migration |
 | **has he already ruled on this?** | `logbook/projects/rig/DECISIONS.md` first, then §31-38. **Grep before proposing** - proposing what already exists is this project's named failure mode |
 
-**§31-38 ARE A CHANGELOG INSIDE A SPECIFICATION** - 10670 of 17026 lines,
-63%. Splitting the file did not fix that; it made it visible and
+**§31-38 ARE A CHANGELOG INSIDE A SPECIFICATION** - 10674 of 17081 lines,
+62%. Splitting the file did not fix that; it made it visible and
 cheap to act on, since those eight sections are now eight files that can move to
 the logbook in one commit. `BACKLOG.md` B24. **Until they do, a reader after the
 current rule prefers the numbered section over the pass that changed it.**

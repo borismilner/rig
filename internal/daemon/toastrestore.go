@@ -73,7 +73,7 @@ func (d *Daemon) restoreAsks(ctx context.Context) {
 				continue
 			}
 			expires, err := strconv.ParseInt(n.Fields["ask_expires"], 10, 64)
-			if err != nil || time.Now().UnixNano() >= expires {
+			if recMode := n.Fields["ask_mode"]; recMode != askCountdown && (err != nil || time.Now().UnixNano() >= expires) {
 				continue // the expiry sweep records the transition
 			}
 		}
@@ -81,7 +81,7 @@ func (d *Daemon) restoreAsks(ctx context.Context) {
 		d.toasts.add(&registryv1.Toast{
 			RecordId: n.ID, Severity: severityOf(n.Fields["severity"]), Title: n.Fields["title"], Body: n.Body,
 			Sender: n.Fields["sender"], AtUnixNano: n.Prov.CreatedAt.UnixNano(),
-			Replies: buttons, ReplyText: n.Fields["reply_text"] == fieldYes,
+			Replies: buttons, ReplyText: n.Fields["reply_text"] == fieldYes, CountdownSeconds: countdownSeconds(n),
 		})
 	}
 	if len(asking) > 0 {

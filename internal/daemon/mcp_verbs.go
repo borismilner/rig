@@ -54,6 +54,7 @@ var bridged = map[string]struct {
 	"queue.complete":      {func() proto.Message { return &verbsv1.QueueCompleteRequest{} }, func() proto.Message { return &verbsv1.QueueCompleteResponse{} }},
 	"queue.list":          {func() proto.Message { return &verbsv1.QueueListRequest{} }, func() proto.Message { return &verbsv1.QueueListResponse{} }},
 	"notify":              {func() proto.Message { return &registryv1.NotifyRequest{} }, func() proto.Message { return &registryv1.NotifyResponse{} }},
+	"ask.presented":       {func() proto.Message { return &registryv1.AskPresentedRequest{} }, func() proto.Message { return &registryv1.AskPresentedResponse{} }},
 	"ask.open":            {func() proto.Message { return &registryv1.AskOpenRequest{} }, func() proto.Message { return &registryv1.AskOpenResponse{} }},
 	"ask.get":             {func() proto.Message { return &registryv1.AskGetRequest{} }, func() proto.Message { return &registryv1.AskGetResponse{} }},
 	"ask.list":            {func() proto.Message { return &registryv1.AskListRequest{} }, func() proto.Message { return &registryv1.AskListResponse{} }},

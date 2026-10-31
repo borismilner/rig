@@ -1192,7 +1192,7 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	// publish and wait on what.
 	case "events.publish", "events.wait", "timer.arm", "timer.disarm", "timer.list",
 		"config.get", "config.set", "logs.query", "logs.ingest", "logs.coverage", "logs.pin", "notify", "toast.wait", "toast.dnd", "toast.reply", "toast.answer",
-		"toast.retract", "ask.open", "ask.get", "ask.list", "ask.answer", "ask.withdraw",
+		"toast.retract", "ask.open", "ask.get", "ask.list", "ask.answer", "ask.withdraw", "ask.presented",
 		"capture.list", "capture.shot",
 		"sound", "say",
 		"hand.request", "hand.step", "hand.release", "hand.wait", "hand.answer", "hand.strip",

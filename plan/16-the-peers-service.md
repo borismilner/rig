@@ -348,6 +348,57 @@ declaration one.
 without durable work is a session announcing its own death and taking its
 findings with it anyway. **Durability makes the announcement worth making.**
 
+### Countdown escalation, built 2026-10-31
+
+The generic countdown is an explicit mode of `ask.open` (§57), not a
+second request store or timer. AgentBox retirement requires infrastructure
+at Rig's quality bar and reuse of existing capabilities; Beacon consumes
+this primitive and does not own its state machine.
+
+- Open with `failure_mode: "countdown"`, `options: ["Stop"]`, no free
+  text, and `ttl_seconds` as the grace interval. Silence on ordinary
+  gating or disambiguating asks retains its existing meaning.
+- The first state is `awaiting_presentation`. The interactive renderer
+  calls `ask.presented` only after the native window is shown and the
+  complete card is visible after its entrance animation. That receipt
+  arms the grace once. Repeated receipts never extend it. An unpresented
+  request times out denied after the same interval; a suppressed delivery
+  is denied immediately. The platform, not the submitting program,
+  acknowledges presentation.
+- The renderer says that the action proceeds unless stopped and shows
+  the remaining seconds. Stop or closing the card produces `stopped`;
+  a failed Stop stays visible and retryable. `ask.withdraw` produces
+  `withdrawn`. There is no early Proceed button.
+- Countdown deadlines use the existing `coord` BOOTTIME clock and boot
+  id. A reboot denies pending work. A daemon restart on the same boot
+  retains the original deadline; a receipt cannot restart it. The one
+  ask expiry loop rechecks active countdowns at least once per second
+  after resume. Only a durable terminal reply produces `proceed`.
+- The consumer executes only on `ask.get` state `proceed`, never on a
+  timeout or the generic toast's expired bit. It owns execution and
+  replay safety; Rig does not execute a shell command on its behalf.
+  Capture an event cursor before opening, inspect the returned state,
+  then wait on directed `toast.answered` and reread `ask.get`. All final
+  transitions wake that path, including withdrawal. On reconnect or a
+  cursor gap, reread durable state before waiting. `toast.answer` also
+  provides a bounded blocking wait while its request is in the ring.
+- The interactive receipt uses the existing owner-channel boundary:
+  terminal/window connections only, never a registered program or the
+  MCP door. It is not process authentication; a same-user process that
+  opens an unregistered terminal connection shares that authority.
+  Seeing the card once does not prove continuous visibility thereafter.
+
+Library audit: reuse `internal/coord` for the clock, `internal/record`
+for durable requests, the existing ask sweep and toast event/wake paths,
+and the standard library for timing. AgentBox's veto supplied the
+interaction comparison; no parallel scheduler or new dependency is needed.
+
+The browser regression is `node tools/countdown-ui-test.mjs`; it covers
+normal and urgent presentation, failed Stop, dismissal, withdrawal and
+expiry, and measures the painted countdown contrast. Wire regressions
+cover absent delivery, reboot, restart, clock changes, idempotency,
+concurrent expiry/Stop, and the retained withdrawal event.
+
 ### Continuation slots, so an agent can hand off to itself
 
 An agent that is about to reset its context - because the context is nearly full, not because

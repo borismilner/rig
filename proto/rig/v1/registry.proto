@@ -283,6 +283,10 @@ message Toast {
   // The sender took it back (plan/53 slice 7). A withdrawal carries the
   // record id and sender only; a renderer drops the bubble it names.
   bool retracted = 11;
+  // Nonzero asks the renderer to acknowledge presentation before arming.
+  uint32 countdown_seconds = 12;
+  // A retraction caused by deadline expiry, rather than sender withdrawal.
+  bool expired = 13;
 }
 
 // NotifyRequest sends one. Severity is required; title up to 200 bytes, body
@@ -378,6 +382,8 @@ message AskOpenRequest {
   string body = 8;
   bool accepts_text = 9;
   // Empty means gating; disambiguating expires without an answer.
+  // countdown requires options ["Stop"] and no text. Only its explicit
+  // proceed state permits the caller's operation.
   string failure_mode = 10;
 }
 
@@ -393,7 +399,8 @@ message Ask {
   bool accepts_text = 9;
   string failure_mode = 10;
   int64 expires_unix_nano = 11;
-  // open, answered, dismissed, denied, expired, or withdrawn.
+  // open, answered, dismissed, denied, expired, withdrawn, or countdown's
+  // awaiting_presentation, stopped and proceed.
   string state = 12;
   ToastAnswer answer = 13;
   string sender = 14;
@@ -405,6 +412,10 @@ message Ask {
 message AskOpenResponse { Ask ask = 1; }
 message AskGetRequest { string id = 1; }
 message AskGetResponse { Ask ask = 1; }
+// The interactive renderer sends this only after the announcement is visible.
+// Repeated receipts return the original deadline, never extend it.
+message AskPresentedRequest { string id = 1; }
+message AskPresentedResponse { Ask ask = 1; }
 message AskListRequest {
   // Empty lists every question, otherwise only this sender's or kind's.
   string sender = 1;

@@ -67,6 +67,10 @@ func (r *toastRing) open(sender string, now time.Time) []string {
 // withdraw marks a toast taken back and puts the withdrawal on the ring for
 // renderers. gone is kept to the ids the ring still holds.
 func (r *toastRing) withdraw(id, sender string) {
+	r.finish(id, sender, false)
+}
+
+func (r *toastRing) finish(id, sender string, expired bool) {
 	r.mu.Lock()
 	if r.gone == nil {
 		r.gone = map[string]bool{}
@@ -82,7 +86,7 @@ func (r *toastRing) withdraw(id, sender string) {
 		}
 	}
 	r.mu.Unlock()
-	r.add(&registryv1.Toast{RecordId: id, Sender: sender, Retracted: true, AtUnixNano: time.Now().UnixNano()})
+	r.add(&registryv1.Toast{RecordId: id, Sender: sender, Retracted: true, Expired: expired, AtUnixNano: time.Now().UnixNano()})
 }
 
 // toastRetraction is toast.retracted's payload.

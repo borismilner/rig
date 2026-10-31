@@ -302,14 +302,15 @@ func severityWord(s registryv1.Severity) string {
 
 // toastJSON is one toast as the page draws it.
 type toastJSON struct {
-	Seq       uint64   `json:"seq"`
-	RecordID  string   `json:"record_id"`
-	Severity  string   `json:"severity"`
-	Title     string   `json:"title"`
-	Body      string   `json:"body"`
-	Sender    string   `json:"sender"`
-	Replies   []string `json:"replies,omitempty"`
-	ReplyText bool     `json:"reply_text,omitempty"`
+	Seq              uint64   `json:"seq"`
+	RecordID         string   `json:"record_id"`
+	Severity         string   `json:"severity"`
+	Title            string   `json:"title"`
+	Body             string   `json:"body"`
+	Sender           string   `json:"sender"`
+	Replies          []string `json:"replies,omitempty"`
+	ReplyText        bool     `json:"reply_text,omitempty"`
+	CountdownSeconds uint32   `json:"countdown_seconds,omitempty"`
 }
 
 // answerJSON is a reply that arrived for a toast on the page, from this
@@ -320,6 +321,7 @@ type answerJSON struct {
 	Text      string `json:"text"`
 	Dismissed bool   `json:"dismissed"`
 	Withdrawn bool   `json:"withdrawn,omitempty"`
+	Expired   bool   `json:"expired,omitempty"`
 	By        string `json:"by"`
 }
 
@@ -353,12 +355,14 @@ type toastFeed struct {
 	// seen is every toast this renderer was given. A daemon restart replays
 	// the questions still open (toastrestore.go), and one already on the
 	// page is not drawn twice.
-	seen map[string]bool
+	seen    map[string]bool
+	visible bool // native window has been shown
 
-	copyText func(string)                               // puts text on the clipboard; nil refuses
-	focus    func()                                     // gives the window the keyboard, for a reply field; nil refuses
-	reply    func(*registryv1.ToastReplyRequest) error  // files a reply; nil refuses
-	watch    func(id string, answered func(answerJSON)) // follows a toast's answer; nil does nothing
+	copyText  func(string) // puts text on the clipboard; nil refuses
+	focus     func()       // gives the window the keyboard, for a reply field; nil refuses
+	presented func(string) (*registryv1.Ask, error)
+	reply     func(*registryv1.ToastReplyRequest) error  // files a reply; nil refuses
+	watch     func(id string, answered func(answerJSON)) // follows a toast's answer; nil does nothing
 }
 
 // maxCopy bounds what one copy may put on the clipboard, and so what one
@@ -385,7 +389,7 @@ func (f *toastFeed) add(ts []*registryv1.Toast) {
 		f.pending = append(f.pending, toastJSON{
 			Seq: t.GetSeq(), RecordID: t.GetRecordId(), Severity: severityWord(t.GetSeverity()),
 			Title: t.GetTitle(), Body: t.GetBody(), Sender: t.GetSender(),
-			Replies: t.GetReplies(), ReplyText: t.GetReplyText(),
+			Replies: t.GetReplies(), ReplyText: t.GetReplyText(), CountdownSeconds: t.GetCountdownSeconds(),
 		})
 		if (len(t.GetReplies()) > 0 || t.GetReplyText()) && f.watch != nil {
 			go f.watch(t.GetRecordId(), f.answered)
@@ -399,7 +403,7 @@ func (f *toastFeed) withdraw(t *registryv1.Toast) {
 	before := len(f.pending)
 	f.pending = slices.DeleteFunc(f.pending, func(p toastJSON) bool { return p.RecordID == t.GetRecordId() })
 	if len(f.pending) == before {
-		f.answers = append(f.answers, answerJSON{RecordID: t.GetRecordId(), Withdrawn: true, By: t.GetSender()})
+		f.answers = append(f.answers, answerJSON{RecordID: t.GetRecordId(), Withdrawn: !t.GetExpired(), Expired: t.GetExpired(), By: t.GetSender()})
 	}
 }
 
@@ -460,6 +464,35 @@ func (f *toastFeed) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		height, _ := strconv.Atoi(q.Get("h"))
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(f.poll(max(shown, 0), inputRegion{max(top, 0), max(height, 0)}, time.Now()))
+	case "/toast/presented":
+		if r.Method != http.MethodPost || f.presented == nil {
+			http.Error(w, "presentation is POST, and only in the renderer", http.StatusMethodNotAllowed)
+			return
+		}
+		var req struct {
+			ID string `json:"id"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024)).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		f.mu.Lock()
+		visible := f.visible && f.seen[req.ID]
+		f.mu.Unlock()
+		if !visible {
+			http.Error(w, "announcement is not visible", http.StatusConflict)
+			return
+		}
+		a, err := f.presented(req.ID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(struct {
+			State     string `json:"state"`
+			ExpiresMS int64  `json:"expires_ms"`
+		}{a.GetState(), a.GetExpiresUnixNano() / int64(time.Millisecond)})
 	case "/toast/reply":
 		if r.Method != http.MethodPost || f.reply == nil {
 			http.Error(w, "reply is POST, and only in the renderer", http.StatusMethodNotAllowed)
@@ -520,8 +553,9 @@ func runToasts(after uint64) error {
 		_ = os.Setenv("GDK_BACKEND", "x11")
 	}
 	feed := &toastFeed{
-		reply: replyToast,
-		watch: func(id string, answered func(answerJSON)) { watchAnswer(ctx, id, answered) },
+		reply:     replyToast,
+		presented: presentToast,
+		watch:     func(id string, answered func(answerJSON)) { watchAnswer(ctx, id, answered) },
 	}
 	app := application.New(application.Options{
 		Name:     "rig toasts",
@@ -607,10 +641,26 @@ func placeToasts(app *application.App, win *application.WebviewWindow, feed *toa
 		fmt.Fprintln(os.Stderr, "rigwindow: the toasts are not an X11 window, so they take the keyboard when they appear")
 	}
 	win.Show()
+	feed.mu.Lock()
+	feed.visible = true
+	feed.mu.Unlock()
 	// After Show as well as before it: GTK drops a move asked of a window
 	// that is not yet mapped, which put the stack top-left under Xvfb.
 	application.InvokeSync(func() { stripMove(win, x, y) })
 	return true
+}
+
+func presentToast(id string) (*registryv1.Ask, error) {
+	c, err := client.Connect()
+	if err != nil {
+		return nil, err
+	}
+	defer c.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), readDeadline)
+	defer cancel()
+	var resp registryv1.AskPresentedResponse
+	err = c.Call(ctx, "rig.ask.presented", &registryv1.AskPresentedRequest{Id: id}, &resp)
+	return resp.GetAsk(), err
 }
 
 // replyToast files a reply from a bubble. The renderer's connection is the
@@ -650,7 +700,7 @@ func watchAnswer(ctx context.Context, id string, answered func(answerJSON)) {
 		case err != nil && ctx.Err() == nil:
 			time.Sleep(time.Second)
 		case a.GetAnswered():
-			answered(answerJSON{RecordID: id, Reply: a.GetReply(), Text: a.GetText(), Dismissed: a.GetDismissed(), Withdrawn: a.GetWithdrawn(), By: a.GetBy()})
+			answered(answerJSON{RecordID: id, Reply: a.GetReply(), Text: a.GetText(), Dismissed: a.GetDismissed(), Withdrawn: a.GetWithdrawn(), Expired: a.GetExpired(), By: a.GetBy()})
 			return
 		}
 	}

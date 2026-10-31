@@ -9,7 +9,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/borismilner/rig/internal/kernel"
@@ -212,7 +211,7 @@ func (d *Daemon) serveToast(ctx context.Context, c *conn, f *rigv1.Frame, comman
 		d.serveToastAnswer(ctx, c, f)
 	case "toast.retract":
 		d.serveToastRetract(ctx, c, f)
-	case "ask.open", "ask.get", "ask.list", "ask.answer", "ask.withdraw":
+	case "ask.open", "ask.get", "ask.list", "ask.answer", "ask.withdraw", "ask.presented":
 		d.serveAsk(ctx, c, f, command)
 	case "capture.list", "capture.shot":
 		d.serveCapture(ctx, c, f, command)
@@ -468,9 +467,20 @@ func (d *Daemon) fileToastReply(ctx context.Context, c *conn, f *rigv1.Frame, re
 			c.failErr(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err)
 			return nil, false
 		}
-		if a.GetState() != "open" {
+		if !askIsOpen(a) {
 			c.fail(f.GetStreamId(), rigv1.Code_CODE_CONFLICT, "rig.toast.reply: question is "+a.GetState())
 			return nil, false
+		}
+		if rec.Fields["ask_mode"] == askCountdown {
+			left, sameBoot, err := d.countdownRemaining(rec)
+			if err != nil {
+				c.failErr(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err)
+				return nil, false
+			}
+			if !sameBoot || left <= 0 {
+				c.fail(f.GetStreamId(), rigv1.Code_CODE_CONFLICT, "rig.toast.reply: countdown deadline passed")
+				return nil, false
+			}
 		}
 	}
 	by := c.name()
@@ -510,12 +520,7 @@ func (d *Daemon) fileToastReply(ctx context.Context, c *conn, f *rigv1.Frame, re
 	// The sender learns of it on the bus rather than holding a poll open
 	// per question. The answer is filed already, so an event that could not
 	// be kept costs only the wake-up: rig.toast.answer still has it.
-	if q.to != "" {
-		payload, _ := protojson.Marshal(ans)
-		if _, _, err := d.events.publishTo(toastAnsweredKind, eventSourceRig, string(payload), q.to); err != nil {
-			d.log.Warn("toast.answered not kept", "toast", req.GetRecordId(), "err", err)
-		}
-	}
+	d.publishAskAnswer(rec, ans)
 	return ans, true
 }
 

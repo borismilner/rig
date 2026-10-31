@@ -76,6 +76,7 @@ body[data-edge=top]    .slot + .slot { margin-bottom: 14px; }
 /* How long until it goes on its own, in words as well as the bar. */
 .sender { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .left { margin-left: auto; flex: none; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.countdown { grid-column: 2; margin: 8px 0 0; color: var(--fg); font-size: 14px; white-space: normal; }
 .urgent .left, .pinned .left { color: var(--hue); }
 .pinned .bar { opacity: 0; }
 
@@ -249,7 +250,9 @@ function answered(slot, a) {
   if (!ask) return;
   ask.textContent = "";
   const said = el("span", "said");
-  if (a.dismissed) said.textContent = "Closed without a reply";
+  if (slot._toast.countdown_seconds) said.textContent = a.expired ? "Countdown ended" : "Stopped";
+  else if (a.expired) said.textContent = "Question expired";
+  else if (a.dismissed) said.textContent = "Closed without a reply";
   else { said.append("Answered "); said.append(el("b", "", a.reply || "\u201c" + a.text + "\u201d")); }
   if (a.by) said.append(" by " + a.by);
   ask.append(said);
@@ -288,7 +291,11 @@ function askRow(slot, t) {
   return ask;
 }
 
-function closeSlot(slot) {
+async function closeSlot(slot) {
+  if (slot._toast?.countdown_seconds && !slot._answered) {
+    if (await sendReply(slot, { dismissed: true })) answered(slot, { dismissed: true });
+    return; // a failed Stop must stay visible and retryable
+  }
   if (slot._toast && asks(slot._toast) && !slot._answered) {
     slot._answered = true;
     sendReply(slot, { dismissed: true }); // the sender learns; the bubble goes regardless
@@ -323,15 +330,17 @@ function show(t) {
     });
     card.append(body, more);
   }
+  if (t.countdown_seconds) card.append(el("div", "left countdown"));
   if (asks(t)) card.append(askRow(slot, t));
   const meta = el("div", "meta");
-  meta.append(el("span", "pill", t.severity), el("span", "sender", t.sender), el("span", "left"));
+  meta.append(el("span", "pill", t.severity), el("span", "sender", t.sender));
+  if (!t.countdown_seconds) meta.append(el("span", "left"));
   card.append(meta);
   const dwell = dwellFor(t);
   const actions = el("div", "actions");
   if (dwell !== Infinity) actions.append(button("pin", PIN, "Pin: keep it until I close it", (b) => togglePin(slot, b)));
   actions.append(button("copy", COPY, "Copy to clipboard", (b) => copy(t, b)),
-                 button("close", CLOSE, asks(t) ? "Close without replying" : "Close", () => closeSlot(slot)));
+                 button("close", CLOSE, t.countdown_seconds ? "Stop action" : asks(t) ? "Close without replying" : "Close", () => closeSlot(slot)));
   card.append(actions);
   if (dwell !== Infinity) { const bar = el("div", "bar"); card.append(bar); slot._bar = bar; }
   slot._total = dwell; slot._left = dwell; slot._born = Date.now(); slot._toast = t;
@@ -355,6 +364,29 @@ function show(t) {
       { duration: 420, easing: "cubic-bezier(.2,1.3,.35,1)", fill: "backwards" });
   }
   fit();
+  if (t.countdown_seconds) {
+    slot.querySelector(".left").textContent = "Will proceed in " + t.countdown_seconds + "s unless stopped";
+    // Wait for the entrance animation and two paints before reporting.
+    Promise.all(card.getAnimations().filter(a => a.effect.getTiming().iterations !== Infinity).map(a => a.finished)).then(() => {
+      requestAnimationFrame(() => requestAnimationFrame(() => { slot._ready = true; }));
+    });
+  }
+}
+
+async function present(slot) {
+  const r = slot.firstChild.getBoundingClientRect();
+  if (!slot._ready || slot._presenting || slot._deadline || slot._answered ||
+      document.visibilityState !== "visible" || r.top < 0 || r.bottom > innerHeight ||
+      r.left < 0 || r.right > innerWidth || !r.width || !r.height) return;
+  slot._presenting = true;
+  try {
+    const response = await fetch("/toast/presented", { method: "POST",
+      body: JSON.stringify({ id: slot._toast.record_id }) });
+    if (!response.ok) return;
+    const a = await response.json();
+    if (a.state === "open") slot._deadline = a.expires_ms;
+    else if (a.state !== "awaiting_presentation") answered(slot, { expired: true });
+  } finally { slot._presenting = false; }
 }
 
 // A wall of toasts helps nobody: past MAX_SHOWN, or past the screen's
@@ -383,6 +415,14 @@ setInterval(() => {
     const left = slot.querySelector(".left");
     // Urgent never goes on its own, so it says how long it has waited instead.
     if (slot._answered) continue;
+    if (slot._toast.countdown_seconds) {
+      present(slot).catch(() => {});
+      if (slot._deadline) {
+        const seconds = Math.max(0, Math.ceil((slot._deadline - Date.now()) / 1000));
+        left.textContent = seconds ? "Proceeds in " + seconds + "s unless stopped" : "Waiting for result";
+      }
+      continue;
+    }
     if (slot._total === Infinity) {
       left.textContent = (asks(slot._toast) ? "asking " : "waiting ") + ago(Date.now() - slot._born);
       continue;

@@ -324,3 +324,52 @@ func TestAReplayedQuestionIsNotDrawnTwice(t *testing.T) {
 		t.Fatalf("after the replay the page was handed %v, want the new toast alone", got)
 	}
 }
+
+func TestCountdownPresentationRequiresMappedWindowAndKnownCard(t *testing.T) {
+	calls := 0
+	f := &toastFeed{presented: func(id string) (*registryv1.Ask, error) {
+		calls++
+		return &registryv1.Ask{Id: id, State: "open", ExpiresUnixNano: int64(2000 * time.Millisecond)}, nil
+	}}
+	f.add([]*registryv1.Toast{{RecordId: "countdown", CountdownSeconds: 15}})
+	for _, tc := range []struct {
+		name, method, body string
+		visible            bool
+		status             int
+	}{
+		{"unmapped", "POST", `{"id":"countdown"}`, false, 409},
+		{"unknown", "POST", `{"id":"other"}`, true, 409},
+		{"wrong method", "GET", `{"id":"countdown"}`, true, 405},
+		{"malformed", "POST", `{`, true, 400},
+		{"visible", "POST", `{"id":"countdown"}`, true, 200},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f.visible = tc.visible
+			w := httptest.NewRecorder()
+			f.ServeHTTP(w, httptest.NewRequest(tc.method, "/toast/presented", strings.NewReader(tc.body)))
+			if w.Code != tc.status {
+				t.Fatalf("status %d: %s", w.Code, w.Body.String())
+			}
+			if tc.status == 200 && !strings.Contains(w.Body.String(), `"expires_ms":2000`) {
+				t.Fatal(w.Body.String())
+			}
+		})
+	}
+	if calls != 1 {
+		t.Fatalf("presentation acknowledged %d times", calls)
+	}
+}
+
+func TestCountdownExpiryIsNotRenderedAsSenderWithdrawal(t *testing.T) {
+	f := &toastFeed{}
+	f.add([]*registryv1.Toast{{RecordId: "countdown", CountdownSeconds: 15, Replies: []string{"Stop"}}})
+	got := f.poll(0, inputRegion{}, time.Now())
+	if len(got.Toasts) != 1 || got.Toasts[0].CountdownSeconds != 15 {
+		t.Fatalf("countdown metadata: %+v", got)
+	}
+	f.add([]*registryv1.Toast{{RecordId: "countdown", Retracted: true, Expired: true}})
+	got = f.poll(1, inputRegion{}, time.Now())
+	if len(got.Answers) != 1 || !got.Answers[0].Expired || got.Answers[0].Withdrawn {
+		t.Fatalf("expiry: %+v", got)
+	}
+}

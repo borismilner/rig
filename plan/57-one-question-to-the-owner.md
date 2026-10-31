@@ -13,9 +13,13 @@ Marvin's `/ask`, where Boris asks a model a question.
   title, optional body, references, up to three options, whether text
   is accepted, a TTL and a failure mode. A cloud caller never waits
   for a person.
-- The two failure modes are section 13's **gating** (expires denied)
+- The default question modes are section 13's **gating** (expires denied)
   and **disambiguating** (expires with no answer). Gating is the
-  default. Neither mode turns silence into approval.
+  default. Neither mode turns silence into approval. Section 16's explicit
+  **countdown** mode shares this lifecycle: presentation arms a grace,
+  Stop/dismissal stops it, and durable elapsed grace returns `proceed`.
+  `ask.presented` belongs to the interactive renderer; missing presentation
+  or suppressed delivery denies it.
 - `ask.get` and `ask.list` read current state, including what channel
   delivered it and why. `ask.answer` accepts one offered option, text
   when offered, or dismissal. The first valid answer wins. `ask.withdraw`

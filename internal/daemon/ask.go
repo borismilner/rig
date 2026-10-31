@@ -32,6 +32,8 @@ func (d *Daemon) serveAsk(ctx context.Context, c *conn, f *rigv1.Frame, command 
 		d.serveAskOpen(ctx, c, f)
 	case "ask.get":
 		d.serveAskGet(ctx, c, f)
+	case "ask.presented":
+		d.serveAskPresented(ctx, c, f)
 	case "ask.list":
 		d.serveAskList(ctx, c, f)
 	case "ask.answer":
@@ -72,8 +74,11 @@ func checkAskOpen(q *registryv1.AskOpenRequest) string {
 			return "each reference needs 1 to 256 bytes of UTF-8"
 		}
 	}
-	if q.GetFailureMode() != "" && q.GetFailureMode() != "gating" && q.GetFailureMode() != "disambiguating" {
-		return "failure_mode is gating or disambiguating"
+	if q.GetFailureMode() != "" && q.GetFailureMode() != "gating" && q.GetFailureMode() != "disambiguating" && q.GetFailureMode() != askCountdown {
+		return "failure_mode is gating, disambiguating or countdown"
+	}
+	if q.GetFailureMode() == askCountdown && (!slices.Equal(q.GetOptions(), []string{"Stop"}) || q.GetAcceptsText()) {
+		return "countdown requires exactly the Stop option and no free text"
 	}
 	return ""
 }
@@ -188,6 +193,16 @@ func (d *Daemon) serveAskOpen(ctx context.Context, c *conn, f *rigv1.Frame) {
 	if delivery.never {
 		fields["ask_policy_never"] = fieldYes
 	}
+	if mode == askCountdown {
+		if err := d.startCountdown(fields, req.GetTtlSeconds()); err != nil {
+			c.failErr(f.GetStreamId(), rigv1.Code_CODE_UNAVAILABLE, err)
+			return
+		}
+		if delivery.suppressed {
+			delivery.never = true
+			fields["ask_policy_never"] = fieldYes
+		}
+	}
 	rec, err := st.Put(ctx, record.PutRequest{
 		Kind: notificationKind, Project: notificationProject, Body: req.GetBody(), Fields: fields,
 		Session: who.session, Seat: who.seat, Epoch: who.epoch,
@@ -201,6 +216,7 @@ func (d *Daemon) serveAskOpen(ctx context.Context, c *conn, f *rigv1.Frame) {
 		AtUnixNano: rec.Prov.CreatedAt.UnixNano(), Suppressed: delivery.suppressed,
 		Replies: req.GetOptions(), ReplyText: req.GetAcceptsText(),
 	}
+	t.CountdownSeconds = countdownSeconds(rec)
 	if delivery.never {
 		d.toasts.ask(rec.ID, req.GetOptions(), req.GetAcceptsText(), to)
 		d.toasts.answer(rec.ID, &registryv1.ToastAnswer{
@@ -293,6 +309,9 @@ func (d *Daemon) askFromRecord(ctx context.Context, st *record.Store, rec record
 	if a.GetState() == askExpired && a.GetFailureMode() == "gating" {
 		a.State = "denied"
 	}
+	if a.GetFailureMode() == askCountdown {
+		countdownState(a, rec, replies)
+	}
 	return a, nil
 }
 
@@ -350,7 +369,7 @@ func (d *Daemon) serveAskList(ctx context.Context, c *conn, f *rigv1.Frame) {
 			c.failErr(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err)
 			return
 		}
-		if !req.GetOpenOnly() || a.GetState() == "open" {
+		if !req.GetOpenOnly() || askIsOpen(a) {
 			resp.Asks = append(resp.Asks, a)
 		}
 	}
@@ -380,7 +399,7 @@ func (d *Daemon) serveAskAnswer(ctx context.Context, c *conn, f *rigv1.Frame) {
 		c.failErr(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err)
 		return
 	}
-	if current.GetState() != "open" {
+	if !askIsOpen(current) {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_CONFLICT, "rig.ask.answer: question is "+current.GetState())
 		return
 	}
@@ -440,7 +459,7 @@ func (d *Daemon) serveAskWithdraw(ctx context.Context, c *conn, f *rigv1.Frame) 
 		c.reply(f.GetStreamId(), &registryv1.AskWithdrawResponse{Ask: a})
 		return
 	}
-	if a.GetState() != "open" {
+	if !askIsOpen(a) {
 		c.fail(f.GetStreamId(), rigv1.Code_CODE_CONFLICT, "rig.ask.withdraw: question is "+a.GetState())
 		return
 	}
@@ -453,9 +472,11 @@ func (d *Daemon) serveAskWithdraw(ctx context.Context, c *conn, f *rigv1.Frame) 
 		c.failErr(f.GetStreamId(), rigv1.Code_CODE_INTERNAL, err)
 		return
 	}
-	d.toasts.answer(rec.ID, &registryv1.ToastAnswer{
+	ans := &registryv1.ToastAnswer{
 		RecordId: rec.ID, Answered: true, Withdrawn: true, By: who.name, AtUnixNano: time.Now().UnixNano(),
-	})
+	}
+	d.toasts.answer(rec.ID, ans)
+	d.publishAskAnswer(rec, ans)
 	d.toasts.withdraw(rec.ID, who.name)
 	d.publishJSON("toast.retracted", toastRetraction{RecordID: rec.ID, Sender: who.name})
 	a, err = d.askFromRecord(ctx, st, rec, time.Now())
