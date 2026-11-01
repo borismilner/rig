@@ -112,6 +112,13 @@ func TestRealShell(t *testing.T) {
 			if err != nil || drawn.Cursor != "drawn" {
 				t.Errorf("with a pointer: %+v, %v", drawn, err)
 			}
+			live, err := svc.Capture(ctx, Target{Kind: KindScreen}, Options{Cursor: true})
+			if err != nil || live.Pointer == nil {
+				t.Errorf("live pointer position: %+v, %v", live, err)
+			} else if live.Pointer.X < outs[0].X || live.Pointer.Y < outs[0].Y ||
+				live.Pointer.X >= outs[0].X+outs[0].W || live.Pointer.Y >= outs[0].Y+outs[0].H {
+				t.Errorf("live pointer %+v is outside logical output %+v", live.Pointer, outs[0])
+			}
 			plain, err := svc.Capture(ctx, Target{Kind: KindArea, Area: Rect{X: 0, Y: 0, W: 300, H: 300}}, Options{})
 			if err != nil || plain.Cursor != "" || plain.SHA256 == drawn.SHA256 {
 				t.Errorf("without --cursor the picture must differ and say nothing: %+v, %v", plain, err)

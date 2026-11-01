@@ -338,9 +338,12 @@ export default class RigCapture extends Extension {
             try { out.close(null); } catch (_e) { /* already closed */ }
             throw e;
         }
-        // Whether the pointer is in the picture: a hidden pointer is not an error.
-        const pointer = cursor && cursorPoint
-            ? {x: Math.round(cursorPoint.x), y: Math.round(cursorPoint.y)}
+        // Screenshot's pointer texture and its position are optional on
+        // Wayland. Read the live Shell pointer in logical desktop coordinates
+        // so callers can compare it directly with righand's coordinate space.
+        const [pointerX, pointerY] = global.get_pointer();
+        const pointer = cursor
+            ? {x: Math.round(pointerX), y: Math.round(pointerY)}
             : undefined;
         return JSON.stringify({
             width: sw, height: sh, scale,
