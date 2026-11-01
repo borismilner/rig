@@ -41,6 +41,8 @@ func (d *Daemon) serveSound(ctx context.Context, c *conn, f *rigv1.Frame, comman
 		d.serveSoundSettings(c, f)
 	case "say":
 		d.serveSay(ctx, c, f)
+	case "speech.start", "speech.state", "speech.stop":
+		d.serveSpeech(ctx, c, f, command)
 	}
 }
 
@@ -155,4 +157,57 @@ func (d *Daemon) serveSay(ctx context.Context, c *conn, f *rigv1.Frame) {
 		c.reply(f.GetStreamId(), &registryv1.SayResponse{})
 	case <-ctx.Done():
 	}
+}
+
+// serveSpeech owns no second queue: the audio item's lifecycle is the handle.
+func (d *Daemon) serveSpeech(ctx context.Context, c *conn, f *rigv1.Frame, command string) {
+	who, ok := d.panelCaller(c, f, command)
+	if !ok {
+		return
+	}
+	var result audio.SpeechStatus
+	var err error
+	if command == "speech.start" {
+		var req registryv1.SpeechStartRequest
+		if err = proto.Unmarshal(f.GetPayload(), &req); err != nil {
+			c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "rig."+command+": "+err.Error())
+			return
+		}
+		if len(req.GetText()) > maxSayText || !utf8.ValidString(req.GetText()) {
+			c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "rig.speech.start: text is up to 10000 bytes of UTF-8")
+			return
+		}
+		result, err = d.audio.StartSpeech(who.to, req.GetText())
+	} else {
+		var req registryv1.SpeechHandleRequest
+		if err = proto.Unmarshal(f.GetPayload(), &req); err != nil {
+			c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "rig."+command+": "+err.Error())
+			return
+		}
+		if len(req.GetId()) == 0 || len(req.GetId()) > 128 || !utf8.ValidString(req.GetId()) {
+			c.fail(f.GetStreamId(), rigv1.Code_CODE_INVALID, "rig."+command+": a speech handle id is required")
+			return
+		}
+		if command == "speech.state" {
+			result, err = d.audio.SpeechState(who.to, req.GetId())
+		} else {
+			wait, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			result, err = d.audio.StopSpeech(wait, who.to, req.GetId())
+		}
+	}
+	if err != nil {
+		code := rigv1.Code_CODE_UNAVAILABLE
+		switch {
+		case errors.Is(err, audio.ErrNothingToSay):
+			code = rigv1.Code_CODE_INVALID
+		case errors.Is(err, audio.ErrSpeechNotFound):
+			code = rigv1.Code_CODE_NOT_FOUND
+		case errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
+			code = rigv1.Code_CODE_DEADLINE
+		}
+		c.fail(f.GetStreamId(), code, "rig."+command+": "+err.Error())
+		return
+	}
+	c.reply(f.GetStreamId(), &registryv1.SpeechResponse{Id: result.ID, State: result.State})
 }

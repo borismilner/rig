@@ -215,7 +215,7 @@ func (d *Daemon) serveToast(ctx context.Context, c *conn, f *rigv1.Frame, comman
 		d.serveAsk(ctx, c, f, command)
 	case "capture.list", "capture.shot":
 		d.serveCapture(ctx, c, f, command)
-	case "sound", "say":
+	case "sound", "say", "speech.start", "speech.state", "speech.stop":
 		d.serveSound(ctx, c, f, command)
 	case "events.publish", "events.wait", "timer.arm", "timer.disarm", "timer.list":
 		d.serveEvents(ctx, c, f, command)

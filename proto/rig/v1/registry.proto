@@ -530,6 +530,25 @@ message SayResponse {
   bool heard = 1;
 }
 
+// A cancellable utterance in the same estate queue as Say and toast audio.
+// Ownership comes from the registered program or announced seat.
+message SpeechStartRequest {
+  string text = 1; // Up to 10000 bytes of UTF-8, as Say.
+}
+
+message SpeechHandleRequest {
+  string id = 1;
+}
+
+message SpeechResponse {
+  string id = 1;
+  // queued, playing, completed, cancelled, dropped, or failed. Terminal
+  // results share a 128-handle bound with active items; oldest terminal
+  // results are evicted first. A daemon restart
+  // forgets every handle; state/stop then return NOT_FOUND, never completed.
+  string state = 2;
+}
+
 // THE HANDS OFF STRIP (plan/05 section 5m, H1-H5). One desktop, so one run at
 // a time: a program asks for the pointer and keyboard, a countdown gives the
 // person time to decline or hold it, and while it drives he can take it back.

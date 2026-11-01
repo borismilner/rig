@@ -22,8 +22,8 @@ import (
 // from AgentBox's internal/speech rather than written a second time. What
 // came across: the engine held open between lines (a model load is ~3s and a
 // line ~375ms), the counting copy that says when a line has been HEARD, and
-// the player flags. What did not: the reading transport, which rig has no
-// caller for.
+// the player flags. The reading transport now adds caller-owned lifecycle handles to
+// that same queue and pipeline.
 //
 // S5, best quality (Boris, 2026-09-27): Kokoro first at its native 24 kHz,
 // piper only when Kokoro is missing, and pw-play's resampler pinned to 15.
@@ -204,6 +204,25 @@ func (p *pipeline) say(text string) error {
 	return err
 }
 
+// sayUntil can stop even when a stalled engine fills its stdin pipe. The
+// writer is joined before the pipeline can be reused or discarded.
+func (p *pipeline) sayUntil(text string, cut, cancel <-chan struct{}) (error, string) {
+	written := make(chan error, 1)
+	go func() { written <- p.say(text) }()
+	state := ""
+	select {
+	case err := <-written:
+		return err, ""
+	case <-cut:
+		state = SpeechDropped
+	case <-cancel:
+		state = SpeechCancelled
+	}
+	p.kill()
+	<-written
+	return nil, state
+}
+
 // close lets the pipeline finish what it is saying; only a process that
 // outstays drainGrace is killed.
 func (p *pipeline) close() {
@@ -306,29 +325,33 @@ func waitBudget(line string) (start, ceiling time.Duration) {
 
 // drain blocks until the line written after byte count from has been heard:
 // the stream quiet for drainQuiet AND the meter's until passed. It reports
-// whether cut ended the wait first; the caller then kills the pipeline.
-func (p *pipeline) drain(from int64, grace, ceiling time.Duration, cut <-chan struct{}) bool {
+// whether it completed, failed, was dropped by mute, or was cancelled.
+func (p *pipeline) drain(from int64, grace, ceiling time.Duration, cut, cancel <-chan struct{}) string {
 	began := time.Now()
 	tick := time.NewTicker(drainPoll)
 	defer tick.Stop()
 	for {
 		select {
 		case <-cut:
-			return true
+			return SpeechDropped
+		case <-cancel:
+			return SpeechCancelled
+		case <-p.playGone:
+			return SpeechFailed
 		case <-tick.C:
 			bytes, last, until := p.meter.read()
 			now := time.Now()
 			if bytes == from {
 				if now.Sub(began) >= grace {
-					return false // this line synthesised to nothing
+					return SpeechFailed // this line synthesised to nothing
 				}
 				continue
 			}
 			if now.Sub(last) >= drainQuiet && now.After(until.Add(drainSettle)) {
-				return false
+				return SpeechCompleted
 			}
 			if now.Sub(began) >= ceiling {
-				return false
+				return SpeechFailed
 			}
 		}
 	}

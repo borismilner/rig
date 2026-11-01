@@ -131,13 +131,17 @@ type Status struct {
 
 // item is one thing to play: a sound file, or a line to speak.
 type item struct {
-	file string
-	line string
-	warm bool          // start the engine and say nothing
-	done chan struct{} // closed when heard or dropped; nil when nobody waits
+	file   string
+	line   string
+	warm   bool          // start the engine and say nothing
+	done   chan struct{} // closed when heard or dropped; nil when nobody waits
+	speech *speechJob    // optional caller-owned lifecycle on the same queue item
 }
 
-func (it item) release() {
+func (it item) release(state string) {
+	if it.speech != nil {
+		it.speech.finish(state)
+	}
 	if it.done != nil {
 		close(it.done)
 	}
@@ -149,13 +153,15 @@ type Audio struct {
 	player string
 	sounds map[Sound]string // the file each sound plays
 
-	mu       sync.Mutex
-	settings Settings
-	eng      *engine // nil until the first line, then found once
-	engErr   error
-	engAt    time.Time // when engErr was found; it is looked for again later
-	problem  string
-	closed   bool
+	mu          sync.Mutex
+	settings    Settings
+	eng         *engine // nil until the first line, then found once
+	engErr      error
+	engAt       time.Time // when engErr was found; it is looked for again later
+	problem     string
+	closed      bool
+	speech      map[string]*speechJob
+	speechOrder []string
 
 	items chan item
 	cut   chan struct{} // capacity 1: stop what is playing now
@@ -352,25 +358,36 @@ var ErrNothingToSay = errors.New("nothing to say")
 // Say reads text aloud (S2), and returns a channel closed once it has been
 // heard, or dropped by a mute or a full queue.
 func (a *Audio) Say(text string) (<-chan struct{}, error) {
-	a.mu.Lock()
-	muted, player := a.settings.Muted, a.player
-	a.mu.Unlock()
-	if muted {
-		return nil, ErrMuted
-	}
-	if player == "" {
-		return nil, errors.New(a.problem)
-	}
-	if err := a.findEngine(); err != nil {
+	line, err := a.sayLine(text)
+	if err != nil {
 		return nil, err
-	}
-	line := clean(text, 0)
-	if line == "" {
-		return nil, ErrNothingToSay
 	}
 	done := make(chan struct{})
 	a.enqueue(item{line: line, done: done})
 	return done, nil
+}
+
+func (a *Audio) sayLine(text string) (string, error) {
+	a.mu.Lock()
+	muted, player, closed, problem := a.settings.Muted, a.player, a.closed, a.problem
+	a.mu.Unlock()
+	if closed {
+		return "", errors.New("audio queue is closed")
+	}
+	if muted {
+		return "", ErrMuted
+	}
+	if player == "" {
+		return "", errors.New(problem)
+	}
+	if err := a.findEngine(); err != nil {
+		return "", err
+	}
+	line := clean(text, 0)
+	if line == "" {
+		return "", ErrNothingToSay
+	}
+	return line, nil
 }
 
 // engRetry is how long a missing speech engine is believed missing.
@@ -402,8 +419,12 @@ func (a *Audio) findEngine() error {
 func (a *Audio) enqueue(it item) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if a.closed || a.player == "" {
-		it.release()
+	a.enqueueLocked(it)
+}
+
+func (a *Audio) enqueueLocked(it item) {
+	if a.closed || a.settings.Muted || a.player == "" {
+		it.release(SpeechDropped)
 		return
 	}
 	for {
@@ -414,7 +435,7 @@ func (a *Audio) enqueue(it item) {
 		}
 		select {
 		case dropped := <-a.items:
-			dropped.release()
+			dropped.release(SpeechDropped)
 		default:
 		}
 	}
@@ -424,8 +445,11 @@ func (a *Audio) enqueue(it item) {
 func (a *Audio) silence() {
 	for {
 		select {
-		case dropped := <-a.items:
-			dropped.release()
+		case dropped, ok := <-a.items:
+			if !ok {
+				return
+			}
+			dropped.release(SpeechDropped)
 		default:
 			select {
 			case a.cut <- struct{}{}:
@@ -444,6 +468,9 @@ func (a *Audio) Close() {
 		return
 	}
 	a.closed = true
+	for _, j := range a.speech {
+		j.stop()
+	}
 	close(a.items)
 	a.mu.Unlock()
 	<-a.done
@@ -479,15 +506,30 @@ func (a *Audio) run() {
 			case <-a.cut:
 			default:
 			}
+			a.mu.Lock()
+			muted := a.settings.Muted
+			a.mu.Unlock()
+			if muted {
+				it.release(SpeechDropped)
+				continue
+			}
+			if it.speech != nil && !it.speech.begin() {
+				continue
+			}
+			var cancel <-chan struct{}
+			if it.speech != nil {
+				cancel = it.speech.cancel
+			}
+			state := SpeechCompleted
 			switch {
 			case it.file != "":
 				a.playFile(it.file)
 			case it.line != "":
-				pipe = a.speak(pipe, it.line)
+				pipe, state = a.speak(pipe, it.line, cancel)
 			case it.warm && pipe == nil:
 				pipe = a.warm()
 			}
-			it.release()
+			it.release(state)
 			if timer == nil {
 				timer = time.NewTimer(a.opt.Idle)
 			} else {
@@ -526,55 +568,60 @@ func (a *Audio) playFile(file string) {
 // speak says one line on the pipeline, starting it if needed, and waits until
 // it has been heard. It returns the pipeline to keep, nil after a failure or
 // a cut.
-func (a *Audio) speak(pipe *pipeline, line string) *pipeline {
+func (a *Audio) speak(pipe *pipeline, line string, cancel <-chan struct{}) (*pipeline, string) {
 	if err := a.findEngine(); err != nil {
-		return pipe
+		return pipe, SpeechFailed
 	}
 	a.mu.Lock()
 	eng := *a.eng
 	a.mu.Unlock()
 	level := a.level()
 	if pipe != nil && pipe.volume != level {
-		pipe.close() // the volume changed; the player takes it only at start
+		pipe.kill()
 		pipe = nil
 	}
-	var err error
-	if pipe == nil {
-		if pipe, err = startPipeline(eng, a.player, level); err != nil {
-			a.opt.Log.Warn("starting speech", "err", err)
-			return nil
+	for attempt := 0; attempt < 2; attempt++ {
+		select {
+		case <-cancel:
+			return pipe, SpeechCancelled
+		default:
 		}
-	}
-	from := pipe.written()
-	if err = pipe.say(line); err != nil {
-		// The engine went away. One rebuild, then give up on this line.
-		pipe.kill()
-		if pipe, err = startPipeline(eng, a.player, level); err == nil {
-			from = pipe.written()
-			err = pipe.say(line)
+		var err error
+		if pipe == nil {
+			pipe, err = startPipeline(eng, a.player, level)
+			if err != nil {
+				a.opt.Log.Warn("starting speech", "err", err)
+				return nil, SpeechFailed
+			}
+		}
+		from := pipe.written()
+		err, interrupted := pipe.sayUntil(line, a.cut, cancel)
+		if interrupted != "" {
+			return nil, interrupted
 		}
 		if err != nil {
-			a.opt.Log.Warn("speaking", "err", err)
-			if pipe != nil {
-				pipe.kill()
+			pipe.kill()
+			pipe = nil
+			if attempt == 0 {
+				continue
 			}
-			return nil
+			a.opt.Log.Warn("speaking", "err", err)
+			return nil, SpeechFailed
 		}
+		grace, ceiling := waitBudget(line)
+		state := pipe.drain(from, grace, ceiling, a.cut, cancel)
+		if state != SpeechCompleted {
+			pipe.kill()
+			return nil, state
+		}
+		if why, died := pipe.playerDied(); died {
+			a.opt.Log.Warn("the player stopped, so the line was not heard", "player", filepath.Base(a.player), "err", why)
+			pipe.kill()
+			return nil, SpeechFailed
+		}
+		return pipe, SpeechCompleted
 	}
-	grace, ceiling := waitBudget(line)
-	if pipe.drain(from, grace, ceiling, a.cut) {
-		pipe.kill()
-		return nil
-	}
-	// A player that refused the stream leaves the engine running and the
-	// line unheard, and nothing else would say so.
-	if why, died := pipe.playerDied(); died {
-		a.opt.Log.Warn("the player stopped, so the line was not heard",
-			"player", filepath.Base(a.player), "err", why)
-		pipe.kill()
-		return nil
-	}
-	return pipe
+	return nil, SpeechFailed
 }
 
 // level is the volume in force now.

@@ -279,8 +279,11 @@ was "tune it"; B (three rising blips) and C (high then low) lost.
 |---|---|
 | S6 | **rig's speech is the same as AgentBox's or better, on every axis AgentBox has.** Checked against AgentBox `speak`: a line said with no card, `wait` until heard, and a spoken line carried on a card or toast so the chime and the voice arrive together. A gap found is a work item, not a footnote |
 
-**Status 2026-10-01: at parity on every axis found.** Three gaps closed at
-`fa93651`, each heard live on the deployed daemon:
+**The 2026-10-01 check covered standalone speech and toast narration.**
+It did not cover the reading transport used by AgentBox
+`frontend/src/surfaces/Board.svelte`; the lifecycle below closes that additional
+contract. Three earlier gaps closed at `fa93651`, each heard live on the
+deployed daemon:
 
 | Gap | Closed by |
 |---|---|
@@ -291,3 +294,55 @@ was "tune it"; B (three rising blips) and C (high then low) lost.
 aplay has no volume flag, so on aplay the setting does nothing.
 
 ---
+
+## Cancellable reading on the existing queue (S7, 2026-10-31)
+
+AgentBox's reading controls start, stop and query one reading region.
+Changing regions or steps, closing the view and pressing Esc stop that
+reading. Rig owns this lifecycle; a visual consumer must not run its own
+speech process or use the estate's mute as a stop button.
+
+| Verb | Request | Result |
+|---|---|---|
+| `speech.start` | `text`, up to 10000 UTF-8 bytes | `id`, `state` |
+| `speech.state` | `id` | `id`, current `state` |
+| `speech.stop` | `id` | `id`, terminal `state` |
+
+These verbs use the same audio items, bounded queue, engine and player as
+`say` and toast narration. They add no queue, synthesis backend or
+persistent sound setting. Ownership comes from the registered program or
+announced seat, with separate namespaces; a request cannot name an owner.
+A foreign handle returns `NOT_FOUND`, just like an unknown handle.
+
+States are `queued`, `playing`, `completed`, `cancelled`, `dropped` and
+`failed`. `completed` means the existing PCM drain check finished; it is
+not an acknowledgement that a person heard it. A mute or queue overflow
+can produce `dropped`; an engine/player failure or synthesis/drain timeout
+produces `failed`. `say` keeps its existing response contract, including
+its completion signal for dropped items.
+
+Stop cancels one item only, including while an engine is blocked accepting
+its text. Its response waits for the player to stop, bounded to five
+seconds. A deadline does not undo cancellation: retry state or stop to
+observe the result. Stopping an already terminal item returns that result;
+it does not relabel previously completed speech as cancelled. Queued
+cancellation prevents playback. Changing regions means stopping the old
+handle before starting the new one. There is no pause/resume operation.
+
+Start is not idempotent. Retain its returned handle; blindly retrying a
+lost start response can enqueue a second reading. State and stop are
+idempotent. At most 128 handles are retained in memory, evicting the
+oldest terminal result first. Active handles remain addressable. Results
+retain no speech text. Eviction or daemon restart returns `NOT_FOUND`; consumers
+must never translate that into completion or continue an old reading.
+Daemon shutdown cancels tracked readings. Mute and volume are unchanged
+by start/state/stop.
+
+### Custom toast dwell audit
+
+The retirement audit found no caller-specific notification dwell to
+preserve: all 362 `notify` records in AgentBox's production store had
+`timeout_s=0`. Its 35 timed `veto` records use the countdown contract, not
+notification dwell. AgentBox's notification display uses the global
+`ToastDuration`; Rig continues to choose dwell by severity and reading
+length. No per-notification duration field is added for this retirement.

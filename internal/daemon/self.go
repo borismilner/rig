@@ -42,6 +42,18 @@ func selfDeclaration() kernel.Declaration {
 		c.Effects = kernel.EffectsDestructive
 		return c
 	}
+	speechStart := readOnly("speech.start", "Start speech",
+		"Read text aloud with a handle that can be stopped",
+		"Queues up to 10000 bytes of UTF-8 in the estate's existing audio queue. The handle belongs to the calling registered program or announced seat. Refused while muted. Starting again creates another utterance; do not retry blindly after a lost response. Stop the previous handle before replacing a reading region.",
+		"The handle id and its state: queued, playing, completed, cancelled, dropped or failed.")
+	speechStart.Idempotent = kernel.No
+	speechStart.Sensitive = []string{"/text"}
+	speechStop := readOnly("speech.stop", "Stop speech",
+		"Stop one of your speech handles without changing mute or other audio",
+		"Cancels only this caller's item, queued or playing, and waits up to five seconds until it cannot play further. A repeated stop returns its terminal result. A deadline does not undo the stop; retry state or stop. A missing, evicted, foreign or pre-restart handle returns NOT_FOUND.",
+		"The handle id and terminal state. Completed means it had already finished before stop.")
+	speechStop.Duration = kernel.DurationSeconds
+
 	return kernel.Declaration{
 		Identity:     kernel.Identity{ID: kernel.SelfID, Name: kernel.SelfID, Version: "0"},
 		Coverage:     kernel.CoverageFull,
@@ -499,6 +511,12 @@ func selfDeclaration() kernel.Declaration {
 				"Read text aloud",
 				"Reads arbitrary text aloud through the installed speech engine at its best quality (Kokoro, else piper), in the same queue as the toast sounds so nothing talks over anything else. Refused while sounds are muted. With wait, answers once the text has been heard, for at most two minutes.",
 				"With wait, whether it was heard before the bound."),
+			speechStart,
+			readOnly("speech.state", "Speech state",
+				"Read the state of one of your speech handles",
+				"Returns queued, playing, completed, cancelled, dropped or failed. At most 128 handles are retained, evicting the oldest terminal result first and keeping every active handle. Results retain no text. Handles do not survive a daemon restart: NOT_FOUND must never be read as completed. This does not read or change the estate's mute setting.",
+				"The handle id and current state."),
+			speechStop,
 			readOnly("toast.answer", "Toast answer",
 				"Wait for the reply to a toast you sent",
 				"Answers the reply to a toast that asked for one, waiting up to the timeout (at most 60 seconds) if nobody has replied yet; zero asks without waiting. A toast that asks never closes on its own, so the reply may come much later: ask again.",
