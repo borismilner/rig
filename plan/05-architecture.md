@@ -851,13 +851,13 @@ waiting, and it works. What follows is that capability brought over, and the sev
 where rig's own model makes it better rather than merely relocated.
 
 **Boris, 2026-11-01: pointer calibration must be observable before a click.** On Wayland,
-`righand where` can only seed from XWayland's last-known pointer; it must never be treated as a
-live reading. A screenshot-based target needs an explicit conversion into the hand's logical
-screen or window coordinates, including the image scale and frame origin. After moving, the
-hand or capture surface must expose a live, trustworthy pointer position in that same coordinate
-space; if it cannot, a coordinate click based on the capture is not verified and must not be
-sent. This lets a seat check that the pointer is over the intended control instead of estimating
-from a resized preview.
+`righand where` reads the live pointer from Rig's GNOME Shell extension; it does not use
+XWayland's last-known position. A screenshot-based target needs an explicit conversion into the
+hand's logical screen or window coordinates, including the image scale and frame origin. After
+moving, the hand or capture surface must expose a live, trustworthy pointer position in that same
+coordinate space; if it cannot, a coordinate click based on the capture is not verified and must
+not be sent. This lets a seat check that the pointer is over the intended control instead of
+estimating from a resized preview.
 
 **Boris, 2026-10-01: parity or better, and on Wayland.** *"I want rig to be
 able to speak out loud [...] make sure it's same or better than in AgentBox.
