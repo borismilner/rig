@@ -1094,6 +1094,12 @@ message CaptureRect {
   uint32 h = 4;
 }
 
+// CapturePoint is an absolute position in the desktop's logical coordinate space.
+message CapturePoint {
+  int32 x = 1;
+  int32 y = 2;
+}
+
 // CaptureListRequest lists what can be captured. A match keeps the windows
 // whose title or application contains it, ignoring case.
 message CaptureListRequest {
@@ -1161,4 +1167,9 @@ message CaptureShotResponse {
   // "drawn" or "hidden" when the pointer was asked for: the compositor
   // draws none while it hides the pointer. Empty when not asked.
   string cursor = 14;
+  // Pixels per logical desktop pixel in the saved image.
+  double image_scale = 15;
+  // Live compositor position when the backend can provide it, even if the
+  // pointer image itself is hidden.
+  CapturePoint pointer_position = 16;
 }

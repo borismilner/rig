@@ -84,7 +84,13 @@ type Raw struct {
 	// Cursor is "drawn" or "hidden" when the pointer was asked for, and
 	// empty when it was not or the extension does not say.
 	Cursor string
+	// Pointer is the live compositor position in logical desktop coordinates,
+	// when the backend can provide it for a cursor-enabled capture.
+	Pointer *Point
 }
+
+// Point is an absolute position in logical desktop coordinates.
+type Point struct{ X, Y int }
 
 // Info identifies the backend.
 type Info struct {
@@ -179,6 +185,10 @@ type Shot struct {
 	Shadowed bool
 	// Cursor says what became of a requested pointer: "drawn" or "hidden".
 	Cursor string
+	// ImageScale maps logical desktop pixels to pixels in the saved image.
+	ImageScale float64
+	// Pointer is the compositor's live position, when available.
+	Pointer *Point
 }
 
 // formatJPEG is the one option beside the default png.

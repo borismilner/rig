@@ -279,11 +279,15 @@ func processStartTicks(pid int) (string, error) {
 }
 
 type jsonRaw struct {
-	Width  int     `json:"width"`
-	Height int     `json:"height"`
-	Scale  float64 `json:"scale"`
-	Cursor string  `json:"cursor"`
-	Frame  *struct {
+	Width   int     `json:"width"`
+	Height  int     `json:"height"`
+	Scale   float64 `json:"scale"`
+	Cursor  string  `json:"cursor"`
+	Pointer *struct {
+		X int `json:"x"`
+		Y int `json:"y"`
+	} `json:"pointer_position"`
+	Frame *struct {
 		X, Y, W, H int
 	} `json:"frame"`
 }
@@ -294,6 +298,9 @@ func parseRaw(s string) (Raw, error) {
 		return Raw{}, fmt.Errorf("%w: the capture reply is not JSON: %w", ErrBadImage, err)
 	}
 	r := Raw{Width: j.Width, Height: j.Height, Scale: j.Scale, Cursor: j.Cursor}
+	if j.Pointer != nil {
+		r.Pointer = &Point{X: j.Pointer.X, Y: j.Pointer.Y}
+	}
 	if j.Frame != nil {
 		r.Frame = Rect{X: j.Frame.X, Y: j.Frame.Y, W: j.Frame.W, H: j.Frame.H}
 	}

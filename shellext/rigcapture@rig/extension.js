@@ -339,6 +339,13 @@ export default class RigCapture extends Extension {
             throw e;
         }
         // Whether the pointer is in the picture: a hidden pointer is not an error.
-        return JSON.stringify({width: sw, height: sh, scale, cursor: ctex ? 'drawn' : (cursor ? 'hidden' : '')});
+        const pointer = cursor && cursorPoint
+            ? {x: Math.round(cursorPoint.x), y: Math.round(cursorPoint.y)}
+            : undefined;
+        return JSON.stringify({
+            width: sw, height: sh, scale,
+            cursor: ctex ? 'drawn' : (cursor ? 'hidden' : ''),
+            pointer_position: pointer,
+        });
     }
 }

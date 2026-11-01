@@ -108,14 +108,18 @@ func (f *fake) CaptureWindow(ctx context.Context, id uint64, path string) (Raw, 
 	return Raw{}, ErrNoTarget
 }
 
-func (f *fake) CaptureArea(ctx context.Context, r Rect, _ bool, path string) (Raw, error) {
+func (f *fake) CaptureArea(ctx context.Context, r Rect, cursor bool, path string) (Raw, error) {
 	if err := f.wait(ctx); err != nil {
 		return Raw{}, err
 	}
 	if f.write != nil {
 		return Raw{}, f.write(path)
 	}
-	return Raw{Width: r.W, Height: r.H, Scale: 1, Cursor: f.cursor}, writePNG(path, solid(r.W, r.H, color.NRGBA{G: 255, A: 255}))
+	raw := Raw{Width: r.W, Height: r.H, Scale: 1, Cursor: f.cursor}
+	if cursor {
+		raw.Pointer = &Point{X: r.X + r.W/2, Y: r.Y + r.H/2}
+	}
+	return raw, writePNG(path, solid(r.W, r.H, color.NRGBA{G: 255, A: 255}))
 }
 
 func newFake() *fake {
@@ -291,15 +295,18 @@ func TestCursorOutcomeIsReported(t *testing.T) {
 	f.cursor = "hidden"
 	s := newSvc(t, f, Limits{})
 	shot, err := s.Capture(context.Background(), Target{Kind: KindScreen}, Options{Cursor: true})
-	if err != nil || shot.Cursor != "hidden" {
-		t.Fatalf("a hidden pointer must be said so: %v %q", err, shot.Cursor)
+	if err != nil || shot.Cursor != "hidden" || shot.Pointer == nil || *shot.Pointer != (Point{X: 1600, Y: 540}) {
+		t.Fatalf("a hidden pointer's position must still be reported: %v %+v", err, shot)
 	}
 	r, err := parseRaw(`{"width":10,"height":5,"scale":1,"cursor":"drawn"}`)
 	if err != nil || r.Cursor != "drawn" {
 		t.Fatalf("parseRaw cursor: %v %+v", err, r)
 	}
-	if r, err = parseRaw(`{"width":10,"height":5,"scale":1}`); err != nil || r.Cursor != "" {
+	if r, err = parseRaw(`{"width":10,"height":5,"scale":1}`); err != nil || r.Cursor != "" || r.Pointer != nil {
 		t.Fatalf("an older extension says nothing: %v %+v", err, r)
+	}
+	if r, err = parseRaw(`{"width":10,"height":5,"scale":1,"pointer_position":{"x":23,"y":41}}`); err != nil || r.Pointer == nil || *r.Pointer != (Point{X: 23, Y: 41}) {
+		t.Fatalf("parseRaw pointer position: %v %+v", err, r)
 	}
 }
 

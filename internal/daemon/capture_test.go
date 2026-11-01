@@ -57,11 +57,16 @@ func (s screen) CaptureWindow(_ context.Context, _ uint64, path string) (capture
 	return capture.Raw{Width: 80, Height: 60, Scale: 1}, paint(path, 80, 60)
 }
 
-func (s screen) CaptureArea(_ context.Context, r capture.Rect, _ bool, path string) (capture.Raw, error) {
+func (s screen) CaptureArea(_ context.Context, r capture.Rect, cursor bool, path string) (capture.Raw, error) {
 	if s.err != nil {
 		return capture.Raw{}, s.err
 	}
-	return capture.Raw{Width: r.W, Height: r.H, Scale: 1}, paint(path, r.W, r.H)
+	raw := capture.Raw{Width: r.W, Height: r.H, Scale: 1}
+	if cursor {
+		raw.Cursor = "drawn"
+		raw.Pointer = &capture.Point{X: r.X + r.W/2, Y: r.Y + r.H/2}
+	}
+	return raw, paint(path, r.W, r.H)
 }
 
 func withScreen(t *testing.T, be capture.Backend) (string, *Daemon, string) {
@@ -122,7 +127,10 @@ func TestAnybodyMayListAndCaptureAndEveryCallIsLogged(t *testing.T) {
 	if st, err := os.Stat(shot.GetPath()); err != nil || st.Mode().Perm() != 0o600 {
 		t.Fatalf("picture file: %v %v", st, err)
 	}
-	if err := prog.Call(ctx, "rig.capture.shot", &registryv1.CaptureShotRequest{Target: "screen"}, &shot); err != nil || shot.GetWidth() != 160 {
+	if err := prog.Call(ctx, "rig.capture.shot", &registryv1.CaptureShotRequest{Target: "screen", Cursor: true}, &shot); err != nil || shot.GetWidth() != 160 || shot.GetImageScale() != 1 || shot.GetPointerPosition().GetX() != 80 || shot.GetPointerPosition().GetY() != 45 {
+		t.Fatalf("screen capture must carry a calibrated pointer position: %v %v", err, &shot)
+	}
+	if err := prog.Call(ctx, "rig.capture.shot", &registryv1.CaptureShotRequest{Target: "screen"}, &shot); err != nil || shot.GetWidth() != 160 || shot.GetPointerPosition() != nil {
 		t.Fatalf("a plain program capturing the screen: %v %v", err, &shot)
 	}
 

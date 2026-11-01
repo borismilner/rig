@@ -286,6 +286,10 @@ func shotWire(s *capture.Shot) *registryv1.CaptureShotResponse {
 		Width: clampU32(s.Width), Height: clampU32(s.Height), Sha256: s.SHA256, Target: s.Target,
 		TakenAt: s.TakenAt.UTC().Format(time.RFC3339), TookMs: clampU32(int(s.Took.Milliseconds())),
 		Data: s.Data, Shadow: s.Shadowed, Cursor: s.Cursor,
+		ImageScale: s.ImageScale,
+	}
+	if s.Pointer != nil {
+		r.PointerPosition = &registryv1.CapturePoint{X: int32(s.Pointer.X), Y: int32(s.Pointer.Y)}
 	}
 	if s.Window != nil {
 		r.Window = windowWire(s.Window)

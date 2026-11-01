@@ -6636,6 +6636,59 @@ func (x *CaptureRect) GetH() uint32 {
 	return 0
 }
 
+// CapturePoint is an absolute position in the desktop's logical coordinate space.
+type CapturePoint struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	X             int32                  `protobuf:"varint,1,opt,name=x,proto3" json:"x,omitempty"`
+	Y             int32                  `protobuf:"varint,2,opt,name=y,proto3" json:"y,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CapturePoint) Reset() {
+	*x = CapturePoint{}
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[91]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CapturePoint) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CapturePoint) ProtoMessage() {}
+
+func (x *CapturePoint) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[91]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CapturePoint.ProtoReflect.Descriptor instead.
+func (*CapturePoint) Descriptor() ([]byte, []int) {
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{91}
+}
+
+func (x *CapturePoint) GetX() int32 {
+	if x != nil {
+		return x.X
+	}
+	return 0
+}
+
+func (x *CapturePoint) GetY() int32 {
+	if x != nil {
+		return x.Y
+	}
+	return 0
+}
+
 // CaptureListRequest lists what can be captured. A match keeps the windows
 // whose title or application contains it, ignoring case.
 type CaptureListRequest struct {
@@ -6647,7 +6700,7 @@ type CaptureListRequest struct {
 
 func (x *CaptureListRequest) Reset() {
 	*x = CaptureListRequest{}
-	mi := &file_proto_rig_v1_registry_proto_msgTypes[91]
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[92]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6659,7 +6712,7 @@ func (x *CaptureListRequest) String() string {
 func (*CaptureListRequest) ProtoMessage() {}
 
 func (x *CaptureListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_registry_proto_msgTypes[91]
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[92]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6672,7 +6725,7 @@ func (x *CaptureListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaptureListRequest.ProtoReflect.Descriptor instead.
 func (*CaptureListRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{91}
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{92}
 }
 
 func (x *CaptureListRequest) GetMatch() string {
@@ -6696,7 +6749,7 @@ type CaptureListResponse struct {
 
 func (x *CaptureListResponse) Reset() {
 	*x = CaptureListResponse{}
-	mi := &file_proto_rig_v1_registry_proto_msgTypes[92]
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[93]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6708,7 +6761,7 @@ func (x *CaptureListResponse) String() string {
 func (*CaptureListResponse) ProtoMessage() {}
 
 func (x *CaptureListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_registry_proto_msgTypes[92]
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[93]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6721,7 +6774,7 @@ func (x *CaptureListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaptureListResponse.ProtoReflect.Descriptor instead.
 func (*CaptureListResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{92}
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{93}
 }
 
 func (x *CaptureListResponse) GetWindows() []*CaptureWindow {
@@ -6787,7 +6840,7 @@ type CaptureShotRequest struct {
 
 func (x *CaptureShotRequest) Reset() {
 	*x = CaptureShotRequest{}
-	mi := &file_proto_rig_v1_registry_proto_msgTypes[93]
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[94]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6799,7 +6852,7 @@ func (x *CaptureShotRequest) String() string {
 func (*CaptureShotRequest) ProtoMessage() {}
 
 func (x *CaptureShotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_registry_proto_msgTypes[93]
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[94]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6812,7 +6865,7 @@ func (x *CaptureShotRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaptureShotRequest.ProtoReflect.Descriptor instead.
 func (*CaptureShotRequest) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{93}
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{94}
 }
 
 func (x *CaptureShotRequest) GetTarget() string {
@@ -6935,14 +6988,19 @@ type CaptureShotResponse struct {
 	Shadow bool `protobuf:"varint,13,opt,name=shadow,proto3" json:"shadow,omitempty"`
 	// "drawn" or "hidden" when the pointer was asked for: the compositor
 	// draws none while it hides the pointer. Empty when not asked.
-	Cursor        string `protobuf:"bytes,14,opt,name=cursor,proto3" json:"cursor,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Cursor string `protobuf:"bytes,14,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	// Pixels per logical desktop pixel in the saved image.
+	ImageScale float64 `protobuf:"fixed64,15,opt,name=image_scale,json=imageScale,proto3" json:"image_scale,omitempty"`
+	// Live compositor position when the backend can provide it, even if the
+	// pointer image itself is hidden.
+	PointerPosition *CapturePoint `protobuf:"bytes,16,opt,name=pointer_position,json=pointerPosition,proto3" json:"pointer_position,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *CaptureShotResponse) Reset() {
 	*x = CaptureShotResponse{}
-	mi := &file_proto_rig_v1_registry_proto_msgTypes[94]
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[95]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6954,7 +7012,7 @@ func (x *CaptureShotResponse) String() string {
 func (*CaptureShotResponse) ProtoMessage() {}
 
 func (x *CaptureShotResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_rig_v1_registry_proto_msgTypes[94]
+	mi := &file_proto_rig_v1_registry_proto_msgTypes[95]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6967,7 +7025,7 @@ func (x *CaptureShotResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaptureShotResponse.ProtoReflect.Descriptor instead.
 func (*CaptureShotResponse) Descriptor() ([]byte, []int) {
-	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{94}
+	return file_proto_rig_v1_registry_proto_rawDescGZIP(), []int{95}
 }
 
 func (x *CaptureShotResponse) GetPath() string {
@@ -7066,6 +7124,20 @@ func (x *CaptureShotResponse) GetCursor() string {
 		return x.Cursor
 	}
 	return ""
+}
+
+func (x *CaptureShotResponse) GetImageScale() float64 {
+	if x != nil {
+		return x.ImageScale
+	}
+	return 0
+}
+
+func (x *CaptureShotResponse) GetPointerPosition() *CapturePoint {
+	if x != nil {
+		return x.PointerPosition
+	}
+	return nil
 }
 
 var File_proto_rig_v1_registry_proto protoreflect.FileDescriptor
@@ -7516,6 +7588,9 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\x01y\x18\x02 \x01(\x05R\x01y\x12\f\n" +
 	"\x01w\x18\x03 \x01(\rR\x01w\x12\f\n" +
 	"\x01h\x18\x04 \x01(\rR\x01h\"*\n" +
+	"\fCapturePoint\x12\f\n" +
+	"\x01x\x18\x01 \x01(\x05R\x01x\x12\f\n" +
+	"\x01y\x18\x02 \x01(\x05R\x01y\"*\n" +
 	"\x12CaptureListRequest\x12\x14\n" +
 	"\x05match\x18\x01 \x01(\tR\x05match\"\x9f\x01\n" +
 	"\x13CaptureListResponse\x12/\n" +
@@ -7540,7 +7615,7 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"keepShadow\x12\x16\n" +
 	"\x06cursor\x18\r \x01(\bR\x06cursor\x12\x1d\n" +
 	"\n" +
-	"inline_max\x18\x0e \x01(\rR\tinlineMax\"\x8b\x03\n" +
+	"inline_max\x18\x0e \x01(\rR\tinlineMax\"\xed\x03\n" +
 	"\x13CaptureShotResponse\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +
 	"\x06format\x18\x02 \x01(\tR\x06format\x12\x14\n" +
@@ -7556,7 +7631,10 @@ const file_proto_rig_v1_registry_proto_rawDesc = "" +
 	"\atook_ms\x18\v \x01(\rR\x06tookMs\x12\x12\n" +
 	"\x04data\x18\f \x01(\fR\x04data\x12\x16\n" +
 	"\x06shadow\x18\r \x01(\bR\x06shadow\x12\x16\n" +
-	"\x06cursor\x18\x0e \x01(\tR\x06cursor*V\n" +
+	"\x06cursor\x18\x0e \x01(\tR\x06cursor\x12\x1f\n" +
+	"\vimage_scale\x18\x0f \x01(\x01R\n" +
+	"imageScale\x12?\n" +
+	"\x10pointer_position\x18\x10 \x01(\v2\x14.rig.v1.CapturePointR\x0fpointerPosition*V\n" +
 	"\x05Depth\x12\x15\n" +
 	"\x11DEPTH_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eDEPTH_PROGRAMS\x10\x01\x12\x12\n" +
@@ -7634,7 +7712,7 @@ func file_proto_rig_v1_registry_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_rig_v1_registry_proto_enumTypes = make([]protoimpl.EnumInfo, 10)
-var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 98)
+var file_proto_rig_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 99)
 var file_proto_rig_v1_registry_proto_goTypes = []any{
 	(Depth)(0),                    // 0: rig.v1.Depth
 	(EstateRole)(0),               // 1: rig.v1.EstateRole
@@ -7737,23 +7815,24 @@ var file_proto_rig_v1_registry_proto_goTypes = []any{
 	(*CaptureWindow)(nil),         // 98: rig.v1.CaptureWindow
 	(*CaptureOutput)(nil),         // 99: rig.v1.CaptureOutput
 	(*CaptureRect)(nil),           // 100: rig.v1.CaptureRect
-	(*CaptureListRequest)(nil),    // 101: rig.v1.CaptureListRequest
-	(*CaptureListResponse)(nil),   // 102: rig.v1.CaptureListResponse
-	(*CaptureShotRequest)(nil),    // 103: rig.v1.CaptureShotRequest
-	(*CaptureShotResponse)(nil),   // 104: rig.v1.CaptureShotResponse
-	nil,                           // 105: rig.v1.ConfigSetRequest.ValuesJsonEntry
-	nil,                           // 106: rig.v1.ConfigSetResponse.OutcomeEntry
-	nil,                           // 107: rig.v1.LogRecord.AttrsEntry
-	(*v1.Identity)(nil),           // 108: rig.v1.Identity
-	(v1.Coverage)(0),              // 109: rig.v1.Coverage
-	(*v1.Command)(nil),            // 110: rig.v1.Command
-	(v1.Load)(0),                  // 111: rig.v1.Load
+	(*CapturePoint)(nil),          // 101: rig.v1.CapturePoint
+	(*CaptureListRequest)(nil),    // 102: rig.v1.CaptureListRequest
+	(*CaptureListResponse)(nil),   // 103: rig.v1.CaptureListResponse
+	(*CaptureShotRequest)(nil),    // 104: rig.v1.CaptureShotRequest
+	(*CaptureShotResponse)(nil),   // 105: rig.v1.CaptureShotResponse
+	nil,                           // 106: rig.v1.ConfigSetRequest.ValuesJsonEntry
+	nil,                           // 107: rig.v1.ConfigSetResponse.OutcomeEntry
+	nil,                           // 108: rig.v1.LogRecord.AttrsEntry
+	(*v1.Identity)(nil),           // 109: rig.v1.Identity
+	(v1.Coverage)(0),              // 110: rig.v1.Coverage
+	(*v1.Command)(nil),            // 111: rig.v1.Command
+	(v1.Load)(0),                  // 112: rig.v1.Load
 }
 var file_proto_rig_v1_registry_proto_depIdxs = []int32{
-	108, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
-	109, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
-	110, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
-	111, // 3: rig.v1.Program.load:type_name -> rig.v1.Load
+	109, // 0: rig.v1.Program.identity:type_name -> rig.v1.Identity
+	110, // 1: rig.v1.Program.coverage:type_name -> rig.v1.Coverage
+	111, // 2: rig.v1.Program.commands:type_name -> rig.v1.Command
+	112, // 3: rig.v1.Program.load:type_name -> rig.v1.Load
 	0,   // 4: rig.v1.ProgramsRequest.depth:type_name -> rig.v1.Depth
 	10,  // 5: rig.v1.ProgramsResponse.programs:type_name -> rig.v1.Program
 	1,   // 6: rig.v1.EstateResponse.role:type_name -> rig.v1.EstateRole
@@ -7794,9 +7873,9 @@ var file_proto_rig_v1_registry_proto_depIdxs = []int32{
 	81,  // 41: rig.v1.ConfigValue.winner:type_name -> rig.v1.ConfigLayerValue
 	81,  // 42: rig.v1.ConfigValue.losers:type_name -> rig.v1.ConfigLayerValue
 	82,  // 43: rig.v1.ConfigGetResponse.values:type_name -> rig.v1.ConfigValue
-	105, // 44: rig.v1.ConfigSetRequest.values_json:type_name -> rig.v1.ConfigSetRequest.ValuesJsonEntry
-	106, // 45: rig.v1.ConfigSetResponse.outcome:type_name -> rig.v1.ConfigSetResponse.OutcomeEntry
-	107, // 46: rig.v1.LogRecord.attrs:type_name -> rig.v1.LogRecord.AttrsEntry
+	106, // 44: rig.v1.ConfigSetRequest.values_json:type_name -> rig.v1.ConfigSetRequest.ValuesJsonEntry
+	107, // 45: rig.v1.ConfigSetResponse.outcome:type_name -> rig.v1.ConfigSetResponse.OutcomeEntry
+	108, // 46: rig.v1.LogRecord.attrs:type_name -> rig.v1.LogRecord.AttrsEntry
 	87,  // 47: rig.v1.LogsQueryResponse.records:type_name -> rig.v1.LogRecord
 	88,  // 48: rig.v1.LogsQueryResponse.gaps:type_name -> rig.v1.GapBand
 	87,  // 49: rig.v1.LogsIngestRequest.records:type_name -> rig.v1.LogRecord
@@ -7808,11 +7887,12 @@ var file_proto_rig_v1_registry_proto_depIdxs = []int32{
 	100, // 55: rig.v1.CaptureShotRequest.crop:type_name -> rig.v1.CaptureRect
 	98,  // 56: rig.v1.CaptureShotResponse.window:type_name -> rig.v1.CaptureWindow
 	99,  // 57: rig.v1.CaptureShotResponse.output:type_name -> rig.v1.CaptureOutput
-	58,  // [58:58] is the sub-list for method output_type
-	58,  // [58:58] is the sub-list for method input_type
-	58,  // [58:58] is the sub-list for extension type_name
-	58,  // [58:58] is the sub-list for extension extendee
-	0,   // [0:58] is the sub-list for field type_name
+	101, // 58: rig.v1.CaptureShotResponse.pointer_position:type_name -> rig.v1.CapturePoint
+	59,  // [59:59] is the sub-list for method output_type
+	59,  // [59:59] is the sub-list for method input_type
+	59,  // [59:59] is the sub-list for extension type_name
+	59,  // [59:59] is the sub-list for extension extendee
+	0,   // [0:59] is the sub-list for field type_name
 }
 
 func init() { file_proto_rig_v1_registry_proto_init() }
@@ -7826,7 +7906,7 @@ func file_proto_rig_v1_registry_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_rig_v1_registry_proto_rawDesc), len(file_proto_rig_v1_registry_proto_rawDesc)),
 			NumEnums:      10,
-			NumMessages:   98,
+			NumMessages:   99,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

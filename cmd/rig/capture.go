@@ -115,7 +115,7 @@ func cmdCaptureShot(args []string) (err error) {
 	quality := fs.Int("quality", 0, "JPEG quality, 1 to 100")
 	maxDim := fs.Int("max-dim", 0, "shrink so the longest side is at most this")
 	shadow := fs.Bool("keep-shadow", false, "keep a window's shadow margin")
-	cursor := fs.Bool("cursor", false, "draw the pointer (not for a window)")
+	cursor := fs.Bool("cursor", false, "include the pointer overlay and position when available")
 	flags, positional := partition(args)
 	if err := fs.Parse(flags); err != nil {
 		return err

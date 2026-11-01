@@ -272,6 +272,10 @@ func (s *Service) Capture(ctx context.Context, t Target, o Options) (Shot, error
 		return Shot{}, err
 	}
 	shot.Path, shot.Format, shot.Cursor = final, "png", raw.Cursor
+	shot.ImageScale = raw.Scale
+	if o.Cursor {
+		shot.Pointer = raw.Pointer
+	}
 	if o.Format == formatJPEG {
 		shot.Format = formatJPEG
 	}
