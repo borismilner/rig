@@ -468,12 +468,21 @@ func (h *handDesk) answer(a registryv1.HandAction) (*registryv1.HandState, error
 	case a == registryv1.HandAction_HAND_ACTION_STOP && (h.run != nil || h.grant != nil):
 		h.endGrant(handGrantStopped, true)
 		h.end(handStopped)
+	case h.grant != nil && !h.grant.live && legacyGrantChoice(a):
+		return nil, handRefused(rigv1.Code_CODE_INVALID,
+			"rig.hand.answer: the request states its duration; answer accept or decline")
 	default:
 		return nil, handRefused(rigv1.Code_CODE_CONFLICT,
 			"rig.hand.answer: "+handWord(a.String(), "HAND_ACTION_")+" does not apply while the desktop is "+
 				handWord(ph.String(), "HAND_PHASE_"))
 	}
 	return h.snapshot(), nil
+}
+
+func legacyGrantChoice(a registryv1.HandAction) bool {
+	return a == registryv1.HandAction_HAND_ACTION_GRANT_30S ||
+		a == registryv1.HandAction_HAND_ACTION_GRANT_60S ||
+		a == registryv1.HandAction_HAND_ACTION_GRANT_5M
 }
 
 // handWord is an enum value as he would say it: "pause", "idle".

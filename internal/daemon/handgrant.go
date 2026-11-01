@@ -17,9 +17,9 @@ import (
 //
 //	none -> asking -> live -> none
 //
-// G2. Only he opens it: hand.answer takes grant30, grant60 or grant5m, and
-// that verb is refused to a program and an agent (H5). The seat asking has
-// no verb that makes its grant live, longer, or renewed.
+// G2. Only he opens it: hand.answer accepts the requested duration or
+// declines, and that verb is refused to a program and an agent (H5). The seat
+// asking has no verb that makes its grant live, longer, or renewed.
 // G3. Silence declines. A countdown may default to consent because the
 // run is bounded by his Stop; a window he never saw is not.
 // G4. It ends at its deadline, on his stop or pause (at once), when the seat
@@ -198,8 +198,7 @@ func (h *handDesk) grantAnswered(ctx context.Context, g *handGrant) (*registryv1
 	}
 }
 
-// grantChosen is his answer to an ask: the window he picks, never longer
-// than five minutes whatever was asked.
+// grantChosen accepts the exact window the seat asked for.
 func (h *handDesk) grantChosen(d time.Duration) {
 	g := h.grant
 	g.live, g.window = true, d
@@ -235,25 +234,12 @@ func (h *handDesk) dropGrant(owner any) {
 	}
 }
 
-// grantWindow is what a button of his chooses, or zero for any other action.
-func grantWindow(a registryv1.HandAction) time.Duration {
-	switch a {
-	case registryv1.HandAction_HAND_ACTION_GRANT_30S:
-		return 30 * time.Second
-	case registryv1.HandAction_HAND_ACTION_GRANT_60S:
-		return 60 * time.Second
-	case registryv1.HandAction_HAND_ACTION_GRANT_5M:
-		return handGrantMost
-	}
-	return 0
-}
-
 // serveHandGrant is hand.grant: ask, and block through the ask.
 func (d *Daemon) serveHandGrant(ctx context.Context, c *conn, req *registryv1.HandGrantRequest) (*registryv1.HandState, error) {
 	asked := time.Duration(req.GetDurationMs()) * time.Millisecond
 	if asked < handGrantLeast || asked > handGrantMost {
 		return nil, handRefused(rigv1.Code_CODE_INVALID,
-			"rig.hand.grant: ask for 1 second to 5 minutes; he picks 30 seconds, 60 seconds or five minutes")
+			"rig.hand.grant: ask for 1 second to 5 minutes; the user accepts or declines that exact duration")
 	}
 	_, seat, _, _ := d.provenance(c)
 	// An agent's session outlives one call, so the grant ends with the
@@ -291,8 +277,8 @@ func (d *Daemon) auditHand(op string, attrs map[string]string) {
 func (h *handDesk) answerGrant(a registryv1.HandAction) bool {
 	asked := h.grant != nil && !h.grant.live
 	switch {
-	case asked && grantWindow(a) != 0:
-		h.grantChosen(grantWindow(a))
+	case asked && a == registryv1.HandAction_HAND_ACTION_GRANT_ACCEPT:
+		h.grantChosen(h.grant.asked)
 	case asked && a == registryv1.HandAction_HAND_ACTION_DECLINE:
 		h.endGrant(handGrantDeclined, false)
 	case h.grant != nil && a == registryv1.HandAction_HAND_ACTION_PAUSE && h.run == nil:

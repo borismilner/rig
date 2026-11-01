@@ -184,6 +184,10 @@ type Daemon struct {
 	// askMu guards idempotent opens and terminal question transitions.
 	askMu   sync.Mutex
 	askWake chan struct{}
+	// statusMu serializes temporary status updates with expiry and removal.
+	statusMu   sync.Mutex
+	statuses   map[string]*statusEntry
+	statusWake chan struct{}
 
 	// events is section 52's bus (events.go), and timers its clock
 	// (timers.go).
@@ -473,9 +477,11 @@ func New(cfg Config) (*Daemon, error) {
 			kept: map[string]string{}, reading: map[string]read{},
 			helloOf: map[string]*conn{}, stale: map[string]bool{},
 		},
-		audio:   cfg.Audio,
-		capture: cfg.Capture,
-		hand:    newHandDesk(time.Now),
+		audio:      cfg.Audio,
+		capture:    cfg.Capture,
+		hand:       newHandDesk(time.Now),
+		statuses:   make(map[string]*statusEntry),
+		statusWake: make(chan struct{}, 1),
 
 		settings:     cfg.Settings,
 		logLevel:     cfg.LogLevel,
@@ -671,7 +677,8 @@ func (d *Daemon) Serve(ctx context.Context, l net.Listener) (serveErr error) {
 	// about a question the last run asked (toastrestore.go).
 	d.restoreAsks(ctx)
 	waitAsks := d.startAskSweep(ctx)
-	defer func() { cancel(); waitAsks() }()
+	waitStatuses := d.startStatusSweep(ctx)
+	defer func() { cancel(); waitAsks(); waitStatuses() }()
 	d.serving.Store(&ctx)
 	// Section 54: what was kept is served at once, and the scan that
 	// updates it runs in the background, so serving never waits on it.
@@ -1202,6 +1209,8 @@ func (d *Daemon) serveSelf(ctx context.Context, c *conn, f *rigv1.Frame, command
 	// plan/55's BOARD. panel.go has the ruling and the caps.
 	case "panel.put", "panel.list", "panel.act":
 		d.servePanel(ctx, c, f, command)
+	case "status.put", "status.list", "status.remove":
+		d.serveStatus(ctx, c, f, command)
 
 	// plan/53's SHARED TABLE rides the same arm: it lives in coord.db beside
 	// the leases, and shared.go has why its writer and an owner's witness

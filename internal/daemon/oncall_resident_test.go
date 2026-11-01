@@ -31,7 +31,9 @@ func (r *onCallRig) stopStub(t *testing.T) {
 // the daemon and not a race with its departure.
 func (r *onCallRig) waitGone(t *testing.T) {
 	t.Helper()
-	deadline := time.Now().Add(3 * time.Second)
+	// A race run can load the daemon and its child enough to delay teardown;
+	// keep this bounded, but leave room beyond the fast-path observation time.
+	deadline := time.Now().Add(10 * time.Second)
 	for r.d.connected("stub") {
 		if time.Now().After(deadline) {
 			t.Fatal("the stub never disconnected")

@@ -12,8 +12,8 @@ import (
 	"github.com/borismilner/rig/proto/rig/v1/registryv1"
 )
 
-// `rig hand status|allow|decline|hold|pause|resume|stop|allow30|allow60|
-// allow5m` - the HANDS OFF strip's buttons from a terminal (plan/05 section
+// `rig hand status|allow|decline|accept|hold|pause|resume|stop` - the HANDS
+// OFF panel's buttons from a terminal (plan/05 section
 // 5m). status reads the one run; every other word is his answer to it, which
 // rigd refuses to a program and to an agent's MCP door (H5). grant and
 // ungrant are the SEAT's side of a time-boxed grant (G1-G8): grant asks and
@@ -27,20 +27,18 @@ var handActions = map[string]registryv1.HandAction{
 	"pause":   registryv1.HandAction_HAND_ACTION_PAUSE,
 	"resume":  registryv1.HandAction_HAND_ACTION_RESUME,
 	"stop":    registryv1.HandAction_HAND_ACTION_STOP,
-	// His answers to a grant's ask: the window he gives the seat.
-	"allow30": registryv1.HandAction_HAND_ACTION_GRANT_30S,
-	"allow60": registryv1.HandAction_HAND_ACTION_GRANT_60S,
-	"allow5m": registryv1.HandAction_HAND_ACTION_GRANT_5M,
+	// A grant's stated duration is fixed by the request.
+	"accept": registryv1.HandAction_HAND_ACTION_GRANT_ACCEPT,
 }
 
-const handUsage = "usage: rig hand status|allow|decline|hold|pause|resume|stop|allow30|allow60|allow5m | grant --why TEXT [--for 60s] [--scope TITLE] | ungrant"
+const handUsage = "usage: rig hand status|allow|decline|accept|hold|pause|resume|stop | grant --why TEXT [--for 60s] [--scope TITLE] | ungrant"
 
 func cmdHand(args []string) (err error) {
 	fs := flag.NewFlagSet("hand", flag.ContinueOnError)
 	asJSON := fs.Bool("json", false, "emit JSON")
 	timeout := fs.Duration("timeout", defaultCallTimeout, "how long to wait")
 	why := fs.String("why", "", "grant: what the window is for, in his terms")
-	forHow := fs.Duration("for", time.Minute, "grant: how long to ask for (at most 5m; he picks 30s, 60s or 5m)")
+	forHow := fs.Duration("for", time.Minute, "grant: the exact duration to request (1s to 5m; accept grants this duration)")
 	scope := fs.String("scope", "", "grant: a window title every step must act in")
 	flags, positional := partition(args)
 	if err := fs.Parse(flags); err != nil {
@@ -165,8 +163,8 @@ func grantLine(st *registryv1.HandState, now time.Time) string {
 	}
 	switch st.GetGrantPhase() {
 	case registryv1.HandGrantPhase_HAND_GRANT_PHASE_ASKING:
-		return fmt.Sprintf("%s asks for the desktop for a while (%s)%s; no answer in %s declines it.\n"+
-			"rig hand allow30 | allow60 | allow5m | decline", st.GetGrantSeat(), st.GetGrantReason(), scope, grantLeft(st, now))
+		return fmt.Sprintf("%s asks for the desktop for %s (%s)%s; no answer in %s declines it.\n"+
+			"rig hand accept | decline", st.GetGrantSeat(), time.Duration(st.GetGrantWindowMs())*time.Millisecond, st.GetGrantReason(), scope, grantLeft(st, now))
 	case registryv1.HandGrantPhase_HAND_GRANT_PHASE_LIVE:
 		return fmt.Sprintf("%s has the desktop granted (%s)%s for %s more; its scripts start without a countdown.\n"+
 			"rig hand pause | stop", st.GetGrantSeat(), st.GetGrantReason(), scope, grantLeft(st, now))

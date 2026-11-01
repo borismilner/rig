@@ -53,6 +53,11 @@ func selfDeclaration() kernel.Declaration {
 		"Cancels only this caller's item, queued or playing, and waits up to five seconds until it cannot play further. A repeated stop returns its terminal result. A deadline does not undo the stop; retry state or stop. A missing, evicted, foreign or pre-restart handle returns NOT_FOUND.",
 		"The handle id and terminal state. Completed means it had already finished before stop.")
 	speechStop.Duration = kernel.DurationSeconds
+	statusPut := leaseWriter("status.put", "Status put", kernel.No,
+		"Post a temporary multiline status update to Rig's edge panel",
+		"Creates an update owned by this connection or replaces one of your own by id. Text is at most 400 UTF-8 bytes and four lines. The expiry defaults to 30 seconds and may be from 1 second to 24 hours. At most four updates may be active estate-wide. Expiry removes the update; status.remove removes it early. Do not include secrets.",
+		"The update id and expiry; reuse the id to replace it or remove it later.")
+	statusPut.Sensitive = []string{"/text"}
 
 	return kernel.Declaration{
 		Identity:     kernel.Identity{ID: kernel.SelfID, Name: kernel.SelfID, Version: "0"},
@@ -501,6 +506,15 @@ func selfDeclaration() kernel.Declaration {
 				"Press one of a card's action buttons",
 				"Sends the press to the card's owner as a panel.acted event addressed to it, and files it in the record as kind card-act. The action must be one the open card offers. The presser is the calling connection.",
 				"The press as sent: card, action, who pressed and to whom."),
+			statusPut,
+			readOnly("status.list", "Status list",
+				"List the active updates shown in Rig's edge panel",
+				"Answers up to four active multiline status updates, newest changes last. Expired entries are removed before they are returned.",
+				"The active update ids, owners, text and expiry times."),
+			leaseWriter("status.remove", "Status remove", kernel.Yes,
+				"Remove a status update early",
+				"The update's owner may remove it. An interactive user may remove any update. A removed update cannot be restored; post a new update instead.",
+				"Whether the update was removed."),
 			// SECTION 12's SOUNDS AND SPEECH (plan/12, S1-S5). rig.sound
 			// writes a settings file; rig.say changes nothing but the air.
 			leaseWriter("sound", "Sound", kernel.Yes,
@@ -580,7 +594,7 @@ func selfDeclaration() kernel.Declaration {
 				"The state once the run drives; refused when he declined or held it too long."),
 			leaseWriter("hand.grant", "Hand grant", kernel.No,
 				"Ask him once for a short window in which this seat's righand scripts run without a countdown each",
-				"Asks for 1 second to 5 minutes, with a reason, and optionally a window title every step must act in. Blocks until he answers from the strip or a terminal: 30 seconds, 60 seconds, five minutes (his choice, whatever you asked), or decline. Silence for 60 seconds declines. While it is live, a righand script from this same seat starts at once, the HANDS OFF strip stays up with who, why and the seconds left, and the audit log gets the grant, each run and the end. It ends at its deadline, on his stop or pause, when you call hand.ungrant, or when this session is gone; a script still running finishes its step and stops. It is for this seat only, is never extended or renewed (ask again, and he sees it again), and does not survive a restart of rigd. One at a time, and refused while a run has the desktop.",
+				"Asks for 1 second to 5 minutes, with a reason, and optionally a window title every step must act in. The request states the exact duration; he accepts that duration or declines. Silence for 60 seconds declines. While it is live, a righand script from this same seat starts at once, the status panel stays at the screen edge with who, why and the seconds left, and the audit log gets the grant, each run and the end. It ends at its deadline, on his stop or pause, when you call hand.ungrant, or when this session is gone; a script still running finishes its step and stops. It is for this seat only, is never extended or renewed (ask again, and he sees it again), and does not survive a restart of rigd. One at a time, and refused while a run has the desktop.",
 				"The state once live, with the grant's seat, reason, scope and deadline; refused when declined or unanswered."),
 			leaseWriter("hand.ungrant", "Hand ungrant", kernel.Yes,
 				"Give this seat's grant back early",
@@ -600,7 +614,7 @@ func selfDeclaration() kernel.Declaration {
 				"The state, with its cursor."),
 			leaseWriter("hand.answer", "Hand answer", kernel.No,
 				"Allow, decline, hold, pause, resume or stop a run",
-				"His answer to the countdown or the run, or to a grant: grant30, grant60 and grant5m open the window a seat asked for, decline refuses it, allow starts it now, decline ends it, hold freezes the countdown, resume lets a held countdown run on or a paused run drive again, pause takes the desktop back, stop ends the run. Stop and pause also take back a live grant at once. Refused to a program and to an agent: only the person at the desktop answers.",
+				"His answer to the countdown, a run, or a grant. Accept grants exactly the duration stated in the request; decline refuses it. Allow starts a countdown's run now, hold freezes the countdown, resume lets a held countdown run on or a paused run drive again, pause takes the desktop back, stop ends the run. Stop and pause also take back a live grant at once. Refused to a program and to an agent: only the person at the desktop answers.",
 				"The state after it."),
 			leaseWriter("hand.strip", "Hand strip", kernel.Yes,
 				"Where the HANDS OFF strip is",

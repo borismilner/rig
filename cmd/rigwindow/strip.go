@@ -31,8 +31,6 @@ import (
 var stripPage []byte
 
 const (
-	stripWidth  = 720 // the window; the bar inside is 680 plus room for its shadow
-	stripHeight = 112
 	stripMargin = 6
 	// How long the strip stays after the run ends, so he reads how it ended.
 	stripLinger = 2500 * time.Millisecond
@@ -57,6 +55,17 @@ func (w *stripWatcher) seen(st *registryv1.HandState) {
 	if !stripBusy(st) {
 		return
 	}
+	w.ensureShown(st)
+}
+
+func (w *stripWatcher) seenStatuses(statuses []statusJSON) {
+	if len(statuses) == 0 {
+		return
+	}
+	w.ensureShown(nil)
+}
+
+func (w *stripWatcher) ensureShown(st *registryv1.HandState) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.running {
@@ -64,9 +73,11 @@ func (w *stripWatcher) seen(st *registryv1.HandState) {
 	}
 	exited, err := w.spawn()
 	if err != nil {
-		w.warn("the HANDS OFF strip would not start, using the desktop's notifications: " + err.Error())
-		if err := w.fallback(st); err != nil {
-			w.warn("the desktop's notification service refused too: " + err.Error())
+		w.warn("the status panel would not start: " + err.Error())
+		if st != nil && w.fallback != nil {
+			if err := w.fallback(st); err != nil {
+				w.warn("the desktop's notification service refused too: " + err.Error())
+			}
 		}
 		return
 	}
@@ -79,9 +90,21 @@ func (w *stripWatcher) seen(st *registryv1.HandState) {
 		w.mu.Unlock()
 		if err != nil && time.Since(started) < 5*time.Second {
 			w.warn("the HANDS OFF strip died at start, using the desktop's notifications: " + err.Error())
-			_ = w.fallback(st)
+			if st != nil && w.fallback != nil {
+				_ = w.fallback(st)
+			}
 		}
 	}()
+}
+
+func watchStatuses(w *stripWatcher) {
+	for {
+		statuses, err := listStatuses()
+		if err == nil {
+			w.seenStatuses(statuses)
+		}
+		time.Sleep(time.Second)
+	}
 }
 
 // stripBusy is true while the strip has something to show: a run, or a grant
@@ -175,21 +198,32 @@ type stripJSON struct {
 	// A grant (G1-G8), beside the run or alone: who, why, the window, and the
 	// seconds left, worked out here as the others are. GrantPhase is "asking"
 	// or "live", empty when there is none.
-	GrantPhase    string `json:"grant_phase"`
-	GrantSeat     string `json:"grant_seat"`
-	GrantReason   string `json:"grant_reason"`
-	GrantScope    string `json:"grant_scope"`
-	GrantLeftMs   int64  `json:"grant_left_ms"`
-	GrantWindowMs int64  `json:"grant_window_ms"`
-	Quit          bool   `json:"quit"`
+	GrantPhase    string       `json:"grant_phase"`
+	GrantSeat     string       `json:"grant_seat"`
+	GrantReason   string       `json:"grant_reason"`
+	GrantScope    string       `json:"grant_scope"`
+	GrantLeftMs   int64        `json:"grant_left_ms"`
+	GrantWindowMs int64        `json:"grant_window_ms"`
+	Quit          bool         `json:"quit"`
+	Statuses      []statusJSON `json:"statuses"`
+	AtTop         bool         `json:"at_top"`
+}
+
+type statusJSON struct {
+	ID    string `json:"id"`
+	Text  string `json:"text"`
+	Owner string `json:"owner"`
 }
 
 // stripFeed is the strip's state between rigd and the page.
 type stripFeed struct {
-	mu     sync.Mutex
-	st     *registryv1.HandState
-	idleAt time.Time // when the run was last seen go idle
-	answer func(registryv1.HandAction) error
+	mu       sync.Mutex
+	st       *registryv1.HandState
+	idleAt   time.Time // when the run was last seen go idle
+	answer   func(registryv1.HandAction) error
+	statuses []statusJSON
+	atTop    bool
+	height   int
 }
 
 func (f *stripFeed) set(st *registryv1.HandState, now time.Time) {
@@ -209,7 +243,13 @@ func (f *stripFeed) set(st *registryv1.HandState, now time.Time) {
 func (f *stripFeed) done(now time.Time) bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return !f.idleAt.IsZero() && now.Sub(f.idleAt) > stripLinger
+	return len(f.statuses) == 0 && !f.idleAt.IsZero() && now.Sub(f.idleAt) > stripLinger
+}
+
+func (f *stripFeed) setStatuses(statuses []statusJSON) {
+	f.mu.Lock()
+	f.statuses = statuses
+	f.mu.Unlock()
 }
 
 func (f *stripFeed) view(now time.Time) stripJSON {
@@ -220,7 +260,8 @@ func (f *stripFeed) view(now time.Time) stripJSON {
 		Phase:  strings.ToLower(strings.TrimPrefix(st.GetPhase().String(), "HAND_PHASE_")),
 		Holder: st.GetHolder(), Reason: st.GetReason(), Activity: st.GetActivity(), Note: st.GetNote(), Ended: st.GetEnded(),
 		WindowMs: int64(st.GetWindowMs()), HeldMs: int64(st.GetLeftMs()),
-		Quit: !f.idleAt.IsZero() && now.Sub(f.idleAt) > stripLinger,
+		Quit:     !f.idleAt.IsZero() && now.Sub(f.idleAt) > stripLinger,
+		Statuses: append([]statusJSON(nil), f.statuses...), AtTop: f.atTop,
 	}
 	if dl := st.GetDeadlineUnixNano(); dl != 0 {
 		out.LeftMs = max(time.Duration(dl-now.UnixNano()), 0).Milliseconds()
@@ -247,8 +288,7 @@ var stripActions = map[string]registryv1.HandAction{
 	"allow": registryv1.HandAction_HAND_ACTION_ALLOW, "decline": registryv1.HandAction_HAND_ACTION_DECLINE,
 	"hold": registryv1.HandAction_HAND_ACTION_HOLD, "pause": registryv1.HandAction_HAND_ACTION_PAUSE,
 	"resume": registryv1.HandAction_HAND_ACTION_RESUME, "stop": registryv1.HandAction_HAND_ACTION_STOP,
-	"allow30": registryv1.HandAction_HAND_ACTION_GRANT_30S, "allow60": registryv1.HandAction_HAND_ACTION_GRANT_60S,
-	"allow5m": registryv1.HandAction_HAND_ACTION_GRANT_5M,
+	"accept": registryv1.HandAction_HAND_ACTION_GRANT_ACCEPT,
 }
 
 // ServeHTTP is the page's only door to Go.
@@ -271,6 +311,41 @@ func (f *stripFeed) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
+	case "/strip/edge":
+		if r.Method != http.MethodPost {
+			http.Error(w, "POST required", http.StatusMethodNotAllowed)
+			return
+		}
+		f.mu.Lock()
+		f.atTop = !f.atTop
+		f.mu.Unlock()
+		w.WriteHeader(http.StatusNoContent)
+	case "/strip/resize":
+		if r.Method != http.MethodPost {
+			http.Error(w, "POST required", http.StatusMethodNotAllowed)
+			return
+		}
+		var req struct {
+			Height int `json:"height"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024)).Decode(&req); err != nil || req.Height < 64 || req.Height > 720 {
+			http.Error(w, "height must be 64 to 720 pixels", http.StatusBadRequest)
+			return
+		}
+		f.mu.Lock()
+		f.height = req.Height
+		f.mu.Unlock()
+		w.WriteHeader(http.StatusNoContent)
+	case "/strip/status/remove":
+		if r.Method != http.MethodPost {
+			http.Error(w, "POST required", http.StatusMethodNotAllowed)
+			return
+		}
+		if err := removeStatus(r.URL.Query().Get("id")); err != nil {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
 	default:
 		http.NotFound(w, r)
 	}
@@ -287,6 +362,36 @@ func answerHand(a registryv1.HandAction) error {
 	ctx, cancel := context.WithTimeout(context.Background(), readDeadline)
 	defer cancel()
 	return c.Call(ctx, "rig.hand.answer", &registryv1.HandAnswerRequest{Action: a}, &registryv1.HandAnswerResponse{})
+}
+
+func listStatuses() ([]statusJSON, error) {
+	c, err := client.Connect()
+	if err != nil {
+		return nil, err
+	}
+	defer c.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), readDeadline)
+	defer cancel()
+	var resp registryv1.StatusListResponse
+	if err := c.Call(ctx, "rig.status.list", &registryv1.StatusListRequest{}, &resp); err != nil {
+		return nil, err
+	}
+	out := make([]statusJSON, 0, len(resp.GetStatuses()))
+	for _, s := range resp.GetStatuses() {
+		out = append(out, statusJSON{ID: s.GetId(), Text: s.GetText(), Owner: s.GetOwner()})
+	}
+	return out, nil
+}
+
+func removeStatus(id string) error {
+	c, err := client.Connect()
+	if err != nil {
+		return err
+	}
+	defer c.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), readDeadline)
+	defer cancel()
+	return c.Call(ctx, "rig.status.remove", &registryv1.StatusRemoveRequest{Id: id}, &registryv1.StatusRemoveResponse{})
 }
 
 // runStrip is the strip process: one frameless, always-on-top bar, never
@@ -307,8 +412,8 @@ func runStrip() error {
 	})
 	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:          "Rig HANDS OFF",
-		Width:          stripWidth,
-		Height:         stripHeight,
+		Width:          1024,
+		Height:         112,
 		Hidden:         true,
 		Frameless:      true,
 		AlwaysOnTop:    true,
@@ -334,11 +439,49 @@ func runStrip() error {
 		}
 	}()
 	go func() {
-		spot := &stripSpot{}
+		t := time.NewTicker(time.Second)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				statuses, err := listStatuses()
+				if err != nil {
+					feed.setStatuses(nil)
+				} else {
+					feed.setStatuses(statuses)
+				}
+			}
+		}
+	}()
+	go func() {
+		spot := &stripSpot{height: 112}
 		defer spot.close()
 		tick := time.NewTicker(40 * time.Millisecond)
 		defer tick.Stop()
 		for range tick.C {
+			feed.mu.Lock()
+			height := feed.height
+			atTop := feed.atTop
+			feed.mu.Unlock()
+			if height > 0 && height != spot.height {
+				spot.height = height
+				spot.resize(app, win)
+			}
+			if spot.placed && atTop != spot.atTop {
+				p, has := feed.aim()
+				if has && spot.coversAt(p, atTop) {
+					// Keep the panel off the active target. The next aim change
+					// gives the requested edge another chance.
+					feed.mu.Lock()
+					feed.atTop = spot.atTop
+					feed.mu.Unlock()
+				} else {
+					spot.atTop = atTop
+					spot.move(win)
+				}
+			}
 			if feed.done(time.Now()) {
 				app.Quit()
 				return
@@ -348,6 +491,9 @@ func runStrip() error {
 			}
 			p, has := feed.aim()
 			spot.dodge(win, p, has)
+			feed.mu.Lock()
+			feed.atTop = spot.atTop
+			feed.mu.Unlock()
 		}
 	}()
 	return app.Run()
@@ -370,6 +516,8 @@ type stripSpot struct {
 	placed      bool
 	x, top, bot int
 	atTop       bool
+	height      int
+	width       int
 	c           *client.Client
 }
 
@@ -382,7 +530,15 @@ func (s *stripSpot) y() int {
 
 // covers is true when p is under the strip; rigd pads it, so this need not.
 func (s *stripSpot) covers(p stripPt) bool {
-	return p.x >= s.x && p.x < s.x+stripWidth && p.y >= s.y() && p.y < s.y()+stripHeight
+	return s.coversAt(p, s.atTop)
+}
+
+func (s *stripSpot) coversAt(p stripPt, top bool) bool {
+	y := s.bot
+	if top {
+		y = s.top
+	}
+	return p.x >= s.x && p.x < s.x+s.width && p.y >= y && p.y < y+s.height
 }
 
 // place puts the bar at the bottom centre of the primary work area.
@@ -398,8 +554,12 @@ func (s *stripSpot) place(app *application.App, win *application.WebviewWindow) 
 	}).get(); ok && x11.Width > 0 && x11.Height > 0 {
 		wa = x11
 	}
-	s.x = wa.X + (wa.Width-stripWidth)/2
-	s.top, s.bot = wa.Y+stripMargin, wa.Y+wa.Height-stripHeight-stripMargin
+	s.x, s.width = wa.X, wa.Width
+	if s.height <= 0 {
+		s.height = 112
+	}
+	s.top, s.bot = wa.Y+stripMargin, wa.Y+wa.Height-s.height-stripMargin
+	win.SetSize(s.width, s.height)
 	themeOnce.Do(func() { application.InvokeSync(clearThemeBackground) })
 	if !application.InvokeSyncWithResult(func() bool { return stripNoFocus(win, s.x, s.y()) }) {
 		fmt.Fprintln(os.Stderr, "rigwindow: the HANDS OFF strip is not an X11 window, so it cannot refuse the keyboard")
@@ -416,11 +576,16 @@ func (s *stripSpot) dodge(win *application.WebviewWindow, p stripPt, has bool) {
 	if !has || !s.covers(p) {
 		return
 	}
-	s.atTop = !s.atTop
-	if s.covers(p) {
+	next := !s.atTop
+	// Keep the UI's manual edge control synchronized with the safety move.
+	// The window may move only after confirming the other edge clears the aim.
+	if s.coversAt(p, next) {
 		return // a strip on either edge covers it: rigd refuses the step
 	}
-	application.InvokeSync(func() { stripMove(win, s.x, s.y()) })
+	s.atTop = next
+	// The render state is updated by the caller's subsequent poll; set it via
+	// the feed in the ticker loop.
+	s.move(win)
 	s.report()
 }
 
@@ -437,7 +602,7 @@ func (s *stripSpot) report() {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), readDeadline)
 		err := s.c.Call(ctx, "rig.hand.strip", &registryv1.HandStripRequest{
-			X: int32(s.x), Y: int32(s.y()), Width: stripWidth, Height: stripHeight, //nolint:gosec // screen coordinates
+			X: int32(s.x), Y: int32(s.y()), Width: int32(s.width), Height: int32(s.height), //nolint:gosec // screen coordinates
 		}, &registryv1.HandStripResponse{})
 		cancel()
 		if err == nil {
@@ -446,6 +611,30 @@ func (s *stripSpot) report() {
 		fmt.Fprintln(os.Stderr, "rigwindow: rigd did not take the strip's place: "+err.Error())
 		s.close()
 	}
+}
+
+func (s *stripSpot) move(win *application.WebviewWindow) {
+	application.InvokeSync(func() { stripMove(win, s.x, s.y()) })
+	s.report()
+}
+
+func (s *stripSpot) resize(app *application.App, win *application.WebviewWindow) {
+	scr := app.Screen.GetPrimary()
+	if scr == nil {
+		return
+	}
+	wa := scr.WorkArea
+	if x11, ok := application.InvokeSyncWithResult(func() workArea { r, ok := x11WorkArea(); return workArea{r, ok} }).get(); ok && x11.Width > 0 && x11.Height > 0 {
+		wa = x11
+	}
+	s.x, s.width = wa.X, wa.Width
+	s.height = min(s.height, max(64, wa.Height-2*stripMargin))
+	s.top, s.bot = wa.Y+stripMargin, wa.Y+wa.Height-s.height-stripMargin
+	win.SetSize(s.width, s.height)
+	if !s.placed {
+		return
+	}
+	s.move(win)
 }
 
 func (s *stripSpot) close() {

@@ -82,7 +82,11 @@ func goldenLines(t *testing.T) []string {
 			if err != nil {
 				t.Fatalf("%s: %v", md.FullName(), err)
 			}
-			lines = append(lines, fmt.Sprintf("message %s %s", md.FullName(), hex.EncodeToString(b)))
+			encoded := hex.EncodeToString(b)
+			if encoded == "" {
+				encoded = "-" // keep the zero-byte wire encoding visible without trailing whitespace
+			}
+			lines = append(lines, fmt.Sprintf("message %s %s", md.FullName(), encoded))
 		})
 		walkEnums(fd, func(ed protoreflect.EnumDescriptor) {
 			vals := ed.Values()

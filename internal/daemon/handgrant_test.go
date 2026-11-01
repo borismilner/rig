@@ -63,7 +63,7 @@ func grantPhase(h *handDesk) registryv1.HandGrantPhase {
 // G3: inside the window the seat's runs drive at once, one prompt in all, and
 // another seat still gets its own countdown.
 func TestGrantedSeatRunsWithoutACountdown(t *testing.T) {
-	h, _, _ := grantedDesk(t, registryv1.HandAction_HAND_ACTION_GRANT_30S)
+	h, _, _ := grantedDesk(t, registryv1.HandAction_HAND_ACTION_GRANT_ACCEPT)
 	for i := range 3 {
 		run, err := h.ask("righand-conn", "righand", "a", "script", 20*time.Second)
 		if err != nil {
@@ -91,7 +91,7 @@ func TestGrantedSeatRunsWithoutACountdown(t *testing.T) {
 // G4, G5: at its deadline the grant ends, a running script finishes its step
 // and is stopped at the next, and the next script asks again.
 func TestGrantExpiryEndsTheRunAtItsNextStep(t *testing.T) {
-	h, clk, events := grantedDesk(t, registryv1.HandAction_HAND_ACTION_GRANT_30S)
+	h, clk, events := grantedDesk(t, registryv1.HandAction_HAND_ACTION_GRANT_ACCEPT)
 	if _, err := h.ask("c", "righand", "a", "script", 20*time.Second); err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +141,7 @@ func TestStopAndPauseRevokeTheGrant(t *testing.T) {
 		{"pause running", registryv1.HandAction_HAND_ACTION_PAUSE, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			h, _, _ := grantedDesk(t, registryv1.HandAction_HAND_ACTION_GRANT_5M)
+			h, _, _ := grantedDesk(t, registryv1.HandAction_HAND_ACTION_GRANT_ACCEPT)
 			if tc.run {
 				if _, err := h.ask("c", "righand", "a", "script", 20*time.Second); err != nil {
 					t.Fatal(err)
@@ -177,7 +177,7 @@ func TestASeatCannotGrantExtendOrRenewItsOwn(t *testing.T) {
 		t.Fatal("a caller that left must withdraw its ask")
 	}
 	// Live: asking again is refused, so there is no renewal.
-	h, _, _ = grantedDesk(t, registryv1.HandAction_HAND_ACTION_GRANT_30S)
+	h, _, _ = grantedDesk(t, registryv1.HandAction_HAND_ACTION_GRANT_ACCEPT)
 	_, err = h.grantAsk(nil, "a", "again", "", time.Minute)
 	refusedWith(t, err, rigv1.Code_CODE_CONFLICT, "never renewed")
 	// And another seat cannot give it back.
@@ -215,20 +215,22 @@ func TestOnlyHeAnswersAGrant(t *testing.T) {
 	for _, act := range []registryv1.HandAction{registryv1.HandAction_HAND_ACTION_GRANT_30S, registryv1.HandAction_HAND_ACTION_GRANT_5M} {
 		err = prog.Call(ctx, "rig.hand.answer", &registryv1.HandAnswerRequest{Action: act}, &registryv1.HandAnswerResponse{})
 		wantCode(t, err, rigv1.Code_CODE_DENIED, "a program answering "+act.String())
+		err = person.Call(ctx, "rig.hand.answer", &registryv1.HandAnswerRequest{Action: act}, &registryv1.HandAnswerResponse{})
+		wantCode(t, err, rigv1.Code_CODE_INVALID, "a person choosing an alternate duration")
 	}
 	select {
 	case err := <-granted:
 		t.Fatalf("the ask was answered without him: %v", err)
 	case <-time.After(100 * time.Millisecond):
 	}
-	if err := person.Call(ctx, "rig.hand.answer", &registryv1.HandAnswerRequest{Action: registryv1.HandAction_HAND_ACTION_GRANT_60S}, &registryv1.HandAnswerResponse{}); err != nil {
+	if err := person.Call(ctx, "rig.hand.answer", &registryv1.HandAnswerRequest{Action: registryv1.HandAction_HAND_ACTION_GRANT_ACCEPT}, &registryv1.HandAnswerResponse{}); err != nil {
 		t.Fatal(err)
 	}
 	if err := <-granted; err != nil {
 		t.Fatalf("grant: %v", err)
 	}
-	if st := live.GetState(); st.GetGrantPhase() != registryv1.HandGrantPhase_HAND_GRANT_PHASE_LIVE || st.GetGrantWindowMs() != 60000 {
-		t.Fatalf("live state %v; want his 60 seconds, not the 30 asked", st)
+	if st := live.GetState(); st.GetGrantPhase() != registryv1.HandGrantPhase_HAND_GRANT_PHASE_LIVE || st.GetGrantWindowMs() != 30000 {
+		t.Fatalf("live state %v; accept must grant the exact 30 seconds requested", st)
 	}
 }
 
@@ -248,7 +250,7 @@ func TestAnUnansweredGrantLapsesAsDeclined(t *testing.T) {
 // G4: the session's end ends the grant and cuts its run; another session's end
 // does not.
 func TestAGrantEndsWithItsSession(t *testing.T) {
-	h, _, _ := grantedDesk(t, registryv1.HandAction_HAND_ACTION_GRANT_60S)
+	h, _, _ := grantedDesk(t, registryv1.HandAction_HAND_ACTION_GRANT_ACCEPT)
 	if _, err := h.ask("c", "righand", "a", "script", 20*time.Second); err != nil {
 		t.Fatal(err)
 	}

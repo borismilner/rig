@@ -895,7 +895,7 @@ decline or pause the time until in the hands-off mode."* So:
 | H3 | **While rig drives, the strip stays up for exactly as long, on top, and shows how long it has been driving.** Presence is the signal: gone means the desktop is his |
 | H4 | **He can take the desktop back at any moment**, from the strip or the terminal. The hand stops at the end of the current step (inside a `type`, between characters, per the park latch) and waits; only he can resume it, and he can stop the run outright instead |
 | H5 | **Only he answers.** The allow, decline, hold, take-back, resume and stop doors are refused to programs and agents, or the strip is a suggestion. Derived from his request, not his words |
-| H6 | **The strip is never under the hand.** Boris, 2026-10-01: *"The placement of the hands-off panel should not be arbitrary."* Asked, he chose this rule: it sits at the bottom centre by his panel, and before a step whose point falls under it, it moves to the other edge and the step waits until it has. A click under the strip would otherwise press its own buttons |
+| H6 | **The status panel is never under the hand.** Before a step whose point falls under it, the panel moves to the other edge and the step waits until it has. If the point is still covered, the step waits rather than clicking the panel's controls |
 | H7 | **While it drives, the strip says what it is doing, in a brief explanation.** Boris, 2026-10-01: *"When the agent is driving the desktop - the panel should show what it is doing, some brief explanation, otherwise it's too opaque to the user."* "step 3 of 8: click" alone fails this: each step carries a short line in his terms (what and why), which the strip shows beside the step count. Typed text is still never shown |
 
 **Time-boxed grants (2026-10-27).** The task as given to the seat: every script
@@ -906,14 +906,36 @@ scripts run inside it. Built on the same state machine, not beside it
 
 | # | Rule |
 |---|---|
-| G1 | **A seat asks** with `hand.grant` (MCP tool `hand_grant`, `rig hand grant --why TEXT --for 60s [--scope TITLE]`): a reason, a duration of at most 5 minutes, an optional window title. It blocks until he answers |
-| G2 | **Only he opens one.** He answers `allow30`, `allow60`, `allow5m` or `decline` from the strip or a terminal (`hand.answer`, H5: refused to programs and agents). His choice stands whatever was asked. **Silence declines** (60 seconds): a countdown may default to consent because he can stop the run, a window he never saw may not. No verb lets a seat grant, extend or renew its own: asking while one is live is refused |
+| G1 | **A seat asks** with `hand.grant` (MCP tool `hand_grant`, `rig hand grant --why TEXT --for 60s [--scope TITLE]`): a reason, the exact requested duration (1 second to 5 minutes; default 60 seconds), and an optional window title. The request displays that duration and blocks until he answers |
+| G2 | **Only he opens one.** He accepts the stated duration or declines, from the status panel or a terminal (`hand.answer`, H5: refused to programs and agents). Acceptance grants exactly the requested duration; the answer cannot change it. **Silence declines** (60 seconds): a countdown may default to consent because he can stop the run, a window he never saw may not. No verb lets a seat grant, extend or renew its own: asking while one is live is refused |
 | G3 | **While live, that seat's righand scripts start at once** with no countdown (the seat is matched on the seat rigd stamped on the call, never a request field). The strip stays up the whole window: who, why, seconds left, between scripts too. Another seat's script still gets its own countdown |
 | G4 | **It ends** at its deadline, on his `stop` or `pause` (at once, with or without a run), when the seat gives it back (`hand.ungrant`), or when the session that asked is gone (an agent's MCP session; a terminal has none, so its grant ends by the clock, stop or ungrant). Not across seats, restarts of rigd or sessions: it is daemon memory only |
 | G5 | **A running script is not cut mid-step**: when the grant ends under it, it finishes the step in hand and the gate before the next step ends the run ("the grant ran out") |
 | G6 | **Scope is enforced**: with a window title, righand refuses before the first event any script with a `window` step for another title, a `screen` step, or an act before a window step; at run time a window the title resolves to must contain the scope too, and the existing per-step lock holds every click and keystroke to it. **Title only**: the hand sees window titles, not applications, so an app scope is not offered |
 | G7 | **Every grant, run and end is audited** (rigd's usage log: `hand grant asked`, `grant live`, `grant ended`, `run started`, `run ended`) with the seat, reason, scope and length; righand still logs a script's shape, never typed text |
 | G8 | **One grant at a time**, refused while a run has the desktop, and a run's asking is refused while a grant waits for his answer |
+
+### 5n. The status panel: shared work updates at the edge of the screen
+
+The status panel is one non-modal, always-on-top window spanning the full
+work-area width, aligned to the top or bottom edge. It defaults to the bottom;
+the user can move it to the other edge at any time. Its height follows the
+visible content. It shows every visible line without scrolling.
+
+It carries the HANDS OFF request and active run/grant state alongside transient
+updates sent by Rig components. A grant request shows its exact duration and
+offers only **Accept** and **Decline**. After acceptance, the request becomes a
+compact edge status with remaining time and controls to take back or stop the
+grant; it never remains as a centered overlay.
+
+`status.put`, `status.list`, and `status.remove` are the shared update contract.
+An update has an owner, text of at most 400 UTF-8 bytes and four lines, an id,
+and an expiry no longer than 24 hours. Its owner may replace or remove it; the
+user may remove any update. Rig removes expired updates automatically and
+publishes each change so the panel catches up after reconnects. Limit active
+updates to four so the non-scrollable panel stays bounded. Updates live only in
+daemon memory and disappear on a daemon restart; status text is not a place for
+secrets.
 
 **Boris, 2026-10-01: the hand is part of rig, and the window shows it so.**
 Asked what the "Hand" program was, he said *"I thought it is part of the rig

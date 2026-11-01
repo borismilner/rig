@@ -1,215 +1,35 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<title>Rig HANDS OFF</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rig status</title>
 <style>
-/* The toasts' dark tokens (design/theme.js DEFAULTS); the phase picks the hue:
-   asking info, held dim, driving warn, paused good. */
-:root {
-  --glass: rgba(20, 25, 32, .94); --line: rgba(255,255,255,.08);
-  --fg: #eef3f9; --fg-dim: #9fb0c4; --on-hue: #0d1117;
-  --sem-info: #8fc2fb; --sem-good: #92cf9a; --sem-warn: #e9bd78; --sem-bad: #f7a59c;
-  --sans: "Inter Tight", Cantarell, ui-sans-serif, system-ui, sans-serif;
-}
-html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
-body { font: 14px/1.3 var(--sans); color: var(--fg); -webkit-user-select: none; user-select: none;
-       -webkit-font-smoothing: antialiased; display: flex; justify-content: center; align-items: center; }
-
-#bar {
-  --hue: var(--sem-info);
-  box-sizing: border-box; width: 680px; height: 84px; position: relative; overflow: hidden;
-  display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: center; column-gap: 16px;
-  padding: 0 16px 0 16px; border-radius: 18px;
-  /* the phase's hue glows in from the left, behind the ring */
-  background:
-    radial-gradient(120px 90px at 42px 50%, color-mix(in srgb, var(--hue) 22%, transparent), transparent 70%),
-    var(--glass);
-  border: 1px solid var(--line);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 14px 32px -10px rgba(0,0,0,.7), 0 2px 8px rgba(0,0,0,.35);
-  transition: opacity .3s;
-}
-body[data-phase=held]    #bar { --hue: var(--fg-dim); }
-body[data-phase=driving] #bar, body[data-phase=grant_live] #bar { --hue: var(--sem-warn); }
-body[data-phase=paused]  #bar { --hue: var(--sem-good); }
-body[data-phase=idle]    #bar { opacity: .85; }
-
-/* The ring: a countdown while it asks, a turning arc while it drives, whole
-   once the desktop is his again. */
-#orb { position: relative; width: 52px; height: 52px; }
-#orb svg.ring { position: absolute; inset: 0; transform: rotate(-90deg); }
-#orb .track { fill: none; stroke: rgba(255,255,255,.10); stroke-width: 3.5; }
-#orb .arc   { fill: none; stroke: var(--hue); stroke-width: 3.5; stroke-linecap: round;
-              transition: stroke-dashoffset .25s linear; }
-body[data-phase=driving] #orb svg.ring, body[data-phase=grant_live] #orb svg.ring { animation: turn 1.4s linear infinite; }
-@keyframes turn { from { transform: rotate(-90deg); } to { transform: rotate(270deg); } }
-#icon { position: absolute; inset: 13px; color: var(--hue); }
-#icon svg { width: 26px; height: 26px; display: block; }
-
-#text { min-width: 0; }
-#eyebrow { font-size: 11.5px; font-weight: 750; letter-spacing: .08em;
-           color: var(--hue); display: flex; align-items: center; gap: 7px; }
-#eyebrow .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--hue); display: none; }
-body[data-phase=driving] #eyebrow .dot, body[data-phase=grant_live] #eyebrow .dot { display: block; animation: pulse 1.2s ease-in-out infinite; }
-@keyframes pulse { 50% { opacity: .25; } }
-#title { font-size: 16.5px; font-weight: 640; margin-top: 3px;
-         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#meta  { color: var(--fg-dim); font-size: 13px; margin-top: 3px;
-         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#meta:empty { display: none; }
-#err   { color: var(--sem-bad); font-size: 12.5px; margin-top: 2px;
-         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#err:empty { display: none; }
-
-#buttons { display: flex; gap: 8px; }
-button { font: 620 13.5px/1 var(--sans); height: 36px; padding: 0 15px; border-radius: 10px; cursor: pointer;
-         color: var(--fg); background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
-         transition: background .12s, filter .12s, color .12s; }
-button:hover { background: rgba(255,255,255,.12); }
-button.primary { color: var(--on-hue); background: var(--hue); border-color: transparent;
-                 box-shadow: 0 4px 14px -4px color-mix(in srgb, var(--hue) 70%, transparent); }
-button.primary:hover { filter: brightness(1.08); }
-button.danger { color: var(--sem-bad); border-color: color-mix(in srgb, var(--sem-bad) 35%, transparent);
-                background: color-mix(in srgb, var(--sem-bad) 8%, transparent); }
-button.danger:hover { color: var(--on-hue); background: var(--sem-bad); }
-</style>
-</head>
-<body data-phase="idle">
-<div id="bar" role="alert">
-  <div id="orb">
-    <svg class="ring" viewBox="0 0 52 52"><circle class="track" cx="26" cy="26" r="23"/><circle class="arc" id="arc" cx="26" cy="26" r="23"/></svg>
-    <div id="icon"></div>
-  </div>
-  <div id="text">
-    <div id="eyebrow"><span class="dot"></span><span id="phase"></span></div>
-    <div id="title" dir="auto"></div>
-    <div id="meta" dir="auto"></div>
-    <div id="err"></div>
-  </div>
-  <div id="buttons"></div>
-</div>
+:root{color-scheme:dark light;--glass:rgba(20,25,32,.97);--line:rgba(255,255,255,.22);--fg:#d8e1ec;--dim:#b4c1d0;--info:#8fc2fb;--on-info:#0d1117;--good:#92cf9a;--warn:#e9bd78;--bad:#f7a59c;--sans:Inter,Cantarell,ui-sans-serif,system-ui,sans-serif}
+@media(prefers-color-scheme:light){:root{--glass:rgba(246,248,251,.98);--line:rgba(38,51,65,.28);--fg:#263341;--dim:#4c5a68;--info:#2f577f;--on-info:#fff;--good:#297029;--warn:#75622b;--bad:#8e3024}}
+*{box-sizing:border-box}html,body{margin:0;width:100%;background:transparent;color:var(--fg);font:14px/1.4 var(--sans);overflow:hidden}body{padding:0}#panel{width:100%;background:var(--glass);border:1px solid var(--line);border-radius:0;box-shadow:0 5px 20px #0008;padding:8px 14px;display:grid;gap:7px}.row{min-height:42px;display:flex;align-items:center;gap:12px}.main{flex:1;min-width:0}.label{color:var(--info);font-size:12px;font-weight:750;letter-spacing:.04em}.title{font-weight:650;font-size:15px;overflow-wrap:anywhere}.meta{color:var(--dim);overflow-wrap:anywhere}.statuses{display:grid;gap:5px}.status{display:flex;align-items:flex-start;gap:10px;border-top:1px solid var(--line);padding-top:7px;white-space:pre-wrap;overflow-wrap:anywhere}.status .text{flex:1;min-width:0}.owner{color:var(--dim);font-size:12px;white-space:nowrap}.controls{display:flex;gap:6px;align-items:center;flex-shrink:0}button{font:600 13px/1 var(--sans);min-height:34px;padding:0 12px;border-radius:8px;color:var(--fg);background:#ffffff0e;border:1px solid #ffffff2b;cursor:pointer}button:hover{background:#ffffff20}button.primary{color:var(--on-info);background:var(--info);border-color:transparent}button.danger{color:var(--bad)}button.edge{min-width:86px}.error{color:var(--bad);font-size:12px}#statuses:empty{display:none}
+</style></head>
+<body><main id="panel" role="region" aria-label="Rig status panel">
+<section id="hand" class="row" hidden><div class="main"><div id="phase" class="label"></div><div id="title" class="title"></div><div id="meta" class="meta"></div><div id="err" class="error"></div></div><div id="buttons" class="controls"></div></section>
+<section id="statuses" class="statuses" aria-live="polite"></section>
+<div class="row" style="min-height:34px;justify-content:flex-end"><button id="edge" class="edge" type="button">Move to top</button></div>
+</main>
 <script>
-"use strict";
-const $ = (id) => document.getElementById(id);
-const RING = 2 * Math.PI * 23;
-
-// A duration as he reads it: "14s", "2:05".
-function dur(ms) {
-  const s = Math.max(0, Math.ceil(ms / 1000));
-  return s < 60 ? s + "s" : Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
-}
-const join = (...parts) => parts.filter(Boolean).join(" · ");
-
-// The glyph in the ring, by phase: the pointer asks and drives, a clock is
-// held, a person has the desktop back.
-const svg = (d) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
-  'stroke-linecap="round" stroke-linejoin="round">' + d + "</svg>";
-const ICONS = {
-  pointer: svg('<path d="M5 3l14 7.5-6.2 1.7L10 18.5z" fill="currentColor" fill-opacity=".25"/>'),
-  clock: svg('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
-  person: svg('<circle cx="12" cy="8" r="3.6"/><path d="M5 20c.8-3.8 3.6-5.6 7-5.6s6.2 1.8 7 5.6"/>'),
-  done: svg('<path d="M5.5 12.5l4.2 4.2L18.5 8"/>'),
+"use strict";const $=id=>document.getElementById(id);let key="",lastHeight=0,atTop=false;
+function dur(ms){const s=Math.max(0,Math.ceil(ms/1000));return s<60?s+"s":Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
+const join=(...x)=>x.filter(Boolean).join(" · ");
+const phases={
+ asking:s=>["STARTS IN "+dur(s.left_ms),s.holder+" wants the desktop",join(s.reason,"starts unless you answer"),[["allow","Allow now","primary"],["hold","Hold",""],["decline","Decline","danger"]]],
+ held:s=>["ON HOLD · "+dur(s.held_ms)+" left",s.holder+" is waiting",join(s.reason,"declines in "+dur(s.left_ms)),[["resume","Let it run","primary"],["decline","Decline","danger"]]],
+ driving:s=>["HANDS OFF · "+dur(s.since_ms),s.note||s.holder+" is driving",join(s.activity,s.reason),[["pause","Take back","primary"],["stop","Stop","danger"]]],
+ paused:s=>["PAUSED · ends in "+dur(s.left_ms),"The desktop is yours again",join(s.holder,s.note),[["resume","Resume","primary"],["stop","Stop","danger"]]],
+ grant_asking:s=>["REQUESTED · "+dur(s.grant_window_ms)+" access · expires in "+dur(s.grant_left_ms),s.grant_seat+" requests desktop control",join(s.grant_reason,s.grant_scope?"Only window titled “"+s.grant_scope+"”":"","Silence declines"),[["accept","Accept "+dur(s.grant_window_ms),"primary"],["decline","Decline","danger"]]],
+ grant_live:s=>["CONTROL GRANTED · "+dur(s.grant_left_ms)+" left",s.grant_seat+" has desktop control",join(s.grant_reason,s.grant_scope),[["pause","Take back","primary"],["stop","Stop","danger"]]],
+ idle:s=>["RECENTLY ENDED",s.holder+": "+(s.ended||"over"),"",[]]
 };
-
-// Each phase: ring fill (0-1), icon, eyebrow, title, meta line, and its
-// buttons [word, label, class]. What the run is for leads while it drives (H7).
-const PHASES = {
-  asking: (s) => ({
-    ring: s.window_ms ? s.left_ms / s.window_ms : 0, icon: "pointer",
-    phase: "STARTS IN " + dur(s.left_ms),
-    title: s.holder + " wants the desktop",
-    meta: join(s.reason, "starts by itself unless you answer"),
-    buttons: [["allow", "Allow now", "primary"], ["hold", "Hold", ""], ["decline", "Decline", "danger"]],
-  }),
-  held: (s) => ({
-    ring: 1, icon: "clock",
-    phase: "ON HOLD · " + dur(s.held_ms) + " left",
-    title: s.holder + " is waiting for you",
-    meta: join(s.reason, "declines itself in " + dur(s.left_ms)),
-    buttons: [["resume", "Let it run", "primary"], ["decline", "Decline", "danger"]],
-  }),
-  driving: (s) => ({
-    ring: .28, icon: "pointer",
-    phase: "HANDS OFF · " + dur(s.since_ms),
-    title: s.note || s.holder + " is driving the desktop",
-    meta: join(s.note ? s.holder : "", s.activity, s.reason),
-    buttons: [["pause", "Take back", "primary"], ["stop", "Stop", "danger"]],
-  }),
-  paused: (s) => ({
-    ring: 1, icon: "person",
-    phase: "PAUSED · the run ends itself in " + dur(s.left_ms),
-    title: "The desktop is yours again",
-    meta: join(s.holder + (s.activity ? " stopped at " + s.activity : " stopped"), s.note),
-    buttons: [["resume", "Resume", "primary"], ["stop", "Stop", "danger"]],
-  }),
-  // A grant with no run in hand: asked for, or live between two scripts.
-  grant_asking: (s) => ({
-    ring: s.grant_window_ms ? s.grant_left_ms / s.grant_window_ms : 0, icon: "pointer",
-    phase: "ASKED · declines itself in " + dur(s.grant_left_ms),
-    title: s.grant_seat + " asks for the desktop for a while",
-    meta: join(s.grant_reason, s.grant_scope ? "only in a window titled " + s.grant_scope : "", "silence declines"),
-    buttons: [["allow30", "30 s", "primary"], ["allow60", "60 s", "primary"], ["allow5m", "5 min", "primary"], ["decline", "Decline", "danger"]],
-  }),
-  grant_live: (s) => ({
-    ring: s.grant_window_ms ? s.grant_left_ms / s.grant_window_ms : 0, icon: "pointer",
-    phase: "HANDS OFF · granted · " + dur(s.grant_left_ms) + " left",
-    title: s.grant_seat + " has the desktop for a while",
-    meta: join(s.grant_reason, s.grant_scope ? "only in a window titled " + s.grant_scope : ""),
-    buttons: [["pause", "Take back", "primary"], ["stop", "Stop", "danger"]],
-  }),
-  idle: (s) => ({
-    ring: 1, icon: "done",
-    phase: "DONE",
-    title: s.holder ? s.holder + ": " + (s.ended || "over") : "Nobody has the desktop",
-    meta: "", buttons: [],
-  }),
-};
-
-let shownButtons = "", shownIcon = "";
-async function answer(word) {
-  $("err").textContent = "";
-  const r = await fetch("/strip/answer?action=" + word, { method: "POST" });
-  if (!r.ok) $("err").textContent = (await r.text()).trim();
-  poll();
-}
-
-function draw(s) {
-  // A grant shows beside a run that drives under it, and alone while idle.
-  if (s.phase === "idle" && s.grant_phase) s.phase = "grant_" + s.grant_phase;
-  const v = (PHASES[s.phase] || PHASES.idle)(s);
-  if (s.phase === "driving" && s.grant_phase === "live") {
-    v.phase += " · granted, " + dur(s.grant_left_ms) + " left";
-    v.ring = s.grant_window_ms ? s.grant_left_ms / s.grant_window_ms : v.ring;
-  }
-  document.body.dataset.phase = s.phase;
-  $("arc").style.strokeDasharray = RING;
-  $("arc").style.strokeDashoffset = RING * (1 - Math.min(1, Math.max(0, v.ring)));
-  if (v.icon !== shownIcon) { shownIcon = v.icon; $("icon").innerHTML = ICONS[v.icon]; }
-  $("phase").textContent = v.phase;
-  $("title").textContent = v.title;
-  $("meta").textContent = v.meta;
-  // Rebuilt only when the set changes, so a press is never lost to a redraw.
-  const key = s.phase + v.buttons.map((b) => b[0]).join();
-  if (key !== shownButtons) {
-    shownButtons = key;
-    $("buttons").replaceChildren(...v.buttons.map(([word, label, cls]) => {
-      const b = document.createElement("button");
-      b.textContent = label;
-      b.className = cls;
-      b.onclick = () => answer(word);
-      return b;
-    }));
-  }
-}
-
-async function poll() {
-  try {
-    const r = await fetch("/strip/poll");
-    draw(await r.json());
-  } catch (e) { /* the process is ending */ }
-}
-setInterval(poll, 250);
-poll();
-</script>
-</body>
-</html>
+async function post(path){const r=await fetch(path,{method:"POST"});if(!r.ok)$("err").textContent=(await r.text()).trim();poll()}
+function draw(s){atTop=s.at_top;$("edge").textContent=atTop?"Move to bottom":"Move to top";let phase=s.phase;if(phase==="idle"&&s.grant_phase)phase="grant_"+s.grant_phase;const active=phase!=="idle"||s.holder||s.ended;$("hand").hidden=!active;if(active){const [a,b,c,buttons]=(phases[phase]||phases.idle)(s);$("phase").textContent=a;$("title").textContent=b;$("meta").textContent=c;const k=phase+buttons.map(x=>x[0]).join();if(k!==key){key=k;$("buttons").replaceChildren(...buttons.map(([word,label,cls])=>{const x=document.createElement("button");x.type="button";x.textContent=label;x.className=cls;x.onclick=()=>post("/strip/answer?action="+word);return x}))}}
+const host=$("statuses"),ids=s.statuses.map(x=>x.id).join("|");if(host.dataset.ids!==ids||host.dataset.text!==s.statuses.map(x=>x.text+x.owner).join("\n")){host.dataset.ids=ids;host.dataset.text=s.statuses.map(x=>x.text+x.owner).join("\n");host.replaceChildren(...s.statuses.map(x=>{const row=document.createElement("div");row.className="status";const text=document.createElement("div");text.className="text";text.textContent=x.text;const owner=document.createElement("span");owner.className="owner";owner.textContent=x.owner;const btn=document.createElement("button");btn.type="button";btn.className="danger";btn.textContent="Dismiss";btn.setAttribute("aria-label","Dismiss update from "+x.owner);btn.onclick=()=>post("/strip/status/remove?id="+encodeURIComponent(x.id));row.append(text,owner,btn);return row}))}
+requestAnimationFrame(()=>{const h=Math.ceil($("panel").getBoundingClientRect().height);if(h!==lastHeight){lastHeight=h;fetch("/strip/resize",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({height:h})})}})}
+async function poll(){try{const r=await fetch("/strip/poll");draw(await r.json())}catch{}}
+$("edge").onclick=()=>post("/strip/edge");setInterval(poll,500);poll();
+</script></body></html>
