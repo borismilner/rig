@@ -119,6 +119,13 @@ func TestRealShell(t *testing.T) {
 				live.Pointer.X >= outs[0].X+outs[0].W || live.Pointer.Y >= outs[0].Y+outs[0].H {
 				t.Errorf("live pointer %+v is outside logical output %+v", live.Pointer, outs[0])
 			}
+			var pointerX, pointerY int32
+			if err := conn.Object(busName, busPath).Call(busIface+".GetPointerPosition", 0).Store(&pointerX, &pointerY); err != nil {
+				t.Errorf("live pointer API: %v", err)
+			} else if pointerX < int32(outs[0].X) || pointerY < int32(outs[0].Y) ||
+				pointerX >= int32(outs[0].X+outs[0].W) || pointerY >= int32(outs[0].Y+outs[0].H) {
+				t.Errorf("live pointer API returned %d,%d outside logical output %+v", pointerX, pointerY, outs[0])
+			}
 			plain, err := svc.Capture(ctx, Target{Kind: KindArea, Area: Rect{X: 0, Y: 0, W: 300, H: 300}}, Options{})
 			if err != nil || plain.Cursor != "" || plain.SHA256 == drawn.SHA256 {
 				t.Errorf("without --cursor the picture must differ and say nothing: %+v, %v", plain, err)

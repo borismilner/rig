@@ -19,8 +19,9 @@ RIG_SHELL_E2E_SECONDARY=1 WAYLAND_DISPLAY=wayland-rigtest GDK_BACKEND=wayland \
   gjs "$REPO/tools/shellcapture-e2e/client.js" > "$S/secondary.log" 2>&1 &
 OTHER=$!
 sleep 4
-(cd "$REPO" && RIG_SHELL_E2E=1 RIG_SHELL_E2E_PID="$CL" \
-  RIG_SHELL_E2E_OTHER_PID="$OTHER" go test ./internal/capture -run TestRealShell -count=1 -v)
+(cd "$REPO" && RIG_SHELL_E2E=1 RIG_HAND_E2E=1 RIG_SHELL_E2E_PID="$CL" \
+  RIG_SHELL_E2E_OTHER_PID="$OTHER" go test ./internal/capture ./internal/hand \
+  -run 'TestRealShell|TestRealWaylandPointer' -count=1 -v)
 rc=$?
 kill $CL $OTHER $SH 2>/dev/null; wait 2>/dev/null
 exit $rc

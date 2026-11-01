@@ -23,6 +23,7 @@ const REPLY_TIMEOUT_S = 20;
 
 const XML = `<node><interface name="org.rig.Capture">
 <method name="Version"><arg type="u" direction="out" name="api"/><arg type="s" direction="out" name="shell"/></method>
+<method name="GetPointerPosition"><arg type="i" direction="out" name="x"/><arg type="i" direction="out" name="y"/></method>
 <method name="ListWindows"><arg type="s" direction="out" name="json"/></method>
 <method name="ListOutputs"><arg type="s" direction="out" name="json"/></method>
 <method name="CaptureWindow"><arg type="t" direction="in" name="id"/><arg type="s" direction="in" name="path"/><arg type="s" direction="out" name="json"/></method>
@@ -121,6 +122,10 @@ export default class RigCapture extends Extension {
         });
         this._impl = Gio.DBusExportedObject.wrapJSObject(XML, {
             Version: () => [API, PACKAGE_VERSION],
+            GetPointerPosition: () => {
+                const [x, y] = global.get_pointer();
+                return [Math.round(x), Math.round(y)];
+            },
             ListWindows: () => JSON.stringify(windows().map(windowInfo)),
             ListOutputs: () => JSON.stringify(outputs()),
             SetDebugBrowserPID: (pid, startTicks) => this._setDebugBrowserPID(pid, startTicks),

@@ -35,12 +35,10 @@ package hand
 // to list, locate or raise another application's windows. Without it, screen
 // scripts still run and `window TITLE` fails saying what to install.
 //
-// What Wayland takes away, stated so nobody relies on it:
+// Wayland's shell extension reports the live pointer and window geometry.
+// Without it, the pointer position cannot be trusted and window targeting is
+// unavailable, so opening the backend fails closed.
 //
-//   - The pointer position cannot be read. agentbox knows where it put the
-//     pointer and starts from XWayland's last known position, which is stale if
-//     the human has since moved over a Wayland window. Coordinates relative to
-//     the pointer are relative to where agentbox last put it.
 //   - The stacking order is not exposed, so "which window is under the pointer"
 //     is judged from the focused window and the target's rectangle rather than
 //     read from the server. After a raise the target is on top, which is what
@@ -116,22 +114,6 @@ func onWayland() bool {
 	return err == nil && r != nil && r.Present
 }
 
-// xwaylandPointer is the best available guess at where the pointer is when a
-// script starts: XWayland's last known position.
-func xwaylandPointer() (Pt, bool) {
-	conn, err := xgb.NewConn()
-	if err != nil {
-		return Pt{}, false
-	}
-	defer conn.Close()
-	root := xproto.Setup(conn).DefaultScreen(conn).Root
-	r, err := xproto.QueryPointer(conn, root).Reply()
-	if err != nil || r == nil {
-		return Pt{}, false
-	}
-	return Pt{X: int(r.RootX), Y: int(r.RootY)}, true
-}
-
 func openWayland(seed int64) (*Hand, error) {
 	bus, err := dbus.ConnectSessionBus()
 	if err != nil {
@@ -155,12 +137,23 @@ func openWayland(seed int64) (*Hand, error) {
 		seed = time.Now().UnixNano()
 	}
 	h.rnd = rand.New(rand.NewSource(seed)) //nolint:gosec // motion jitter, not a secret
-	if p, ok := xwaylandPointer(); ok {
-		wl.pos = p
-	} else {
-		wl.pos = Pt{X: h.screen.X + h.screen.W/2, Y: h.screen.Y + h.screen.H/2}
+	p, err := wl.pointer()
+	if err != nil {
+		wl.close()
+		return nil, err
 	}
+	wl.pos = p
 	return h, nil
+}
+
+func (wl *wlSession) pointer() (Pt, error) {
+	var x, y int32
+	err := wl.bus.Object("org.rig.Capture", "/org/rig/Capture").Call(
+		"org.rig.Capture.GetPointerPosition", 0).Store(&x, &y)
+	if err != nil {
+		return Pt{}, fmt.Errorf("reading the live pointer from GNOME Shell: %w", err)
+	}
+	return Pt{X: int(x), Y: int(y)}, nil
 }
 
 // start opens a remote-desktop session with one screen-cast stream per monitor

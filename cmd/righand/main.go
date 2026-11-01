@@ -376,15 +376,14 @@ func declaration() *rigv1.Declaration {
 			}),
 			cmd(&rigv1.Command{
 				Id: "where", Title: "Where the pointer is", Summary: "The pointer and the screen box",
-				Description: "On Wayland the pointer cannot be read; this is where the hand last put it, " +
-					"or XWayland's last known position.",
-				Returns:    "The pointer and the screen.",
-				Args:       []byte(`{"type":"object","properties":{}}`),
-				Effects:    rigv1.Effects_EFFECTS_READ_ONLY,
-				Idempotent: rigv1.Tristate_TRISTATE_YES,
-				Sensitive:  &rigv1.SensitiveFields{},
-				Duration:   rigv1.Duration_DURATION_INSTANT,
-				Confirms:   rigv1.Tristate_TRISTATE_NO,
+				Description: "Returns the live pointer position from GNOME Shell on Wayland, or X11's pointer position.",
+				Returns:     "The pointer and the screen.",
+				Args:        []byte(`{"type":"object","properties":{}}`),
+				Effects:     rigv1.Effects_EFFECTS_READ_ONLY,
+				Idempotent:  rigv1.Tristate_TRISTATE_YES,
+				Sensitive:   &rigv1.SensitiveFields{},
+				Duration:    rigv1.Duration_DURATION_INSTANT,
+				Confirms:    rigv1.Tristate_TRISTATE_NO,
 			}),
 		},
 	}

@@ -250,7 +250,12 @@ func (h *Hand) trace(format string, args ...any) {
 // Pointer is where the pointer is now, in root coordinates.
 func (h *Hand) Pointer() (Pt, error) {
 	if h.wl != nil {
-		return h.wl.pos, nil
+		at, err := h.wl.pointer()
+		if err != nil {
+			return Pt{}, err
+		}
+		h.wl.pos = at
+		return at, nil
 	}
 	r, err := xproto.QueryPointer(h.conn, h.root).Reply()
 	if err != nil {
